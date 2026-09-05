@@ -1,7 +1,21 @@
 <template>
   <div class="dashboard-layout">
+    <!-- MOBILE TOPBAR -->
+    <div class="mobile-topbar">
+      <button class="menu-btn" type="button" aria-label="Toggle menu" @click="isSidebarOpen = !isSidebarOpen">
+        <Menu :size="22" />
+      </button>
+      <div class="mobile-brand">
+        <Leaf class="logo-icon" :size="18" />
+        <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
+      </div>
+    </div>
+
+    <!-- MOBILE OVERLAY -->
+    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="isSidebarOpen = false"></div>
+
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ 'sidebar-open': isSidebarOpen }">
       <div class="sidebar-brand">
         <Leaf class="logo-icon" :size="20" />
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
@@ -23,6 +37,7 @@
           :to="item.to"
           class="nav-item"
           :class="{ active: route.path === item.to }"
+          @click="isSidebarOpen = false"
         >
           <component :is="item.icon" class="nav-icon" :size="17" />
           <span class="nav-label">{{ item.label }}</span>
@@ -36,6 +51,7 @@
           :to="item.to"
           class="nav-item"
           :class="{ active: route.path === item.to }"
+          @click="isSidebarOpen = false"
         >
           <component :is="item.icon" class="nav-icon" :size="17" />
           <span class="nav-label">{{ item.label }}</span>
@@ -79,12 +95,16 @@
 import {
   Leaf, LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, CalendarDays, FileText, MessageCircle,
-  Wallet, Star, UserCog, Languages, LogOut, MessageSquare, Bell, User
+  Wallet, Star, UserCog, Languages, LogOut, MessageSquare, Bell, User, Menu
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const auth = useAuthStore()
 const todayLabel = 'Friday, May 15, 2026'
+const isSidebarOpen = ref(false)
+
+// Close the mobile sidebar automatically on route change (e.g. browser back/forward).
+watch(() => route.path, () => { isSidebarOpen.value = false })
 
 // Page title comes from each page's definePageMeta({ title: '...' })
 const pageTitle = computed(() => route.meta.title || 'Dashboard')
@@ -231,4 +251,54 @@ function handleLogout() {
 .avatar-btn { border-radius: 50%; }
 
 .content { flex: 1; overflow-y: auto; padding: 24px 100px 100px; }
+
+/* MOBILE TOPBAR — hidden on desktop, shown only under the breakpoint below */
+.mobile-topbar { display: none; }
+
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #14301a;
+    color: #fff;
+    padding: 14px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .menu-btn {
+    background: none; border: none; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 4px;
+  }
+  .mobile-brand { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; }
+
+  .dashboard-layout { flex-direction: column; height: auto; min-height: 100vh; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+  }
+  .sidebar.sidebar-open { transform: translateX(0); }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 35;
+  }
+
+  .main-column { height: auto; overflow: visible; }
+  .content { padding: 20px 16px 60px; }
+}
 </style>
