@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Availability — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .day-row { background: #fff; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 18px 22px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .day-row.blocked { opacity: 0.6; }
+  .day-name { width: 110px; font-weight: 700; color: var(--forest-700); flex-shrink: 0; }
+  .slot-chip { background: var(--forest-tint); border-radius: var(--radius-pill); padding: 6px 14px; font-size: 0.82rem; font-weight: 600; color: var(--forest-700); display: inline-flex; align-items: center; gap: 8px; }
+  .slot-chip i { cursor: pointer; color: var(--ink-faint); }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="rnd-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="patient-panel.html"><i class="bi bi-people-fill"></i> My Patients</a>
+    <a href="rnd-appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="ncp-assessment.html"><i class="bi bi-clipboard2-pulse"></i> NCP Records</a>
+    <a href="food-exchange-search.html"><i class="bi bi-search-heart"></i> Food Exchange Search</a>
+    <a href="meal-plan-builder.html"><i class="bi bi-egg-fried"></i> Meal Plans</a>
+    <a href="rnd-availability.html" class="active"><i class="bi bi-calendar-week"></i> Availability</a>
+    <a href="resource-upload.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="rnd-earnings.html"><i class="bi bi-cash-coin"></i> Earnings</a>
+    <a href="reviews.html"><i class="bi bi-star-fill"></i> Reviews</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="rnd-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="rnd-languages.html"><i class="bi bi-translate"></i> Languages</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions"><a href="rnd-profile-settings.html" class="nav-avatar">IA</a></div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">Weekly Availability</h1>
+          <p class="page-subtitle">Set the hours clients can book consultations with you.</p>
+        </div>
+        <button class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add Time Slot</button>
+      </div>
+
+      <div class="d-flex flex-column gap-2">
+
+        <div class="day-row">
+          <div class="day-name">Monday</div>
+          <div class="d-flex gap-2 flex-wrap flex-grow-1">
+            <span class="slot-chip">9:00 AM – 5:00 PM <i class="bi bi-pencil"></i> <i class="bi bi-x-circle"></i></span>
+          </div>
+          <button class="btn btn-ghost btn-sm">+ Add Slot</button>
+        </div>
+
+        <div class="day-row">
+          <div class="day-name">Tuesday</div>
+          <div class="d-flex gap-2 flex-wrap flex-grow-1">
+            <span class="slot-chip">9:00 AM – 5:00 PM <i class="bi bi-pencil"></i> <i class="bi bi-x-circle"></i></span>
+          </div>
+          <button class="btn btn-ghost btn-sm">+ Add Slot</button>
+        </div>
+
+        <div class="day-row blocked">
+          <div class="day-name">Wednesday</div>
+          <div class="flex-grow-1"><span class="badge-pill badge-danger">Blocked — No Availability</span></div>
+          <button class="btn btn-ghost btn-sm">Unblock Day</button>
+        </div>
+
+        <div class="day-row">
+          <div class="day-name">Thursday</div>
+          <div class="d-flex gap-2 flex-wrap flex-grow-1">
+            <span class="slot-chip">1:00 PM – 6:00 PM <i class="bi bi-pencil"></i> <i class="bi bi-x-circle"></i></span>
+          </div>
+          <button class="btn btn-ghost btn-sm">+ Add Slot</button>
+        </div>
+
+        <div class="day-row">
+          <div class="day-name">Friday</div>
+          <div class="d-flex gap-2 flex-wrap flex-grow-1">
+            <span class="slot-chip">9:00 AM – 12:00 PM <i class="bi bi-pencil"></i> <i class="bi bi-x-circle"></i></span>
+            <span class="slot-chip">1:00 PM – 5:00 PM <i class="bi bi-pencil"></i> <i class="bi bi-x-circle"></i></span>
+          </div>
+          <button class="btn btn-ghost btn-sm">+ Add Slot</button>
+        </div>
+
+        <div class="day-row">
+          <div class="day-name">Saturday</div>
+          <div class="d-flex gap-2 flex-wrap flex-grow-1">
+            <span class="slot-chip">9:00 AM – 12:00 PM <i class="bi bi-pencil"></i> <i class="bi bi-x-circle"></i></span>
+          </div>
+          <button class="btn btn-ghost btn-sm">+ Add Slot</button>
+        </div>
+
+        <div class="day-row blocked">
+          <div class="day-name">Sunday</div>
+          <div class="flex-grow-1"><span class="badge-pill badge-danger">Blocked — No Availability</span></div>
+          <button class="btn btn-ghost btn-sm">Unblock Day</button>
+        </div>
+
+      </div>
+
+      <div class="surface surface-pad mt-4" style="background: var(--forest-tint); border: none;">
+        <div class="d-flex gap-3 align-items-start">
+          <i class="bi bi-calendar-x-fill" style="color: var(--forest-700); font-size: 1.2rem;"></i>
+          <div class="flex-grow-1">
+            <h3 class="font-display mb-1" style="font-size: 1rem;">Block a Day Off</h3>
+            <p class="text-muted-nutri mb-3" style="font-size: 0.85rem;">Quickly mark a specific date range as unavailable — useful for holidays, leave, or emergencies. Existing bookings within the range are not auto-cancelled.</p>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3"><label class="form-label">From</label><input type="date" class="form-control"></div>
+              <div class="col-md-3"><label class="form-label">To <span class="text-faint-nutri fw-normal">(optional)</span></label><input type="date" class="form-control"></div>
+              <div class="col-md-4"><label class="form-label">Reason <span class="text-faint-nutri fw-normal">(optional)</span></label><input type="text" class="form-control" placeholder="e.g. Annual leave"></div>
+              <div class="col-md-2"><button class="btn btn-outline-forest w-100">Block</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ADD SLOT MODAL -->
+<div class="modal fade" id="addSlotModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--radius-md); border: none;">
+      <div class="modal-body p-4">
+        <h5 class="mb-3 font-display" style="font-size: 1.1rem;">Add Availability Slot</h5>
+        <label class="form-label">Day of Week</label>
+        <select class="form-select mb-3">
+          <option>Sunday</option><option selected>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option>
+        </select>
+        <div class="row g-3 mb-3">
+          <div class="col-6"><label class="form-label">Start Time</label><input type="time" class="form-control" value="09:00"></div>
+          <div class="col-6"><label class="form-label">End Time</label><input type="time" class="form-control" value="17:00"></div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+          <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" data-bs-dismiss="modal">Add Slot</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

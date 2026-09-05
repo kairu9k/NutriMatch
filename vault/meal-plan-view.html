@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Meal Plan — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .exchange-chip { background: #fff; border-radius: var(--radius-sm); padding: 14px; text-align: center; box-shadow: var(--shadow-sm); }
+  .exchange-chip .ex-num { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; color: var(--forest-700); }
+  .exchange-chip .ex-label { font-size: 0.72rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+  .meal-block { background: #fff; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .meal-block-header { background: var(--forest-tint); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .food-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #f4f4ec; font-size: 0.86rem; }
+  .food-item-row:last-child { border-bottom: none; }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="client-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="find-rnd.html"><i class="bi bi-search-heart"></i> Find an RND</a>
+    <a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="meal-plan-view.html" class="active"><i class="bi bi-clipboard2-pulse"></i> My Meal Plan</a>
+    <a href="progress-tracker.html"><i class="bi bi-graph-up"></i> Progress Tracker</a>
+    <a href="resources-library.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="invoices-billing.html"><i class="bi bi-receipt"></i> Billing</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="client-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions">
+        <a href="notifications.html" class="nav-icon-btn"><i class="bi bi-bell"></i><span class="badge-dot"></span></a>
+        <a href="client-profile-settings.html" class="nav-avatar">JD</a>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">My Meal Plan</h1>
+          <p class="page-subtitle">Diabetic-Friendly Plan · Prescribed by RND Ivy Hope Alba</p>
+        </div>
+        <span class="badge-pill badge-success" style="font-size: 0.78rem; padding: 8px 16px;">Active</span>
+      </div>
+
+      <!-- TARGET & TOTALS -->
+      <div class="surface surface-pad mb-4">
+        <div class="row align-items-center mb-3">
+          <div class="col-md-6">
+            <div class="eyebrow mb-2"><span class="eyebrow-line"></span> DAILY TARGET</div>
+            <div style="font-family: var(--font-display); font-size: 2rem; font-weight: 700; color: var(--forest-700);">1,800 <span style="font-size: 1rem; font-weight: 400; color: var(--ink-faint);">kcal</span></div>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="text-muted-nutri" style="font-size: 0.85rem;">Condition</div>
+            <span class="badge-pill badge-info">Diabetes Mellitus</span>
+          </div>
+        </div>
+        <div class="eyebrow mb-3"><span class="eyebrow-line"></span> FNRI FOOD EXCHANGE TOTALS (PER DAY)</div>
+        <div class="row g-2">
+          <div class="col-6 col-md-2"><div class="exchange-chip"><div class="ex-num">5</div><div class="ex-label">Rice</div></div></div>
+          <div class="col-6 col-md-2"><div class="exchange-chip"><div class="ex-num">3</div><div class="ex-label">Meat</div></div></div>
+          <div class="col-6 col-md-2"><div class="exchange-chip"><div class="ex-num">4</div><div class="ex-label">Vegetable</div></div></div>
+          <div class="col-6 col-md-2"><div class="exchange-chip"><div class="ex-num">2</div><div class="ex-label">Fruit</div></div></div>
+          <div class="col-6 col-md-2"><div class="exchange-chip"><div class="ex-num">1</div><div class="ex-label">Milk</div></div></div>
+          <div class="col-6 col-md-2"><div class="exchange-chip"><div class="ex-num">3</div><div class="ex-label">Fat</div></div></div>
+        </div>
+      </div>
+
+      <!-- MEAL BLOCKS -->
+      <div class="d-flex flex-column gap-3">
+
+        <div class="meal-block">
+          <div class="meal-block-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-sunrise-fill me-2" style="color: var(--gold-600);"></i>Breakfast</span>
+            <span class="badge-pill badge-neutral">1.5 Rice · 1 Meat · 1 Veg</span>
+          </div>
+          <div class="food-item-row"><span>1 cup Brown Rice</span><span class="text-faint-nutri">1 Rice Exchange</span></div>
+          <div class="food-item-row"><span>1 Fried Egg (small)</span><span class="text-faint-nutri">1 Meat Exchange</span></div>
+          <div class="food-item-row"><span>1 cup Sautéed Kangkong</span><span class="text-faint-nutri">1 Vegetable Exchange</span></div>
+        </div>
+
+        <div class="meal-block">
+          <div class="meal-block-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-cup-straw me-2" style="color: var(--gold-600);"></i>AM Snack</span>
+            <span class="badge-pill badge-neutral">1 Fruit · 1 Milk</span>
+          </div>
+          <div class="food-item-row"><span>1 small Banana (Saba)</span><span class="text-faint-nutri">1 Fruit Exchange</span></div>
+          <div class="food-item-row"><span>1 cup Low-fat Milk</span><span class="text-faint-nutri">1 Milk Exchange</span></div>
+        </div>
+
+        <div class="meal-block">
+          <div class="meal-block-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-sun-fill me-2" style="color: var(--gold-600);"></i>Lunch</span>
+            <span class="badge-pill badge-neutral">2 Rice · 2 Meat · 2 Veg · 1 Fat</span>
+          </div>
+          <div class="food-item-row"><span>1¼ cup Brown Rice</span><span class="text-faint-nutri">2 Rice Exchange</span></div>
+          <div class="food-item-row"><span>Grilled Tilapia (medium)</span><span class="text-faint-nutri">2 Meat Exchange</span></div>
+          <div class="food-item-row"><span>1 cup Pinakbet (mixed vegetables)</span><span class="text-faint-nutri">2 Vegetable Exchange</span></div>
+          <div class="food-item-row"><span>1 tsp Cooking Oil</span><span class="text-faint-nutri">1 Fat Exchange</span></div>
+        </div>
+
+        <div class="meal-block">
+          <div class="meal-block-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-moon-stars-fill me-2" style="color: var(--gold-600);"></i>Dinner</span>
+            <span class="badge-pill badge-neutral">1.5 Rice · 1 Meat · 1 Veg · 2 Fat</span>
+          </div>
+          <div class="food-item-row"><span>1 cup Brown Rice</span><span class="text-faint-nutri">1 Rice Exchange</span></div>
+          <div class="food-item-row"><span>Chicken Tinola (1 piece)</span><span class="text-faint-nutri">1 Meat Exchange</span></div>
+          <div class="food-item-row"><span>1 cup Sayote / Chayote</span><span class="text-faint-nutri">1 Vegetable Exchange</span></div>
+        </div>
+
+      </div>
+
+      <div class="surface surface-pad mt-4" style="background: var(--forest-tint); border: none;">
+        <div class="d-flex gap-3">
+          <i class="bi bi-info-circle-fill" style="color: var(--forest-700); font-size: 1.2rem;"></i>
+          <p class="mb-0 text-muted-nutri" style="font-size: 0.85rem;">Exchange amounts are based on the FNRI Food Exchange Lists, 4th Edition (2020). Your RND may adjust portions during follow-up consultations based on your progress.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

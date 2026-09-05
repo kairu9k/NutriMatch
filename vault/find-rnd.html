@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find an RND — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .filter-bar { background: #fff; border-radius: var(--radius-md); padding: 18px 20px; box-shadow: var(--shadow-sm); }
+  .rnd-card { background: #fff; border-radius: var(--radius-md); padding: 22px; box-shadow: var(--shadow-sm); height: 100%; display: flex; flex-direction: column; transition: box-shadow .15s, transform .15s; }
+  .rnd-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .rnd-card-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--forest-600); color: #fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; }
+  .lang-chip { font-size: 0.7rem; background: var(--forest-tint); color: var(--forest-700); padding: 3px 10px; border-radius: var(--radius-pill); font-weight: 600; }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="client-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="find-rnd.html" class="active"><i class="bi bi-search-heart"></i> Find an RND</a>
+    <a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="meal-plan-view.html"><i class="bi bi-clipboard2-pulse"></i> My Meal Plan</a>
+    <a href="progress-tracker.html"><i class="bi bi-graph-up"></i> Progress Tracker</a>
+    <a href="resources-library.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="invoices-billing.html"><i class="bi bi-receipt"></i> Billing</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="client-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions">
+        <a href="notifications.html" class="nav-icon-btn"><i class="bi bi-bell"></i><span class="badge-dot"></span></a>
+        <a href="messages.html" class="nav-icon-btn"><i class="bi bi-chat-dots"></i></a>
+        <a href="client-profile-settings.html" class="nav-avatar">JD</a>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">Find Your RND</h1>
+          <p class="page-subtitle">Browse PRC-verified Registered Nutritionist-Dietitians by specialty, language, and consultation mode.</p>
+        </div>
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            <label class="form-label">Specialization</label>
+            <select class="form-select">
+              <option selected>All Specializations</option>
+              <option>Diabetes Management</option>
+              <option>Renal Nutrition</option>
+              <option>Hypertension & Cardiac Care</option>
+              <option>Weight Management</option>
+              <option>Pediatric Nutrition</option>
+            </select>
+          </div>
+          <div class="col-lg-3">
+            <label class="form-label">Language</label>
+            <select class="form-select">
+              <option selected>Any Language</option>
+              <option>Tagalog</option>
+              <option>Cebuano</option>
+              <option>Ilocano</option>
+              <option>English</option>
+            </select>
+          </div>
+          <div class="col-lg-3">
+            <label class="form-label">Consultation Mode</label>
+            <select class="form-select">
+              <option selected>Any Mode</option>
+              <option>Video</option>
+              <option>Chat</option>
+              <option>In-Person</option>
+            </select>
+          </div>
+          <div class="col-lg-2">
+            <button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i> Search</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <p class="text-muted-nutri mb-0" style="font-size: 0.86rem;">Showing 6 of 200+ verified RNDs</p>
+        <select class="form-select" style="width: auto; font-size: 0.85rem;">
+          <option>Sort: Highest Rated</option>
+          <option>Sort: Most Reviews</option>
+          <option>Sort: Lowest Fee</option>
+        </select>
+      </div>
+
+      <!-- RND CARDS GRID -->
+      <div class="row g-3">
+
+        <div class="col-md-6 col-lg-4">
+          <div class="rnd-card">
+            <div class="d-flex gap-3 mb-3">
+              <div class="rnd-card-avatar">IA</div>
+              <div>
+                <div style="font-weight:700; color: var(--forest-700);">RND Ivy Hope Alba <i class="bi bi-patch-check-fill" style="color: var(--gold-600); font-size:0.8rem;"></i></div>
+                <div style="font-size:0.78rem; color: var(--ink-faint);">Diabetes · Renal Nutrition</div>
+                <div style="font-size:0.8rem; color: var(--gold-700); font-weight:700;">★ 4.9 <span style="color:var(--ink-faint); font-weight:400;">(38 reviews)</span></div>
+              </div>
+            </div>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.83rem;">Specializes in diabetic and renal MNT with a decade of clinical hospital experience.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="lang-chip">Cebuano</span><span class="lang-chip">English</span>
+              <span class="badge-pill badge-info"><i class="bi bi-camera-video"></i> Video</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-weight:700; color: var(--forest-700);">₱800<span style="font-size:0.75rem; font-weight:400; color:var(--ink-faint);">/session</span></span>
+              <a href="rnd-profile-view.html" class="btn btn-outline-forest btn-sm">View Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="rnd-card">
+            <div class="d-flex gap-3 mb-3">
+              <div class="rnd-card-avatar" style="background: var(--gold-600); color: var(--forest-700);">MR</div>
+              <div>
+                <div style="font-weight:700; color: var(--forest-700);">RND Marco Reyes <i class="bi bi-patch-check-fill" style="color: var(--gold-600); font-size:0.8rem;"></i></div>
+                <div style="font-size:0.78rem; color: var(--ink-faint);">Hypertension · Cardiac Care</div>
+                <div style="font-size:0.8rem; color: var(--gold-700); font-weight:700;">★ 4.8 <span style="color:var(--ink-faint); font-weight:400;">(27 reviews)</span></div>
+              </div>
+            </div>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.83rem;">Focused on DASH-aligned meal planning for hypertensive and post-cardiac patients.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="lang-chip">Tagalog</span><span class="lang-chip">English</span>
+              <span class="badge-pill badge-info"><i class="bi bi-chat-dots"></i> Chat</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-weight:700; color: var(--forest-700);">₱650<span style="font-size:0.75rem; font-weight:400; color:var(--ink-faint);">/session</span></span>
+              <a href="rnd-profile-view.html" class="btn btn-outline-forest btn-sm">View Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="rnd-card">
+            <div class="d-flex gap-3 mb-3">
+              <div class="rnd-card-avatar" style="background: var(--forest-300);">CT</div>
+              <div>
+                <div style="font-weight:700; color: var(--forest-700);">RND Camille Tan <i class="bi bi-patch-check-fill" style="color: var(--gold-600); font-size:0.8rem;"></i></div>
+                <div style="font-size:0.78rem; color: var(--ink-faint);">Weight Management</div>
+                <div style="font-size:0.8rem; color: var(--gold-700); font-weight:700;">★ 4.7 <span style="color:var(--ink-faint); font-weight:400;">(19 reviews)</span></div>
+              </div>
+            </div>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.83rem;">Behavior-based weight management approach combining FNRI exchanges and habit coaching.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="lang-chip">Ilocano</span><span class="lang-chip">English</span>
+              <span class="badge-pill badge-info"><i class="bi bi-person-video3"></i> In-Person</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-weight:700; color: var(--forest-700);">₱700<span style="font-size:0.75rem; font-weight:400; color:var(--ink-faint);">/session</span></span>
+              <a href="rnd-profile-view.html" class="btn btn-outline-forest btn-sm">View Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="rnd-card">
+            <div class="d-flex gap-3 mb-3">
+              <div class="rnd-card-avatar" style="background: var(--forest-500);">DP</div>
+              <div>
+                <div style="font-weight:700; color: var(--forest-700);">RND Dexter Paz <i class="bi bi-patch-check-fill" style="color: var(--gold-600); font-size:0.8rem;"></i></div>
+                <div style="font-size:0.78rem; color: var(--ink-faint);">Pediatric Nutrition</div>
+                <div style="font-size:0.8rem; color: var(--gold-700); font-weight:700;">★ 5.0 <span style="color:var(--ink-faint); font-weight:400;">(12 reviews)</span></div>
+              </div>
+            </div>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.83rem;">Supports growth monitoring and dietary diversity scoring for children under 12.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="lang-chip">Tagalog</span><span class="lang-chip">Cebuano</span>
+              <span class="badge-pill badge-info"><i class="bi bi-camera-video"></i> Video</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-weight:700; color: var(--forest-700);">₱750<span style="font-size:0.75rem; font-weight:400; color:var(--ink-faint);">/session</span></span>
+              <a href="rnd-profile-view.html" class="btn btn-outline-forest btn-sm">View Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="rnd-card">
+            <div class="d-flex gap-3 mb-3">
+              <div class="rnd-card-avatar" style="background: var(--gold-200); color: var(--forest-700);">LM</div>
+              <div>
+                <div style="font-weight:700; color: var(--forest-700);">RND Lara Mendoza <i class="bi bi-patch-check-fill" style="color: var(--gold-600); font-size:0.8rem;"></i></div>
+                <div style="font-size:0.78rem; color: var(--ink-faint);">General Practice</div>
+                <div style="font-size:0.8rem; color: var(--gold-700); font-weight:700;">★ 4.6 <span style="color:var(--ink-faint); font-weight:400;">(45 reviews)</span></div>
+              </div>
+            </div>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.83rem;">Generalist MNT practice with a strong record across diverse dietary conditions.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="lang-chip">English</span>
+              <span class="badge-pill badge-info"><i class="bi bi-chat-dots"></i> Chat</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-weight:700; color: var(--forest-700);">₱600<span style="font-size:0.75rem; font-weight:400; color:var(--ink-faint);">/session</span></span>
+              <a href="rnd-profile-view.html" class="btn btn-outline-forest btn-sm">View Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="rnd-card">
+            <div class="d-flex gap-3 mb-3">
+              <div class="rnd-card-avatar" style="background: var(--forest-700);">RS</div>
+              <div>
+                <div style="font-weight:700; color: var(--forest-700);">RND Rico Santos <i class="bi bi-patch-check-fill" style="color: var(--gold-600); font-size:0.8rem;"></i></div>
+                <div style="font-size:0.78rem; color: var(--ink-faint);">Renal Nutrition</div>
+                <div style="font-size:0.8rem; color: var(--gold-700); font-weight:700;">★ 4.9 <span style="color:var(--ink-faint); font-weight:400;">(31 reviews)</span></div>
+              </div>
+            </div>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.83rem;">Dialysis-stage renal diet specialist working closely with nephrology referrals.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="lang-chip">Tagalog</span><span class="lang-chip">English</span>
+              <span class="badge-pill badge-info"><i class="bi bi-person-video3"></i> In-Person</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-weight:700; color: var(--forest-700);">₱900<span style="font-size:0.75rem; font-weight:400; color:var(--ink-faint);">/session</span></span>
+              <a href="rnd-profile-view.html" class="btn btn-outline-forest btn-sm">View Profile</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PAGINATION -->
+      <nav class="mt-4">
+        <ul class="pagination justify-content-center" style="--bs-pagination-active-bg: var(--forest-700); --bs-pagination-active-border-color: var(--forest-700); --bs-pagination-color: var(--forest-700);">
+          <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+          <li class="page-item active"><a class="page-link" href="#">1</a></li>
+          <li class="page-item"><a class="page-link" href="#">2</a></li>
+          <li class="page-item"><a class="page-link" href="#">3</a></li>
+          <li class="page-item"><a class="page-link" href="#">Next</a></li>
+        </ul>
+      </nav>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+</head>
+<body>
+
+<div class="auth-shell">
+  <!-- LEFT VISUAL -->
+  <div class="auth-visual">
+    <div class="auth-visual-content">
+      <a href="landing.html" class="d-flex align-items-center gap-2 text-decoration-none mb-5">
+        <img src="https://placehold.co/36x36/D4A017/1a3a1a?text=N" alt="" style="width:36px;height:36px;border-radius:6px;">
+        <span style="font-size:1.25rem;font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+      </a>
+    </div>
+    <div class="auth-quote">
+      "NutriMatch helped me find an RND who speaks Cebuano and truly understands my diabetes. I feel heard for the first time."
+      <div class="auth-quote-attrib">JULIA NIEL BULALAQUE · CLIENT, DIABETIC MANAGEMENT</div>
+    </div>
+    <div class="auth-trust-row">
+      <div class="trust-item"><i class="bi bi-patch-check-fill" style="color: var(--gold-600);"></i> PRC Verified RNDs</div>
+      <div class="trust-item"><i class="bi bi-shield-check" style="color: var(--gold-600);"></i> RA 10173 Compliant</div>
+    </div>
+  </div>
+
+  <!-- RIGHT FORM -->
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <h1 class="display-heading mb-2" style="font-size: 2rem;">Welcome Back</h1>
+      <p class="text-muted-nutri mb-4">Log in to continue your nutrition journey.</p>
+
+      <!-- Role tabs (demo only, no real routing logic) -->
+      <div class="role-tabs">
+        <a href="#" class="active"><i class="bi bi-person me-1"></i> Client / RND</a>
+        <a href="admin-dashboard.html"><i class="bi bi-shield-lock me-1"></i> Admin</a>
+      </div>
+
+      <!-- Example validation alert (demo state) -->
+      <div class="alert-soft alert-danger mb-4 d-none" id="loginError">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <div>Incorrect email or password. Please try again.</div>
+      </div>
+
+      <form onsubmit="return false;">
+        <div class="mb-3">
+          <label class="form-label">Email Address</label>
+          <div class="input-group-icon">
+            <i class="bi bi-envelope icon"></i>
+            <input type="email" class="form-control" placeholder="you@example.com" value="client@test.ph">
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Password</label>
+          <div class="input-group-icon">
+            <i class="bi bi-lock icon"></i>
+            <input type="password" class="form-control has-end" placeholder="••••••••" value="Password1">
+            <i class="bi bi-eye icon icon-end"></i>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="rememberMe" checked>
+            <label class="form-check-label" for="rememberMe" style="font-size:0.85rem; color: var(--ink-muted);">Remember me</label>
+          </div>
+          <a href="forgot-password.html" style="font-size:0.85rem; color: var(--forest-700); font-weight:600; text-decoration:none;">Forgot password?</a>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-block mb-3" onclick="window.location.href='client-dashboard.html'">Log In</button>
+      </form>
+
+      <p class="text-center text-muted-nutri" style="font-size:0.85rem;">
+        Don't have an account?
+        <a href="register-client.html" style="color: var(--forest-700); font-weight:700; text-decoration:none;">Sign up</a>
+      </p>
+
+      <div class="d-flex align-items-center gap-3 my-4">
+        <hr class="flex-grow-1" style="opacity:0.15;">
+        <span style="font-size:0.75rem; color: var(--ink-faint);">QUICK DEMO ACCESS</span>
+        <hr class="flex-grow-1" style="opacity:0.15;">
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="client-dashboard.html" class="btn btn-outline-forest btn-sm flex-grow-1">View as Client</a>
+        <a href="rnd-dashboard.html" class="btn btn-outline-forest btn-sm flex-grow-1">View as RND</a>
+        <a href="admin-dashboard.html" class="btn btn-outline-forest btn-sm flex-grow-1">View as Admin</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

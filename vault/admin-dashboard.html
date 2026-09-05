@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout{display:flex;min-height:100vh}
+  .main-col{flex:1;min-width:0}
+  .bar-chart{display:flex;align-items:flex-end;gap:6px;height:90px;margin-top:8px}
+  .bar-chart .bar{flex:1;background:var(--forest-700);border-radius:4px 4px 0 0;transition:opacity .2s}
+  .bar-chart .bar:hover{opacity:.8}
+  .bar-chart .bar.gold{background:var(--gold-600)}
+  .bar-label{font-size:.7rem;color:var(--ink-faint);text-align:center;margin-top:4px}
+  .activity-row{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0e6;font-size:.84rem}
+  .activity-row:last-child{border-bottom:none}
+  .activity-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.8rem}
+  .dispute-card{border-radius:var(--radius-md);padding:18px;margin-bottom:12px}
+  .dispute-urgent{background:#FCEBEB;border:1px solid #f5c6c6;border-left:4px solid var(--danger)}
+  .dispute-review{background:#FAEEDA;border:1px solid #f0d9b8;border-left:4px solid var(--warning)}
+</style>
+</head>
+<body class="bg-cream">
+<div class="app-layout">
+<aside class="app-sidebar">
+  <div class="d-flex align-items-center gap-2 mb-3 px-2">
+    <img src="nutrimatch-logo.png" alt="NutriMatch" class="sidebar-logo-img">
+    <span style="font-size:1.05rem;font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+  </div>
+  <div class="mx-2 mb-3 p-3" style="background:rgba(192,57,43,.14);border-radius:var(--radius-sm);border:1px solid rgba(192,57,43,.2);">
+    <p style="font-weight:700;font-size:.88rem;color:#fff;margin:0;">Admin Console</p>
+    <p style="font-size:.74rem;color:#fca5a5;margin:2px 0 0;">Platform Oversight</p>
+  </div>
+  <a href="admin-dashboard.html" class="active"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+  <a href="rnd-verification.html"><i class="bi bi-patch-check"></i> RND Verification</a>
+  <a href="user-management.html"><i class="bi bi-people-fill"></i> User Management</a>
+  <a href="commission-tracking.html"><i class="bi bi-cash-coin"></i> Commission Tracking</a>
+  <a href="audit-logs.html"><i class="bi bi-clipboard2-data"></i> Audit Logs</a>
+  <a href="system-settings.html"><i class="bi bi-gear-fill"></i> System Settings</a>
+  <div class="sidebar-section-label">Account</div>
+  <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+</aside>
+<div class="main-col">
+<header class="app-navbar">
+  <div></div>
+  <div class="nav-actions">
+    <a href="audit-logs.html" class="nav-icon-btn"><i class="bi bi-bell"></i><span class="badge-dot"></span></a>
+    <span class="nav-avatar">AD</span>
+  </div>
+</header>
+<div class="page-content">
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg"><div class="stat-card"><div class="stat-number">42</div><div class="stat-label">Total RNDs</div><div style="font-size:.72rem;color:var(--success-text);margin-top:3px;">39 verified · 3 pending</div></div></div>
+  <div class="col-6 col-lg"><div class="stat-card"><div class="stat-number">287</div><div class="stat-label">Total Clients</div><div class="stat-delta up"><i class="bi bi-arrow-up-short"></i>23 this month</div></div></div>
+  <div class="col-6 col-lg"><div class="stat-card"><div class="stat-number">156</div><div class="stat-label">Active Relationships</div></div></div>
+  <div class="col-6 col-lg"><div class="stat-card"><div class="stat-number">₱487,500</div><div class="stat-label">Monthly Revenue</div><div style="font-size:.72rem;color:var(--ink-faint);">325 consultations</div></div></div>
+  <div class="col-6 col-lg"><div class="stat-card"><div class="stat-icon" style="background:rgba(212,160,23,.12);color:var(--gold-700);"><i class="bi bi-percent"></i></div><div class="stat-number" style="color:var(--gold-700);">₱97,500</div><div class="stat-label">Platform Commission</div></div></div>
+</div>
+
+<div class="dash-tab-nav">
+  <button class="active" onclick="switchTab('overview',this)"><i class="bi bi-grid me-1"></i>Overview</button>
+  <button onclick="switchTab('rnd',this)"><i class="bi bi-patch-check me-1"></i>RND Verification</button>
+  <button onclick="switchTab('users',this)"><i class="bi bi-people me-1"></i>User Management</button>
+  <button onclick="switchTab('billing',this)"><i class="bi bi-cash-coin me-1"></i>Billing & Commission</button>
+  <button onclick="switchTab('disputes',this)"><i class="bi bi-shield-exclamation me-1"></i>Dispute Management</button>
+  <button onclick="switchTab('audit',this)"><i class="bi bi-clipboard2-data me-1"></i>Audit & Compliance</button>
+  <button onclick="switchTab('analytics',this)"><i class="bi bi-bar-chart-fill me-1"></i>Analytics & Reports</button>
+  <button onclick="switchTab('settings',this)"><i class="bi bi-gear me-1"></i>Platform Settings</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="dash-tab-pane active" id="tab-overview">
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="surface surface-pad mb-3">
+        <h3 class="font-display mb-3" style="font-size:1.05rem;">System Alerts</h3>
+        <div class="d-flex flex-column gap-2">
+          <div class="alert-soft alert-danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div class="flex-grow-1"><strong>3 RND verifications pending</strong><p class="mb-0" style="font-size:.8rem;">PRC licenses require approval. Overdue by 2–5 days.</p></div>
+            <a href="rnd-verification.html" class="btn btn-sm btn-danger-outline">Review →</a>
+          </div>
+          <div class="alert-soft alert-warning">
+            <i class="bi bi-receipt"></i>
+            <div class="flex-grow-1"><strong>5 unpaid invoices</strong><p class="mb-0" style="font-size:.8rem;">Total: ₱7,500. Clients overdue 10+ days.</p></div>
+            <a href="commission-tracking.html" class="btn btn-sm btn-outline-forest">Follow Up →</a>
+          </div>
+          <div class="alert-soft alert-info">
+            <i class="bi bi-tools"></i>
+            <div><strong>Scheduled maintenance window</strong><p class="mb-0" style="font-size:.8rem;">Database backup: Sunday 2:00 AM – 3:30 AM. Estimated downtime 90 min.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="surface surface-pad">
+        <h3 class="font-display mb-3" style="font-size:1.05rem;">Revenue & Growth (Last 6 Months)</h3>
+        <div class="row g-2">
+          <div class="col text-center"><div class="bar" style="height:52px;background:var(--forest-200);border-radius:4px 4px 0 0;"></div><div class="bar-label">Oct<br>₱245k</div></div>
+          <div class="col text-center"><div class="bar" style="height:64px;background:var(--forest-400);border-radius:4px 4px 0 0;"></div><div class="bar-label">Nov<br>₱312k</div></div>
+          <div class="col text-center"><div class="bar" style="height:72px;background:var(--forest-500);border-radius:4px 4px 0 0;"></div><div class="bar-label">Dec<br>₱385k</div></div>
+          <div class="col text-center"><div class="bar" style="height:58px;background:var(--forest-500);border-radius:4px 4px 0 0;"></div><div class="bar-label">Jan<br>₱295k</div></div>
+          <div class="col text-center"><div class="bar" style="height:74px;background:var(--forest-600);border-radius:4px 4px 0 0;"></div><div class="bar-label">Feb<br>₱425k</div></div>
+          <div class="col text-center"><div class="bar" style="height:90px;background:var(--forest-700);border-radius:4px 4px 0 0;border:2px solid var(--gold-600);"></div><div class="bar-label" style="color:var(--gold-700);font-weight:700;">Mar<br>₱487k</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="surface surface-pad mb-3">
+        <h3 class="font-display mb-3" style="font-size:1.05rem;">Platform Health</h3>
+        <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;"><span class="text-muted-nutri">API Uptime</span><span class="badge-pill badge-success">99.8%</span></div>
+        <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;"><span class="text-muted-nutri">DB Performance</span><span class="badge-pill badge-success">Healthy</span></div>
+        <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;"><span class="text-muted-nutri">Active Sessions</span><span style="font-weight:700;">47</span></div>
+        <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;"><span class="text-muted-nutri">Payment Gateway</span><span class="badge-pill badge-success">Connected</span></div>
+        <div class="d-flex justify-content-between" style="font-size:.85rem;"><span class="text-muted-nutri">Semaphore SMS</span><span class="badge-pill badge-warning">Not Configured</span></div>
+      </div>
+      <div class="surface surface-pad">
+        <h3 class="font-display mb-3" style="font-size:1.05rem;">This Week Activity</h3>
+        <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;"><span class="text-muted-nutri">New registrations</span><span style="font-weight:700;">12</span></div>
+        <div class="d-flex justify-content-between mb-2" style="font-size:.85rem;"><span class="text-muted-nutri">Consultations</span><span style="font-weight:700;">84</span></div>
+        <div class="d-flex justify-content-between" style="font-size:.85rem;"><span class="text-muted-nutri">Transactions</span><span style="font-weight:700;">76</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RND VERIFICATION -->
+<div class="dash-tab-pane" id="tab-rnd">
+  <div class="alert-soft alert-info mb-4">
+    <i class="bi bi-info-circle-fill"></i>
+    <div>PRC verification is performed <strong>manually</strong> against the <strong>PRC Online Verification Portal</strong>. Confirm license number, name match, and expiry before approving.</div>
+  </div>
+  <div class="surface surface-pad mb-3">
+    <h3 class="font-display mb-3" style="font-size:1.05rem;">Pending Verification (3)</h3>
+    <div class="surface mb-3" style="border:1px solid #f0d9b8;background:#FAEEDA;padding:18px;border-radius:var(--radius-md);">
+      <div class="d-flex justify-content-between mb-2"><div><strong>Dr. Marcelina Santos</strong><div style="font-size:.8rem;color:var(--ink-faint);">Applied Apr 18, 2026 · PRC License submitted</div></div><span class="badge-pill badge-warning">Pending 3 days</span></div>
+      <div class="surface surface-pad mb-2" style="font-size:.82rem;"><strong>PRC License:</strong> #45829 · Expires 2027-12-31 · Renal Disease Management · ₱1,500/session</div>
+      <div class="d-flex gap-2"><button class="btn btn-primary btn-sm">✓ Verify & Approve</button><button class="btn btn-danger-outline btn-sm">✗ Reject</button><a href="rnd-verification.html" class="btn btn-outline-forest btn-sm">View Full Details</a></div>
+    </div>
+    <div class="surface mb-3" style="border:1px solid #f5c6c6;background:#FCEBEB;padding:18px;border-radius:var(--radius-md);">
+      <div class="d-flex justify-content-between mb-2"><div><strong>RND James Villanueva</strong><div style="font-size:.8rem;color:var(--ink-faint);">Applied Apr 15 · Documents need review</div></div><span class="badge-pill badge-danger">Overdue 6 days</span></div>
+      <div class="alert-soft alert-warning mb-2"><i class="bi bi-exclamation-triangle-fill"></i><div style="font-size:.82rem;">PRC license expiration date unclear. Request clarification from applicant.</div></div>
+      <div class="d-flex gap-2"><button class="btn btn-outline-forest btn-sm">Contact Applicant</button><button class="btn btn-outline-forest btn-sm">View Documents</button></div>
+    </div>
+  </div>
+  <div class="surface surface-pad">
+    <h3 class="font-display mb-3" style="font-size:1.05rem;">Verified RNDs (39)</h3>
+    <table class="table-nutri mb-0">
+      <thead><tr><th>Name</th><th>PRC License</th><th>Specialization</th><th>Verified</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;">RND Amara Cruz</td><td style="font-size:.8rem;">#45782 · Exp: 2027-12-31</td><td><span class="badge-pill badge-success">Diabetes</span></td><td style="font-size:.8rem;">Mar 10, 2026</td><td><span class="badge-pill badge-success">Active</span></td></tr>
+        <tr><td style="font-weight:600;">Dr. Roberto Santos</td><td style="font-size:.8rem;">#45710 · Exp: 2026-09-15</td><td><span class="badge-pill badge-info">Hypertension</span></td><td style="font-size:.8rem;">Feb 28, 2026</td><td><span class="badge-pill badge-warning">Expiring Soon</span></td></tr>
+        <tr><td style="font-weight:600;">RND Lisa Fernandez</td><td style="font-size:.8rem;">#45814 · Exp: 2027-11-20</td><td><span class="badge-pill badge-neutral">Renal</span></td><td style="font-size:.8rem;">Jan 5, 2026</td><td><span class="badge-pill badge-success">Active</span></td></tr>
+      </tbody>
+    </table>
+    <div class="mt-3"><a href="rnd-verification.html" class="btn btn-outline-forest btn-sm">View All RNDs →</a></div>
+  </div>
+</div>
+
+<!-- USER MANAGEMENT -->
+<div class="dash-tab-pane" id="tab-users">
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    <div class="input-group-icon flex-grow-1"><i class="bi bi-search icon"></i><input type="text" class="form-control" placeholder="Search users..."></div>
+    <select class="form-select" style="width:auto;"><option>All Roles</option><option>RND</option><option>Client</option><option>Admin</option></select>
+    <select class="form-select" style="width:auto;"><option>All Status</option><option>Active</option><option>Inactive</option><option>Suspended</option></select>
+  </div>
+  <div class="table-responsive surface">
+    <table class="table-nutri mb-0">
+      <thead><tr><th>User</th><th>Role</th><th>Registered</th><th>Status</th><th>Last Activity</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><div style="font-weight:600;color:var(--forest-700);">RND Amara Cruz</div><div style="font-size:.76rem;color:var(--ink-faint);">amara.cruz@nutrimatch.ph</div></td><td><span class="badge-pill badge-info">RND</span></td><td>Feb 15, 2026</td><td><span class="badge-pill badge-success">Active</span></td><td style="font-size:.8rem;">2 hrs ago · 7 patients</td><td><button class="btn btn-ghost btn-sm"><i class="bi bi-three-dots"></i></button></td></tr>
+        <tr><td><div style="font-weight:600;color:var(--forest-700);">Maria Santos</div><div style="font-size:.76rem;color:var(--ink-faint);">maria.santos@email.com</div></td><td><span class="badge-pill badge-neutral">Client</span></td><td>Mar 10, 2026</td><td><span class="badge-pill badge-success">Active</span></td><td style="font-size:.8rem;">1 hr ago · 4 consultations</td><td><button class="btn btn-ghost btn-sm"><i class="bi bi-three-dots"></i></button></td></tr>
+        <tr style="background:rgba(252,235,235,.4);"><td><div style="font-weight:600;color:var(--forest-700);">Dr. Carlos Mendoza</div><div style="font-size:.76rem;color:var(--ink-faint);">carlos.mendoza@email.com</div></td><td><span class="badge-pill badge-info">RND</span></td><td>Jan 8, 2026</td><td><span class="badge-pill badge-danger">Suspended</span></td><td style="font-size:.8rem;">Reason: Payment dispute</td><td><button class="btn btn-sm" style="color:var(--danger-text);font-size:.82rem;font-weight:600;">Review</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-3"><a href="user-management.html" class="btn btn-outline-forest btn-sm">View All 1,248 Users →</a></div>
+</div>
+
+<!-- BILLING & COMMISSION -->
+<div class="dash-tab-pane" id="tab-billing">
+  <div class="surface surface-pad mb-3">
+    <div class="eyebrow mb-3"><span class="eyebrow-line"></span> COMMISSION STRUCTURE</div>
+    <div class="row g-3 mb-3">
+      <div class="col-md-3"><label class="form-label">Default Commission Rate (%)</label><input type="number" class="form-control" value="10"></div>
+      <div class="col-md-3"><label class="form-label">Min. Consultation Fee (₱)</label><input type="number" class="form-control" value="500"></div>
+      <div class="col-md-3"><label class="form-label">Max. Consultation Fee (₱)</label><input type="number" class="form-control" value="5000"></div>
+      <div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary w-100">Save</button></div>
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number">₱2,847,500</div><div class="stat-label">Total Revenue (YTD)</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--gold-700);">₱284,750</div><div class="stat-label">Commission (YTD)</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number">₱2,562,750</div><div class="stat-label">RND Payouts (YTD)</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--danger-text);">₱45,000</div><div class="stat-label">Pending Disputes</div></div></div>
+  </div>
+  <div class="table-responsive surface">
+    <table class="table-nutri mb-0">
+      <thead><tr><th>RND</th><th>Consultation Fee</th><th>Commission (10%)</th><th>RND Payout</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>RND Amara Cruz</td><td style="font-weight:700;">₱1,500</td><td style="color:var(--gold-700);font-weight:600;">₱150</td><td>₱1,350</td><td>Jun 30, 2026</td><td><span class="badge-pill badge-success">Paid</span></td></tr>
+        <tr><td>Dr. Roberto Santos</td><td style="font-weight:700;">₱2,000</td><td style="color:var(--gold-700);font-weight:600;">₱200</td><td>₱1,800</td><td>Jun 29, 2026</td><td><span class="badge-pill badge-warning">Pending</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-3"><a href="commission-tracking.html" class="btn btn-outline-forest btn-sm">Full Commission Report →</a></div>
+</div>
+
+<!-- DISPUTE MANAGEMENT -->
+<div class="dash-tab-pane" id="tab-disputes">
+  <div class="surface surface-pad mb-3">
+    <h3 class="font-display mb-3" style="font-size:1.05rem;">Active Disputes (3)</h3>
+    <div class="dispute-card dispute-urgent">
+      <div class="d-flex justify-content-between mb-2">
+        <div><strong>Unpaid Consultation — Maria Santos / RND Amara Cruz</strong><div style="font-size:.8rem;color:var(--ink-faint);">Filed: Apr 18, 2026 · Amount: ₱1,500</div></div>
+        <span class="badge-pill badge-danger">Urgent</span>
+      </div>
+      <p style="font-size:.84rem;margin-bottom:12px;"><strong>Issue:</strong> Client did not pay for consultation on Apr 7, 2026. RND reports non-receipt of payment despite sending invoice.</p>
+      <div class="d-flex gap-2"><button class="btn btn-primary btn-sm">Resolve (Release Payment)</button><button class="btn btn-outline-forest btn-sm">Add Notes</button></div>
+    </div>
+    <div class="dispute-card dispute-review mt-2">
+      <div class="d-flex justify-content-between mb-2">
+        <div><strong>Service Quality Complaint — John Reyes / Dr. Roberto Santos</strong><div style="font-size:.8rem;color:var(--ink-faint);">Filed: Apr 19, 2026 · Refund Requested</div></div>
+        <span class="badge-pill badge-warning">In Review</span>
+      </div>
+      <p style="font-size:.84rem;margin-bottom:12px;"><strong>Issue:</strong> Client reports RND canceled consultation without notice and did not provide rescheduled appointment as promised.</p>
+      <div class="d-flex gap-2"><button class="btn btn-outline-forest btn-sm">Contact RND</button><button class="btn btn-outline-forest btn-sm">Contact Client</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT & COMPLIANCE -->
+<div class="dash-tab-pane" id="tab-audit">
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="stat-card"><div class="stat-number" style="color:var(--success-text);">✓ Compliant</div><div class="stat-label">RA 10173 Status</div><div style="font-size:.72rem;color:var(--ink-faint);">All required controls active</div></div></div>
+    <div class="col-md-4"><div class="stat-card"><div class="stat-number">12,847</div><div class="stat-label">Audit Entries (30 days)</div><div style="font-size:.72rem;color:var(--ink-faint);">Complete & immutable</div></div></div>
+    <div class="col-md-4"><div class="stat-card"><div class="stat-number" style="color:var(--success-text);">0</div><div class="stat-label">Data Breaches (YTD)</div></div></div>
+  </div>
+  <div class="surface surface-pad mb-3">
+    <h3 class="font-display mb-3" style="font-size:1.05rem;">RA 10173 Compliance Checklist</h3>
+    <div class="compliance-row"><i class="bi bi-check-circle-fill compliance-icon-ok"></i><span>SSL/TLS encryption for all data in transit</span></div>
+    <div class="compliance-row"><i class="bi bi-check-circle-fill compliance-icon-ok"></i><span>bcrypt password hashing and salting</span></div>
+    <div class="compliance-row"><i class="bi bi-check-circle-fill compliance-icon-ok"></i><span>Role-based access control (RBAC) implemented</span></div>
+    <div class="compliance-row"><i class="bi bi-check-circle-fill compliance-icon-ok"></i><span>Informed consent mechanism at registration</span></div>
+    <div class="compliance-row"><i class="bi bi-check-circle-fill compliance-icon-ok"></i><span>Immutable audit logging of all data access</span></div>
+    <div class="compliance-row"><i class="bi bi-exclamation-triangle-fill compliance-icon-warn"></i><span style="color:var(--warning-text);">End-to-end encryption for client-RND messaging — <strong>not yet implemented</strong></span></div>
+  </div>
+  <div class="table-responsive surface">
+    <table class="table-nutri mb-0">
+      <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>IP</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Jun 30, 14:32</td><td>RND Amara Cruz</td><td><code style="font-size:.76rem;">ncp.finalized</code></td><td>Client ID 142</td><td>192.168.1.105</td><td><i class="bi bi-check-circle-fill" style="color:var(--success-text);"></i></td></tr>
+        <tr><td>Jun 30, 14:15</td><td>Payment Gateway</td><td><code style="font-size:.76rem;">payment.paid</code></td><td>INV-0231</td><td>PayMongo API</td><td><i class="bi bi-check-circle-fill" style="color:var(--success-text);"></i></td></tr>
+        <tr><td>Jun 30, 12:00</td><td>System</td><td><code style="font-size:.76rem;">automated_backup</code></td><td>Full DB</td><td>Internal</td><td><i class="bi bi-check-circle-fill" style="color:var(--success-text);"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-3"><a href="audit-logs.html" class="btn btn-outline-forest btn-sm">Full Audit Log →</a></div>
+</div>
+
+<!-- ANALYTICS & REPORTS -->
+<div class="dash-tab-pane" id="tab-analytics">
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--success-text);">78%</div><div class="stat-label">Avg. Patient Goal Met</div><div class="stat-delta up"><i class="bi bi-arrow-up-short"></i>8% YoY</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number">-2.8 kg</div><div class="stat-label">Avg. Weight Loss / Patient</div><div style="font-size:.74rem;color:var(--ink-faint);">Over 3-month period</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number">72%</div><div class="stat-label">RND Utilization Rate</div><div style="font-size:.74rem;color:var(--ink-faint);">Avg. capacity filled</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--success-text);">84%</div><div class="stat-label">Client Retention (6mo)</div></div></div>
+  </div>
+  <div class="surface surface-pad mb-3">
+    <h3 class="font-display mb-3" style="font-size:1.05rem;">Generate Report</h3>
+    <div class="row g-3">
+      <div class="col-md-3"><label class="form-label">Report Type</label><select class="form-select"><option>Monthly Summary</option><option>Quarterly Report</option><option>Annual Report</option></select></div>
+      <div class="col-md-3"><label class="form-label">Period</label><select class="form-select"><option>June 2026</option><option>May 2026</option><option>Q1 2026</option></select></div>
+      <div class="col-md-3"><label class="form-label">Format</label><select class="form-select"><option>PDF</option><option>Excel</option><option>CSV</option></select></div>
+      <div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary w-100">Generate</button></div>
+    </div>
+  </div>
+  <div class="surface surface-pad">
+    <h3 class="font-display mb-3" style="font-size:1.05rem;">Recent Reports</h3>
+    <div class="d-flex justify-content-between align-items-center p-3 surface rounded-3 mb-2">
+      <div><div style="font-weight:600;font-size:.9rem;color:var(--forest-700);">May 2026 — Monthly Summary</div><div style="font-size:.78rem;color:var(--ink-faint);">Generated: Jun 1, 2026 · 47 pages</div></div>
+      <div class="d-flex gap-2"><button class="btn btn-outline-forest btn-sm">Download</button><button class="btn btn-ghost btn-sm">Share</button></div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center p-3 surface rounded-3">
+      <div><div style="font-weight:600;font-size:.9rem;color:var(--forest-700);">Q1 2026 — Quarterly Report</div><div style="font-size:.78rem;color:var(--ink-faint);">Generated: Apr 1, 2026 · 125 pages</div></div>
+      <div class="d-flex gap-2"><button class="btn btn-outline-forest btn-sm">Download</button><button class="btn btn-ghost btn-sm">Share</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- PLATFORM SETTINGS -->
+<div class="dash-tab-pane" id="tab-settings">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="surface surface-pad mb-3">
+        <div class="eyebrow mb-3"><span class="eyebrow-line"></span> PAYMENT GATEWAY</div>
+        <label class="form-label">Gateway Provider</label>
+        <select class="form-select mb-3"><option selected>PayMongo</option><option>GCash API</option><option>Stripe</option></select>
+        <label class="form-label">API Key</label>
+        <input type="password" class="form-control mb-3" value="••••••••••••••••" disabled style="background:#f4f4ee;">
+        <label class="form-label">Webhook URL</label>
+        <input type="text" class="form-control mb-3" value="https://api.nutrimatch.ph/webhooks/payment">
+        <button class="btn btn-outline-forest btn-sm">Test Connection</button>
+      </div>
+      <div class="surface surface-pad">
+        <div class="eyebrow mb-3"><span class="eyebrow-line"></span> SMS (SEMAPHORE)</div>
+        <div class="alert-soft alert-warning mb-3"><i class="bi bi-exclamation-triangle-fill"></i><div>Semaphore SMS is not yet configured. Appointment reminders via SMS are disabled.</div></div>
+        <label class="form-label">Semaphore API Key</label>
+        <input type="text" class="form-control mb-3" placeholder="Enter Semaphore API key...">
+        <button class="btn btn-primary btn-sm">Save & Enable SMS</button>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="surface surface-pad mb-3">
+        <div class="eyebrow mb-3"><span class="eyebrow-line"></span> EMAIL & NOTIFICATIONS</div>
+        <label class="form-label">SMTP Server</label><input type="text" class="form-control mb-2" placeholder="smtp.mail.com">
+        <div class="row g-2 mb-2"><div class="col-6"><label class="form-label">Port</label><input type="number" class="form-control" placeholder="587"></div><div class="col-6"><label class="form-label">Sender Email</label><input type="email" class="form-control" placeholder="noreply@nutrimatch.ph"></div></div>
+        <div class="form-check mb-2"><input type="checkbox" class="form-check-input" checked><label class="form-check-label" style="font-size:.85rem;">Enable appointment reminders</label></div>
+        <div class="form-check mb-3"><input type="checkbox" class="form-check-input" checked><label class="form-check-label" style="font-size:.85rem;">Send monthly performance reports to RNDs</label></div>
+        <button class="btn btn-outline-forest btn-sm">Save Email Settings</button>
+      </div>
+      <div class="surface surface-pad">
+        <div class="eyebrow mb-3"><span class="eyebrow-line"></span> DATA RETENTION (RA 10173)</div>
+        <label class="form-label">Audit Log Retention (days)</label>
+        <input type="number" class="form-control mb-1" value="1095">
+        <div class="form-hint mb-3">Currently: 3 years minimum (RA 10173 requirement)</div>
+        <label class="form-label">Inactive Account Auto-Delete (days)</label>
+        <input type="number" class="form-control mb-1" value="730">
+        <div class="form-hint mb-3">Accounts with no activity for 2 years</div>
+        <button class="btn btn-primary btn-sm">Save Retention Policy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function switchTab(name,btn){
+  document.querySelectorAll('.dash-tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.dash-tab-nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

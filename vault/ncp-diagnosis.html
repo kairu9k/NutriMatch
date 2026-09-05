@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCP — Diagnosis — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .ncp-wrap { max-width: 880px; margin: 0 auto; }
+  .phase-stepper { display: flex; align-items: center; margin-bottom: 28px; }
+  .phase-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; position: relative; text-decoration: none; }
+  .phase-step .circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; background: #fff; border: 2px solid #e0e6dc; color: var(--ink-faint); z-index: 1; }
+  .phase-step.done .circle { background: var(--forest-600); border-color: var(--forest-600); color: #fff; }
+  .phase-step.current .circle { background: var(--gold-600); border-color: var(--gold-600); color: var(--forest-700); }
+  .phase-step .label { font-size: 0.74rem; font-weight: 600; color: var(--ink-faint); }
+  .phase-step.current .label, .phase-step.done .label { color: var(--forest-700); }
+  .phase-line { position: absolute; top: 18px; left: 50%; width: 100%; height: 2px; background: #e0e6dc; z-index: 0; }
+  .phase-step.done .phase-line { background: var(--forest-600); }
+  .pes-preview { background: var(--forest-tint); border-radius: var(--radius-md); padding: 18px 20px; font-size: 0.88rem; line-height: 1.7; }
+  .pes-preview b { color: var(--forest-700); }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="rnd-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="patient-panel.html"><i class="bi bi-people-fill"></i> My Patients</a>
+    <a href="rnd-appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="ncp-assessment.html" class="active"><i class="bi bi-clipboard2-pulse"></i> NCP Records</a>
+    <a href="food-exchange-search.html"><i class="bi bi-search-heart"></i> Food Exchange Search</a>
+    <a href="meal-plan-builder.html"><i class="bi bi-egg-fried"></i> Meal Plans</a>
+    <a href="rnd-availability.html"><i class="bi bi-calendar-week"></i> Availability</a>
+    <a href="resource-upload.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="rnd-earnings.html"><i class="bi bi-cash-coin"></i> Earnings</a>
+    <a href="reviews.html"><i class="bi bi-star-fill"></i> Reviews</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="rnd-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="rnd-languages.html"><i class="bi bi-translate"></i> Languages</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions"><a href="rnd-profile-settings.html" class="nav-avatar">IA</a></div>
+    </header>
+
+    <div class="page-content">
+      <div class="ncp-wrap">
+        <div class="breadcrumb-nutri"><a href="patient-panel.html">My Patients</a> / <a href="client-detail.html">Juan Dela Cruz</a> / NCP Record</div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <div>
+            <h1 class="display-heading" style="font-size: 1.6rem;">Nutrition Care Process</h1>
+            <p class="text-muted-nutri mb-0" style="font-size: 0.86rem;">Patient: Juan Dela Cruz · Encounter Date: June 15, 2026 · <span class="badge-pill badge-warning">Draft</span></p>
+          </div>
+        </div>
+
+        <div class="phase-stepper">
+          <a href="ncp-assessment.html" class="phase-step done"><div class="phase-line"></div><div class="circle"><i class="bi bi-check-lg"></i></div><div class="label">Assessment</div></a>
+          <a href="ncp-diagnosis.html" class="phase-step current"><div class="phase-line"></div><div class="circle">2</div><div class="label">Diagnosis</div></a>
+          <a href="ncp-intervention.html" class="phase-step"><div class="phase-line"></div><div class="circle">3</div><div class="label">Intervention</div></a>
+          <a href="ncp-monitoring.html" class="phase-step"><div class="circle">4</div><div class="label">Monitoring</div></a>
+        </div>
+
+        <div class="surface surface-pad">
+          <div class="eyebrow mb-3"><span class="eyebrow-line"></span> PHASE 2 — NUTRITION DIAGNOSIS (PES STATEMENT)</div>
+          <div class="alert-soft alert-info mb-4">
+            <i class="bi bi-info-circle-fill"></i>
+            <div>A PES statement follows the format: <strong>Problem</strong> related to <strong>Etiology</strong> as evidenced by <strong>Signs/Symptoms</strong>.</div>
+          </div>
+          <form onsubmit="return false;">
+            <label class="form-label">Problem (P)</label>
+            <input type="text" class="form-control mb-3" placeholder="e.g. Inadequate carbohydrate intake management" value="Inadequate carbohydrate intake management">
+
+            <label class="form-label">Etiology (E) — "related to..."</label>
+            <textarea class="form-control mb-3" rows="2" placeholder="The cause or contributing risk factors...">poor dietary knowledge regarding diabetic exchange portions and inconsistent meal timing</textarea>
+
+            <label class="form-label">Signs / Symptoms (S) — "as evidenced by..."</label>
+            <textarea class="form-control mb-4" rows="2" placeholder="Objective and subjective data supporting the diagnosis...">elevated fasting blood glucose (126 mg/dL), HbA1c of 6.8%, and irregular meal pattern reported in 24-hour recall</textarea>
+
+            <div class="eyebrow mb-2">PREVIEW</div>
+            <div class="pes-preview mb-4">
+              <b>Inadequate carbohydrate intake management</b> related to <b>poor dietary knowledge regarding diabetic exchange portions and inconsistent meal timing</b> as evidenced by <b>elevated fasting blood glucose (126 mg/dL), HbA1c of 6.8%, and irregular meal pattern reported in 24-hour recall</b>.
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <a href="ncp-assessment.html" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Back</a>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-ghost"><i class="bi bi-save me-1"></i> Save as Draft</button>
+                <a href="ncp-intervention.html" class="btn btn-primary">Continue to Intervention <i class="bi bi-arrow-right ms-1"></i></a>
+              </div>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

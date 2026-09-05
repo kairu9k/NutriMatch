@@ -1,0 +1,530 @@
+// ============================================================
+// NutriMatch Database Schema (v2.0 Full Production Code)
+// Optimized for dbdiagram.io / DBML syntax
+// ============================================================
+
+// ------------------------------------------------------------
+// GROUP 1: USER & AUTHENTICATION
+// ------------------------------------------------------------
+
+Table users {
+  id int [pk, increment]
+  role "enum('admin','rnd','client')" [not null]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  email varchar(255) [unique, not null]
+  password varchar(255) [not null, note: 'bcrypt-hashed']
+  phone varchar(20) [null]
+  profile_photo varchar(500) [null]
+  is_active tinyint(1) [not null, default: 1, note: '0 = deactivated']
+  email_verified_at timestamp [null]
+  deleted_at timestamp [null, note: 'Soft delete']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Central identity table'
+}
+
+Table rnd_profiles {
+  id int [pk, increment]
+  user_id int [unique, not null]
+  prc_license_number varchar(50) [unique, not null]
+  prc_expiry_date date [null]
+  specialization varchar(255) [null]
+  language_codes json [null, note: 'Array of language codes']
+  bio text [null]
+  consultation_fee decimal(8,2) [not null, default: 0.00]
+  available_for_new_clients tinyint(1) [not null, default: 1]
+  is_verified tinyint(1) [not null, default: 0]
+  verified_at timestamp [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'RND professional profile extension'
+}
+
+Table rnd_languages {
+  id int [pk, increment]
+  rnd_id int [not null]
+  language_code varchar(10) [not null]
+  language_name varchar(50) [not null]
+
+  Note: 'RND language capabilities for filtering'
+}
+
+Table rnd_availability_schedules {
+  id int [pk, increment]
+  rnd_id int [not null]
+  day_of_week tinyint(1) [not null, note: '0=Sunday, 1=Monday...']
+  start_time time [not null]
+  end_time time [not null]
+  is_available tinyint(1) [not null, default: 1]
+  effective_from date [not null]
+  effective_to date [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Weekly availability slots'
+}
+
+Table client_profiles {
+  id int [pk, increment]
+  user_id int [unique, not null]
+  date_of_birth date [null]
+  sex "enum('male','female')" [null]
+  language_code varchar(10) [null]
+  address varchar(500) [null]
+  emergency_contact varchar(255) [null]
+  emergency_phone varchar(20) [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Client demographic attributes'
+}
+
+Table client_health_profiles {
+  id int [pk, increment]
+  user_id int [unique, not null]
+  medical_conditions json [null]
+  allergies json [null]
+  dietary_restrictions json [null]
+  health_goals json [null]
+  religion varchar(100) [null]
+  notes text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Client clinical health contexts'
+}
+
+// ------------------------------------------------------------
+// GROUP 2: SCHEDULING & RELATIONSHIPS
+// ------------------------------------------------------------
+
+Table rnd_client_relationships {
+  id int [pk, increment]
+  rnd_id int [not null]
+  client_id int [not null]
+  status "enum('pending','active','discharged')" [not null, default: 'pending']
+  started_at timestamp [null]
+  ended_at timestamp [null]
+  notes text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Central relationship mapping hub'
+}
+
+Table appointments {
+  id int [pk, increment]
+  relationship_id int [not null]
+  scheduled_at datetime [not null]
+  type "enum('in_person','video','chat')" [not null, default: 'video']
+  status "enum('pending','confirmed','completed','cancelled')" [not null, default: 'pending']
+  duration_minutes smallint [null]
+  video_session_url varchar(1000) [null]
+  meeting_id varchar(255) [null]
+  cancellation_reason varchar(500) [null]
+  notes text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Consultation appointments tracking table'
+}
+
+Table consultation_sessions {
+  id int [pk, increment]
+  appointment_id int [not null]
+  video_provider "enum('zoom','daily_co','jitsi','twilio_video','google_meet','other')" [not null, default: 'daily_co']
+  external_session_id varchar(255) [null]
+  host_url varchar(1000) [null]
+  participant_url varchar(1000) [null]
+  recording_url varchar(1000) [null]
+  session_status "enum('scheduled','active','ended','failed','cancelled')" [not null, default: 'scheduled']
+  session_started_at timestamp [null]
+  session_ended_at timestamp [null]
+  actual_duration_min smallint [null]
+  provider_metadata json [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Video call session lifecycle instance'
+}
+
+Table reviews {
+  id int [pk, increment]
+  appointment_id int [unique, not null]
+  client_id int [not null]
+  rnd_id int [not null]
+  rating tinyint [not null, note: 'Scale 1-5']
+  comment text [null]
+  is_public tinyint(1) [not null, default: 1]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Feedback provided by clients after appointments'
+}
+
+// ------------------------------------------------------------
+// GROUP 3: CLINICAL (NCP SYSTEM)
+// ------------------------------------------------------------
+
+Table pre_consultation_screenings {
+  id int [pk, increment]
+  client_id int [not null]
+  appointment_id int [null]
+  height_cm decimal(5,2) [not null]
+  weight_kg decimal(5,2) [not null]
+  bmi decimal(5,2) [null]
+  bmi_category varchar(50) [null]
+  bmr_kcal decimal(7,2) [null]
+  tdee_kcal decimal(7,2) [null]
+  activity_level "enum('sedentary','lightly_active','moderately_active','very_active','extra_active')" [not null, default: 'sedentary']
+  nrs_score tinyint [null]
+  nrs_risk "enum('no_risk','at_risk','high_risk')" [null]
+  symptoms text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Client pre-consultation metrics'
+}
+
+Table ncp_records {
+  id int [pk, increment]
+  relationship_id int [not null]
+  appointment_id int [null]
+  encounter_date date [not null]
+  status "enum('draft','completed')" [not null, default: 'draft']
+  weight_kg decimal(5,2) [null]
+  height_cm decimal(5,2) [null]
+  bmi decimal(5,2) [null]
+  blood_pressure varchar(20) [null]
+  blood_glucose decimal(5,2) [null]
+  hba1c decimal(4,2) [null]
+  lab_notes text [null]
+  assessment_notes text [null]
+  pes_problem varchar(500) [null]
+  pes_etiology text [null]
+  pes_signs text [null]
+  diet_prescription text [null]
+  target_kcal decimal(7,2) [null]
+  target_protein_g decimal(6,2) [null]
+  target_carb_g decimal(6,2) [null]
+  target_fat_g decimal(6,2) [null]
+  intervention_notes text [null]
+  monitoring_notes text [null]
+  goal_status "enum('met','partially_met','not_met','ongoing')" [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Longitudinal rows mapping all 4 NCP phases'
+}
+
+Table progress_records {
+  id int [pk, increment]
+  relationship_id int [not null]
+  record_date date [not null]
+  weight_kg decimal(5,2) [null]
+  blood_pressure varchar(20) [null]
+  blood_glucose decimal(5,2) [null]
+  hba1c decimal(4,2) [null]
+  adherence_pct tinyint [null]
+  client_notes text [null]
+  rnd_notes text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Outcome evaluations between encounters'
+}
+
+// ------------------------------------------------------------
+// GROUP 4: FOOD EXCHANGE & MEAL PLANS
+// ------------------------------------------------------------
+
+Table food_exchange_categories {
+  id int [pk, increment]
+  code varchar(10) [unique, not null]
+  name varchar(100) [not null]
+  description text [null]
+  kcal_per_exchange decimal(6,2) [not null, default: 0.00]
+  carbs_g decimal(5,2) [null]
+  protein_g decimal(5,2) [null]
+  fat_g decimal(5,2) [null]
+  color varchar(7) [null]
+  sort_order tinyint [not null, default: 0]
+
+  Note: 'FNRI FEL Category Master'
+}
+
+Table food_exchange_items {
+  id int [pk, increment]
+  category_id int [not null]
+  name varchar(255) [not null]
+  local_name varchar(255) [null]
+  subcategory varchar(50) [null]
+  ep_grams decimal(7,2) [null]
+  household_measure varchar(100) [null]
+  is_high_sodium tinyint(1) [not null, default: 0]
+  is_high_potassium tinyint(1) [not null, default: 0]
+  is_high_phosphorus tinyint(1) [not null, default: 0]
+  is_high_fiber tinyint(1) [not null, default: 0]
+  is_low_gi tinyint(1) [not null, default: 0]
+  ok_for_diabetes tinyint(1) [not null, default: 1]
+  ok_for_hypertension tinyint(1) [not null, default: 1]
+  ok_for_renal tinyint(1) [not null, default: 1]
+  is_free_food tinyint(1) [not null, default: 0]
+  notes varchar(500) [null]
+
+  Note: 'FNRI authoritative food items list'
+}
+
+Table meal_plans {
+  id int [pk, increment]
+  relationship_id int [not null]
+  name varchar(255) [not null]
+  condition "enum('diabetes','hypertension','renal','weight_loss','weight_gain','general')" [not null, default: 'general']
+  target_kcal decimal(7,2) [null]
+  total_vegetable decimal(4,1) [default: 0.0]
+  total_fruit decimal(4,1) [default: 0.0]
+  total_milk decimal(4,1) [default: 0.0]
+  total_rice decimal(4,1) [default: 0.0]
+  total_meat decimal(4,1) [default: 0.0]
+  total_fat decimal(4,1) [default: 0.0]
+  total_sugar decimal(4,1) [default: 0.0]
+  notes text [null]
+  status "enum('active','archived')" [not null, default: 'active']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Meal plans assigned by an RND'
+}
+
+Table meal_plan_meals {
+  id int [pk, increment]
+  meal_plan_id int [not null]
+  meal_time "enum('breakfast','am_snack','lunch','pm_snack','dinner','bedtime_snack')" [not null]
+  vegetable_exchanges decimal(4,1) [not null, default: 0.0]
+  fruit_exchanges decimal(4,1) [not null, default: 0.0]
+  milk_exchanges decimal(4,1) [not null, default: 0.0]
+  rice_exchanges decimal(4,1) [not null, default: 0.0]
+  meat_exchanges decimal(4,1) [not null, default: 0.0]
+  fat_exchanges decimal(4,1) [not null, default: 0.0]
+  sugar_exchanges decimal(4,1) [not null, default: 0.0]
+  meal_notes text [null]
+
+  Note: 'Exchange allocation matrix per meal slot'
+}
+
+Table meal_plan_food_items {
+  id int [pk, increment]
+  meal_plan_meal_id int [not null]
+  food_item_id int [null]
+  food_name varchar(255) [not null]
+  source_type "enum('fel','fnri_fct','usda','custom')" [not null, default: 'fel']
+  external_food_id varchar(100) [null]
+  exchanges decimal(4,1) [not null, default: 1.0]
+  household_measure varchar(100) [null]
+  notes varchar(500) [null]
+
+  Note: 'Actual foods matching individual components'
+}
+
+// ------------------------------------------------------------
+// GROUP 5: COMMUNICATION & REMINDERS
+// ------------------------------------------------------------
+
+Table messages {
+  id int [pk, increment]
+  relationship_id int [not null]
+  sender_id int [not null]
+  message text [not null]
+  message_type "enum('text','file','image','system')" [not null, default: 'text']
+  attachment_url varchar(1000) [null]
+  attachment_type varchar(50) [null]
+  is_read tinyint(1) [not null, default: 0]
+  read_at timestamp [null]
+  deleted_at timestamp [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'In-app secure message logging'
+}
+
+Table resources {
+  id int [pk, increment]
+  uploaded_by int [not null]
+  title varchar(500) [not null]
+  description text [null]
+  type "enum('article','pdf','video','link')" [not null, default: 'article']
+  file_path varchar(500) [null]
+  url varchar(1000) [null]
+  is_active tinyint(1) [not null, default: 1]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Educational materials uploaded'
+}
+
+Table reminders {
+  id int [pk, increment]
+  client_id int [not null]
+  title varchar(255) [not null]
+  message text [null]
+  type "enum('appointment','meal_log','medication','general')" [not null, default: 'general']
+  send_at datetime [not null]
+  is_sent tinyint(1) [not null, default: 0]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Scheduled events triggers queue'
+}
+
+Table notification_logs {
+  id int [pk, increment]
+  notifiable_type varchar(100) [null]
+  notifiable_id int [null]
+  recipient_id int [not null]
+  channel "enum('email','sms','push','in_app')" [not null]
+  subject varchar(255) [null]
+  content text [null]
+  status "enum('queued','sent','delivered','failed','bounced')" [not null, default: 'queued']
+  sent_at timestamp [null]
+  delivered_at timestamp [null]
+  error_message text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Outbound transaction audits'
+}
+
+// ------------------------------------------------------------
+// GROUP 6: BILLING & SYSTEM
+// ------------------------------------------------------------
+
+Table invoices {
+  id int [pk, increment]
+  relationship_id int [not null]
+  appointment_id int [null]
+  amount decimal(10,2) [not null]
+  commission_pct decimal(5,2) [not null, default: 10.00]
+  commission_amt decimal(10,2) [not null, default: 0.00]
+  status "enum('unpaid','paid','cancelled','refunded')" [not null, default: 'unpaid']
+  payment_gateway "enum('paymongo','stripe','xendit','paypal','cash','manual')" [null]
+  payment_method "enum('card','gcash','maya','bank_transfer','cash','other')" [null]
+  gateway_reference_id varchar(255) [null]
+  payment_url varchar(1000) [null]
+  paid_at timestamp [null]
+  notes text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Consultation transaction invoices'
+}
+
+Table payment_transactions {
+  id int [pk, increment]
+  invoice_id int [not null]
+  transaction_type "enum('payment','payout','refund','adjustment')" [not null, default: 'payment']
+  amount decimal(10,2) [not null]
+  status varchar(50) [not null]
+  gateway_payload json [null]
+  processed_at timestamp [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Detailed ledger of invoice movements'
+}
+
+Table system_settings {
+  id int [pk, increment]
+  key varchar(50) [unique, not null]
+  value text [null]
+  description varchar(255) [null]
+  updated_by int [null]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Global administrative configurations'
+}
+
+Table api_cache {
+  id int [pk, increment]
+  cache_key varchar(255) [unique, not null]
+  response_body json [not null]
+  expires_at timestamp [not null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'External endpoint payload storage optimizations'
+}
+
+Table audit_logs {
+  id int [pk, increment]
+  user_id int [null]
+  action varchar(255) [not null]
+  table_name varchar(100) [null]
+  record_id int [null]
+  old_values json [null]
+  new_values json [null]
+  ip_address varchar(45) [null]
+  user_agent varchar(255) [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Compliance activity trail'
+}
+
+Table sessions {
+  id varchar(255) [pk]
+  user_id int [null]
+  ip_address varchar(45) [null]
+  user_agent text [null]
+  payload text [not null]
+  last_activity int [not null]
+
+  Note: 'Framework state tracking session drivers'
+}
+
+Table migrations {
+  id int [pk, increment]
+  migration varchar(255) [not null]
+  batch int [not null]
+}
+
+// ============================================================
+// FOREIGN KEY RELATIONSHIPS
+// ============================================================
+
+Ref: rnd_profiles.user_id > users.id
+Ref: rnd_languages.rnd_id > users.id
+Ref: rnd_availability_schedules.rnd_id > users.id
+Ref: client_profiles.user_id > users.id
+Ref: client_health_profiles.user_id > users.id
+
+Ref: rnd_client_relationships.rnd_id > users.id
+Ref: rnd_client_relationships.client_id > users.id
+
+Ref: appointments.relationship_id > rnd_client_relationships.id
+Ref: consultation_sessions.appointment_id > appointments.id
+
+Ref: reviews.appointment_id > appointments.id
+Ref: reviews.client_id > users.id
+Ref: reviews.rnd_id > users.id
+
+Ref: pre_consultation_screenings.client_id > users.id
+Ref: pre_consultation_screenings.appointment_id > appointments.id
+
+Ref: ncp_records.relationship_id > rnd_client_relationships.id
+Ref: ncp_records.appointment_id > appointments.id
+
+Ref: progress_records.relationship_id > rnd_client_relationships.id
+
+Ref: food_exchange_items.category_id > food_exchange_categories.id
+
+Ref: meal_plans.relationship_id > rnd_client_relationships.id
+Ref: meal_plan_meals.meal_plan_id > meal_plans.id
+Ref: meal_plan_food_items.meal_plan_meal_id > meal_plan_meals.id
+Ref: meal_plan_food_items.food_item_id > food_exchange_items.id
+
+Ref: messages.relationship_id > rnd_client_relationships.id
+Ref: messages.sender_id > users.id
+
+Ref: resources.uploaded_by > users.id
+Ref: reminders.client_id > users.id
+Ref: notification_logs.recipient_id > users.id
+
+Ref: invoices.relationship_id > rnd_client_relationships.id
+Ref: invoices.appointment_id > appointments.id
+Ref: payment_transactions.invoice_id > invoices.id
+
+Ref: system_settings.updated_by > users.id
+Ref: audit_logs.user_id > users.id
+Ref: sessions.user_id > users.id

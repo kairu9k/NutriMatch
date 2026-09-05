@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register as RND — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .auth-shell.wide-form .auth-form-side { padding: 48px 24px; }
+  .step-indicator { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+  .step-pill { flex: 1; height: 4px; border-radius: 2px; background: #e0e6dc; }
+  .step-pill.done { background: var(--gold-600); }
+</style>
+</head>
+<body>
+
+<div class="auth-shell wide-form">
+  <!-- LEFT VISUAL -->
+  <div class="auth-visual">
+    <div class="auth-visual-content">
+      <a href="landing.html" class="d-flex align-items-center gap-2 text-decoration-none mb-5">
+        <img src="https://placehold.co/36x36/D4A017/1a3a1a?text=N" alt="" style="width:36px;height:36px;border-radius:6px;">
+        <span style="font-size:1.25rem;font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+      </a>
+    </div>
+    <div class="auth-quote">
+      "The digital NCP workflow is a complete game-changer. PES statements, lab tracking, and meal plans — all in one place."
+      <div class="auth-quote-attrib">RND IVY HOPE ALBA · DIABETES & RENAL NUTRITION</div>
+    </div>
+    <div class="auth-trust-row">
+      <div class="trust-item"><i class="bi bi-patch-check-fill" style="color: var(--gold-600);"></i> PRC-Verified Practice</div>
+      <div class="trust-item"><i class="bi bi-graph-up-arrow" style="color: var(--gold-600);"></i> Grow Your Caseload</div>
+    </div>
+  </div>
+
+  <!-- RIGHT FORM -->
+  <div class="auth-form-side">
+    <div class="auth-card wide">
+      <span class="badge-pill badge-neutral mb-3"><i class="bi bi-briefcase-fill"></i> REGISTERED NUTRITIONIST-DIETITIAN</span>
+      <h1 class="display-heading mb-2" style="font-size: 1.85rem;">Join as a Dietitian</h1>
+      <p class="text-muted-nutri mb-4" style="font-size:0.88rem;">Your account will be reviewed by an administrator before going live. Looking for care instead? <a href="register-client.html" style="color:var(--forest-700); font-weight:700;">Register as patient →</a></p>
+
+      <div class="alert-soft alert-info mb-4">
+        <i class="bi bi-info-circle-fill"></i>
+        <div>Your PRC license number is cross-checked manually against the PRC online verification portal before your profile is published.</div>
+      </div>
+
+      <form onsubmit="return false;">
+        <div class="eyebrow mb-3"><span class="eyebrow-line"></span> PERSONAL INFORMATION</div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label">First Name</label>
+            <input type="text" class="form-control" placeholder="Ivy Hope">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Last Name</label>
+            <input type="text" class="form-control" placeholder="Alba">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Email Address</label>
+          <input type="email" class="form-control" placeholder="you@example.com">
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Phone Number <span class="text-faint-nutri fw-normal">(optional)</span></label>
+          <input type="text" class="form-control" placeholder="09XX XXX XXXX">
+        </div>
+
+        <div class="eyebrow mt-4 mb-3"><span class="eyebrow-line"></span> PROFESSIONAL CREDENTIALS</div>
+        <div class="row g-3">
+          <div class="col-7">
+            <label class="form-label">PRC License Number</label>
+            <input type="text" class="form-control" placeholder="0012345">
+            <div class="form-hint">Must be unique and currently active.</div>
+          </div>
+          <div class="col-5">
+            <label class="form-label">PRC Expiry Date</label>
+            <input type="date" class="form-control">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Specialization <span class="text-faint-nutri fw-normal">(optional)</span></label>
+          <select class="form-select">
+            <option selected disabled>Select specialization</option>
+            <option>Diabetes Management</option>
+            <option>Renal Nutrition</option>
+            <option>Hypertension & Cardiac Care</option>
+            <option>Weight Management</option>
+            <option>Pediatric Nutrition</option>
+            <option>General Practice</option>
+          </select>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Consultation Fee (₱)</label>
+          <div class="input-group-icon">
+            <i class="bi bi-currency-exchange icon"></i>
+            <input type="number" class="form-control" placeholder="800.00">
+          </div>
+          <div class="form-hint">Per-session fee charged to clients. Editable later from your profile.</div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Professional Bio <span class="text-faint-nutri fw-normal">(optional)</span></label>
+          <textarea class="form-control" rows="3" placeholder="Briefly describe your clinical background and approach to care..."></textarea>
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label">Upload PRC License (image or PDF)</label>
+          <div class="border rounded-3 p-4 text-center" style="border-style: dashed !important; border-color: #d8e0d2 !important; background: var(--forest-tint);">
+            <i class="bi bi-cloud-arrow-up" style="font-size: 1.6rem; color: var(--forest-500);"></i>
+            <div style="font-size: 0.85rem; color: var(--ink-muted); margin-top: 6px;">Drag file here or <span style="color: var(--forest-700); font-weight: 700;">browse</span></div>
+            <div class="form-hint">JPG, PNG, or PDF — max 5MB</div>
+          </div>
+        </div>
+
+        <div class="eyebrow mt-4 mb-3"><span class="eyebrow-line"></span> ACCOUNT SECURITY</div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" placeholder="••••••••">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" placeholder="••••••••">
+          </div>
+        </div>
+
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="consentRnd" checked>
+          <label class="form-check-label" for="consentRnd" style="font-size:0.8rem; color: var(--ink-muted);">
+            I confirm the information above is accurate and I consent to PRC license verification and RA 10173 data processing.
+          </label>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-block mt-4" onclick="window.location.href='login.html'">Submit for Verification</button>
+      </form>
+
+      <p class="text-center text-muted-nutri mt-4" style="font-size:0.85rem;">
+        Already have an account?
+        <a href="login.html" style="color: var(--forest-700); font-weight:700; text-decoration:none;">Log in</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

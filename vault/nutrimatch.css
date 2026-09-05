@@ -1,0 +1,451 @@
+/* =========================================================
+   NutriMatch Design System
+   Shared across all UI prototype pages.
+   Palette and type lifted directly from the production
+   landing page (feature/landing-julia branch).
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Core palette — from landing page */
+  --forest-900: #0f2a0f;
+  --forest-800: #162e16;
+  --forest-700: #1a3a1a;
+  --forest-600: #2a5a2a;
+  --forest-500: #3a6a3a;
+  --forest-300: #6a9a6a;
+  --forest-200: #a8c4a8;
+  --forest-100: #c8d8c8;
+  --forest-tint: #eef4ee;
+
+  --gold-700: #c4920f;
+  --gold-600: #D4A017;
+  --gold-200: #f0b04a;
+
+  --cream-100: #fafaec;
+  --cream-200: #f5f5e8;
+  --paper: #ffffff;
+
+  --ink: #1a3a1a;
+  --ink-muted: #5a7a5a;
+  --ink-soft: #6a8a6a;
+  --ink-faint: #8aaa8a;
+
+  --success: #4ab94a;
+  --success-bg: rgba(74,185,74,0.12);
+  --success-text: #2a7a2a;
+  --warning: #D4A017;
+  --warning-bg: rgba(220,150,40,0.14);
+  --warning-text: #8a6310;
+  --danger: #c0392b;
+  --danger-bg: rgba(192,57,43,0.1);
+  --danger-text: #a23324;
+  --info: #2f6fa8;
+  --info-bg: rgba(47,111,168,0.1);
+  --info-text: #245784;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 2px 10px rgba(15,42,15,0.06);
+  --shadow-md: 0 8px 28px rgba(15,42,15,0.10);
+  --shadow-lg: 0 16px 48px rgba(15,42,15,0.16);
+
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--cream-100);
+  color: var(--ink);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+::selection { background: var(--gold-600); color: var(--forest-700); }
+
+/* ---------- Eyebrow label ---------- */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--gold-600);
+  text-transform: uppercase;
+}
+.eyebrow-line { display: inline-block; width: 28px; height: 2px; background: var(--gold-600); }
+
+/* ---------- Typography helpers ---------- */
+.font-display { font-family: var(--font-display); }
+h1, h2, h3, .display-heading {
+  font-family: var(--font-display);
+  color: var(--forest-700);
+  font-weight: 700;
+  margin: 0;
+}
+.highlight { color: var(--gold-600); font-style: italic; }
+
+/* ---------- Navbar (app shell, post-login) ---------- */
+.app-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 64px;
+  background: var(--forest-800);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.app-navbar .nav-logo { display: flex; align-items: center; gap: 10px; }
+.app-navbar .logo-img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
+.app-navbar .logo-text { font-size: 1.15rem; font-weight: 700; font-family: var(--font-body); }
+.app-navbar .logo-nutri { color: #ffffff; }
+.app-navbar .logo-match { color: var(--gold-600); }
+
+.app-navbar .nav-links { display: flex; list-style: none; gap: 4px; margin: 0; padding: 0; }
+.app-navbar .nav-links a {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--forest-100); text-decoration: none;
+  font-size: 0.85rem; font-weight: 500; padding: 8px 14px; border-radius: var(--radius-pill);
+  transition: background .15s, color .15s;
+}
+.app-navbar .nav-links a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.app-navbar .nav-links a.active { background: var(--gold-600); color: var(--forest-700); font-weight: 700; }
+
+.app-navbar .nav-actions { display: flex; align-items: center; gap: 14px; }
+.nav-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.08); color: #fff; border: none; cursor: pointer; position: relative; font-size: 1rem;
+}
+.nav-icon-btn .badge-dot {
+  position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold-600); border: 1.5px solid var(--forest-800);
+}
+.nav-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--gold-600); color: var(--forest-700);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.78rem; cursor: pointer;
+}
+
+/* ---------- Marketing navbar (public pages) ---------- */
+.navbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; height: 68px; background: var(--forest-800);
+  position: sticky; top: 0; z-index: 1000;
+}
+.navbar .nav-logo { display: flex; align-items: center; gap: 10px; }
+.navbar .logo-img { width: 36px; height: 36px; object-fit: contain; }
+.navbar .logo-text { font-size: 1.3rem; font-weight: 700; }
+.navbar .logo-nutri { color: #fff; }
+.navbar .logo-match { color: var(--gold-600); }
+.navbar .nav-links { display: flex; list-style: none; gap: 32px; margin: 0; padding: 0; }
+.navbar .nav-links a { color: var(--forest-100); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+.navbar .nav-links a:hover { color: #fff; }
+.navbar .nav-actions { display: flex; gap: 12px; align-items: center; }
+
+/* ---------- Buttons ---------- */
+.btn { font-family: var(--font-body); border: none; cursor: pointer; font-weight: 700; transition: background .15s, border-color .15s, color .15s, transform .1s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn:active { transform: translateY(1px); }
+
+.btn-gold {
+  background: var(--gold-600); color: var(--forest-700);
+  padding: 13px 28px; border-radius: var(--radius-pill); font-size: 0.92rem;
+}
+.btn-gold:hover { background: var(--gold-700); }
+
+.btn-primary { background: var(--gold-600); color: var(--forest-700); padding: 13px 28px; border-radius: var(--radius-sm); font-size: 0.92rem; }
+.btn-primary:hover { background: var(--gold-700); }
+
+.btn-outline-light {
+  background: transparent; border: 1.5px solid #fff; color: #fff;
+  padding: 12px 26px; border-radius: var(--radius-pill); font-size: 0.9rem; font-weight: 600;
+}
+.btn-outline-light:hover { background: rgba(255,255,255,0.08); }
+
+.btn-outline-forest {
+  background: transparent; border: 1.5px solid var(--forest-500); color: var(--forest-700);
+  padding: 12px 26px; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600;
+}
+.btn-outline-forest:hover { border-color: var(--forest-700); background: var(--forest-tint); }
+
+.btn-login {
+  background: transparent; border: 1.5px solid #fff; color: #fff;
+  padding: 8px 22px; border-radius: var(--radius-pill); font-size: 0.88rem; font-weight: 500;
+}
+.btn-login:hover { background: rgba(255,255,255,0.08); }
+
+.btn-sm { padding: 8px 16px; font-size: 0.82rem; border-radius: var(--radius-sm); }
+.btn-block { width: 100%; }
+
+.btn-danger-outline {
+  background: transparent; border: 1.5px solid var(--danger); color: var(--danger);
+  padding: 10px 20px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600;
+}
+.btn-danger-outline:hover { background: var(--danger-bg); }
+
+.btn-ghost {
+  background: transparent; border: none; color: var(--ink-muted);
+  padding: 10px 16px; font-size: 0.85rem; font-weight: 600; border-radius: var(--radius-sm);
+}
+.btn-ghost:hover { background: var(--forest-tint); color: var(--forest-700); }
+
+/* ---------- Cards & surfaces ---------- */
+.surface {
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(26,58,26,0.06);
+}
+.surface-pad { padding: 24px; }
+
+.stat-card {
+  background: var(--paper); border-radius: var(--radius-md); padding: 20px 22px;
+  box-shadow: var(--shadow-sm); border: 1px solid rgba(26,58,26,0.06);
+}
+.stat-card .stat-icon {
+  width: 42px; height: 42px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; margin-bottom: 14px; background: var(--forest-tint); color: var(--forest-700);
+}
+.stat-card .stat-number { font-family: var(--font-display); font-size: 1.7rem; font-weight: 700; color: var(--forest-700); }
+.stat-card .stat-label { font-size: 0.8rem; color: var(--ink-soft); margin-top: 2px; font-weight: 500; }
+.stat-card .stat-delta { font-size: 0.75rem; font-weight: 600; margin-top: 8px; display: inline-flex; align-items: center; gap: 4px; }
+.stat-delta.up { color: var(--success-text); }
+.stat-delta.down { color: var(--danger-text); }
+
+/* ---------- Badges ---------- */
+.badge-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-pill);
+  letter-spacing: 0.02em;
+}
+.badge-success { background: var(--success-bg); color: var(--success-text); }
+.badge-warning { background: var(--warning-bg); color: var(--warning-text); }
+.badge-danger  { background: var(--danger-bg); color: var(--danger-text); }
+.badge-info    { background: var(--info-bg); color: var(--info-text); }
+.badge-neutral { background: var(--forest-tint); color: var(--forest-700); }
+.badge-gold    { background: rgba(212,160,23,0.16); color: var(--gold-700); }
+
+/* ---------- Forms ---------- */
+.form-label { font-size: 0.83rem; font-weight: 600; color: var(--forest-700); margin-bottom: 6px; display: block; }
+.form-hint { font-size: 0.76rem; color: var(--ink-faint); margin-top: 5px; }
+.form-control, .form-select {
+  font-family: var(--font-body);
+  width: 100%;
+  border: 1.5px solid #e0e6dc;
+  background: var(--paper);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  transition: border-color .15s, box-shadow .15s;
+}
+.form-control:focus, .form-select:focus {
+  outline: none; border-color: var(--gold-600); box-shadow: 0 0 0 3px rgba(212,160,23,0.15);
+}
+.form-control.is-invalid { border-color: var(--danger); }
+.invalid-feedback { font-size: 0.76rem; color: var(--danger-text); margin-top: 5px; display: block; }
+.form-control.is-valid { border-color: var(--success); }
+
+.input-group-icon { position: relative; }
+.input-group-icon .form-control { padding-left: 40px; }
+.input-group-icon .icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); font-size: 0.95rem; }
+.input-group-icon .icon-end { left: auto; right: 13px; cursor: pointer; }
+.input-group-icon .form-control.has-end { padding-right: 40px; padding-left: 14px; }
+
+.form-check-input:checked { background-color: var(--forest-600); border-color: var(--forest-600); }
+.form-check-input:focus { box-shadow: 0 0 0 3px rgba(58,106,58,0.18); border-color: var(--forest-500); }
+
+/* ---------- Auth shell ---------- */
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.auth-visual {
+  background: var(--forest-700);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  overflow: hidden;
+  color: #fff;
+}
+.auth-visual::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80');
+  background-size: cover; background-position: center;
+  opacity: 0.18;
+}
+.auth-visual-content { position: relative; z-index: 1; }
+.auth-form-side { display: flex; align-items: center; justify-content: center; padding: 48px 24px; background: var(--cream-100); }
+.auth-card { width: 100%; max-width: 440px; }
+.auth-card.wide { max-width: 620px; }
+
+.auth-quote {
+  position: relative; z-index: 1;
+  font-family: var(--font-display); font-style: italic; font-size: 1.5rem; line-height: 1.45;
+}
+.auth-quote-attrib { font-size: 0.78rem; color: var(--forest-200); margin-top: 14px; letter-spacing: 0.05em; }
+
+.auth-trust-row { position: relative; z-index: 1; display: flex; gap: 24px; flex-wrap: wrap; }
+.auth-trust-row .trust-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--forest-100); }
+
+/* ---------- Tabs (role switch on auth pages) ---------- */
+.role-tabs { display: flex; gap: 8px; background: var(--forest-tint); padding: 5px; border-radius: var(--radius-pill); margin-bottom: 28px; }
+.role-tabs a { flex: 1; text-align: center; padding: 10px 14px; border-radius: var(--radius-pill); font-size: 0.85rem; font-weight: 600; color: var(--ink-muted); text-decoration: none; }
+.role-tabs a.active { background: var(--forest-700); color: #fff; }
+
+/* ---------- Footer (marketing) ---------- */
+.site-footer { background: var(--forest-900); padding: 56px 72px 32px; font-family: var(--font-body); color: var(--forest-100); }
+.site-footer a { color: var(--forest-100); text-decoration: none; font-size: 0.85rem; }
+.site-footer a:hover { color: #fff; }
+.ra-badge { display: inline-block; border: 1px solid var(--forest-500); color: var(--forest-300); font-size: 0.65rem; letter-spacing: 0.08em; padding: 4px 12px; border-radius: 4px; }
+
+/* ---------- Tables ---------- */
+.table-nutri { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.table-nutri thead th {
+  text-align: left; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 700; padding: 12px 16px; border-bottom: 1.5px solid #ececdf;
+}
+.table-nutri tbody td { padding: 14px 16px; border-bottom: 1px solid #f0f0e6; vertical-align: middle; }
+.table-nutri tbody tr:hover { background: var(--forest-tint); }
+.table-nutri tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- Progress bars ---------- */
+.progress-track { background: #ececdf; border-radius: var(--radius-pill); height: 8px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--gold-600); border-radius: var(--radius-pill); }
+.progress-fill.forest { background: var(--forest-600); }
+
+/* ---------- Alerts / toasts ---------- */
+.alert-soft { border-radius: var(--radius-sm); padding: 14px 16px; font-size: 0.86rem; display: flex; gap: 12px; align-items: flex-start; }
+.alert-success { background: var(--success-bg); color: var(--success-text); }
+.alert-warning { background: var(--warning-bg); color: var(--warning-text); }
+.alert-danger { background: var(--danger-bg); color: var(--danger-text); }
+.alert-info { background: var(--info-bg); color: var(--info-text); }
+
+.toast-nutri {
+  background: var(--forest-800); color: #fff; border-radius: var(--radius-sm);
+  padding: 14px 18px; box-shadow: var(--shadow-lg); font-size: 0.85rem; display: flex; align-items: center; gap: 12px;
+}
+
+/* ---------- Page shell (post-login pages) ---------- */
+.page-shell { min-height: 100vh; background: var(--cream-100); }
+.page-content { padding: 32px; max-width: 1320px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+.page-title { font-size: 1.7rem; }
+.page-subtitle { color: var(--ink-soft); font-size: 0.9rem; margin-top: 4px; }
+
+.breadcrumb-nutri { font-size: 0.8rem; color: var(--ink-faint); margin-bottom: 12px; }
+.breadcrumb-nutri a { color: var(--ink-soft); text-decoration: none; }
+.breadcrumb-nutri a:hover { color: var(--forest-700); }
+
+/* ---------- Sidebar (dashboard layouts) ---------- */
+.app-sidebar {
+  width: 240px; background: var(--forest-800); min-height: 100vh; padding: 24px 16px;
+  display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0;
+}
+.app-sidebar a {
+  display: flex; align-items: center; gap: 12px; color: var(--forest-100); text-decoration: none;
+  padding: 11px 14px; border-radius: var(--radius-sm); font-size: 0.87rem; font-weight: 500;
+}
+.app-sidebar a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.app-sidebar a.active { background: var(--gold-600); color: var(--forest-700); font-weight: 700; }
+.app-sidebar .sidebar-section-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--forest-300); padding: 18px 14px 6px; }
+
+/* ---------- Utility ---------- */
+.text-muted-nutri { color: var(--ink-soft); }
+.text-faint-nutri { color: var(--ink-faint); }
+.rounded-nutri { border-radius: var(--radius-md); }
+.shadow-nutri { box-shadow: var(--shadow-md); }
+.bg-forest { background: var(--forest-700); }
+.bg-forest-dark { background: var(--forest-900); }
+.bg-cream { background: var(--cream-100); }
+.bg-tint { background: var(--forest-tint); }
+
+/* =========================================================
+   NutriMatch v2 — Palette bridge + new component tokens
+   Maps emerald-green/gold/cream from the logo & uploaded
+   reference files onto the existing design system.
+   ========================================================= */
+
+/* Expanded gold palette (from GoldBG.png + reference files) */
+:root {
+  --gold-100: #FAEEDA;
+  --gold-300: #F4D06A;
+  --gold-500: #D4A017;   /* primary gold — same as --gold-600 */
+  --gold-dark: #AA8A2E;
+
+  /* Emerald variants matching reference palette */
+  --em-950: #022c22;
+  --em-900: #064e3b;
+  --em-800: #065f46;
+  --em-700: #047857;
+  --em-600: #10B981;     /* lighter accent */
+  --em-50:  #E1F5EE;
+
+  --cream-light: #FDFBF7;
+
+  /* Alert semantic (matching uploaded files) */
+  --alert-urgent-bg:  #FCEBEB;
+  --alert-urgent-fg:  #A32D2D;
+  --alert-atrisk-bg:  #FAEEDA;
+  --alert-atrisk-fg:  #854F0B;
+  --alert-stable-bg:  #E1F5EE;
+  --alert-stable-fg:  #0F6E56;
+}
+
+/* Clinical alert badges */
+.status-urgent  { background: var(--alert-urgent-bg); color: var(--alert-urgent-fg); border-radius: var(--radius-sm); padding: 10px 14px; }
+.status-atrisk  { background: var(--alert-atrisk-bg); color: var(--alert-atrisk-fg); border-radius: var(--radius-sm); padding: 10px 14px; }
+.status-stable  { background: var(--alert-stable-bg); color: var(--alert-stable-fg); border-radius: var(--radius-sm); padding: 10px 14px; }
+
+/* Tab system (matching uploaded multi-tab dashboards) */
+.dash-tab-nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1.5px solid #ececdf; padding-bottom: 0; }
+.dash-tab-nav button {
+  background: none; border: none; padding: 10px 18px; font-size: 0.83rem; font-weight: 600;
+  color: var(--ink-muted); cursor: pointer; border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px; transition: color .15s, border-color .15s;
+}
+.dash-tab-nav button.active { color: var(--forest-700); border-bottom-color: var(--gold-600); }
+.dash-tab-nav button:hover:not(.active) { color: var(--forest-700); }
+.dash-tab-pane { display: none; }
+.dash-tab-pane.active { display: block; }
+
+/* Logo in sidebar */
+.sidebar-logo-img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
+
+/* Outcome metric strip */
+.outcome-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center; }
+.outcome-strip .o-val { font-size: 1.6rem; font-weight: 700; font-family: var(--font-display); }
+.outcome-strip .o-lbl { font-size: 0.72rem; color: var(--ink-faint); margin-top: 2px; }
+
+/* Compliance checklist */
+.compliance-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0e6; font-size: 0.86rem; }
+.compliance-row:last-child { border-bottom: none; }
+.compliance-icon-ok   { color: var(--success-text); font-size: 1rem; flex-shrink:0; }
+.compliance-icon-warn { color: var(--warning-text); font-size: 1rem; flex-shrink:0; }
+
+/* Chart placeholder (animated bar) */
+.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; }
+.bar-chart .bar { flex: 1; background: var(--forest-700); border-radius: 4px 4px 0 0; opacity: 0.85; transition: opacity .2s; }
+.bar-chart .bar:hover { opacity: 1; }
+.bar-chart .bar.gold { background: var(--gold-600); }
+
+/* Schedule item */
+.schedule-item { padding: 10px 14px; border-radius: var(--radius-sm); border-left: 3px solid var(--gold-600); background: var(--forest-tint); margin-bottom: 8px; }
+.schedule-item.neutral { border-left-color: #d8e0d2; background: #f8f8f4; }
+
+/* Progress ring (SVG-based, no JS library needed) */
+.ring-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+.ring-wrap .ring-label { position: absolute; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; color: var(--forest-700); }

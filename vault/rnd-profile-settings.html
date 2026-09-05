@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Settings — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .settings-tabs { display: flex; flex-direction: column; gap: 2px; }
+  .settings-tabs button { text-align: left; border: none; background: none; padding: 11px 14px; border-radius: var(--radius-sm); font-size: 0.87rem; font-weight: 600; color: var(--ink-muted); display: flex; align-items: center; gap: 10px; }
+  .settings-tabs button.active { background: var(--forest-tint); color: var(--forest-700); }
+  .avatar-xl { width: 84px; height: 84px; border-radius: 50%; background: var(--forest-600); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem; }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="rnd-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="patient-panel.html"><i class="bi bi-people-fill"></i> My Patients</a>
+    <a href="rnd-appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="ncp-assessment.html"><i class="bi bi-clipboard2-pulse"></i> NCP Records</a>
+    <a href="food-exchange-search.html"><i class="bi bi-search-heart"></i> Food Exchange Search</a>
+    <a href="meal-plan-builder.html"><i class="bi bi-egg-fried"></i> Meal Plans</a>
+    <a href="rnd-availability.html"><i class="bi bi-calendar-week"></i> Availability</a>
+    <a href="resource-upload.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="rnd-earnings.html"><i class="bi bi-cash-coin"></i> Earnings</a>
+    <a href="reviews.html"><i class="bi bi-star-fill"></i> Reviews</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="rnd-profile-settings.html" class="active"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="rnd-languages.html"><i class="bi bi-translate"></i> Languages</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions"><a href="rnd-profile-settings.html" class="nav-avatar">IA</a></div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">Profile Settings</h1>
+          <p class="page-subtitle">Manage your professional profile, credentials, and preferences.</p>
+        </div>
+        <span class="badge-pill badge-success" style="padding: 8px 16px;"><i class="bi bi-patch-check-fill"></i> PRC Verified</span>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <div class="surface surface-pad settings-tabs">
+            <button class="active" data-bs-toggle="tab" data-bs-target="#tabPersonal"><i class="bi bi-person"></i> Personal Info</button>
+            <button data-bs-toggle="tab" data-bs-target="#tabProfessional"><i class="bi bi-briefcase"></i> Professional Profile</button>
+            <button data-bs-toggle="tab" data-bs-target="#tabLanguages"><i class="bi bi-translate"></i> Languages</button>
+            <button data-bs-toggle="tab" data-bs-target="#tabFees"><i class="bi bi-cash"></i> Fees & Payouts</button>
+            <button data-bs-toggle="tab" data-bs-target="#tabSecurity"><i class="bi bi-shield-lock"></i> Security</button>
+          </div>
+        </div>
+
+        <div class="col-lg-9">
+          <div class="tab-content">
+
+            <!-- PERSONAL INFO -->
+            <div class="tab-pane fade show active" id="tabPersonal">
+              <div class="surface surface-pad">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                  <div class="avatar-xl">IA</div>
+                  <div>
+                    <button class="btn btn-outline-forest btn-sm">Change Photo</button>
+                    <p class="text-faint-nutri mt-2 mb-0" style="font-size: 0.76rem;">JPG or PNG, max 2MB</p>
+                  </div>
+                </div>
+                <div class="row g-3">
+                  <div class="col-6"><label class="form-label">First Name</label><input type="text" class="form-control" value="Ivy Hope"></div>
+                  <div class="col-6"><label class="form-label">Last Name</label><input type="text" class="form-control" value="Alba"></div>
+                  <div class="col-6"><label class="form-label">Email Address</label><input type="email" class="form-control" value="rnd@test.ph"></div>
+                  <div class="col-6"><label class="form-label">Phone Number</label><input type="text" class="form-control" value="0918 234 5678"></div>
+                </div>
+                <button class="btn btn-primary mt-4">Save Changes</button>
+              </div>
+            </div>
+
+            <!-- PROFESSIONAL PROFILE -->
+            <div class="tab-pane fade" id="tabProfessional">
+              <div class="surface surface-pad mb-3">
+                <div class="eyebrow mb-3"><span class="eyebrow-line"></span> PRC CREDENTIALS</div>
+                <div class="row g-3">
+                  <div class="col-7">
+                    <label class="form-label">PRC License Number</label>
+                    <input type="text" class="form-control" value="0012345" disabled style="background:#f4f4ee;">
+                    <div class="form-hint">Contact support to update your license number.</div>
+                  </div>
+                  <div class="col-5">
+                    <label class="form-label">PRC Expiry Date</label>
+                    <input type="date" class="form-control" value="2027-08-15">
+                  </div>
+                </div>
+              </div>
+              <div class="surface surface-pad">
+                <div class="eyebrow mb-3"><span class="eyebrow-line"></span> PUBLIC PROFILE</div>
+                <label class="form-label">Specialization</label>
+                <select class="form-select mb-3">
+                  <option selected>Diabetes Management</option>
+                  <option>Renal Nutrition</option>
+                  <option>Hypertension & Cardiac Care</option>
+                  <option>Weight Management</option>
+                </select>
+                <label class="form-label">Professional Bio</label>
+                <textarea class="form-control mb-3" rows="4">RND Ivy Hope Alba has over a decade of clinical experience in hospital-based dietetics, specializing in diabetic and renal Medical Nutrition Therapy.</textarea>
+                <label class="form-label">Available for New Clients</label>
+                <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" checked></div>
+                <button class="btn btn-primary">Save Profile</button>
+              </div>
+            </div>
+
+            <!-- LANGUAGES -->
+            <div class="tab-pane fade" id="tabLanguages">
+              <div class="surface surface-pad">
+                <div class="eyebrow mb-3"><span class="eyebrow-line"></span> LANGUAGES SPOKEN</div>
+                <p class="text-muted-nutri mb-3" style="font-size: 0.86rem;">You currently support 2 languages, used by the Client–RND matching engine.</p>
+                <div class="d-flex gap-2 flex-wrap mb-4">
+                  <span class="badge-pill badge-info">Cebuano</span>
+                  <span class="badge-pill badge-info">English</span>
+                </div>
+                <a href="rnd-languages.html" class="btn btn-outline-forest btn-sm">Manage Languages</a>
+              </div>
+            </div>
+
+            <!-- FEES -->
+            <div class="tab-pane fade" id="tabFees">
+              <div class="surface surface-pad">
+                <div class="eyebrow mb-3"><span class="eyebrow-line"></span> CONSULTATION FEE</div>
+                <label class="form-label">Fee per Session (₱)</label>
+                <input type="number" class="form-control mb-3" value="800.00" style="max-width: 220px;">
+                <div class="alert-soft alert-info mb-0">
+                  <i class="bi bi-info-circle-fill"></i>
+                  <div>NutriMatch retains a 15% platform commission on completed, paid consultations.</div>
+                </div>
+                <button class="btn btn-primary mt-4">Update Fee</button>
+              </div>
+            </div>
+
+            <!-- SECURITY -->
+            <div class="tab-pane fade" id="tabSecurity">
+              <div class="surface surface-pad">
+                <div class="eyebrow mb-3"><span class="eyebrow-line"></span> CHANGE PASSWORD</div>
+                <div class="row g-3">
+                  <div class="col-12"><label class="form-label">Current Password</label><input type="password" class="form-control" placeholder="••••••••"></div>
+                  <div class="col-6"><label class="form-label">New Password</label><input type="password" class="form-control" placeholder="••••••••"></div>
+                  <div class="col-6"><label class="form-label">Confirm New Password</label><input type="password" class="form-control" placeholder="••••••••"></div>
+                </div>
+                <button class="btn btn-primary mt-4">Update Password</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.querySelectorAll('.settings-tabs button').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.settings-tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }));
+</script>
+</body>
+</html>

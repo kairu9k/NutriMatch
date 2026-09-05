@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCP — Monitoring — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .ncp-wrap { max-width: 880px; margin: 0 auto; }
+  .phase-stepper { display: flex; align-items: center; margin-bottom: 28px; }
+  .phase-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; position: relative; text-decoration: none; }
+  .phase-step .circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; background: #fff; border: 2px solid #e0e6dc; color: var(--ink-faint); z-index: 1; }
+  .phase-step.done .circle { background: var(--forest-600); border-color: var(--forest-600); color: #fff; }
+  .phase-step.current .circle { background: var(--gold-600); border-color: var(--gold-600); color: var(--forest-700); }
+  .phase-step .label { font-size: 0.74rem; font-weight: 600; color: var(--ink-faint); }
+  .phase-step.current .label, .phase-step.done .label { color: var(--forest-700); }
+  .phase-line { position: absolute; top: 18px; left: 50%; width: 100%; height: 2px; background: #e0e6dc; z-index: 0; }
+  .phase-step.done .phase-line { background: var(--forest-600); }
+  .goal-option { border: 1.5px solid #e0e6dc; border-radius: var(--radius-sm); padding: 12px; text-align: center; cursor: pointer; font-size: 0.84rem; font-weight: 600; color: var(--ink-muted); }
+  .goal-option.selected { border-color: var(--gold-600); background: rgba(212,160,23,0.08); color: var(--forest-700); }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="rnd-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="patient-panel.html"><i class="bi bi-people-fill"></i> My Patients</a>
+    <a href="rnd-appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="ncp-assessment.html" class="active"><i class="bi bi-clipboard2-pulse"></i> NCP Records</a>
+    <a href="food-exchange-search.html"><i class="bi bi-search-heart"></i> Food Exchange Search</a>
+    <a href="meal-plan-builder.html"><i class="bi bi-egg-fried"></i> Meal Plans</a>
+    <a href="rnd-availability.html"><i class="bi bi-calendar-week"></i> Availability</a>
+    <a href="resource-upload.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="rnd-earnings.html"><i class="bi bi-cash-coin"></i> Earnings</a>
+    <a href="reviews.html"><i class="bi bi-star-fill"></i> Reviews</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="rnd-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="rnd-languages.html"><i class="bi bi-translate"></i> Languages</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions"><a href="rnd-profile-settings.html" class="nav-avatar">IA</a></div>
+    </header>
+
+    <div class="page-content">
+      <div class="ncp-wrap">
+        <div class="breadcrumb-nutri"><a href="patient-panel.html">My Patients</a> / <a href="client-detail.html">Juan Dela Cruz</a> / NCP Record</div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <div>
+            <h1 class="display-heading" style="font-size: 1.6rem;">Nutrition Care Process</h1>
+            <p class="text-muted-nutri mb-0" style="font-size: 0.86rem;">Patient: Juan Dela Cruz · Encounter Date: June 15, 2026 · <span class="badge-pill badge-warning">Draft</span></p>
+          </div>
+        </div>
+
+        <div class="phase-stepper">
+          <a href="ncp-assessment.html" class="phase-step done"><div class="phase-line"></div><div class="circle"><i class="bi bi-check-lg"></i></div><div class="label">Assessment</div></a>
+          <a href="ncp-diagnosis.html" class="phase-step done"><div class="phase-line"></div><div class="circle"><i class="bi bi-check-lg"></i></div><div class="label">Diagnosis</div></a>
+          <a href="ncp-intervention.html" class="phase-step done"><div class="phase-line"></div><div class="circle"><i class="bi bi-check-lg"></i></div><div class="label">Intervention</div></a>
+          <a href="ncp-monitoring.html" class="phase-step current"><div class="circle">4</div><div class="label">Monitoring</div></a>
+        </div>
+
+        <div class="surface surface-pad mb-3">
+          <div class="eyebrow mb-3"><span class="eyebrow-line"></span> PHASE 4 — MONITORING &amp; EVALUATION</div>
+          <form onsubmit="return false;">
+            <label class="form-label">Goal Status</label>
+            <div class="row g-2 mb-4">
+              <div class="col-6 col-md-3"><div class="goal-option">Met</div></div>
+              <div class="col-6 col-md-3"><div class="goal-option selected">Partially Met</div></div>
+              <div class="col-6 col-md-3"><div class="goal-option">Not Met</div></div>
+              <div class="col-6 col-md-3"><div class="goal-option">Ongoing</div></div>
+            </div>
+
+            <label class="form-label">Monitoring Notes</label>
+            <textarea class="form-control mb-4" rows="5" placeholder="Progress evaluation, outcome data, plan for next visit...">Patient has reduced fasting glucose from 126 to 112 mg/dL over 4 weeks, indicating partial progress toward glycemic goals. Food diary adherence improved to 5/7 days. Breakfast skipping has decreased but not fully resolved. Recommend continued reinforcement of meal timing at next follow-up (Jul 4, 2026) and re-check of HbA1c in 3 months.</textarea>
+
+            <div class="d-flex justify-content-between">
+              <a href="ncp-intervention.html" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> Back</a>
+              <button type="button" class="btn btn-ghost"><i class="bi bi-save me-1"></i> Save as Draft</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- FINALIZE CARD -->
+        <div class="surface surface-pad" style="border: 1.5px solid var(--gold-600); background: rgba(212,160,23,0.05);">
+          <div class="d-flex gap-3 align-items-start">
+            <i class="bi bi-lock-fill" style="color: var(--gold-700); font-size: 1.3rem;"></i>
+            <div class="flex-grow-1">
+              <h3 class="font-display mb-1" style="font-size: 1.05rem;">Finalize This Record</h3>
+              <p class="text-muted-nutri mb-3" style="font-size: 0.85rem;">Once finalized, this NCP record becomes permanent and cannot be edited. All four phases must have required fields completed before finalizing.</p>
+              <div class="d-flex gap-2 align-items-center mb-3">
+                <span class="badge-pill badge-success"><i class="bi bi-check-lg"></i> Weight & Height recorded</span>
+                <span class="badge-pill badge-success"><i class="bi bi-check-lg"></i> PES Problem documented</span>
+                <span class="badge-pill badge-success"><i class="bi bi-check-lg"></i> Diet Prescription set</span>
+              </div>
+              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#finalizeModal">Finalize NCP Record</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FINALIZE CONFIRMATION MODAL -->
+<div class="modal fade" id="finalizeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--radius-md); border: none;">
+      <div class="modal-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-exclamation-triangle-fill" style="color: var(--gold-700); font-size: 1.3rem;"></i>
+          <h5 class="mb-0 font-display" style="font-size: 1.1rem;">Finalize NCP Record?</h5>
+        </div>
+        <p class="text-muted-nutri" style="font-size: 0.86rem;">This action is permanent. Once finalized, no further edits can be made to this record for Juan Dela Cruz's June 15, 2026 encounter.</p>
+        <div class="d-flex gap-2 justify-content-end mt-3">
+          <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" data-bs-dismiss="modal" onclick="window.location.href='client-detail.html'">Confirm & Finalize</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.querySelectorAll('.goal-option').forEach(el => el.addEventListener('click', () => {
+    document.querySelectorAll('.goal-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+  }));
+</script>
+</body>
+</html>

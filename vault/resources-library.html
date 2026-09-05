@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resources — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .resource-card { background: #fff; border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); height: 100%; display: flex; flex-direction: column; }
+  .resource-type-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 14px; }
+  .type-pdf { background: rgba(192,57,43,0.1); color: #c0392b; }
+  .type-video { background: rgba(47,111,168,0.1); color: #2f6fa8; }
+  .type-article { background: var(--forest-tint); color: var(--forest-700); }
+  .type-link { background: rgba(212,160,23,0.14); color: var(--gold-700); }
+  .filter-chip { padding: 7px 16px; border-radius: var(--radius-pill); font-size: 0.82rem; font-weight: 600; background: #fff; color: var(--ink-muted); text-decoration: none; box-shadow: var(--shadow-sm); }
+  .filter-chip.active { background: var(--forest-700); color: #fff; }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="client-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="find-rnd.html"><i class="bi bi-search-heart"></i> Find an RND</a>
+    <a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="meal-plan-view.html"><i class="bi bi-clipboard2-pulse"></i> My Meal Plan</a>
+    <a href="progress-tracker.html"><i class="bi bi-graph-up"></i> Progress Tracker</a>
+    <a href="resources-library.html" class="active"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="invoices-billing.html"><i class="bi bi-receipt"></i> Billing</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="client-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions">
+        <a href="client-profile-settings.html" class="nav-avatar">JD</a>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">Resources</h1>
+          <p class="page-subtitle">Nutrition education materials shared by RND Ivy Hope Alba.</p>
+        </div>
+        <div class="input-group-icon" style="width: 260px;">
+          <i class="bi bi-search icon"></i>
+          <input type="text" class="form-control" placeholder="Search resources...">
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap mb-4">
+        <a href="#" class="filter-chip active">All</a>
+        <a href="#" class="filter-chip"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        <a href="#" class="filter-chip"><i class="bi bi-play-circle me-1"></i>Video</a>
+        <a href="#" class="filter-chip"><i class="bi bi-file-text me-1"></i>Article</a>
+        <a href="#" class="filter-chip"><i class="bi bi-link-45deg me-1"></i>Link</a>
+      </div>
+
+      <div class="row g-3">
+
+        <div class="col-md-6 col-lg-4">
+          <div class="resource-card">
+            <div class="resource-type-icon type-pdf"><i class="bi bi-file-earmark-pdf-fill"></i></div>
+            <span class="badge-pill badge-danger mb-2" style="width:fit-content;">PDF</span>
+            <h3 class="font-display" style="font-size: 1rem;">FNRI Food Exchange List Guide</h3>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.84rem;">A complete reference for the 4th edition FNRI exchange categories with portion sizes.</p>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span style="font-size: 0.74rem; color: var(--ink-faint);">Uploaded 2 days ago</span>
+              <button class="btn btn-outline-forest btn-sm"><i class="bi bi-download"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="resource-card">
+            <div class="resource-type-icon type-video"><i class="bi bi-play-circle-fill"></i></div>
+            <span class="badge-pill badge-info mb-2" style="width:fit-content;">Video · 6 min</span>
+            <h3 class="font-display" style="font-size: 1rem;">Reading Nutrition Labels</h3>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.84rem;">Learn how to interpret sodium, sugar, and serving size info on Filipino packaged foods.</p>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span style="font-size: 0.74rem; color: var(--ink-faint);">Uploaded 5 days ago</span>
+              <button class="btn btn-outline-forest btn-sm"><i class="bi bi-play-fill"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="resource-card">
+            <div class="resource-type-icon type-article"><i class="bi bi-file-text-fill"></i></div>
+            <span class="badge-pill badge-success mb-2" style="width:fit-content;">Article · 4 min read</span>
+            <h3 class="font-display" style="font-size: 1rem;">Managing Carb Cravings</h3>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.84rem;">Practical, culturally-relevant strategies for managing sweet and starchy food cravings.</p>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span style="font-size: 0.74rem; color: var(--ink-faint);">Uploaded 1 week ago</span>
+              <button class="btn btn-outline-forest btn-sm"><i class="bi bi-arrow-right"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="resource-card">
+            <div class="resource-type-icon type-article"><i class="bi bi-file-text-fill"></i></div>
+            <span class="badge-pill badge-success mb-2" style="width:fit-content;">Article · 5 min read</span>
+            <h3 class="font-display" style="font-size: 1rem;">Cooking Low-Sodium Filipino Dishes</h3>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.84rem;">Adapt adobo, sinigang, and tinola recipes for hypertension-friendly diets.</p>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span style="font-size: 0.74rem; color: var(--ink-faint);">Uploaded 2 weeks ago</span>
+              <button class="btn btn-outline-forest btn-sm"><i class="bi bi-arrow-right"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="resource-card">
+            <div class="resource-type-icon type-link"><i class="bi bi-link-45deg"></i></div>
+            <span class="badge-pill badge-gold mb-2" style="width:fit-content;">External Link</span>
+            <h3 class="font-display" style="font-size: 1rem;">DOH Pinggang Pinoy Guide</h3>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.84rem;">Official Department of Health visual food guide for balanced Filipino meals.</p>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span style="font-size: 0.74rem; color: var(--ink-faint);">Uploaded 3 weeks ago</span>
+              <button class="btn btn-outline-forest btn-sm"><i class="bi bi-box-arrow-up-right"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="resource-card">
+            <div class="resource-type-icon type-video"><i class="bi bi-play-circle-fill"></i></div>
+            <span class="badge-pill badge-info mb-2" style="width:fit-content;">Video · 9 min</span>
+            <h3 class="font-display" style="font-size: 1rem;">Light Exercise for Diabetic Patients</h3>
+            <p class="text-muted-nutri flex-grow-1" style="font-size: 0.84rem;">Safe, low-impact movement routines to pair with your meal plan.</p>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span style="font-size: 0.74rem; color: var(--ink-faint);">Uploaded 1 month ago</span>
+              <button class="btn btn-outline-forest btn-sm"><i class="bi bi-play-fill"></i></button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

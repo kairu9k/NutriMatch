@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meal Plan Builder — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .exchange-input-chip { background: #fff; border-radius: var(--radius-sm); padding: 10px; text-align: center; box-shadow: var(--shadow-sm); }
+  .exchange-input-chip label { font-size: 0.66rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 4px; }
+  .exchange-input-chip input { border: none; text-align: center; font-weight: 700; font-size: 1.1rem; color: var(--forest-700); width: 100%; background: transparent; }
+  .exchange-input-chip input:focus { outline: none; }
+  .meal-builder-block { background: #fff; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .meal-builder-header { background: var(--forest-tint); padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+  .food-row { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-bottom: 1px solid #f4f4ec; }
+  .food-row:last-child { border-bottom: none; }
+  .food-row input[type=text] { border: none; background: transparent; font-size: 0.86rem; flex: 1; }
+  .food-row input[type=text]:focus { outline: none; background: var(--forest-tint); border-radius: 6px; }
+  .food-row select { border: 1px solid #e6e6da; border-radius: 6px; font-size: 0.78rem; padding: 4px 8px; }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="rnd-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="patient-panel.html"><i class="bi bi-people-fill"></i> My Patients</a>
+    <a href="rnd-appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="ncp-assessment.html"><i class="bi bi-clipboard2-pulse"></i> NCP Records</a>
+    <a href="meal-plan-builder.html" class="active"><i class="bi bi-egg-fried"></i> Meal Plans</a>
+    <a href="food-exchange-search.html"><i class="bi bi-search-heart"></i> Food Exchange Search</a>
+    <a href="rnd-availability.html"><i class="bi bi-calendar-week"></i> Availability</a>
+    <a href="resource-upload.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="rnd-earnings.html"><i class="bi bi-cash-coin"></i> Earnings</a>
+    <a href="reviews.html"><i class="bi bi-star-fill"></i> Reviews</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="rnd-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="rnd-languages.html"><i class="bi bi-translate"></i> Languages</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions"><a href="rnd-profile-settings.html" class="nav-avatar">IA</a></div>
+    </header>
+
+    <div class="page-content">
+      <div class="breadcrumb-nutri"><a href="patient-panel.html">My Patients</a> / <a href="client-detail.html">Juan Dela Cruz</a> / Meal Plan</div>
+
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">Meal Plan Builder</h1>
+          <p class="page-subtitle">Juan Dela Cruz · Diabetic-Friendly Plan</p>
+        </div>
+        <div class="d-flex gap-2">
+          <span class="badge-pill badge-success" style="padding: 8px 16px;">Active</span>
+          <button class="btn btn-primary btn-sm">Save Changes</button>
+        </div>
+      </div>
+
+      <!-- PLAN META -->
+      <div class="surface surface-pad mb-3">
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label class="form-label">Plan Name</label>
+            <input type="text" class="form-control" value="Diabetic-Friendly Plan">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Condition</label>
+            <select class="form-select">
+              <option selected>Diabetes</option>
+              <option>Hypertension</option>
+              <option>Renal</option>
+              <option>Weight Loss</option>
+              <option>Weight Gain</option>
+              <option>General</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Target kcal</label>
+            <input type="number" class="form-control" value="1800">
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTO-CALCULATED EXCHANGE TOTALS -->
+      <div class="surface surface-pad mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="eyebrow"><span class="eyebrow-line"></span> DAILY EXCHANGE TOTALS</div>
+          <span class="badge-pill badge-info"><i class="bi bi-arrow-repeat"></i> Auto-calculated from meals below</span>
+        </div>
+        <div class="row g-2">
+          <div class="col-4 col-md-2"><div class="exchange-input-chip"><label>Rice</label><input type="number" value="5"></div></div>
+          <div class="col-4 col-md-2"><div class="exchange-input-chip"><label>Meat</label><input type="number" value="3"></div></div>
+          <div class="col-4 col-md-2"><div class="exchange-input-chip"><label>Veg</label><input type="number" value="4"></div></div>
+          <div class="col-4 col-md-2"><div class="exchange-input-chip"><label>Fruit</label><input type="number" value="2"></div></div>
+          <div class="col-4 col-md-2"><div class="exchange-input-chip"><label>Milk</label><input type="number" value="1"></div></div>
+          <div class="col-4 col-md-2"><div class="exchange-input-chip"><label>Fat</label><input type="number" value="3"></div></div>
+        </div>
+        <p class="text-faint-nutri mt-2 mb-0" style="font-size: 0.76rem;"><i class="bi bi-info-circle"></i> Editing a meal's food items recalculates these totals automatically. You may also override values manually — overrides persist until the next meal edit.</p>
+      </div>
+
+      <!-- MEAL BUILDER BLOCKS -->
+      <div class="d-flex flex-column gap-3">
+
+        <div class="meal-builder-block">
+          <div class="meal-builder-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-sunrise-fill me-2" style="color: var(--gold-600);"></i>Breakfast</span>
+            <a href="food-exchange-search.html" class="btn btn-ghost btn-sm"><i class="bi bi-plus-lg"></i> Add Food Item</a>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Brown Rice, 1 cup">
+            <select><option>1 Rice</option><option selected>1.5 Rice</option><option>2 Rice</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Fried Egg, small">
+            <select><option selected>1 Meat</option><option>2 Meat</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Sautéed Kangkong, 1 cup">
+            <select><option selected>1 Vegetable</option><option>2 Vegetable</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+        </div>
+
+        <div class="meal-builder-block">
+          <div class="meal-builder-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-cup-straw me-2" style="color: var(--gold-600);"></i>AM Snack</span>
+            <button class="btn btn-ghost btn-sm"><i class="bi bi-plus-lg"></i> Add Food Item</button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Banana (Saba), small">
+            <select><option selected>1 Fruit</option><option>2 Fruit</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Low-fat Milk, 1 cup">
+            <select><option selected>1 Milk</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+        </div>
+
+        <div class="meal-builder-block">
+          <div class="meal-builder-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-sun-fill me-2" style="color: var(--gold-600);"></i>Lunch</span>
+            <button class="btn btn-ghost btn-sm"><i class="bi bi-plus-lg"></i> Add Food Item</button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Brown Rice, 1¼ cup">
+            <select><option selected>2 Rice</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Grilled Tilapia, medium">
+            <select><option selected>2 Meat</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Pinakbet, 1 cup">
+            <select><option selected>2 Vegetable</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Cooking Oil, 1 tsp">
+            <select><option selected>1 Fat</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+        </div>
+
+        <div class="meal-builder-block">
+          <div class="meal-builder-header">
+            <span style="font-weight:700; color: var(--forest-700);"><i class="bi bi-moon-stars-fill me-2" style="color: var(--gold-600);"></i>Dinner</span>
+            <button class="btn btn-ghost btn-sm"><i class="bi bi-plus-lg"></i> Add Food Item</button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Brown Rice, 1 cup">
+            <select><option selected>1 Rice</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Chicken Tinola, 1 piece">
+            <select><option selected>1 Meat</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+          <div class="food-row">
+            <input type="text" value="Sayote, 1 cup">
+            <select><option selected>1 Vegetable</option></select>
+            <button class="btn btn-ghost btn-sm px-2"><i class="bi bi-trash text-danger"></i></button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-4">
+        <label class="form-label">RND Notes <span class="text-faint-nutri fw-normal">(optional, visible to patient)</span></label>
+        <textarea class="form-control mb-4" rows="3" placeholder="Notes about this plan for your patient...">Substitute brown rice with cauliflower rice on days with higher fasting glucose readings. Avoid fried preparations where possible.</textarea>
+        <div class="d-flex justify-content-between">
+          <button class="btn btn-danger-outline"><i class="bi bi-archive me-1"></i> Archive Plan</button>
+          <button class="btn btn-primary">Save Meal Plan</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

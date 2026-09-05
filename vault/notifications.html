@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications — NutriMatch</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="nutrimatch.css">
+<style>
+  .app-layout { display: flex; min-height: 100vh; }
+  .main-col { flex: 1; min-width: 0; }
+  .notif-item { display: flex; gap: 14px; padding: 16px 20px; border-bottom: 1px solid #f0f0e6; }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item.unread { background: var(--forest-tint); }
+  .notif-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+</style>
+</head>
+<body class="bg-cream">
+
+<div class="app-layout">
+  <aside class="app-sidebar">
+    <div class="d-flex align-items-center gap-2 mb-4 px-2">
+      <img src="https://placehold.co/32x32/D4A017/1a3a1a?text=N" alt="" style="width:32px;height:32px;border-radius:6px;">
+      <span style="font-size:1.05rem; font-weight:700;"><span style="color:#fff;">Nutri</span><span style="color:var(--gold-600);">Match</span></span>
+    </div>
+    <a href="client-dashboard.html"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="find-rnd.html"><i class="bi bi-search-heart"></i> Find an RND</a>
+    <a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a>
+    <a href="meal-plan-view.html"><i class="bi bi-clipboard2-pulse"></i> My Meal Plan</a>
+    <a href="progress-tracker.html"><i class="bi bi-graph-up"></i> Progress Tracker</a>
+    <a href="resources-library.html"><i class="bi bi-journal-richtext"></i> Resources</a>
+    <a href="messages.html"><i class="bi bi-chat-dots"></i> Messages</a>
+    <a href="invoices-billing.html"><i class="bi bi-receipt"></i> Billing</a>
+    <div class="sidebar-section-label">Account</div>
+    <a href="client-profile-settings.html"><i class="bi bi-person-gear"></i> Profile Settings</a>
+    <a href="login.html"><i class="bi bi-box-arrow-right"></i> Log Out</a>
+  </aside>
+
+  <div class="main-col">
+    <header class="app-navbar">
+      <div></div>
+      <div class="nav-actions"><a href="client-profile-settings.html" class="nav-avatar">JD</a></div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1 class="display-heading page-title">Notifications</h1>
+          <p class="page-subtitle">Stay up to date on appointments, messages, and reminders.</p>
+        </div>
+        <button class="btn btn-outline-forest btn-sm">Mark All as Read</button>
+      </div>
+
+      <div class="surface" style="overflow: hidden;">
+
+        <div class="notif-item unread">
+          <div class="notif-icon" style="background: rgba(212,160,23,0.16); color: var(--gold-700);"><i class="bi bi-calendar-check-fill"></i></div>
+          <div class="flex-grow-1">
+            <p class="mb-1" style="font-size: 0.88rem;"><strong>Appointment confirmed</strong> — RND Ivy Hope Alba confirmed your video consultation for July 4, 2026 at 2:00 PM.</p>
+            <span style="font-size: 0.74rem; color: var(--ink-faint);">10 minutes ago</span>
+          </div>
+        </div>
+
+        <div class="notif-item unread">
+          <div class="notif-icon" style="background: var(--info-bg); color: var(--info-text);"><i class="bi bi-chat-dots-fill"></i></div>
+          <div class="flex-grow-1">
+            <p class="mb-1" style="font-size: 0.88rem;"><strong>New message</strong> from RND Ivy Hope Alba: "Let's review your glucose readings from the past two weeks."</p>
+            <span style="font-size: 0.74rem; color: var(--ink-faint);">2 hours ago</span>
+          </div>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-icon" style="background: var(--warning-bg); color: var(--warning-text);"><i class="bi bi-receipt"></i></div>
+          <div class="flex-grow-1">
+            <p class="mb-1" style="font-size: 0.88rem;"><strong>Invoice ready</strong> — INV-0231 for ₱800.00 is due before your next appointment.</p>
+            <span style="font-size: 0.74rem; color: var(--ink-faint);">1 day ago</span>
+          </div>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-icon" style="background: var(--forest-tint); color: var(--forest-700);"><i class="bi bi-journal-richtext"></i></div>
+          <div class="flex-grow-1">
+            <p class="mb-1" style="font-size: 0.88rem;"><strong>New resource shared</strong> — "FNRI Food Exchange List Guide" was uploaded by RND Ivy Hope Alba.</p>
+            <span style="font-size: 0.74rem; color: var(--ink-faint);">2 days ago</span>
+          </div>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-icon" style="background: var(--success-bg); color: var(--success-text);"><i class="bi bi-clipboard2-check-fill"></i></div>
+          <div class="flex-grow-1">
+            <p class="mb-1" style="font-size: 0.88rem;"><strong>Meal logging reminder</strong> — Don't forget to log today's lunch in your food diary.</p>
+            <span style="font-size: 0.74rem; color: var(--ink-faint);">3 days ago</span>
+          </div>
+        </div>
+
+        <div class="notif-item">
+          <div class="notif-icon" style="background: var(--forest-tint); color: var(--forest-700);"><i class="bi bi-clipboard2-pulse-fill"></i></div>
+          <div class="flex-grow-1">
+            <p class="mb-1" style="font-size: 0.88rem;"><strong>Meal plan updated</strong> — RND Ivy Hope Alba revised your daily meal plan targets.</p>
+            <span style="font-size: 0.74rem; color: var(--ink-faint);">1 week ago</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
