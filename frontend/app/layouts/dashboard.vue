@@ -156,6 +156,7 @@ const rndAccountNav = [
 // Client-facing pages are still being built out (Phase 6) — only pages already
 // verified to work for a client role are linked here, see vault/TODO.md.
 const clientMainNav = [
+  { icon: LayoutDashboard, label: 'Dashboard', to: '/client-dashboard' },
   { icon: SearchIcon, label: 'Find an RND', to: '/find-rnd' },
   { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },

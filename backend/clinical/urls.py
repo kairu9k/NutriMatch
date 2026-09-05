@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    LatestScreeningView,
     NcpRecordDetailView,
     NcpRecordFinalizeView,
     NcpRecordListCreateView,
@@ -10,6 +11,7 @@ from .views import (
 
 urlpatterns = [
     path("client/screening/", ScreeningCreateView.as_view(), name="screening_create"),
+    path("client/screening/latest/", LatestScreeningView.as_view(), name="screening_latest"),
     path("client/screening/<int:appointment_id>/", ScreeningDetailView.as_view(), name="screening_detail"),
 
     path("rnd/relationships/<int:relationship_id>/ncp/", NcpRecordListCreateView.as_view(), name="ncp_list_create"),
