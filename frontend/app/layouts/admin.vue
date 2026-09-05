@@ -1,5 +1,10 @@
 <script setup>
+import { Menu } from 'lucide-vue-next'
+
 const route = useRoute()
+const isSidebarOpen = ref(false)
+
+watch(() => route.path, () => { isSidebarOpen.value = false })
 
 const pageMeta = computed(() => {
   const map = {
@@ -18,20 +23,37 @@ const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: '
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-cream text-forest-dark">
-    <AdminSidebar />
-    <div class="flex-1 min-w-0 h-screen overflow-y-auto">
-      <header class="flex items-center justify-between px-8 py-5 sticky top-0 z-20 bg-cream/95 backdrop-blur-sm">
-        <div>
-          <h1 class="font-display text-2xl text-forest-dark">{{ pageMeta.title }}</h1>
-          <p class="text-sm text-forest/50">{{ pageMeta.subtitle || today }}</p>
+  <div class="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:overflow-hidden bg-cream text-forest-dark">
+    <div
+      v-if="isSidebarOpen"
+      class="fixed inset-0 bg-black/40 z-30 lg:hidden"
+      @click="isSidebarOpen = false"
+    ></div>
+
+    <AdminSidebar :open="isSidebarOpen" @close="isSidebarOpen = false" />
+
+    <div class="flex-1 min-w-0 lg:h-screen lg:overflow-y-auto">
+      <header class="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 sticky top-0 z-20 bg-cream/95 backdrop-blur-sm">
+        <div class="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            class="lg:hidden shrink-0 text-forest-dark"
+            aria-label="Toggle menu"
+            @click="isSidebarOpen = !isSidebarOpen"
+          >
+            <Menu :size="22" />
+          </button>
+          <div class="min-w-0">
+            <h1 class="font-display text-xl lg:text-2xl text-forest-dark truncate">{{ pageMeta.title }}</h1>
+            <p class="text-sm text-forest/50 hidden sm:block">{{ pageMeta.subtitle || today }}</p>
+          </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 shrink-0">
           <NotificationDropdown />
           <ProfileDropdown />
         </div>
       </header>
-      <main class="px-8 pb-10">
+      <main class="px-4 lg:px-8 pb-10">
         <slot />
       </main>
     </div>

@@ -1,6 +1,9 @@
 <script setup>
 import { rnds, clients, adminProfile } from '~/mock/mockAdminDatabase'
 
+defineProps({ open: { type: Boolean, default: false } })
+const emit = defineEmits(['close'])
+
 const route = useRoute()
 const profile = adminProfile
 
@@ -41,7 +44,10 @@ async function handleSignOut() {
 </script>
 
 <template>
-  <aside class="w-[230px] shrink-0 bg-forest text-cream/90 flex flex-col h-screen sticky top-0">
+  <aside
+    class="w-[230px] shrink-0 bg-forest text-cream/90 flex flex-col h-screen top-0 z-40 transition-transform duration-200 ease-out fixed lg:sticky lg:translate-x-0"
+    :class="open ? 'translate-x-0' : '-translate-x-full'"
+  >
     <div class="px-5 pt-6 pb-5">
       <div class="flex items-center gap-2">
         <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="w-7 h-7 object-contain shrink-0" />
@@ -66,6 +72,7 @@ async function handleSignOut() {
           :class="isActive(item.to)
             ? 'bg-forest-light text-white font-medium'
             : 'text-cream/65 hover:bg-forest-light/60 hover:text-white hover:font-medium hover:translate-x-0.5 hover:shadow-sm'"
+          @click="emit('close')"
         >
         
           <span
