@@ -1,9 +1,7 @@
 <template>
-  <Resources />
+  <ResourceLibrary />
 </template>
 
 <script setup>
-definePageMeta({
-  layout: 'dashboard',  title: 'Resources'
-})
+definePageMeta({ layout: 'dashboard', title: 'Resources' })
 </script>
