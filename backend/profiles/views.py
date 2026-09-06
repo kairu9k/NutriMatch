@@ -1,10 +1,11 @@
 from django.db.models import Avg, Count
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
-from scheduling.models import Review
+from scheduling.models import Review, RndClientRelationship
 
 from .models import ClientProfile, RndProfile
 from .serializers import (
@@ -108,4 +109,19 @@ class MyClientProfileView(APIView):
         serializer = ClientProfileUpdateSerializer(profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        return Response(ClientProfileSerializer(profile).data)
+
+
+class RndClientProfileView(APIView):
+    """RND viewing one of their own clients' profile/health data —
+    scoped to an existing relationship, never open client lookup."""
+
+    permission_classes = [IsRnd]
+
+    def get(self, request, relationship_id):
+        relationship = get_object_or_404(
+            RndClientRelationship.objects.select_related("client"),
+            pk=relationship_id, rnd=request.user,
+        )
+        profile, _ = ClientProfile.objects.get_or_create(user=relationship.client)
         return Response(ClientProfileSerializer(profile).data)

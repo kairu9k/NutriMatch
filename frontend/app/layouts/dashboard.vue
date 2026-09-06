@@ -142,7 +142,7 @@ const rndMainNav = [
   { icon: Target, label: 'Meal Plans', to: '/meal-planning' },
   { icon: SearchIcon, label: 'Food Exchange Search', to: '/food-exchange-search' },
   { icon: CalendarDays, label: 'Availability', to: '/availability' },
-  { icon: FileText, label: 'Resources', to: '/resource-library' },
+  { icon: FileText, label: 'Resources', to: '/resource-upload' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
   { icon: Wallet, label: 'Earnings', to: '/earnings' },
   { icon: Star, label: 'Reviews', to: '/reviews' }
