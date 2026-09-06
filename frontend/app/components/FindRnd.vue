@@ -38,7 +38,7 @@
 
       <div v-if="rnds.length" class="rnd-grid">
         <div v-for="rnd in rnds" :key="rnd.id" class="rnd-card">
-          <div class="rnd-card-top">
+          <NuxtLink :to="`/rnd-profile-view/${rnd.user.id}`" class="rnd-card-top">
             <div class="rnd-avatar" :style="{ background: colorForId(rnd.user.id) }">{{ initialsFor(rnd.user) }}</div>
             <div>
               <p class="rnd-name">
@@ -47,7 +47,7 @@
               </p>
               <p class="rnd-specialty">{{ rnd.specialization || 'General Practice' }}</p>
             </div>
-          </div>
+          </NuxtLink>
 
           <p class="rnd-bio">{{ rnd.bio || 'No bio provided yet.' }}</p>
 
@@ -189,7 +189,7 @@ onMounted(loadRnds)
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px;
   display: flex; flex-direction: column;
 }
-.rnd-card-top { display: flex; gap: 14px; margin-bottom: 12px; }
+.rnd-card-top { display: flex; gap: 14px; margin-bottom: 12px; text-decoration: none; }
 .rnd-avatar {
   width: 52px; height: 52px; border-radius: 50%; color: #fff; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;
