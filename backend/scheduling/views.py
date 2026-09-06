@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -292,15 +294,27 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
         appointment = get_object_or_404(Appointment, pk=response.data["id"])
 
         from billing.models import Invoice
+        from core.models import SystemSetting
 
         if not Invoice.objects.filter(appointment=appointment).exists():
             rnd_profile = getattr(appointment.relationship.rnd, "rnd_profile", None)
             fee = rnd_profile.consultation_fee if rnd_profile else 0
-            invoice = Invoice.objects.create(
-                relationship=appointment.relationship,
-                appointment=appointment,
-                amount=fee,
-            )
+
+            invoice_kwargs = {
+                "relationship": appointment.relationship,
+                "appointment": appointment,
+                "amount": fee,
+            }
+            # Admin-configurable via SystemSetting (BillingCommission.vue) —
+            # falls back to the Invoice model's own default if unset/blank.
+            setting = SystemSetting.objects.filter(key="platform_commission_pct").first()
+            if setting and setting.value:
+                try:
+                    invoice_kwargs["commission_pct"] = Decimal(setting.value)
+                except (InvalidOperation, TypeError):
+                    pass
+
+            invoice = Invoice.objects.create(**invoice_kwargs)
 
             from communication.services import notify
 

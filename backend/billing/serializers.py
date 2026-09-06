@@ -58,6 +58,33 @@ class RndInvoiceListSerializer(serializers.ModelSerializer):
         return obj.amount - obj.commission_amt
 
 
+class AdminInvoiceListSerializer(serializers.ModelSerializer):
+    """Platform-wide invoice list for BillingCommission.vue — both client
+    and RND names, net computed the same way as RndInvoiceListSerializer."""
+
+    client_name = serializers.SerializerMethodField()
+    rnd_name = serializers.SerializerMethodField()
+    net = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invoice
+        fields = [
+            "id", "client_name", "rnd_name", "amount", "commission_amt",
+            "net", "status", "payment_method", "paid_at", "created_at",
+        ]
+
+    def get_client_name(self, obj):
+        client = obj.relationship.client
+        return f"{client.first_name} {client.last_name}"
+
+    def get_rnd_name(self, obj):
+        rnd = obj.relationship.rnd
+        return f"{rnd.first_name} {rnd.last_name}"
+
+    def get_net(self, obj):
+        return obj.amount - obj.commission_amt
+
+
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentTransaction

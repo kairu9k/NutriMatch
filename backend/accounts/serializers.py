@@ -70,6 +70,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
     verified_at = serializers.DateTimeField(source="rnd_profile.verified_at")
     submitted_at = serializers.DateTimeField(source="rnd_profile.created_at")
     patients = serializers.SerializerMethodField()
+    consultations = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     revenue = serializers.SerializerMethodField()
 
@@ -78,12 +79,18 @@ class AdminRndListSerializer(serializers.ModelSerializer):
         fields = [
             "id", "first_name", "last_name", "email", "is_active", "created_at",
             "prc_license_number", "specialization", "is_verified", "verified_at", "submitted_at",
-            "patients", "average_rating", "revenue",
+            "patients", "consultations", "average_rating", "revenue",
         ]
         read_only_fields = fields
 
     def get_patients(self, obj):
         return len([rel for rel in getattr(obj, "_prefetched_relationships", []) if rel.status == "active"])
+
+    def get_consultations(self, obj):
+        return sum(
+            len(getattr(rel, "_prefetched_completed_appointments", []))
+            for rel in getattr(obj, "_prefetched_relationships", [])
+        )
 
     def get_average_rating(self, obj):
         reviews = getattr(obj, "_prefetched_reviews", [])

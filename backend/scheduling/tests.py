@@ -195,6 +195,25 @@ class AppointmentCompleteInvoiceTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertEqual(Invoice.objects.filter(appointment=self.appt).count(), 1)
 
+    def test_complete_uses_admin_configured_commission_rate(self):
+        from core.models import SystemSetting
+
+        SystemSetting.objects.create(key="platform_commission_pct", value="15.00")
+
+        resp = self.client_api.patch(f"/api/rnd/appointments/{self.appt.id}/complete/")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        invoice = Invoice.objects.get(appointment=self.appt)
+        self.assertEqual(invoice.commission_pct, Decimal("15.00"))
+        self.assertEqual(invoice.commission_amt, Decimal("112.50"))  # 750 * 15%
+
+    def test_complete_falls_back_to_default_when_no_setting(self):
+        resp = self.client_api.patch(f"/api/rnd/appointments/{self.appt.id}/complete/")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        invoice = Invoice.objects.get(appointment=self.appt)
+        self.assertEqual(invoice.commission_pct, Decimal("10.00"))
+
 
 class ReviewTests(TestCase):
     def setUp(self):

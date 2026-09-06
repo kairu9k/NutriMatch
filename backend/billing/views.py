@@ -6,11 +6,16 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import IsClient, IsRnd
+from accounts.permissions import IsAdmin, IsClient, IsRnd
 from core.models import AuditLog
 
 from .models import Invoice, PaymentTransaction
-from .serializers import InvoiceListSerializer, InvoiceSerializer, RndInvoiceListSerializer
+from .serializers import (
+    AdminInvoiceListSerializer,
+    InvoiceListSerializer,
+    InvoiceSerializer,
+    RndInvoiceListSerializer,
+)
 from .services import InvalidWebhookSignatureError, PayMongoService, PaymentGatewayError
 
 
@@ -38,6 +43,20 @@ class RndInvoiceListView(generics.ListAPIView):
         return Invoice.objects.filter(
             relationship__rnd=self.request.user
         ).select_related("relationship__client", "appointment").order_by("-created_at")
+
+
+class AdminInvoiceListView(generics.ListAPIView):
+    """Platform-wide invoice list for BillingCommission.vue — transaction
+    log and per-RND payout summary are both derived from this one list
+    client-side, same pattern as RndInvoiceListView's Earnings page."""
+
+    serializer_class = AdminInvoiceListSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return Invoice.objects.select_related(
+            "relationship__client", "relationship__rnd"
+        ).order_by("-created_at")
 
 
 class InitiatePaymentView(APIView):

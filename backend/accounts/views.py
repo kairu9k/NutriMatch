@@ -160,13 +160,18 @@ class AdminRndListView(generics.ListAPIView):
 
     def get_queryset(self):
         from billing.models import Invoice
-        from scheduling.models import Review, RndClientRelationship
+        from scheduling.models import Appointment, Review, RndClientRelationship
 
         relationships_qs = RndClientRelationship.objects.prefetch_related(
             Prefetch(
                 "invoices",
                 queryset=Invoice.objects.filter(status=Invoice.Status.PAID),
                 to_attr="_prefetched_paid_invoices",
+            ),
+            Prefetch(
+                "appointments",
+                queryset=Appointment.objects.filter(status=Appointment.Status.COMPLETED),
+                to_attr="_prefetched_completed_appointments",
             ),
         )
         return User.objects.filter(role=User.Role.RND).select_related("rnd_profile").prefetch_related(
