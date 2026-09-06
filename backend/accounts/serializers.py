@@ -18,6 +18,87 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class AdminClientListSerializer(serializers.ModelSerializer):
+    """Admin-facing client list — condition/consultations/matched-RND are
+    all derived from real relationship/appointment data via
+    AdminClientListView's prefetches, same one-query-per-relation pattern
+    as scheduling.RndPatientListSerializer. No "flagged" concept exists in
+    the schema (the mockup's dispute-flag state has no backing model) —
+    only real is_active is exposed, nothing fabricated."""
+
+    condition = serializers.SerializerMethodField()
+    consultations = serializers.SerializerMethodField()
+    matched_rnd = serializers.SerializerMethodField()
+    last_active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "email", "first_name", "last_name", "is_active", "created_at",
+            "condition", "consultations", "matched_rnd", "last_active",
+        ]
+        read_only_fields = fields
+
+    def get_condition(self, obj):
+        health_profile = getattr(obj, "health_profile", None)
+        conditions = getattr(health_profile, "medical_conditions", None)
+        return conditions[0] if conditions else None
+
+    def get_consultations(self, obj):
+        return sum(len(getattr(rel, "_prefetched_appointments", [])) for rel in obj._prefetched_relationships)
+
+    def get_matched_rnd(self, obj):
+        active = [rel for rel in obj._prefetched_relationships if rel.status == "active"]
+        return active[0].rnd.full_name if active else None
+
+    def get_last_active(self, obj):
+        all_appts = [a for rel in obj._prefetched_relationships for a in getattr(rel, "_prefetched_appointments", [])]
+        if not all_appts:
+            return None
+        return max(a.scheduled_at for a in all_appts)
+
+
+class AdminRndListSerializer(serializers.ModelSerializer):
+    """Admin-facing RND list for RndVerification.vue — pending/verified
+    RNDs in one view. patients/rating/revenue are all real, derived from
+    prefetches on the view, and only meaningful once verified (a pending
+    RND's application shows submitted-credential fields instead)."""
+
+    prc_license_number = serializers.CharField(source="rnd_profile.prc_license_number")
+    specialization = serializers.CharField(source="rnd_profile.specialization")
+    is_verified = serializers.BooleanField(source="rnd_profile.is_verified")
+    verified_at = serializers.DateTimeField(source="rnd_profile.verified_at")
+    submitted_at = serializers.DateTimeField(source="rnd_profile.created_at")
+    patients = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    revenue = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "first_name", "last_name", "email", "is_active", "created_at",
+            "prc_license_number", "specialization", "is_verified", "verified_at", "submitted_at",
+            "patients", "average_rating", "revenue",
+        ]
+        read_only_fields = fields
+
+    def get_patients(self, obj):
+        return len([rel for rel in getattr(obj, "_prefetched_relationships", []) if rel.status == "active"])
+
+    def get_average_rating(self, obj):
+        reviews = getattr(obj, "_prefetched_reviews", [])
+        if not reviews:
+            return None
+        return round(sum(r.rating for r in reviews) / len(reviews), 1)
+
+    def get_revenue(self, obj):
+        return sum(
+            inv.amount
+            for rel in getattr(obj, "_prefetched_relationships", [])
+            for inv in getattr(rel, "_prefetched_paid_invoices", [])
+        )
+
+
 class RegisterClientSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=100)
     last_name = serializers.CharField(max_length=100)

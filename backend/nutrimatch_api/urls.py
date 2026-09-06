@@ -29,4 +29,5 @@ urlpatterns = [
     path('api/', include('communication.urls')),
     path('api/', include('billing.urls')),
     path('api/', include(billing_webhook_urlpatterns)),
+    path('api/', include('core.urls')),
 ]

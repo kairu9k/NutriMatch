@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -9,6 +10,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
 from .permissions import IsAdmin
 from .serializers import (
+    AdminClientListSerializer,
+    AdminRndListSerializer,
     NutriMatchTokenObtainPairSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -145,5 +148,52 @@ class AdminVerifyRndView(APIView):
         profile.verified_at = timezone.now()
         profile.save(update_fields=["is_verified", "verified_at"])
         return Response(UserSerializer(user).data)
+
+
+class AdminRndListView(generics.ListAPIView):
+    """All RNDs (pending + verified + deactivated) for RndVerification.vue
+    — one page covering the whole lifecycle, filtered client-side by the
+    frontend's status tabs."""
+
+    serializer_class = AdminRndListSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        from billing.models import Invoice
+        from scheduling.models import Review, RndClientRelationship
+
+        relationships_qs = RndClientRelationship.objects.prefetch_related(
+            Prefetch(
+                "invoices",
+                queryset=Invoice.objects.filter(status=Invoice.Status.PAID),
+                to_attr="_prefetched_paid_invoices",
+            ),
+        )
+        return User.objects.filter(role=User.Role.RND).select_related("rnd_profile").prefetch_related(
+            Prefetch("client_relationships", queryset=relationships_qs, to_attr="_prefetched_relationships"),
+            Prefetch("reviews_received", queryset=Review.objects.filter(is_public=True), to_attr="_prefetched_reviews"),
+        ).order_by("-rnd_profile__created_at")
+
+
+class AdminClientListView(generics.ListAPIView):
+    """All clients for ClientManagement.vue. condition/consultations/
+    matched-RND all come from prefetches, same one-query-per-relation
+    pattern as scheduling.RndPatientListSerializer."""
+
+    serializer_class = AdminClientListSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        from scheduling.models import Appointment, RndClientRelationship
+
+        return User.objects.filter(role=User.Role.CLIENT).select_related("health_profile").prefetch_related(
+            Prefetch(
+                "rnd_relationships",
+                queryset=RndClientRelationship.objects.select_related("rnd").prefetch_related(
+                    Prefetch("appointments", queryset=Appointment.objects.all(), to_attr="_prefetched_appointments"),
+                ),
+                to_attr="_prefetched_relationships",
+            ),
+        ).order_by("-created_at")
 
 

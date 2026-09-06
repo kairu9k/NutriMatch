@@ -2,6 +2,8 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    AdminClientListView,
+    AdminRndListView,
     AdminUserDetailView,
     AdminUserListView,
     AdminUserToggleActiveView,
@@ -27,4 +29,6 @@ urlpatterns = [
     path("admin/users/<int:pk>/", AdminUserDetailView.as_view(), name="admin_user_detail"),
     path("admin/users/<int:pk>/toggle-active/", AdminUserToggleActiveView.as_view(), name="admin_user_toggle_active"),
     path("admin/users/<int:pk>/verify-rnd/", AdminVerifyRndView.as_view(), name="admin_verify_rnd"),
+    path("admin/rnds/", AdminRndListView.as_view(), name="admin_rnd_list"),
+    path("admin/clients/", AdminClientListView.as_view(), name="admin_client_list"),
 ]

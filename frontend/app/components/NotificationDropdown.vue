@@ -1,14 +1,45 @@
 <script setup>
-import { notifications } from '~/mock/mockAdminDatabase'
+const { get, patch } = useApi()
 
 const open = ref(false)
-const unreadCount = computed(() => notifications.value.filter(n => n.unread).length)
+const notifications = ref([])
+const isLoading = ref(true)
 
-const markAllRead = () => {
-  notifications.value = notifications.value.map(n => ({ ...n, unread: false }))
+const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
+
+async function loadNotifications() {
+  isLoading.value = true
+  try {
+    notifications.value = await get('/notifications/')
+  } catch {
+    notifications.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function markAllRead() {
+  try {
+    await patch('/notifications/mark-all-read/')
+    notifications.value = notifications.value.map(n => ({ ...n, is_read: true }))
+  } catch {
+    // leave state as-is on failure
+  }
+}
+
+function timeAgo(iso) {
+  const seconds = Math.floor((Date.now() - new Date(iso)) / 1000)
+  const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]]
+  for (const [label, secs] of units) {
+    const value = Math.floor(seconds / secs)
+    if (value >= 1) return `${value} ${label}${value > 1 ? 's' : ''} ago`
+  }
+  return 'just now'
 }
 
 const close = () => { open.value = false }
+
+onMounted(loadNotifications)
 </script>
 
 <template>
@@ -32,25 +63,27 @@ const close = () => { open.value = false }
           </p>
           <button class="text-xs text-forest/60 hover:text-forest transition-colors" @click="markAllRead">Mark all read</button>
         </div>
-        <TransitionGroup name="list" tag="div" class="max-h-80 overflow-y-auto scrollbar-thin relative">
+
+        <div v-if="isLoading" class="px-5 py-8 text-center text-sm text-forest/40">Loading…</div>
+
+        <div v-else-if="!notifications.length" class="px-5 py-8 text-center text-sm text-forest/40">
+          No notifications yet.
+        </div>
+
+        <TransitionGroup v-else name="list" tag="div" class="max-h-80 overflow-y-auto scrollbar-thin relative">
           <div
             v-for="n in notifications"
             :key="n.id"
             class="flex items-start gap-3 px-5 py-3 hover:bg-cream-soft transition-colors border-b border-forest/5 last:border-0"
           >
-            <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0', n.color]">
-              {{ n.initials }}
-            </div>
             <div class="flex-1">
-              <p class="text-sm text-forest-dark" v-html="n.text.replace(/^(\S+ \S+\.? ?\S*)/, '<b>$1</b>')"></p>
-              <p class="text-xs text-forest/50 mt-0.5">{{ n.time }}</p>
+              <p class="text-sm text-forest-dark font-medium">{{ n.subject }}</p>
+              <p class="text-xs text-forest/60">{{ n.content }}</p>
+              <p class="text-xs text-forest/50 mt-0.5">{{ timeAgo(n.created_at) }}</p>
             </div>
-            <span v-if="n.unread" class="w-2 h-2 rounded-full bg-emerald-700 mt-1.5 shrink-0"></span>
+            <span v-if="!n.is_read" class="w-2 h-2 rounded-full bg-emerald-700 mt-1.5 shrink-0"></span>
           </div>
         </TransitionGroup>
-        <div class="px-5 py-3 border-t border-forest/10">
-          <button class="text-sm font-medium text-forest hover:underline">View all →</button>
-        </div>
       </div>
     </Transition>
   </div>

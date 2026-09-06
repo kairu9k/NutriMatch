@@ -1,10 +1,11 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from profiles.models import ClientProfile, RndProfile
+from profiles.models import ClientHealthProfile, ClientProfile, RndProfile
 
 from .models import PasswordResetCode, User
 
@@ -153,3 +154,85 @@ class PasswordResetTests(TestCase):
             "email": "reset@t.ph", "code": "123456", "new_password": "SecondNewPass123",
         })
         self.assertEqual(second.status_code, 400)
+
+
+class AdminRndAndClientListTests(TestCase):
+    """The new admin-facing user list endpoints (RndVerification.vue /
+    ClientManagement.vue) — real prefetch-derived stats, not fabricated."""
+
+    def setUp(self):
+        self.client_api = APIClient()
+        self.admin = User.objects.create_user(
+            email="admin2@t.ph", password="x", role="admin", first_name="Ad", last_name="Min"
+        )
+        self.client_api.force_authenticate(self.admin)
+
+    def test_non_admin_cannot_access_admin_rnd_list(self):
+        rnd = User.objects.create_user(email="notadmin@t.ph", password="x", role="rnd", first_name="R", last_name="D")
+        self.client_api.force_authenticate(rnd)
+        resp = self.client_api.get("/api/admin/rnds/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_rnd_list_includes_pending_and_verified(self):
+        pending = User.objects.create_user(email="pending@t.ph", password="x", role="rnd", first_name="P", last_name="D")
+        RndProfile.objects.create(user=pending, prc_license_number="PRC-P1", is_verified=False)
+
+        verified = User.objects.create_user(email="verified@t.ph", password="x", role="rnd", first_name="V", last_name="D")
+        RndProfile.objects.create(user=verified, prc_license_number="PRC-V1", is_verified=True)
+
+        resp = self.client_api.get("/api/admin/rnds/")
+        self.assertEqual(resp.status_code, 200)
+        emails = {r["email"] for r in resp.data}
+        self.assertEqual(emails, {"pending@t.ph", "verified@t.ph"})
+
+    def test_rnd_list_patient_count_and_revenue_are_real(self):
+        from decimal import Decimal as D
+
+        from billing.models import Invoice
+        from scheduling.models import Appointment, RndClientRelationship
+
+        rnd = User.objects.create_user(email="withpatients@t.ph", password="x", role="rnd", first_name="W", last_name="P")
+        RndProfile.objects.create(user=rnd, prc_license_number="PRC-WP1", is_verified=True)
+        client = User.objects.create_user(email="theirclient@t.ph", password="x", role="client", first_name="T", last_name="C")
+        rel = RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
+        appt = Appointment.objects.create(relationship=rel, scheduled_at=timezone.now(), type="chat", status="completed")
+        Invoice.objects.create(relationship=rel, appointment=appt, amount=D("500.00"), status=Invoice.Status.PAID)
+
+        resp = self.client_api.get("/api/admin/rnds/")
+        row = next(r for r in resp.data if r["email"] == "withpatients@t.ph")
+        self.assertEqual(row["patients"], 1)
+        self.assertEqual(Decimal(row["revenue"]), D("500.00"))
+
+    def test_client_list_shows_condition_and_matched_rnd(self):
+        rnd = User.objects.create_user(email="matchedrnd@t.ph", password="x", role="rnd", first_name="M", last_name="R")
+        client = User.objects.create_user(email="matchedclient@t.ph", password="x", role="client", first_name="M", last_name="C")
+        ClientHealthProfile.objects.create(user=client, medical_conditions=["Type 2 Diabetes"])
+        from scheduling.models import RndClientRelationship
+        RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
+
+        resp = self.client_api.get("/api/admin/clients/")
+        row = next(r for r in resp.data if r["email"] == "matchedclient@t.ph")
+        self.assertEqual(row["condition"], "Type 2 Diabetes")
+        self.assertEqual(row["matched_rnd"], "M R")
+
+
+class AdminPlatformStatsTests(TestCase):
+    def setUp(self):
+        self.client_api = APIClient()
+        self.admin = User.objects.create_user(
+            email="admin3@t.ph", password="x", role="admin", first_name="Ad", last_name="Min"
+        )
+        self.client_api.force_authenticate(self.admin)
+
+    def test_stats_reflect_real_counts(self):
+        from scheduling.models import RndClientRelationship
+
+        rnd = User.objects.create_user(email="statsrnd@t.ph", password="x", role="rnd", first_name="S", last_name="R")
+        RndProfile.objects.create(user=rnd, prc_license_number="PRC-STATS1", is_verified=True)
+        client = User.objects.create_user(email="statsclient@t.ph", password="x", role="client", first_name="S", last_name="C")
+        RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
+
+        resp = self.client_api.get("/api/admin/platform-stats/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertGreaterEqual(resp.data["active_rnds"], 1)
+        self.assertGreaterEqual(resp.data["clients"], 1)

@@ -1,14 +1,25 @@
 <script setup>
-import { rnds, clients, adminProfile } from '~/mock/mockAdminDatabase'
+import { useAuthStore } from '~/stores/auth'
 
 defineProps({ open: { type: Boolean, default: false } })
 const emit = defineEmits(['close'])
 
 const route = useRoute()
-const profile = adminProfile
+const auth = useAuthStore()
+const { get } = useApi()
 
-const pendingCount = computed(() => rnds.value.filter(r => r.status === 'pending').length)
-const flaggedCount = computed(() => clients.value.filter(c => c.status === 'Flagged').length)
+const pendingCount = ref(0)
+
+async function loadPendingCount() {
+  try {
+    const rnds = await get('/admin/rnds/')
+    pendingCount.value = rnds.filter(r => !r.is_verified).length
+  } catch {
+    pendingCount.value = 0
+  }
+}
+
+onMounted(loadPendingCount)
 
 const nav = computed(() => [
   {
@@ -37,8 +48,14 @@ const nav = computed(() => [
 
 const isActive = (to) => route.path === to
 
+const initials = computed(() => {
+  const u = auth.user
+  if (!u) return '?'
+  return `${u.first_name?.[0] || ''}${u.last_name?.[0] || ''}`.toUpperCase()
+})
+
 async function handleSignOut() {
-  localStorage.removeItem('nutrimatch_admin_session')
+  auth.logout()
   await navigateTo('/login')
 }
 </script>
@@ -74,7 +91,7 @@ async function handleSignOut() {
             : 'text-cream/65 hover:bg-forest-light/60 hover:text-white hover:font-medium hover:translate-x-0.5 hover:shadow-sm'"
           @click="emit('close')"
         >
-        
+
           <span
             class="nav-indicator absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-gold-light transition-all duration-200"
             :class="isActive(item.to)
@@ -99,11 +116,11 @@ async function handleSignOut() {
     <div class="border-t border-white/10 px-4 py-3.5">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-full bg-gold-light text-forest-dark flex items-center justify-center text-xs font-bold shrink-0">
-          {{ profile.footerName.split(' ').map(n => n[0]).slice(0,2).join('') }}
+          {{ initials }}
         </div>
         <div class="leading-tight min-w-0">
-          <p class="text-[13.5px] text-white truncate">{{ profile.footerName }}</p>
-          <p class="text-[11px] text-cream/40">{{ profile.footerRole }}</p>
+          <p class="text-[13.5px] text-white truncate">{{ auth.user?.first_name }} {{ auth.user?.last_name }}</p>
+          <p class="text-[11px] text-cream/40">System Admin</p>
         </div>
       </div>
       <button
