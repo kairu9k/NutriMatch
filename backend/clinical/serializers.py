@@ -4,12 +4,21 @@ from .models import NcpRecord, PreConsultationScreening, ProgressRecord
 
 
 class PreConsultationScreeningSerializer(serializers.ModelSerializer):
+    """reduced_intake/has_chronic_illness are write-only NRS-2002 inputs —
+    not stored on the model (same pattern as activity_level feeding TDEE
+    without being a "result" field itself). Weight-loss-percent isn't an
+    input at all: it's computed server-side from the client's own screening
+    history, not self-reported."""
+
+    reduced_intake = serializers.BooleanField(write_only=True, required=False, default=False)
+    has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
+
     class Meta:
         model = PreConsultationScreening
         fields = [
             "id", "appointment", "height_cm", "weight_kg", "bmi", "bmi_category",
             "bmr_kcal", "tdee_kcal", "activity_level", "nrs_score", "nrs_risk",
-            "symptoms", "created_at",
+            "reduced_intake", "has_chronic_illness", "symptoms", "created_at",
         ]
         read_only_fields = ["bmi", "bmi_category", "bmr_kcal", "tdee_kcal", "nrs_score", "nrs_risk"]
 
