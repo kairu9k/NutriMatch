@@ -1,534 +1,456 @@
 <template>
-  <div>
-    <!-- TOP CONTROLS -->
+  <div class="planning-page">
     <div class="top-controls">
-      <div class="mode-toggle">
-        <button class="mode-btn" :class="{ active: mode === 'view' }" @click="mode = 'view'">
-          <Eye :size="15" /> View Plans
-        </button>
-        <button class="mode-btn" :class="{ active: mode === 'create' }" @click="mode = 'create'">
-          <Plus :size="15" /> Create Plan
-        </button>
+      <div>
+        <h1 class="page-title">Meal Plans</h1>
+        <p class="page-sub">Create and manage FNRI exchange-based meal plans for your patients.</p>
       </div>
-
       <div class="patient-select">
-        <select v-model="selectedPatient">
-          <option v-for="p in patients" :key="p" :value="p">{{ p }}</option>
+        <select v-model="selectedRelationshipId">
+          <option value="" disabled>Select a patient</option>
+          <option v-for="rel in relationships" :key="rel.id" :value="rel.id">
+            {{ rel.client.first_name }} {{ rel.client.last_name }}
+          </option>
         </select>
         <ChevronDown :size="15" class="select-caret" />
       </div>
     </div>
 
-    <!-- ================= VIEW PLANS MODE ================= -->
-    <div v-if="mode === 'view'" class="planning-layout">
-      <div class="panel plan-panel">
-        <div class="plan-header">
-          <div>
-            <h3>Weekly Meal Plan — {{ selectedPatient }}</h3>
-          </div>
-          <div class="plan-badges">
-            <span class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
-            <span class="badge badge-gold">{{ planMeta.dietType }}</span>
-          </div>
-        </div>
+    <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
-        <div class="day-tabs">
-          <button
-            v-for="day in days"
-            :key="day"
-            class="day-tab"
-            :class="{ active: activeDay === day }"
-            @click="activeDay = day"
-          >
-            {{ day }}
-          </button>
-        </div>
+    <div v-if="isLoadingRelationships" class="placeholder-text">Loading…</div>
 
-        <div class="meal-list">
-          <div class="meal-row" v-for="meal in currentDayMeals" :key="meal.type">
-            <div class="meal-info">
-              <div class="meal-label">
-                <component :is="meal.icon" :size="14" />
-                {{ meal.type }} · {{ meal.time }}
-              </div>
-              <div class="meal-title">{{ meal.title }}</div>
-              <div class="meal-breakdown">{{ meal.breakdown }}</div>
-            </div>
-            <div class="meal-kcal">{{ meal.kcal }} kcal</div>
-          </div>
-        </div>
-
-        <div class="plan-actions">
-          <button class="btn-secondary"><Printer :size="15" /> Print Plan</button>
-          <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit Plan</button>
-          <button class="btn-primary"><Send :size="15" /> Send to Patient</button>
-        </div>
-      </div>
-
-      <!-- RIGHT SIDEBAR -->
-      <div class="side-column">
-        <div class="panel">
-          <h4 class="side-title">Nutritional Summary</h4>
-          <span class="side-subtitle">Monday</span>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Total Calories</span><span>{{ nutrition.calories.value }} / {{ nutrition.calories.target }} kcal</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.calories) + '%' }"></div></div>
-          </div>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Carbohydrates</span><span>{{ nutrition.carbs.value }}g / {{ nutrition.carbs.target }}g</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-gold" :style="{ width: pct(nutrition.carbs) + '%' }"></div></div>
-          </div>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Protein</span><span>{{ nutrition.protein.value }}g / {{ nutrition.protein.target }}g</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.protein) + '%' }"></div></div>
-          </div>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Fat</span><span>{{ nutrition.fat.value }}g / {{ nutrition.fat.target }}g</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-dark" :style="{ width: pct(nutrition.fat) + '%' }"></div></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="side-header-row">
-            <h4 class="side-title">Saved Plans</h4>
-            <button class="link-btn"><Plus :size="13" /> New Plan</button>
-          </div>
-          <div class="saved-plan-card">
-            <div>
-              <div class="saved-plan-name">{{ planMeta.name }}</div>
-              <div class="saved-plan-meta">{{ planMeta.dietType }} · {{ planMeta.kcalPerDay }} kcal/day</div>
-            </div>
-            <span class="active-pill">ACTIVE</span>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h4 class="side-title">FNRI Exchange Lists</h4>
-          <div class="exchange-tags">
-            <span class="exchange-tag tag-rice">Rice/Bread</span>
-            <span class="exchange-tag tag-veg">Vegetables</span>
-            <span class="exchange-tag tag-fruit">Fruits</span>
-            <span class="exchange-tag tag-meat">Meat/Fish</span>
-            <span class="exchange-tag tag-milk">Milk</span>
-            <span class="exchange-tag tag-fat">Fat</span>
-          </div>
-          <p class="exchange-note">Based on FNRI Food Exchange Lists 4th Ed., 2020</p>
-        </div>
-      </div>
+    <div v-else-if="!relationships.length" class="empty-state">
+      <p class="empty-title">No active patients yet</p>
+      <p class="empty-desc">Meal plans can only be created once you have an active relationship with a client.</p>
     </div>
 
-    <!-- ================= CREATE PLAN MODE ================= -->
-    <div v-else class="planning-layout">
-      <div class="create-column">
-        <div class="panel">
-          <h4 class="side-title">Plan Details</h4>
-          <div class="form-row">
+    <template v-else-if="selectedRelationshipId">
+      <div v-if="isLoadingPlan" class="placeholder-text">Loading plan…</div>
+
+      <template v-else-if="!plan">
+        <div class="surface create-plan-card">
+          <h3 class="surface-title">No meal plan yet for {{ selectedClientName }}</h3>
+          <div class="form-grid">
             <div class="field">
               <label>Plan Name</label>
-              <input v-model="planMeta.name" type="text" />
+              <input v-model="newPlan.name" type="text" placeholder="e.g. Diabetic-Friendly Plan" />
             </div>
             <div class="field">
-              <label>Diet Type</label>
-              <input v-model="planMeta.dietType" type="text" />
+              <label>Condition</label>
+              <select v-model="newPlan.condition">
+                <option value="diabetes">Diabetes</option>
+                <option value="hypertension">Hypertension</option>
+                <option value="renal">Renal</option>
+                <option value="weight_loss">Weight Loss</option>
+                <option value="weight_gain">Weight Gain</option>
+                <option value="general">General</option>
+              </select>
             </div>
             <div class="field">
               <label>Target Calories/day</label>
-              <input v-model="planMeta.kcalPerDay" type="number" />
+              <input v-model.number="newPlan.target_kcal" type="number" placeholder="1800" />
             </div>
           </div>
-        </div>
-
-        <div class="day-tabs">
-          <button
-            v-for="day in days"
-            :key="day"
-            class="day-tab"
-            :class="{ active: activeDay === day }"
-            @click="activeDay = day"
-          >
-            {{ day }}
+          <button class="btn-primary" type="button" :disabled="!newPlan.name || isSaving" @click="createPlan">
+            {{ isSaving ? 'Creating…' : 'Create Meal Plan' }}
           </button>
         </div>
+      </template>
 
-        <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
-          <div class="meal-edit-header">
-            <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ meal.type.toUpperCase() }}</span>
-            <span class="meal-edit-time">{{ meal.time }}</span>
-          </div>
-
-          <div class="food-table">
-            <div class="food-table-head">
-              <span>FOOD ITEM</span>
-              <span>PORTION</span>
-              <span>KCAL</span>
-              <span>CARB(G)</span>
-              <span>PROT(G)</span>
-              <span>FAT(G)</span>
-              <span></span>
+      <template v-else>
+        <div class="surface plan-header-card">
+          <div class="plan-header-top">
+            <div>
+              <h3 class="plan-name">{{ plan.name }}</h3>
+              <span class="badge badge-blue">{{ plan.target_kcal ? Math.round(plan.target_kcal) : '—' }} kcal/day</span>
+              <span class="badge badge-gold">{{ conditionLabel(plan.condition) }}</span>
             </div>
-            <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx">
-              <button class="remove-btn" @click="removeItem(meal, idx)"><X :size="12" /></button>
-              <input v-model="item.name" type="text" placeholder="e.g., Brown rice" />
-              <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
-              <input v-model.number="item.kcal" type="number" placeholder="0" />
-              <input v-model.number="item.carb" type="number" placeholder="0" />
-              <input v-model.number="item.prot" type="number" placeholder="0" />
-              <input v-model.number="item.fat" type="number" placeholder="0" />
+            <span class="status-pill" :class="plan.status === 'active' ? 'success' : 'neutral'">{{ plan.status === 'active' ? 'Active' : 'Archived' }}</span>
+          </div>
+
+          <div class="exchange-totals">
+            <div class="exchange-chip"><div class="ex-num">{{ computedTotal('rice_exchanges') }}</div><div class="ex-label">Rice</div></div>
+            <div class="exchange-chip"><div class="ex-num">{{ computedTotal('meat_exchanges') }}</div><div class="ex-label">Meat</div></div>
+            <div class="exchange-chip"><div class="ex-num">{{ computedTotal('vegetable_exchanges') }}</div><div class="ex-label">Vegetable</div></div>
+            <div class="exchange-chip"><div class="ex-num">{{ computedTotal('fruit_exchanges') }}</div><div class="ex-label">Fruit</div></div>
+            <div class="exchange-chip"><div class="ex-num">{{ computedTotal('milk_exchanges') }}</div><div class="ex-label">Milk</div></div>
+            <div class="exchange-chip"><div class="ex-num">{{ computedTotal('fat_exchanges') }}</div><div class="ex-label">Fat</div></div>
+          </div>
+          <p class="totals-note">Totals are computed live from the meals below.</p>
+        </div>
+
+        <div class="meal-list">
+          <div v-for="meal in orderedMeals" :key="meal.id" class="surface meal-card">
+            <div class="meal-card-header">
+              <span class="meal-name">
+                <component :is="mealIcon(meal.meal_time)" :size="15" class="meal-icon" />
+                {{ mealTimeLabel(meal.meal_time) }}
+              </span>
+              <button class="remove-meal-btn" type="button" :disabled="busy" @click="removeMeal(meal)"><X :size="14" /></button>
+            </div>
+
+            <div class="meal-exchange-inputs">
+              <div v-for="field in exchangeFields" :key="field.key" class="exchange-field">
+                <label>{{ field.label }}</label>
+                <input
+                  type="number" step="0.5" min="0"
+                  :value="meal[field.key]"
+                  @change="updateMealExchange(meal, field.key, $event.target.value)"
+                />
+              </div>
+            </div>
+
+            <div v-if="meal.food_items.length" class="food-item-list">
+              <div v-for="item in meal.food_items" :key="item.id" class="food-item-row">
+                <span class="food-name">{{ item.food_name }}</span>
+                <span class="food-exchange">{{ item.exchanges }} exchange{{ Number(item.exchanges) === 1 ? '' : 's' }}{{ item.notes ? ' · ' + item.notes : '' }}</span>
+                <button class="remove-item-btn" type="button" :disabled="busy" @click="removeFoodItem(item)"><X :size="12" /></button>
+              </div>
+            </div>
+            <p v-else class="food-list-empty">No specific foods listed yet — this meal's exchange counts above are still what the client sees.</p>
+
+            <div class="add-food-row">
+              <input v-model="newFoodForm[meal.id].food_name" type="text" placeholder="Food name, e.g. 1 cup Brown Rice" />
+              <input v-model.number="newFoodForm[meal.id].exchanges" type="number" step="0.5" placeholder="Exchanges" class="exchange-input" />
+              <button class="add-food-btn" type="button" :disabled="!newFoodForm[meal.id].food_name || busy" @click="addFoodItem(meal)">
+                <Plus :size="14" />
+              </button>
             </div>
           </div>
-
-          <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
-        </div>
-      </div>
-
-      <!-- RIGHT SIDEBAR (CREATE MODE) -->
-      <div class="side-column">
-        <div class="panel">
-          <div class="side-header-row">
-            <h4 class="side-title">Live Preview</h4>
-            <span class="preview-day">{{ activeDay === 'Mon' ? 'Monday' : activeDay }}</span>
-          </div>
-          <div class="preview-list">
-            <div class="preview-item" v-for="meal in currentDayMeals.filter(m => m.items.some(i => i.name))" :key="meal.type" :class="'preview-' + meal.accent">
-              <div class="preview-label"><component :is="meal.icon" :size="13" /> {{ meal.type }}</div>
-              <div class="preview-food">{{ firstFoodSummary(meal) }}</div>
-              <div class="preview-kcal">{{ mealTotal(meal, 'kcal') }} kcal</div>
-            </div>
-          </div>
         </div>
 
-        <div class="panel">
-          <h4 class="side-title">Macro Tracker</h4>
-          <div class="macro-row"><span>Calories</span><span class="macro-value">{{ dayTotal('kcal') }} kcal</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-dark" :style="{ width: macroPct('kcal') + '%' }"></div></div>
-
-          <div class="macro-row"><span>Carbs (g)</span><span class="macro-value">{{ dayTotal('carb') }}g</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-gold" :style="{ width: macroPct('carb') + '%' }"></div></div>
-
-          <div class="macro-row"><span>Protein (g)</span><span class="macro-value">{{ dayTotal('prot') }}g</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-green" :style="{ width: macroPct('prot') + '%' }"></div></div>
-
-          <div class="macro-row"><span>Fat (g)</span><span class="macro-value">{{ dayTotal('fat') }}g</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-dark2" :style="{ width: macroPct('fat') + '%' }"></div></div>
-
-          <p class="macro-note">Based on foods entered for the selected day</p>
+        <div class="add-meal-row">
+          <select v-model="newMealTime" class="meal-time-select">
+            <option v-for="t in availableMealTimes" :key="t" :value="t">{{ mealTimeLabel(t) }}</option>
+          </select>
+          <button class="btn-add-meal" type="button" :disabled="!availableMealTimes.length || busy" @click="addMeal">
+            <Plus :size="14" /> Add Meal
+          </button>
         </div>
+      </template>
+    </template>
 
-        <div class="panel">
-          <h4 class="side-title">Special Instructions</h4>
-          <div class="field">
-            <label>Allergies / Restrictions</label>
-            <textarea v-model="instructions.allergies" rows="2" placeholder="e.g., No shellfish, low potassium"></textarea>
-          </div>
-          <div class="field">
-            <label>RND Notes for Patient</label>
-            <textarea v-model="instructions.notes" rows="3" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
-          </div>
-        </div>
-      </div>
+    <div v-else class="empty-state">
+      <p class="empty-title">Select a patient to view or create their meal plan</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import {
-  Eye, Plus, ChevronDown, Printer, Pencil, Send, X,
-  Sun, Coffee, Utensils, Apple, Moon
-} from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
+import { ChevronDown, Plus, X, Sun, Coffee, Utensils, Apple, Moon } from 'lucide-vue-next'
 
-const mode = ref('view')
+definePageMeta({ layout: 'dashboard', title: 'Meal Plans' })
 
-// Patient list + selection — pulled from the shared mock db
-const patients = computed(() => db.patients.map(p => p.name))
-const selectedPatient = ref(db.patients[0]?.name || '')
+const { get, post, patch, del } = useApi()
+const route = useRoute()
 
-const selectedPatientId = computed(() => {
-  const match = db.patients.find(p => p.name === selectedPatient.value)
-  return match?.id || null
+const relationships = ref([])
+const isLoadingRelationships = ref(true)
+const selectedRelationshipId = ref('')
+const errorMessage = ref('')
+
+const plan = ref(null)
+const isLoadingPlan = ref(false)
+const isSaving = ref(false)
+const busy = ref(false)
+
+const newPlan = reactive({ name: '', condition: 'general', target_kcal: null })
+const newMealTime = ref('breakfast')
+const newFoodForm = reactive({})
+
+const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
+const MEAL_LABELS = {
+  breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch',
+  pm_snack: 'PM Snack', dinner: 'Dinner', bedtime_snack: 'Bedtime Snack',
+}
+const MEAL_ICONS = { breakfast: Sun, am_snack: Coffee, lunch: Utensils, pm_snack: Apple, dinner: Moon, bedtime_snack: Moon }
+const CONDITION_LABELS = {
+  diabetes: 'Diabetes', hypertension: 'Hypertension', renal: 'Renal',
+  weight_loss: 'Weight Loss', weight_gain: 'Weight Gain', general: 'General',
+}
+const exchangeFields = [
+  { key: 'rice_exchanges', label: 'Rice' },
+  { key: 'meat_exchanges', label: 'Meat' },
+  { key: 'vegetable_exchanges', label: 'Veg' },
+  { key: 'fruit_exchanges', label: 'Fruit' },
+  { key: 'milk_exchanges', label: 'Milk' },
+  { key: 'fat_exchanges', label: 'Fat' },
+]
+
+const selectedClientName = computed(() => {
+  const rel = relationships.value.find(r => r.id === selectedRelationshipId.value)
+  return rel ? `${rel.client.first_name} ${rel.client.last_name}` : ''
 })
 
-const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const activeDay = ref('Mon')
-const mealOrder = ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner']
-const mealIcons = { Breakfast: Sun, 'Morning Snack': Coffee, Lunch: Utensils, 'Afternoon Snack': Apple, Dinner: Moon }
-const mealAccents = { Breakfast: 'green', 'Morning Snack': 'gold', Lunch: 'blue', 'Afternoon Snack': 'gold', Dinner: 'blue' }
+const orderedMeals = computed(() => {
+  if (!plan.value) return []
+  return [...plan.value.meals].sort((a, b) => MEAL_ORDER.indexOf(a.meal_time) - MEAL_ORDER.indexOf(b.meal_time))
+})
+const availableMealTimes = computed(() => {
+  const used = new Set(plan.value?.meals.map(m => m.meal_time) || [])
+  return MEAL_ORDER.filter(t => !used.has(t))
+})
+watch(availableMealTimes, (times) => {
+  if (!times.includes(newMealTime.value)) newMealTime.value = times[0] || ''
+}, { immediate: true })
 
-function emptyWeek() {
-  const week = {}
-  for (const day of days) {
-    week[day] = {}
-    for (const type of mealOrder) week[day][type] = { time: '', items: [] }
-  }
-  return week
+function mealTimeLabel(t) { return MEAL_LABELS[t] || t }
+function mealIcon(t) { return MEAL_ICONS[t] || Sun }
+function conditionLabel(c) { return CONDITION_LABELS[c] || c }
+
+function computedTotal(field) {
+  if (!plan.value) return 0
+  return plan.value.meals.reduce((sum, m) => sum + Number(m[field] || 0), 0)
 }
 
-const planMeta = reactive({ name: '', dietType: '', kcalPerDay: 0 })
-const targets = reactive({ carb: 0, protein: 0, fat: 0 })
-const instructions = reactive({ allergies: '', notes: '' })
-const weeklyPlan = reactive(emptyWeek())
-
-// Load whichever patient's plan matches the current selection, deep-copied
-// so edits here don't mutate the shared mock db directly.
-function loadPlanForPatient() {
-  const found = db.mealPlanDetails.find(m => m.patientId === selectedPatientId.value)
-
-  if (!found) {
-    planMeta.name = ''
-    planMeta.dietType = ''
-    planMeta.kcalPerDay = 0
-    targets.carb = 0
-    targets.protein = 0
-    targets.fat = 0
-    instructions.allergies = ''
-    instructions.notes = ''
-    Object.assign(weeklyPlan, emptyWeek())
-    return
+function ensureFoodForm(mealId) {
+  if (!newFoodForm[mealId]) {
+    newFoodForm[mealId] = { food_name: '', exchanges: 1 }
   }
-
-  planMeta.name = found.planName
-  planMeta.dietType = found.dietType
-  planMeta.kcalPerDay = found.kcalTarget
-  targets.carb = found.carbTarget
-  targets.protein = found.proteinTarget
-  targets.fat = found.fatTarget
-  instructions.allergies = found.allergies
-  instructions.notes = found.notes
-  Object.assign(weeklyPlan, JSON.parse(JSON.stringify(found.week)))
 }
 
-loadPlanForPatient()
-watch(selectedPatient, loadPlanForPatient)
+async function updateMealExchange(meal, field, rawValue) {
+  const value = Math.max(0, Number(rawValue) || 0)
+  const previous = meal[field]
+  meal[field] = value
+  try {
+    await patch(`/rnd/meals/${meal.id}/`, { [field]: value })
+  } catch {
+    meal[field] = previous
+    errorMessage.value = 'Could not update this exchange count. Please try again.'
+  }
+}
 
-// Nutritional Summary is now computed live from the active day's actual items
-const nutrition = computed(() => {
-  const dayTotals = { calories: 0, carb: 0, protein: 0, fat: 0 }
-  for (const type of mealOrder) {
-    for (const item of weeklyPlan[activeDay.value][type].items) {
-      dayTotals.calories += Number(item.kcal) || 0
-      dayTotals.carb += Number(item.carb) || 0
-      dayTotals.protein += Number(item.prot) || 0
-      dayTotals.fat += Number(item.fat) || 0
+watch(() => plan.value?.meals, (meals) => {
+  for (const meal of meals || []) ensureFoodForm(meal.id)
+}, { immediate: true, deep: true })
+
+async function loadRelationships() {
+  isLoadingRelationships.value = true
+  try {
+    relationships.value = await get('/rnd/relationships/active/')
+    const preselect = Number(route.query.relationship)
+    if (preselect && relationships.value.some(r => r.id === preselect)) {
+      selectedRelationshipId.value = preselect
     }
+  } catch {
+    errorMessage.value = 'Could not load your patients. Please try again later.'
+  } finally {
+    isLoadingRelationships.value = false
   }
-  return {
-    calories: { value: dayTotals.calories, target: planMeta.kcalPerDay },
-    carbs: { value: dayTotals.carb, target: targets.carb },
-    protein: { value: dayTotals.protein, target: targets.protein },
-    fat: { value: dayTotals.fat, target: targets.fat }
+}
+
+async function loadPlan() {
+  if (!selectedRelationshipId.value) return
+  isLoadingPlan.value = true
+  errorMessage.value = ''
+  plan.value = null
+  try {
+    const plans = await get(`/rnd/relationships/${selectedRelationshipId.value}/meal-plans/`)
+    plan.value = plans.find(p => p.status === 'active') || plans[0] || null
+    newPlan.name = ''; newPlan.condition = 'general'; newPlan.target_kcal = null
+  } catch {
+    errorMessage.value = 'Could not load this patient\'s meal plan.'
+  } finally {
+    isLoadingPlan.value = false
   }
-})
-function pct(n) {
-  if (!n.target) return 0
-  return Math.min(100, Math.round((n.value / n.target) * 100))
+}
+watch(selectedRelationshipId, loadPlan)
+
+async function createPlan() {
+  isSaving.value = true
+  errorMessage.value = ''
+  try {
+    plan.value = await post(`/rnd/relationships/${selectedRelationshipId.value}/meal-plans/`, {
+      relationship: selectedRelationshipId.value,
+      name: newPlan.name,
+      condition: newPlan.condition,
+      target_kcal: newPlan.target_kcal || undefined,
+    })
+  } catch {
+    errorMessage.value = 'Could not create this meal plan. Please try again.'
+  } finally {
+    isSaving.value = false
+  }
 }
 
-const currentDayMeals = computed(() => {
-  return mealOrder.map(type => {
-    const meal = weeklyPlan[activeDay.value][type]
-    const totalKcal = meal.items.reduce((sum, i) => sum + (Number(i.kcal) || 0), 0)
-    const summary = meal.items.filter(i => i.name).map(i => `${i.name} (${i.portion || '1'})`).join(' + ')
-    const breakdown = meal.items.filter(i => i.name)
-      .map(i => `${i.name}: ${i.kcal || 0}kcal | ${i.carb || 0}g carb | ${i.prot || 0}g prot | ${i.fat || 0}g fat`)
-      .join(' | ')
-    return {
-      type,
-      time: meal.time,
-      items: meal.items,
-      icon: mealIcons[type],
-      accent: mealAccents[type],
-      kcal: totalKcal,
-      title: summary || 'No items added',
-      breakdown: breakdown || '—'
-    }
-  })
-})
-
-function addItem(meal) {
-  weeklyPlan[activeDay.value][meal.type].items.push({ name: '', portion: '', kcal: 0, carb: 0, prot: 0, fat: 0 })
-}
-function removeItem(meal, idx) {
-  weeklyPlan[activeDay.value][meal.type].items.splice(idx, 1)
+async function addMeal() {
+  busy.value = true
+  errorMessage.value = ''
+  try {
+    const meal = await post(`/rnd/meal-plans/${plan.value.id}/meals/`, { meal_time: newMealTime.value })
+    plan.value.meals.push({ ...meal, food_items: [] })
+    ensureFoodForm(meal.id)
+    if (availableMealTimes.value.length) newMealTime.value = availableMealTimes.value[0]
+  } catch {
+    errorMessage.value = 'Could not add this meal. Please try again.'
+  } finally {
+    busy.value = false
+  }
 }
 
-function firstFoodSummary(meal) {
-  const first = meal.items.find(i => i.name)
-  const count = meal.items.filter(i => i.name).length
-  return first ? `${first.name}${count > 1 ? ` (${count})` : ''}` : ''
+async function removeMeal(meal) {
+  busy.value = true
+  try {
+    await del(`/rnd/meals/${meal.id}/`)
+    plan.value.meals = plan.value.meals.filter(m => m.id !== meal.id)
+  } catch {
+    errorMessage.value = 'Could not remove this meal. Please try again.'
+  } finally {
+    busy.value = false
+  }
 }
-function mealTotal(meal, field) {
-  return meal.items.reduce((sum, i) => sum + (Number(i[field]) || 0), 0)
+
+async function addFoodItem(meal) {
+  const form = newFoodForm[meal.id]
+  if (!form.food_name) return
+  busy.value = true
+  errorMessage.value = ''
+  try {
+    const item = await post(`/rnd/meals/${meal.id}/food-items/`, {
+      food_name: form.food_name, exchanges: form.exchanges || 1,
+    })
+    meal.food_items.push(item)
+    form.food_name = ''; form.exchanges = 1
+  } catch {
+    errorMessage.value = 'Could not add this food item. Please try again.'
+  } finally {
+    busy.value = false
+  }
 }
-function dayTotal(field) {
-  return currentDayMeals.value.reduce((sum, meal) => sum + mealTotal(meal, field), 0)
+
+async function removeFoodItem(item) {
+  busy.value = true
+  try {
+    await del(`/rnd/food-items/${item.id}/`)
+    const meal = plan.value.meals.find(m => m.food_items.some(i => i.id === item.id))
+    if (meal) meal.food_items = meal.food_items.filter(i => i.id !== item.id)
+  } catch {
+    errorMessage.value = 'Could not remove this food item. Please try again.'
+  } finally {
+    busy.value = false
+  }
 }
-function macroPct(field) {
-  const fieldTargets = { kcal: planMeta.kcalPerDay, carb: targets.carb, prot: targets.protein, fat: targets.fat }
-  const target = fieldTargets[field]
-  if (!target) return 0
-  return Math.min(100, Math.round((dayTotal(field) / target) * 100))
-}
+
+onMounted(loadRelationships)
 </script>
 
 <style scoped>
-.top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+* { box-sizing: border-box; }
 
-.mode-toggle { display: flex; gap: 10px; }
-.mode-btn {
-  display: flex; align-items: center; gap: 6px;
-  border: 1px solid #dde3dd; background: #fff; color: #4a5a4a;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
-}
-.mode-btn.active { background: #163a1c; color: #fff; border-color: #163a1c; }
+.planning-page { font-family: 'Inter', sans-serif; }
+
+.top-controls { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
+.page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
 .patient-select { position: relative; }
 .patient-select select {
-  appearance: none; border: 1px solid #dde3dd; background: #fff;
-  padding: 9px 32px 9px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer;
+  appearance: none; border: 1px solid #d5dad5; background: #fff;
+  padding: 10px 34px 10px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer; min-width: 200px;
 }
 .select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
 
-.planning-layout { display: grid; grid-template-columns: 2.3fr 1fr; gap: 20px; align-items: start; }
+.form-error {
+  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
+  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
+}
+.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
-.panel { background: #fff; border-radius: 12px; padding: 22px; border: 1px solid #eceeec; margin-bottom: 16px; }
+.surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px 22px; margin-bottom: 16px; }
+.surface-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
 
-/* VIEW MODE */
-.plan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.plan-header h3 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
-.plan-badges { display: flex; gap: 8px; }
-.badge { font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
+.field input, .field select {
+  border: 1px solid #dde3dd; border-radius: 8px; padding: 9px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
+}
+
+.btn-primary {
+  background: #163a1c; color: #fff; border: none; border-radius: 8px;
+  padding: 10px 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+}
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.plan-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.plan-name { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 8px; }
+.badge { font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-right: 6px; }
 .badge-blue { background: #e3edfc; color: #3b6fd6; }
 .badge-gold { background: #fdf1d6; color: #b8860b; }
+.status-pill { font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 14px; }
+.status-pill.success { background: #e6efe0; color: #3a6b3a; }
+.status-pill.neutral { background: #eceeec; color: #7a8a7a; }
 
-.day-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
-.day-tab {
-  border: 1px solid #e0e5e0; background: #fff; color: #4a5a4a;
-  padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
-}
-.day-tab.active { background: #163a1c; color: #fff; border-color: #163a1c; }
+.exchange-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; }
+.exchange-chip { background: #f9f9f5; border-radius: 8px; padding: 12px; text-align: center; }
+.ex-num { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; }
+.ex-label { font-size: 0.66rem; color: #9aaa9a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.totals-note { font-size: 0.76rem; color: #9aaa9a; margin: 10px 0 0; }
 
-.meal-list { display: flex; flex-direction: column; }
-.meal-row {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  padding: 16px 0; border-bottom: 1px solid #f0f2f0;
+.meal-card { padding: 0; overflow: hidden; }
+.meal-card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #eef3ec; padding: 12px 18px;
 }
-.meal-row:first-child { padding-top: 0; }
-.meal-row:last-child { border-bottom: none; }
-.meal-info { flex: 1; }
-.meal-label {
+.meal-name { display: flex; align-items: center; gap: 7px; font-weight: 700; color: #1a3a1a; font-size: 0.88rem; }
+.meal-icon { color: #D4A017; }
+.meal-exchange-inputs {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 14px 18px; border-bottom: 1px solid #f4f4ec;
+}
+.exchange-field { display: flex; flex-direction: column; gap: 4px; }
+.exchange-field label { font-size: 0.66rem; font-weight: 700; color: #9aaa9a; text-transform: uppercase; letter-spacing: 0.03em; }
+.exchange-field input {
+  border: 1px solid #dde3dd; border-radius: 6px; padding: 6px 8px; font-size: 0.82rem; font-family: inherit; width: 100%;
+}
+.food-list-empty { padding: 12px 18px; font-size: 0.8rem; color: #9aaa9a; margin: 0; font-style: italic; }
+.remove-meal-btn {
+  width: 24px; height: 24px; border-radius: 6px; border: none; background: none; color: #a12525;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.remove-meal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.food-item-list { padding: 4px 0; }
+.food-item-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-bottom: 1px solid #f4f4ec; font-size: 0.85rem;
+}
+.food-item-row:last-child { border-bottom: none; }
+.food-name { flex: 1; color: #2a3a2a; }
+.food-exchange { color: #9aaa9a; font-size: 0.78rem; }
+.remove-item-btn {
+  width: 18px; height: 18px; border-radius: 4px; border: none; background: #fbe1de; color: #c0483a;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.remove-item-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.add-food-row { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid #f4f4ec; }
+.add-food-row input, .add-food-row select {
+  border: 1px solid #dde3dd; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem; font-family: inherit;
+}
+.add-food-row input[type="text"] { flex: 1; }
+.exchange-input { width: 90px; }
+.exchange-type-select { width: 120px; }
+.add-food-btn {
+  width: 34px; height: 34px; border-radius: 6px; border: none; background: #163a1c; color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.add-food-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.add-meal-row { display: flex; gap: 10px; }
+.meal-time-select {
+  border: 1px solid #dde3dd; border-radius: 8px; padding: 9px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
+}
+.btn-add-meal {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; text-transform: uppercase; margin-bottom: 6px;
-}
-.meal-title { font-size: 0.92rem; font-weight: 600; color: #1a3a1a; margin-bottom: 4px; }
-.meal-breakdown { font-size: 0.75rem; color: #9aaa9a; }
-.meal-kcal { font-size: 0.85rem; font-weight: 600; color: #3a4a3a; white-space: nowrap; margin-left: 16px; }
-
-.plan-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
-.btn-secondary {
-  display: flex; align-items: center; gap: 6px;
-  border: 1px solid #dde3dd; background: #fff; color: #3a4a3a;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
-}
-.btn-primary {
-  display: flex; align-items: center; gap: 6px;
-  background: #163a1c; color: #fff; border: none;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
-}
-
-/* SIDE COLUMN (shared) */
-.side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
-.side-subtitle { font-size: 0.75rem; color: #9aaa9a; }
-.side-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.link-btn { display: flex; align-items: center; gap: 4px; background: none; border: none; color: #1a6a2a; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
-
-.nutrient-row { margin-top: 16px; }
-.nutrient-top { display: flex; justify-content: space-between; font-size: 0.78rem; color: #4a5a4a; margin-bottom: 6px; }
-.nutrient-bar { height: 6px; background: #eceeec; border-radius: 3px; overflow: hidden; }
-.nutrient-fill { height: 100%; border-radius: 3px; }
-.fill-green { background: #2e9e52; }
-.fill-gold { background: #D4A017; }
-.fill-dark { background: #163a1c; }
-.fill-dark2 { background: #3a4a3a; }
-
-.saved-plan-card {
-  display: flex; justify-content: space-between; align-items: center;
-  background: #eef5ee; border-radius: 10px; padding: 14px; margin-top: 6px;
-}
-.saved-plan-name { font-size: 0.85rem; font-weight: 700; color: #1a3a1a; }
-.saved-plan-meta { font-size: 0.72rem; color: #7a8a7a; margin-top: 2px; }
-.active-pill { background: #163a1c; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
-
-.exchange-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.exchange-tag { font-size: 0.72rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
-.tag-rice { background: #fdf1d6; color: #b8860b; }
-.tag-veg { background: #e6f4e6; color: #2e7d32; }
-.tag-fruit { background: #fdeadf; color: #d9683f; }
-.tag-meat { background: #fbe1de; color: #c0483a; }
-.tag-milk { background: #e3edfc; color: #3b6fd6; }
-.tag-fat { background: #eef0ee; color: #6a7a6a; }
-.exchange-note { font-size: 0.72rem; color: #9aaa9a; margin-top: 12px; }
-
-/* CREATE MODE */
-.form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px; }
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
-.field input, .field textarea {
-  border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
-}
-.field textarea { resize: vertical; }
-
-.meal-edit-panel { padding: 0; overflow: hidden; }
-.meal-edit-header {
-  display: flex; justify-content: space-between; align-items: center;
-  background: #eef5ee; padding: 14px 22px;
-}
-.meal-edit-label { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #1a3a1a; letter-spacing: 0.03em; }
-.meal-edit-time { font-size: 0.75rem; color: #7a8a7a; }
-
-.food-table { padding: 16px 22px 0; }
-.food-table-head, .food-table-row {
-  display: grid; grid-template-columns: 24px 2fr 1fr 0.8fr 0.9fr 0.9fr 0.8fr; gap: 10px; align-items: center;
-}
-.food-table-head { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; padding-bottom: 8px; }
-.food-table-head span:first-child { visibility: hidden; }
-.food-table-row { margin-bottom: 8px; }
-.food-table-row input {
-  border: 1px solid #e0e5e0; border-radius: 6px; padding: 7px 9px; font-size: 0.82rem; font-family: inherit; width: 100%;
-}
-.remove-btn {
-  width: 20px; height: 20px; border-radius: 5px; border: none;
-  background: #fbe1de; color: #c0483a; display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-
-.btn-add-food {
-  display: flex; align-items: center; gap: 6px; justify-content: center;
-  width: calc(100% - 44px); margin: 4px 22px 18px;
   border: 1px dashed #cdd8cd; background: none; color: #1a6a2a;
-  padding: 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  padding: 9px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
 }
-.btn-add-food:hover { background: #f4f8f4; }
+.btn-add-meal:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.preview-list { display: flex; flex-direction: column; gap: 8px; }
-.preview-item { border-left: 3px solid #ccc; background: #fafbfa; border-radius: 8px; padding: 10px 12px; }
-.preview-green { border-left-color: #2e9e52; }
-.preview-gold { border-left-color: #D4A017; }
-.preview-blue { border-left-color: #3b6fd6; }
-.preview-label { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; color: #4a5a4a; margin-bottom: 3px; }
-.preview-food { font-size: 0.8rem; color: #1a3a1a; margin-bottom: 3px; }
-.preview-kcal { font-size: 0.72rem; color: #9aaa9a; }
-.preview-day { font-size: 0.72rem; color: #9aaa9a; }
-
-.macro-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: #3a4a3a; margin-top: 14px; margin-bottom: 6px; }
-.macro-value { font-weight: 600; }
-.macro-bar { height: 6px; background: #eceeec; border-radius: 3px; overflow: hidden; }
-.macro-fill { height: 100%; border-radius: 3px; }
-.macro-note { font-size: 0.72rem; color: #9aaa9a; margin-top: 16px; }
-
-@media (max-width: 1150px) {
-  .planning-layout { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; }
-  .food-table-head, .food-table-row { grid-template-columns: 20px 2fr 1fr 1fr 1fr; }
-  .food-table-head span:nth-child(6), .food-table-row input:nth-child(6),
-  .food-table-head span:nth-child(7), .food-table-row input:nth-child(7) { display: none; }
+.empty-state {
+  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  padding: 48px 20px; text-align: center;
 }
+.empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 6px; }
+.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 </style>

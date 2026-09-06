@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from datetime import date
 
 from rest_framework import generics, status
@@ -11,6 +13,7 @@ from .serializers import NcpRecordSerializer, PreConsultationScreeningSerializer
 from .services import (
     calculate_bmi,
     calculate_bmr_mifflin_st_jeor,
+    calculate_nrs2002,
     calculate_tdee,
     classify_bmi_asia_pacific,
 )
@@ -42,9 +45,27 @@ class ScreeningCreateView(generics.CreateAPIView):
             activity_level = serializer.validated_data.get("activity_level", "sedentary")
             tdee_kcal = calculate_tdee(bmr_kcal, activity_level)
 
+        # Weight-loss % is derived from the client's own screening history,
+        # never self-reported — the most recent prior screening's weight is
+        # the baseline. A first-ever screening has no prior data (contributes 0).
+        weight_loss_pct = None
+        previous = PreConsultationScreening.objects.filter(
+            client=request.user
+        ).order_by("-created_at").first()
+        if previous and previous.weight_kg and previous.weight_kg > weight_kg:
+            weight_loss_pct = ((previous.weight_kg - weight_kg) / previous.weight_kg * Decimal("100")).quantize(Decimal("0.01"))
+
+        nrs_score, nrs_risk = calculate_nrs2002(
+            bmi=bmi,
+            weight_loss_pct=weight_loss_pct,
+            reduced_intake=serializer.validated_data.pop("reduced_intake", False),
+            severity_of_disease_points=1 if serializer.validated_data.pop("has_chronic_illness", False) else 0,
+        )
+
         screening = serializer.save(
             client=request.user, bmi=bmi, bmi_category=bmi_category,
             bmr_kcal=bmr_kcal, tdee_kcal=tdee_kcal,
+            nrs_score=nrs_score, nrs_risk=nrs_risk,
         )
         return Response(
             PreConsultationScreeningSerializer(screening).data, status=status.HTTP_201_CREATED

@@ -28,6 +28,20 @@
         <option value="extra_active">Extra active (physical job or 2x/day training)</option>
       </select>
 
+      <div class="nrs-section">
+        <p class="nrs-title">NRS-2002 Nutritional Risk Screening</p>
+        <p class="nrs-sub">Have you experienced any of the following in the past 3 months?</p>
+        <label class="checkbox-row">
+          <input v-model="form.reduced_intake" type="checkbox" />
+          Reduced food intake / poor appetite
+        </label>
+        <label class="checkbox-row">
+          <input v-model="form.has_chronic_illness" type="checkbox" />
+          Currently managing a chronic illness
+        </label>
+        <p class="nrs-note">Unintentional weight loss is calculated automatically by comparing this screening to your last one — no need to estimate it yourself.</p>
+      </div>
+
       <label class="field-label">Current Symptoms <span class="optional">(optional)</span></label>
       <textarea v-model="form.symptoms" class="field-input" rows="3" placeholder="e.g. frequent thirst, fatigue, swelling in ankles..."></textarea>
 
@@ -54,6 +68,11 @@
           <div class="result-num">{{ result.tdee_kcal ? Math.round(result.tdee_kcal) : '—' }}</div>
           <div class="result-label">TDEE (kcal)</div>
         </div>
+        <div class="result-box">
+          <div class="result-num">{{ result.nrs_score ?? '—' }}</div>
+          <div class="result-label">NRS-2002 Score</div>
+          <span v-if="result.nrs_risk" class="badge-pill" :class="nrsBadgeClass">{{ nrsRiskLabel }}</span>
+        </div>
       </div>
       <p v-if="!result.bmr_kcal" class="bmr-note">
         BMR/TDEE need your date of birth and sex on file — add these in
@@ -76,6 +95,8 @@ const form = reactive({
   height_cm: null,
   weight_kg: null,
   activity_level: 'sedentary',
+  reduced_intake: false,
+  has_chronic_illness: false,
   symptoms: '',
 })
 
@@ -92,6 +113,9 @@ const bmiBadgeClass = computed(() => {
   return 'badge-warning'
 })
 
+const nrsRiskLabel = computed(() => ({ no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[result.value?.nrs_risk] || result.value?.nrs_risk))
+const nrsBadgeClass = computed(() => ({ no_risk: 'badge-success', at_risk: 'badge-warning', high_risk: 'badge-danger' }[result.value?.nrs_risk] || ''))
+
 async function submitScreening() {
   isSubmitting.value = true
   errorMessage.value = ''
@@ -100,6 +124,8 @@ async function submitScreening() {
       height_cm: form.height_cm,
       weight_kg: form.weight_kg,
       activity_level: form.activity_level,
+      reduced_intake: form.reduced_intake,
+      has_chronic_illness: form.has_chronic_illness,
       symptoms: form.symptoms || undefined,
     })
   } catch (error) {
@@ -148,7 +174,7 @@ textarea.field-input { resize: vertical; }
 .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .result-header { display: flex; align-items: center; gap: 8px; color: #1e4a26; margin-bottom: 18px; }
-.result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
 .result-box { background: #f6f7f2; border-radius: 10px; padding: 16px; text-align: center; }
 .result-num { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: #1a3a1a; }
 .result-label { font-size: 0.74rem; color: #8a9a8a; margin-top: 4px; }
@@ -159,6 +185,14 @@ textarea.field-input { resize: vertical; }
 .badge-success { background: #e6efe0; color: #3a6b3a; }
 .badge-warning { background: #faead0; color: #b8860b; }
 .badge-info { background: #e3edf7; color: #2f6fa8; }
+.badge-danger { background: #fdecec; color: #a12525; }
+
+.nrs-section { background: #f9f9f5; border-radius: 10px; padding: 16px; margin: 20px 0; }
+.nrs-title { font-size: 0.85rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
+.nrs-sub { font-size: 0.8rem; color: #8a9a8a; margin: 0 0 12px; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #4a5a4a; margin-bottom: 10px; }
+.checkbox-row:last-of-type { margin-bottom: 12px; }
+.nrs-note { font-size: 0.76rem; color: #9aaa9a; margin: 0; font-style: italic; }
 
 .bmr-note { font-size: 0.8rem; color: #8a9a8a; margin: 14px 0 0; }
 .bmr-note :deep(a) { color: #3a6b3a; font-weight: 600; }

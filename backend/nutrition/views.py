@@ -60,6 +60,16 @@ class RndMealPlanListCreateView(generics.ListCreateAPIView):
         serializer.save()
 
 
+class RndMealPlanDetailView(generics.RetrieveUpdateAPIView):
+    """RND editing one of their own meal plans (name/condition/targets/notes/status)."""
+
+    serializer_class = MealPlanSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return MealPlan.objects.filter(relationship__rnd=self.request.user).prefetch_related("meals__food_items")
+
+
 class RndMealPlanMealCreateView(generics.CreateAPIView):
     """RND adds a meal (breakfast/lunch/etc.) to one of their meal plans."""
 
@@ -74,6 +84,16 @@ class RndMealPlanMealCreateView(generics.CreateAPIView):
         serializer.save(meal_plan=meal_plan)
 
 
+class RndMealPlanMealDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """RND editing or removing one meal (and its food items, via cascade)."""
+
+    serializer_class = MealPlanMealSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return MealPlanMeal.objects.filter(meal_plan__relationship__rnd=self.request.user)
+
+
 class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
     """RND adds a food item to one meal within a meal plan."""
 
@@ -86,6 +106,15 @@ class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
             pk=self.kwargs["meal_id"],
         )
         serializer.save(meal_plan_meal=meal)
+
+
+class RndMealPlanFoodItemDeleteView(generics.DestroyAPIView):
+    """RND removing a food item from a meal."""
+
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return MealPlanFoodItem.objects.filter(meal_plan_meal__meal_plan__relationship__rnd=self.request.user)
 
 
 class ClientMealPlanListView(generics.ListAPIView):

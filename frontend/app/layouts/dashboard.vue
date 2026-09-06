@@ -162,6 +162,7 @@ const clientMainNav = [
   { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
   { icon: Target, label: 'My Meal Plan', to: '/meal-plan-view' },
   { icon: TrendingUp, label: 'Progress Tracker', to: '/progress-tracker' },
+  { icon: FileText, label: 'Resources', to: '/resource-library' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
   { icon: Receipt, label: 'Billing', to: '/invoices-billing' },
   { icon: Star, label: 'Reviews', to: '/reviews' }
