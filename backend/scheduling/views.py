@@ -195,8 +195,30 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
 
 
 class RndAppointmentCompleteView(_RndAppointmentTransitionView):
+    """Completing an appointment also generates its invoice — this is the
+    only place an Invoice gets created. Amount is the RND's current
+    consultation_fee at completion time (not the fee at booking time, since
+    the model doesn't snapshot it on the appointment)."""
+
     from_statuses = [Appointment.Status.CONFIRMED]
     to_status = Appointment.Status.COMPLETED
+
+    def patch(self, request, pk):
+        response = super().patch(request, pk)
+        appointment = get_object_or_404(Appointment, pk=response.data["id"])
+
+        from billing.models import Invoice
+
+        if not Invoice.objects.filter(appointment=appointment).exists():
+            rnd_profile = getattr(appointment.relationship.rnd, "rnd_profile", None)
+            fee = rnd_profile.consultation_fee if rnd_profile else 0
+            Invoice.objects.create(
+                relationship=appointment.relationship,
+                appointment=appointment,
+                amount=fee,
+            )
+
+        return response
 
 
 class RndAppointmentCancelView(_RndAppointmentTransitionView):

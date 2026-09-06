@@ -6,8 +6,8 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsClient, IsRnd
 
-from .models import NcpRecord, PreConsultationScreening
-from .serializers import NcpRecordSerializer, PreConsultationScreeningSerializer
+from .models import NcpRecord, PreConsultationScreening, ProgressRecord
+from .serializers import NcpRecordSerializer, PreConsultationScreeningSerializer, ProgressRecordSerializer
 from .services import (
     calculate_bmi,
     calculate_bmr_mifflin_st_jeor,
@@ -93,6 +93,33 @@ class NcpRecordListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class RndProgressRecordListCreateView(generics.ListCreateAPIView):
+    """RND logs progress for a specific client relationship."""
+
+    serializer_class = ProgressRecordSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return ProgressRecord.objects.filter(
+            relationship_id=self.kwargs["relationship_id"], relationship__rnd=self.request.user
+        ).order_by("-record_date")
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+
+class ClientProgressRecordListView(generics.ListAPIView):
+    """Client's own progress history, across all relationships."""
+
+    serializer_class = ProgressRecordSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return ProgressRecord.objects.filter(
+            relationship__client=self.request.user
+        ).order_by("-record_date")
 
 
 class NcpRecordDetailView(generics.RetrieveUpdateAPIView):

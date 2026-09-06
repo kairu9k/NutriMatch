@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import NcpRecord, PreConsultationScreening
+from .models import NcpRecord, PreConsultationScreening, ProgressRecord
 
 
 class PreConsultationScreeningSerializer(serializers.ModelSerializer):
@@ -36,4 +36,19 @@ class NcpRecordSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         if value.rnd_id != request.user.id:
             raise serializers.ValidationError("You can only create NCP records for your own clients.")
+        return value
+
+
+class ProgressRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProgressRecord
+        fields = [
+            "id", "relationship", "record_date", "weight_kg", "blood_pressure",
+            "blood_glucose", "hba1c", "adherence_pct", "client_notes", "rnd_notes", "created_at",
+        ]
+
+    def validate_relationship(self, value):
+        request = self.context["request"]
+        if value.rnd_id != request.user.id:
+            raise serializers.ValidationError("You can only log progress for your own clients.")
         return value

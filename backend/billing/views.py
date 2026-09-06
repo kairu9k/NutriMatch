@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,8 +10,20 @@ from accounts.permissions import IsClient
 from core.models import AuditLog
 
 from .models import Invoice, PaymentTransaction
-from .serializers import InvoiceSerializer
+from .serializers import InvoiceListSerializer, InvoiceSerializer
 from .services import InvalidWebhookSignatureError, PayMongoService, PaymentGatewayError
+
+
+class ClientInvoiceListView(generics.ListAPIView):
+    """Client's own invoices, most recent first."""
+
+    serializer_class = InvoiceListSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return Invoice.objects.filter(
+            relationship__client=self.request.user
+        ).select_related("appointment", "appointment__relationship__rnd").order_by("-created_at")
 
 
 class InitiatePaymentView(APIView):
