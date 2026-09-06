@@ -1,7 +1,16 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 
-from .models import FoodExchangeCategory, FoodExchangeItem
-from .serializers import FoodExchangeCategorySerializer, FoodExchangeItemSerializer
+from accounts.permissions import IsClient, IsRnd
+
+from .models import FoodExchangeCategory, FoodExchangeItem, MealPlan, MealPlanFoodItem, MealPlanMeal
+from .serializers import (
+    FoodExchangeCategorySerializer,
+    FoodExchangeItemSerializer,
+    MealPlanFoodItemSerializer,
+    MealPlanMealSerializer,
+    MealPlanSerializer,
+)
 
 
 class FoodExchangeCategoryListView(generics.ListAPIView):
@@ -34,3 +43,58 @@ class FoodExchangeItemListView(generics.ListAPIView):
                 qs = qs.filter(**{flag: value.lower() in ("1", "true", "yes")})
 
         return qs
+
+
+class RndMealPlanListCreateView(generics.ListCreateAPIView):
+    """RND creates/lists meal plans for a specific client relationship."""
+
+    serializer_class = MealPlanSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return MealPlan.objects.filter(
+            relationship_id=self.kwargs["relationship_id"], relationship__rnd=self.request.user
+        ).prefetch_related("meals__food_items").order_by("-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+
+class RndMealPlanMealCreateView(generics.CreateAPIView):
+    """RND adds a meal (breakfast/lunch/etc.) to one of their meal plans."""
+
+    serializer_class = MealPlanMealSerializer
+    permission_classes = [IsRnd]
+
+    def perform_create(self, serializer):
+        meal_plan = get_object_or_404(
+            MealPlan.objects.filter(relationship__rnd=self.request.user),
+            pk=self.kwargs["meal_plan_id"],
+        )
+        serializer.save(meal_plan=meal_plan)
+
+
+class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
+    """RND adds a food item to one meal within a meal plan."""
+
+    serializer_class = MealPlanFoodItemSerializer
+    permission_classes = [IsRnd]
+
+    def perform_create(self, serializer):
+        meal = get_object_or_404(
+            MealPlanMeal.objects.filter(meal_plan__relationship__rnd=self.request.user),
+            pk=self.kwargs["meal_id"],
+        )
+        serializer.save(meal_plan_meal=meal)
+
+
+class ClientMealPlanListView(generics.ListAPIView):
+    """Client's own meal plans, most recent first."""
+
+    serializer_class = MealPlanSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return MealPlan.objects.filter(
+            relationship__client=self.request.user
+        ).prefetch_related("meals__food_items").order_by("-created_at")

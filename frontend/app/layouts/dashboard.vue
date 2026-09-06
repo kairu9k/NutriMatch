@@ -160,6 +160,7 @@ const clientMainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/client-dashboard' },
   { icon: SearchIcon, label: 'Find an RND', to: '/find-rnd' },
   { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
+  { icon: Target, label: 'My Meal Plan', to: '/meal-plan-view' },
   { icon: TrendingUp, label: 'Progress Tracker', to: '/progress-tracker' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
   { icon: Receipt, label: 'Billing', to: '/invoices-billing' },
