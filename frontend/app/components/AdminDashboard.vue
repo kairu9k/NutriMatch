@@ -4,10 +4,7 @@ const auth = useAuthStore()
 
 const isLoading = ref(true)
 const errorMessage = ref('')
-const stats = ref({
-  active_rnds: 0, clients: 0, pending_verif: 0, commissions: 0,
-  new_registrations: 0, total_consultations: 0, gross_revenue: 0,
-})
+const stats = ref({ active_rnds: 0, clients: 0, pending_verif: 0, commissions: 0 })
 const pendingRnds = ref([])
 const busyId = ref(null)
 
@@ -90,32 +87,10 @@ const peso = (n) => `₱${Number(n).toLocaleString()}`
       </div>
     </div>
 
-    <!-- Secondary stat cards -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
-      <div class="animate-in stagger-1 card-hover bg-cream-card border border-forest/15 rounded-xl p-5">
-        <div class="w-8 h-8 rounded-lg bg-forest/5 flex items-center justify-center mb-3">
-          <NavIcon name="users" class="w-4 h-4 text-forest" />
-        </div>
-        <p class="text-xs text-forest/50 mb-1">New Registrations</p>
-        <p class="text-2xl font-display text-forest-dark">{{ stats.new_registrations }}</p>
-        <p class="text-xs text-forest/40 mt-1">Last 30 days</p>
-      </div>
-      <div class="animate-in stagger-2 border border-forest/15 card-hover bg-cream-card rounded-xl p-5">
-        <div class="w-8 h-8 rounded-lg bg-forest/5 flex items-center justify-center mb-3">
-          <NavIcon name="trending" class="w-4 h-4 text-forest" />
-        </div>
-        <p class="text-xs text-forest/50 mb-1">Total Consultations</p>
-        <p class="text-2xl font-display text-forest-dark">{{ stats.total_consultations }}</p>
-        <p class="text-xs text-forest/40 mt-1">All-time completed</p>
-      </div>
-      <div class="animate-in stagger-3 border border-forest/15 card-hover bg-cream-card rounded-xl p-5">
-        <div class="w-8 h-8 rounded-lg bg-forest/5 flex items-center justify-center mb-3">
-          <NavIcon name="card" class="w-4 h-4 text-forest" />
-        </div>
-        <p class="text-xs text-forest/50 mb-1">Gross Revenue</p>
-        <p class="text-2xl font-display text-forest-dark">{{ peso(stats.gross_revenue) }}</p>
-        <p class="text-xs text-forest/40 mt-1">This month</p>
-      </div>
+    <div class="flex justify-end mb-4">
+      <NuxtLink to="/platform-reports" class="text-sm text-forest hover:underline transition-colors flex items-center gap-1">
+        <NavIcon name="trending" class="w-3.5 h-3.5" /> View consultation volume, revenue &amp; RND performance →
+      </NuxtLink>
     </div>
 
     <!-- Pending verifications -->
