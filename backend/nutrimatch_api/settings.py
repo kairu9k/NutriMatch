@@ -86,6 +86,16 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
     ),
+    # Scoped throttles only — no DEFAULT_THROTTLE_CLASSES, so every other
+    # endpoint stays unthrottled. Only auth endpoints that are realistic
+    # abuse targets (credential stuffing, registration spam, OTP brute
+    # force/spam) opt in via throttle_scope on the view itself.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': config('THROTTLE_LOGIN_RATE', default='10/min'),
+        'register': config('THROTTLE_REGISTER_RATE', default='5/min'),
+        'password_reset_request': config('THROTTLE_PASSWORD_RESET_REQUEST_RATE', default='5/min'),
+        'password_reset_confirm': config('THROTTLE_PASSWORD_RESET_CONFIRM_RATE', default='10/min'),
+    },
 }
 
 SIMPLE_JWT = {
