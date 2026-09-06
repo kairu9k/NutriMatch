@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
@@ -13,6 +14,57 @@ class RndClientRelationshipSerializer(serializers.ModelSerializer):
         model = RndClientRelationship
         fields = ["id", "rnd", "client", "status", "started_at", "ended_at", "notes", "created_at"]
         read_only_fields = ["status", "started_at", "ended_at"]
+
+
+class RndPatientListSerializer(serializers.ModelSerializer):
+    """One row per relationship for the RND's patient list — condition and
+    visit/NCP summaries computed from prefetched querysets set by the view
+    (get_queryset annotates `_appointments`/`_ncp_records`), so this stays
+    one query for the relationships plus the prefetches, not N+1."""
+
+    client = UserSerializer(read_only=True)
+    condition = serializers.SerializerMethodField()
+    last_visit = serializers.SerializerMethodField()
+    next_appointment = serializers.SerializerMethodField()
+    ncp_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RndClientRelationship
+        fields = [
+            "id", "client", "status", "condition",
+            "last_visit", "next_appointment", "ncp_status", "created_at",
+        ]
+
+    def get_condition(self, obj):
+        health_profile = getattr(obj.client, "health_profile", None)
+        conditions = getattr(health_profile, "medical_conditions", None)
+        return conditions[0] if conditions else None
+
+    def _appointments(self, obj):
+        return list(getattr(obj, "_prefetched_appointments", []))
+
+    def get_last_visit(self, obj):
+        completed = [a for a in self._appointments(obj) if a.status == Appointment.Status.COMPLETED]
+        if not completed:
+            return None
+        return max(completed, key=lambda a: a.scheduled_at).scheduled_at
+
+    def get_next_appointment(self, obj):
+        now = timezone.now()
+        upcoming = [
+            a for a in self._appointments(obj)
+            if a.status in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED) and a.scheduled_at > now
+        ]
+        if not upcoming:
+            return None
+        return min(upcoming, key=lambda a: a.scheduled_at).scheduled_at
+
+    def get_ncp_status(self, obj):
+        records = list(getattr(obj, "_prefetched_ncp_records", []))
+        if not records:
+            return "not_started"
+        latest = max(records, key=lambda r: r.created_at)
+        return latest.status
 
 
 class ConsultationSessionSerializer(serializers.ModelSerializer):

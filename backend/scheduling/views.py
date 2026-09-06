@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -7,6 +8,7 @@ from rest_framework.views import APIView
 
 from accounts.models import User
 from accounts.permissions import IsClient, IsRnd
+from clinical.models import NcpRecord
 
 from .models import Appointment, ConsultationSession, RndClientRelationship
 from .serializers import (
@@ -14,6 +16,7 @@ from .serializers import (
     AppointmentSerializer,
     ReviewSerializer,
     RndClientRelationshipSerializer,
+    RndPatientListSerializer,
 )
 from .services import DailyCoVideoService, VideoSessionError
 
@@ -68,6 +71,24 @@ class RndActiveRelationshipsView(generics.ListAPIView):
         ).select_related("rnd", "client")
 
 
+class RndPatientListView(generics.ListAPIView):
+    """RND's full patient list (all statuses) for the My Patients table.
+    Condition/last-visit/next-appointment/NCP-status are all computed from
+    prefetched querysets — one query each for relationships, appointments,
+    and NCP records, not N+1 per row."""
+
+    serializer_class = RndPatientListSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return RndClientRelationship.objects.filter(
+            rnd=self.request.user
+        ).select_related("client", "client__health_profile").prefetch_related(
+            Prefetch("appointments", to_attr="_prefetched_appointments"),
+            Prefetch("ncp_records", queryset=NcpRecord.objects.only("id", "relationship_id", "status", "created_at"), to_attr="_prefetched_ncp_records"),
+        ).order_by("-created_at")
+
+
 class RndRelationshipAcceptView(APIView):
     permission_classes = [IsRnd]
 
@@ -81,6 +102,26 @@ class RndRelationshipAcceptView(APIView):
         relationship.status = RndClientRelationship.Status.ACTIVE
         relationship.started_at = timezone.now()
         relationship.save(update_fields=["status", "started_at", "updated_at"])
+        return Response(RndClientRelationshipSerializer(relationship).data)
+
+
+class RndRelationshipDeclineView(APIView):
+    """RND declining a pending request. No separate 'declined' status exists
+    on the model — discharged is the closest fit for a relationship that
+    never became active."""
+
+    permission_classes = [IsRnd]
+
+    def patch(self, request, pk):
+        relationship = get_object_or_404(
+            RndClientRelationship.objects.filter(
+                rnd=request.user, status=RndClientRelationship.Status.PENDING
+            ),
+            pk=pk,
+        )
+        relationship.status = RndClientRelationship.Status.DISCHARGED
+        relationship.ended_at = timezone.now()
+        relationship.save(update_fields=["status", "ended_at", "updated_at"])
         return Response(RndClientRelationshipSerializer(relationship).data)
 
 

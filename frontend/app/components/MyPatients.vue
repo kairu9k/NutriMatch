@@ -11,120 +11,163 @@
       </div>
     </div>
 
-    <!-- FILTER TABS -->
-    <div v-if="patients.length" class="filter-tabs">
-      <button
-        v-for="f in filters"
-        :key="f.label"
-        class="filter-tab"
-        :class="{ active: activeFilter === f.label }"
-        @click="activeFilter = f.label"
-      >
-        {{ f.label }} ({{ f.count }})
-      </button>
-    </div>
+    <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
+    <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
-    <!-- PATIENT TABLE -->
-    <div v-if="patients.length" class="patient-table-wrap">
-      <table v-if="filteredPatients.length" class="patient-table">
-        <thead>
-          <tr>
-            <th>PATIENT</th>
-            <th>CONDITION</th>
-            <th>STATUS</th>
-            <th>LAST VISIT</th>
-            <th>NEXT APPOINTMENT</th>
-            <th>NCP STATUS</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in filteredPatients" :key="p.name">
-            <td class="patient-cell">
-              <div class="patient-avatar" :class="{ 'avatar-muted': p.discharged }" :style="!p.discharged ? { background: p.avatarColor } : {}">
-                {{ p.initials }}
-              </div>
-              <span class="patient-name" :class="{ 'name-muted': p.discharged }">{{ p.name }}</span>
-            </td>
-            <td :class="{ 'text-muted': p.discharged }">{{ p.condition }}</td>
-            <td><span class="status-pill" :class="statusClass(p.status)">{{ p.status }}</span></td>
-            <td :class="{ 'text-muted': p.discharged }">{{ p.lastVisit || '—' }}</td>
-            <td :class="{ 'text-muted': p.discharged }">{{ p.nextAppointment || '—' }}</td>
-            <td><span class="ncp-pill" :class="ncpClass(p.ncpStatus)">{{ p.ncpStatus }}</span></td>
-            <td class="action-cell">
-              <template v-if="p.status === 'Pending Request'">
-                <button class="accept-btn" @click="acceptPatient(p)">Accept</button>
-                <button class="decline-btn" @click="declinePatient(p)">Decline</button>
-              </template>
-              <button v-else class="chart-btn" @click="navigateTo(`/ncp-records?patient=${p.name}`)">View Chart</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else class="empty-text">No patients match your search or filter.</p>
-    </div>
+    <template v-else>
+      <div v-if="patients.length" class="filter-tabs">
+        <button
+          v-for="f in filters"
+          :key="f.label"
+          class="filter-tab"
+          :class="{ active: activeFilter === f.label }"
+          @click="activeFilter = f.label"
+        >
+          {{ f.label }} ({{ f.count }})
+        </button>
+      </div>
 
-    <!-- EMPTY STATE: no patients at all -->
-    <div v-else class="empty-state">
-      <div class="empty-icon"><Users :size="28" /></div>
-      <p class="empty-title">No patients yet</p>
-      <p class="empty-desc">Once clients request to work with you, they'll show up here.</p>
-    </div>
+      <div v-if="patients.length" class="patient-table-wrap">
+        <table v-if="filteredPatients.length" class="patient-table">
+          <thead>
+            <tr>
+              <th>PATIENT</th>
+              <th>CONDITION</th>
+              <th>STATUS</th>
+              <th>LAST VISIT</th>
+              <th>NEXT APPOINTMENT</th>
+              <th>NCP STATUS</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in filteredPatients" :key="p.id">
+              <td class="patient-cell">
+                <div class="patient-avatar" :class="{ 'avatar-muted': p.status === 'discharged' }" :style="p.status !== 'discharged' ? { background: colorForId(p.client.id) } : {}">
+                  {{ initialsFor(p.client) }}
+                </div>
+                <span class="patient-name" :class="{ 'name-muted': p.status === 'discharged' }">{{ p.client.first_name }} {{ p.client.last_name }}</span>
+              </td>
+              <td :class="{ 'text-muted': p.status === 'discharged' }">{{ p.condition || '—' }}</td>
+              <td><span class="status-pill" :class="statusClass(p.status)">{{ statusLabel(p.status) }}</span></td>
+              <td :class="{ 'text-muted': p.status === 'discharged' }">{{ formatDate(p.last_visit) }}</td>
+              <td :class="{ 'text-muted': p.status === 'discharged' }">{{ formatDate(p.next_appointment) }}</td>
+              <td><span class="ncp-pill" :class="ncpClass(p.ncp_status)">{{ ncpLabel(p.ncp_status) }}</span></td>
+              <td class="action-cell">
+                <span v-if="actionError[p.id]" class="row-error">{{ actionError[p.id] }}</span>
+                <template v-else-if="p.status === 'pending'">
+                  <button class="accept-btn" :disabled="busyId === p.id" @click="acceptPatient(p)">Accept</button>
+                  <button class="decline-btn" :disabled="busyId === p.id" @click="declinePatient(p)">Decline</button>
+                </template>
+                <NuxtLink v-else :to="`/client-detail/${p.id}`" class="chart-btn">View Chart</NuxtLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="empty-text">No patients match your search or filter.</p>
+      </div>
+
+      <div v-else class="empty-state">
+        <div class="empty-icon"><Users :size="28" /></div>
+        <p class="empty-title">No patients yet</p>
+        <p class="empty-desc">Once clients request to work with you, they'll show up here.</p>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { Search, Users } from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
 
 definePageMeta({ layout: 'dashboard', title: 'My Patients' })
 
+const { get, patch } = useApi()
+
+const isLoading = ref(true)
+const errorMessage = ref('')
+const patients = ref([])
 const search = ref('')
 const activeFilter = ref('All')
+const busyId = ref(null)
+const actionError = reactive({})
 
-const patients = ref(db.patients)
+const AVATAR_COLORS = ['#1e4a26', '#3a6b3a', '#D4A017', '#6a8a6a', '#8a6a3a']
+function colorForId(id) { return AVATAR_COLORS[id % AVATAR_COLORS.length] }
+function initialsFor(user) { return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() }
+
+function formatDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 const filters = computed(() => [
   { label: 'All', count: patients.value.length },
-  { label: 'Active', count: patients.value.filter(p => p.status === 'Active').length },
-  { label: 'Pending', count: patients.value.filter(p => p.status.includes('Pending')).length },
-  { label: 'Discharged', count: patients.value.filter(p => p.status === 'Discharged').length }
+  { label: 'Active', count: patients.value.filter(p => p.status === 'active').length },
+  { label: 'Pending', count: patients.value.filter(p => p.status === 'pending').length },
+  { label: 'Discharged', count: patients.value.filter(p => p.status === 'discharged').length },
 ])
 
 const filteredPatients = computed(() => {
   return patients.value.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.value.toLowerCase())
-    const matchesFilter =
-      activeFilter.value === 'All' ||
-      (activeFilter.value === 'Pending' && p.status.includes('Pending')) ||
-      p.status === activeFilter.value
+    const name = `${p.client.first_name} ${p.client.last_name}`.toLowerCase()
+    const matchesSearch = name.includes(search.value.toLowerCase())
+    const matchesFilter = activeFilter.value === 'All' || p.status === activeFilter.value.toLowerCase()
     return matchesSearch && matchesFilter
   })
 })
 
+function statusLabel(status) {
+  return { active: 'Active', pending: 'Pending Request', discharged: 'Discharged' }[status] || status
+}
 function statusClass(status) {
-  if (status === 'Active') return 'status-active'
-  if (status.includes('Pending')) return 'status-pending'
-  if (status === 'Discharged') return 'status-discharged'
-  return ''
+  return { active: 'status-active', pending: 'status-pending', discharged: 'status-discharged' }[status] || ''
+}
+function ncpLabel(status) {
+  return { draft: 'Draft', completed: 'Completed', not_started: 'Not Started' }[status] || status
+}
+function ncpClass(status) {
+  return { draft: 'ncp-draft', completed: 'ncp-completed', not_started: 'ncp-not-started' }[status] || ''
 }
 
-function ncpClass(ncpStatus) {
-  if (ncpStatus.includes('Draft')) return 'ncp-draft'
-  if (ncpStatus === 'Not Started') return 'ncp-not-started'
-  if (ncpStatus === 'Completed') return 'ncp-completed'
-  return ''
+async function loadPatients() {
+  isLoading.value = true
+  errorMessage.value = ''
+  try {
+    patients.value = await get('/rnd/patients/')
+  } catch {
+    errorMessage.value = 'Could not load your patients. Please try again later.'
+  } finally {
+    isLoading.value = false
+  }
 }
 
-function acceptPatient(patient) {
-  // Wire this up to your real accept-patient API call
-  patient.status = 'Active'
+async function acceptPatient(patient) {
+  busyId.value = patient.id
+  delete actionError[patient.id]
+  try {
+    await patch(`/rnd/relationships/${patient.id}/accept/`)
+    patient.status = 'active'
+  } catch (error) {
+    actionError[patient.id] = error?.data?.detail || 'Could not accept this request.'
+  } finally {
+    busyId.value = null
+  }
 }
 
-function declinePatient(patient) {
-  // Wire this up to your real decline-patient API call
-  patients.value = patients.value.filter(p => p.name !== patient.name)
+async function declinePatient(patient) {
+  busyId.value = patient.id
+  delete actionError[patient.id]
+  try {
+    await patch(`/rnd/relationships/${patient.id}/decline/`)
+    patient.status = 'discharged'
+  } catch (error) {
+    actionError[patient.id] = error?.data?.detail || 'Could not decline this request.'
+  } finally {
+    busyId.value = null
+  }
 }
+
+onMounted(loadPatients)
 </script>
 
 <style scoped>
@@ -143,7 +186,12 @@ function declinePatient(patient) {
 .search-box-wide input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; }
 .search-icon { color: #9aaa9a; flex-shrink: 0; }
 
-/* FILTER TABS */
+.form-error {
+  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
+  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
+}
+.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+
 .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
 .filter-tab {
   border: 1px solid #e5e8e5; background: #fff; color: #4a5a4a;
@@ -151,7 +199,6 @@ function declinePatient(patient) {
 }
 .filter-tab.active { background: #14301a; color: #fff; border-color: #14301a; }
 
-/* TABLE */
 .patient-table-wrap { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 8px 22px; overflow-x: auto; }
 .patient-table { width: 100%; border-collapse: collapse; }
 .patient-table th {
@@ -184,17 +231,19 @@ function declinePatient(patient) {
 .action-cell { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .chart-btn {
   border: 1px solid #d5dad5; background: #fff; color: #2a2a2a;
-  border-radius: 6px; padding: 7px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  border-radius: 6px; padding: 7px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none;
 }
 .accept-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 6px;
   padding: 7px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer;
 }
+.accept-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .decline-btn {
   background: none; border: none; color: #8a9a8a; font-size: 0.8rem; font-weight: 600; cursor: pointer;
 }
+.decline-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.row-error { font-size: 0.78rem; color: #a12525; }
 
-/* EMPTY STATE */
 .empty-state {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec;
   padding: 60px 20px; text-align: center;
