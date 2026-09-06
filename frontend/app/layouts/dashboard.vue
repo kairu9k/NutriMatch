@@ -95,7 +95,7 @@
 import {
   Leaf, LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, CalendarDays, FileText, MessageCircle,
-  Wallet, Star, UserCog, Languages, LogOut, MessageSquare, Bell, User, Menu, Receipt
+  Wallet, Star, UserCog, Languages, LogOut, MessageSquare, Bell, User, Menu, Receipt, TrendingUp
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -159,6 +159,7 @@ const clientMainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/client-dashboard' },
   { icon: SearchIcon, label: 'Find an RND', to: '/find-rnd' },
   { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
+  { icon: TrendingUp, label: 'Progress Tracker', to: '/progress-tracker' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
   { icon: Receipt, label: 'Billing', to: '/invoices-billing' },
   { icon: Star, label: 'Reviews', to: '/reviews' }
