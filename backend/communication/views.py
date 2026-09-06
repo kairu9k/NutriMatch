@@ -5,10 +5,11 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.permissions import IsClient, IsRnd
 from scheduling.models import RndClientRelationship
 
-from .models import Message, NotificationLog
-from .serializers import MessageSerializer, NotificationLogSerializer
+from .models import Message, NotificationLog, Resource
+from .serializers import MessageSerializer, NotificationLogSerializer, ResourceSerializer
 from .services import notify
 
 
@@ -90,3 +91,45 @@ class NotificationMarkAllReadView(APIView):
             recipient=request.user, channel=NotificationLog.Channel.IN_APP, is_read=False
         ).update(is_read=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RndResourceListCreateView(generics.ListCreateAPIView):
+    """RND's own uploaded resources. Create is currently restricted to
+    'link' type — see ResourceSerializer.validate — since no file storage
+    (MEDIA_ROOT/FileField) is configured anywhere in this project yet."""
+
+    serializer_class = ResourceSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return Resource.objects.filter(uploaded_by=self.request.user).order_by("-created_at")
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)
+
+
+class RndResourceUpdateView(generics.UpdateAPIView):
+    """RND toggling their own resource active/inactive, or editing it."""
+
+    serializer_class = ResourceSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return Resource.objects.filter(uploaded_by=self.request.user)
+
+
+class ClientResourceListView(generics.ListAPIView):
+    """Active resources shared by any RND the client has an active
+    relationship with. Resource has no per-relationship scoping — it's a
+    general library the RND shares with all their patients."""
+
+    serializer_class = ResourceSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        rnd_ids = RndClientRelationship.objects.filter(
+            client=self.request.user, status=RndClientRelationship.Status.ACTIVE
+        ).values_list("rnd_id", flat=True)
+        return Resource.objects.filter(
+            uploaded_by_id__in=rnd_ids, is_active=True
+        ).order_by("-created_at")
