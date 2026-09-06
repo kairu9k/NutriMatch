@@ -46,6 +46,9 @@
             <div class="chat-avatar" :style="{ background: activeConversation.avatarColor }">{{ activeConversation.initials }}</div>
             <div>
               <p class="chat-name">{{ activeConversation.name }}</p>
+              <p class="chat-status" :class="{ 'status-live': isConnected }">
+                <span class="status-dot" /> {{ isConnected ? 'Live' : 'Connecting…' }}
+              </p>
             </div>
           </div>
         </div>
@@ -74,10 +77,9 @@
             type="text"
             class="chat-input"
             placeholder="Type your message..."
-            :disabled="sending"
             @keyup.enter="sendMessage"
           />
-          <button class="send-btn" type="button" aria-label="Send message" :disabled="sending" @click="sendMessage">
+          <button class="send-btn" type="button" aria-label="Send message" @click="sendMessage">
             <Send :size="16" />
           </button>
         </div>
@@ -99,8 +101,9 @@ import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Messages' })
 
-const { get, post } = useApi()
+const { get } = useApi()
 const authStore = useAuthStore()
+const config = useRuntimeConfig()
 
 const AVATAR_COLORS = ['#1a3a1a', '#D4A017', '#3a6b3a', '#8a5a2a', '#5a3a8a']
 function colorFor(id) {
@@ -112,10 +115,10 @@ function initialsFor(first, last) {
 
 const searchQuery = ref('')
 const draft = ref('')
-const sending = ref(false)
 const sendError = ref('')
 const loadingConversations = ref(true)
 const loadingMessages = ref(false)
+const isConnected = ref(false)
 
 const relationships = ref([])
 const activeConversationId = ref(null)
@@ -123,7 +126,8 @@ const messagesByRelationship = ref({})
 const lastMessageByRelationship = ref({})
 const chatBodyEl = ref(null)
 
-let pollTimer = null
+let socket = null
+let reconnectTimer = null
 
 const conversations = computed(() => {
   const isRnd = authStore.user?.role === 'rnd'
@@ -175,7 +179,7 @@ async function loadConversations() {
   }
 }
 
-async function loadMessages(relationshipId, { silent = false } = {}) {
+async function loadMessageHistory(relationshipId, { silent = false } = {}) {
   if (!silent) loadingMessages.value = true
   try {
     const data = await get(`/relationships/${relationshipId}/messages/`)
@@ -189,10 +193,75 @@ async function loadMessages(relationshipId, { silent = false } = {}) {
   }
 }
 
-function selectConversation(id) {
+function wsUrlFor(relationshipId) {
+  // apiBase is e.g. http://localhost:8000/api — the WS route lives
+  // outside /api, at the ASGI app's root (see backend communication/routing.py).
+  const base = config.public.apiBase.replace(/\/api\/?$/, '')
+  const wsBase = base.replace(/^http/, 'ws')
+  return `${wsBase}/ws/relationships/${relationshipId}/messages/?token=${authStore.accessToken}`
+}
+
+function connectSocket(relationshipId, { isReconnect = false } = {}) {
+  disconnectSocket()
+  isConnected.value = false
+
+  socket = new WebSocket(wsUrlFor(relationshipId))
+
+  socket.onopen = () => {
+    isConnected.value = true
+    // A reconnect (network blip, idle Redis pubsub timeout, server
+    // restart) has a real gap where messages could have been sent and
+    // missed — the group broadcast only reaches connections that were
+    // subscribed at that moment. Re-sync from REST to backfill anything
+    // missed rather than silently dropping it until the next manual reload.
+    if (isReconnect) loadMessageHistory(relationshipId, { silent: true })
+  }
+
+  socket.onmessage = (event) => {
+    const message = JSON.parse(event.data)
+    const thread = messagesByRelationship.value[relationshipId] ?? []
+    // The consumer echoes the sender's own message back too (group
+    // broadcast includes the sender) — skip re-appending if it's already
+    // the last thing in the thread (covers the optimistic-append case).
+    if (thread.length && thread[thread.length - 1].id === message.id) return
+    thread.push(message)
+    messagesByRelationship.value[relationshipId] = thread
+    lastMessageByRelationship.value[relationshipId] = message
+    if (activeConversationId.value === relationshipId) scrollToBottom()
+  }
+
+  socket.onclose = (event) => {
+    isConnected.value = false
+    // 4001 (unauthenticated) / 4003 (not part of this relationship) are
+    // permanent — don't retry those. Anything else (network blip, server
+    // restart) is worth a reconnect attempt.
+    if (event.code !== 4001 && event.code !== 4003 && activeConversationId.value === relationshipId) {
+      reconnectTimer = setTimeout(() => connectSocket(relationshipId, { isReconnect: true }), 3000)
+    }
+  }
+
+  socket.onerror = () => {
+    isConnected.value = false
+  }
+}
+
+function disconnectSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  if (socket) {
+    socket.onclose = null
+    socket.close()
+    socket = null
+  }
+}
+
+async function selectConversation(id) {
   activeConversationId.value = id
   sendError.value = ''
-  loadMessages(id)
+  await loadMessageHistory(id)
+  connectSocket(id)
 }
 
 async function scrollToBottom() {
@@ -200,38 +269,44 @@ async function scrollToBottom() {
   if (chatBodyEl.value) chatBodyEl.value.scrollTop = chatBodyEl.value.scrollHeight
 }
 
-async function sendMessage() {
+function sendMessage() {
   const text = draft.value.trim()
-  if (!text || !activeConversationId.value || sending.value) return
+  if (!text || !activeConversationId.value) return
 
-  sending.value = true
-  sendError.value = ''
-  try {
-    const message = await post(`/relationships/${activeConversationId.value}/messages/`, { message: text })
-    const thread = messagesByRelationship.value[activeConversationId.value] ?? []
-    thread.push(message)
-    messagesByRelationship.value[activeConversationId.value] = thread
-    lastMessageByRelationship.value[activeConversationId.value] = message
-    draft.value = ''
-    await scrollToBottom()
-  } catch {
-    sendError.value = 'Message failed to send. Please try again.'
-  } finally {
-    sending.value = false
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    sendError.value = 'Not connected — reconnecting…'
+    return
   }
+
+  sendError.value = ''
+  socket.send(JSON.stringify({ message: text }))
+  draft.value = ''
 }
 
 watch(activeConversationId, () => scrollToBottom())
 
-onMounted(async () => {
-  await loadConversations()
-  pollTimer = setInterval(() => {
-    if (activeConversationId.value) loadMessages(activeConversationId.value, { silent: true })
-  }, 5000)
+// Defense-in-depth for the same missed-message-on-reconnect gap: a
+// backgrounded tab can have its WebSocket silently die (mobile browsers,
+// laptop sleep) without onclose firing promptly. Re-syncing whenever the
+// tab regains focus catches that even if the close event never arrives.
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible' && activeConversationId.value) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      connectSocket(activeConversationId.value, { isReconnect: true })
+    } else {
+      loadMessageHistory(activeConversationId.value, { silent: true })
+    }
+  }
+}
+
+onMounted(() => {
+  loadConversations()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  disconnectSocket()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -290,6 +365,10 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
 }
 .chat-name { font-size: 0.94rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.chat-status { display: flex; align-items: center; gap: 5px; font-size: 0.76rem; color: #9aaa9a; margin: 3px 0 0; }
+.chat-status.status-live { color: #3a6b3a; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #d5dad5; flex-shrink: 0; }
+.status-live .status-dot { background: #3a6b3a; }
 
 .chat-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
 .date-divider { text-align: center; margin-bottom: 20px; }

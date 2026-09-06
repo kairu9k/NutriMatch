@@ -1,9 +1,13 @@
-from django.test import TestCase
+import json
+
+from channels.testing import WebsocketCommunicator
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from scheduling.models import RndClientRelationship
 
+from .consumers import MessageConsumer
 from .models import Message, NotificationLog
 
 
@@ -82,6 +86,95 @@ class MessageViewTests(TestCase):
 
         resp = self.client_api.delete(f"/api/relationships/{self.rel.id}/messages/{msg.id}/")
         self.assertEqual(resp.status_code, 404)
+
+
+class MessageConsumerTests(TransactionTestCase):
+    """Real-time delivery over the actual WebSocket consumer — needs a real
+    Redis channel layer (see CHANNEL_LAYERS in settings), same as the app
+    itself in dev (docker run -d -p 6379:6379 redis). TransactionTestCase
+    because the consumer's DB access happens in a different async context
+    than TestCase's wrapping transaction would allow."""
+
+    def setUp(self):
+        self.rnd = _make_rnd()
+        self.client_user = _make_client()
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+
+    def _communicator(self, user, relationship_id):
+        # WebsocketCommunicator drives the consumer directly, bypassing
+        # JwtAuthMiddlewareStack (that's ASGI-app-level, not consumer-level)
+        # — so scope['user'] has to be set by hand here, same as the
+        # middleware would from the ?token= query param in the real app.
+        communicator = WebsocketCommunicator(
+            MessageConsumer.as_asgi(),
+            f"/ws/relationships/{relationship_id}/messages/",
+        )
+        communicator.scope["user"] = user
+        communicator.scope["url_route"] = {"kwargs": {"relationship_id": str(relationship_id)}}
+        return communicator
+
+    async def test_connect_requires_membership_in_the_relationship(self):
+        outsider = await self._acreate_outsider()
+        communicator = self._communicator(outsider, self.rel.id)
+        connected, _ = await communicator.connect()
+        self.assertFalse(connected)
+        await communicator.disconnect()
+
+    async def test_connect_succeeds_for_relationship_members(self):
+        communicator = self._communicator(self.client_user, self.rel.id)
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+        await communicator.disconnect()
+
+    async def test_message_delivered_in_real_time_and_persisted(self):
+        rnd_comm = self._communicator(self.rnd, self.rel.id)
+        client_comm = self._communicator(self.client_user, self.rel.id)
+        await rnd_comm.connect()
+        await client_comm.connect()
+
+        await client_comm.send_to(text_data=json.dumps({"message": "hello from client"}))
+
+        # sender gets its own message echoed back (group broadcast includes them)
+        own_echo = await client_comm.receive_from()
+        self.assertEqual(json.loads(own_echo)["message"], "hello from client")
+
+        # the RND, a separate connection, receives it too — this is the
+        # actual real-time delivery the REST API alone can't provide
+        received = await rnd_comm.receive_from()
+        data = json.loads(received)
+        self.assertEqual(data["message"], "hello from client")
+        self.assertEqual(data["sender"]["id"], self.client_user.id)
+
+        message_exists = await self._amessage_exists(self.rel.id, "hello from client")
+        self.assertTrue(message_exists)
+
+        await rnd_comm.disconnect()
+        await client_comm.disconnect()
+
+    async def test_blank_message_is_ignored(self):
+        communicator = self._communicator(self.client_user, self.rel.id)
+        await communicator.connect()
+
+        await communicator.send_to(text_data=json.dumps({"message": "   "}))
+        # nothing should arrive — assertTimeout confirms no message was broadcast
+        await communicator.receive_nothing(timeout=1)
+
+        await communicator.disconnect()
+
+    @staticmethod
+    async def _acreate_outsider():
+        from channels.db import database_sync_to_async
+        return await database_sync_to_async(_make_client)(email="ws-outsider@t.ph")
+
+    @staticmethod
+    async def _amessage_exists(relationship_id, text):
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def _check():
+            return Message.objects.filter(relationship_id=relationship_id, message=text).exists()
+
+        return await _check()
 
 
 class NotificationViewTests(TestCase):

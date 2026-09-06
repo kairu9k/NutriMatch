@@ -37,12 +37,14 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv(
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -102,6 +104,22 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+}
+
+# Real-time messaging (Django Channels). REDIS_URL defaults to a local
+# Redis reachable at localhost:6379 (docker run -d -p 6379:6379 redis) —
+# override for a different host/port/prod Redis instance.
+ASGI_APPLICATION = 'nutrimatch_api.asgi.application'
+
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6379')
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL],
+        },
+    },
 }
 
 ROOT_URLCONF = 'nutrimatch_api.urls'
