@@ -64,7 +64,10 @@
             <div class="screening-row"><span>BMR</span><span>{{ screening.bmr_kcal ? Math.round(screening.bmr_kcal) + ' kcal' : '—' }}</span></div>
             <div class="screening-row"><span>Recorded</span><span>{{ formatShortDate(screening.created_at) }}</span></div>
           </template>
-          <p v-else class="empty-note">No screening on file yet — this is recorded ahead of your first consultation.</p>
+          <template v-else>
+            <p class="empty-note">No screening on file yet — this is recorded ahead of your first consultation.</p>
+            <NuxtLink to="/pre-consultation-screening" class="outline-btn">Complete Screening</NuxtLink>
+          </template>
         </div>
       </div>
     </template>
