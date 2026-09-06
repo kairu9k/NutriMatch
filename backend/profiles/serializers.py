@@ -1,8 +1,25 @@
 from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
+from scheduling.models import Review
 
 from .models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndLanguage, RndProfile
+
+
+class PublicReviewSerializer(serializers.ModelSerializer):
+    """Reviews shown on an RND's public profile — first name + last-initial
+    only, not the full UserSerializer, per this project's PII-minimization
+    pattern (RA 10173)."""
+
+    client_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = ["id", "client_name", "rating", "comment", "created_at"]
+
+    def get_client_name(self, obj):
+        last_initial = f"{obj.client.last_name[0]}." if obj.client.last_name else ""
+        return f"{obj.client.first_name} {last_initial}".strip()
 
 
 class RndLanguageSerializer(serializers.ModelSerializer):

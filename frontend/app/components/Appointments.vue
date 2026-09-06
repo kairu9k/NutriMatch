@@ -1,8 +1,11 @@
 <template>
   <div class="appointments-page">
     <div class="page-header">
-      <h1 class="page-title">Appointments</h1>
-      <p class="page-sub">{{ isRnd ? 'Manage your upcoming and past consultations.' : 'Your upcoming and past consultations.' }}</p>
+      <div>
+        <h1 class="page-title">Appointments</h1>
+        <p class="page-sub">{{ isRnd ? 'Manage your upcoming and past consultations.' : 'Your upcoming and past consultations.' }}</p>
+      </div>
+      <NuxtLink v-if="!isRnd" to="/book-appointment" class="book-btn">Book Appointment</NuxtLink>
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -70,6 +73,7 @@
       <div class="empty-icon"><CalendarDays :size="28" /></div>
       <p class="empty-title">No appointments yet</p>
       <p class="empty-desc">{{ isRnd ? "Once patients book sessions with you, they'll show up here." : "Once you book a session with an RND, it'll show up here." }}</p>
+      <NuxtLink v-if="!isRnd" to="/book-appointment" class="book-btn">Book Appointment</NuxtLink>
     </div>
   </div>
 </template>
@@ -190,7 +194,7 @@ onMounted(loadAppointments)
 
 .appointments-page { font-family: 'Inter', sans-serif; }
 
-.page-header { margin-bottom: 20px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
@@ -269,6 +273,12 @@ onMounted(loadAppointments)
   display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
+.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0 0 16px; }
 .empty-text { font-size: 0.85rem; color: #9aaa9a; padding: 20px; text-align: center; }
+
+.book-btn {
+  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
+  padding: 10px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  white-space: nowrap; text-decoration: none; display: inline-block;
+}
 </style>

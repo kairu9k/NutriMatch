@@ -1,4 +1,4 @@
-from django.db.models import Avg
+from django.db.models import Avg, Count
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +10,7 @@ from .models import ClientProfile, RndProfile
 from .serializers import (
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
+    PublicReviewSerializer,
     RndProfileSerializer,
     RndProfileUpdateSerializer,
 )
@@ -51,15 +52,29 @@ class RndDetailView(generics.RetrieveAPIView):
     def get_object(self):
         obj = super().get_object()
         agg = Review.objects.filter(rnd_id=obj.user_id, is_public=True).aggregate(
-            avg_rating=Avg("rating")
+            avg_rating=Avg("rating"), review_count=Count("id")
         )
         self._avg_rating = agg["avg_rating"]
+        self._review_count = agg["review_count"]
         return obj
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
         response.data["average_rating"] = self._avg_rating
+        response.data["review_count"] = self._review_count
         return response
+
+
+class RndPublicReviewsView(generics.ListAPIView):
+    """Public reviews for an RND's profile page — visible to any client."""
+
+    serializer_class = PublicReviewSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return Review.objects.filter(
+            rnd_id=self.kwargs["rnd_id"], is_public=True
+        ).select_related("client").order_by("-created_at")
 
 
 class MyRndProfileView(APIView):

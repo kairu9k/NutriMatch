@@ -51,6 +51,21 @@ class ScreeningCreateView(generics.CreateAPIView):
         )
 
 
+class LatestScreeningView(generics.RetrieveAPIView):
+    """The client's own most recent screening, for dashboard display."""
+
+    serializer_class = PreConsultationScreeningSerializer
+    permission_classes = [IsClient]
+
+    def get_object(self):
+        obj = PreConsultationScreening.objects.filter(
+            client=self.request.user
+        ).order_by("-created_at").first()
+        if obj is None:
+            raise NotFound("No screening on file yet.")
+        return obj
+
+
 class ScreeningDetailView(generics.RetrieveAPIView):
     serializer_class = PreConsultationScreeningSerializer
 

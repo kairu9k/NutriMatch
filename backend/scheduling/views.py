@@ -72,6 +72,18 @@ class RndRelationshipAcceptView(APIView):
         return Response(RndClientRelationshipSerializer(relationship).data)
 
 
+class ClientActiveRelationshipsView(generics.ListAPIView):
+    """RNDs the client can book appointments with (active relationship only)."""
+
+    serializer_class = RndClientRelationshipSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return RndClientRelationship.objects.filter(
+            client=self.request.user, status=RndClientRelationship.Status.ACTIVE
+        ).select_related("rnd", "client")
+
+
 class ClientAppointmentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsClient]
 

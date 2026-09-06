@@ -177,10 +177,8 @@ const adminForm = reactive({
 const errorMessage = ref('')
 const isSubmitting = ref(false)
 
-// Client dashboard page doesn't exist yet (Phase 6 TODO) — redirect there
-// to appointments in the meantime, swap once client-dashboard.vue is built.
 const roleRedirect = {
-  client: '/appointments',
+  client: '/client-dashboard',
   rnd: '/rnd-dashboard',
   admin: '/admin-dashboard',
 }

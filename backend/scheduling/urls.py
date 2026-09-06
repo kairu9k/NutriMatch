@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ClientActiveRelationshipsView,
     ClientAppointmentCancelView,
     ClientAppointmentDetailView,
     ClientAppointmentListCreateView,
@@ -17,6 +18,7 @@ from .views import (
 
 urlpatterns = [
     path("client/rnds/<int:rnd_id>/request/", RequestRelationshipView.as_view(), name="request_relationship"),
+    path("client/relationships/", ClientActiveRelationshipsView.as_view(), name="client_active_relationships"),
     path("rnd/relationship-requests/", RndRelationshipRequestsView.as_view(), name="rnd_relationship_requests"),
     path("rnd/relationships/<int:pk>/accept/", RndRelationshipAcceptView.as_view(), name="rnd_relationship_accept"),
 

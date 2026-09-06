@@ -310,7 +310,7 @@ async function submitRegistration() {
     if (user.role === 'rnd') {
       navigateTo('/rnd-dashboard')
     } else {
-      navigateTo('/appointments')
+      navigateTo('/client-dashboard')
     }
   } catch (error) {
     const data = error?.data
