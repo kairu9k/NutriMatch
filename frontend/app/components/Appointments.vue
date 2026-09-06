@@ -55,11 +55,13 @@
             <template v-if="isRnd">
               <button v-if="appt.status === 'pending'" class="confirm-btn" :disabled="busyId === appt.id" @click="confirmAppointment(appt)">Confirm</button>
               <button v-if="appt.status === 'pending'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Decline</button>
+              <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom" :to="`/consultation-room/${appt.id}`" class="join-btn">Join Call</NuxtLink>
               <button v-if="appt.status === 'confirmed'" class="start-session-btn" :disabled="busyId === appt.id" @click="completeAppointment(appt)">Mark Completed</button>
               <button v-if="appt.status === 'confirmed'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Cancel</button>
               <button v-if="appt.status === 'completed'" class="chart-btn" @click="navigateTo(`/ncp-records?relationship=${appt.relationshipId}`)">View NCP Record</button>
             </template>
             <template v-else>
+              <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom" :to="`/consultation-room/${appt.id}`" class="join-btn">Join Call</NuxtLink>
               <button v-if="appt.status === 'pending' || appt.status === 'confirmed'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Cancel</button>
             </template>
           </template>
@@ -127,6 +129,8 @@ const appointments = computed(() => rawAppointments.value.map((appt) => {
     day: scheduled.toLocaleDateString('en-US', { day: 'numeric' }),
     month: scheduled.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
     detail: `${scheduled.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${scheduled.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${appt.type.replace('_', ' ')}`,
+    type: appt.type,
+    hasVideoRoom: Boolean(appt.video_session_url),
   }
 }))
 
@@ -249,9 +253,10 @@ onMounted(loadAppointments)
 .appt-action { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .appt-note { font-size: 0.82rem; color: #a12525; background: #fdecec; padding: 10px 16px; border-radius: 8px; max-width: 320px; text-align: right; }
 
-.start-session-btn, .confirm-btn {
+.start-session-btn, .confirm-btn, .join-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
   padding: 10px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
+  text-decoration: none; display: inline-block;
 }
 .start-session-btn:disabled, .confirm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .decline-btn {
