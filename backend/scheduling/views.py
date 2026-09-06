@@ -56,6 +56,18 @@ class RndRelationshipRequestsView(generics.ListAPIView):
         ).select_related("rnd", "client")
 
 
+class RndActiveRelationshipsView(generics.ListAPIView):
+    """RND's own active clients — for patient pickers (meal plans, NCP, etc.)."""
+
+    serializer_class = RndClientRelationshipSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return RndClientRelationship.objects.filter(
+            rnd=self.request.user, status=RndClientRelationship.Status.ACTIVE
+        ).select_related("rnd", "client")
+
+
 class RndRelationshipAcceptView(APIView):
     permission_classes = [IsRnd]
 
