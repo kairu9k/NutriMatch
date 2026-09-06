@@ -191,6 +191,20 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
                 appointment.meeting_id = room["external_session_id"]
                 appointment.save(update_fields=["video_session_url", "meeting_id", "updated_at"])
 
+        from communication.services import notify
+
+        scheduled_str = appointment.scheduled_at.strftime("%B %d, %Y at %I:%M %p").replace(" 0", " ")
+        notify(
+            recipient=appointment.relationship.client,
+            notifiable_type="appointment",
+            notifiable_id=appointment.id,
+            subject="Appointment confirmed",
+            content=(
+                f"RND {appointment.relationship.rnd.full_name} confirmed your "
+                f"{appointment.type} consultation for {scheduled_str}."
+            ),
+        )
+
         return Response(AppointmentSerializer(appointment).data)
 
 
@@ -212,10 +226,20 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
         if not Invoice.objects.filter(appointment=appointment).exists():
             rnd_profile = getattr(appointment.relationship.rnd, "rnd_profile", None)
             fee = rnd_profile.consultation_fee if rnd_profile else 0
-            Invoice.objects.create(
+            invoice = Invoice.objects.create(
                 relationship=appointment.relationship,
                 appointment=appointment,
                 amount=fee,
+            )
+
+            from communication.services import notify
+
+            notify(
+                recipient=appointment.relationship.client,
+                notifiable_type="invoice",
+                notifiable_id=invoice.id,
+                subject="Invoice ready",
+                content=f"INV-{invoice.id:04d} for ₱{invoice.amount:.2f} is ready for payment.",
             )
 
         return response

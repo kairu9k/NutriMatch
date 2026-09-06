@@ -150,7 +150,8 @@ const rndMainNav = [
 
 const rndAccountNav = [
   { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' },
-  { icon: Languages, label: 'Languages', to: '/languages' }
+  { icon: Languages, label: 'Languages', to: '/languages' },
+  { icon: Bell, label: 'Notifications', to: '/notifications' }
 ]
 
 // Client-facing pages are still being built out (Phase 6) — only pages already
@@ -166,7 +167,8 @@ const clientMainNav = [
 ]
 
 const clientAccountNav = [
-  { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' }
+  { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' },
+  { icon: Bell, label: 'Notifications', to: '/notifications' }
 ]
 
 const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
