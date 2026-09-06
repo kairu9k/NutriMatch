@@ -30,6 +30,21 @@
           </div>
 
           <div class="surface">
+            <h3 class="surface-title">Weekly Availability</h3>
+            <div v-if="isLoadingAvailability" class="placeholder-text">Loading…</div>
+            <div v-else-if="availabilityByDay.some(d => d.slots.length)" class="availability-list">
+              <div v-for="d in availabilityByDay" :key="d.day" class="availability-row">
+                <span class="availability-day">{{ d.day }}</span>
+                <span v-if="d.slots.length" class="availability-slots">
+                  {{ d.slots.map(s => `${formatTime(s.start_time)} – ${formatTime(s.end_time)}`).join(', ') }}
+                </span>
+                <span v-else class="availability-slots availability-none">Unavailable</span>
+              </div>
+            </div>
+            <p v-else class="empty-note">This RND hasn't set their availability yet.</p>
+          </div>
+
+          <div class="surface">
             <div class="reviews-header">
               <h3 class="surface-title">Patient Reviews</h3>
               <span v-if="rnd.average_rating" class="chip chip-gold">★ {{ rnd.average_rating.toFixed(1) }} average</span>
@@ -81,13 +96,33 @@ import { BadgeCheck, Languages, Info } from 'lucide-vue-next'
 const route = useRoute()
 const { get, post } = useApi()
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
 const isLoading = ref(true)
 const isLoadingReviews = ref(true)
+const isLoadingAvailability = ref(true)
 const errorMessage = ref('')
 const rnd = ref(null)
 const reviews = ref([])
+const availability = ref([])
 const relationshipStatus = ref(null)
 const isRequesting = ref(false)
+
+const availabilityByDay = computed(() =>
+  DAY_NAMES.map((day, dayIndex) => ({
+    day,
+    slots: availability.value
+      .filter(s => s.day_of_week === dayIndex)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+  }))
+)
+
+function formatTime(t) {
+  const [h, m] = t.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 || 12
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
+}
 
 const AVATAR_COLORS = ['#1e4a26', '#3a6b3a', '#D4A017', '#6a8a6a', '#8a6a3a']
 function colorForId(id) {
@@ -133,6 +168,17 @@ async function loadReviews() {
   }
 }
 
+async function loadAvailability() {
+  isLoadingAvailability.value = true
+  try {
+    availability.value = await get(`/client/rnds/${route.params.id}/availability/`)
+  } catch {
+    availability.value = []
+  } finally {
+    isLoadingAvailability.value = false
+  }
+}
+
 async function requestRelationship() {
   isRequesting.value = true
   try {
@@ -148,6 +194,7 @@ async function requestRelationship() {
 onMounted(() => {
   loadProfile()
   loadReviews()
+  loadAvailability()
 })
 </script>
 
@@ -195,6 +242,13 @@ onMounted(() => {
 .surface-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 12px; }
 
 .bio-text { font-size: 0.87rem; color: #4a5a4a; line-height: 1.6; margin: 0; }
+
+.availability-list { display: flex; flex-direction: column; gap: 8px; }
+.availability-row { display: flex; gap: 12px; font-size: 0.85rem; padding: 6px 0; border-bottom: 1px solid #f0f0e6; }
+.availability-row:last-child { border-bottom: none; }
+.availability-day { font-weight: 700; color: #1a3a1a; width: 90px; flex-shrink: 0; }
+.availability-slots { color: #4a5a4a; }
+.availability-slots.availability-none { color: #b0b8b0; }
 
 .reviews-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .review-list { margin-top: 8px; }

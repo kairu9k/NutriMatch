@@ -6,11 +6,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import IsClient
+from accounts.permissions import IsClient, IsRnd
 from core.models import AuditLog
 
 from .models import Invoice, PaymentTransaction
-from .serializers import InvoiceListSerializer, InvoiceSerializer
+from .serializers import InvoiceListSerializer, InvoiceSerializer, RndInvoiceListSerializer
 from .services import InvalidWebhookSignatureError, PayMongoService, PaymentGatewayError
 
 
@@ -24,6 +24,20 @@ class ClientInvoiceListView(generics.ListAPIView):
         return Invoice.objects.filter(
             relationship__client=self.request.user
         ).select_related("appointment", "appointment__relationship__rnd").order_by("-created_at")
+
+
+class RndInvoiceListView(generics.ListAPIView):
+    """RND's own invoices (their share of billable sessions), most recent
+    first — powers the Earnings page's summary cards, trend chart, and
+    invoice table, all computed client-side from this one list."""
+
+    serializer_class = RndInvoiceListSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return Invoice.objects.filter(
+            relationship__rnd=self.request.user
+        ).select_related("relationship__client", "appointment").order_by("-created_at")
 
 
 class InitiatePaymentView(APIView):

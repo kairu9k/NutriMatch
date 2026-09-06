@@ -164,11 +164,31 @@ STATIC_URL = 'static/'
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# Gmail SMTP once GMAIL_HOST_USER/GMAIL_HOST_PASSWORD (an App Password, not
+# the account password) are set in .env; falls back to printing emails to
+# the console in dev when they're blank, same "degrade to a clear no-op
+# rather than fail" pattern as PAYMONGO/DAILY_CO below.
+GMAIL_HOST_USER = config('GMAIL_HOST_USER', default='')
+GMAIL_HOST_PASSWORD = config('GMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=GMAIL_HOST_USER or 'noreply@nutrimatch.ph')
 
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
+    'default': (
+        {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': 'smtp.gmail.com',
+                'port': 587,
+                'username': GMAIL_HOST_USER,
+                'password': GMAIL_HOST_PASSWORD,
+                'use_tls': True,
+            },
+        }
+        if GMAIL_HOST_USER and GMAIL_HOST_PASSWORD
+        else {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        }
+    ),
 }
 
 

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User
+from .models import PasswordResetCode, User
 
 
 @admin.register(User)
@@ -22,3 +22,13 @@ class UserAdmin(BaseUserAdmin):
         }),
     )
     readonly_fields = ["created_at", "updated_at", "last_login"]
+
+
+@admin.register(PasswordResetCode)
+class PasswordResetCodeAdmin(admin.ModelAdmin):
+    list_display = ["user", "code", "expires_at", "used_at", "created_at"]
+    search_fields = ["user__email"]
+    readonly_fields = ["user", "code", "expires_at", "used_at", "created_at"]
+
+    def has_add_permission(self, request):
+        return False

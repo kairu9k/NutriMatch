@@ -23,6 +23,21 @@ class PreConsultationScreeningSerializer(serializers.ModelSerializer):
         read_only_fields = ["bmi", "bmi_category", "bmr_kcal", "tdee_kcal", "nrs_score", "nrs_risk"]
 
 
+class NcpDraftListSerializer(serializers.ModelSerializer):
+    """Lightweight cross-patient draft list for the RND dashboard — just
+    enough to resume a draft (which patient, which phase looks unfinished)."""
+
+    client_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NcpRecord
+        fields = ["id", "relationship_id", "client_name", "status", "updated_at"]
+
+    def get_client_name(self, obj):
+        client = obj.relationship.client
+        return f"{client.first_name} {client.last_name}"
+
+
 class NcpRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = NcpRecord
@@ -40,6 +55,20 @@ class NcpRecordSerializer(serializers.ModelSerializer):
             "monitoring_notes", "goal_status",
             "created_at", "updated_at",
         ]
+        read_only_fields = ["bmi"]
+
+    def validate(self, attrs):
+        # bmi is always derived server-side from weight/height (or the
+        # existing record's values on a partial update), same
+        # calculate_bmi/classify_bmi_asia_pacific used by the screening flow —
+        # never trust a client-supplied BMI.
+        from .services import calculate_bmi
+
+        weight_kg = attrs.get("weight_kg", getattr(self.instance, "weight_kg", None))
+        height_cm = attrs.get("height_cm", getattr(self.instance, "height_cm", None))
+        if weight_kg and height_cm:
+            attrs["bmi"] = calculate_bmi(weight_kg, height_cm)
+        return attrs
 
     def validate_relationship(self, value):
         request = self.context["request"]

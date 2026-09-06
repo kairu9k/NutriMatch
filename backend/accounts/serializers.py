@@ -89,6 +89,22 @@ class RegisterRndSerializer(serializers.Serializer):
         return user
 
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        # Deliberately does NOT raise if the email doesn't exist — the view
+        # always returns the same generic success response either way, so
+        # this endpoint can't be used to enumerate registered emails.
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6, min_length=6)
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+
+
 class NutriMatchTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Adds role/name claims to the JWT and returns the user alongside the tokens."""
 

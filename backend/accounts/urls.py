@@ -8,6 +8,8 @@ from .views import (
     AdminVerifyRndView,
     LoginView,
     MeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
     RegisterClientView,
     RegisterRndView,
 )
@@ -18,6 +20,8 @@ urlpatterns = [
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/register/client/", RegisterClientView.as_view(), name="register_client"),
     path("auth/register/rnd/", RegisterRndView.as_view(), name="register_rnd"),
+    path("auth/password-reset/request/", PasswordResetRequestView.as_view(), name="password_reset_request"),
+    path("auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
 
     path("admin/users/", AdminUserListView.as_view(), name="admin_user_list"),
     path("admin/users/<int:pk>/", AdminUserDetailView.as_view(), name="admin_user_detail"),

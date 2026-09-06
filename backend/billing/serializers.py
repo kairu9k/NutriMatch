@@ -33,6 +33,31 @@ class InvoiceListSerializer(serializers.ModelSerializer):
         ]
 
 
+class RndInvoiceListSerializer(serializers.ModelSerializer):
+    """RND-facing invoice list — nests the client's name (via relationship)
+    and appointment date instead of the client-side appointment/RND nesting
+    InvoiceListSerializer uses. net is amount - commission_amt, computed
+    here since it isn't stored (commission_amt already freezes at creation)."""
+
+    client_name = serializers.SerializerMethodField()
+    appointment_date = serializers.DateTimeField(source="appointment.scheduled_at", read_only=True)
+    net = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invoice
+        fields = [
+            "id", "client_name", "appointment_date", "amount", "commission_amt",
+            "net", "status", "paid_at", "created_at",
+        ]
+
+    def get_client_name(self, obj):
+        client = obj.relationship.client
+        return f"{client.first_name} {client.last_name}"
+
+    def get_net(self, obj):
+        return obj.amount - obj.commission_amt
+
+
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentTransaction

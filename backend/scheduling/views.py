@@ -8,9 +8,9 @@ from rest_framework.views import APIView
 
 from accounts.models import User
 from accounts.permissions import IsClient, IsRnd
-from clinical.models import NcpRecord
+from clinical.models import NcpRecord, PreConsultationScreening
 
-from .models import Appointment, ConsultationSession, RndClientRelationship
+from .models import Appointment, ConsultationSession, Review, RndClientRelationship
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentSerializer,
@@ -218,12 +218,29 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
     """Confirming a video appointment also provisions the Daily.co room.
     Confirmation still succeeds even if room creation fails — the RND can
     retry video setup separately; a gateway hiccup shouldn't block the
-    appointment from being confirmed."""
+    appointment from being confirmed.
+
+    Also enforces the proposal's screening-before-consultation requirement.
+    PreConsultationScreening isn't tied to a specific appointment in the
+    current frontend (no appointment picker on that form), so this checks
+    "has the client ever submitted any screening" rather than "did they
+    screen for this exact appointment" — looser than the original mockup's
+    intent, but real and honest given what the data actually supports."""
 
     from_statuses = [Appointment.Status.PENDING]
     to_status = Appointment.Status.CONFIRMED
 
     def patch(self, request, pk):
+        appointment = get_object_or_404(
+            Appointment.objects.filter(relationship__rnd=request.user), pk=pk
+        )
+        has_screening = PreConsultationScreening.objects.filter(
+            client_id=appointment.relationship.client_id
+        ).exists()
+        if not has_screening:
+            raise PermissionDenied(
+                "Cannot confirm — this client hasn't submitted a pre-consultation screening yet."
+            )
         response = super().patch(request, pk)
         appointment = get_object_or_404(Appointment, pk=response.data["id"])
 
@@ -306,3 +323,15 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
 class ReviewCreateView(generics.CreateAPIView):
     serializer_class = ReviewSerializer
     permission_classes = [IsClient]
+
+
+class RndReviewListView(generics.ListAPIView):
+    """Reviews received by the logged-in RND, newest first."""
+
+    serializer_class = ReviewSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return Review.objects.filter(
+            rnd=self.request.user, is_public=True
+        ).select_related("client").order_by("-created_at")

@@ -17,6 +17,7 @@ from .views import (
     RndRelationshipAcceptView,
     RndRelationshipDeclineView,
     RndRelationshipRequestsView,
+    RndReviewListView,
 )
 
 urlpatterns = [
@@ -39,4 +40,5 @@ urlpatterns = [
     path("rnd/appointments/<int:pk>/cancel/", RndAppointmentCancelView.as_view(), name="rnd_appointment_cancel"),
 
     path("client/reviews/", ReviewCreateView.as_view(), name="review_create"),
+    path("rnd/reviews/", RndReviewListView.as_view(), name="rnd_reviews"),
 ]

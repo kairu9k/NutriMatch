@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from clinical.models import PreConsultationScreening
 from scheduling.models import Appointment, RndClientRelationship
 
 from .models import Invoice, PaymentTransaction
@@ -94,6 +95,10 @@ class BillingAndVideoViewTests(TestCase):
             self._mock_resp({"token": "host-tok"}),
         ]
         mock_client_cls.return_value = mock_client
+
+        PreConsultationScreening.objects.create(
+            client=self.client_user, height_cm=Decimal("170.00"), weight_kg=Decimal("70.00"),
+        )
 
         self.client_api.force_authenticate(self.rnd)
         resp = self.client_api.patch(f"/api/rnd/appointments/{self.appointment.id}/confirm/")

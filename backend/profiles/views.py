@@ -7,11 +7,12 @@ from rest_framework.views import APIView
 from accounts.permissions import IsClient, IsRnd
 from scheduling.models import Review, RndClientRelationship
 
-from .models import ClientProfile, RndProfile
+from .models import ClientProfile, RndAvailabilitySchedule, RndProfile
 from .serializers import (
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
     PublicReviewSerializer,
+    RndAvailabilityScheduleSerializer,
     RndProfileSerializer,
     RndProfileUpdateSerializer,
 )
@@ -110,6 +111,43 @@ class MyClientProfileView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(ClientProfileSerializer(profile).data)
+
+
+class RndAvailabilityListCreateView(generics.ListCreateAPIView):
+    """RND managing their own weekly availability slots. Only the recurring
+    day_of_week/start_time/end_time shape is supported — there's no
+    per-date blocking concept in this model (or the DBML schema), so
+    one-off blocked days are deliberately not part of this API."""
+
+    serializer_class = RndAvailabilityScheduleSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return RndAvailabilitySchedule.objects.filter(rnd=self.request.user).order_by("day_of_week", "start_time")
+
+    def perform_create(self, serializer):
+        serializer.save(rnd=self.request.user)
+
+
+class RndAvailabilityDetailView(generics.UpdateAPIView, generics.DestroyAPIView):
+    serializer_class = RndAvailabilityScheduleSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return RndAvailabilitySchedule.objects.filter(rnd=self.request.user)
+
+
+class RndPublicAvailabilityView(generics.ListAPIView):
+    """Public weekly availability for an RND's profile page — visible to
+    any client, read-only."""
+
+    serializer_class = RndAvailabilityScheduleSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return RndAvailabilitySchedule.objects.filter(
+            rnd_id=self.kwargs["rnd_id"], is_available=True
+        ).order_by("day_of_week", "start_time")
 
 
 class RndClientProfileView(APIView):

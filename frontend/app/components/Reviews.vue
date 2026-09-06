@@ -58,12 +58,12 @@
           </div>
           <span class="review-time">{{ review.postedAt }}</span>
         </div>
-        <p class="review-comment">"{{ review.comment }}"</p>
+        <p v-if="review.comment" class="review-comment">"{{ review.comment }}"</p>
       </div>
     </div>
 
     <!-- EMPTY STATE: no reviews yet -->
-    <div v-else class="empty-state">
+    <div v-else-if="!loading" class="empty-state">
       <div class="empty-icon"><Star :size="28" /></div>
       <p class="empty-title">No reviews yet</p>
       <p class="empty-desc">Once patients rate their consultations, their feedback will show up here.</p>
@@ -72,13 +72,53 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Star } from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
 
-const summary = ref(db.reviewsSummary)
-const ratingBreakdown = ref(db.ratingBreakdown)
-const reviews = ref(db.reviews)
+definePageMeta({ layout: 'dashboard', title: 'Reviews' })
+
+const { get } = useApi()
+
+const AVATAR_COLORS = ['#1a3a1a', '#D4A017', '#3a6b3a', '#8a5a2a', '#5a3a8a']
+function colorFor(id) {
+  return AVATAR_COLORS[id % AVATAR_COLORS.length]
+}
+function initialsFor(first, last) {
+  return `${(first || '?')[0] ?? ''}${(last || '')[0] ?? ''}`.toUpperCase()
+}
+
+const rawReviews = ref([])
+const loading = ref(true)
+
+onMounted(async () => {
+  try {
+    rawReviews.value = await get('/rnd/reviews/')
+  } finally {
+    loading.value = false
+  }
+})
+
+const reviews = computed(() => rawReviews.value.map(r => ({
+  id: r.id,
+  name: `${r.client.first_name} ${r.client.last_name}`,
+  initials: initialsFor(r.client.first_name, r.client.last_name),
+  avatarColor: colorFor(r.client.id),
+  rating: r.rating,
+  comment: r.comment,
+  postedAt: new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+})))
+
+const summary = computed(() => {
+  const total = reviews.value.length
+  const average = total ? reviews.value.reduce((sum, r) => sum + r.rating, 0) / total : 0
+  return { average, total }
+})
+
+const ratingBreakdown = computed(() => {
+  const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+  for (const r of reviews.value) counts[r.rating] = (counts[r.rating] ?? 0) + 1
+  return [5, 4, 3, 2, 1].map(stars => ({ stars, count: counts[stars] }))
+})
 
 const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.count)))
 </script>

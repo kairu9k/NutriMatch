@@ -9,7 +9,12 @@ from rest_framework.response import Response
 from accounts.permissions import IsClient, IsRnd
 
 from .models import NcpRecord, PreConsultationScreening, ProgressRecord
-from .serializers import NcpRecordSerializer, PreConsultationScreeningSerializer, ProgressRecordSerializer
+from .serializers import (
+    NcpDraftListSerializer,
+    NcpRecordSerializer,
+    PreConsultationScreeningSerializer,
+    ProgressRecordSerializer,
+)
 from .services import (
     calculate_bmi,
     calculate_bmr_mifflin_st_jeor,
@@ -114,6 +119,20 @@ class NcpRecordListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class RndNcpDraftListView(generics.ListAPIView):
+    """RND's draft NCP records across all patients, for the dashboard's
+    'resume a draft' panel — cross-patient, unlike NcpRecordListCreateView
+    which is scoped to one relationship."""
+
+    serializer_class = NcpDraftListSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return NcpRecord.objects.filter(
+            relationship__rnd=self.request.user, status=NcpRecord.Status.DRAFT
+        ).select_related("relationship__client").order_by("-updated_at")
 
 
 class RndProgressRecordListCreateView(generics.ListCreateAPIView):

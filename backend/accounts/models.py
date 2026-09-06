@@ -63,3 +63,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class PasswordResetCode(models.Model):
+    """A 6-digit OTP emailed to the user for the forgot-password flow. Not
+    in the original vault/database.txt schema — a new feature, not a port."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="password_reset_codes")
+    code = models.CharField(max_length=6)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "password_reset_codes"
+
+    def __str__(self):
+        return f"Reset code for {self.user.email} (expires {self.expires_at:%Y-%m-%d %H:%M})"

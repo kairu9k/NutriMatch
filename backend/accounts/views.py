@@ -9,10 +9,13 @@ from .models import User
 from .permissions import IsAdmin
 from .serializers import (
     NutriMatchTokenObtainPairSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     RegisterClientSerializer,
     RegisterRndSerializer,
     UserSerializer,
 )
+from .services import InvalidResetCodeError, consume_reset_code, request_password_reset
 
 
 class LoginView(TokenObtainPairView):
@@ -39,6 +42,44 @@ class RegisterRndView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class PasswordResetRequestView(APIView):
+    """Always returns a generic success response, whether or not the email
+    is registered — otherwise this endpoint could be used to enumerate
+    accounts by email address."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = User.objects.filter(email__iexact=serializer.validated_data["email"], deleted_at__isnull=True).first()
+        if user:
+            request_password_reset(user)
+
+        return Response({"detail": "If that email is registered, a reset code has been sent."})
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = User.objects.filter(email__iexact=data["email"], deleted_at__isnull=True).first()
+        if user is None:
+            return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            consume_reset_code(user, data["code"], data["new_password"])
+        except InvalidResetCodeError:
+            return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "Password reset successfully. You can now sign in."})
 
 
 class MeView(APIView):

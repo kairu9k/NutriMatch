@@ -130,6 +130,20 @@ export const useAuthStore = defineStore('auth', {
       return await post<NutriMatchUser>('/auth/register/rnd/', payload, { skipAuth: true })
     },
 
+    async requestPasswordReset(email: string) {
+      const { post } = useApi()
+      return await post<{ detail: string }>('/auth/password-reset/request/', { email }, { skipAuth: true })
+    },
+
+    async confirmPasswordReset(email: string, code: string, newPassword: string) {
+      const { post } = useApi()
+      return await post<{ detail: string }>(
+        '/auth/password-reset/confirm/',
+        { email, code, new_password: newPassword },
+        { skipAuth: true }
+      )
+    },
+
     async fetchMe() {
       const { get } = useApi()
       this.user = await get<NutriMatchUser>('/auth/me/')

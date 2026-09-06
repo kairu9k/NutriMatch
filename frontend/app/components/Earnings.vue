@@ -27,13 +27,12 @@
       <div class="stat-card">
         <div class="stat-icon"><Percent :size="18" /></div>
         <p class="stat-value">₱{{ summary.commission.toLocaleString() }}</p>
-        <p class="stat-label">Platform Commission (15%)</p>
+        <p class="stat-label">Platform Commission</p>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><Wallet :size="18" /></div>
         <p class="stat-value">₱{{ summary.net.toLocaleString() }}</p>
         <p class="stat-label">Net Earnings</p>
-        <p v-if="summary.net" class="stat-delta up">↑ 12% vs last month</p>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><Hourglass :size="18" /></div>
@@ -88,7 +87,7 @@
       </table>
     </div>
 
-    <div v-else class="empty-state">
+    <div v-else-if="!loading" class="empty-state">
       <Receipt :size="28" class="empty-icon" />
       <p class="empty-title">No invoices yet</p>
       <p class="empty-desc">Completed billable sessions will appear here.</p>
@@ -97,22 +96,86 @@
 </template>
 
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import { Landmark, Percent, Wallet, Hourglass, Receipt, ChevronDown } from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
 
 definePageMeta({ layout: 'dashboard', title: 'Earnings' })
 
+const { get } = useApi()
+
+const rawInvoices = ref([])
+const loading = ref(true)
 const period = ref('This Month')
 
-const summary = computed(() => ({
-  gross: db.earningsSummary.gross,
-  commission: db.earningsSummary.commission,
-  net: db.earningsSummary.net,
-  pending: db.earningsSummary.pending
-}))
+onMounted(async () => {
+  try {
+    rawInvoices.value = await get('/rnd/invoices/')
+  } finally {
+    loading.value = false
+  }
+})
 
-const trend = computed(() => db.earningsTrend)
-const invoices = computed(() => db.invoices)
+function periodStart(label) {
+  const now = new Date()
+  if (label === 'This Month') return new Date(now.getFullYear(), now.getMonth(), 1)
+  if (label === 'Last Month') return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  if (label === 'Last 3 Months') return new Date(now.getFullYear(), now.getMonth() - 2, 1)
+  if (label === 'This Year') return new Date(now.getFullYear(), 0, 1)
+  return null
+}
+function periodEnd(label) {
+  const now = new Date()
+  if (label === 'Last Month') return new Date(now.getFullYear(), now.getMonth(), 1)
+  return null
+}
+
+const periodInvoices = computed(() => {
+  const start = periodStart(period.value)
+  const end = periodEnd(period.value)
+  return rawInvoices.value.filter(inv => {
+    const created = new Date(inv.created_at)
+    if (start && created < start) return false
+    if (end && created >= end) return false
+    return true
+  })
+})
+
+const invoices = computed(() => periodInvoices.value.map(inv => ({
+  id: `INV-${String(inv.id).padStart(4, '0')}`,
+  patient: inv.client_name,
+  date: new Date(inv.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+  gross: Number(inv.amount),
+  commission: Number(inv.commission_amt),
+  net: Number(inv.net),
+  status: inv.status === 'paid' ? 'Paid' : 'Pending',
+})))
+
+const summary = computed(() => {
+  const gross = periodInvoices.value.reduce((sum, i) => sum + Number(i.amount), 0)
+  const commission = periodInvoices.value.reduce((sum, i) => sum + Number(i.commission_amt), 0)
+  const net = periodInvoices.value.reduce((sum, i) => sum + Number(i.net), 0)
+  const pending = periodInvoices.value
+    .filter(i => i.status === 'unpaid')
+    .reduce((sum, i) => sum + Number(i.amount), 0)
+  return { gross, commission, net, pending }
+})
+
+const trend = computed(() => {
+  const now = new Date()
+  const months = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, month: d.toLocaleDateString('en-US', { month: 'short' }), amount: 0 })
+  }
+  for (const inv of rawInvoices.value) {
+    if (inv.status !== 'paid') continue
+    const d = new Date(inv.created_at)
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    const bucket = months.find(m => m.key === key)
+    if (bucket) bucket.amount += Number(inv.net)
+  }
+  return months.some(m => m.amount > 0) ? months : []
+})
 
 const maxAmount = computed(() => Math.max(...trend.value.map(p => p.amount), 20000))
 const yTicks = computed(() => {

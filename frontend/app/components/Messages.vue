@@ -7,13 +7,17 @@
         <input v-model="searchQuery" type="text" class="search-input" placeholder="Search messages..." />
       </div>
 
-      <div v-if="filteredConversations.length" class="conv-list">
+      <div v-if="loadingConversations" class="conv-empty">
+        <p class="empty-title">Loading…</p>
+      </div>
+
+      <div v-else-if="filteredConversations.length" class="conv-list">
         <button
           v-for="conv in filteredConversations"
           :key="conv.id"
           class="conv-item"
           :class="{ active: activeConversationId === conv.id }"
-          @click="activeConversationId = conv.id"
+          @click="selectConversation(conv.id)"
         >
           <div class="conv-avatar" :style="{ background: conv.avatarColor }">{{ conv.initials }}</div>
           <div class="conv-body">
@@ -28,7 +32,9 @@
 
       <div v-else class="conv-empty">
         <p class="empty-title">No conversations yet</p>
-        <p class="empty-desc">Messages with your RND will show up here.</p>
+        <p class="empty-desc">
+          {{ authStore.user?.role === 'rnd' ? 'Messages with your patients will show up here.' : 'Messages with your RND will show up here.' }}
+        </p>
       </div>
     </div>
 
@@ -40,41 +46,38 @@
             <div class="chat-avatar" :style="{ background: activeConversation.avatarColor }">{{ activeConversation.initials }}</div>
             <div>
               <p class="chat-name">{{ activeConversation.name }}</p>
-              <p v-if="activeConversation.online" class="chat-status">
-                <span class="status-dot" /> Active now
-              </p>
             </div>
           </div>
-          <button class="video-btn" type="button" aria-label="Start video call">
-            <Video :size="18" />
-          </button>
         </div>
 
-        <div class="chat-body">
-          <div class="date-divider"><span>Today</span></div>
+        <div class="chat-body" ref="chatBodyEl">
+          <div v-if="loadingMessages" class="date-divider"><span>Loading…</span></div>
+          <div v-else-if="!activeMessages.length" class="date-divider"><span>No messages yet — say hello</span></div>
 
           <div
             v-for="msg in activeMessages"
             :key="msg.id"
             class="msg-row"
-            :class="msg.sender === 'me' ? 'msg-row-me' : 'msg-row-them'"
+            :class="msg.sender.id === authStore.user?.id ? 'msg-row-me' : 'msg-row-them'"
           >
-            <div class="msg-bubble" :class="msg.sender === 'me' ? 'bubble-me' : 'bubble-them'">
-              {{ msg.text }}
+            <div class="msg-bubble" :class="msg.sender.id === authStore.user?.id ? 'bubble-me' : 'bubble-them'">
+              {{ msg.message }}
             </div>
-            <span class="msg-time">{{ msg.time }}</span>
+            <span class="msg-time">{{ formatTime(msg.created_at) }}</span>
           </div>
         </div>
 
+        <p v-if="sendError" class="chat-error">{{ sendError }}</p>
         <div class="chat-input-row">
           <input
             v-model="draft"
             type="text"
             class="chat-input"
             placeholder="Type your message..."
+            :disabled="sending"
             @keyup.enter="sendMessage"
           />
-          <button class="send-btn" type="button" aria-label="Send message" @click="sendMessage">
+          <button class="send-btn" type="button" aria-label="Send message" :disabled="sending" @click="sendMessage">
             <Send :size="16" />
           </button>
         </div>
@@ -90,19 +93,54 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { Search, Video, Send, MessageCircle } from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { Search, Send, MessageCircle } from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Messages' })
 
+const { get, post } = useApi()
+const authStore = useAuthStore()
+
+const AVATAR_COLORS = ['#1a3a1a', '#D4A017', '#3a6b3a', '#8a5a2a', '#5a3a8a']
+function colorFor(id) {
+  return AVATAR_COLORS[id % AVATAR_COLORS.length]
+}
+function initialsFor(first, last) {
+  return `${(first || '?')[0] ?? ''}${(last || '')[0] ?? ''}`.toUpperCase()
+}
+
 const searchQuery = ref('')
 const draft = ref('')
+const sending = ref(false)
+const sendError = ref('')
+const loadingConversations = ref(true)
+const loadingMessages = ref(false)
 
-const conversations = ref(db.conversations)
-const messagesByConversation = ref(db.messagesByConversation)
+const relationships = ref([])
+const activeConversationId = ref(null)
+const messagesByRelationship = ref({})
+const lastMessageByRelationship = ref({})
+const chatBodyEl = ref(null)
 
-const activeConversationId = ref(conversations.value[0]?.id ?? null)
+let pollTimer = null
+
+const conversations = computed(() => {
+  const isRnd = authStore.user?.role === 'rnd'
+  return relationships.value.map((rel) => {
+    const other = isRnd ? rel.client : rel.rnd
+    const preview = lastMessageByRelationship.value[rel.id]
+    return {
+      id: rel.id,
+      name: `${other.first_name} ${other.last_name}`,
+      initials: initialsFor(other.first_name, other.last_name),
+      avatarColor: colorFor(other.id),
+      lastMessage: preview ? preview.message : 'No messages yet',
+      lastMessageAt: preview ? formatTime(preview.created_at) : '',
+      lastMessageTs: preview ? preview.created_at : rel.created_at,
+    }
+  }).sort((a, b) => new Date(b.lastMessageTs) - new Date(a.lastMessageTs))
+})
 
 const filteredConversations = computed(() => {
   if (!searchQuery.value.trim()) return conversations.value
@@ -115,24 +153,86 @@ const activeConversation = computed(() =>
 )
 
 const activeMessages = computed(() =>
-  activeConversationId.value ? (messagesByConversation.value[activeConversationId.value] ?? []) : []
+  activeConversationId.value ? (messagesByRelationship.value[activeConversationId.value] ?? []) : []
 )
 
-function sendMessage() {
-  const text = draft.value.trim()
-  if (!text || !activeConversationId.value) return
-
-  // Wire this up to your real send-message API call
-  const thread = messagesByConversation.value[activeConversationId.value] ?? []
-  thread.push({
-    id: `msg-${Date.now()}`,
-    sender: 'me',
-    text,
-    time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  })
-  messagesByConversation.value[activeConversationId.value] = thread
-  draft.value = ''
+function formatTime(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
+
+async function loadConversations() {
+  loadingConversations.value = true
+  try {
+    const isRnd = authStore.user?.role === 'rnd'
+    const path = isRnd ? '/rnd/relationships/active/' : '/client/relationships/'
+    relationships.value = await get(path)
+    if (!activeConversationId.value && relationships.value.length) {
+      selectConversation(relationships.value[0].id)
+    }
+  } finally {
+    loadingConversations.value = false
+  }
+}
+
+async function loadMessages(relationshipId, { silent = false } = {}) {
+  if (!silent) loadingMessages.value = true
+  try {
+    const data = await get(`/relationships/${relationshipId}/messages/`)
+    messagesByRelationship.value[relationshipId] = data
+    if (data.length) {
+      lastMessageByRelationship.value[relationshipId] = data[data.length - 1]
+    }
+    if (activeConversationId.value === relationshipId) await scrollToBottom()
+  } finally {
+    if (!silent) loadingMessages.value = false
+  }
+}
+
+function selectConversation(id) {
+  activeConversationId.value = id
+  sendError.value = ''
+  loadMessages(id)
+}
+
+async function scrollToBottom() {
+  await nextTick()
+  if (chatBodyEl.value) chatBodyEl.value.scrollTop = chatBodyEl.value.scrollHeight
+}
+
+async function sendMessage() {
+  const text = draft.value.trim()
+  if (!text || !activeConversationId.value || sending.value) return
+
+  sending.value = true
+  sendError.value = ''
+  try {
+    const message = await post(`/relationships/${activeConversationId.value}/messages/`, { message: text })
+    const thread = messagesByRelationship.value[activeConversationId.value] ?? []
+    thread.push(message)
+    messagesByRelationship.value[activeConversationId.value] = thread
+    lastMessageByRelationship.value[activeConversationId.value] = message
+    draft.value = ''
+    await scrollToBottom()
+  } catch {
+    sendError.value = 'Message failed to send. Please try again.'
+  } finally {
+    sending.value = false
+  }
+}
+
+watch(activeConversationId, () => scrollToBottom())
+
+onMounted(async () => {
+  await loadConversations()
+  pollTimer = setInterval(() => {
+    if (activeConversationId.value) loadMessages(activeConversationId.value, { silent: true })
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style scoped>
@@ -190,13 +290,6 @@ function sendMessage() {
   display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
 }
 .chat-name { font-size: 0.94rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.chat-status { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #3a6b3a; margin: 2px 0 0; }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #3a6b3a; }
-
-.video-btn {
-  width: 36px; height: 36px; border-radius: 50%; border: none; background: #D4A017; color: #1a3a1a;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
 
 .chat-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
 .date-divider { text-align: center; margin-bottom: 20px; }
@@ -213,6 +306,8 @@ function sendMessage() {
 .bubble-me { background: #1a3a1a; color: #fff; border-bottom-right-radius: 4px; }
 .msg-time { font-size: 0.72rem; color: #9aaa9a; margin-top: 5px; }
 
+.chat-error { padding: 6px 22px 0; font-size: 0.78rem; color: #b3261e; background: #fff; margin: 0; }
+
 .chat-input-row {
   display: flex; align-items: center; gap: 10px; padding: 16px 22px;
   background: #fff; border-top: 1px solid #eceeec;
@@ -222,10 +317,12 @@ function sendMessage() {
   font-size: 0.86rem; font-family: inherit; color: #2a2a2a;
 }
 .chat-input:focus { outline: none; border-color: #D4A017; }
+.chat-input:disabled { background: #f4f2e9; }
 .send-btn {
   width: 38px; height: 38px; border-radius: 50%; border: none; background: #1a3a1a; color: #fff;
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
+.send-btn:disabled { opacity: 0.5; cursor: default; }
 
 .chat-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
