@@ -122,7 +122,7 @@ landing (`index.vue`), login, register (client+rnd combined flow), admin-dashboa
 - [x] **Final mock-database sweep (2026-09-07): zero components reference `mock/mockDatabase.js` anymore** (`grep -rl "mockDatabase" frontend/app --include="*.vue"` returns nothing). Phase 6 frontend wiring is done — every dashboard page reads from the real Django backend. `mock/mockDatabase.js` itself can be deleted once confirmed nothing else imports it, but left in place for now (harmless, unreferenced).
 
 ## Phase 7 — Testing & polish
-- [ ] pytest + pytest-django test suite for critical paths (auth, booking, payment webhook, NCP)
+- [x] **Test suite for critical paths (2026-09-07)** — kept the existing `django.test.TestCase` + `manage.py test` convention (billing/tests.py's own style) rather than introducing pytest-django, since the 13 pre-existing tests already use it and there was no reason to run two test frameworks side by side. 60 new tests added across `accounts` (register, login, `/me`, full password-reset flow incl. wrong/expired/reused-code rejection), `scheduling` (relationship lifecycle, booking requires-active-relationship, the new screening-confirm gate, complete→invoice generation is idempotent, reviews), `clinical` (calculation engine — BMI/BMR/TDEE/NRS-2002 against the same hand-checked values documented in Phase 3, screening view, full NCP create/update/finalize lifecycle incl. server-side BMI recompute and cross-relationship scoping), and `communication` (messaging incl. third-party access denial and soft-delete, notifications). 73/73 tests pass (`manage.py test`, ~70s). Caught one real bug while writing fixtures: a test passed `date_of_birth` as a plain string to `ClientProfile.objects.create()` (bypasses serializer validation, so Django stored the raw string) — fixed to use a real `datetime.date`, not an app bug.
 - [ ] Seed data (management command mirroring `DatabaseSeeder.php` — admin user, food exchange categories, system settings)
 - [ ] CORS/env sanity check for deployed URLs
 - [ ] Basic rate limiting on auth endpoints (DRF throttling)
@@ -135,5 +135,5 @@ landing (`index.vue`), login, register (client+rnd combined flow), admin-dashboa
 
 ## Open questions to resolve early (ask your adviser / check the PDF)
 - [ ] Does the capstone require a specific deployment target or grading rubric that assumes Laravel?
-- [ ] Is real-time messaging (WebSocket) actually required, or is polling acceptable for MVP?
+- [x] **Resolved (2026-09-07): real-time messaging IS required**, not polling-acceptable-for-MVP. `Messages.vue`'s current 5s-poll implementation (see Phase 6 entry above) is a placeholder, not the final approach — needs a real WebSocket-based rebuild (Django Channels + a consumer, or similar) as its own dedicated task after Phase 7 testing.
 - [ ] Check `feature/kent-dashboard` branch (skipped for now) for any work not yet in `master` before it's forgotten
