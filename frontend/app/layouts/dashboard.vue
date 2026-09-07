@@ -102,7 +102,7 @@
 import {
   Leaf, LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, CalendarDays, FileText, MessageCircle,
-  Wallet, Star, UserCog, Languages, LogOut, MessageSquare, Bell, User, Menu, Receipt, TrendingUp
+  Wallet, Star, UserCog, LogOut, MessageSquare, Bell, User, Menu, Receipt, TrendingUp
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -141,6 +141,12 @@ const userInitials = computed(() =>
     .toUpperCase()
 )
 
+// Main nav = daily working tools only. Availability/Earnings/Resources/
+// Reviews are checked periodically, not opened as part of routine
+// clinical work, so they live in Account/Settings instead — see
+// vault/TODO.md for the reasoning behind this split. Food Exchange
+// Search stays in Main since it's referenced live during meal-plan
+// building and patient counseling, not a one-time config screen.
 const rndMainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/rnd-dashboard' },
   { icon: Users, label: 'My Patients', to: '/my-patients' },
@@ -148,17 +154,16 @@ const rndMainNav = [
   { icon: LineChart, label: 'NCP Records', to: '/ncp-records' },
   { icon: Target, label: 'Meal Plans', to: '/meal-planning' },
   { icon: SearchIcon, label: 'Food Exchange Search', to: '/food-exchange-search' },
-  { icon: CalendarDays, label: 'Availability', to: '/availability' },
-  { icon: FileText, label: 'Resources', to: '/resource-upload' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
-  { icon: Wallet, label: 'Earnings', to: '/earnings' },
-  { icon: Star, label: 'Reviews', to: '/reviews' }
 ]
 
 const rndAccountNav = [
   { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' },
-  { icon: Languages, label: 'Languages', to: '/languages' },
-  { icon: Bell, label: 'Notifications', to: '/notifications' }
+  { icon: CalendarDays, label: 'Availability', to: '/availability' },
+  { icon: Wallet, label: 'Earnings', to: '/earnings' },
+  { icon: FileText, label: 'Resources', to: '/resource-upload' },
+  { icon: Star, label: 'Reviews', to: '/reviews' },
+  { icon: Bell, label: 'Notifications', to: '/notifications' },
 ]
 
 // Client-facing pages are still being built out (Phase 6) — only pages already
