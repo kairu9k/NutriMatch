@@ -16,6 +16,7 @@ from .models import Appointment, ConsultationSession, Review, RndClientRelations
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentSerializer,
+    ClientReviewListSerializer,
     ReviewSerializer,
     RndClientRelationshipSerializer,
     RndPatientListSerializer,
@@ -334,9 +335,22 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
     to_status = Appointment.Status.CANCELLED
 
 
-class ReviewCreateView(generics.CreateAPIView):
-    serializer_class = ReviewSerializer
+class ClientReviewListCreateView(generics.ListCreateAPIView):
+    """Reviews the logged-in client has left (GET, newest first) and
+    creating a new one (POST) — same path as before (client/reviews/),
+    now also listable. Previously the client-facing Reviews page wrongly
+    rendered the RND's "Patient Reviews" component, 403ing against the
+    RND-only /rnd/reviews/ endpoint since no client-facing list existed."""
+
     permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return Review.objects.filter(
+            client=self.request.user
+        ).select_related("rnd").order_by("-created_at")
+
+    def get_serializer_class(self):
+        return ReviewSerializer if self.request.method == "POST" else ClientReviewListSerializer
 
 
 class RndReviewListView(generics.ListAPIView):

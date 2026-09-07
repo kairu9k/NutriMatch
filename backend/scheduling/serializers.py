@@ -139,3 +139,16 @@ class ReviewSerializer(serializers.ModelSerializer):
             rnd_id=appointment.relationship.rnd_id,
             **validated_data,
         )
+
+
+class ClientReviewListSerializer(serializers.ModelSerializer):
+    """Reviews the logged-in client has left — mirrors ReviewSerializer's
+    shape but nests rnd instead of client, since a client's own view has
+    no use for re-displaying their own identity."""
+
+    rnd = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Review
+        fields = ["id", "appointment", "rnd", "rating", "comment", "created_at"]
+        read_only_fields = fields

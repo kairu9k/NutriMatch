@@ -257,3 +257,31 @@ class ReviewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
         self.assertEqual(resp.data[0]["rating"], 4)
+
+    def test_client_sees_own_submitted_reviews(self):
+        from .models import Review
+
+        Review.objects.create(appointment=self.appt, client=self.client_user, rnd=self.rnd, rating=5, comment="Great!")
+        self.client_api.force_authenticate(self.client_user)
+        resp = self.client_api.get("/api/client/reviews/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["rating"], 5)
+        self.assertEqual(resp.data[0]["rnd"]["id"], self.rnd.id)
+
+    def test_client_cannot_see_other_clients_reviews(self):
+        from .models import Review
+
+        Review.objects.create(appointment=self.appt, client=self.client_user, rnd=self.rnd, rating=5)
+        other_client = _make_client(email="other-client@t.ph")
+        self.client_api.force_authenticate(other_client)
+        resp = self.client_api.get("/api/client/reviews/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 0)
+
+    def test_rnd_cannot_access_client_review_list(self):
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.get("/api/client/reviews/")
+        self.assertEqual(resp.status_code, 403)

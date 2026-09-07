@@ -5,8 +5,8 @@ from .views import (
     ClientAppointmentCancelView,
     ClientAppointmentDetailView,
     ClientAppointmentListCreateView,
+    ClientReviewListCreateView,
     RequestRelationshipView,
-    ReviewCreateView,
     RndActiveRelationshipsView,
     RndAppointmentCancelView,
     RndAppointmentCompleteView,
@@ -39,6 +39,6 @@ urlpatterns = [
     path("rnd/appointments/<int:pk>/complete/", RndAppointmentCompleteView.as_view(), name="rnd_appointment_complete"),
     path("rnd/appointments/<int:pk>/cancel/", RndAppointmentCancelView.as_view(), name="rnd_appointment_cancel"),
 
-    path("client/reviews/", ReviewCreateView.as_view(), name="review_create"),
+    path("client/reviews/", ClientReviewListCreateView.as_view(), name="client_reviews"),
     path("rnd/reviews/", RndReviewListView.as_view(), name="rnd_reviews"),
 ]
