@@ -21,47 +21,54 @@
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
       </div>
 
-      <!-- PROFILE CARD -->
-      <div class="profile-card">
-        <div class="profile-avatar">{{ userInitials }}</div>
-        <p class="profile-name">{{ displayName }}</p>
-        <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
-        <p v-if="isRnd" class="profile-prc">● PRC #{{ rndProfile.prc }} · {{ auth.rndProfile?.is_verified ? 'Verified' : 'Pending Verification' }}</p>
-        <p v-else class="profile-specialty">{{ roleLabel }}</p>
-      </div>
+      <!-- PROFILE CARD + NAV — gated on auth.hydrated: auth.user only exists
+           client-side (JWT lives in localStorage, unreadable during SSR), so
+           rendering this before hydration completes sends the server a guess
+           that's wrong for every RND/admin. Vue's hydration-mismatch repair
+           then patches some nodes (labels) but not others (icons, hrefs),
+           producing a genuinely broken mixed render rather than a clean one. -->
+      <template v-if="auth.hydrated">
+        <div class="profile-card">
+          <div class="profile-avatar">{{ userInitials }}</div>
+          <p class="profile-name">{{ displayName }}</p>
+          <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
+          <p v-if="isRnd" class="profile-prc">● PRC #{{ rndProfile.prc }} · {{ auth.rndProfile?.is_verified ? 'Verified' : 'Pending Verification' }}</p>
+          <p v-else class="profile-specialty">{{ roleLabel }}</p>
+        </div>
 
-      <nav class="sidebar-nav">
-        <NuxtLink
-          v-for="item in mainNav"
-          :key="item.label"
-          :to="item.to"
-          class="nav-item"
-          :class="{ active: route.path === item.to }"
-          @click="isSidebarOpen = false"
-        >
-          <component :is="item.icon" class="nav-icon" :size="17" />
-          <span class="nav-label">{{ item.label }}</span>
-          <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
-        </NuxtLink>
+        <nav class="sidebar-nav">
+          <NuxtLink
+            v-for="item in mainNav"
+            :key="item.label"
+            :to="item.to"
+            class="nav-item"
+            :class="{ active: route.path === item.to }"
+            @click="isSidebarOpen = false"
+          >
+            <component :is="item.icon" class="nav-icon" :size="17" />
+            <span class="nav-label">{{ item.label }}</span>
+            <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
+          </NuxtLink>
 
-        <p v-if="accountNav.length" class="nav-group-label">ACCOUNT</p>
-        <NuxtLink
-          v-for="item in accountNav"
-          :key="item.label"
-          :to="item.to"
-          class="nav-item"
-          :class="{ active: route.path === item.to }"
-          @click="isSidebarOpen = false"
-        >
-          <component :is="item.icon" class="nav-icon" :size="17" />
-          <span class="nav-label">{{ item.label }}</span>
-        </NuxtLink>
+          <p v-if="accountNav.length" class="nav-group-label">ACCOUNT</p>
+          <NuxtLink
+            v-for="item in accountNav"
+            :key="item.label"
+            :to="item.to"
+            class="nav-item"
+            :class="{ active: route.path === item.to }"
+            @click="isSidebarOpen = false"
+          >
+            <component :is="item.icon" class="nav-icon" :size="17" />
+            <span class="nav-label">{{ item.label }}</span>
+          </NuxtLink>
 
-        <button class="nav-item logout-item" @click="handleLogout">
-          <LogOut class="nav-icon" :size="17" />
-          <span class="nav-label">Log Out</span>
-        </button>
-      </nav>
+          <button class="nav-item logout-item" @click="handleLogout">
+            <LogOut class="nav-icon" :size="17" />
+            <span class="nav-label">Log Out</span>
+          </button>
+        </nav>
+      </template>
     </aside>
 
     <!-- MAIN COLUMN -->
