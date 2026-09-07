@@ -27,6 +27,12 @@
           <component :is="tab.icon" :size="17" />
           {{ tab.label }}
         </button>
+
+        <div class="tab-divider"></div>
+        <button class="tab-item logout-item" @click="handleLogout">
+          <LogOut :size="17" />
+          Log Out
+        </button>
       </div>
 
       <!-- PANEL -->
@@ -115,7 +121,7 @@
 
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
-import { User, Briefcase, Languages, Wallet, ShieldCheck, BadgeCheck, HeartPulse, CalendarDays, FileText, Star } from 'lucide-vue-next'
+import { User, Briefcase, Languages, Wallet, ShieldCheck, BadgeCheck, HeartPulse, CalendarDays, FileText, Star, LogOut } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
@@ -202,6 +208,11 @@ async function saveClientProfile() {
   }
 }
 
+function handleLogout() {
+  auth.logout()
+  navigateTo('/login')
+}
+
 onMounted(loadProfile)
 </script>
 
@@ -242,6 +253,10 @@ onMounted(loadProfile)
   font-size: 0.88rem; font-weight: 600; color: #4a5a4a; cursor: pointer;
 }
 .tab-item.active { background: #eef3ec; color: #1a3a1a; }
+
+.tab-divider { height: 1px; background: #eceeec; margin: 8px 4px; }
+.tab-item.logout-item { color: #c0483a; }
+.tab-item.logout-item:hover { background: #fdecec; }
 
 .panel-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 28px;

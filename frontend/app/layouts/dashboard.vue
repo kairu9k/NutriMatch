@@ -21,21 +21,17 @@
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
       </div>
 
-      <!-- PROFILE CARD + NAV — gated on auth.hydrated: auth.user only exists
+      <!-- NAV + ACCOUNT FOOTER — gated on auth.hydrated: auth.user only exists
            client-side (JWT lives in localStorage, unreadable during SSR), so
            rendering this before hydration completes sends the server a guess
            that's wrong for every RND/admin. Vue's hydration-mismatch repair
            then patches some nodes (labels) but not others (icons, hrefs),
-           producing a genuinely broken mixed render rather than a clean one. -->
+           producing a genuinely broken mixed render rather than a clean one.
+           Structured as a flex column so the account footer (profile +
+           settings) stays pinned to the bottom of the viewport, independent
+           of the main nav's own scroll region — same pattern as Claude's
+           own sidebar. -->
       <template v-if="auth.hydrated">
-        <div class="profile-card">
-          <div class="profile-avatar">{{ userInitials }}</div>
-          <p class="profile-name">{{ displayName }}</p>
-          <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
-          <p v-if="isRnd" class="profile-prc">● PRC #{{ rndProfile.prc }} · {{ auth.rndProfile?.is_verified ? 'Verified' : 'Pending Verification' }}</p>
-          <p v-else class="profile-specialty">{{ roleLabel }}</p>
-        </div>
-
         <nav class="sidebar-nav">
           <NuxtLink
             v-for="item in mainNav"
@@ -49,25 +45,17 @@
             <span class="nav-label">{{ item.label }}</span>
             <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
           </NuxtLink>
-
-          <p v-if="accountNav.length" class="nav-group-label">ACCOUNT</p>
-          <NuxtLink
-            v-for="item in accountNav"
-            :key="item.label"
-            :to="item.to"
-            class="nav-item"
-            :class="{ active: route.path === item.to }"
-            @click="isSidebarOpen = false"
-          >
-            <component :is="item.icon" class="nav-icon" :size="17" />
-            <span class="nav-label">{{ item.label }}</span>
-          </NuxtLink>
-
-          <button class="nav-item logout-item" @click="handleLogout">
-            <LogOut class="nav-icon" :size="17" />
-            <span class="nav-label">Log Out</span>
-          </button>
         </nav>
+
+        <NuxtLink to="/profile-settings" class="account-footer" @click="isSidebarOpen = false">
+          <div class="profile-avatar">{{ userInitials }}</div>
+          <div class="account-footer-text">
+            <p class="profile-name">{{ displayName }}</p>
+            <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
+            <p v-else class="profile-specialty">{{ roleLabel }}</p>
+          </div>
+          <UserCog class="account-footer-icon" :size="16" />
+        </NuxtLink>
       </template>
     </aside>
 
@@ -97,7 +85,7 @@
 import {
   Leaf, LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, FileText, MessageCircle,
-  Star, UserCog, LogOut, Bell, Menu, Receipt, TrendingUp
+  Star, UserCog, Menu, Receipt, TrendingUp
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -155,9 +143,8 @@ const rndMainNav = [
 // Profile Settings rather than separate nav destinations — see
 // ProfileSettings.vue's rndTabs. Notifications moved to the topbar bell
 // (real unread badge, not a nav link) instead of a dedicated page.
-const rndAccountNav = [
-  { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' },
-]
+// Profile Settings itself is reached via the pinned account-footer link
+// at the bottom of the sidebar, not a nav array entry — see template.
 
 // Client-facing pages are still being built out (Phase 6) — only pages already
 // verified to work for a client role are linked here, see vault/TODO.md.
@@ -173,18 +160,7 @@ const clientMainNav = [
   { icon: Star, label: 'Reviews', to: '/reviews' }
 ]
 
-const clientAccountNav = [
-  { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' },
-  { icon: Bell, label: 'Notifications', to: '/notifications' }
-]
-
 const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
-const accountNav = computed(() => (isRnd.value ? rndAccountNav : clientAccountNav))
-
-function handleLogout() {
-  auth.logout()
-  navigateTo('/login')
-}
 </script>
 
 <style scoped>
@@ -199,34 +175,44 @@ function handleLogout() {
   background: #f7f8f6;
 }
 
-/* SIDEBAR */
+/* SIDEBAR — flex column so the account footer stays pinned to the
+   bottom of the viewport, independent of the nav's own scroll region. */
 .sidebar {
   width: 240px; flex-shrink: 0; background: #14301a; color: #fff;
-  padding: 24px 20px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+  padding: 24px 20px; height: 100vh; position: sticky; top: 0;
+  display: flex; flex-direction: column; overflow: hidden;
 }
-.sidebar-brand { display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; }
+.sidebar-brand { display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; flex-shrink: 0; }
 .logo-icon { color: #D4A017; flex-shrink: 0; }
 .logo-match { color: #D4A017; }
 
-/* PROFILE CARD */
-.profile-card {
+.sidebar-nav { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* ACCOUNT FOOTER — pinned to the bottom via flex, links straight to
+   Profile Settings (Log Out now lives on that page, not here). */
+.account-footer {
+  display: flex; align-items: center; gap: 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(212,160,23,0.25);
   border-radius: 12px;
-  padding: 18px 16px;
-  margin-bottom: 20px;
-  text-align: left;
+  padding: 12px 14px;
+  margin-top: 12px;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: background 0.15s;
 }
+.account-footer:hover { background: rgba(255,255,255,0.08); }
+.account-footer-text { flex: 1; min-width: 0; }
+.account-footer-icon { color: #9ab89a; flex-shrink: 0; }
 .profile-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   background: #D4A017; color: #1a3a1a;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 0.95rem;
-  margin-bottom: 10px;
+  font-weight: 700; font-size: 0.85rem;
+  flex-shrink: 0;
 }
-.profile-name { font-size: 0.92rem; font-weight: 700; color: #fff; margin: 0 0 2px; }
-.profile-specialty { font-size: 0.75rem; color: #9ab89a; margin: 0 0 6px; }
-.profile-prc { font-size: 0.68rem; color: #D4A017; font-weight: 600; margin: 0; }
+.profile-name { font-size: 0.86rem; font-weight: 700; color: #fff; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-specialty { font-size: 0.72rem; color: #9ab89a; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .nav-group-label { font-size: 0.65rem; letter-spacing: 0.1em; color: #5a7a5a; margin: 20px 0 8px; padding-left: 10px; }
 .nav-item {
@@ -241,7 +227,6 @@ function handleLogout() {
 .nav-icon { flex-shrink: 0; }
 .nav-label { flex: 1; }
 .nav-badge { background: #D4A017; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
-.logout-item { margin-top: 4px; }
 
 /* MAIN COLUMN */
 .main-column { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
