@@ -40,7 +40,7 @@ Reference: `database.txt` (authoritative DBML schema, 21 tables/6 groups)
 - [x] `POST /api/auth/register/rnd/` — creates `User` + `RndProfile` (unverified by default — matches proposal's manual PRC verification requirement)
 - [x] Role-based DRF permission classes: `IsAdmin`, `IsRnd`, `IsClient` in `accounts/permissions.py` — ready to use on Phase 3 endpoints, not yet applied anywhere
 - [x] Verified end-to-end via curl: register client, register RND, duplicate-email rejection, login (correct tokens + claims), `/me` with and without token (401 when missing), wrong-password rejection, related profile rows actually created with correct data. Test users cleaned from dev DB afterward.
-- [ ] Still TODO: wire `frontend/app/components/LoginFlow.vue` and `RegisterFlow.vue`'s `console.log`/`navigateTo` stubs to actually call these endpoints (part of Phase 6's "wire to real data" step) — not done yet, backend is ready and waiting
+- [x] `LoginFlow.vue`/`RegisterFlow.vue` wired to these endpoints as part of Phase 6 — stale note, left unchecked by mistake at the time
 
 ## Phase 3 — Core API endpoints ✅ DONE (2026-09-04)
 All endpoints built, mounted under `/api/`, verified end-to-end via a full scripted flow (register → verify RND → search → request relationship → RND accepts → book appointment → confirm → screening → NCP create/finalize → messages → food exchange). Test data cleaned from dev DB after each run.
