@@ -73,22 +73,17 @@
 
     <!-- MAIN COLUMN -->
     <div class="main-column">
-      <!-- STICKY TOP HEADER -->
-      <!-- <header class="topbar">
+      <!-- STICKY TOP HEADER — page title left, real notification bell right.
+           Search/messages/avatar buttons dropped: the earlier version had
+           no click handlers or backing state at all, just markup. -->
+      <header class="topbar">
         <div>
           <h1>{{ pageTitle }}</h1>
-          <span class="topbar-date">{{ todayLabel }}</span>
         </div>
         <div class="topbar-actions">
-          <div class="search-box">
-            <Search class="search-icon" :size="15" />
-            <input type="text" placeholder="Search patients, records..." />
-          </div>
-          <button class="icon-btn"><MessageSquare :size="17" /></button>
-          <button class="icon-btn"><Bell :size="17" /></button>
-          <button class="icon-btn avatar-btn"><User :size="17" /></button>
+          <NotificationDropdown v-if="auth.hydrated" />
         </div>
-      </header> -->
+      </header>
 
       <!-- SCROLLABLE CONTENT -->
       <main class="content">
@@ -101,13 +96,12 @@
 <script setup>
 import {
   Leaf, LayoutDashboard, Users, CalendarCheck, LineChart, Target,
-  Search as SearchIcon, CalendarDays, FileText, MessageCircle,
-  Wallet, Star, UserCog, LogOut, MessageSquare, Bell, User, Menu, Receipt, TrendingUp
+  Search as SearchIcon, FileText, MessageCircle,
+  Star, UserCog, LogOut, Bell, Menu, Receipt, TrendingUp
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const auth = useAuthStore()
-const todayLabel = 'Friday, May 15, 2026'
 const isSidebarOpen = ref(false)
 
 // Close the mobile sidebar automatically on route change (e.g. browser back/forward).
@@ -157,13 +151,12 @@ const rndMainNav = [
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
 ]
 
+// Availability/Earnings/Resources/Reviews now live as tabs inside
+// Profile Settings rather than separate nav destinations — see
+// ProfileSettings.vue's rndTabs. Notifications moved to the topbar bell
+// (real unread badge, not a nav link) instead of a dedicated page.
 const rndAccountNav = [
   { icon: UserCog, label: 'Profile Settings', to: '/profile-settings' },
-  { icon: CalendarDays, label: 'Availability', to: '/availability' },
-  { icon: Wallet, label: 'Earnings', to: '/earnings' },
-  { icon: FileText, label: 'Resources', to: '/resource-upload' },
-  { icon: Star, label: 'Reviews', to: '/reviews' },
-  { icon: Bell, label: 'Notifications', to: '/notifications' },
 ]
 
 // Client-facing pages are still being built out (Phase 6) — only pages already

@@ -89,6 +89,22 @@
           <p class="health-hint">Health information is captured during pre-consultation screening and updated by your RND — it can't be edited here.</p>
         </template>
 
+        <template v-else-if="activeTab === 'availability'">
+          <Availability />
+        </template>
+
+        <template v-else-if="activeTab === 'earnings'">
+          <Earnings />
+        </template>
+
+        <template v-else-if="activeTab === 'resources'">
+          <ResourceUpload />
+        </template>
+
+        <template v-else-if="activeTab === 'reviews'">
+          <Reviews />
+        </template>
+
         <template v-else>
           <p class="placeholder-text">{{ activeTabLabel }} settings go here.</p>
         </template>
@@ -99,7 +115,7 @@
 
 <script setup>
 import { computed, reactive, ref, onMounted } from 'vue'
-import { User, Briefcase, Languages, Wallet, ShieldCheck, BadgeCheck, HeartPulse } from 'lucide-vue-next'
+import { User, Briefcase, Languages, Wallet, ShieldCheck, BadgeCheck, HeartPulse, CalendarDays, FileText, Star } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
@@ -113,7 +129,11 @@ const rndTabs = [
   { key: 'professional', label: 'Professional Profile', icon: Briefcase },
   { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'fees', label: 'Fees & Payouts', icon: Wallet },
-  { key: 'security', label: 'Security', icon: ShieldCheck }
+  { key: 'security', label: 'Security', icon: ShieldCheck },
+  { key: 'availability', label: 'Availability', icon: CalendarDays },
+  { key: 'earnings', label: 'Earnings', icon: Wallet },
+  { key: 'resources', label: 'Resources', icon: FileText },
+  { key: 'reviews', label: 'Reviews', icon: Star },
 ]
 
 const clientTabs = [
