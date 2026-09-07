@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
-from scheduling.models import Review
+from scheduling.models import RndClientRelationship, Review
 
 from .models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndLanguage, RndProfile
 
@@ -40,15 +40,28 @@ class RndAvailabilityScheduleSerializer(serializers.ModelSerializer):
 class RndProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     languages = RndLanguageSerializer(source="user.languages", many=True, read_only=True)
+    relationship_status = serializers.SerializerMethodField()
 
     class Meta:
         model = RndProfile
         fields = [
             "id", "user", "prc_license_number", "prc_expiry_date", "specialization",
             "language_codes", "bio", "consultation_fee", "available_for_new_clients",
-            "is_verified", "verified_at", "languages",
+            "is_verified", "verified_at", "languages", "relationship_status",
         ]
         read_only_fields = ["is_verified", "verified_at"]
+
+    def get_relationship_status(self, obj):
+        """The requesting client's relationship with this RND, if any —
+        None for non-client requesters (RND viewing another RND's public
+        profile, admin) so Find an RND's "Request" button reflects real
+        backend state instead of only what happened in the current page
+        visit (it previously never checked this at all)."""
+        request = self.context.get("request")
+        if not request or getattr(request.user, "role", None) != "client":
+            return None
+        rel = RndClientRelationship.objects.filter(rnd=obj.user, client=request.user).first()
+        return rel.status if rel else None
 
 
 class RndProfileUpdateSerializer(serializers.ModelSerializer):

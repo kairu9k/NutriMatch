@@ -60,7 +60,7 @@
             <button
               class="request-btn"
               type="button"
-              :disabled="requestedIds.has(rnd.user.id) || busyId === rnd.user.id"
+              :disabled="isConnected(rnd) || busyId === rnd.user.id"
               @click="requestRelationship(rnd)"
             >
               {{ requestButtonLabel(rnd) }}
@@ -89,7 +89,6 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const actionMessage = ref('')
 const busyId = ref(null)
-const requestedIds = ref(new Set())
 
 const rnds = ref([])
 
@@ -103,9 +102,18 @@ function initialsFor(user) {
   return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase()
 }
 
+// discharged relationships don't block re-requesting — only pending/active
+// count as "already connected". relationship_status comes straight from
+// the backend (see profiles.RndProfileSerializer.get_relationship_status),
+// not from what happened in this page visit, so it survives a refresh.
+function isConnected(rnd) {
+  return rnd.relationship_status === 'pending' || rnd.relationship_status === 'active'
+}
+
 function requestButtonLabel(rnd) {
   if (busyId.value === rnd.user.id) return 'Sending…'
-  if (requestedIds.value.has(rnd.user.id)) return 'Requested'
+  if (rnd.relationship_status === 'active') return 'Connected'
+  if (rnd.relationship_status === 'pending') return 'Requested'
   return 'Request'
 }
 
@@ -131,7 +139,7 @@ async function requestRelationship(rnd) {
   actionMessage.value = ''
   try {
     await post(`/client/rnds/${rnd.user.id}/request/`)
-    requestedIds.value.add(rnd.user.id)
+    rnd.relationship_status = 'pending'
     actionMessage.value = `Request sent to RND ${rnd.user.first_name} ${rnd.user.last_name}.`
   } catch (error) {
     errorMessage.value = error?.data?.detail || 'Could not send request. Please try again.'
