@@ -36,6 +36,16 @@ class RndAvailabilityScheduleSerializer(serializers.ModelSerializer):
             "is_available", "effective_from", "effective_to",
         ]
 
+    def validate(self, attrs):
+        # Only enforced when both are present in this request — on a PATCH
+        # that only touches one field, fall back to the existing instance's
+        # other value so a partial update can't accidentally bypass this.
+        start = attrs.get("start_time", getattr(self.instance, "start_time", None))
+        end = attrs.get("end_time", getattr(self.instance, "end_time", None))
+        if start is not None and end is not None and end <= start:
+            raise serializers.ValidationError("End time must be after start time.")
+        return attrs
+
 
 class RndProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
