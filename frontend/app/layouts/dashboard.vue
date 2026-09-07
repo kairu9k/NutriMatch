@@ -47,15 +47,18 @@
           </NuxtLink>
         </nav>
 
-        <NuxtLink to="/profile-settings" class="account-footer" @click="isSidebarOpen = false">
-          <div class="profile-avatar">{{ userInitials }}</div>
-          <div class="account-footer-text">
-            <p class="profile-name">{{ displayName }}</p>
-            <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
-            <p v-else class="profile-specialty">{{ roleLabel }}</p>
-          </div>
-          <UserCog class="account-footer-icon" :size="16" />
-        </NuxtLink>
+        <div class="account-section">
+          <p class="nav-group-label">ACCOUNT</p>
+          <NuxtLink to="/profile-settings" class="account-footer" @click="isSidebarOpen = false">
+            <div class="profile-avatar">{{ userInitials }}</div>
+            <div class="account-footer-text">
+              <p class="profile-name">{{ displayName }}</p>
+              <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
+              <p v-else class="profile-specialty">{{ roleLabel }}</p>
+            </div>
+            <UserCog class="account-footer-icon" :size="16" />
+          </NuxtLink>
+        </div>
       </template>
     </aside>
 
@@ -186,18 +189,23 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
 .logo-icon { color: #D4A017; flex-shrink: 0; }
 .logo-match { color: #D4A017; }
 
-.sidebar-nav { flex: 1; overflow-y: auto; min-height: 0; }
+/* Nav sizes to its own content and scrolls only if it overflows — it
+   must NOT flex-grow to fill the sidebar (margin-top: auto on the
+   account section below would have the same effect: fine for a long
+   nav list, but stretches into a large empty gap when the list is
+   short, like this 7-item one). */
+.sidebar-nav { flex: 0 1 auto; overflow-y: auto; min-height: 0; }
 
-/* ACCOUNT FOOTER — pinned to the bottom via flex, links straight to
-   Profile Settings (Log Out now lives on that page, not here). */
+/* ACCOUNT SECTION — sits a fixed distance below the nav rather than
+   being pushed to the absolute bottom of the viewport, so the gap
+   stays a constant, modest size regardless of screen height. */
+.account-section { margin-top: 28px; flex-shrink: 0; }
 .account-footer {
   display: flex; align-items: center; gap: 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(212,160,23,0.25);
   border-radius: 12px;
   padding: 12px 14px;
-  margin-top: 12px;
-  flex-shrink: 0;
   text-decoration: none;
   transition: background 0.15s;
 }
