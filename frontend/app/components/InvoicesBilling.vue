@@ -30,7 +30,7 @@
           <tbody>
             <tr v-for="inv in invoices" :key="inv.id">
               <td class="invoice-id">INV-{{ String(inv.id).padStart(4, '0') }}</td>
-              <td>RND {{ inv.appointment.relationship.rnd.first_name }} {{ inv.appointment.relationship.rnd.last_name }}</td>
+              <td>{{ inv.appointment ? `RND ${inv.appointment.relationship.rnd.first_name} ${inv.appointment.relationship.rnd.last_name}` : '—' }}</td>
               <td>{{ formatDate(inv.created_at) }}</td>
               <td class="amount">₱{{ Number(inv.amount).toFixed(2) }}</td>
               <td><span class="status-pill" :class="statusClass(inv.status)">{{ statusLabel(inv.status) }}</span></td>
@@ -104,13 +104,40 @@ async function loadInvoices() {
 async function payInvoice(invoice) {
   payingId.value = invoice.id
   errorMessage.value = ''
+
+  // Popups must be opened synchronously within the click handler or browsers
+  // block them — open a blank window first, then redirect it once the
+  // payment link comes back from the API.
+  const width = 480
+  const height = 720
+  const left = window.screenX + (window.outerWidth - width) / 2
+  const top = window.screenY + (window.outerHeight - height) / 2
+  const popup = window.open(
+    '',
+    'paymongo-checkout',
+    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+  )
+
   try {
     const result = await post(`/client/invoices/${invoice.id}/pay/`)
     if (result.payment_url) {
-      window.location.href = result.payment_url
+      if (popup) {
+        popup.location.href = result.payment_url
+        const poll = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(poll)
+            loadInvoices()
+          }
+        }, 500)
+      } else {
+        window.location.href = result.payment_url
+      }
+    } else if (popup) {
+      popup.close()
     }
   } catch (error) {
     errorMessage.value = error?.data?.detail || 'Could not start payment. Please try again.'
+    if (popup) popup.close()
   } finally {
     payingId.value = null
   }
