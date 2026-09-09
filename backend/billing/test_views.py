@@ -46,7 +46,9 @@ class BillingAndVideoViewTests(TestCase):
         mock_client = MagicMock()
         mock_client.__enter__.return_value = mock_client
         mock_client.post.return_value = self._mock_resp({
-            "data": {"id": "link_abc", "attributes": {"checkout_url": "https://pm.link/xyz"}}
+            "data": {"id": "link_abc", "attributes": {
+                "checkout_url": "https://pm.link/xyz", "reference_number": "ref_abc"
+            }}
         })
         mock_client_cls.return_value = mock_client
 
@@ -56,18 +58,22 @@ class BillingAndVideoViewTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(resp.data["payment_url"], "https://pm.link/xyz")
         self.invoice.refresh_from_db()
-        self.assertEqual(self.invoice.gateway_reference_id, "link_abc")
+        self.assertEqual(self.invoice.gateway_reference_id, "ref_abc")
 
     def test_webhook_marks_invoice_paid(self):
-        self.invoice.gateway_reference_id = "pi_999"
+        self.invoice.gateway_reference_id = "ref_999"
         self.invoice.save(update_fields=["gateway_reference_id"])
 
         payload = json.dumps({
-            "data": {"attributes": {"type": "payment.paid", "data": {"id": "pi_999"}}}
+            "data": {"attributes": {"type": "payment.paid", "data": {
+                "id": "pay_999", "attributes": {"external_reference_number": "ref_999"}
+            }}}
         }).encode()
         # Real Paymongo-Signature shape: 't=<ts>,te=<test-sig>,li=<live-sig>',
         # signing '{timestamp}.{raw_body}' — not a bare hex digest of the
-        # payload alone.
+        # payload alone. gateway_reference_id matches on
+        # external_reference_number (the payment link's reference_number),
+        # not the payment's own id — see billing/services.py.
         timestamp = "1700000000"
         signed_payload = f"{timestamp}.{payload.decode()}".encode()
         te = hmac.new(b"whsec_fake", signed_payload, hashlib.sha256).hexdigest()

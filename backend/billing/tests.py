@@ -54,14 +54,16 @@ class PayMongoServiceTests(TestCase):
         mock_client = MagicMock()
         mock_client.__enter__.return_value = mock_client
         mock_client.post.return_value = _mock_response({
-            "data": {"id": "link_123", "attributes": {"checkout_url": "https://pm.link/abc"}}
+            "data": {"id": "link_123", "attributes": {
+                "checkout_url": "https://pm.link/abc", "reference_number": "ref_xyz"
+            }}
         })
         mock_client_cls.return_value = mock_client
 
         result = PayMongoService().create_payment_link(self.invoice)
 
         self.assertEqual(result["payment_url"], "https://pm.link/abc")
-        self.assertEqual(result["gateway_reference_id"], "link_123")
+        self.assertEqual(result["gateway_reference_id"], "ref_xyz")
         # amount converted to centavos correctly
         sent_kwargs = mock_client.post.call_args.kwargs
         self.assertEqual(sent_kwargs["json"]["data"]["attributes"]["amount"], 80000)
@@ -78,7 +80,9 @@ class PayMongoServiceTests(TestCase):
 
     def test_webhook_valid_signature(self):
         payload = json.dumps({
-            "data": {"attributes": {"type": "payment.paid", "data": {"id": "pi_123"}}}
+            "data": {"attributes": {"type": "payment.paid", "data": {
+                "id": "pay_123", "attributes": {"external_reference_number": "ref_abc"}
+            }}}
         }).encode()
         # Real Paymongo-Signature shape: 't=<ts>,te=<test-sig>,li=<live-sig>',
         # signing '{timestamp}.{raw_body}' — not a bare hex digest of the
@@ -92,7 +96,10 @@ class PayMongoServiceTests(TestCase):
         event = PayMongoService().handle_webhook(payload, header)
 
         self.assertEqual(event["status"], "success")
-        self.assertEqual(event["gateway_reference_id"], "pi_123")
+        # gateway_reference_id is external_reference_number (the payment
+        # link's reference_number), not data.id (pay_... is a different id
+        # namespace than what create_payment_link() stores on the invoice).
+        self.assertEqual(event["gateway_reference_id"], "ref_abc")
 
     def test_webhook_invalid_signature_rejected(self):
         payload = json.dumps({"data": {"attributes": {"type": "payment.paid"}}}).encode()
@@ -102,7 +109,9 @@ class PayMongoServiceTests(TestCase):
     @override_settings(PAYMONGO={**TEST_PAYMONGO, "SECRET_KEY": "sk_live_fake"})
     def test_webhook_live_mode_verifies_against_li(self):
         payload = json.dumps({
-            "data": {"attributes": {"type": "payment.paid", "data": {"id": "pi_live_1"}}}
+            "data": {"attributes": {"type": "payment.paid", "data": {
+                "id": "pay_live_1", "attributes": {"external_reference_number": "ref_live_1"}
+            }}}
         }).encode()
         timestamp = "1700000000"
         signed_payload = f"{timestamp}.{payload.decode()}".encode()

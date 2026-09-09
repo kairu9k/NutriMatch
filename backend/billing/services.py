@@ -40,6 +40,12 @@ class PayMongoService:
     def create_payment_link(self, invoice) -> dict:
         """Create a PayMongo payment link for an invoice.
         Returns {'payment_url': ..., 'gateway_reference_id': ...}.
+
+        gateway_reference_id is the link's reference_number, not its `id`
+        (link_...) — the payment.paid webhook payload never echoes the link
+        id back, only external_reference_number/metadata.pm_reference_number,
+        which equals reference_number. Matching on the link id would never
+        find the invoice.
         """
         amount_centavos = int(round(invoice.amount * 100))
 
@@ -64,7 +70,7 @@ class PayMongoService:
         data = response.json()["data"]
         return {
             "payment_url": data["attributes"]["checkout_url"],
-            "gateway_reference_id": data["id"],
+            "gateway_reference_id": data["attributes"]["reference_number"],
         }
 
     def handle_webhook(self, payload: bytes, signature: str) -> dict:
@@ -78,10 +84,15 @@ class PayMongoService:
 
         event = json.loads(payload)
         event_type = event.get("data", {}).get("attributes", {}).get("type", "")
+        payment_data = event.get("data", {}).get("attributes", {}).get("data", {})
+        payment_attrs = payment_data.get("attributes", {})
 
         return {
             "event_type": event_type,
-            "gateway_reference_id": event.get("data", {}).get("attributes", {}).get("data", {}).get("id"),
+            # external_reference_number is the payment link's reference_number
+            # echoed back — payment_data["id"] (pay_...) is a different id
+            # namespace than what create_payment_link() stores on the invoice.
+            "gateway_reference_id": payment_attrs.get("external_reference_number"),
             "status": self._map_event_to_status(event_type),
             "raw": event,
         }
