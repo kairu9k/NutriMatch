@@ -80,9 +80,16 @@ class PayMongoServiceTests(TestCase):
         payload = json.dumps({
             "data": {"attributes": {"type": "payment.paid", "data": {"id": "pi_123"}}}
         }).encode()
-        sig = hmac.new(b"whsec_fake", payload, hashlib.sha256).hexdigest()
+        # Real Paymongo-Signature shape: 't=<ts>,te=<test-sig>,li=<live-sig>',
+        # signing '{timestamp}.{raw_body}' — not a bare hex digest of the
+        # payload alone. TEST_PAYMONGO's SECRET_KEY is sk_test_..., so this
+        # verifies against 'te'.
+        timestamp = "1700000000"
+        signed_payload = f"{timestamp}.{payload.decode()}".encode()
+        te = hmac.new(b"whsec_fake", signed_payload, hashlib.sha256).hexdigest()
+        header = f"t={timestamp},te={te},li=irrelevant-for-test-mode"
 
-        event = PayMongoService().handle_webhook(payload, sig)
+        event = PayMongoService().handle_webhook(payload, header)
 
         self.assertEqual(event["status"], "success")
         self.assertEqual(event["gateway_reference_id"], "pi_123")
@@ -90,7 +97,21 @@ class PayMongoServiceTests(TestCase):
     def test_webhook_invalid_signature_rejected(self):
         payload = json.dumps({"data": {"attributes": {"type": "payment.paid"}}}).encode()
         with self.assertRaises(InvalidWebhookSignatureError):
-            PayMongoService().handle_webhook(payload, "wrong-signature")
+            PayMongoService().handle_webhook(payload, "t=1700000000,te=wrong-signature")
+
+    @override_settings(PAYMONGO={**TEST_PAYMONGO, "SECRET_KEY": "sk_live_fake"})
+    def test_webhook_live_mode_verifies_against_li(self):
+        payload = json.dumps({
+            "data": {"attributes": {"type": "payment.paid", "data": {"id": "pi_live_1"}}}
+        }).encode()
+        timestamp = "1700000000"
+        signed_payload = f"{timestamp}.{payload.decode()}".encode()
+        li = hmac.new(b"whsec_fake", signed_payload, hashlib.sha256).hexdigest()
+        # te is deliberately wrong — a live key must verify against li, not te
+        header = f"t={timestamp},te=wrong,li={li}"
+
+        event = PayMongoService().handle_webhook(payload, header)
+        self.assertEqual(event["status"], "success")
 
     @patch("billing.services.httpx.Client")
     def test_get_payment_status_maps_succeeded(self, mock_client_cls):

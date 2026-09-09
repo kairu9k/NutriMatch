@@ -65,11 +65,17 @@ class BillingAndVideoViewTests(TestCase):
         payload = json.dumps({
             "data": {"attributes": {"type": "payment.paid", "data": {"id": "pi_999"}}}
         }).encode()
-        sig = hmac.new(b"whsec_fake", payload, hashlib.sha256).hexdigest()
+        # Real Paymongo-Signature shape: 't=<ts>,te=<test-sig>,li=<live-sig>',
+        # signing '{timestamp}.{raw_body}' — not a bare hex digest of the
+        # payload alone.
+        timestamp = "1700000000"
+        signed_payload = f"{timestamp}.{payload.decode()}".encode()
+        te = hmac.new(b"whsec_fake", signed_payload, hashlib.sha256).hexdigest()
+        header = f"t={timestamp},te={te},li=irrelevant-for-test-mode"
 
         resp = self.client_api.post(
             "/api/webhooks/paymongo/", data=payload, content_type="application/json",
-            HTTP_PAYMONGO_SIGNATURE=sig,
+            HTTP_PAYMONGO_SIGNATURE=header,
         )
 
         self.assertEqual(resp.status_code, 200)

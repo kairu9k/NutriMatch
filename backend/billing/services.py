@@ -97,10 +97,24 @@ class PayMongoService:
         return self._map_paymongo_status(status)
 
     def _validate_signature(self, payload: bytes, signature: str) -> bool:
+        """PayMongo's Paymongo-Signature header is a comma-separated string
+        like 't=1234567890,te=<test-sig>,li=<live-sig>' — not a bare hex
+        digest — and the signed value is '{timestamp}.{raw_body}', not the
+        raw body alone. Test-mode keys (sk_test_...) are verified against
+        `te`; live keys against `li`. See PayMongo's webhook docs."""
         if not self.webhook_secret:
             raise PaymentGatewayError("PAYMONGO_WEBHOOK_SECRET is not configured.")
-        computed = hmac.new(self.webhook_secret.encode(), payload, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(computed, signature)
+
+        parts = dict(p.split("=", 1) for p in signature.split(",") if "=" in p)
+        timestamp = parts.get("t")
+        is_live = self.secret_key.startswith("sk_live_")
+        provided = parts.get("li") if is_live else parts.get("te")
+        if not timestamp or not provided:
+            return False
+
+        signed_payload = f"{timestamp}.{payload.decode()}".encode()
+        computed = hmac.new(self.webhook_secret.encode(), signed_payload, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(computed, provided)
 
     @staticmethod
     def _map_event_to_status(event_type: str) -> str:
