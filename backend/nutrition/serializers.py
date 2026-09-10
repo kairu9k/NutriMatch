@@ -70,6 +70,7 @@ class MealPlanSerializer(serializers.ModelSerializer):
         model = MealPlan
         fields = [
             "id", "relationship", "name", "condition", "target_kcal",
+            "target_protein_g", "target_carb_g", "target_fat_g",
             "total_vegetable", "total_fruit", "total_milk", "total_rice",
             "total_meat", "total_fat", "total_sugar", "notes", "status",
             "meals", "created_at", "updated_at",

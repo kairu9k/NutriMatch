@@ -42,7 +42,7 @@
             </div>
           </div>
           <p class="ncp-reference-note">
-            Target calories below is pre-filled from this record — pick the matching Condition yourself, since NCP doesn't record it as a fixed category.
+            Target calories and macros below are pre-filled from this record — pick the matching Condition yourself, since NCP doesn't record it as a fixed category.
           </p>
         </div>
 
@@ -68,6 +68,18 @@
               <label>Target Calories/day</label>
               <input v-model.number="newPlan.target_kcal" type="number" placeholder="1800" />
             </div>
+            <div class="field">
+              <label>Protein (g/day) <span class="optional">(optional)</span></label>
+              <input v-model.number="newPlan.target_protein_g" type="number" placeholder="e.g. 90" />
+            </div>
+            <div class="field">
+              <label>Carbohydrate (g/day) <span class="optional">(optional)</span></label>
+              <input v-model.number="newPlan.target_carb_g" type="number" placeholder="e.g. 200" />
+            </div>
+            <div class="field">
+              <label>Fat (g/day) <span class="optional">(optional)</span></label>
+              <input v-model.number="newPlan.target_fat_g" type="number" placeholder="e.g. 55" />
+            </div>
           </div>
           <button class="btn-primary" type="button" :disabled="!newPlan.name || isSaving" @click="createPlan">
             {{ isSaving ? 'Creating…' : 'Create Meal Plan' }}
@@ -85,6 +97,12 @@
             </div>
             <span class="status-pill" :class="plan.status === 'active' ? 'success' : 'neutral'">{{ plan.status === 'active' ? 'Active' : 'Archived' }}</span>
           </div>
+
+          <p v-if="plan.target_protein_g || plan.target_carb_g || plan.target_fat_g" class="macro-targets-line">
+            <span v-if="plan.target_protein_g">Protein: <strong>{{ Math.round(plan.target_protein_g) }}g</strong></span>
+            <span v-if="plan.target_carb_g">Carbohydrate: <strong>{{ Math.round(plan.target_carb_g) }}g</strong></span>
+            <span v-if="plan.target_fat_g">Fat: <strong>{{ Math.round(plan.target_fat_g) }}g</strong></span>
+          </p>
 
           <div class="exchange-totals">
             <div class="exchange-chip"><div class="ex-num">{{ computedTotal('rice_exchanges') }}</div><div class="ex-label">Rice</div></div>
@@ -191,7 +209,10 @@ const isLoadingPlan = ref(false)
 const isSaving = ref(false)
 const busy = ref(false)
 
-const newPlan = reactive({ name: '', condition: 'general', target_kcal: null })
+const newPlan = reactive({
+  name: '', condition: 'general', target_kcal: null,
+  target_protein_g: null, target_carb_g: null, target_fat_g: null,
+})
 const newMealTime = ref('breakfast')
 const newFoodForm = reactive({})
 const foodExchangeItems = ref([])
@@ -307,7 +328,9 @@ async function loadPlan() {
   try {
     const plans = await get(`/rnd/relationships/${selectedRelationshipId.value}/meal-plans/`)
     plan.value = plans.find(p => p.status === 'active') || plans[0] || null
-    newPlan.name = ''; newPlan.condition = 'general'; newPlan.target_kcal = null
+    newPlan.name = ''; newPlan.condition = 'general'
+    newPlan.target_kcal = null; newPlan.target_protein_g = null
+    newPlan.target_carb_g = null; newPlan.target_fat_g = null
 
     if (!plan.value) {
       // Only relevant while there's no plan yet — the create form is what
@@ -316,9 +339,11 @@ async function loadPlan() {
       // hasn't been signed off on yet, so it's not used as a source here.
       const ncpRecords = await get(`/rnd/relationships/${selectedRelationshipId.value}/ncp/`)
       latestNcpRecord.value = ncpRecords.find(r => r.status === 'completed') || null
-      if (latestNcpRecord.value?.target_kcal) {
-        newPlan.target_kcal = Math.round(Number(latestNcpRecord.value.target_kcal))
-      }
+      const ncp = latestNcpRecord.value
+      if (ncp?.target_kcal) newPlan.target_kcal = Math.round(Number(ncp.target_kcal))
+      if (ncp?.target_protein_g) newPlan.target_protein_g = Math.round(Number(ncp.target_protein_g))
+      if (ncp?.target_carb_g) newPlan.target_carb_g = Math.round(Number(ncp.target_carb_g))
+      if (ncp?.target_fat_g) newPlan.target_fat_g = Math.round(Number(ncp.target_fat_g))
     }
   } catch {
     errorMessage.value = 'Could not load this patient\'s meal plan.'
@@ -337,6 +362,9 @@ async function createPlan() {
       name: newPlan.name,
       condition: newPlan.condition,
       target_kcal: newPlan.target_kcal || undefined,
+      target_protein_g: newPlan.target_protein_g || undefined,
+      target_carb_g: newPlan.target_carb_g || undefined,
+      target_fat_g: newPlan.target_fat_g || undefined,
     })
   } catch {
     errorMessage.value = 'Could not create this meal plan. Please try again.'
@@ -472,6 +500,7 @@ onMounted(() => {
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
+.field .optional { font-weight: 400; text-transform: none; color: #9aaa9a; }
 .field input, .field select {
   border: 1px solid #dde3dd; border-radius: 8px; padding: 9px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
 }
@@ -490,6 +519,9 @@ onMounted(() => {
 .status-pill { font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 14px; }
 .status-pill.success { background: #e6efe0; color: #3a6b3a; }
 .status-pill.neutral { background: #eceeec; color: #7a8a7a; }
+
+.macro-targets-line { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.82rem; color: #6a7a6a; margin: 0 0 16px; }
+.macro-targets-line strong { color: #1a3a1a; }
 
 .exchange-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; }
 .exchange-chip { background: #f9f9f5; border-radius: 8px; padding: 12px; text-align: center; }
