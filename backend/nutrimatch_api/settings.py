@@ -95,6 +95,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'login': config('THROTTLE_LOGIN_RATE', default='10/min'),
         'register': config('THROTTLE_REGISTER_RATE', default='5/min'),
+        'verify_email': config('THROTTLE_VERIFY_EMAIL_RATE', default='10/min'),
+        'resend_verification': config('THROTTLE_RESEND_VERIFICATION_RATE', default='5/min'),
         'password_reset_request': config('THROTTLE_PASSWORD_RESET_REQUEST_RATE', default='5/min'),
         'password_reset_confirm': config('THROTTLE_PASSWORD_RESET_CONFIRM_RATE', default='10/min'),
     },

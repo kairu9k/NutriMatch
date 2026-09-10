@@ -17,9 +17,18 @@ from .serializers import (
     PasswordResetRequestSerializer,
     RegisterClientSerializer,
     RegisterRndSerializer,
+    ResendVerificationSerializer,
     UserSerializer,
+    VerifyEmailSerializer,
 )
-from .services import InvalidResetCodeError, consume_reset_code, request_password_reset
+from .services import (
+    InvalidResetCodeError,
+    InvalidVerificationCodeError,
+    consume_reset_code,
+    request_password_reset,
+    send_verification_code,
+    verify_email_code,
+)
 
 
 class LoginView(TokenObtainPairView):
@@ -52,6 +61,52 @@ class RegisterRndView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class VerifyEmailView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verify_email"
+
+    def post(self, request):
+        serializer = VerifyEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = User.objects.filter(email__iexact=data["email"], deleted_at__isnull=True).first()
+        if user is None:
+            return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            verify_email_code(user, data["code"])
+        except InvalidVerificationCodeError:
+            return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "Email verified. You can now sign in."})
+
+
+class ResendVerificationView(APIView):
+    """Always returns a generic success response, whether or not the email
+    is registered or already verified — same anti-enumeration reasoning as
+    PasswordResetRequestView."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "resend_verification"
+
+    def post(self, request):
+        serializer = ResendVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = User.objects.filter(
+            email__iexact=serializer.validated_data["email"],
+            deleted_at__isnull=True,
+            email_verified_at__isnull=True,
+        ).first()
+        if user:
+            send_verification_code(user)
+
+        return Response({"detail": "If that email needs verification, a new code has been sent."})
 
 
 class PasswordResetRequestView(APIView):

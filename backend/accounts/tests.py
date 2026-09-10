@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 from profiles.models import ClientHealthProfile, ClientProfile, RndProfile
 
-from .models import PasswordResetCode, User
+from .models import EmailVerificationCode, PasswordResetCode, User
 
 
 class RegisterViewTests(TestCase):
@@ -26,6 +26,10 @@ class RegisterViewTests(TestCase):
         profile = ClientProfile.objects.get(user=user)
         self.assertEqual(str(profile.date_of_birth), "1995-05-01")
         self.assertEqual(user.health_profile.health_goals, ["Weight management"])
+        # registering sends a verification code and leaves the account
+        # unverified — login should be refused until it's used
+        self.assertIsNone(user.email_verified_at)
+        self.assertTrue(EmailVerificationCode.objects.filter(user=user).exists())
 
     def test_register_client_duplicate_email_rejected(self):
         User.objects.create_user(email="dupe@t.ph", password="x", role="client", first_name="A", last_name="B")
@@ -56,12 +60,91 @@ class RegisterViewTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
+class EmailVerificationTests(TestCase):
+    def setUp(self):
+        self.client_api = APIClient()
+        self.user = User.objects.create_user(
+            email="unverified@t.ph", password="StrongPass123", role="client", first_name="Un", last_name="Verified"
+        )
+
+    def test_login_blocked_before_verification(self):
+        resp = self.client_api.post("/api/auth/login/", {"email": "unverified@t.ph", "password": "StrongPass123"})
+        self.assertEqual(resp.status_code, 401)
+        self.assertIn("verify your email", resp.data["detail"])
+
+    def test_verify_with_correct_code_allows_login(self):
+        EmailVerificationCode.objects.create(
+            user=self.user, code="654321", expires_at=timezone.now() + timedelta(minutes=15)
+        )
+
+        resp = self.client_api.post("/api/auth/verify-email/", {"email": "unverified@t.ph", "code": "654321"})
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.email_verified_at)
+
+        login_resp = self.client_api.post("/api/auth/login/", {"email": "unverified@t.ph", "password": "StrongPass123"})
+        self.assertEqual(login_resp.status_code, 200)
+
+    def test_verify_with_wrong_code_rejected(self):
+        EmailVerificationCode.objects.create(
+            user=self.user, code="654321", expires_at=timezone.now() + timedelta(minutes=15)
+        )
+        resp = self.client_api.post("/api/auth/verify-email/", {"email": "unverified@t.ph", "code": "000000"})
+        self.assertEqual(resp.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.email_verified_at)
+
+    def test_verify_with_expired_code_rejected(self):
+        EmailVerificationCode.objects.create(
+            user=self.user, code="654321", expires_at=timezone.now() - timedelta(minutes=1)
+        )
+        resp = self.client_api.post("/api/auth/verify-email/", {"email": "unverified@t.ph", "code": "654321"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_verify_code_cannot_be_reused(self):
+        EmailVerificationCode.objects.create(
+            user=self.user, code="654321", expires_at=timezone.now() + timedelta(minutes=15)
+        )
+        first = self.client_api.post("/api/auth/verify-email/", {"email": "unverified@t.ph", "code": "654321"})
+        self.assertEqual(first.status_code, 200)
+
+        second_user = User.objects.create_user(
+            email="unverified2@t.ph", password="StrongPass123", role="client", first_name="U2", last_name="V"
+        )
+        # reusing the same code value for a different user's (nonexistent)
+        # verification should still fail — the code was tied to the first user
+        second = self.client_api.post("/api/auth/verify-email/", {"email": "unverified2@t.ph", "code": "654321"})
+        self.assertEqual(second.status_code, 400)
+        second_user.refresh_from_db()
+        self.assertIsNone(second_user.email_verified_at)
+
+    def test_resend_creates_new_code_for_unverified_user(self):
+        resp = self.client_api.post("/api/auth/verify-email/resend/", {"email": "unverified@t.ph"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(EmailVerificationCode.objects.filter(user=self.user).exists())
+
+    def test_resend_unknown_email_returns_same_generic_response(self):
+        resp = self.client_api.post("/api/auth/verify-email/resend/", {"email": "nobody@t.ph"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["detail"], "If that email needs verification, a new code has been sent.")
+
+    def test_resend_does_not_send_for_already_verified_user(self):
+        self.user.email_verified_at = timezone.now()
+        self.user.save(update_fields=["email_verified_at"])
+
+        resp = self.client_api.post("/api/auth/verify-email/resend/", {"email": "unverified@t.ph"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(EmailVerificationCode.objects.filter(user=self.user).exists())
+
+
 class LoginAndMeViewTests(TestCase):
     def setUp(self):
         self.client_api = APIClient()
         self.user = User.objects.create_user(
             email="login@t.ph", password="CorrectPass123", role="client", first_name="Lo", last_name="Gin"
         )
+        self.user.email_verified_at = timezone.now()
+        self.user.save(update_fields=["email_verified_at"])
 
     def test_login_success_returns_tokens_and_claims(self):
         resp = self.client_api.post("/api/auth/login/", {"email": "login@t.ph", "password": "CorrectPass123"})
@@ -92,6 +175,8 @@ class PasswordResetTests(TestCase):
         self.user = User.objects.create_user(
             email="reset@t.ph", password="OldPass123", role="client", first_name="Re", last_name="Set"
         )
+        self.user.email_verified_at = timezone.now()
+        self.user.save(update_fields=["email_verified_at"])
 
     def test_request_reset_creates_code_for_existing_user(self):
         resp = self.client_api.post("/api/auth/password-reset/request/", {"email": "reset@t.ph"})

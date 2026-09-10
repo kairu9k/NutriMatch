@@ -65,6 +65,25 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.first_name} {self.last_name}"
 
 
+class EmailVerificationCode(models.Model):
+    """A 6-digit OTP emailed to the user to confirm their email address
+    after registering. Login is refused until User.email_verified_at is
+    set — see accounts/services.py verify_email_code() and
+    NutriMatchTokenObtainPairSerializer."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_verification_codes")
+    code = models.CharField(max_length=6)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "email_verification_codes"
+
+    def __str__(self):
+        return f"Verification code for {self.user.email} (expires {self.expires_at:%Y-%m-%d %H:%M})"
+
+
 class PasswordResetCode(models.Model):
     """A 6-digit OTP emailed to the user for the forgot-password flow. Not
     in the original vault/database.txt schema — a new feature, not a port."""

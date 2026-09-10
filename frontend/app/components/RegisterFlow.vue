@@ -214,7 +214,35 @@
           </div>
         </div>
 
-        <p class="signin-link">
+        <!-- STEP 4: VERIFY EMAIL -->
+        <div v-else-if="currentStep === 4">
+          <div class="sent-icon">✉️</div>
+          <h2>Verify Your Email</h2>
+          <p class="subtitle">
+            We've sent a 6-digit code to <strong>{{ form.email }}</strong>. Enter it below to activate your account.
+          </p>
+
+          <form class="details-form" @submit.prevent="submitVerification">
+            <div class="field">
+              <label>Verification Code</label>
+              <input v-model="verificationCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" class="code-input" required />
+            </div>
+
+            <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
+            <p v-if="resendMessage" class="form-success">{{ resendMessage }}</p>
+
+            <button type="submit" class="btn-primary" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Verifying…' : 'Verify & Continue →' }}
+            </button>
+          </form>
+
+          <p class="signin-link">
+            Didn't get the code?
+            <a href="#" @click.prevent="resendCode">{{ isResending ? 'Sending…' : 'Resend code' }}</a>
+          </p>
+        </div>
+
+        <p v-if="currentStep < 4" class="signin-link">
           Already have an account? <a href="#" @click.prevent="navigateTo('/login')">Sign in →</a>
         </p>
       </div>
@@ -231,6 +259,9 @@ const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const errorMessage = ref('')
 const isSubmitting = ref(false)
+const verificationCode = ref('')
+const isResending = ref(false)
+const resendMessage = ref('')
 
 const form = reactive({
   firstName: '',
@@ -304,8 +335,23 @@ async function submitRegistration() {
       })
     }
 
-    // Registration doesn't return tokens — log in right after so the user
-    // lands signed in instead of being bounced back to the login page.
+    // Registration sends a verification code and leaves the account
+    // unverified — login is refused until it's confirmed, so move to the
+    // code-entry step instead of logging in right away.
+    currentStep.value = 4
+  } catch (error) {
+    const data = error?.data
+    errorMessage.value = data?.email?.[0] || data?.prc_license_number?.[0] || data?.detail || 'Registration failed. Please check your details and try again.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+async function submitVerification() {
+  errorMessage.value = ''
+  isSubmitting.value = true
+  try {
+    await auth.verifyEmail(form.email, verificationCode.value)
     const user = await auth.login(form.email, form.password)
     if (user.role === 'rnd') {
       navigateTo('/rnd-dashboard')
@@ -313,10 +359,23 @@ async function submitRegistration() {
       navigateTo('/client-dashboard')
     }
   } catch (error) {
-    const data = error?.data
-    errorMessage.value = data?.email?.[0] || data?.prc_license_number?.[0] || data?.detail || 'Registration failed. Please check your details and try again.'
+    errorMessage.value = error?.data?.detail || 'Invalid or expired code.'
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function resendCode() {
+  errorMessage.value = ''
+  resendMessage.value = ''
+  isResending.value = true
+  try {
+    await auth.resendVerificationCode(form.email)
+    resendMessage.value = 'A new code has been sent.'
+  } catch {
+    errorMessage.value = 'Something went wrong. Please try again.'
+  } finally {
+    isResending.value = false
   }
 }
 </script>
@@ -580,6 +639,20 @@ async function submitRegistration() {
   font-size: 0.85rem;
   margin: 4px 0 0;
 }
+
+.form-success {
+  background: #e6f4e6;
+  border: 1px solid #b8ddb8;
+  color: #1a5a2a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin: 4px 0 0;
+}
+
+.sent-icon { font-size: 2rem; margin-bottom: 8px; }
+
+.code-input { letter-spacing: 0.3em; font-size: 1.2rem; text-align: center; font-weight: 700; }
 
 @media (max-width: 900px) {
   .register-page { grid-template-columns: 1fr; }

@@ -1,11 +1,13 @@
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from profiles.models import ClientHealthProfile, ClientProfile, RndProfile
 
 from .models import User
+from .services import send_verification_code
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -138,6 +140,7 @@ class RegisterClientSerializer(serializers.Serializer):
             user=user,
             health_goals=[health_concern] if health_concern else None,
         )
+        send_verification_code(user)
         return user
 
 
@@ -174,7 +177,17 @@ class RegisterRndSerializer(serializers.Serializer):
             specialization=validated_data.get("specialization", ""),
             is_verified=False,
         )
+        send_verification_code(user)
         return user
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6, min_length=6)
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
@@ -205,5 +218,10 @@ class NutriMatchTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        if self.user.email_verified_at is None:
+            raise AuthenticationFailed(
+                "Please verify your email before signing in. Check your inbox for the code.",
+                code="email_not_verified",
+            )
         data["user"] = UserSerializer(self.user).data
         return data
