@@ -38,7 +38,7 @@
             :key="item.label"
             :to="item.to"
             class="nav-item"
-            :class="{ active: route.path === item.to }"
+            :class="{ active: isActiveNavItem(item) }"
             @click="isSidebarOpen = false"
           >
             <component :is="item.icon" class="nav-icon" :size="17" />
@@ -136,7 +136,7 @@ const rndMainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/rnd-dashboard' },
   { icon: Users, label: 'My Patients', to: '/my-patients' },
   { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
-  { icon: LineChart, label: 'NCP Records', to: '/ncp-records' },
+  { icon: LineChart, label: 'NCP Records', to: '/my-patients' },
   { icon: Target, label: 'Meal Plans', to: '/meal-planning' },
   { icon: SearchIcon, label: 'Food Exchange Search', to: '/food-exchange-search' },
   { icon: MessageCircle, label: 'Messages', to: '/messages' },
@@ -164,6 +164,14 @@ const clientMainNav = [
 ]
 
 const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
+
+// Two nav entries can point at the same path (e.g. NCP Records shortcuts
+// into My Patients) — only the first one in array order should light up,
+// otherwise both show active at once.
+function isActiveNavItem(item) {
+  if (route.path !== item.to) return false
+  return mainNav.value.find((i) => i.to === item.to) === item
+}
 </script>
 
 <style scoped>
