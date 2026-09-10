@@ -338,7 +338,13 @@ async function loadRecord() {
     ])
     patientName.value = `${profile.user.first_name} ${profile.user.last_name}`
     if (records.length) {
-      record.value = records[0]
+      // Prefer an in-progress draft over an older finalized record — a
+      // relationship can end up with more than one NcpRecord (e.g. a new
+      // draft started after a prior one was finalized), and records are
+      // ordered by encounter_date, which ties don't reliably break in
+      // draft's favor. Without this, "Resume" from the dashboard could
+      // land on a locked, finalized record instead of the actual draft.
+      record.value = records.find(r => r.status === 'draft') || records[0]
       hydrateFromRecord(record.value)
     }
   } catch {
