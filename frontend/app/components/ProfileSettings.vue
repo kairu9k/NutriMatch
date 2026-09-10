@@ -95,6 +95,27 @@
           <p class="health-hint">Health information is captured during pre-consultation screening and updated by your RND — it can't be edited here.</p>
         </template>
 
+        <template v-else-if="activeTab === 'fees'">
+          <div class="form-grid">
+            <div class="field">
+              <label class="field-label">Consultation Fee (₱)</label>
+              <input v-model.number="rndForm.consultation_fee" type="number" min="0" step="0.01" class="field-input" placeholder="e.g. 500.00" />
+              <p class="health-hint">This is what clients are billed per consultation. Invoices can't be paid until this is set above ₱0.</p>
+            </div>
+            <div class="field">
+              <label class="checkbox-label">
+                <input v-model="rndForm.available_for_new_clients" type="checkbox" />
+                Available for new clients
+              </label>
+              <p class="health-hint">Turn this off to stay bookable by existing clients only.</p>
+            </div>
+          </div>
+
+          <button class="save-btn" type="button" :disabled="isSaving" @click="saveRndFees">
+            {{ isSaving ? 'Saving…' : 'Save Changes' }}
+          </button>
+        </template>
+
         <template v-else-if="activeTab === 'availability'">
           <Availability />
         </template>
@@ -167,6 +188,11 @@ const clientForm = reactive({
   emergency_phone: ''
 })
 
+const rndForm = reactive({
+  consultation_fee: 0,
+  available_for_new_clients: true
+})
+
 const healthProfile = ref(null)
 
 function formatList(value) {
@@ -175,18 +201,20 @@ function formatList(value) {
 }
 
 async function loadProfile() {
-  if (isRnd.value) {
-    isLoading.value = false
-    return
-  }
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const profile = await get('/client/profile/')
-    clientForm.address = profile.address || ''
-    clientForm.emergency_contact = profile.emergency_contact || ''
-    clientForm.emergency_phone = profile.emergency_phone || ''
-    healthProfile.value = profile.health_profile
+    if (isRnd.value) {
+      const profile = await get('/rnd/profile/')
+      rndForm.consultation_fee = Number(profile.consultation_fee) || 0
+      rndForm.available_for_new_clients = profile.available_for_new_clients
+    } else {
+      const profile = await get('/client/profile/')
+      clientForm.address = profile.address || ''
+      clientForm.emergency_contact = profile.emergency_contact || ''
+      clientForm.emergency_phone = profile.emergency_phone || ''
+      healthProfile.value = profile.health_profile
+    }
   } catch {
     errorMessage.value = 'Could not load your profile. Please try again later.'
   } finally {
@@ -201,6 +229,23 @@ async function saveClientProfile() {
   try {
     await patch('/client/profile/', { ...clientForm })
     successMessage.value = 'Profile updated.'
+  } catch {
+    errorMessage.value = 'Could not save changes. Please try again.'
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function saveRndFees() {
+  isSaving.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await patch('/rnd/profile/', {
+      consultation_fee: rndForm.consultation_fee,
+      available_for_new_clients: rndForm.available_for_new_clients,
+    })
+    successMessage.value = 'Fees updated.'
   } catch {
     errorMessage.value = 'Could not save changes. Please try again.'
   } finally {
@@ -279,6 +324,9 @@ onMounted(loadProfile)
   font-size: 0.88rem; color: #2a2a2a; font-family: inherit;
 }
 .field-input:focus { outline: none; border-color: #D4A017; }
+
+.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; margin-bottom: 8px; cursor: pointer; }
+.checkbox-label input { width: 16px; height: 16px; accent-color: #D4A017; cursor: pointer; }
 
 .save-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
