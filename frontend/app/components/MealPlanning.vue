@@ -29,6 +29,23 @@
       <div v-if="isLoadingPlan" class="placeholder-text">Loading plan…</div>
 
       <template v-else-if="!plan">
+        <div v-if="latestNcpRecord" class="surface ncp-reference-card">
+          <h3 class="surface-title">From {{ selectedClientName }}'s NCP record ({{ ncpRecordDateLabel }})</h3>
+          <div class="ncp-reference-grid">
+            <div v-if="latestNcpRecord.pes_problem">
+              <span class="ncp-reference-label">PES Problem</span>
+              <p class="ncp-reference-text">{{ latestNcpRecord.pes_problem }}</p>
+            </div>
+            <div v-if="latestNcpRecord.diet_prescription">
+              <span class="ncp-reference-label">Diet Prescription</span>
+              <p class="ncp-reference-text">{{ latestNcpRecord.diet_prescription }}</p>
+            </div>
+          </div>
+          <p class="ncp-reference-note">
+            Target calories below is pre-filled from this record — pick the matching Condition yourself, since NCP doesn't record it as a fixed category.
+          </p>
+        </div>
+
         <div class="surface create-plan-card">
           <h3 class="surface-title">No meal plan yet for {{ selectedClientName }}</h3>
           <div class="form-grid">
@@ -178,6 +195,7 @@ const newPlan = reactive({ name: '', condition: 'general', target_kcal: null })
 const newMealTime = ref('breakfast')
 const newFoodForm = reactive({})
 const foodExchangeItems = ref([])
+const latestNcpRecord = ref(null)
 
 const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
 const MEAL_LABELS = {
@@ -201,6 +219,13 @@ const exchangeFields = [
 const selectedClientName = computed(() => {
   const rel = relationships.value.find(r => r.id === selectedRelationshipId.value)
   return rel ? `${rel.client.first_name} ${rel.client.last_name}` : ''
+})
+
+const ncpRecordDateLabel = computed(() => {
+  if (!latestNcpRecord.value?.encounter_date) return ''
+  return new Date(latestNcpRecord.value.encounter_date + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  })
 })
 
 const orderedMeals = computed(() => {
@@ -278,10 +303,23 @@ async function loadPlan() {
   isLoadingPlan.value = true
   errorMessage.value = ''
   plan.value = null
+  latestNcpRecord.value = null
   try {
     const plans = await get(`/rnd/relationships/${selectedRelationshipId.value}/meal-plans/`)
     plan.value = plans.find(p => p.status === 'active') || plans[0] || null
     newPlan.name = ''; newPlan.condition = 'general'; newPlan.target_kcal = null
+
+    if (!plan.value) {
+      // Only relevant while there's no plan yet — the create form is what
+      // this pre-fills. A finalized NCP record's Intervention phase is the
+      // one meant to have already decided the diet approach; a draft
+      // hasn't been signed off on yet, so it's not used as a source here.
+      const ncpRecords = await get(`/rnd/relationships/${selectedRelationshipId.value}/ncp/`)
+      latestNcpRecord.value = ncpRecords.find(r => r.status === 'completed') || null
+      if (latestNcpRecord.value?.target_kcal) {
+        newPlan.target_kcal = Math.round(Number(latestNcpRecord.value.target_kcal))
+      }
+    }
   } catch {
     errorMessage.value = 'Could not load this patient\'s meal plan.'
   } finally {
@@ -424,6 +462,12 @@ onMounted(() => {
 
 .surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px 22px; margin-bottom: 16px; }
 .surface-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
+
+.ncp-reference-card { background: #f6f9f6; border-color: #dde8dd; }
+.ncp-reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 12px; }
+.ncp-reference-label { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; color: #6a8a6a; text-transform: uppercase; margin-bottom: 4px; }
+.ncp-reference-text { font-size: 0.85rem; color: #2a3a2a; margin: 0; line-height: 1.4; }
+.ncp-reference-note { font-size: 0.76rem; color: #7a8a7a; font-style: italic; margin: 0; }
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
