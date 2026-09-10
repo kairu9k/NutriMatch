@@ -86,7 +86,7 @@ class ConsultationSession(models.Model):
         Appointment, on_delete=models.CASCADE, related_name="consultation_sessions"
     )
     video_provider = models.CharField(
-        max_length=20, choices=VideoProvider.choices, default=VideoProvider.DAILY_CO
+        max_length=20, choices=VideoProvider.choices, default=VideoProvider.JITSI
     )
     external_session_id = models.CharField(max_length=255, null=True, blank=True)
     host_url = models.CharField(max_length=1000, null=True, blank=True)

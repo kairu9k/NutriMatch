@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from accounts.models import User
 from profiles.models import RndProfile
 from scheduling.models import Appointment, RndClientRelationship
-from scheduling.services import DailyCoVideoService, VideoSessionError
+from scheduling.services import JitsiVideoService
 
 from .models import Invoice
 from .services import InvalidWebhookSignatureError, PayMongoService, PaymentGatewayError
@@ -20,12 +20,6 @@ TEST_PAYMONGO = {
     "WEBHOOK_SECRET": "whsec_fake",
     "BASE_URL": "https://api.paymongo.com/v1",
     "TIMEOUT": 30,
-}
-
-TEST_DAILY_CO = {
-    "API_KEY": "fake_daily_key",
-    "BASE_URL": "https://api.daily.co/v1",
-    "TIMEOUT": 15,
 }
 
 
@@ -135,8 +129,7 @@ class PayMongoServiceTests(TestCase):
         self.assertEqual(status, "success")
 
 
-@override_settings(DAILY_CO=TEST_DAILY_CO)
-class DailyCoVideoServiceTests(TestCase):
+class JitsiVideoServiceTests(TestCase):
     def setUp(self):
         rnd = User.objects.create_user(email="rnd2@t.ph", password="x", role="rnd", first_name="R", last_name="D")
         client = User.objects.create_user(email="client2@t.ph", password="x", role="client", first_name="C", last_name="L")
@@ -146,34 +139,17 @@ class DailyCoVideoServiceTests(TestCase):
             relationship=rel, scheduled_at=timezone.now(), type="video", duration_minutes=30
         )
 
-    def test_missing_api_key_raises(self):
-        with override_settings(DAILY_CO={**TEST_DAILY_CO, "API_KEY": ""}):
-            with self.assertRaises(VideoSessionError):
-                DailyCoVideoService().create_room(self.appointment)
+    def test_create_room_returns_jitsi_url(self):
+        result = JitsiVideoService().create_room(self.appointment)
 
-    @patch("scheduling.services.httpx.Client")
-    def test_create_room_success(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.side_effect = [
-            _mock_response({"url": "https://nutrimatch.daily.co/nm-appt-1-abc"}),  # room creation
-            _mock_response({"token": "fake-host-token"}),  # host token
-        ]
-        mock_client_cls.return_value = mock_client
-
-        result = DailyCoVideoService().create_room(self.appointment)
-
-        self.assertIn("participant_url", result)
-        self.assertEqual(result["participant_url"], "https://nutrimatch.daily.co/nm-appt-1-abc")
-        self.assertIn("fake-host-token", result["host_url"])
+        self.assertTrue(result["participant_url"].startswith("https://meet.jit.si/"))
+        # no host/participant distinction on the public server
+        self.assertEqual(result["host_url"], result["participant_url"])
         self.assertTrue(result["external_session_id"].startswith(f"nm-appt-{self.appointment.id}-"))
+        self.assertIn(result["external_session_id"], result["participant_url"])
 
-    @patch("scheduling.services.httpx.Client")
-    def test_create_room_failure_raises(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.return_value = _mock_response({}, error=True)
-        mock_client_cls.return_value = mock_client
+    def test_create_room_names_are_unique(self):
+        first = JitsiVideoService().create_room(self.appointment)
+        second = JitsiVideoService().create_room(self.appointment)
 
-        with self.assertRaises(VideoSessionError):
-            DailyCoVideoService().create_room(self.appointment)
+        self.assertNotEqual(first["external_session_id"], second["external_session_id"])

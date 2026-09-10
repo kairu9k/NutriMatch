@@ -195,7 +195,7 @@ STATIC_URL = 'static/'
 # Gmail SMTP once GMAIL_HOST_USER/GMAIL_HOST_PASSWORD (an App Password, not
 # the account password) are set in .env; falls back to printing emails to
 # the console in dev when they're blank, same "degrade to a clear no-op
-# rather than fail" pattern as PAYMONGO/DAILY_CO below.
+# rather than fail" pattern as PAYMONGO below.
 GMAIL_HOST_USER = config('GMAIL_HOST_USER', default='')
 GMAIL_HOST_PASSWORD = config('GMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=GMAIL_HOST_USER or 'noreply@nutrimatch.ph')
@@ -223,16 +223,13 @@ MAILERS = {
 # External services
 # Empty in dev — services degrade to raising a clear config error rather
 # than silently making unauthenticated calls. Fill in .env before Phase 8.
+# Video consultations use Jitsi's free public server (scheduling/services.py)
+# and need no API key/settings entry — Daily.co was dropped because its
+# free tier gates the call UI behind having a card on file.
 
 PAYMONGO = {
     'SECRET_KEY': config('PAYMONGO_SECRET_KEY', default=''),
     'WEBHOOK_SECRET': config('PAYMONGO_WEBHOOK_SECRET', default=''),
     'BASE_URL': config('PAYMONGO_BASE_URL', default='https://api.paymongo.com/v1'),
     'TIMEOUT': config('PAYMONGO_TIMEOUT', default=30, cast=int),
-}
-
-DAILY_CO = {
-    'API_KEY': config('DAILY_CO_API_KEY', default=''),
-    'BASE_URL': config('DAILY_CO_BASE_URL', default='https://api.daily.co/v1'),
-    'TIMEOUT': config('DAILY_CO_TIMEOUT', default=15, cast=int),
 }

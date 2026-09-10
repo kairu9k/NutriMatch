@@ -21,7 +21,7 @@ from .serializers import (
     RndClientRelationshipSerializer,
     RndPatientListSerializer,
 )
-from .services import DailyCoVideoService, VideoSessionError
+from .services import JitsiVideoService, VideoSessionError
 
 
 class RequestRelationshipView(APIView):
@@ -249,13 +249,13 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
 
         if appointment.type == Appointment.Type.VIDEO:
             try:
-                room = DailyCoVideoService().create_room(appointment)
+                room = JitsiVideoService().create_room(appointment)
             except VideoSessionError:
                 pass
             else:
                 ConsultationSession.objects.create(
                     appointment=appointment,
-                    video_provider=ConsultationSession.VideoProvider.DAILY_CO,
+                    video_provider=ConsultationSession.VideoProvider.JITSI,
                     external_session_id=room["external_session_id"],
                     host_url=room["host_url"],
                     participant_url=room["participant_url"],

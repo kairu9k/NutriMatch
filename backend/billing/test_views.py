@@ -18,12 +18,9 @@ TEST_PAYMONGO = {
     "SECRET_KEY": "sk_test_fake", "WEBHOOK_SECRET": "whsec_fake",
     "BASE_URL": "https://api.paymongo.com/v1", "TIMEOUT": 30,
 }
-TEST_DAILY_CO = {
-    "API_KEY": "fake_daily_key", "BASE_URL": "https://api.daily.co/v1", "TIMEOUT": 15,
-}
 
 
-@override_settings(PAYMONGO=TEST_PAYMONGO, DAILY_CO=TEST_DAILY_CO)
+@override_settings(PAYMONGO=TEST_PAYMONGO)
 class BillingAndVideoViewTests(TestCase):
     def setUp(self):
         self.client_api = APIClient()
@@ -98,16 +95,7 @@ class BillingAndVideoViewTests(TestCase):
         )
         self.assertEqual(resp.status_code, 401)
 
-    @patch("scheduling.services.httpx.Client")
-    def test_confirm_video_appointment_creates_session(self, mock_client_cls):
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.side_effect = [
-            self._mock_resp({"url": "https://nutrimatch.daily.co/room-1"}),
-            self._mock_resp({"token": "host-tok"}),
-        ]
-        mock_client_cls.return_value = mock_client
-
+    def test_confirm_video_appointment_creates_session(self):
         PreConsultationScreening.objects.create(
             client=self.client_user, height_cm=Decimal("170.00"), weight_kg=Decimal("70.00"),
         )
@@ -117,7 +105,7 @@ class BillingAndVideoViewTests(TestCase):
 
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(resp.data["status"], "confirmed")
-        self.assertEqual(resp.data["video_session_url"], "https://nutrimatch.daily.co/room-1")
+        self.assertTrue(resp.data["video_session_url"].startswith("https://meet.jit.si/"))
         self.assertEqual(len(resp.data["consultation_sessions"]), 1)
         # host_url must never appear in the client-facing serialized session
         self.assertNotIn("host_url", resp.data["consultation_sessions"][0])
