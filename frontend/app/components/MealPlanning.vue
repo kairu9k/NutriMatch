@@ -111,7 +111,29 @@
             <p v-else class="food-list-empty">No specific foods listed yet — this meal's exchange counts above are still what the client sees.</p>
 
             <div class="add-food-row">
-              <input v-model="newFoodForm[meal.id].food_name" type="text" placeholder="Food name, e.g. 1 cup Brown Rice" />
+              <div class="food-search-wrap">
+                <input
+                  v-model="newFoodForm[meal.id].food_name"
+                  type="text"
+                  placeholder="Search FNRI foods or type a custom name"
+                  @input="newFoodForm[meal.id].food_item = null"
+                  @focus="newFoodForm[meal.id].showResults = true"
+                  @blur="onFoodInputBlur(meal.id)"
+                />
+                <div v-if="newFoodForm[meal.id].showResults && foodMatches(meal.id).length" class="food-results">
+                  <button
+                    v-for="match in foodMatches(meal.id)"
+                    :key="match.id"
+                    type="button"
+                    class="food-result-row"
+                    @mousedown.prevent="selectFoodMatch(meal.id, match)"
+                  >
+                    <span class="result-category" :style="{ background: match.category.color || '#eceeec' }"></span>
+                    <span class="result-name">{{ match.name }}<span v-if="match.local_name" class="result-local"> ({{ match.local_name }})</span></span>
+                    <span class="result-measure">{{ match.household_measure || match.category.name }}</span>
+                  </button>
+                </div>
+              </div>
               <input v-model.number="newFoodForm[meal.id].exchanges" type="number" step="0.5" placeholder="Exchanges" class="exchange-input" />
               <button class="add-food-btn" type="button" :disabled="!newFoodForm[meal.id].food_name || busy" @click="addFoodItem(meal)">
                 <Plus :size="14" />
@@ -158,6 +180,7 @@ const busy = ref(false)
 const newPlan = reactive({ name: '', condition: 'general', target_kcal: null })
 const newMealTime = ref('breakfast')
 const newFoodForm = reactive({})
+const foodExchangeItems = ref([])
 
 const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
 const MEAL_LABELS = {
@@ -206,8 +229,32 @@ function computedTotal(field) {
 
 function ensureFoodForm(mealId) {
   if (!newFoodForm[mealId]) {
-    newFoodForm[mealId] = { food_name: '', exchanges: 1 }
+    newFoodForm[mealId] = { food_name: '', exchanges: 1, food_item: null, showResults: false }
   }
+}
+
+function foodMatches(mealId) {
+  const form = newFoodForm[mealId]
+  const q = (form?.food_name || '').trim().toLowerCase()
+  if (!q) return []
+  return foodExchangeItems.value
+    .filter(item =>
+      item.name.toLowerCase().includes(q) || (item.local_name || '').toLowerCase().includes(q)
+    )
+    .slice(0, 8)
+}
+
+function selectFoodMatch(mealId, match) {
+  const form = newFoodForm[mealId]
+  form.food_name = match.name
+  form.food_item = match.id
+  form.household_measure = match.household_measure || ''
+  form.showResults = false
+}
+
+function onFoodInputBlur(mealId) {
+  // Delay so a click on a result row (mousedown) fires before the list hides.
+  setTimeout(() => { newFoodForm[mealId].showResults = false }, 150)
 }
 
 async function updateMealExchange(meal, field, rawValue) {
@@ -309,10 +356,14 @@ async function addFoodItem(meal) {
   errorMessage.value = ''
   try {
     const item = await post(`/rnd/meals/${meal.id}/food-items/`, {
-      food_name: form.food_name, exchanges: form.exchanges || 1,
+      food_name: form.food_name,
+      exchanges: form.exchanges || 1,
+      food_item: form.food_item || undefined,
+      source_type: form.food_item ? 'fel' : 'custom',
+      household_measure: form.household_measure || undefined,
     })
     meal.food_items.push(item)
-    form.food_name = ''; form.exchanges = 1
+    form.food_name = ''; form.exchanges = 1; form.food_item = null; form.household_measure = ''
   } catch {
     errorMessage.value = 'Could not add this food item. Please try again.'
   } finally {
@@ -333,7 +384,18 @@ async function removeFoodItem(item) {
   }
 }
 
-onMounted(loadRelationships)
+async function loadFoodExchangeItems() {
+  try {
+    foodExchangeItems.value = await get('/food-exchange/items/')
+  } catch {
+    // Search just won't offer matches — free-text entry still works.
+  }
+}
+
+onMounted(() => {
+  loadRelationships()
+  loadFoodExchangeItems()
+})
 </script>
 
 <style scoped>
@@ -389,9 +451,10 @@ onMounted(loadRelationships)
 .ex-label { font-size: 0.66rem; color: #9aaa9a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
 .totals-note { font-size: 0.76rem; color: #9aaa9a; margin: 10px 0 0; }
 
-.meal-card { padding: 0; overflow: hidden; }
+.meal-card { padding: 0; }
 .meal-card-header {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #eef3ec; padding: 12px 18px;
+  border-radius: 12px 12px 0 0;
 }
 .meal-name { display: flex; align-items: center; gap: 7px; font-weight: 700; color: #1a3a1a; font-size: 0.88rem; }
 .meal-icon { color: #D4A017; }
@@ -427,7 +490,7 @@ onMounted(loadRelationships)
 .add-food-row input, .add-food-row select {
   border: 1px solid #dde3dd; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem; font-family: inherit;
 }
-.add-food-row input[type="text"] { flex: 1; }
+.add-food-row input[type="text"] { width: 100%; }
 .exchange-input { width: 90px; }
 .exchange-type-select { width: 120px; }
 .add-food-btn {
@@ -435,6 +498,22 @@ onMounted(loadRelationships)
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
 .add-food-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.food-search-wrap { position: relative; flex: 1; }
+.food-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+  background: #fff; border: 1px solid #dde3dd; border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08); max-height: 240px; overflow-y: auto;
+}
+.food-result-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 10px; border: none; background: none; cursor: pointer; font-family: inherit;
+}
+.food-result-row:hover { background: #f4f6f4; }
+.result-category { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.result-name { font-size: 0.82rem; color: #1a3a1a; flex: 1; }
+.result-local { color: #8a9a8a; font-style: italic; }
+.result-measure { font-size: 0.74rem; color: #9aaa9a; flex-shrink: 0; }
 
 .add-meal-row { display: flex; gap: 10px; }
 .meal-time-select {
