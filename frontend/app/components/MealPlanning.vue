@@ -90,16 +90,13 @@
               <button class="remove-meal-btn" type="button" :disabled="busy" @click="removeMeal(meal)"><X :size="14" /></button>
             </div>
 
-            <div class="meal-exchange-inputs">
+            <div class="meal-exchange-summary">
               <div v-for="field in exchangeFields" :key="field.key" class="exchange-field">
-                <label>{{ field.label }}</label>
-                <input
-                  type="number" step="0.5" min="0"
-                  :value="meal[field.key]"
-                  @change="updateMealExchange(meal, field.key, $event.target.value)"
-                />
+                <span class="exchange-value">{{ meal[field.key] }}</span>
+                <span class="exchange-field-label">{{ field.label }}</span>
               </div>
             </div>
+            <p class="exchange-summary-note">Computed automatically from the foods added below.</p>
 
             <div v-if="meal.food_items.length" class="food-item-list">
               <div v-for="item in meal.food_items" :key="item.id" class="food-item-row">
@@ -164,7 +161,7 @@ import { ChevronDown, Plus, X, Sun, Coffee, Utensils, Apple, Moon } from 'lucide
 
 definePageMeta({ layout: 'dashboard', title: 'Meal Plans' })
 
-const { get, post, patch, del } = useApi()
+const { get, post, del } = useApi()
 const route = useRoute()
 
 const relationships = ref([])
@@ -257,18 +254,6 @@ function onFoodInputBlur(mealId) {
   setTimeout(() => { newFoodForm[mealId].showResults = false }, 150)
 }
 
-async function updateMealExchange(meal, field, rawValue) {
-  const value = Math.max(0, Number(rawValue) || 0)
-  const previous = meal[field]
-  meal[field] = value
-  try {
-    await patch(`/rnd/meals/${meal.id}/`, { [field]: value })
-  } catch {
-    meal[field] = previous
-    errorMessage.value = 'Could not update this exchange count. Please try again.'
-  }
-}
-
 watch(() => plan.value?.meals, (meals) => {
   for (const meal of meals || []) ensureFoodForm(meal.id)
 }, { immediate: true, deep: true })
@@ -349,6 +334,19 @@ async function removeMeal(meal) {
   }
 }
 
+// Exchange totals are computed server-side from the meal's food items
+// (see backend MealPlanMeal.recompute_exchanges) — pull the fresh totals
+// after any add/remove instead of tracking them locally.
+async function refreshMealExchanges(meal) {
+  try {
+    const fresh = await get(`/rnd/meals/${meal.id}/`)
+    for (const field of exchangeFields) meal[field.key] = fresh[field.key]
+  } catch {
+    // Food item list itself already updated optimistically — a failed
+    // refresh here just means the totals lag until the next reload.
+  }
+}
+
 async function addFoodItem(meal) {
   const form = newFoodForm[meal.id]
   if (!form.food_name) return
@@ -364,6 +362,7 @@ async function addFoodItem(meal) {
     })
     meal.food_items.push(item)
     form.food_name = ''; form.exchanges = 1; form.food_item = null; form.household_measure = ''
+    await refreshMealExchanges(meal)
   } catch {
     errorMessage.value = 'Could not add this food item. Please try again.'
   } finally {
@@ -376,7 +375,10 @@ async function removeFoodItem(item) {
   try {
     await del(`/rnd/food-items/${item.id}/`)
     const meal = plan.value.meals.find(m => m.food_items.some(i => i.id === item.id))
-    if (meal) meal.food_items = meal.food_items.filter(i => i.id !== item.id)
+    if (meal) {
+      meal.food_items = meal.food_items.filter(i => i.id !== item.id)
+      await refreshMealExchanges(meal)
+    }
   } catch {
     errorMessage.value = 'Could not remove this food item. Please try again.'
   } finally {
@@ -458,13 +460,15 @@ onMounted(() => {
 }
 .meal-name { display: flex; align-items: center; gap: 7px; font-weight: 700; color: #1a3a1a; font-size: 0.88rem; }
 .meal-icon { color: #D4A017; }
-.meal-exchange-inputs {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 14px 18px; border-bottom: 1px solid #f4f4ec;
+.meal-exchange-summary {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 14px 18px 6px;
 }
-.exchange-field { display: flex; flex-direction: column; gap: 4px; }
-.exchange-field label { font-size: 0.66rem; font-weight: 700; color: #9aaa9a; text-transform: uppercase; letter-spacing: 0.03em; }
-.exchange-field input {
-  border: 1px solid #dde3dd; border-radius: 6px; padding: 6px 8px; font-size: 0.82rem; font-family: inherit; width: 100%;
+.exchange-field { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.exchange-value { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; }
+.exchange-field-label { font-size: 0.66rem; font-weight: 700; color: #9aaa9a; text-transform: uppercase; letter-spacing: 0.03em; }
+.exchange-summary-note {
+  font-size: 0.72rem; color: #9aaa9a; text-align: center; margin: 0; padding: 0 18px 14px; font-style: italic;
+  border-bottom: 1px solid #f4f4ec;
 }
 .food-list-empty { padding: 12px 18px; font-size: 0.8rem; color: #9aaa9a; margin: 0; font-style: italic; }
 .remove-meal-btn {

@@ -95,7 +95,9 @@ class RndMealPlanMealDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
-    """RND adds a food item to one meal within a meal plan."""
+    """RND adds a food item to one meal within a meal plan. The meal's
+    exchange totals are recomputed from its food items afterward — see
+    MealPlanMeal.recompute_exchanges."""
 
     serializer_class = MealPlanFoodItemSerializer
     permission_classes = [IsRnd]
@@ -106,15 +108,22 @@ class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
             pk=self.kwargs["meal_id"],
         )
         serializer.save(meal_plan_meal=meal)
+        meal.recompute_exchanges()
 
 
 class RndMealPlanFoodItemDeleteView(generics.DestroyAPIView):
-    """RND removing a food item from a meal."""
+    """RND removing a food item from a meal. Recomputes the meal's exchange
+    totals afterward — see MealPlanMeal.recompute_exchanges."""
 
     permission_classes = [IsRnd]
 
     def get_queryset(self):
         return MealPlanFoodItem.objects.filter(meal_plan_meal__meal_plan__relationship__rnd=self.request.user)
+
+    def perform_destroy(self, instance):
+        meal = instance.meal_plan_meal
+        instance.delete()
+        meal.recompute_exchanges()
 
 
 class ClientMealPlanListView(generics.ListAPIView):

@@ -44,6 +44,10 @@ class MealPlanFoodItemSerializer(serializers.ModelSerializer):
 
 
 class MealPlanMealSerializer(serializers.ModelSerializer):
+    """Exchange totals (vegetable_exchanges etc.) are derived from this
+    meal's food_items — see MealPlanMeal.recompute_exchanges — not
+    editable directly, so they're read-only here."""
+
     food_items = MealPlanFoodItemSerializer(many=True, read_only=True)
 
     class Meta:
@@ -53,7 +57,10 @@ class MealPlanMealSerializer(serializers.ModelSerializer):
             "milk_exchanges", "rice_exchanges", "meat_exchanges", "fat_exchanges",
             "sugar_exchanges", "meal_notes", "food_items",
         ]
-        read_only_fields = ["meal_plan"]
+        read_only_fields = [
+            "meal_plan", "vegetable_exchanges", "fruit_exchanges", "milk_exchanges",
+            "rice_exchanges", "meat_exchanges", "fat_exchanges", "sugar_exchanges",
+        ]
 
 
 class MealPlanSerializer(serializers.ModelSerializer):

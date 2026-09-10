@@ -116,6 +116,41 @@ class MealPlanMeal(models.Model):
     def __str__(self):
         return f"{self.meal_plan.name} — {self.get_meal_time_display()}"
 
+    # Category code prefix -> exchange field. Rice A/B/C and the three milk
+    # types all collapse into one total each; vegetable/fruit/fat/sugar map
+    # 1:1. A food item with no linked food_item (free-text/custom) has no
+    # known category and is deliberately excluded — we don't know what it
+    # is, so it can't count toward a specific exchange total.
+    _CATEGORY_PREFIX_TO_FIELD = {
+        "vegetable": "vegetable_exchanges",
+        "fruit": "fruit_exchanges",
+        "milk": "milk_exchanges",
+        "rice": "rice_exchanges",
+        "meat": "meat_exchanges",
+        "fat": "fat_exchanges",
+        "sugar": "sugar_exchanges",
+    }
+
+    def recompute_exchanges(self):
+        """Sums this meal's food items by category and writes the totals
+        into the *_exchanges fields, replacing whatever manual values were
+        there. Call after any food item is added/removed."""
+        from decimal import Decimal
+
+        totals = {field: Decimal("0") for field in self._CATEGORY_PREFIX_TO_FIELD.values()}
+        for item in self.food_items.select_related("food_item__category"):
+            if not item.food_item_id:
+                continue
+            code = item.food_item.category.code
+            prefix = code.split("_")[0]
+            field = self._CATEGORY_PREFIX_TO_FIELD.get(prefix)
+            if field:
+                totals[field] += item.exchanges
+
+        for field, value in totals.items():
+            setattr(self, field, value)
+        self.save(update_fields=list(totals.keys()))
+
 
 class MealPlanFoodItem(models.Model):
     """Actual foods matching individual meal components.
