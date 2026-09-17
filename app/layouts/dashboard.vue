@@ -163,6 +163,8 @@ const userInitials = computed(() =>
 )
 
 // TODO: wire badge counts to real data (active patients, upcoming appointments, etc.)
+// Earnings, Reviews, and Availability were moved into Profile Settings and
+// removed from here per request.
 const navGroups = [
   {
     label: 'MAIN',
@@ -177,16 +179,13 @@ const navGroups = [
     items: [
       { icon: LineChart, label: 'NCP Records', to: '/ncp-records' },
       { icon: Target, label: 'Meal Plans', to: '/meal-planning' },
-      { icon: SearchIcon, label: 'Food Exchange Search', to: '/food-exchange-search' },
-      { icon: CalendarDays, label: 'Availability', to: '/availability' }
+      { icon: SearchIcon, label: 'Food Exchange Search', to: '/food-exchange-search' }
     ]
   },
   {
     label: 'RESOURCES',
     items: [
-      { icon: FileText, label: 'Resources', to: '/resource-library' },
-      { icon: Wallet, label: 'Earnings', to: '/earnings' },
-      { icon: Star, label: 'Reviews', to: '/reviews' }
+      { icon: FileText, label: 'Resources', to: '/resource-library' }
     ]
   }
 ]
@@ -336,8 +335,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .main-column { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 .topbar {
-  position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #eceeec;
-  padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #a8d5b5;
+  padding: 10px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
 }
 .topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a3a1a; margin: 0; }
 .topbar-date { font-size: 0.8rem; color: #8a9a8a; }
@@ -383,5 +382,5 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .profile-panel-item:hover { background: #f4f6f4; }
 .profile-panel-item.logout { color: #c85a5a; }
 
-.content { flex: 1; overflow-y: auto; padding: 24px 16px 32px; }
+.content { flex: 1; overflow-y: auto; padding: 24px 40px 32px; }
 </style>

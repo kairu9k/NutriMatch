@@ -28,7 +28,7 @@
           </div>
           <div class="plan-badges">
             <span class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
-            <span class="badge badge-gold">{{ planMeta.dietType }}</span>
+            <span class="badge badge-gold">{{ planMeta.condition }}</span>
           </div>
         </div>
 
@@ -96,7 +96,7 @@
           <div class="saved-plan-card">
             <div>
               <div class="saved-plan-name">{{ planMeta.name }}</div>
-              <div class="saved-plan-meta">{{ planMeta.dietType }} · {{ planMeta.kcalPerDay }} kcal/day</div>
+              <div class="saved-plan-meta">{{ planMeta.condition }} · {{ planMeta.kcalPerDay }} kcal/day</div>
             </div>
             <span class="active-pill">ACTIVE</span>
           </div>
@@ -120,65 +120,89 @@
     <!-- ================= CREATE PLAN MODE ================= -->
     <div v-else class="planning-layout">
       <div class="create-column">
+        <!-- STEP 1: PLAN DETAILS (simplified form) -->
         <div class="panel">
-          <h4 class="side-title">Plan Details</h4>
-          <div class="form-row">
+          <h4 v-if="!planCreated" class="no-plan-title">No meal plan yet for {{ selectedPatient }}</h4>
+          <h4 v-else class="side-title">Plan Details</h4>
+
+          <div class="form-row-6">
             <div class="field">
               <label>Plan Name</label>
-              <input v-model="planMeta.name" type="text" />
+              <input v-model="planMeta.name" type="text" placeholder="e.g., Diabetic-Friendly Plan" />
             </div>
             <div class="field">
-              <label>Diet Type</label>
-              <input v-model="planMeta.dietType" type="text" />
+              <label>Condition</label>
+              <select v-model="planMeta.condition">
+                <option v-for="c in conditionOptions" :key="c" :value="c">{{ c }}</option>
+              </select>
             </div>
             <div class="field">
               <label>Target Calories/day</label>
-              <input v-model="planMeta.kcalPerDay" type="number" />
+              <input v-model.number="planMeta.kcalPerDay" type="number" placeholder="e.g., 1800" />
+            </div>
+            <div class="field">
+              <label>Protein (g/day) <span class="optional">(optional)</span></label>
+              <input v-model.number="targets.protein" type="number" placeholder="e.g., 90" />
+            </div>
+            <div class="field">
+              <label>Carbohydrate (g/day) <span class="optional">(optional)</span></label>
+              <input v-model.number="targets.carb" type="number" placeholder="e.g., 200" />
+            </div>
+            <div class="field">
+              <label>Fat (g/day) <span class="optional">(optional)</span></label>
+              <input v-model.number="targets.fat" type="number" placeholder="e.g., 55" />
             </div>
           </div>
-        </div>
 
-        <div class="day-tabs">
-          <button
-            v-for="day in days"
-            :key="day"
-            class="day-tab"
-            :class="{ active: activeDay === day }"
-            @click="activeDay = day"
-          >
-            {{ day }}
+          <button v-if="!planCreated" class="btn-primary" :disabled="!planMeta.name || !planMeta.kcalPerDay" @click="planCreated = true">
+            Create Meal Plan
           </button>
         </div>
 
-        <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
-          <div class="meal-edit-header">
-            <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ meal.type.toUpperCase() }}</span>
-            <span class="meal-edit-time">{{ meal.time }}</span>
+        <!-- STEP 2: DAILY MEALS — only once the plan header has been created -->
+        <template v-if="planCreated">
+          <div class="day-tabs">
+            <button
+              v-for="day in days"
+              :key="day"
+              class="day-tab"
+              :class="{ active: activeDay === day }"
+              @click="activeDay = day"
+            >
+              {{ day }}
+            </button>
           </div>
 
-          <div class="food-table">
-            <div class="food-table-head">
-              <span>FOOD ITEM</span>
-              <span>PORTION</span>
-              <span>KCAL</span>
-              <span>CARB(G)</span>
-              <span>PROT(G)</span>
-              <span>FAT(G)</span>
-              <span></span>
+          <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
+            <div class="meal-edit-header">
+              <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ meal.type.toUpperCase() }}</span>
+              <span class="meal-edit-time">{{ meal.time }}</span>
             </div>
-            <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx">
-              <button class="remove-btn" @click="removeItem(meal, idx)"><X :size="12" /></button>
-              <input v-model="item.name" type="text" placeholder="e.g., Brown rice" />
-              <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
-              <input v-model.number="item.kcal" type="number" placeholder="0" />
-              <input v-model.number="item.carb" type="number" placeholder="0" />
-              <input v-model.number="item.prot" type="number" placeholder="0" />
-              <input v-model.number="item.fat" type="number" placeholder="0" />
-            </div>
-          </div>
 
-          <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
-        </div>
+            <div class="food-table">
+              <div class="food-table-head">
+                <span>FOOD ITEM</span>
+                <span>PORTION</span>
+                <span>KCAL</span>
+                <span>CARB(G)</span>
+                <span>PROT(G)</span>
+                <span>FAT(G)</span>
+                <span></span>
+              </div>
+              <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx">
+                <button class="remove-btn" @click="removeItem(meal, idx)"><X :size="12" /></button>
+                <input v-model="item.name" type="text" placeholder="e.g., Brown rice" />
+                <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
+                <input v-model.number="item.kcal" type="number" placeholder="0" />
+                <input v-model.number="item.carb" type="number" placeholder="0" />
+                <input v-model.number="item.prot" type="number" placeholder="0" />
+                <input v-model.number="item.fat" type="number" placeholder="0" />
+              </div>
+            </div>
+
+            <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
+          </div>
+        </template>
       </div>
 
       <!-- RIGHT SIDEBAR (CREATE MODE) -->
@@ -186,18 +210,44 @@
         <div class="panel">
           <div class="side-header-row">
             <h4 class="side-title">Live Preview</h4>
-            <span class="preview-day">{{ activeDay === 'Mon' ? 'Monday' : activeDay }}</span>
+            <span v-if="planCreated" class="preview-day">{{ activeDay === 'Mon' ? 'Monday' : activeDay }}</span>
           </div>
-          <div class="preview-list">
+
+          <!-- Before the plan header is created: nothing to preview yet -->
+          <p v-if="!planMeta.name && !planMeta.kcalPerDay" class="macro-note">
+            Fill in the plan details to see a live preview here.
+          </p>
+
+          <template v-else>
+            <!-- Plan summary card — updates as the form above is filled in -->
+            <div class="preview-summary">
+              <p class="preview-summary-name">{{ planMeta.name || 'Untitled Plan' }}</p>
+              <div class="plan-badges">
+                <span v-if="planMeta.condition" class="badge badge-gold">{{ planMeta.condition }}</span>
+                <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
+              </div>
+            </div>
+
+            <!-- Macro targets, shown as soon as they're entered — even before any food items exist -->
+            <div v-if="targets.protein || targets.carb || targets.fat" class="target-list">
+              <div v-if="targets.protein" class="target-row"><span>Protein</span><span>{{ targets.protein }}g/day</span></div>
+              <div v-if="targets.carb" class="target-row"><span>Carbohydrate</span><span>{{ targets.carb }}g/day</span></div>
+              <div v-if="targets.fat" class="target-row"><span>Fat</span><span>{{ targets.fat }}g/day</span></div>
+            </div>
+          </template>
+
+          <!-- Once meals have real food items, show the per-meal breakdown -->
+          <div v-if="planCreated && currentDayMeals.some(m => m.items.some(i => i.name))" class="preview-list">
             <div class="preview-item" v-for="meal in currentDayMeals.filter(m => m.items.some(i => i.name))" :key="meal.type" :class="'preview-' + meal.accent">
               <div class="preview-label"><component :is="meal.icon" :size="13" /> {{ meal.type }}</div>
               <div class="preview-food">{{ firstFoodSummary(meal) }}</div>
               <div class="preview-kcal">{{ mealTotal(meal, 'kcal') }} kcal</div>
             </div>
           </div>
+          <p v-else-if="planCreated" class="macro-note">No meals added yet. Add food items per day to see the nutrition breakdown.</p>
         </div>
 
-        <div class="panel">
+        <div v-if="planCreated" class="panel">
           <h4 class="side-title">Macro Tracker</h4>
           <div class="macro-row"><span>Calories</span><span class="macro-value">{{ dayTotal('kcal') }} kcal</span></div>
           <div class="macro-bar"><div class="macro-fill fill-dark" :style="{ width: macroPct('kcal') + '%' }"></div></div>
@@ -214,7 +264,7 @@
           <p class="macro-note">Based on foods entered for the selected day</p>
         </div>
 
-        <div class="panel">
+        <div v-if="planCreated" class="panel">
           <h4 class="side-title">Special Instructions</h4>
           <div class="field">
             <label>Allergies / Restrictions</label>
@@ -248,6 +298,10 @@ const selectedPatientId = computed(() => {
   return match?.id || null
 })
 
+// TODO: replace with a real condition list (e.g. from the patient's own
+// record, or a shared taxonomy) once available — this is a placeholder set.
+const conditionOptions = ['Diabetes', 'Hypertension', 'Renal Disease', 'Weight Management', 'General']
+
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const activeDay = ref('Mon')
 const mealOrder = ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner']
@@ -263,8 +317,12 @@ function emptyWeek() {
   return week
 }
 
-const planMeta = reactive({ name: '', dietType: '', kcalPerDay: 0 })
-const targets = reactive({ carb: 0, protein: 0, fat: 0 })
+// planCreated gates Step 2 (day tabs + food table) behind the simplified
+// Plan Details form, matching the "No meal plan yet" → "Create Meal Plan" flow.
+const planCreated = ref(false)
+
+const planMeta = reactive({ name: '', condition: conditionOptions[0], kcalPerDay: null })
+const targets = reactive({ carb: null, protein: null, fat: null })
 const instructions = reactive({ allergies: '', notes: '' })
 const weeklyPlan = reactive(emptyWeek())
 
@@ -274,20 +332,22 @@ function loadPlanForPatient() {
   const found = db.mealPlanDetails.find(m => m.patientId === selectedPatientId.value)
 
   if (!found) {
+    planCreated.value = false
     planMeta.name = ''
-    planMeta.dietType = ''
-    planMeta.kcalPerDay = 0
-    targets.carb = 0
-    targets.protein = 0
-    targets.fat = 0
+    planMeta.condition = conditionOptions[0]
+    planMeta.kcalPerDay = null
+    targets.carb = null
+    targets.protein = null
+    targets.fat = null
     instructions.allergies = ''
     instructions.notes = ''
     Object.assign(weeklyPlan, emptyWeek())
     return
   }
 
+  planCreated.value = true
   planMeta.name = found.planName
-  planMeta.dietType = found.dietType
+  planMeta.condition = found.dietType
   planMeta.kcalPerDay = found.kcalTarget
   targets.carb = found.carbTarget
   targets.protein = found.proteinTarget
@@ -371,7 +431,7 @@ function macroPct(field) {
 </script>
 
 <style scoped>
-.top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
 
 .mode-toggle { display: flex; gap: 10px; }
 .mode-btn {
@@ -388,9 +448,9 @@ function macroPct(field) {
 }
 .select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
 
-.planning-layout { display: grid; grid-template-columns: 2.3fr 1fr; gap: 20px; align-items: start; }
+.planning-layout { display: grid; grid-template-columns: 2.3fr 1fr; gap: 24px; align-items: start; }
 
-.panel { background: #fff; border-radius: 12px; padding: 22px; border: 1px solid #eceeec; margin-bottom: 16px; }
+.panel { background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #eceeec; margin-bottom: 20px; }
 
 /* VIEW MODE */
 .plan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
@@ -400,7 +460,7 @@ function macroPct(field) {
 .badge-blue { background: #e3edfc; color: #3b6fd6; }
 .badge-gold { background: #fdf1d6; color: #b8860b; }
 
-.day-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+.day-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
 .day-tab {
   border: 1px solid #e0e5e0; background: #fff; color: #4a5a4a;
   padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
@@ -434,9 +494,10 @@ function macroPct(field) {
   background: #163a1c; color: #fff; border: none;
   padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* SIDE COLUMN (shared) */
-.side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
+.side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
 .side-subtitle { font-size: 0.75rem; color: #9aaa9a; }
 .side-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .link-btn { display: flex; align-items: center; gap: 4px; background: none; border: none; color: #1a6a2a; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
@@ -468,32 +529,40 @@ function macroPct(field) {
 .tag-fat { background: #eef0ee; color: #6a7a6a; }
 .exchange-note { font-size: 0.72rem; color: #9aaa9a; margin-top: 12px; }
 
-/* CREATE MODE */
-.form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px; }
+/* CREATE MODE — STEP 1 (simplified plan details form) */
+.no-plan-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
+.form-row-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 24px; margin-bottom: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
-.field input, .field textarea {
+.optional { font-weight: 400; text-transform: none; color: #9aaa9a; }
+.field input, .field select, .field textarea {
   border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
 }
 .field textarea { resize: vertical; }
 
-.meal-edit-panel { padding: 0; overflow: hidden; }
+/* LIVE PREVIEW (create mode) */
+.preview-summary { margin-bottom: 12px; }
+.preview-summary-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
+.target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
+.target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
+
+.meal-edit-panel { padding: 0; overflow: hidden; margin-bottom: 18px; }
 .meal-edit-header {
   display: flex; justify-content: space-between; align-items: center;
-  background: #eef5ee; padding: 14px 22px;
+  background: #eef5ee; padding: 16px 24px;
 }
 .meal-edit-label { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #1a3a1a; letter-spacing: 0.03em; }
 .meal-edit-time { font-size: 0.75rem; color: #7a8a7a; }
 
-.food-table { padding: 16px 22px 0; }
+.food-table { padding: 20px 24px 4px; }
 .food-table-head, .food-table-row {
-  display: grid; grid-template-columns: 24px 2fr 1fr 0.8fr 0.9fr 0.9fr 0.8fr; gap: 10px; align-items: center;
+  display: grid; grid-template-columns: 24px 2fr 1fr 0.8fr 0.9fr 0.9fr 0.8fr; gap: 12px; align-items: center;
 }
-.food-table-head { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; padding-bottom: 8px; }
+.food-table-head { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; padding-bottom: 10px; }
 .food-table-head span:first-child { visibility: hidden; }
-.food-table-row { margin-bottom: 8px; }
+.food-table-row { margin-bottom: 12px; }
 .food-table-row input {
-  border: 1px solid #e0e5e0; border-radius: 6px; padding: 7px 9px; font-size: 0.82rem; font-family: inherit; width: 100%;
+  border: 1px solid #e0e5e0; border-radius: 6px; padding: 9px 10px; font-size: 0.82rem; font-family: inherit; width: 100%;
 }
 .remove-btn {
   width: 20px; height: 20px; border-radius: 5px; border: none;
@@ -502,14 +571,14 @@ function macroPct(field) {
 
 .btn-add-food {
   display: flex; align-items: center; gap: 6px; justify-content: center;
-  width: calc(100% - 44px); margin: 4px 22px 18px;
+  width: calc(100% - 48px); margin: 6px 24px 22px;
   border: 1px dashed #cdd8cd; background: none; color: #1a6a2a;
-  padding: 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  padding: 11px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
 .btn-add-food:hover { background: #f4f8f4; }
 
-.preview-list { display: flex; flex-direction: column; gap: 8px; }
-.preview-item { border-left: 3px solid #ccc; background: #fafbfa; border-radius: 8px; padding: 10px 12px; }
+.preview-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.preview-item { border-left: 3px solid #ccc; background: #fafbfa; border-radius: 8px; padding: 12px 14px; }
 .preview-green { border-left-color: #2e9e52; }
 .preview-gold { border-left-color: #D4A017; }
 .preview-blue { border-left-color: #3b6fd6; }
@@ -518,7 +587,7 @@ function macroPct(field) {
 .preview-kcal { font-size: 0.72rem; color: #9aaa9a; }
 .preview-day { font-size: 0.72rem; color: #9aaa9a; }
 
-.macro-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: #3a4a3a; margin-top: 14px; margin-bottom: 6px; }
+.macro-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: #3a4a3a; margin-top: 18px; margin-bottom: 8px; }
 .macro-value { font-weight: 600; }
 .macro-bar { height: 6px; background: #eceeec; border-radius: 3px; overflow: hidden; }
 .macro-fill { height: 100%; border-radius: 3px; }
@@ -526,7 +595,7 @@ function macroPct(field) {
 
 @media (max-width: 1150px) {
   .planning-layout { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; }
+  .form-row-6 { grid-template-columns: 1fr 1fr; }
   .food-table-head, .food-table-row { grid-template-columns: 20px 2fr 1fr 1fr 1fr; }
   .food-table-head span:nth-child(6), .food-table-row input:nth-child(6),
   .food-table-head span:nth-child(7), .food-table-row input:nth-child(7) { display: none; }
