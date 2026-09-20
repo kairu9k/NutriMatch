@@ -352,8 +352,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .main-column { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 .topbar {
-  position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #eceeec;
-  padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #a8d5b5;
+  padding: 10px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
 }
 .topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a3a1a; margin: 0; }
 .topbar-date { font-size: 0.8rem; color: #8a9a8a; }
