@@ -1,14 +1,12 @@
 <template>
   <div class="search-page">
     <div class="page-header">
-      <div>
-        <h1 class="page-title">Food Exchange Search</h1>
-        <p class="page-sub">Search the FNRI Food Exchange List to build evidence-based meal plans.</p>
-      </div>
-      <div class="search-box">
-        <Search :size="16" class="search-icon" />
-        <input v-model="search" type="text" placeholder="Search foods (e.g. banana, bangus)..." />
-      </div>
+      <p class="page-sub">Search the FNRI Food Exchange List to build evidence-based meal plans.</p>
+    </div>
+
+    <div class="search-wrap">
+      <Search :size="16" class="search-icon" />
+      <input v-model="search" type="text" class="search-input" placeholder="Search foods (e.g. banana, bangus)..." />
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -16,7 +14,7 @@
     <div v-if="categories.length" class="filter-row">
       <div class="category-select-wrap">
         <select v-model="categorySelectValue" class="category-select">
-          <option value="">All Categories</option>
+          <option value="all">All Categories</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
         <ChevronDown :size="15" class="select-caret" />
@@ -84,12 +82,12 @@ const items = ref([])
 const search = ref('')
 const activeCategory = ref(null)
 
-// <select> values are always strings — coerce back to the numeric category
-// id (or null for "All Categories") so activeCategory keeps comparing
-// correctly against item.category.id.
+// <select> values are always strings — this bridges the "all"/numeric-id
+// option values to activeCategory (null or a real category id) so
+// filteredItems keeps comparing against item.category.id correctly.
 const categorySelectValue = computed({
-  get: () => activeCategory.value,
-  set: (val) => { activeCategory.value = val === '' || val === null ? null : Number(val) },
+  get: () => (activeCategory.value === null ? 'all' : String(activeCategory.value)),
+  set: (val) => { activeCategory.value = val === 'all' ? null : Number(val) },
 })
 
 const safetyFilters = [
@@ -136,16 +134,16 @@ onMounted(loadData)
 
 .search-page { font-family: 'Inter', sans-serif; }
 
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 40px; }
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
-.search-box {
-  display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e5e8e5;
-  border-radius: 8px; padding: 10px 14px; width: 300px; flex-shrink: 0;
+.search-wrap { position: relative; margin-bottom: 30px; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9aaa9a; }
+.search-input {
+  width: 100%; max-width: 480px; border: 1px solid #d5dad5; border-radius: 10px; padding: 11px 16px 11px 38px;
+  font-size: 0.85rem; font-family: inherit; color: #2a2a2a;
 }
-.search-box input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; }
-.search-icon { color: #9aaa9a; flex-shrink: 0; }
+.search-input:focus { outline: none; border-color: #D4A017; }
 
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
@@ -169,7 +167,7 @@ onMounted(loadData)
 .safety-toggle input { cursor: pointer; }
 .safety-toggle.active { color: #1a3a1a; font-weight: 700; }
 
-.item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 .item-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 18px 20px;
   display: flex; flex-direction: column;
@@ -206,4 +204,7 @@ onMounted(loadData)
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 .empty-text { font-size: 0.85rem; color: #9aaa9a; padding: 20px; text-align: center; }
+
+@media (max-width: 1400px) { .item-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px) { .item-grid { grid-template-columns: repeat(2, 1fr); } .page-header { flex-direction: column; } }
 </style>
