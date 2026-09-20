@@ -11,30 +11,6 @@
     <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
     <template v-else>
-      <!-- STAT CARDS -->
-      <section v-if="patients.length" class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-icon icon-blue"><Users :size="17" /></div>
-          <p class="stat-value">{{ filters[0].count }}</p>
-          <p class="stat-label">Total Patients</p>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-mint"><Activity :size="17" /></div>
-          <p class="stat-value">{{ filters[1].count }}</p>
-          <p class="stat-label">Active</p>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-gold"><Clock :size="17" /></div>
-          <p class="stat-value">{{ filters[2].count }}</p>
-          <p class="stat-label">Pending</p>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-red"><UserX :size="17" /></div>
-          <p class="stat-value">{{ filters[3].count }}</p>
-          <p class="stat-label">Discharged</p>
-        </div>
-      </section>
-
       <!-- TOOLBAR: SEARCH + FILTER TABS -->
       <div v-if="patients.length" class="toolbar">
         <div class="search-box-wide">
@@ -113,7 +89,7 @@
 </template>
 
 <script setup>
-import { Search, Users, Activity, Clock, UserX, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Search, Users, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'My Patients' })
 
@@ -232,17 +208,6 @@ onMounted(loadPatients)
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
-/* STAT CARDS */
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 14px; padding: 18px 20px; border: 1px solid #eceeec; }
-.stat-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-.stat-icon.icon-blue { background: #e3ecf7; color: #2a5a8a; }
-.stat-icon.icon-mint { background: #e3f3ea; color: #1f8f5c; }
-.stat-icon.icon-gold { background: #fdf1d6; color: #b8860b; }
-.stat-icon.icon-red { background: #fbe0e0; color: #c0392b; }
-.stat-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.stat-label { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 0; }
-
 /* TOOLBAR */
 .toolbar { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
 .search-box-wide {
@@ -329,7 +294,4 @@ onMounted(loadPatients)
 .page-btn-primary { background: #14301a; color: #fff; border-color: #14301a; }
 .page-btn-primary:disabled { background: #14301a; opacity: 0.4; }
 
-@media (max-width: 1100px) {
-  .stat-grid { grid-template-columns: repeat(2, 1fr); }
-}
 </style>
