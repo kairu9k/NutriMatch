@@ -285,21 +285,21 @@ onMounted(loadData)
 .status-pill.success { background: #e6efe0; color: #3a6b3a; }
 .status-pill.warning { background: #faead0; color: #b8860b; }
 
-.phase-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
-.phase-card { background: #f9f9f5; border-radius: 10px; padding: 14px 8px; text-align: center; }
-.phase-card.done { background: #eef3ec; }
+.phase-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.phase-card { text-align: left; }
 .phase-num {
-  width: 26px; height: 26px; border-radius: 50%; background: #eceeec; color: #7a8a7a;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.76rem;
-  margin: 0 auto 8px;
+  width: 34px; height: 34px; border-radius: 50%; background: #eceeec; color: #6a7a6a;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;
+  margin-bottom: 10px;
 }
-.phase-card.done .phase-num { background: #3a6b3a; color: #fff; }
-.phase-label { font-size: 0.78rem; font-weight: 700; color: #1a3a1a; margin-bottom: 6px; }
-.phase-action { border: none; background: none; color: #1f8f5c; font-size: 0.76rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: none; }
+.phase-card.done .phase-num { background: #1f8f5c; color: #fff; }
+.phase-label { font-weight: 700; color: #1a3a1a; font-size: 0.88rem; margin: 0 0 8px; }
+.phase-action { border: none; background: none; color: #1f8f5c; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: none; }
 
-.vitals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center; }
-.vital-num { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; }
-.vital-label { font-size: 0.72rem; color: #9aaa9a; margin-top: 2px; }
+.vitals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.vital-item { text-align: left; }
+.vital-num { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.vital-label { font-size: 0.75rem; color: #8a9a8a; margin: 4px 0 0; }
 
 .pes-box { background: #e3edf7; border-radius: 10px; padding: 16px; }
 .pes-box p { font-size: 0.86rem; color: #2f6fa8; margin: 0 0 8px; line-height: 1.6; }
