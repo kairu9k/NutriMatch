@@ -1,5 +1,5 @@
 <template>
-  <ResourceUpload />
+  <Resources />
 </template>
 
 <script setup>

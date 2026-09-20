@@ -1,7 +1,8 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, serializers, status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -10,7 +11,7 @@ from scheduling.models import RndClientRelationship
 
 from .models import Message, NotificationLog, Resource
 from .serializers import MessageSerializer, NotificationLogSerializer, ResourceSerializer
-from .services import notify
+from .services import CloudinaryResourceUploadService, ResourceUploadError, notify
 
 
 class MessageListCreateView(generics.ListCreateAPIView):
@@ -94,18 +95,27 @@ class NotificationMarkAllReadView(APIView):
 
 
 class RndResourceListCreateView(generics.ListCreateAPIView):
-    """RND's own uploaded resources. Create is currently restricted to
-    'link' type — see ResourceSerializer.validate — since no file storage
-    (MEDIA_ROOT/FileField) is configured anywhere in this project yet."""
+    """RND's own uploaded resources. 'link' type stores a URL directly;
+    every other type uploads its file to Cloudinary (see
+    CloudinaryResourceUploadService) and stores the resulting secure URL
+    as file_path."""
 
     serializer_class = ResourceSerializer
     permission_classes = [IsRnd]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         return Resource.objects.filter(uploaded_by=self.request.user).order_by("-created_at")
 
     def perform_create(self, serializer):
-        serializer.save(uploaded_by=self.request.user)
+        file = serializer.validated_data.pop("file", None)
+        file_path = None
+        if file is not None:
+            try:
+                file_path = CloudinaryResourceUploadService().upload(file)
+            except ResourceUploadError as exc:
+                raise serializers.ValidationError({"file": [str(exc)]})
+        serializer.save(uploaded_by=self.request.user, file_path=file_path)
 
 
 class RndResourceUpdateView(generics.UpdateAPIView):

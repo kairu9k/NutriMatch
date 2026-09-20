@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
+    'cloudinary',
     'accounts',
     'profiles',
     'scheduling',
@@ -190,6 +191,21 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+# Cloudinary (Resource file uploads — PDF, video, etc.)
+# `resources.file_path` is a plain varchar per vault/database.txt (RA 10173
+# data-minimization pattern), not a Django FileField — communication/services.py
+# uploads directly via the Cloudinary SDK and stores the returned secure_url
+# as that string, rather than routing through DEFAULT_FILE_STORAGE.
+# Empty in dev — CloudinaryResourceUploadService raises a clear config error
+# rather than silently failing, same pattern as PAYMONGO below. Free tier,
+# no card required: https://cloudinary.com/users/register/free
+CLOUDINARY = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default=''),
+    'API_KEY': config('CLOUDINARY_API_KEY', default=''),
+    'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
+}
 
 
 # Email
