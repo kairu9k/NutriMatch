@@ -6,7 +6,7 @@
         <Menu :size="22" />
       </button>
       <div class="mobile-brand">
-        <Leaf class="logo-icon" :size="18" />
+        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch" class="logo-mark" />
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
       </div>
     </div>
@@ -14,11 +14,21 @@
     <!-- MOBILE OVERLAY -->
     <div v-if="isSidebarOpen" class="sidebar-overlay" @click="isSidebarOpen = false"></div>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar" :class="{ 'sidebar-open': isSidebarOpen }">
-      <div class="sidebar-brand">
-        <Leaf class="logo-icon" :size="20" />
-        <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
+    <!-- SIDEBAR — collapsed by default, expands on hover (desktop) or via
+         the mobile menu button. Width transition + hidden overflow keeps
+         labels from wrapping mid-animation. -->
+    <aside
+      class="sidebar"
+      :class="{ collapsed: isCollapsed, 'sidebar-open': isSidebarOpen }"
+      @mouseenter="isCollapsed = false"
+      @mouseleave="isCollapsed = true"
+    >
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+          <img src="/resources/nutrimatchlogo.png" alt="NutriMatch" class="logo-mark" />
+          <span v-if="!isCollapsed" class="logo-text">Nutri<span class="logo-match">Match</span></span>
+        </div>
+        <span v-if="!isCollapsed" class="brand-tagline">Clinical Nutrition System</span>
       </div>
 
       <!-- NAV + ACCOUNT FOOTER — gated on auth.hydrated: auth.user only exists
@@ -26,11 +36,7 @@
            rendering this before hydration completes sends the server a guess
            that's wrong for every RND/admin. Vue's hydration-mismatch repair
            then patches some nodes (labels) but not others (icons, hrefs),
-           producing a genuinely broken mixed render rather than a clean one.
-           Structured as a flex column so the account footer (profile +
-           settings) stays pinned to the bottom of the viewport, independent
-           of the main nav's own scroll region — same pattern as Claude's
-           own sidebar. -->
+           producing a genuinely broken mixed render rather than a clean one. -->
       <template v-if="auth.hydrated">
         <nav class="sidebar-nav">
           <NuxtLink
@@ -39,24 +45,30 @@
             :to="item.to"
             class="nav-item"
             :class="{ active: route.path === item.to }"
+            :title="isCollapsed ? item.label : null"
             @click="isSidebarOpen = false"
           >
             <component :is="item.icon" class="nav-icon" :size="17" />
-            <span class="nav-label">{{ item.label }}</span>
-            <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
+            <span v-if="item.badge && !isCollapsed" class="nav-badge">{{ item.badge }}</span>
           </NuxtLink>
         </nav>
 
         <div class="account-section">
-          <p class="nav-group-label">ACCOUNT</p>
-          <NuxtLink to="/profile-settings" class="account-footer" @click="isSidebarOpen = false">
+          <p v-if="!isCollapsed" class="nav-group-label">ACCOUNT</p>
+          <NuxtLink
+            to="/profile-settings"
+            class="account-footer"
+            :title="isCollapsed ? displayName : null"
+            @click="isSidebarOpen = false"
+          >
             <div class="profile-avatar">{{ userInitials }}</div>
-            <div class="account-footer-text">
+            <div v-if="!isCollapsed" class="account-footer-text">
               <p class="profile-name">{{ displayName }}</p>
               <p v-if="isRnd" class="profile-specialty">{{ rndProfile.specialty }}</p>
               <p v-else class="profile-specialty">{{ roleLabel }}</p>
             </div>
-            <UserCog class="account-footer-icon" :size="16" />
+            <UserCog v-if="!isCollapsed" class="account-footer-icon" :size="16" />
           </NuxtLink>
         </div>
       </template>
@@ -64,9 +76,7 @@
 
     <!-- MAIN COLUMN -->
     <div class="main-column">
-      <!-- STICKY TOP HEADER — page title left, real notification bell right.
-           Search/messages/avatar buttons dropped: the earlier version had
-           no click handlers or backing state at all, just markup. -->
+      <!-- STICKY TOP HEADER — page title left, real notification bell right. -->
       <header class="topbar">
         <div>
           <h1>{{ pageTitle }}</h1>
@@ -86,7 +96,7 @@
 
 <script setup>
 import {
-  Leaf, LayoutDashboard, Users, CalendarCheck, Target,
+  LayoutDashboard, Users, CalendarCheck, Target,
   Search as SearchIcon, FileText, MessageCircle,
   Star, UserCog, Menu, Receipt, TrendingUp
 } from 'lucide-vue-next'
@@ -94,6 +104,7 @@ import {
 const route = useRoute()
 const auth = useAuthStore()
 const isSidebarOpen = ref(false)
+const isCollapsed = ref(true)
 
 // Close the mobile sidebar automatically on route change (e.g. browser back/forward).
 watch(() => route.path, () => { isSidebarOpen.value = false })
@@ -177,23 +188,31 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
   background: #f7f8f6;
 }
 
-/* SIDEBAR — flex column so the account footer stays pinned to the
-   bottom of the viewport, independent of the nav's own scroll region. */
+/* SIDEBAR — collapsed to an icon rail by default, expands on hover.
+   Flex column so the account footer stays pinned to the bottom of the
+   viewport, independent of the nav's own scroll region. */
 .sidebar {
-  width: 240px; flex-shrink: 0; background: #14301a; color: #fff;
-  padding: 24px 20px; height: 100vh; position: sticky; top: 0;
+  width: 76px; flex-shrink: 0; background: #14301a; color: #fff;
+  padding: 20px 14px; height: 100vh; position: sticky; top: 0;
   display: flex; flex-direction: column; overflow: hidden;
+  transition: width 0.2s ease, padding 0.2s ease;
 }
-.sidebar-brand { display: flex; align-items: center; gap: 8px; font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; flex-shrink: 0; }
-.logo-icon { color: #D4A017; flex-shrink: 0; }
+.sidebar:not(.collapsed) { width: 240px; padding: 20px; }
+
+.sidebar-top { margin-bottom: 20px; flex-shrink: 0; }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; }
+.logo-mark { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; }
+.logo-text { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
 .logo-match { color: #D4A017; }
+.brand-tagline { display: block; font-size: 0.6rem; letter-spacing: 0.1em; color: #8fae9f; text-transform: uppercase; margin-top: 8px; font-weight: 600; white-space: nowrap; }
 
 /* Nav sizes to its own content and scrolls only if it overflows — it
    must NOT flex-grow to fill the sidebar (margin-top: auto on the
    account section below would have the same effect: fine for a long
    nav list, but stretches into a large empty gap when the list is
-   short, like this 7-item one). */
-.sidebar-nav { flex: 0 1 auto; overflow-y: auto; min-height: 0; }
+   short, like this 6-item one). */
+.sidebar-nav { flex: 0 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; }
 
 /* ACCOUNT SECTION — sits a fixed distance below the nav rather than
    being pushed to the absolute bottom of the viewport, so the gap
@@ -204,10 +223,10 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(212,160,23,0.25);
   border-radius: 12px;
-  padding: 12px 14px;
-  text-decoration: none;
+  padding: 10px; text-decoration: none;
   transition: background 0.15s;
 }
+.sidebar.collapsed .account-footer { justify-content: center; padding: 10px 0; }
 .account-footer:hover { background: rgba(255,255,255,0.08); }
 .account-footer-text { flex: 1; min-width: 0; }
 .account-footer-icon { color: #9ab89a; flex-shrink: 0; }
@@ -221,19 +240,21 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
 .profile-name { font-size: 0.86rem; font-weight: 700; color: #fff; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-specialty { font-size: 0.72rem; color: #9ab89a; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.nav-group-label { font-size: 0.65rem; letter-spacing: 0.1em; color: #5a7a5a; margin: 20px 0 8px; padding-left: 10px; }
+.nav-group-label { font-size: 0.65rem; letter-spacing: 0.1em; color: #5a7a5a; margin: 20px 0 8px; padding-left: 10px; white-space: nowrap; }
 .nav-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 10px; border-radius: 8px;
+  display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px;
   color: #c8d8c8; font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: background 0.15s;
   position: relative; text-decoration: none;
   width: 100%; background: none; border: none; text-align: left; font-family: inherit;
+  white-space: nowrap; overflow: hidden; margin-bottom: 4px;
 }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
 .nav-item:hover { background: rgba(255,255,255,0.05); }
 .nav-item.active { background: #D4A017; color: #1a3a1a; font-weight: 700; }
 .nav-item.active .nav-icon { color: #1a3a1a; }
 .nav-icon { flex-shrink: 0; }
 .nav-label { flex: 1; }
-.nav-badge { background: #D4A017; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+.nav-badge { background: #fff; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; flex-shrink: 0; }
 
 /* MAIN COLUMN */
 .main-column { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -243,16 +264,7 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
   padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
 }
 .topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a3a1a; margin: 0; }
-.topbar-date { font-size: 0.8rem; color: #8a9a8a; }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
-.search-box { display: flex; align-items: center; gap: 8px; background: #f4f6f4; border-radius: 8px; padding: 8px 14px; width: 260px; }
-.search-box input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; }
-.search-icon { color: #9aaa9a; flex-shrink: 0; }
-.icon-btn {
-  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e5e8e5;
-  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #4a5a4a;
-}
-.avatar-btn { border-radius: 50%; }
 
 .content { flex: 1; overflow-y: auto; padding: 24px 100px 100px; }
 
@@ -280,12 +292,16 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
     display: flex; align-items: center; justify-content: center; padding: 4px;
   }
   .mobile-brand { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; }
+  .mobile-brand .logo-mark { width: 22px; height: 22px; }
 
   .dashboard-layout { flex-direction: column; height: auto; min-height: 100vh; }
 
+  /* Mobile sidebar drops the hover-collapse behavior entirely — it's
+     either fully open (slid in) or fully hidden, always at full width. */
   .sidebar {
     position: fixed;
     top: 0; left: 0;
+    width: 240px !important; padding: 20px !important;
     height: 100vh;
     z-index: 40;
     transform: translateX(-100%);
@@ -293,6 +309,15 @@ const mainNav = computed(() => (isRnd.value ? rndMainNav : clientMainNav))
     box-shadow: 4px 0 24px rgba(0,0,0,0.2);
   }
   .sidebar.sidebar-open { transform: translateX(0); }
+  .sidebar.collapsed .sidebar-brand,
+  .sidebar.collapsed .nav-item,
+  .sidebar.collapsed .account-footer { justify-content: flex-start; }
+  .sidebar.collapsed .logo-text,
+  .sidebar.collapsed .brand-tagline,
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .nav-group-label,
+  .sidebar.collapsed .account-footer-text,
+  .sidebar.collapsed .account-footer-icon { display: block; }
 
   .sidebar-overlay {
     display: block;
