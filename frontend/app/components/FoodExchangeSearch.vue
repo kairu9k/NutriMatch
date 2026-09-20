@@ -14,18 +14,12 @@
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
     <div v-if="categories.length" class="filter-row">
-      <div class="chip-group">
-        <button class="filter-chip" :class="{ active: activeCategory === null }" @click="activeCategory = null">All</button>
-        <button
-          v-for="c in categories"
-          :key="c.id"
-          class="filter-chip"
-          :class="{ active: activeCategory === c.id }"
-          :style="activeCategory === c.id ? { background: c.color, borderColor: c.color } : {}"
-          @click="activeCategory = c.id"
-        >
-          {{ c.name }}
-        </button>
+      <div class="category-select-wrap">
+        <select v-model="categorySelectValue" class="category-select">
+          <option value="">All Categories</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+        <ChevronDown :size="15" class="select-caret" />
       </div>
 
       <div class="safety-group">
@@ -77,7 +71,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Search, SearchX } from 'lucide-vue-next'
+import { Search, SearchX, ChevronDown } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Food Exchange Search' })
 
@@ -89,6 +83,14 @@ const categories = ref([])
 const items = ref([])
 const search = ref('')
 const activeCategory = ref(null)
+
+// <select> values are always strings — coerce back to the numeric category
+// id (or null for "All Categories") so activeCategory keeps comparing
+// correctly against item.category.id.
+const categorySelectValue = computed({
+  get: () => activeCategory.value,
+  set: (val) => { activeCategory.value = val === '' || val === null ? null : Number(val) },
+})
 
 const safetyFilters = [
   { key: 'ok_for_diabetes', label: 'Diabetes-safe' },
@@ -151,13 +153,13 @@ onMounted(loadData)
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
-.filter-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-.chip-group { display: flex; gap: 8px; flex-wrap: wrap; }
-.filter-chip {
-  padding: 8px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
-  background: #fff; border: 1px solid #eceeec; color: #6a7a6a; cursor: pointer;
+.filter-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.category-select-wrap { position: relative; }
+.category-select {
+  appearance: none; border: 1px solid #dde3dd; background: #fff;
+  padding: 9px 34px 9px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer; min-width: 200px;
 }
-.filter-chip.active { color: #fff; }
+.select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
 
 .safety-group { display: flex; gap: 14px; flex-wrap: wrap; }
 .safety-toggle {
