@@ -27,6 +27,7 @@
         </div>
         <p class="stat-value">{{ activeRelationships.length }}</p>
         <p class="stat-label">Active Patients</p>
+        <p class="stat-delta neutral">{{ activeRelationships.length ? 'Active caseload' : 'No patients yet' }}</p>
       </div>
       <div class="stat-card">
         <div class="stat-top">
@@ -39,7 +40,16 @@
       </div>
       <div class="stat-card">
         <div class="stat-top">
-          <div class="stat-icon"><Landmark :size="17" /></div>
+          <div class="stat-icon"><Trophy :size="17" /></div>
+        </div>
+        <!-- No goal/adherence-tracking model in the schema yet. -->
+        <p class="stat-value">—%</p>
+        <p class="stat-label">Avg. Goal Achievement</p>
+        <p class="stat-delta neutral">No data yet</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon icon-gold"><Landmark :size="17" /></div>
         </div>
         <p class="stat-value">₱{{ earningsThisMonth.net.toLocaleString() }}</p>
         <p class="stat-label">Earnings (This Month)</p>
@@ -83,6 +93,7 @@
         <div class="panel">
           <div class="panel-header-row">
             <h3 class="panel-title">Patient Adherence — Weekly</h3>
+            <NuxtLink to="/my-patients" class="panel-link">View Report →</NuxtLink>
           </div>
           <!-- No adherence-tracking model in the schema yet — placeholder chart. -->
           <div class="bar-chart">
@@ -168,7 +179,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import {
-  Users, CalendarCheck, Landmark,
+  Users, CalendarCheck, Landmark, Trophy,
   LayoutGrid, UserCircle2, CalendarDays, FileBarChart2,
   Compass, BookOpen, CreditCard, Settings as SettingsIcon,
 } from 'lucide-vue-next'
@@ -322,7 +333,7 @@ onMounted(loadDashboard)
 }
 
 /* STAT CARDS */
-.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .stat-card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #eceeec; }
 .stat-top { margin-bottom: 12px; }
 .stat-icon { width: 34px; height: 34px; border-radius: 9px; background: #eef3ec; display: flex; align-items: center; justify-content: center; color: #1e4a26; }
@@ -345,6 +356,7 @@ onMounted(loadDashboard)
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
 .panel-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .panel-header-row .panel-title { margin: 0; }
+.panel-link { font-size: 0.78rem; color: #1f8f5c; font-weight: 600; text-decoration: none; }
 
 /* BAR CHART */
 .bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 170px; }
