@@ -10,14 +10,13 @@
 
         <h1 class="hero-heading">
           Nourish Your Body.<br />
-          <em class="highlight">Transform</em> Your<br />
-          Life.
+          <em class="highlight">Transform</em> Your Life.
         </h1>
 
         <p class="hero-subtext">
-          NutriMatch connects patients with licensed Registered Nutritionist-Dietitians
-          for structured Medical Nutrition Therapy — powered by FNRI food data, the
-          full NCP framework, and secure clinical tools built for the Philippines.
+          NutriMatch connects patients with PRC-licensed Registered Nutritionist-Dietitians
+          for structured Medical Nutrition Therapy, powered by FNRI food data and the
+          full NCP framework.
         </p>
 
         <div class="hero-cta">
@@ -26,10 +25,10 @@
         </div>
 
         <div class="hero-tags">
-          <span class="tag"><span class="tag-icon">✓</span> PRC Verified RNDs</span>
-          <span class="tag"><span class="tag-icon">🛡</span> RA 10173 Compliant</span>
-          <span class="tag"><span class="tag-icon">📄</span> FNRI Food Database</span>
-          <span class="tag"><span class="tag-icon">〜</span> Full NCP Framework</span>
+          <span class="tag"><Check class="tag-icon" :size="14" :stroke-width="2.5" /> PRC Verified RNDs</span>
+          <span class="tag"><ShieldCheck class="tag-icon" :size="14" :stroke-width="2.5" /> RA 10173 Compliant</span>
+          <span class="tag"><FileText class="tag-icon" :size="14" :stroke-width="2.5" /> FNRI Food Database</span>
+          <span class="tag"><Activity class="tag-icon" :size="14" :stroke-width="2.5" /> Full NCP Framework</span>
         </div>
       </div>
 
@@ -108,6 +107,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { Check, ShieldCheck, FileText, Activity } from 'lucide-vue-next'
 
 const stats = [
   { number: '200+', label: 'Verified RNDs' },
@@ -165,8 +165,8 @@ onUnmounted(() => {
 
 .landing {
   font-family: 'Inter', sans-serif;
-  background-color: #1a3a1a;
-  color: #ffffff;
+  background-color: #F7F9F6;
+  color: #123524;
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
@@ -183,32 +183,31 @@ onUnmounted(() => {
 
 .hero-content {
   display: flex; flex-direction: column; justify-content: center;
-  padding: 80px 64px 80px 88px; background: #063C2A; gap: 22px;
+  padding: 80px 64px 80px 88px; gap: 22px;
 }
 
 .hero-badge {
   display: inline-flex; align-items: center; gap: 10px;
-  border: 1.5px solid #D4A017; color: #D4A017; border-radius: 999px;
+  border: 1.5px solid #1F5C3C; color: #1F5C3C; border-radius: 999px;
   padding: 7px 16px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; width: fit-content;
 }
 
-.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #D4A017; flex-shrink: 0; }
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #1F5C3C; flex-shrink: 0; }
 
 .hero-heading {
   font-family: 'Playfair Display', serif;
   font-size: clamp(2.6rem, 4.5vw, 3.8rem);
-  font-weight: 900;
-  font-style: italic;
+  font-weight: 700;
   line-height: 1.15;
-  color: #ffffff;
+  color: #123524;
 }
 
-.highlight { color: #D4A017; font-style: italic; }
+.highlight { color: #1F5C3C; font-style: italic; }
 
 .hero-subtext {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 400;
-  color: #a8c4a8;
+  color: #55655C;
   line-height: 1.7;
   max-width: 460px;
   margin-bottom: 4px;
@@ -217,35 +216,35 @@ onUnmounted(() => {
 .hero-cta { display: flex; gap: 20px; align-items: center; }
 
 .btn-primary {
-  background: #D4A017; border: none; color: #063C2A;
+  background: #123524; border: none; color: #ffffff;
   padding: 14px 28px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
   transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
 }
-.btn-primary:hover { background: #c4920f; box-shadow: 0 6px 18px rgba(212,160,23,0.3); }
+.btn-primary:hover { background: #1F5C3C; box-shadow: 0 6px 18px rgba(18,53,36,0.25); }
 .btn-primary:active { transform: scale(0.98); }
 
 .btn-secondary {
-  background: transparent; border: 1.5px solid #6a9a6a; color: #c8e0c8;
+  background: #ffffff; border: 1.5px solid #123524; color: #123524;
   padding: 14px 28px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  transition: background 0.2s, transform 0.15s;
 }
-.btn-secondary:hover { border-color: #ffffff; color: #ffffff; }
+.btn-secondary:hover { background: rgba(18,53,36,0.06); }
 .btn-secondary:active { transform: scale(0.98); }
 
 .hero-tags {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 22px;
+  column-gap: 26px;
   row-gap: 10px;
 }
 
 .tag {
   display: inline-flex; align-items: center; gap: 8px;
-  color: #c8d8c8; font-size: 0.78rem; font-weight: 500;
+  color: #4B5A50; font-size: 0.8rem; font-weight: 500;
   white-space: nowrap;
 }
 
-.tag-icon { flex-shrink: 0; }
+.tag-icon { color: #1F5C3C; flex-shrink: 0; }
 
 /* HERO IMAGE */
 .hero-image-wrap {
@@ -256,7 +255,7 @@ onUnmounted(() => {
 .hero-image-card {
   position: relative; width: 100%; max-width: 560px; aspect-ratio: 4 / 5;
   border-radius: 28px; overflow: hidden;
-  box-shadow: 0 30px 70px rgba(0,0,0,0.35), 0 8px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 30px 70px rgba(18,53,36,0.16), 0 8px 20px rgba(18,53,36,0.10);
 }
 
 .carousel-track {
@@ -270,7 +269,7 @@ onUnmounted(() => {
 
 .image-scrim {
   position: absolute; inset: auto 0 0 0; height: 35%;
-  background: linear-gradient(to top, rgba(0,0,0,0.45), transparent);
+  background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
   pointer-events: none;
 }
 
@@ -285,23 +284,23 @@ onUnmounted(() => {
   transition: background 0.3s, width 0.3s;
 }
 
-.dot.active { background: #D4A017; width: 22px; border-radius: 4px; }
+.dot.active { background: #ffffff; width: 22px; border-radius: 4px; }
 
 .stat-card {
-  position: absolute; background: #ffffff; color: #1a3a1a;
-  border-radius: 14px; padding: 14px 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); min-width: 140px;
+  position: absolute; background: #ffffff; color: #123524;
+  border-radius: 14px; padding: 14px 20px; box-shadow: 0 8px 32px rgba(18,53,36,0.18); min-width: 140px;
 }
 
 .stat-top { top: 150px; right: 150px; }
 .stat-bottom { bottom: 150px; right: 100px; }
-.stat-number { font-size: 1.1rem; font-weight: 800; color: #1a3a1a; font-family: 'Playfair Display', serif; }
+.stat-number { font-size: 1.1rem; font-weight: 800; color: #123524; font-family: 'Playfair Display', serif; }
 .stat-label { font-size: 0.7rem; color: #5a7a5a; margin-top: 2px; font-weight: 500; font-family: 'Inter', sans-serif; }
 
 .screening-card {
   position: absolute; left: -16px; bottom: 200px;
   background: #001E14; border: 1px solid rgba(255,255,255,0.12);
   border-radius: 14px; padding: 16px 20px; min-width: 250px; max-width: 270px;
-  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  box-shadow: 0 16px 40px rgba(18,53,36,0.28);
 }
 
 .screening-title { font-size: 0.60rem; letter-spacing: 0.1em; color: #7aaa7a; font-weight: 600; margin-bottom: 20px; }
@@ -316,7 +315,7 @@ onUnmounted(() => {
 .rnd-info { flex: 1; }
 .rnd-name { font-size: 0.65rem; font-weight: 500; color: #ffffff; }
 .rnd-spec { font-size: 0.65rem; color: #7aaa7a; margin-top: 2px; }
-.rnd-rating { font-size: 0.65rem; font-weight: 700; color: #D4A017; }
+.rnd-rating { font-size: 0.65rem; font-weight: 700; color: #f0b04a; }
 
 /* Floating card motion: motivated by the "live monitoring" feel of the product, not decoration */
 @media (prefers-reduced-motion: no-preference) {
@@ -346,7 +345,7 @@ onUnmounted(() => {
 
 /* STATS BAR */
 .stats-bar {
-  background: #D4A017;
+  background: #E9F2EB;
   display: flex;
   justify-content: center;
   gap: 80px;
@@ -354,8 +353,8 @@ onUnmounted(() => {
   width: 100%;
 }
 .stat-item { text-align: center; }
-.stats-number { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: #1a3a1a; }
-.stats-label { font-size: 0.82rem; color: #1a3a1a; margin-top: 2px; font-weight: 500; }
+.stats-number { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: #123524; }
+.stats-label { font-size: 0.82rem; color: #55655C; margin-top: 2px; font-weight: 500; }
 
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; }
