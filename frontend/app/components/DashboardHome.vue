@@ -2,39 +2,65 @@
   <div class="rnd-dashboard">
     <!-- WELCOME BANNER -->
     <section class="welcome-banner">
-      <div class="banner-text">
-        <span class="banner-eyebrow">— WELCOME BACK</span>
+      <div class="banner-blob banner-blob-1"></div>
+      <div class="banner-blob banner-blob-2"></div>
+
+      <div class="banner-content">
+        <span class="banner-badge"><span class="banner-badge-dot"></span> WELCOME BACK</span>
         <h2 class="banner-title">Good Day, {{ rndName }}.</h2>
         <p class="banner-sub">
-          {{ todaysAppointments.length }} consultation{{ todaysAppointments.length === 1 ? '' : 's' }} today ·
-          {{ draftRecords.length }} NCP record{{ draftRecords.length === 1 ? '' : 's' }} awaiting finalization ·
-          {{ patientRequests.length }} new patient request{{ patientRequests.length === 1 ? '' : 's' }}
+          <strong>{{ todaysAppointments.length }} consultations</strong> today ·
+          <strong>{{ draftRecords.length }} NCP records</strong> awaiting finalization ·
+          <strong>{{ patientRequests.length }} new patient requests</strong>
         </p>
+        <div class="banner-actions">
+          <NuxtLink to="/appointments" class="banner-btn">View Today's Schedule</NuxtLink>
+        </div>
       </div>
-      <NuxtLink to="/appointments" class="banner-btn">View Today's Schedule</NuxtLink>
     </section>
 
     <!-- STAT CARDS -->
     <section class="stat-grid">
       <div class="stat-card">
-        <div class="stat-icon"><Users :size="18" /></div>
+        <div class="stat-top">
+          <div class="stat-icon"><Users :size="17" /></div>
+        </div>
         <p class="stat-value">{{ activeRelationships.length }}</p>
         <p class="stat-label">Active Patients</p>
       </div>
       <div class="stat-card">
-        <div class="stat-icon"><CalendarCheck :size="18" /></div>
+        <div class="stat-top">
+          <div class="stat-icon icon-gold"><CalendarCheck :size="17" /></div>
+        </div>
         <p class="stat-value">{{ todaysAppointments.length }}</p>
         <p class="stat-label">Today's Sessions</p>
         <p v-if="todaysAppointments.length" class="stat-delta neutral">🕐 Next at {{ formatTime(todaysAppointments[0].scheduled_at) }}</p>
         <p v-else class="stat-delta neutral">Nothing scheduled</p>
       </div>
       <div class="stat-card">
-        <div class="stat-icon"><Landmark :size="18" /></div>
+        <div class="stat-top">
+          <div class="stat-icon"><Landmark :size="17" /></div>
+        </div>
         <p class="stat-value">₱{{ earningsThisMonth.net.toLocaleString() }}</p>
         <p class="stat-label">Earnings (This Month)</p>
         <p class="stat-delta neutral">{{ earningsThisMonth.count }} billable session{{ earningsThisMonth.count === 1 ? '' : 's' }}</p>
       </div>
     </section>
+
+    <!-- TABS — non-Overview tabs route to their own real pages rather than
+         duplicating them here; only Overview has inline content. -->
+    <nav class="dash-tabs">
+      <button
+        v-for="tab in tabs"
+        :key="tab.label"
+        class="tab-item"
+        :class="{ active: tab.label === 'Overview' }"
+        @click="tab.to ? navigateTo(tab.to) : null"
+      >
+        <component :is="tab.icon" :size="15" />
+        {{ tab.label }}
+      </button>
+    </nav>
 
     <!-- OVERVIEW -->
     <section class="dash-grid">
@@ -55,12 +81,46 @@
         </div>
 
         <div class="panel">
-          <h3 class="panel-title">Earnings Summary</h3>
-          <div class="earnings-row">
-            <span class="earnings-label">This month (net)</span>
-            <span class="earnings-amount">₱{{ earningsThisMonth.net.toLocaleString() }}</span>
+          <div class="panel-header-row">
+            <h3 class="panel-title">Patient Adherence — Weekly</h3>
           </div>
-          <NuxtLink to="/earnings" class="view-earnings-btn">View Earnings Report</NuxtLink>
+          <!-- No adherence-tracking model in the schema yet — placeholder chart. -->
+          <div class="bar-chart">
+            <div class="bar-col" v-for="d in weeklyAdherence" :key="d.day">
+              <div class="bar-wrap">
+                <span class="bar-tooltip">{{ d.value }}%</span>
+                <div class="bar" :class="d.variant" :style="{ height: d.value + '%' }"></div>
+              </div>
+              <span class="bar-label">{{ d.day }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Clinical Alerts</h3>
+          <!-- No clinical-alert model in the schema yet — placeholder rows. -->
+          <div v-if="clinicalAlerts.length" class="alert-list">
+            <div v-for="alert in clinicalAlerts" :key="alert.name" class="alert-item" :class="alert.level">
+              <div class="alert-text">
+                <p class="alert-name">{{ alert.name }} — {{ alert.issue }}</p>
+                <p class="alert-detail">{{ alert.detail }}</p>
+              </div>
+              <NuxtLink :to="alert.link" class="alert-action">{{ alert.actionLabel }} →</NuxtLink>
+            </div>
+          </div>
+          <p v-else class="empty-text">No clinical alerts right now.</p>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Patient Health Outcomes (Avg. Progress)</h3>
+          <!-- No outcomes-aggregation endpoint yet — placeholder figures. -->
+          <div v-if="healthOutcomes.length" class="outcomes-grid">
+            <div v-for="o in healthOutcomes" :key="o.label" class="outcome-item">
+              <p class="outcome-value" :class="o.color">{{ o.value }}</p>
+              <p class="outcome-label">{{ o.label }}</p>
+            </div>
+          </div>
+          <p v-else class="empty-text">Not enough data yet.</p>
         </div>
       </div>
 
@@ -91,6 +151,15 @@
           </div>
           <p v-else class="empty-text">No pending requests.</p>
         </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Earnings Summary</h3>
+          <div class="earnings-row">
+            <span class="earnings-label">This month (net)</span>
+            <span class="earnings-amount">₱{{ earningsThisMonth.net.toLocaleString() }}</span>
+          </div>
+          <NuxtLink to="/earnings" class="view-earnings-btn">View Earnings Report</NuxtLink>
+        </div>
       </div>
     </section>
   </div>
@@ -98,7 +167,11 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Users, CalendarCheck, Landmark } from 'lucide-vue-next'
+import {
+  Users, CalendarCheck, Landmark,
+  LayoutGrid, UserCircle2, CalendarDays, FileBarChart2,
+  Compass, BookOpen, CreditCard, Settings as SettingsIcon,
+} from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
 
@@ -106,6 +179,20 @@ const { get, patch } = useApi()
 const auth = useAuthStore()
 
 const rndName = computed(() => auth.user ? `${auth.user.first_name} ${auth.user.last_name}` : 'RND')
+
+// Non-Overview tabs route straight to the real page that already implements
+// them (My Patients, Appointments, NCP Records, Meal Planning, Resources,
+// Earnings, Profile Settings) instead of duplicating that logic here.
+const tabs = [
+  { label: 'Overview', icon: LayoutGrid },
+  { label: 'Patient Panel', icon: UserCircle2, to: '/my-patients' },
+  { label: 'Appointments', icon: CalendarDays, to: '/appointments' },
+  { label: 'NCP Documentation', icon: FileBarChart2, to: '/ncp-records' },
+  { label: 'Meal Planning', icon: Compass, to: '/meal-planning' },
+  { label: 'Resources Library', icon: BookOpen, to: '/resource-library' },
+  { label: 'Earnings & Billing', icon: CreditCard, to: '/earnings' },
+  { label: 'Settings', icon: SettingsIcon, to: '/profile-settings' },
+]
 
 const AVATAR_COLORS = ['#1e4a26', '#3a6b3a', '#D4A017', '#6a8a6a', '#8a6a3a']
 function colorForId(id) {
@@ -131,6 +218,21 @@ const draftRecords = ref([])
 const patientRequests = ref([])
 const invoices = ref([])
 const busyRequestId = ref(null)
+
+// TODO: wire to a real weekly adherence endpoint once one exists.
+const weeklyAdherence = ref([
+  { day: 'Mon', value: 55, variant: 'bar-mint' },
+  { day: 'Tue', value: 78, variant: 'bar-gold' },
+  { day: 'Wed', value: 42, variant: 'bar-mint' },
+  { day: 'Thu', value: 90, variant: 'bar-mint' },
+  { day: 'Fri', value: 68, variant: 'bar-gold' },
+  { day: 'Sat', value: 95, variant: 'bar-mint' },
+  { day: 'Sun', value: 65, variant: 'bar-gold' },
+])
+// TODO: wire to a real clinical-alerts source once one exists.
+const clinicalAlerts = ref([])
+// TODO: wire to a real outcomes-aggregation endpoint once one exists.
+const healthOutcomes = ref([])
 
 const todaysAppointments = computed(() => {
   const now = new Date()
@@ -191,32 +293,104 @@ onMounted(loadDashboard)
 
 /* WELCOME BANNER */
 .welcome-banner {
-  background: linear-gradient(135deg, #14301a, #1e4a26);
-  border-radius: 16px; padding: 32px 36px; display: flex; align-items: center;
-  justify-content: space-between; margin-bottom: 24px; color: #fff; gap: 16px; flex-wrap: wrap;
+  position: relative;
+  background: linear-gradient(135deg, #00382a 0%, #005a42 100%);
+  border-radius: 16px; padding: 32px 36px; overflow: hidden;
+  margin: 0 0 24px; color: #fff;
+  width: 100%;
 }
-.banner-eyebrow { font-size: 0.7rem; letter-spacing: 0.1em; color: #D4A017; font-weight: 700; }
-.banner-title { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.7rem; margin: 8px 0 6px; color: #fff; }
-.banner-sub { font-size: 0.85rem; color: #b8ccb8; margin: 0; }
+.banner-blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.05); }
+.banner-blob-1 { width: 260px; height: 260px; top: -90px; right: 40px; }
+.banner-blob-2 { width: 160px; height: 160px; bottom: -70px; right: -20px; background: rgba(255,255,255,0.04); }
+
+.banner-content { position: relative; z-index: 1; }
+.banner-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(0,0,0,0.2); color: #D4A017;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  padding: 5px 14px; border-radius: 20px; margin-bottom: 14px;
+}
+.banner-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: #D4A017; }
+.banner-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.7rem; margin: 0 0 8px; color: #fff; }
+.banner-sub { font-size: 0.85rem; color: #cfe0d5; margin: 0 0 20px; max-width: 620px; line-height: 1.5; }
+.banner-sub strong { color: #f0c419; font-weight: 700; }
+.banner-actions { display: flex; gap: 10px; }
 .banner-btn {
-  background: #D4A017; color: #1a3a1a; border: none; border-radius: 24px; padding: 12px 24px;
-  font-weight: 700; font-size: 0.88rem; cursor: pointer; flex-shrink: 0; text-decoration: none; display: inline-block;
+  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
+  padding: 11px 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  text-decoration: none; display: inline-block;
 }
 
 /* STAT CARDS */
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eceeec; }
-.stat-icon { width: 36px; height: 36px; border-radius: 8px; background: #eef3ec; display: flex; align-items: center; justify-content: center; color: #1e4a26; margin-bottom: 12px; }
+.stat-card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #eceeec; }
+.stat-top { margin-bottom: 12px; }
+.stat-icon { width: 34px; height: 34px; border-radius: 9px; background: #eef3ec; display: flex; align-items: center; justify-content: center; color: #1e4a26; }
+.stat-icon.icon-gold { background: #fdf1d6; color: #b8860b; }
 .stat-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .stat-label { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 8px; }
 .stat-delta { font-size: 0.75rem; margin: 0; }
 .stat-delta.neutral { color: #8a9a8a; }
 
+/* TABS */
+.dash-tabs { display: flex; gap: 24px; border-bottom: 1px solid #e5e8e5; margin-bottom: 20px; overflow-x: auto; }
+.tab-item { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; padding: 10px 2px; font-size: 0.85rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; border-bottom: 2px solid transparent; }
+.tab-item.active { color: #1a3a1a; border-bottom-color: #D4A017; }
+.tab-item:hover:not(.active) { color: #4a5a4a; }
+
 /* GRID */
-.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
 .dash-col { display: flex; flex-direction: column; gap: 20px; }
-.panel { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 22px; }
+.panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
+.panel-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.panel-header-row .panel-title { margin: 0; }
+
+/* BAR CHART */
+.bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 170px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 8px; }
+.bar-wrap { position: relative; width: 100%; height: 100%; display: flex; align-items: flex-end; }
+.bar {
+  width: 100%; border-radius: 6px 6px 0 0;
+  transition: height 0.2s ease, filter 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+.bar:hover { background: #14301a; transform: scaleY(1.02); transform-origin: bottom; }
+.bar-mint { background: #cfe3da; }
+.bar-gold { background: #f1cf6b; }
+.bar-gold:hover { background: #f0c419; }
+.bar-label { font-size: 0.72rem; color: #9aaa9a; }
+
+.bar-tooltip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #14301a; color: #fff; font-size: 0.72rem; font-weight: 700;
+  padding: 4px 9px; border-radius: 6px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s ease, bottom 0.15s ease;
+}
+.bar-tooltip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: #14301a;
+}
+.bar-wrap:hover .bar-tooltip { opacity: 1; bottom: calc(100% + 12px); }
+
+/* ALERTS */
+.alert-list { display: flex; flex-direction: column; gap: 10px; }
+.alert-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 10px; }
+.alert-item.level-danger { background: #fbe9e9; }
+.alert-item.level-warning { background: #faf1de; }
+.alert-name { font-weight: 700; font-size: 0.88rem; color: #2a2a2a; margin: 0 0 4px; }
+.alert-detail { font-size: 0.78rem; color: #6a6a6a; margin: 0; }
+.alert-action { font-size: 0.8rem; font-weight: 700; color: #1a3a1a; text-decoration: underline; white-space: nowrap; }
+
+/* OUTCOMES */
+.outcomes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.outcome-item { text-align: left; }
+.outcome-value { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin: 0; }
+.outcome-value.olive { color: #6b7a3a; }
+.outcome-value.green { color: #1f8f5c; }
+.outcome-value.blue { color: #2a5a8a; }
+.outcome-value.gold { color: #b8860b; }
+.outcome-label { font-size: 0.72rem; color: #8a9a8a; margin: 4px 0 0; }
 
 /* SCHEDULE */
 .schedule-list { display: flex; flex-direction: column; gap: 10px; }
@@ -256,5 +430,6 @@ onMounted(loadDashboard)
 @media (max-width: 1100px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .dash-grid { grid-template-columns: 1fr; }
+  .outcomes-grid { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
