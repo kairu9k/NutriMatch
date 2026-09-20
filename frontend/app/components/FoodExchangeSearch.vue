@@ -171,6 +171,11 @@ onMounted(loadData)
 .item-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 18px 20px;
   display: flex; flex-direction: column;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.item-card:hover {
+  border-color: #1f8f5c;
+  box-shadow: 0 4px 14px rgba(31,143,92,0.1);
 }
 .item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .category-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
