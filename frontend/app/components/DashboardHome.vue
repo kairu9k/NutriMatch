@@ -596,7 +596,7 @@ onMounted(loadDashboard)
 .stat-delta.neutral { color: #8a9a8a; }
 
 /* TABS */
-.dash-tabs { display: flex; flex-wrap: wrap; gap: 24px; border-bottom: 1px solid #e5e8e5; margin-bottom: 20px; }
+.dash-tabs { display: flex; gap: 24px; border-bottom: 1px solid #e5e8e5; margin-bottom: 20px; overflow-x: auto; }
 .tab-item { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; padding: 10px 2px; font-size: 0.85rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; border-bottom: 2px solid transparent; }
 .tab-item.active { color: #1a3a1a; border-bottom-color: #D4A017; }
 .tab-item:hover:not(.active) { color: #4a5a4a; }
@@ -658,7 +658,7 @@ onMounted(loadDashboard)
 
 /* SCHEDULE */
 .schedule-list { display: flex; flex-direction: column; gap: 10px; }
-.schedule-item { background: #eef3ec; border-left: 3px solid #D4A017; border-radius: 8px; padding: 12px 14px; }
+.schedule-item { background: #f7f9f7; border-left: 3px solid #D4A017; border-radius: 8px; padding: 12px 14px; }
 .schedule-time { font-size: 0.72rem; font-weight: 700; color: #b8860b; margin: 0 0 2px; }
 .schedule-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
 .schedule-detail { font-size: 0.76rem; color: #6a7a6a; margin: 0; text-transform: capitalize; }
@@ -666,7 +666,7 @@ onMounted(loadDashboard)
 /* REQUESTS */
 .request-list { display: flex; flex-direction: column; gap: 12px; }
 .request-item { display: flex; align-items: center; gap: 12px; }
-.request-avatar { width: 36px; height: 36px; border-radius: 50%; background: #1e4a26; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
+.request-avatar { width: 36px; height: 36px; border-radius: 50%; background: #00382a; color: #D4A017; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
 .request-info { flex: 1; }
 .request-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .request-time { font-size: 0.74rem; color: #8a9a8a; margin: 0; }
