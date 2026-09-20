@@ -302,9 +302,10 @@ const personalInfoFull = {
   phone: '0918 234 5678',
   initials: 'IA',
   avatarColor: '#1e4a26',
-  prcVerified: true
+  prcVerified: true,
+  bio: 'Registered Nutritionist-Dietitian with 6 years of clinical experience, focused on diabetes management and renal nutrition therapy. I take a practical, Filipino-food-first approach to meal planning so patients can stick with their plan long-term.'
 }
- 
+
 const personalInfoEmpty = {
   firstName: '',
   lastName: '',
@@ -312,7 +313,8 @@ const personalInfoEmpty = {
   phone: '',
   initials: '',
   avatarColor: '#1e4a26',
-  prcVerified: false
+  prcVerified: false,
+  bio: ''
 }
 
 /* =========================================================================
@@ -529,7 +531,7 @@ export const db = {
   reviews: list(reviews),
 
   // RND Weekly Availability
-  weeklyAvailabilityFull: list(weeklyAvailabilityFull),
+  weeklyAvailabilityFull: USE_EMPTY_STATE ? weeklyAvailabilityEmpty : weeklyAvailabilityFull,
   weeklyAvailabilityEmpty: list(weeklyAvailabilityEmpty),
   blockedDaysOff: list(blockedDaysOff),
 

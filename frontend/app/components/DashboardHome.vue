@@ -145,7 +145,7 @@
             <span class="earnings-label">This month (net)</span>
             <span class="earnings-amount">₱{{ earningsThisMonth.net.toLocaleString() }}</span>
           </div>
-          <NuxtLink to="/earnings" class="view-earnings-btn">View Earnings Report</NuxtLink>
+          <NuxtLink to="/profile-settings?tab=earnings" class="view-earnings-btn">View Earnings Report</NuxtLink>
         </div>
       </div>
     </section>

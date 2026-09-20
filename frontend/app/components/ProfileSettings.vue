@@ -28,8 +28,8 @@
 
       <!-- PANEL -->
       <div class="panel-card">
-        <!-- ============ PERSONAL INFO ============ -->
-        <template v-if="activeTab === 'personal'">
+        <!-- ============ PROFESSIONAL PROFILE ============ -->
+        <template v-if="activeTab === 'professional'">
           <div class="avatar-row">
             <div class="avatar-circle" :style="{ background: personalInfo.avatarColor }">
               {{ personalInfo.initials }}
@@ -59,6 +59,21 @@
             </div>
           </div>
 
+          <div class="field field-bio">
+            <div class="bio-label-row">
+              <label class="field-label">Professional Bio</label>
+              <span class="bio-count" :class="{ 'bio-count-warn': personalInfo.bio.length > 500 }">{{ personalInfo.bio.length }}/500</span>
+            </div>
+            <textarea
+              v-model="personalInfo.bio"
+              maxlength="500"
+              rows="4"
+              class="field-input bio-textarea"
+              placeholder="Tell patients about your background, specialization, and approach to nutrition care..."
+            ></textarea>
+            <p class="field-hint">Shown on your public profile when patients search for an RND.</p>
+          </div>
+
           <button class="save-btn" type="button" @click="saveChanges">Save Changes</button>
         </template>
 
@@ -80,6 +95,10 @@
             </div>
           </div>
 
+          <p v-if="earningsError" class="form-error">{{ earningsError }}</p>
+          <p v-if="isLoadingEarnings" class="placeholder-text">Loading…</p>
+
+          <template v-else>
           <div class="stat-grid-4">
             <div class="mini-stat-card">
               <div class="mini-stat-icon"><Landmark :size="17" /></div>
@@ -89,13 +108,12 @@
             <div class="mini-stat-card">
               <div class="mini-stat-icon"><Percent :size="17" /></div>
               <p class="mini-stat-value">₱{{ earningsSummary.commission.toLocaleString() }}</p>
-              <p class="mini-stat-label">Platform Commission (15%)</p>
+              <p class="mini-stat-label">Platform Commission<template v-if="commissionPct !== null"> ({{ commissionPct }}%)</template></p>
             </div>
             <div class="mini-stat-card">
               <div class="mini-stat-icon"><Wallet :size="17" /></div>
               <p class="mini-stat-value">₱{{ earningsSummary.net.toLocaleString() }}</p>
               <p class="mini-stat-label">Net Earnings</p>
-              <p v-if="earningsSummary.net" class="mini-stat-delta">↑ 12% vs last month</p>
             </div>
             <div class="mini-stat-card">
               <div class="mini-stat-icon"><Hourglass :size="17" /></div>
@@ -106,7 +124,7 @@
 
           <div class="sub-panel">
             <h4 class="sub-panel-title">Earnings Trend (Last 6 Months)</h4>
-            <div v-if="earningsTrend.length" class="chart-wrap">
+            <div class="chart-wrap">
               <div class="chart-y-axis">
                 <span v-for="tick in yTicks" :key="tick">{{ tick.toLocaleString() }}</span>
               </div>
@@ -117,7 +135,6 @@
                 </div>
               </div>
             </div>
-            <p v-else class="empty-note">No earnings data yet.</p>
           </div>
 
           <div class="sub-panel" v-if="invoices.length">
@@ -139,6 +156,100 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+          </template>
+        </template>
+
+        <!-- ============ AVAILABILITY ============ -->
+        <template v-else-if="activeTab === 'availability'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Availability</h3>
+              <p class="tab-panel-sub">Set the hours clients can book consultations with you.</p>
+            </div>
+            <button class="save-btn" type="button" :disabled="!week.length" @click="addSlot(week[0]?.day)"><Plus :size="15" /> Add Time Slot</button>
+          </div>
+
+          <div class="day-list">
+            <div v-for="day in week" :key="day.day" class="day-row" :class="{ 'day-row-blocked': day.blocked }">
+              <span class="day-name" :class="{ 'day-name-blocked': day.blocked }">{{ day.day }}</span>
+
+              <div class="day-content">
+                <template v-if="day.blocked">
+                  <span class="blocked-pill">Blocked — No Availability</span>
+                </template>
+                <template v-else>
+                  <span v-for="slot in day.slots" :key="slot.id" class="slot-pill">
+                    {{ slot.start }} – {{ slot.end }}
+                    <button class="pill-icon-btn" @click="removeSlot(day, slot)"><X :size="13" /></button>
+                  </span>
+                </template>
+              </div>
+
+              <button v-if="day.blocked" class="day-action-link" @click="unblockDay(day)">Unblock Day</button>
+              <button v-else class="day-action-link" @click="addSlot(day.day)">+ Add Slot</button>
+            </div>
+          </div>
+
+          <div class="sub-panel block-panel">
+            <div class="block-header">
+              <CalendarOff :size="18" class="block-icon" />
+              <div>
+                <h4 class="sub-panel-title">Block a Day Off</h4>
+                <p class="block-desc">Quickly mark a specific date range as unavailable — useful for holidays, leave, or emergencies.</p>
+              </div>
+            </div>
+
+            <div class="block-form">
+              <div class="field">
+                <label class="field-label">From</label>
+                <input v-model="newBlock.from" type="date" class="field-input" />
+              </div>
+              <div class="field">
+                <label class="field-label">To <span class="optional">(optional)</span></label>
+                <input v-model="newBlock.to" type="date" class="field-input" />
+              </div>
+              <div class="field field-wide">
+                <label class="field-label">Reason <span class="optional">(optional)</span></label>
+                <input v-model="newBlock.reason" type="text" class="field-input" placeholder="e.g. Annual leave" />
+              </div>
+              <button class="save-btn block-btn" :disabled="!newBlock.from" @click="submitBlock">Block</button>
+            </div>
+
+            <div v-if="blocks.length" class="blocked-list">
+              <div v-for="b in blocks" :key="b.id" class="blocked-item">
+                <span class="blocked-dates">{{ formatDate(b.from) }}<template v-if="b.to"> – {{ formatDate(b.to) }}</template></span>
+                <span v-if="b.reason" class="blocked-reason">{{ b.reason }}</span>
+                <button class="remove-block-btn" @click="removeBlock(b)"><X :size="14" /></button>
+              </div>
+            </div>
+            <p v-else class="empty-note">No blocked dates yet.</p>
+          </div>
+        </template>
+
+        <!-- ============ LANGUAGES ============ -->
+        <template v-else-if="activeTab === 'languages'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Languages</h3>
+              <p class="tab-panel-sub">Languages you can communicate with patients in.</p>
+            </div>
+          </div>
+
+          <div v-if="languages.length" class="language-list">
+            <span v-for="lang in languages" :key="lang.id" class="language-pill">
+              {{ lang.name }}
+              <button class="pill-icon-btn" type="button" @click="removeLanguage(lang)"><X :size="13" /></button>
+            </span>
+          </div>
+          <p v-else class="empty-note">No languages added yet.</p>
+
+          <div class="language-add-row">
+            <select v-model="newLanguage" class="field-input language-select">
+              <option value="">Add a language...</option>
+              <option v-for="opt in availableLanguageOptions" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <button class="save-btn" type="button" :disabled="!newLanguage" @click="addLanguage">Add</button>
           </div>
         </template>
 
@@ -201,73 +312,6 @@
           <p v-else class="empty-note">No reviews yet.</p>
         </template>
 
-        <!-- ============ AVAILABILITY ============ -->
-        <template v-else-if="activeTab === 'availability'">
-          <div class="tab-panel-header">
-            <div>
-              <h3 class="tab-panel-title">Availability</h3>
-              <p class="tab-panel-sub">Set the hours clients can book consultations with you.</p>
-            </div>
-            <button class="save-btn" type="button" @click="addSlot(week[0].day)"><Plus :size="15" /> Add Time Slot</button>
-          </div>
-
-          <div class="day-list">
-            <div v-for="day in week" :key="day.day" class="day-row" :class="{ 'day-row-blocked': day.blocked }">
-              <span class="day-name" :class="{ 'day-name-blocked': day.blocked }">{{ day.day }}</span>
-
-              <div class="day-content">
-                <template v-if="day.blocked">
-                  <span class="blocked-pill">Blocked — No Availability</span>
-                </template>
-                <template v-else>
-                  <span v-for="slot in day.slots" :key="slot.id" class="slot-pill">
-                    {{ slot.start }} – {{ slot.end }}
-                    <button class="pill-icon-btn" @click="removeSlot(day, slot)"><X :size="13" /></button>
-                  </span>
-                </template>
-              </div>
-
-              <button v-if="day.blocked" class="day-action-link" @click="unblockDay(day)">Unblock Day</button>
-              <button v-else class="day-action-link" @click="addSlot(day.day)">+ Add Slot</button>
-            </div>
-          </div>
-
-          <div class="sub-panel block-panel">
-            <div class="block-header">
-              <CalendarOff :size="18" class="block-icon" />
-              <div>
-                <h4 class="sub-panel-title">Block a Day Off</h4>
-                <p class="block-desc">Quickly mark a specific date range as unavailable — useful for holidays, leave, or emergencies.</p>
-              </div>
-            </div>
-
-            <div class="block-form">
-              <div class="field">
-                <label class="field-label">From</label>
-                <input v-model="newBlock.from" type="date" class="field-input" />
-              </div>
-              <div class="field">
-                <label class="field-label">To <span class="optional">(optional)</span></label>
-                <input v-model="newBlock.to" type="date" class="field-input" />
-              </div>
-              <div class="field field-wide">
-                <label class="field-label">Reason <span class="optional">(optional)</span></label>
-                <input v-model="newBlock.reason" type="text" class="field-input" placeholder="e.g. Annual leave" />
-              </div>
-              <button class="save-btn block-btn" :disabled="!newBlock.from" @click="submitBlock">Block</button>
-            </div>
-
-            <div v-if="blocks.length" class="blocked-list">
-              <div v-for="b in blocks" :key="b.id" class="blocked-item">
-                <span class="blocked-dates">{{ formatDate(b.from) }}<template v-if="b.to"> – {{ formatDate(b.to) }}</template></span>
-                <span v-if="b.reason" class="blocked-reason">{{ b.reason }}</span>
-                <button class="remove-block-btn" @click="removeBlock(b)"><X :size="14" /></button>
-              </div>
-            </div>
-            <p v-else class="empty-note">No blocked dates yet.</p>
-          </div>
-        </template>
-
         <!-- ============ OTHER TABS (still placeholder) ============ -->
         <template v-else>
           <p class="placeholder-text">{{ activeTabLabel }} settings go here.</p>
@@ -278,31 +322,53 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  User, Briefcase, Languages, ShieldCheck, BadgeCheck,
+  Briefcase, BadgeCheck,
   Landmark, Percent, Wallet, Hourglass, ChevronDown,
-  Star, CalendarClock, Plus, X, CalendarOff
+  Star, CalendarClock, Plus, X, CalendarOff, Languages
 } from 'lucide-vue-next'
 import { db } from '~/mock/mockDatabase'
+
+const { get } = useApi()
 
 definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
 const tabs = [
-  { key: 'personal', label: 'Personal Info', icon: User },
   { key: 'professional', label: 'Professional Profile', icon: Briefcase },
-  { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'earnings', label: 'Earnings', icon: Wallet },
-  { key: 'reviews', label: 'Reviews', icon: Star },
   { key: 'availability', label: 'Availability', icon: CalendarClock },
-  { key: 'security', label: 'Security', icon: ShieldCheck }
+  { key: 'languages', label: 'Languages', icon: Languages },
+  { key: 'reviews', label: 'Reviews', icon: Star },
 ]
 
-const activeTab = ref('personal')
+const route = useRoute()
+const validTabKeys = tabs.map(t => t.key)
+
+const activeTab = ref(validTabKeys.includes(route.query.tab) ? route.query.tab : 'professional')
 const activeTabLabel = computed(() => tabs.find(t => t.key === activeTab.value)?.label)
 
-/* ---------- PERSONAL INFO ---------- */
+/* ---------- PROFESSIONAL PROFILE ---------- */
 const personalInfo = ref({ ...db.personalInfo })
+
+// TODO: mock/local only — wire to real RndLanguage endpoints
+// (backend/profiles/models.py already has the model, no serializer/view yet).
+const LANGUAGE_OPTIONS = ['English', 'Filipino (Tagalog)', 'Bisaya (Cebuano)', 'Ilocano', 'Hiligaynon (Ilonggo)', 'Waray', 'Kapampangan', 'Bicolano']
+const languages = ref([
+  { id: 1, name: 'English' },
+  { id: 2, name: 'Filipino (Tagalog)' },
+])
+const newLanguage = ref('')
+const availableLanguageOptions = computed(() => LANGUAGE_OPTIONS.filter(o => !languages.value.some(l => l.name === o)))
+
+function addLanguage() {
+  if (!newLanguage.value) return
+  languages.value.push({ id: 'lang-' + Date.now(), name: newLanguage.value })
+  newLanguage.value = ''
+}
+function removeLanguage(lang) {
+  languages.value = languages.value.filter(l => l.id !== lang.id)
+}
 
 function saveChanges() {
   // Wire this up to your real update-profile API call
@@ -311,9 +377,97 @@ function saveChanges() {
 
 /* ---------- EARNINGS ---------- */
 const period = ref('This Month')
-const earningsSummary = computed(() => db.earningsSummary)
-const earningsTrend = computed(() => db.earningsTrend)
-const invoices = computed(() => db.invoices)
+const rawInvoices = ref([])
+const isLoadingEarnings = ref(true)
+const earningsError = ref('')
+
+async function loadEarnings() {
+  isLoadingEarnings.value = true
+  earningsError.value = ''
+  try {
+    rawInvoices.value = await get('/rnd/invoices/')
+  } catch {
+    earningsError.value = 'Could not load your earnings. Please try again later.'
+  } finally {
+    isLoadingEarnings.value = false
+  }
+}
+onMounted(loadEarnings)
+
+function periodRange(label) {
+  const now = new Date()
+  const startOfMonth = (y, m) => new Date(y, m, 1)
+  const startOfNextMonth = (y, m) => new Date(y, m + 1, 1)
+  if (label === 'This Month') {
+    return [startOfMonth(now.getFullYear(), now.getMonth()), startOfNextMonth(now.getFullYear(), now.getMonth())]
+  }
+  if (label === 'Last Month') {
+    return [startOfMonth(now.getFullYear(), now.getMonth() - 1), startOfMonth(now.getFullYear(), now.getMonth())]
+  }
+  if (label === 'Last 3 Months') {
+    return [startOfMonth(now.getFullYear(), now.getMonth() - 2), startOfNextMonth(now.getFullYear(), now.getMonth())]
+  }
+  // This Year
+  return [new Date(now.getFullYear(), 0, 1), new Date(now.getFullYear() + 1, 0, 1)]
+}
+
+const periodInvoices = computed(() => {
+  const [start, end] = periodRange(period.value)
+  return rawInvoices.value.filter(inv => {
+    const d = new Date(inv.created_at)
+    return d >= start && d < end
+  })
+})
+
+const earningsSummary = computed(() => {
+  const paid = periodInvoices.value.filter(inv => inv.status === 'paid')
+  const pending = periodInvoices.value.filter(inv => inv.status === 'unpaid')
+  return {
+    gross: paid.reduce((sum, inv) => sum + Number(inv.amount), 0),
+    commission: paid.reduce((sum, inv) => sum + Number(inv.commission_amt), 0),
+    net: paid.reduce((sum, inv) => sum + Number(inv.net), 0),
+    pending: pending.reduce((sum, inv) => sum + Number(inv.amount), 0),
+  }
+})
+
+// Effective commission rate for the period's paid invoices — blank when
+// there's nothing to compute it from, rather than guessing a percentage.
+const commissionPct = computed(() => {
+  const { gross, commission } = earningsSummary.value
+  if (!gross) return null
+  return Math.round((commission / gross) * 100)
+})
+
+const earningsTrend = computed(() => {
+  const now = new Date()
+  const months = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-US', { month: 'short' }) })
+  }
+  return months.map(m => {
+    const amount = rawInvoices.value
+      .filter(inv => {
+        if (inv.status !== 'paid') return false
+        const d = new Date(inv.created_at)
+        return d.getFullYear() === m.year && d.getMonth() === m.month
+      })
+      .reduce((sum, inv) => sum + Number(inv.net), 0)
+    return { month: m.label, amount }
+  })
+})
+
+const invoices = computed(() => periodInvoices.value.map(inv => ({
+  id: `INV-${String(inv.id).padStart(4, '0')}`,
+  patient: inv.client_name,
+  date: inv.appointment_date
+    ? new Date(inv.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : new Date(inv.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  gross: Number(inv.amount),
+  commission: Number(inv.commission_amt),
+  net: Number(inv.net),
+  status: inv.status === 'paid' ? 'Paid' : 'Pending',
+})))
 
 const maxAmount = computed(() => Math.max(...earningsTrend.value.map(p => p.amount), 20000))
 const yTicks = computed(() => {
@@ -420,6 +574,14 @@ function formatDate(iso) {
 }
 .field-input:focus { outline: none; border-color: #D4A017; }
 
+.field-bio { margin-bottom: 24px; }
+.bio-label-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.bio-label-row .field-label { margin: 0; }
+.bio-count { font-size: 0.74rem; color: #9aaa9a; }
+.bio-count-warn { color: #c0483a; font-weight: 600; }
+.bio-textarea { resize: vertical; min-height: 90px; line-height: 1.55; font-family: inherit; }
+.field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
+
 .save-btn {
   display: flex; align-items: center; gap: 6px;
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
@@ -427,7 +589,17 @@ function formatDate(iso) {
 }
 .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* LANGUAGES (nested inside Professional Profile) */
+.language-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.language-pill { display: flex; align-items: center; gap: 6px; background: #e6f4e6; color: #1a5a2a; font-size: 0.8rem; font-weight: 600; padding: 6px 10px 6px 14px; border-radius: 20px; }
+.language-add-row { display: flex; gap: 10px; align-items: center; }
+.language-select { max-width: 260px; cursor: pointer; }
+
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+.form-error {
+  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
+  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
+}
 
 /* SHARED TAB PANEL HEADER */
 .tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
@@ -453,7 +625,6 @@ function formatDate(iso) {
 }
 .mini-stat-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .mini-stat-label { font-size: 0.75rem; color: #8a9a8a; margin: 3px 0 0; }
-.mini-stat-delta { font-size: 0.7rem; font-weight: 600; color: #2e9e52; margin: 5px 0 0; }
 
 .chart-wrap { display: flex; gap: 12px; }
 .chart-y-axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 0.7rem; color: #9aaa9a; padding-bottom: 24px; text-align: right; min-width: 44px; }
