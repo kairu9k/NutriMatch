@@ -364,7 +364,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   position: relative;
 }
 
-.content { flex: 1; overflow-y: auto; padding: 24px 100px 100px; }
+.content { flex: 1; overflow-y: auto; padding: 24px 40px 32px; }
 
 /* MOBILE TOPBAR — hidden on desktop, shown only under the breakpoint below */
 .mobile-topbar { display: none; }
