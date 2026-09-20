@@ -596,7 +596,11 @@ onMounted(loadDashboard)
 .stat-delta.neutral { color: #8a9a8a; }
 
 /* TABS */
-.dash-tabs { display: flex; gap: 24px; border-bottom: 1px solid #e5e8e5; margin-bottom: 20px; overflow-x: auto; }
+.dash-tabs {
+  display: flex; gap: 24px; border-bottom: 1px solid #e5e8e5; margin-bottom: 20px;
+  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+}
+.dash-tabs::-webkit-scrollbar { display: none; }
 .tab-item { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; padding: 10px 2px; font-size: 0.85rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; border-bottom: 2px solid transparent; }
 .tab-item.active { color: #1a3a1a; border-bottom-color: #D4A017; }
 .tab-item:hover:not(.active) { color: #4a5a4a; }
