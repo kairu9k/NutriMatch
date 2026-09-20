@@ -46,12 +46,49 @@
     </div>
 
     <p v-if="saveError" class="save-error">{{ saveError }}</p>
+
+    <!-- BLOCK A DAY OFF — mock/local only, no backend model for date-range
+         blocks yet (see RndAvailabilitySchedule in vault/database.txt). -->
+    <div class="block-panel">
+      <div class="block-header">
+        <CalendarOff :size="18" class="block-icon" />
+        <div>
+          <h3 class="block-title">Block a Day Off</h3>
+          <p class="block-desc">Quickly mark a specific date range as unavailable — useful for holidays, leave, or emergencies. Existing bookings within the range are not auto-cancelled.</p>
+        </div>
+      </div>
+
+      <div class="block-form">
+        <div class="field">
+          <label>From</label>
+          <input v-model="newBlock.from" type="date" />
+        </div>
+        <div class="field">
+          <label>To <span class="optional">(optional)</span></label>
+          <input v-model="newBlock.to" type="date" />
+        </div>
+        <div class="field field-wide">
+          <label>Reason <span class="optional">(optional)</span></label>
+          <input v-model="newBlock.reason" type="text" placeholder="e.g. Annual leave" />
+        </div>
+        <button class="block-btn" :disabled="!newBlock.from" @click="submitBlock">Block</button>
+      </div>
+
+      <div v-if="blocks.length" class="blocked-list">
+        <div v-for="b in blocks" :key="b.id" class="blocked-item">
+          <span class="blocked-dates">{{ formatBlockDate(b.from) }}<template v-if="b.to"> – {{ formatBlockDate(b.to) }}</template></span>
+          <span v-if="b.reason" class="blocked-reason">{{ b.reason }}</span>
+          <button class="remove-block-btn" @click="removeBlock(b)"><X :size="14" /></button>
+        </div>
+      </div>
+      <p v-else class="empty-note">No blocked dates yet.</p>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X, CalendarOff } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Availability' })
 
@@ -162,6 +199,29 @@ async function removeSlot(slot) {
     saveError.value = 'Could not remove slot. Please try again.'
   }
 }
+
+/* ---------- BLOCK A DAY OFF — local-only state, no backend model yet ---------- */
+const blocks = reactive([])
+const newBlock = ref({ from: '', to: '', reason: '' })
+
+function submitBlock() {
+  if (!newBlock.value.from) return
+  blocks.push({
+    id: 'off-' + Date.now(),
+    from: newBlock.value.from,
+    to: newBlock.value.to,
+    reason: newBlock.value.reason,
+  })
+  newBlock.value = { from: '', to: '', reason: '' }
+}
+function removeBlock(b) {
+  const idx = blocks.findIndex(x => x.id === b.id)
+  if (idx > -1) blocks.splice(idx, 1)
+}
+function formatBlockDate(iso) {
+  if (!iso) return ''
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 </script>
 
 <style scoped>
@@ -217,7 +277,41 @@ async function removeSlot(slot) {
 .empty-note { font-size: 0.82rem; color: #8a9a8a; margin: 0; }
 .save-error { font-size: 0.82rem; color: #c0483a; margin: 12px 0 0; }
 
+/* BLOCK A DAY OFF */
+.block-panel { background: #eef3ee; border-radius: 12px; padding: 22px; margin-top: 20px; }
+.block-header { display: flex; gap: 12px; margin-bottom: 20px; }
+.block-icon { color: #1a3a1a; flex-shrink: 0; margin-top: 2px; }
+.block-title { font-size: 0.98rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
+.block-desc { font-size: 0.82rem; color: #6a7a6a; line-height: 1.5; margin: 0; max-width: 640px; }
+
+.block-form { display: grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap: 14px; align-items: end; margin-bottom: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
+.optional { font-weight: 400; color: #9aaa9a; }
+.field input {
+  border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px;
+  font-size: 0.85rem; font-family: inherit; background: #fff; color: #1a3a1a;
+}
+
+.block-btn {
+  background: #fff; border: 1px solid #1a3a1a; color: #1a3a1a;
+  padding: 10px 24px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.block-btn:hover:not(:disabled) { background: #1a3a1a; color: #fff; }
+.block-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.blocked-list { display: flex; flex-direction: column; gap: 8px; }
+.blocked-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem;
+}
+.blocked-dates { font-weight: 700; color: #1a3a1a; }
+.blocked-reason { color: #7a8a7a; flex: 1; }
+.remove-block-btn { background: none; border: none; color: #9aaa9a; cursor: pointer; display: flex; }
+.remove-block-btn:hover { color: #c0483a; }
+
 @media (max-width: 900px) {
   .day-row { flex-wrap: wrap; }
+  .block-form { grid-template-columns: 1fr; }
 }
 </style>
