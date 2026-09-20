@@ -7,43 +7,65 @@
       <p class="breadcrumb"><NuxtLink to="/my-patients">My Patients</NuxtLink> / {{ clientName }}</p>
 
       <div class="patient-banner">
-        <div class="big-avatar">{{ initials }}</div>
-        <div class="banner-info">
-          <h1 class="banner-name">{{ clientName }}</h1>
-          <p class="banner-meta">{{ age !== null ? `${age} y/o ` : '' }}{{ sexLabel }}{{ conditions ? ' · ' + conditions : '' }}</p>
-          <div class="banner-chips">
-            <span class="chip chip-success">Active Relationship</span>
-            <span v-if="allergies" class="chip">Allergy: {{ allergies }}</span>
+        <div class="banner-left">
+          <div class="big-avatar">{{ initials }}</div>
+          <div class="banner-info">
+            <h1 class="banner-name">{{ clientName }}</h1>
+            <p class="banner-meta">{{ age !== null ? `${age} y/o ` : '' }}{{ sexLabel }}{{ conditions ? ' · ' + conditions : '' }}</p>
+            <div class="banner-chips">
+              <span class="chip chip-success">Active Relationship</span>
+              <span v-if="allergies" class="chip">Allergy: {{ allergies }}</span>
+            </div>
           </div>
         </div>
         <NuxtLink to="/messages" class="message-btn">Message</NuxtLink>
       </div>
 
-      <div class="content-grid">
+      <nav class="detail-tabs">
+        <button
+          v-for="tab in detailTabs"
+          :key="tab"
+          class="detail-tab"
+          :class="{ active: activeTab === tab }"
+          @click="activeTab = tab"
+        >
+          {{ tab }}
+        </button>
+      </nav>
+
+      <div v-if="activeTab !== 'Overview'" class="surface">
+        <p class="empty-note">{{ activeTab }} isn't broken out separately yet — use the links in Overview below.</p>
+      </div>
+
+      <div v-else class="content-grid">
         <div class="main-col">
           <div class="surface">
             <div class="surface-header">
               <h3 class="surface-title">Current NCP Record — Phase Progress</h3>
               <span v-if="latestNcp" class="status-pill" :class="latestNcp.status === 'completed' ? 'success' : 'warning'">
-                {{ latestNcp.status === 'completed' ? 'Completed' : 'Draft' }}
+                {{ latestNcp.status === 'completed' ? 'Finalized' : `Draft (Phase ${currentPhaseNumber})` }}
               </span>
             </div>
             <div v-if="latestNcp" class="phase-grid">
               <div class="phase-card" :class="{ done: !!(latestNcp.pes_problem) }">
                 <div class="phase-num"><Check v-if="latestNcp.weight_kg" :size="14" /><span v-else>1</span></div>
                 <div class="phase-label">Assessment</div>
+                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.weight_kg ? 'View' : 'Continue' }}</NuxtLink>
               </div>
               <div class="phase-card" :class="{ done: !!latestNcp.pes_problem }">
                 <div class="phase-num"><Check v-if="latestNcp.pes_problem" :size="14" /><span v-else>2</span></div>
                 <div class="phase-label">Diagnosis</div>
+                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.pes_problem ? 'View' : 'Continue' }}</NuxtLink>
               </div>
               <div class="phase-card" :class="{ done: !!latestNcp.diet_prescription }">
                 <div class="phase-num"><Check v-if="latestNcp.diet_prescription" :size="14" /><span v-else>3</span></div>
                 <div class="phase-label">Intervention</div>
+                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.diet_prescription ? 'View' : 'Continue' }}</NuxtLink>
               </div>
               <div class="phase-card" :class="{ done: !!latestNcp.goal_status }">
                 <div class="phase-num"><Check v-if="latestNcp.goal_status" :size="14" /><span v-else>4</span></div>
                 <div class="phase-label">Monitoring</div>
+                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.goal_status ? 'View' : 'Continue' }}</NuxtLink>
               </div>
             </div>
             <p v-else class="empty-note">No NCP record started yet.</p>
@@ -119,6 +141,9 @@ const ncpRecords = ref([])
 const progressRecords = ref([])
 const appointments = ref([])
 
+const detailTabs = ['Overview', 'NCP Records', 'Meal Plan', 'Progress History', 'Appointments']
+const activeTab = ref('Overview')
+
 const clientName = computed(() => {
   const u = clientProfile.value?.user
   return u ? `${u.first_name} ${u.last_name}` : ''
@@ -158,6 +183,17 @@ const nextAppointment = computed(() => {
 })
 
 const latestNcp = computed(() => ncpRecords.value[0] || null)
+// Whichever phase has no data filled in yet is the current one — a draft
+// with only Assessment done is "Phase 2", one with Assessment+Diagnosis+
+// Intervention is "Phase 4", etc.
+const currentPhaseNumber = computed(() => {
+  const r = latestNcp.value
+  if (!r) return 1
+  if (!r.weight_kg) return 1
+  if (!r.pes_problem) return 2
+  if (!r.diet_prescription) return 3
+  return 4
+})
 const latestVitals = computed(() => {
   const withVitals = progressRecords.value.find(r => r.weight_kg || r.blood_pressure || r.blood_glucose)
   if (latestNcp.value && (latestNcp.value.weight_kg || latestNcp.value.blood_pressure)) {
@@ -212,15 +248,17 @@ onMounted(loadData)
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
 .patient-banner {
-  background: #14301a; border-radius: 14px; padding: 24px 28px; color: #fff;
-  display: flex; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #00382a 0%, #005a42 100%);
+  border-radius: 16px; padding: 28px 32px; color: #fff;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;
 }
+.banner-left { display: flex; align-items: center; gap: 18px; }
 .big-avatar {
-  width: 60px; height: 60px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; flex-shrink: 0;
+  width: 64px; height: 64px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.3rem; flex-shrink: 0;
 }
-.banner-info { flex: 1; min-width: 200px; }
-.banner-name { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin: 0; }
+.banner-info { min-width: 200px; }
+.banner-name { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin: 0 0 4px; }
 .banner-meta { font-size: 0.84rem; color: #c9d9c9; margin: 4px 0 8px; }
 .banner-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { font-size: 0.74rem; font-weight: 600; padding: 4px 11px; border-radius: 20px; background: rgba(255,255,255,0.12); color: #fff; }
@@ -229,6 +267,10 @@ onMounted(loadData)
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
   padding: 9px 18px; font-weight: 700; font-size: 0.85rem; text-decoration: none; white-space: nowrap;
 }
+
+.detail-tabs { display: flex; gap: 4px; background: #fff; border: 1px solid #eceeec; border-radius: 30px; padding: 4px; margin-bottom: 20px; width: fit-content; }
+.detail-tab { border: none; background: none; padding: 10px 18px; border-radius: 24px; font-size: 0.85rem; font-weight: 600; color: #6a7a6a; cursor: pointer; }
+.detail-tab.active { background: #14301a; color: #fff; }
 
 .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
@@ -252,7 +294,8 @@ onMounted(loadData)
   margin: 0 auto 8px;
 }
 .phase-card.done .phase-num { background: #3a6b3a; color: #fff; }
-.phase-label { font-size: 0.78rem; font-weight: 700; color: #1a3a1a; }
+.phase-label { font-size: 0.78rem; font-weight: 700; color: #1a3a1a; margin-bottom: 6px; }
+.phase-action { border: none; background: none; color: #1f8f5c; font-size: 0.76rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: none; }
 
 .vitals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center; }
 .vital-num { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; }
