@@ -67,21 +67,6 @@
     <section class="dash-grid">
       <div class="dash-col">
         <div class="panel">
-          <h3 class="panel-title">Draft NCP Records</h3>
-          <div v-if="draftRecords.length" class="draft-list">
-            <div v-for="d in draftRecords" :key="d.id" class="draft-item">
-              <div class="draft-avatar" :style="{ background: colorForId(d.relationship_id) }">{{ initialsFor(d.client_name) }}</div>
-              <div class="draft-info">
-                <p class="draft-name">{{ d.client_name }}</p>
-                <p class="draft-detail">Draft — last updated {{ formatDate(d.updated_at) }}</p>
-              </div>
-              <button class="resume-btn" @click="navigateTo(`/ncp-records?relationship=${d.relationship_id}`)">Resume</button>
-            </div>
-          </div>
-          <p v-else class="empty-text">No drafts in progress.</p>
-        </div>
-
-        <div class="panel">
           <div class="panel-header-row">
             <h3 class="panel-title">Patient Adherence — Weekly</h3>
             <NuxtLink to="/my-patients" class="panel-link">View Report →</NuxtLink>
@@ -179,10 +164,6 @@ const auth = useAuthStore()
 
 const rndName = computed(() => auth.user ? `${auth.user.first_name} ${auth.user.last_name}` : 'RND')
 
-const AVATAR_COLORS = ['#1e4a26', '#3a6b3a', '#D4A017', '#6a8a6a', '#8a6a3a']
-function colorForId(id) {
-  return AVATAR_COLORS[id % AVATAR_COLORS.length]
-}
 function initialsFor(name) {
   const parts = name.trim().split(' ')
   return `${parts[0]?.[0] || ''}${parts[1]?.[0] || ''}`.toUpperCase()
@@ -403,15 +384,6 @@ onMounted(loadDashboard)
   display: block; width: 100%; text-align: center; background: #fff; border: 1px solid #1a3a1a; color: #1a3a1a;
   border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; text-decoration: none; box-sizing: border-box;
 }
-
-/* NCP DRAFTS */
-.draft-list { display: flex; flex-direction: column; gap: 12px; }
-.draft-item { display: flex; align-items: center; gap: 12px; }
-.draft-avatar { width: 32px; height: 32px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
-.draft-info { flex: 1; }
-.draft-name { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.draft-detail { font-size: 0.76rem; color: #6a7a6a; margin: 0; }
-.resume-btn { border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 6px; padding: 6px 16px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
 
 @media (max-width: 1100px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
