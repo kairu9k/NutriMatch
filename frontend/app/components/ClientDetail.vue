@@ -69,9 +69,6 @@
               </div>
             </div>
             <p v-else class="empty-note">No NCP record started yet.</p>
-            <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="outline-btn small">
-              {{ latestNcp ? 'Continue NCP Record' : 'Start NCP Record' }}
-            </NuxtLink>
           </div>
 
           <div class="surface">
