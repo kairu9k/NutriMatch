@@ -2,9 +2,16 @@
   <div class="messages-page">
     <!-- CONVERSATION LIST -->
     <div class="conv-pane">
-      <div class="search-wrap">
-        <Search :size="16" class="search-icon" />
-        <input v-model="searchQuery" type="text" class="search-input" placeholder="Search messages..." />
+      <div class="conv-pane-header">
+        <h2 class="conv-title">Conversations</h2>
+        <span class="compliance-badge"><Lock :size="11" /> RA 10173</span>
+      </div>
+
+      <div class="search-row">
+        <div class="search-wrap">
+          <Search :size="16" class="search-icon" />
+          <input v-model="searchQuery" type="text" class="search-input" placeholder="Search conversations..." />
+        </div>
       </div>
 
       <div v-if="loadingConversations" class="conv-empty">
@@ -19,7 +26,9 @@
           :class="{ active: activeConversationId === conv.id }"
           @click="selectConversation(conv.id)"
         >
-          <div class="conv-avatar" :style="{ background: conv.avatarColor }">{{ conv.initials }}</div>
+          <div class="conv-avatar-wrap">
+            <div class="conv-avatar" :style="{ background: conv.avatarColor }">{{ conv.initials }}</div>
+          </div>
           <div class="conv-body">
             <div class="conv-top">
               <span class="conv-name">{{ conv.name }}</span>
@@ -46,10 +55,11 @@
             <div class="chat-avatar" :style="{ background: activeConversation.avatarColor }">{{ activeConversation.initials }}</div>
             <div>
               <p class="chat-name">{{ activeConversation.name }}</p>
-              <p class="chat-status" :class="{ 'status-live': isConnected }">
-                <span class="status-dot" /> {{ isConnected ? 'Live' : 'Connecting…' }}
-              </p>
+              <p class="chat-sub">RA 10173-compliant</p>
             </div>
+          </div>
+          <div class="chat-header-right">
+            <span class="online-status" :class="{ 'status-offline': !isConnected }"><span class="status-dot" /> {{ isConnected ? 'Live' : 'Connecting…' }}</span>
           </div>
         </div>
 
@@ -60,9 +70,10 @@
           <div
             v-for="msg in activeMessages"
             :key="msg.id"
-            class="msg-row"
-            :class="msg.sender.id === authStore.user?.id ? 'msg-row-me' : 'msg-row-them'"
+            class="msg-block"
+            :class="msg.sender.id === authStore.user?.id ? 'msg-block-me' : 'msg-block-them'"
           >
+            <span class="msg-sender">{{ msg.sender.id === authStore.user?.id ? 'You' : activeConversation.name }}</span>
             <div class="msg-bubble" :class="msg.sender.id === authStore.user?.id ? 'bubble-me' : 'bubble-them'">
               {{ msg.message }}
             </div>
@@ -76,7 +87,7 @@
             v-model="draft"
             type="text"
             class="chat-input"
-            placeholder="Type your message..."
+            placeholder="Type a message..."
             @keyup.enter="sendMessage"
           />
           <button class="send-btn" type="button" aria-label="Send message" @click="sendMessage">
@@ -96,7 +107,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { Search, Send, MessageCircle } from 'lucide-vue-next'
+import { Search, Send, MessageCircle, Lock } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Messages' })
@@ -323,8 +334,16 @@ onUnmounted(() => {
 /* CONVERSATION LIST */
 .conv-pane { border-right: 1px solid #eceeec; display: flex; flex-direction: column; }
 
-.search-wrap { position: relative; padding: 16px; border-bottom: 1px solid #eceeec; }
-.search-icon { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); color: #9aaa9a; }
+.conv-pane-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 14px; }
+.conv-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
+.compliance-badge {
+  display: flex; align-items: center; gap: 4px; background: #f0f2ef; color: #6a7a6a;
+  font-size: 0.68rem; font-weight: 700; padding: 4px 9px; border-radius: 12px; white-space: nowrap;
+}
+
+.search-row { display: flex; align-items: center; gap: 8px; padding: 0 16px 16px; }
+.search-wrap { position: relative; flex: 1; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9aaa9a; }
 .search-input {
   width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px 10px 36px;
   font-size: 0.85rem; font-family: inherit; color: #2a2a2a;
@@ -335,10 +354,12 @@ onUnmounted(() => {
 .conv-item {
   width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
   padding: 14px 16px; border: none; border-bottom: 1px solid #f3f4f0; background: #fff; cursor: pointer;
+  border-left: 3px solid transparent;
 }
-.conv-item.active { background: #f4f2e9; }
+.conv-item.active { background: #f4f2e9; border-left-color: #D4A017; }
+.conv-avatar-wrap { position: relative; flex-shrink: 0; }
 .conv-avatar {
-  width: 36px; height: 36px; border-radius: 50%; color: #fff; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 50%; color: #fff;
   display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700;
 }
 .conv-body { flex: 1; min-width: 0; }
@@ -353,7 +374,7 @@ onUnmounted(() => {
 .conv-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
 
 /* CHAT PANEL */
-.chat-pane { display: flex; flex-direction: column; background: #f4f2e9; }
+.chat-pane { display: flex; flex-direction: column; background: #fff; }
 
 .chat-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -365,24 +386,27 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
 }
 .chat-name { font-size: 0.94rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.chat-status { display: flex; align-items: center; gap: 5px; font-size: 0.76rem; color: #9aaa9a; margin: 3px 0 0; }
-.chat-status.status-live { color: #3a6b3a; }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #d5dad5; flex-shrink: 0; }
-.status-live .status-dot { background: #3a6b3a; }
+.chat-sub { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
+.chat-header-right { display: flex; align-items: center; gap: 14px; }
+.online-status { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: #2e9e52; }
+.online-status.status-offline { color: #9aaa9a; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #2e9e52; }
+.status-offline .status-dot { background: #d5dad5; }
 
-.chat-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
+.chat-body { flex: 1; overflow-y: auto; padding: 24px 28px; background: #fff; }
 .date-divider { text-align: center; margin-bottom: 20px; }
 .date-divider span {
   font-size: 0.72rem; letter-spacing: 0.06em; color: #9aaa9a; text-transform: uppercase;
 }
 
-.msg-row { display: flex; flex-direction: column; margin-bottom: 18px; max-width: 60%; }
-.msg-row-them { align-items: flex-start; }
-.msg-row-me { align-items: flex-end; margin-left: auto; }
+.msg-block { display: flex; flex-direction: column; margin-bottom: 20px; max-width: 60%; }
+.msg-block-them { align-items: flex-start; }
+.msg-block-me { align-items: flex-end; margin-left: auto; }
+.msg-sender { font-size: 0.78rem; font-weight: 700; color: #4a5a4a; margin-bottom: 5px; }
 
-.msg-bubble { padding: 12px 16px; border-radius: 14px; font-size: 0.86rem; line-height: 1.5; }
-.bubble-them { background: #fff; color: #2a2a2a; border-bottom-left-radius: 4px; }
-.bubble-me { background: #1a3a1a; color: #fff; border-bottom-right-radius: 4px; }
+.msg-bubble { padding: 12px 16px; border-radius: 12px; font-size: 0.86rem; line-height: 1.5; }
+.bubble-them { background: #f4f6f4; color: #2a2a2a; }
+.bubble-me { background: #14301a; color: #fff; }
 .msg-time { font-size: 0.72rem; color: #9aaa9a; margin-top: 5px; }
 
 .chat-error { padding: 6px 22px 0; font-size: 0.78rem; color: #b3261e; background: #fff; margin: 0; }
@@ -398,7 +422,7 @@ onUnmounted(() => {
 .chat-input:focus { outline: none; border-color: #D4A017; }
 .chat-input:disabled { background: #f4f2e9; }
 .send-btn {
-  width: 38px; height: 38px; border-radius: 50%; border: none; background: #1a3a1a; color: #fff;
+  width: 38px; height: 38px; border-radius: 50%; border: none; background: #14301a; color: #fff;
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
 .send-btn:disabled { opacity: 0.5; cursor: default; }
