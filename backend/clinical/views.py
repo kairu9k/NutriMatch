@@ -122,17 +122,22 @@ class NcpRecordListCreateView(generics.ListCreateAPIView):
 
 
 class RndNcpDraftListView(generics.ListAPIView):
-    """RND's draft NCP records across all patients, for the dashboard's
-    'resume a draft' panel — cross-patient, unlike NcpRecordListCreateView
-    which is scoped to one relationship."""
+    """RND's NCP records across all patients — cross-patient, unlike
+    NcpRecordListCreateView which is scoped to one relationship. Defaults to
+    drafts only (the dashboard's 'resume a draft' panel); pass ?status=all
+    to also include finalized records (the NCP Records page's cross-patient
+    history table, reached when no specific patient is in context)."""
 
     serializer_class = NcpDraftListSerializer
     permission_classes = [IsRnd]
 
     def get_queryset(self):
-        return NcpRecord.objects.filter(
-            relationship__rnd=self.request.user, status=NcpRecord.Status.DRAFT
-        ).select_related("relationship__client").order_by("-updated_at")
+        qs = NcpRecord.objects.filter(
+            relationship__rnd=self.request.user
+        ).select_related("relationship__client")
+        if self.request.query_params.get("status") != "all":
+            qs = qs.filter(status=NcpRecord.Status.DRAFT)
+        return qs.order_by("-updated_at")
 
 
 class RndProgressRecordListCreateView(generics.ListCreateAPIView):

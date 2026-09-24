@@ -24,14 +24,21 @@ class PreConsultationScreeningSerializer(serializers.ModelSerializer):
 
 
 class NcpDraftListSerializer(serializers.ModelSerializer):
-    """Lightweight cross-patient draft list for the RND dashboard — just
-    enough to resume a draft (which patient, which phase looks unfinished)."""
+    """Lightweight cross-patient NCP record list — for the dashboard's
+    'resume a draft' panel (drafts only) and the NCP Records page's
+    cross-patient history table (all records). Includes just enough of each
+    phase's key field for the frontend to derive "which phase looks
+    unfinished" the same way the single-record page does, without shipping
+    every clinical field cross-patient."""
 
     client_name = serializers.SerializerMethodField()
 
     class Meta:
         model = NcpRecord
-        fields = ["id", "relationship_id", "client_name", "status", "updated_at"]
+        fields = [
+            "id", "relationship_id", "client_name", "status", "updated_at",
+            "weight_kg", "height_cm", "pes_problem", "diet_prescription", "goal_status",
+        ]
 
     def get_client_name(self, obj):
         client = obj.relationship.client

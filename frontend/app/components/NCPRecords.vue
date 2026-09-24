@@ -3,9 +3,54 @@
     <div v-if="loadError" class="form-error">{{ loadError }}</div>
     <p v-else-if="isLoading" class="empty-note">Loading…</p>
 
+    <!-- ================= CROSS-PATIENT LIST (no ?relationship= in context) ================= -->
+    <template v-else-if="!relationshipId">
+      <div class="toolbar">
+        <div class="search-box-wide">
+          <Search :size="16" class="search-icon" />
+          <input v-model="search" type="text" placeholder="Search by name or ID....." />
+        </div>
+        <select v-model="statusFilter" class="filter-select">
+          <option value="All Status">All Status</option>
+          <option>Complete</option>
+          <option>In Progress</option>
+        </select>
+      </div>
+
+      <div class="history-section">
+        <h3 class="history-title">NCP Records</h3>
+        <div class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>PATIENT</th>
+                <th>PHASE</th>
+                <th>DATE</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="h in filteredAllRecords" :key="h.id" class="clickable-row" @click="navigateTo(`/ncp-records?relationship=${h.relationship_id}`)">
+                <td class="patient-cell">
+                  <div class="history-avatar">{{ h.initials }}</div>
+                  <div>
+                    <p class="history-name">{{ h.client_name }}</p>
+                  </div>
+                </td>
+                <td>{{ h.phaseLabel }}</td>
+                <td>{{ formatHistoryDate(h.updated_at) }}</td>
+                <td><span class="status-pill" :class="historyStatusClass(h.displayStatus)">{{ h.displayStatus }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="!filteredAllRecords.length" class="empty-note table-empty">No NCP records match your filters yet.</p>
+        </div>
+      </div>
+    </template>
+
+    <!-- ================= SINGLE-PATIENT OVERVIEW ================= -->
     <template v-else>
-      <!-- ================= OVERVIEW MODE ================= -->
-      <div v-if="viewMode === 'overview'">
+      <div>
         <!-- TOOLBAR -->
         <div class="toolbar">
           <div class="search-box-wide">
@@ -22,7 +67,7 @@
             <option value="All NCP Phases">All NCP Phases</option>
             <option v-for="s in steps" :key="s.label" :value="s.label">{{ s.label }}</option>
           </select>
-          <button class="new-record-btn" @click="openNewRecordModal">
+          <button class="new-record-btn" @click="openRecordModal(0)">
             <Plus :size="15" /> New NCP Record
           </button>
         </div>
@@ -43,7 +88,7 @@
             :key="step.label"
             class="phase-card"
             :class="phaseCardClass(index)"
-            @click="openPhase(index)"
+            @click="openRecordModal(index)"
           >
             <div class="phase-card-number" :class="phaseNumberClass(index)">
               <Check v-if="phaseStatus(index) === 'Complete'" :size="15" />
@@ -56,260 +101,10 @@
             <span class="phase-status-pill" :class="phaseStatusClass(index)">{{ phaseStatus(index) }}</span>
           </div>
         </div>
-
-        <!-- NCP HISTORY -->
-        <div class="history-section">
-          <h3 class="history-title">NCP History</h3>
-          <div class="table-wrap">
-            <table class="history-table">
-              <thead>
-                <tr>
-                  <th>PATIENT</th>
-                  <th>PHASE</th>
-                  <th>DIETITIAN</th>
-                  <th>DATE</th>
-                  <th>STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- No cross-patient NCP history endpoint yet — placeholder rows, ported as-is from the design source. -->
-                <tr v-for="h in ncpHistory" :key="h.id">
-                  <td class="patient-cell">
-                    <div class="history-avatar">{{ h.initials }}</div>
-                    <div>
-                      <p class="history-name">{{ h.name }}</p>
-                      <p class="history-id">#{{ h.id }}</p>
-                    </div>
-                  </td>
-                  <td>{{ h.phase }}</td>
-                  <td>{{ h.dietitian }}</td>
-                  <td>{{ h.date }}</td>
-                  <td><span class="status-pill" :class="historyStatusClass(h.status)">{{ h.status }}</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= EDIT MODE (4-phase wizard) ================= -->
-      <div v-else>
-        <!-- BREADCRUMB -->
-        <p class="breadcrumb">
-          <a href="#" @click.prevent="viewMode = 'overview'">NCP Records</a> /
-          <span>{{ patientName }}</span> /
-          <span>NCP Record</span>
-        </p>
-
-        <div class="ncp-header">
-          <div>
-            <h1 class="ncp-title">Nutrition Care Process</h1>
-            <p class="ncp-sub">
-              Patient: {{ patientName }} · Encounter Date: {{ encounterDate }}
-              <span v-if="record" class="draft-pill" :class="{ 'completed-pill': record.status === 'completed' }">
-                {{ record.status === 'completed' ? 'Finalized' : 'Draft' }}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <!-- STEP TRACKER -->
-        <div class="step-tracker">
-          <template v-for="(step, index) in steps" :key="step.label">
-            <div class="step-node">
-              <div class="step-circle" :class="stepCircleClass(index)">
-                <Check v-if="index < currentStep" :size="14" />
-                <span v-else>{{ index + 1 }}</span>
-              </div>
-              <span class="step-label" :class="{ 'label-active': index === currentStep }">{{ step.label }}</span>
-            </div>
-            <div v-if="index < steps.length - 1" class="step-line" :class="{ 'line-done': index < currentStep }"></div>
-          </template>
-        </div>
-
-        <p v-if="saveError" class="form-error">{{ saveError }}</p>
-        <p v-if="isFinalized" class="info-banner finalized-banner">
-          <Lock :size="15" class="info-icon" /> This record is finalized and can no longer be edited.
-        </p>
-
-        <!-- CARD -->
-        <div class="ncp-card">
-          <!-- PHASE 1: ASSESSMENT -->
-          <div v-if="currentStep === 0">
-            <span class="phase-eyebrow">— PHASE 1 — NUTRITIONAL ASSESSMENT</span>
-
-            <div class="field-grid-4">
-              <div>
-                <label class="field-label">Weight (kg)</label>
-                <input v-model="assessment.weight_kg" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Height (cm)</label>
-                <input v-model="assessment.height_cm" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Blood Pressure</label>
-                <input v-model="assessment.blood_pressure" type="text" class="field-input" placeholder="e.g. 120/80" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Blood Glucose (mg/dL)</label>
-                <input v-model="assessment.blood_glucose" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
-              </div>
-            </div>
-
-            <div class="field-grid-2">
-              <div>
-                <label class="field-label">HbA1c (%) <span class="optional">(optional)</span></label>
-                <input v-model="assessment.hba1c" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Computed BMI</label>
-                <div class="computed-box">{{ computedBmi }}</div>
-              </div>
-            </div>
-
-            <label class="field-label">Lab Notes <span class="optional">(optional)</span></label>
-            <textarea v-model="assessment.lab_notes" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
-
-            <label class="field-label">Assessment Notes</label>
-            <textarea v-model="assessment.assessment_notes" class="field-textarea" rows="4" :disabled="isFinalized"></textarea>
-
-            <div class="ncp-actions">
-              <button class="save-draft-btn" :disabled="isSaving || isFinalized" @click="saveDraft"><Save :size="14" /> {{ isSaving ? 'Saving…' : 'Save as Draft' }}</button>
-              <button class="continue-btn" @click="nextStep">Continue to Diagnosis <ArrowRight :size="15" /></button>
-            </div>
-          </div>
-
-          <!-- PHASE 2: DIAGNOSIS (PES) -->
-          <div v-if="currentStep === 1">
-            <span class="phase-eyebrow">— PHASE 2 — NUTRITION DIAGNOSIS (PES STATEMENT)</span>
-
-            <div class="info-banner">
-              <Info :size="15" class="info-icon" />
-              A PES statement follows the format: <strong>Problem</strong> related to <strong>Etiology</strong> as evidenced by <strong>Signs/Symptoms</strong>.
-            </div>
-
-            <label class="field-label">Problem (P)</label>
-            <input v-model="diagnosis.pes_problem" type="text" class="field-input" :disabled="isFinalized" />
-
-            <label class="field-label">Etiology (E) — "related to..."</label>
-            <textarea v-model="diagnosis.pes_etiology" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
-
-            <label class="field-label">Signs / Symptoms (S) — "as evidenced by..."</label>
-            <textarea v-model="diagnosis.pes_signs" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
-
-            <span class="preview-label">PREVIEW</span>
-            <div class="pes-preview">
-              <strong>{{ diagnosis.pes_problem || '…' }}</strong> related to <strong>{{ diagnosis.pes_etiology || '…' }}</strong>
-              as evidenced by <strong>{{ diagnosis.pes_signs || '…' }}</strong>.
-            </div>
-
-            <div class="ncp-actions">
-              <button class="back-btn" @click="prevStep"><ArrowLeft :size="14" /> Back</button>
-              <div class="actions-right">
-                <button class="save-draft-btn" :disabled="isSaving || isFinalized" @click="saveDraft"><Save :size="14" /> {{ isSaving ? 'Saving…' : 'Save as Draft' }}</button>
-                <button class="continue-btn" @click="nextStep">Continue to Intervention <ArrowRight :size="15" /></button>
-              </div>
-            </div>
-          </div>
-
-          <!-- PHASE 3: INTERVENTION -->
-          <div v-if="currentStep === 2">
-            <span class="phase-eyebrow">— PHASE 3 — INTERVENTION</span>
-
-            <label class="field-label">Diet Prescription</label>
-            <textarea v-model="intervention.diet_prescription" class="field-textarea" rows="3" :disabled="isFinalized"></textarea>
-
-            <span class="phase-eyebrow small-eyebrow">— MACRONUTRIENT TARGETS</span>
-            <div class="field-grid-4">
-              <div>
-                <label class="field-label">Target kcal</label>
-                <input v-model="intervention.target_kcal" type="number" step="1" class="field-input" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Protein (g)</label>
-                <input v-model="intervention.target_protein_g" type="number" step="1" class="field-input" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Carbohydrate (g)</label>
-                <input v-model="intervention.target_carb_g" type="number" step="1" class="field-input" :disabled="isFinalized" />
-              </div>
-              <div>
-                <label class="field-label">Fat (g)</label>
-                <input v-model="intervention.target_fat_g" type="number" step="1" class="field-input" :disabled="isFinalized" />
-              </div>
-            </div>
-
-            <label class="field-label">Intervention Notes</label>
-            <textarea v-model="intervention.intervention_notes" class="field-textarea" rows="4" :disabled="isFinalized"></textarea>
-
-            <div class="linked-plan-banner">
-              <Paperclip :size="15" class="info-icon" />
-              Meal plans for this patient are managed separately —
-              <a href="#" class="linked-plan-link" @click.prevent="navigateTo(`/meal-planning?relationship=${relationshipId}`)">Open Meal Plan Builder →</a>
-            </div>
-
-            <div class="ncp-actions">
-              <button class="back-btn" @click="prevStep"><ArrowLeft :size="14" /> Back</button>
-              <div class="actions-right">
-                <button class="save-draft-btn" :disabled="isSaving || isFinalized" @click="saveDraft"><Save :size="14" /> {{ isSaving ? 'Saving…' : 'Save as Draft' }}</button>
-                <button class="continue-btn" @click="nextStep">Continue to Monitoring <ArrowRight :size="15" /></button>
-              </div>
-            </div>
-          </div>
-
-          <!-- PHASE 4: MONITORING -->
-          <div v-if="currentStep === 3">
-            <span class="phase-eyebrow">— PHASE 4 — MONITORING &amp; EVALUATION</span>
-
-            <label class="field-label">Goal Status</label>
-            <div class="goal-status-grid">
-              <button
-                v-for="g in goalOptions"
-                :key="g.value"
-                class="goal-status-btn"
-                :class="{ active: monitoring.goal_status === g.value }"
-                :disabled="isFinalized"
-                @click="monitoring.goal_status = g.value"
-              >
-                {{ g.label }}
-              </button>
-            </div>
-
-            <label class="field-label">Monitoring Notes</label>
-            <textarea v-model="monitoring.monitoring_notes" class="field-textarea" rows="5" :disabled="isFinalized"></textarea>
-
-            <div class="ncp-actions">
-              <button class="back-btn" @click="prevStep"><ArrowLeft :size="14" /> Back</button>
-              <button class="save-draft-btn" :disabled="isSaving || isFinalized" @click="saveDraft"><Save :size="14" /> {{ isSaving ? 'Saving…' : 'Save as Draft' }}</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- FINALIZE PANEL (only visible on last step) -->
-        <div v-if="currentStep === 3 && !isFinalized" class="finalize-panel">
-          <div class="finalize-header">
-            <Lock :size="18" class="finalize-icon" />
-            <div>
-              <p class="finalize-title">Finalize This Record</p>
-              <p class="finalize-desc">
-                Once finalized, this NCP record becomes permanent and cannot be edited. All four phases must have required fields completed before finalizing.
-              </p>
-            </div>
-          </div>
-
-          <div class="checklist">
-            <span v-for="c in checklist" :key="c.label" class="check-pill" :class="{ 'check-done': c.done }">
-              <Check :size="12" /> {{ c.label }}
-            </span>
-          </div>
-
-          <button class="finalize-btn" :disabled="!allChecksPassed || isSaving" @click="finalizeRecord">Finalize NCP Record</button>
-        </div>
       </div>
     </template>
 
-    <!-- ================= NEW NCP RECORD MODAL ================= -->
+    <!-- ================= NEW / CONTINUE NCP RECORD MODAL ================= -->
     <div v-if="showNewRecordModal" class="modal-overlay" @click.self="closeNewRecordModal">
       <div class="modal-box">
         <div class="modal-header">
@@ -336,6 +131,11 @@
           </button>
         </div>
 
+        <p v-if="saveError" class="form-error">{{ saveError }}</p>
+        <p v-if="isFinalized" class="info-banner finalized-banner">
+          <Lock :size="15" class="info-icon" /> This record is finalized and can no longer be edited.
+        </p>
+
         <!-- TAB 1: ASSESSMENT -->
         <div v-if="newRecordTab === 0" class="modal-body">
           <span class="modal-eyebrow">PHASE 1 — NUTRITIONAL ASSESSMENT</span>
@@ -343,71 +143,46 @@
           <div class="modal-field-grid-3">
             <div>
               <label class="field-label">Height (cm)</label>
-              <input v-model="newAssessment.height" type="text" class="field-input" />
+              <input v-model="assessment.height_cm" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
             </div>
             <div>
               <label class="field-label">Weight (kg)</label>
-              <input v-model="newAssessment.weight" type="text" class="field-input" />
+              <input v-model="assessment.weight_kg" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
             </div>
             <div>
-              <label class="field-label">Age</label>
-              <input v-model="newAssessment.age" type="text" class="field-input" />
+              <label class="field-label">HbA1c (%) <span class="optional">(optional)</span></label>
+              <input v-model="assessment.hba1c" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
             </div>
           </div>
 
           <div class="modal-field-grid-2">
             <div>
               <label class="field-label">Blood Pressure</label>
-              <input v-model="newAssessment.bloodPressure" type="text" class="field-input" placeholder="e.g. 120/80 mmHg" />
+              <input v-model="assessment.blood_pressure" type="text" class="field-input" placeholder="e.g. 120/80" :disabled="isFinalized" />
             </div>
             <div>
               <label class="field-label">Blood Glucose (mg/dL)</label>
-              <input v-model="newAssessment.bloodGlucose" type="text" class="field-input" />
+              <input v-model="assessment.blood_glucose" type="number" step="0.1" class="field-input" :disabled="isFinalized" />
             </div>
           </div>
 
-          <div class="modal-field-grid-2">
-            <div>
-              <label class="field-label">HbA1c (%)</label>
-              <input v-model="newAssessment.hba1c" type="text" class="field-input" />
-            </div>
-            <div>
-              <label class="field-label">eGFR (mL/min)</label>
-              <input v-model="newAssessment.egfr" type="text" class="field-input" />
-            </div>
-          </div>
+          <label class="field-label">Lab Notes <span class="optional">(optional)</span></label>
+          <textarea v-model="assessment.lab_notes" class="field-textarea" rows="2" placeholder="Clinical observations..." :disabled="isFinalized"></textarea>
 
           <label class="field-label">Assessment Notes</label>
-          <textarea v-model="newAssessment.notes" class="field-textarea" rows="2" placeholder="Clinical observations..."></textarea>
+          <textarea v-model="assessment.assessment_notes" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
 
           <div class="auto-results-box">
-            <span class="auto-results-label">AUTO-COMPUTED RESULTS · MIFFLIN-ST JEOR · WHO ASIA-PACIFIC</span>
-            <div class="auto-results-grid">
+            <span class="auto-results-label">COMPUTED · WHO ASIA-PACIFIC BMI</span>
+            <div class="auto-results-grid single">
               <div class="auto-result-item">
-                <p class="auto-result-value">{{ newComputed.bmi }}</p>
-                <p class="auto-result-sub">{{ newComputed.bmiCategory }}</p>
-                <p class="auto-result-label">BMI</p>
-              </div>
-              <div class="auto-result-item">
-                <p class="auto-result-value">{{ newComputed.bmr }}</p>
-                <p class="auto-result-sub">kcal/day</p>
-                <p class="auto-result-label">BMR</p>
-              </div>
-              <div class="auto-result-item">
-                <p class="auto-result-value">{{ newComputed.tdee }}</p>
-                <p class="auto-result-sub">kcal/day</p>
-                <p class="auto-result-label">TDEE</p>
-              </div>
-              <div class="auto-result-item">
-                <!-- TODO: NRS-2002 requires full clinical scoring criteria (weight loss %, intake reduction, disease severity) not yet captured here -->
-                <p class="auto-result-value">{{ newComputed.nrs }}</p>
-                <p class="auto-result-sub nrs-sub">{{ newComputed.nrsCategory }}</p>
-                <p class="auto-result-label">NRS-2002</p>
+                <p class="auto-result-value">{{ record?.bmi ?? '—' }}</p>
+                <p class="auto-result-label">BMI (from saved record)</p>
               </div>
             </div>
           </div>
 
-          <button class="modal-continue-btn" @click="newRecordTab = 1">Save and Continue to Diagnosis</button>
+          <button class="modal-continue-btn" :disabled="isSaving || isFinalized" @click="saveAndContinue(1)">{{ isSaving ? 'Saving…' : 'Save and Continue to Diagnosis' }}</button>
         </div>
 
         <!-- TAB 2: DIAGNOSIS -->
@@ -415,24 +190,24 @@
           <span class="modal-eyebrow">PHASE 2 — NUTRITION DIAGNOSIS (PES STATEMENT)</span>
 
           <label class="field-label">Problem (P)</label>
-          <input v-model="newDiagnosis.problem" type="text" class="field-input" />
+          <input v-model="diagnosis.pes_problem" type="text" class="field-input" :disabled="isFinalized" />
 
           <label class="field-label">Etiology / Related to (E)</label>
-          <textarea v-model="newDiagnosis.etiology" class="field-textarea" rows="2" placeholder="e.g High intake of refined carbohydrates..."></textarea>
+          <textarea v-model="diagnosis.pes_etiology" class="field-textarea" rows="2" placeholder="e.g High intake of refined carbohydrates..." :disabled="isFinalized"></textarea>
 
           <label class="field-label">Signs &amp; Symptoms (S)</label>
-          <textarea v-model="newDiagnosis.signs" class="field-textarea" rows="2" placeholder="e.g as evidenced by..."></textarea>
+          <textarea v-model="diagnosis.pes_signs" class="field-textarea" rows="2" placeholder="e.g as evidenced by..." :disabled="isFinalized"></textarea>
 
           <div class="pes-generated-box">
             <span class="pes-generated-label">AUTO-GENERATED PES STATEMENT</span>
             <p class="pes-generated-text">
-              {{ newDiagnosis.problem || '…' }}<span v-if="newDiagnosis.etiology"> related to {{ newDiagnosis.etiology }}</span><span v-if="newDiagnosis.signs"> as evidenced by {{ newDiagnosis.signs }}</span>.
+              {{ diagnosis.pes_problem || '…' }}<span v-if="diagnosis.pes_etiology"> related to {{ diagnosis.pes_etiology }}</span><span v-if="diagnosis.pes_signs"> as evidenced by {{ diagnosis.pes_signs }}</span>.
             </p>
           </div>
 
           <div class="modal-actions">
             <button class="modal-back-btn" @click="newRecordTab = 0">Back</button>
-            <button class="modal-continue-btn" @click="newRecordTab = 2">Save and Continue to Intervention</button>
+            <button class="modal-continue-btn" :disabled="isSaving || isFinalized" @click="saveAndContinue(2)">{{ isSaving ? 'Saving…' : 'Save and Continue to Intervention' }}</button>
           </div>
         </div>
 
@@ -443,31 +218,40 @@
           <div class="modal-field-grid-2">
             <div>
               <label class="field-label">Target kcal/day</label>
-              <input v-model="newIntervention.kcal" type="text" class="field-input" />
+              <input v-model="intervention.target_kcal" type="number" step="1" class="field-input" :disabled="isFinalized" />
             </div>
             <div>
-              <label class="field-label">Condition</label>
-              <input v-model="newIntervention.condition" type="text" class="field-input" />
+              <label class="field-label">Target Protein (g)</label>
+              <input v-model="intervention.target_protein_g" type="number" step="1" class="field-input" :disabled="isFinalized" />
             </div>
           </div>
 
           <div class="modal-field-grid-2">
             <div>
-              <label class="field-label">Target Protein (g)</label>
-              <input v-model="newIntervention.protein" type="text" class="field-input" />
+              <label class="field-label">Target Carbs (g)</label>
+              <input v-model="intervention.target_carb_g" type="number" step="1" class="field-input" :disabled="isFinalized" />
             </div>
             <div>
-              <label class="field-label">Target Carbs (g)</label>
-              <input v-model="newIntervention.carbs" type="text" class="field-input" />
+              <label class="field-label">Target Fat (g)</label>
+              <input v-model="intervention.target_fat_g" type="number" step="1" class="field-input" :disabled="isFinalized" />
             </div>
           </div>
 
           <label class="field-label">Diet Prescription Notes</label>
-          <textarea v-model="newIntervention.notes" class="field-textarea" rows="3" placeholder="e.g. Low-GI, high-fiber Filipino diet. Reduce rice to 1/2 cup per meal. Include amplaya, sayote, kangkong daily......."></textarea>
+          <textarea v-model="intervention.diet_prescription" class="field-textarea" rows="3" placeholder="e.g. Low-GI, high-fiber Filipino diet. Reduce rice to 1/2 cup per meal. Include ampalaya, sayote, kangkong daily......." :disabled="isFinalized"></textarea>
+
+          <label class="field-label">Intervention Notes <span class="optional">(optional)</span></label>
+          <textarea v-model="intervention.intervention_notes" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
+
+          <div class="linked-plan-banner">
+            <Paperclip :size="15" class="info-icon" />
+            Meal plans for this patient are managed separately —
+            <a href="#" class="linked-plan-link" @click.prevent="navigateTo(`/meal-planning?relationship=${relationshipId}`)">Open Meal Plan Builder →</a>
+          </div>
 
           <div class="modal-actions">
             <button class="modal-back-btn" @click="newRecordTab = 1">Back</button>
-            <button class="modal-continue-btn" @click="newRecordTab = 3">Save and Continue to Intervention</button>
+            <button class="modal-continue-btn" :disabled="isSaving || isFinalized" @click="saveAndContinue(3)">{{ isSaving ? 'Saving…' : 'Save and Continue to Monitoring' }}</button>
           </div>
         </div>
 
@@ -476,17 +260,46 @@
           <span class="modal-eyebrow">PHASE 4 — MONITORING &amp; EVALUATION</span>
 
           <label class="field-label">Goal Status</label>
-          <input v-model="newMonitoring.goalStatus" type="text" class="field-input" />
-
-          <label class="field-label">Next Follow-up Date</label>
-          <input v-model="newMonitoring.followUpDate" type="date" class="field-input" />
+          <div class="goal-status-grid">
+            <button
+              v-for="g in goalOptions"
+              :key="g.value"
+              class="goal-status-btn"
+              :class="{ active: monitoring.goal_status === g.value }"
+              :disabled="isFinalized"
+              @click="monitoring.goal_status = g.value"
+            >
+              {{ g.label }}
+            </button>
+          </div>
 
           <label class="field-label">Monitoring Notes</label>
-          <textarea v-model="newMonitoring.notes" class="field-textarea" rows="4" placeholder="Observations on patient progress, clinical response, next steps........"></textarea>
+          <textarea v-model="monitoring.monitoring_notes" class="field-textarea" rows="4" placeholder="Observations on patient progress, clinical response, next steps........" :disabled="isFinalized"></textarea>
 
           <div class="modal-actions">
             <button class="modal-back-btn" @click="newRecordTab = 2">Back</button>
-            <button class="modal-continue-btn" @click="submitNewRecord">Submit NCP Record</button>
+            <button class="modal-continue-btn" :disabled="isSaving || isFinalized" @click="saveDraft">{{ isSaving ? 'Saving…' : 'Save as Draft' }}</button>
+          </div>
+
+          <!-- FINALIZE PANEL -->
+          <div v-if="!isFinalized" class="finalize-panel">
+            <div class="finalize-header">
+              <Lock :size="18" class="finalize-icon" />
+              <div>
+                <p class="finalize-title">Finalize This Record</p>
+                <p class="finalize-desc">
+                  Once finalized, this NCP record becomes permanent and cannot be edited. All four phases must have required fields completed before finalizing.
+                </p>
+              </div>
+            </div>
+
+            <div class="checklist">
+              <span v-for="c in checklist" :key="c.label" class="check-pill" :class="{ 'check-done': c.done }">
+                <Check :size="12" /> {{ c.label }}
+              </span>
+            </div>
+
+            <button class="finalize-btn" :disabled="!allChecksPassed || isSaving" @click="finalizeRecordFromModal">Finalize NCP Record</button>
           </div>
         </div>
       </div>
@@ -495,15 +308,19 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { Check, Save, ArrowRight, ArrowLeft, Info, Paperclip, Lock, Search, Plus } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { Check, Paperclip, Lock, Search, Plus } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'NCP Record' })
 
 const route = useRoute()
 const { get, post, patch } = useApi()
 
-const relationshipId = route.query.relationship
+// Reactive, not a plain const — clicking a row in the cross-patient list
+// navigates here via navigateTo() with only the query string changing,
+// which reuses this same component instance (no full remount), so this
+// must update on its own rather than being captured once at setup.
+const relationshipId = computed(() => route.query.relationship)
 const record = ref(null)
 const patientName = ref('this patient')
 const isLoading = ref(true)
@@ -511,16 +328,11 @@ const isSaving = ref(false)
 const loadError = ref('')
 const saveError = ref('')
 
-// ---- DESIGN PORTED FROM feature/landing-julia (2026-09-21). The Overview
-// mode (phase cards + history table) and "New NCP Record" modal are new —
-// the modal is still fully mock/local-only, including its own client-side
-// BMI/BMR/TDEE/NRS-2002 calculations (with known placeholder issues: male-only
-// Mifflin-St Jeor coefficients, a fixed 1.375 activity factor, no real NRS-2002
-// score). Main's real, verified calculation engine lives in
-// backend clinical/services.py and is NOT used by this modal yet — wiring
-// the modal to real data/endpoints is a deliberate later pass, not done here.
-const viewMode = ref('overview') // 'overview' | 'edit'
-
+// ---- DESIGN PORTED FROM feature/landing-julia (2026-09-21), then the old
+// 4-phase step-tracker "edit mode" was dropped in favor of the New/Continue
+// NCP Record modal below (2026-09-24) — the modal is now the only way to
+// create or edit a record, wired to the same real /rnd/ncp/... endpoints
+// the old wizard used.
 const encounterDate = computed(() =>
   record.value?.encounter_date
     ? new Date(record.value.encounter_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -535,38 +347,29 @@ const steps = [
   { label: 'Monitoring', fullLabel: 'Nutrition Monitoring & Evaluation' }
 ]
 
-const currentStep = ref(0)
-
 /* ---------- OVERVIEW: TOOLBAR STATE ---------- */
 const search = ref('')
 const statusFilter = ref('All Status')
 const phaseFilter = ref('All NCP Phases')
 
-function openPhase(index) {
-  currentStep.value = index
-  viewMode.value = 'edit'
-}
-
-function stepCircleClass(index) {
-  if (index < currentStep.value) return 'circle-done'
-  if (index === currentStep.value) return 'circle-active'
-  return 'circle-upcoming'
-}
-function nextStep() {
-  if (currentStep.value < steps.length - 1) currentStep.value++
-}
-function prevStep() {
-  if (currentStep.value > 0) currentStep.value--
-}
-
 /* ---------- OVERVIEW: PHASE STATUS DERIVATION ---------- */
-// A phase before the current step is Complete, the current step is In
-// Progress (unless finalized), later phases are Pending. Once the record
-// is finalized, every phase reads as Complete.
+// Derived from the record's own saved fields (not a "current step" cursor,
+// since editing now happens in the modal, not a linear wizard). A phase is
+// Complete once its required field(s) are filled in, In Progress once
+// something in an earlier phase exists but this one is still empty and no
+// later phase has data either, otherwise Pending. Finalized records read
+// every phase as Complete.
+const phaseHasData = [
+  () => !!(assessment.value.weight_kg && assessment.value.height_cm),
+  () => !!diagnosis.value.pes_problem,
+  () => !!intervention.value.diet_prescription,
+  () => !!monitoring.value.goal_status,
+]
 function phaseStatus(index) {
   if (isFinalized.value) return 'Complete'
-  if (index < currentStep.value) return 'Complete'
-  if (index === currentStep.value) return 'In Progress'
+  if (phaseHasData[index]()) return 'Complete'
+  const firstIncomplete = phaseHasData.findIndex(has => !has())
+  if (index === firstIncomplete) return 'In Progress'
   return 'Pending'
 }
 function phaseStatusClass(index) {
@@ -676,8 +479,8 @@ async function loadRecord() {
   loadError.value = ''
   try {
     const [profile, records] = await Promise.all([
-      get(`/rnd/relationships/${relationshipId}/client-profile/`),
-      get(`/rnd/relationships/${relationshipId}/ncp/`),
+      get(`/rnd/relationships/${relationshipId.value}/client-profile/`),
+      get(`/rnd/relationships/${relationshipId.value}/ncp/`),
     ])
     patientName.value = `${profile.user.first_name} ${profile.user.last_name}`
     if (records.length) {
@@ -705,8 +508,8 @@ async function saveDraft() {
     if (record.value) {
       record.value = await patch(`/rnd/ncp/${record.value.id}/`, payload)
     } else {
-      record.value = await post(`/rnd/relationships/${relationshipId}/ncp/`, {
-        relationship: Number(relationshipId),
+      record.value = await post(`/rnd/relationships/${relationshipId.value}/ncp/`, {
+        relationship: Number(relationshipId.value),
         encounter_date: new Date().toISOString().slice(0, 10),
         ...payload,
       })
@@ -725,15 +528,18 @@ async function finalizeRecord() {
   try {
     await saveDraft()
     record.value = await patch(`/rnd/ncp/${record.value.id}/finalize/`)
-    viewMode.value = 'overview'
   } catch {
     saveError.value = 'Could not finalize this record. Please try again.'
   } finally {
     isSaving.value = false
   }
 }
+async function finalizeRecordFromModal() {
+  await finalizeRecord()
+  if (!saveError.value) showNewRecordModal.value = false
+}
 
-/* ---------- NEW NCP RECORD MODAL (mock/local only — see note above) ---------- */
+/* ---------- NEW / CONTINUE NCP RECORD MODAL ---------- */
 const showNewRecordModal = ref(false)
 const newRecordTab = ref(0)
 
@@ -746,90 +552,95 @@ const newRecordInitials = computed(() =>
     .toUpperCase()
 )
 
-function openNewRecordModal() {
-  newRecordTab.value = 0
+function openRecordModal(index = 0) {
+  newRecordTab.value = index
+  saveError.value = ''
   showNewRecordModal.value = true
 }
 function closeNewRecordModal() {
   showNewRecordModal.value = false
 }
-
-const newAssessment = ref({
-  height: '', weight: '', age: '', bloodPressure: '', bloodGlucose: '', hba1c: '', egfr: '', notes: ''
-})
-const newDiagnosis = ref({ problem: '', etiology: '', signs: '' })
-const newIntervention = ref({ kcal: '', condition: '', protein: '', carbs: '', notes: '' })
-const newMonitoring = ref({ goalStatus: '', followUpDate: '', notes: '' })
-
-// TODO: gender isn't captured in this modal yet — Mifflin-St Jeor needs it.
-// Defaulting to male coefficients until a gender field/patient record is wired in.
-// This whole block is a placeholder — main's verified engine lives in
-// backend clinical/services.py and isn't called from here yet.
-const newComputed = computed(() => {
-  const w = parseFloat(newAssessment.value.weight)
-  const hCm = parseFloat(newAssessment.value.height)
-  const age = parseFloat(newAssessment.value.age)
-
-  if (!w || !hCm) {
-    return { bmi: '—', bmiCategory: '', bmr: '—', tdee: '—', nrs: '—', nrsCategory: '' }
-  }
-
-  const hM = hCm / 100
-  const bmiVal = w / (hM * hM)
-  let bmiCategory = 'Normal'
-  if (bmiVal < 18.5) bmiCategory = 'Underweight'
-  else if (bmiVal >= 25 && bmiVal < 30) bmiCategory = 'Overweight'
-  else if (bmiVal >= 30) bmiCategory = 'Obese'
-
-  let bmr = '—'
-  let tdee = '—'
-  if (age) {
-    const bmrVal = 10 * w + 6.25 * hCm - 5 * age + 5
-    bmr = Math.round(bmrVal)
-    tdee = Math.round(bmrVal * 1.375) // TODO: replace 1.375 placeholder activity factor with real patient activity level
-  }
-
-  // TODO: NRS-2002 is a full clinical screening tool (weight-loss %, intake
-  // reduction, disease severity). This is a placeholder, not a real score.
-  const nrs = '—'
-  const nrsCategory = ''
-
-  return { bmi: bmiVal.toFixed(1), bmiCategory, bmr, tdee, nrs, nrsCategory }
-})
-
-function submitNewRecord() {
-  // Wire this up to your real create-NCP-record API call
-  console.log('Submitting new NCP record', {
-    assessment: newAssessment.value,
-    diagnosis: newDiagnosis.value,
-    intervention: newIntervention.value,
-    monitoring: newMonitoring.value
-  })
-  showNewRecordModal.value = false
+async function saveAndContinue(nextTab) {
+  await saveDraft()
+  if (!saveError.value) newRecordTab.value = nextTab
 }
 
-/* ---------- NCP HISTORY (overview table) — no cross-patient history
-   endpoint yet, ported as static placeholder rows from the design source ---------- */
-const ncpHistory = ref([
-  { id: 'PT-001', name: 'Ivy Hope Alba', initials: 'IA', phase: 'Monitoring', dietitian: 'Merian Felizarta, RND', date: 'May 13', status: 'Completed' },
-  { id: 'PT-002', name: 'Julia Niel Bulalaque', initials: 'JB', phase: 'Intervention', dietitian: 'Nika Espantaleon, RND', date: 'May 12', status: 'Pending Review' },
-  { id: 'PT-003', name: 'Kent Leabres', initials: 'KL', phase: 'Monitoring', dietitian: 'Nika Espantaleon, RND', date: 'May 12', status: 'Completed' },
-  { id: 'PT-04', name: 'King Piolo Chui', initials: 'KP', phase: 'Diagnosis', dietitian: 'Nika Espantaleon, RND', date: 'May 12', status: 'Pending Review' }
-])
+/* ---------- CROSS-PATIENT LIST (shown when no ?relationship= is in
+   context — e.g. the sidebar/a bookmark, not a specific patient's chart).
+   Reuses RndNcpDraftListView with ?status=all so this and the dashboard's
+   "resume a draft" panel share one endpoint instead of two near-duplicates. ---------- */
+const allRecords = ref([])
+
+const phaseOrder = ['Assessment', 'Diagnosis', 'Intervention', 'Monitoring']
+function phaseLabelFor(r) {
+  if (r.status === 'completed') return 'Monitoring'
+  const hasData = [
+    !!(r.weight_kg && r.height_cm),
+    !!r.pes_problem,
+    !!r.diet_prescription,
+    !!r.goal_status,
+  ]
+  const firstIncomplete = hasData.findIndex(has => !has)
+  return phaseOrder[firstIncomplete === -1 ? phaseOrder.length - 1 : firstIncomplete]
+}
+function initialsFor(name) {
+  return (name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+}
+function formatHistoryDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 function historyStatusClass(status) {
   if (status === 'Completed') return 'pill-green'
-  if (status === 'Pending Review') return 'pill-gold'
+  if (status === 'In Progress') return 'pill-gold'
   return 'pill-muted'
 }
 
-onMounted(() => {
-  if (!relationshipId) {
-    loadError.value = 'No patient selected. Go back to My Patients and choose a patient chart.'
+const decoratedAllRecords = computed(() =>
+  allRecords.value.map(r => ({
+    ...r,
+    initials: initialsFor(r.client_name),
+    phaseLabel: phaseLabelFor(r),
+    displayStatus: r.status === 'completed' ? 'Completed' : 'In Progress',
+  }))
+)
+const filteredAllRecords = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return decoratedAllRecords.value.filter(r => {
+    const matchesSearch = !q || r.client_name.toLowerCase().includes(q)
+    const matchesStatus = statusFilter.value === 'All Status'
+      || (statusFilter.value === 'Complete' && r.displayStatus === 'Completed')
+      || (statusFilter.value === 'In Progress' && r.displayStatus === 'In Progress')
+    return matchesSearch && matchesStatus
+  })
+})
+
+async function loadAllRecords() {
+  isLoading.value = true
+  loadError.value = ''
+  try {
+    allRecords.value = await get('/rnd/ncp/drafts/?status=all')
+  } catch {
+    loadError.value = 'Could not load your NCP records. Please try again later.'
+  } finally {
     isLoading.value = false
+  }
+}
+
+watch(relationshipId, (id) => {
+  if (!id) {
+    loadAllRecords()
     return
   }
+  // Reset previous patient's state before loading the new one — this
+  // component instance is reused across a row-click navigation (query
+  // string change only, no remount), so stale data would otherwise flash.
+  record.value = null
+  patientName.value = 'this patient'
+  hydrateFromRecord({})
+  showNewRecordModal.value = false
   loadRecord()
-})
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -902,6 +713,8 @@ onMounted(() => {
 .history-table th { text-align: left; font-size: 0.7rem; letter-spacing: 0.05em; color: #9aaa9a; font-weight: 700; padding: 14px 16px 10px; border-bottom: 1px solid #eceeec; }
 .history-table td { padding: 14px 16px; border-bottom: 1px solid #f2f4f2; font-size: 0.86rem; color: #2a2a2a; }
 .history-table tr:last-child td { border-bottom: none; }
+.clickable-row { cursor: pointer; transition: background 0.1s ease; }
+.clickable-row:hover { background: #f7f9f7; }
 .patient-cell { display: flex; align-items: center; gap: 10px; }
 .history-avatar { width: 30px; height: 30px; border-radius: 50%; background: #eceeec; color: #4a5a4a; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
 .history-name { font-weight: 700; color: #1a3a1a; margin: 0; }
@@ -910,42 +723,9 @@ onMounted(() => {
 .pill-green { background: #e3f3ea; color: #1f8f5c; }
 .pill-gold { background: #fdf1d6; color: #b8860b; }
 .pill-muted { background: #eceeec; color: #8a9a8a; }
+.table-empty { padding: 40px 16px; text-align: center; }
 
-/* ============ EDIT MODE (4-phase wizard) ============ */
-.breadcrumb { font-size: 0.82rem; color: #9aaa9a; margin: 0 0 10px; }
-.breadcrumb a { color: #9aaa9a; text-decoration: none; cursor: pointer; }
-.breadcrumb span:last-child { color: #6a7a6a; }
-
-.ncp-header { margin-bottom: 20px; }
-.ncp-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
-.ncp-sub { font-size: 0.86rem; color: #6a7a6a; display: flex; align-items: center; gap: 10px; }
-.draft-pill { background: #faead0; color: #b8860b; font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
-.draft-pill.completed-pill { background: #e6efe0; color: #3a6b3a; }
-
-/* STEP TRACKER */
-.step-tracker { display: flex; align-items: center; margin-bottom: 24px; }
-.step-node { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.step-circle {
-  width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
-}
-.step-circle.circle-active { background: #D4A017; color: #1a3a1a; }
-.step-circle.circle-done { background: #1e4a26; color: #fff; }
-.step-circle.circle-upcoming { background: #fff; color: #9aaa9a; border: 1px solid #d5dad5; }
-.step-label { font-size: 0.8rem; color: #9aaa9a; font-weight: 600; }
-.step-label.label-active { color: #1a3a1a; font-weight: 700; }
-.step-line { flex: 1; height: 2px; background: #e5e8e5; margin: 0 12px; margin-bottom: 26px; }
-.step-line.line-done { background: #1e4a26; }
-
-/* CARD */
-.ncp-card { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 28px 32px; }
-
-.phase-eyebrow { display: block; font-size: 0.72rem; letter-spacing: 0.1em; color: #D4A017; font-weight: 700; margin-bottom: 18px; }
-.small-eyebrow { margin-top: 20px; }
-
-.field-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
-.field-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 18px; }
-
+/* ============ SHARED FIELD/BANNER STYLES (used inside the modal) ============ */
 .field-label { display: block; font-size: 0.82rem; font-weight: 600; color: #2a2a2a; margin: 0 0 6px; }
 .optional { font-weight: 400; color: #9aaa9a; }
 .field-input, .field-textarea {
@@ -954,10 +734,6 @@ onMounted(() => {
 }
 .field-input:disabled, .field-textarea:disabled { background: #f4f6f4; color: #6a7a6a; }
 .field-textarea { resize: vertical; margin-bottom: 18px; }
-.computed-box {
-  background: #f4f6f4; border: 1px solid #e5e8e5; border-radius: 8px; padding: 11px 14px;
-  font-size: 0.86rem; color: #2a2a2a; font-weight: 600;
-}
 
 .info-banner {
   display: flex; align-items: center; gap: 8px; background: #eef1f6; border-radius: 8px;
@@ -966,9 +742,6 @@ onMounted(() => {
 .info-icon { color: #2a5a8a; flex-shrink: 0; }
 .finalized-banner { background: #fdf8ee; color: #8a6a1a; }
 .finalized-banner .info-icon { color: #b8860b; }
-
-.preview-label { display: block; font-size: 0.68rem; letter-spacing: 0.08em; color: #D4A017; font-weight: 700; margin: 4px 0 8px; }
-.pes-preview { background: #eef3ec; border-radius: 8px; padding: 16px; font-size: 0.9rem; color: #1a3a1a; line-height: 1.6; margin-bottom: 4px; }
 
 .linked-plan-banner {
   display: flex; align-items: center; gap: 8px; background: #eef1f6; border-radius: 8px;
@@ -985,18 +758,6 @@ onMounted(() => {
 .goal-status-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ACTIONS */
-.ncp-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
-.actions-right { display: flex; align-items: center; gap: 14px; }
-.save-draft-btn, .back-btn {
-  display: flex; align-items: center; gap: 6px; background: none; border: none;
-  color: #4a5a4a; font-size: 0.85rem; font-weight: 600; cursor: pointer;
-}
-.save-draft-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.continue-btn {
-  display: flex; align-items: center; gap: 8px; background: #D4A017; color: #1a3a1a; border: none;
-  border-radius: 8px; padding: 12px 22px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
-}
-
 /* FINALIZE PANEL */
 .finalize-panel {
   background: #fdf8ee; border: 1px solid #f0dca8; border-radius: 12px; padding: 24px 28px; margin-top: 20px;
@@ -1020,10 +781,10 @@ onMounted(() => {
 .finalize-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 1024px) {
-  .field-grid-4, .goal-status-grid { grid-template-columns: repeat(2, 1fr); }
+  .goal-status-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ============ NEW NCP RECORD MODAL ============ */
+/* ============ NEW / CONTINUE NCP RECORD MODAL ============ */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(20,30,20,0.5);
   display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
@@ -1059,11 +820,10 @@ onMounted(() => {
 .auto-results-box { background: #f4f8f5; border: 1px solid #dbe8dd; border-radius: 10px; padding: 16px; margin: 12px 0 20px; }
 .auto-results-label { display: block; font-size: 0.66rem; letter-spacing: 0.06em; color: #6a8a70; font-weight: 700; margin-bottom: 12px; }
 .auto-results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.auto-results-grid.single { grid-template-columns: 1fr; max-width: 200px; }
 .auto-result-item { background: #fff; border-radius: 8px; padding: 10px; text-align: center; }
 .auto-result-value { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.auto-result-sub { font-size: 0.68rem; color: #b8860b; font-weight: 600; margin: 2px 0 4px; }
-.auto-result-sub.nrs-sub { color: #9aaa9a; }
-.auto-result-label { font-size: 0.68rem; color: #9aaa9a; margin: 0; }
+.auto-result-label { font-size: 0.68rem; color: #9aaa9a; margin: 4px 0 0; }
 
 .pes-generated-box { background: #fdf1d6; border: 1px solid #f0dca8; border-radius: 10px; padding: 14px 16px; margin: 16px 0 20px; }
 .pes-generated-label { display: block; font-size: 0.66rem; letter-spacing: 0.06em; color: #b8860b; font-weight: 700; margin-bottom: 6px; }
