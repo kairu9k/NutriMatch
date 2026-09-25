@@ -104,7 +104,7 @@
 <script setup>
 import {
   LayoutDashboard, Search, CalendarCheck, ClipboardList, LineChart,
-  FileText, MessageSquare, LogOut, Bell, User, Settings, AlarmClock
+  FileText, MessageSquare, LogOut, Bell, User, Settings, AlarmClock, Receipt
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -143,7 +143,8 @@ const navGroups = [
     label: 'CONNECT',
     items: [
       { icon: FileText, label: 'Resources', to: '/resources-library' },
-      { icon: AlarmClock, label: 'Reminders', to: '/reminders' }
+      { icon: AlarmClock, label: 'Reminders', to: '/reminders' },
+      { icon: Receipt, label: 'Billing', to: '/invoices-billing' }
     ]
   }
 ]
@@ -191,17 +192,17 @@ function handleLogout() {
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .sidebar::-webkit-scrollbar { display: none; }
-.sidebar:not(.collapsed) { width: 250px; padding: 17px 20px 16px; }
+.sidebar:not(.collapsed) { width: 250px; padding: 14px 20px 16px; }
 
 .sidebar-top { margin-bottom: 20px; flex-shrink: 0; }
 .sidebar-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .sidebar.collapsed .sidebar-brand { justify-content: center; }
 .logo-mark { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
-.sidebar.collapsed .logo-mark { width: 45px; height: 50px; font-size: 1.1rem; }
+.sidebar.collapsed .logo-mark { width: 45px; height: 40px; font-size: 1.1rem; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; white-space: nowrap; }
 .logo-text { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #fff; }
 .logo-match { color: #D4A017; }
-.brand-tagline { display: block; font-size: 0.71rem; letter-spacing: 0.16em; color: #8fae9f; text-transform: uppercase; margin: 0 0 10px; font-weight: 600; white-space: nowrap; }
+.brand-tagline { display: block; font-size: 0.55rem; letter-spacing: 0.16em; color: #8fae9f; text-transform: uppercase; margin: 0 0 10px; font-weight: 600; white-space: nowrap; }
 .portal-badge {
   display: inline-flex; align-items: center; gap: 6px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
   color: #D4A017; border: 1px solid rgba(212,160,23,0.5); border-radius: 999px; padding: 4px 10px; margin-bottom: 14px; white-space: nowrap;
@@ -218,7 +219,7 @@ function handleLogout() {
   display: flex; align-items: center; gap: 11px; padding: 10px; border-radius: 8px;
   color: #9fb5a3; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: background 0.15s;
   text-decoration: none; width: 100%; background: none; border: none; text-align: left; font-family: inherit;
-  white-space: nowrap; overflow: hidden; margin-bottom: 10px;
+  white-space: nowrap; overflow: hidden; margin-bottom: 4px;
 }
 .sidebar.collapsed .nav-item { justify-content: center; padding: 13px 0; gap: 0; }
 .nav-item:hover { background: rgba(255,255,255,0.05); }
@@ -299,4 +300,10 @@ function handleLogout() {
 .icon-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #D4A017; }
 
 .content { flex: 1; overflow-y: auto; padding: 24px 60px 32px; }
+
+@media print {
+  .sidebar, .topbar { display: none; }
+  .main-column { height: auto; overflow: visible; }
+  .content { overflow: visible; padding: 0; }
+}
 </style>

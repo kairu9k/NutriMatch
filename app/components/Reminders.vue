@@ -159,7 +159,7 @@ function saveReminder() {
 .reminders-page { font-family: 'Inter', sans-serif; }
 
 .panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
-.panel-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.panel-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 30px; }
 .panel-heading { display: flex; align-items: center; gap: 12px; }
 .panel-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .icon-green { background: #e3f3ea; color: #1f8f5c; }
@@ -175,9 +175,9 @@ function saveReminder() {
 .empty-state { padding: 30px; text-align: center; color: #9aaa9a; font-size: 0.85rem; }
 .empty-icon { color: #d5dad5; margin-bottom: 8px; }
 
-.reminder-full-list { display: flex; flex-direction: column; gap: 10px; }
+.reminder-full-list { display: flex; flex-direction: column; gap: 25px; }
 .reminder-full-item {
-  display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px;
+  display: flex; align-items: center; gap: 15px; padding: 14px 16px; border-radius: 10px;
   border-left: 3px solid #D4A017; background: #f7f9f7; transition: background 0.15s;
 }
 .reminder-full-item:hover { background: #f0f2f0; }

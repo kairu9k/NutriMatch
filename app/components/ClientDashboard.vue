@@ -109,6 +109,20 @@
       </div>
 
       <div class="dash-col">
+        <div class="panel" v-if="recentActivity.length">
+          <div class="panel-header-row">
+            <h3 class="panel-title">Recent Activity</h3>
+            <NuxtLink to="/history" class="view-all-link">View All →</NuxtLink>
+          </div>
+          <div class="activity-row" v-for="entry in recentActivity" :key="entry.id">
+            <span class="activity-dot" :class="activityDotClass(entry.type)"></span>
+            <div>
+              <p class="activity-title">{{ entry.title }}</p>
+              <p class="activity-time">{{ entry.timestamp }}</p>
+            </div>
+          </div>
+        </div>
+
         <div class="panel">
           <h3 class="panel-title">Latest Screening</h3>
           <template v-if="hasLatestScreening">
@@ -201,13 +215,13 @@
             <tr><th>DATE</th><th>WEIGHT</th><th>HEIGHT</th><th>BMI</th><th>NRS SCORE</th><th>TDEE</th></tr>
           </thead>
           <tbody>
-            <tr v-for="row in screeningHistory" :key="row.date">
-              <td>{{ row.date }}</td>
-              <td>{{ row.weight }}</td>
-              <td>{{ row.height }}</td>
+            <tr v-for="(row, i) in screeningHistory" :key="i">
+              <td>{{ row.lastRecordedDate }}</td>
+              <td>{{ row.weight }} kg</td>
+              <td>{{ row.height }} cm</td>
               <td>{{ row.bmi }}</td>
               <td><span class="status-pill" :class="row.nrs >= 2 ? 'pill-gold' : 'pill-muted'">{{ row.nrs }}</span></td>
-              <td>{{ row.tdee }}</td>
+              <td>{{ row.tdee.toLocaleString() }} kcal</td>
             </tr>
           </tbody>
         </table>
@@ -316,6 +330,7 @@ import {
 } from 'lucide-vue-next'
 
 import { useClientScreening } from '~/composables/useClientScreening'
+import { useClientHistory } from '~/composables/useClientHistory'
 
 definePageMeta({ layout: 'client', title: 'Dashboard' })
 
@@ -339,7 +354,15 @@ const client = ref({
 
 // Shared with pre-consultation-screening.vue — submitting that form updates
 // these here too, no reload needed.
-const { hasLatestScreening, screening } = useClientScreening()
+const { hasLatestScreening, screening, screeningHistory } = useClientScreening()
+
+// Shared with the History page — shows the 3 most recent saved activities
+// (screenings, appointments, meal logs) right on the dashboard.
+const { historyLog } = useClientHistory()
+const recentActivity = computed(() => historyLog.value.slice(0, 3))
+function activityDotClass(type) {
+  return { screening: 'dot-blue', appointment: 'dot-gold', mealLog: 'dot-green' }[type] || 'dot-green'
+}
 
 // Screening-derived stats are null until a screening is submitted, so every
 // place that displays them falls back to '—' rather than crashing on
@@ -399,13 +422,6 @@ function onLabFileSelected(e) {
   const file = e.target.files?.[0]
   if (file) labFileName.value = file.name
 }
-
-/* ---------- HEALTH SCREENING ---------- */
-const screeningHistory = ref([
-  { date: 'Jun 15, 2026', weight: '68.2 kg', height: '171 cm', bmi: 23.4, nrs: 2, tdee: '1,804 kcal' },
-  { date: 'May 20, 2026', weight: '69.0 kg', height: '171 cm', bmi: 23.7, nrs: 2, tdee: '1,820 kcal' },
-  { date: 'Apr 18, 2026', weight: '70.5 kg', height: '171 cm', bmi: 24.2, nrs: 1, tdee: '1,850 kcal' }
-])
 
 /* ---------- MY TASKS ---------- */
 const tasks = ref([
@@ -472,18 +488,6 @@ function resourceIcon(type) {
   if (type === 'PDF') return FileText
   if (type === 'Video') return PlayCircle
   return ArrowRight
-}
-
-/* ---------- BILLING ---------- */
-const billingSummary = ref({ totalPaid: 1600, amountDue: 800, unpaidInvoice: 'INV-0231', consultationsPaid: 3 })
-const invoices = ref([
-  { id: 'INV-0231', date: 'Jul 4, 2026', amount: 800, status: 'Unpaid' },
-  { id: 'INV-0214', date: 'Jun 15, 2026', amount: 800, status: 'Paid' },
-  { id: 'INV-0198', date: 'May 20, 2026', amount: 800, status: 'Paid' }
-])
-function payInvoice(inv) {
-  // TODO: wire up to a real payment flow
-  console.log('Pay invoice', inv.id)
 }
 </script>
 
@@ -568,6 +572,17 @@ function payInvoice(inv) {
 
 /* LATEST SCREENING */
 .screening-summary-text { font-size: 0.85rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
+
+/* RECENT ACTIVITY */
+.view-all-link { font-size: 0.78rem; font-weight: 700; color: #b8860b; text-decoration: none; white-space: nowrap; }
+.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f0; }
+.activity-row:first-of-type { border-top: none; padding-top: 0; }
+.activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; display: inline-block; }
+.activity-dot.dot-blue { background: #2a5a8a; }
+.activity-dot.dot-gold { background: #D4A017; }
+.activity-dot.dot-green { background: #1f8f5c; }
+.activity-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; margin: 0; }
+.activity-time { font-size: 0.72rem; color: #9aaa9a; margin: 2px 0 0; }
 
 /* RND CARD */
 .rnd-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
