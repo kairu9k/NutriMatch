@@ -188,3 +188,46 @@ class MealPlanFoodItem(models.Model):
 
     def __str__(self):
         return self.food_name
+
+
+class MealLog(models.Model):
+    """Client-reported adherence for one prescribed meal on one date —
+    the 'Actual Food Intake' side of a meal plan, as distinct from
+    MealPlanMeal/MealPlanFoodItem which describe what was *prescribed*.
+
+    One row per (meal_plan_meal, log_date). Not in the original DBML
+    schema (vault/database.txt has no per-meal adherence table, only
+    progress_records.adherence_pct as an RND-authored per-date summary)
+    — added because the capstone's adherence-tracking requirement needs
+    client-side, per-meal logging that progress_records doesn't cover.
+    """
+
+    class MealStatus(models.TextChoices):
+        FOLLOWED = "followed", "Followed Plan"
+        PARTIALLY_FOLLOWED = "partially_followed", "Partially Followed"
+        NOT_FOLLOWED = "not_followed", "Did Not Follow"
+
+    meal_plan_meal = models.ForeignKey(
+        MealPlanMeal, on_delete=models.CASCADE, related_name="logs"
+    )
+    client = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="meal_logs"
+    )
+    log_date = models.DateField()
+    status = models.CharField(max_length=20, choices=MealStatus.choices)
+    time_logged = models.TimeField(null=True, blank=True)
+    reason_notes = models.TextField(null=True, blank=True)
+    photo_url = models.URLField(max_length=500, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "meal_logs"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["meal_plan_meal", "log_date"], name="unique_meal_log_per_day"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.meal_plan_meal} — {self.log_date} ({self.status})"

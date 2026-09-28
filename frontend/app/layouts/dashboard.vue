@@ -108,8 +108,8 @@
 <script setup>
 import {
   LayoutDashboard, Users, CalendarCheck, LineChart, Target,
-  Search as SearchIcon, FileText, MessageCircle, MessageSquare,
-  Star, UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp
+  Search as SearchIcon, FileText, MessageSquare,
+  UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, AlarmClock
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -153,22 +153,16 @@ const userInitials = computed(() =>
     .toUpperCase()
 )
 
-// Real pending-count badges — pending relationship requests and
-// pending-confirmation appointments — loaded once on mount.
-const pendingPatientRequests = ref(0)
+// Real pending-confirmation appointment count, loaded once on mount. New
+// clients book directly, so this also covers first-time bookings.
 const pendingAppointments = ref(0)
 
 async function loadBadgeCounts() {
   if (!isRnd.value) return
   try {
-    const [requests, appointments] = await Promise.all([
-      get('/rnd/relationship-requests/').catch(() => []),
-      get('/rnd/appointments/').catch(() => []),
-    ])
-    pendingPatientRequests.value = requests.length
+    const appointments = await get('/rnd/appointments/')
     pendingAppointments.value = appointments.filter(a => a.status === 'pending').length
   } catch {
-    pendingPatientRequests.value = 0
     pendingAppointments.value = 0
   }
 }
@@ -185,7 +179,7 @@ const rndNavGroups = computed(() => [
     label: 'MAIN',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', to: '/rnd-dashboard' },
-      { icon: Users, label: 'My Patients', to: '/my-patients', badge: pendingPatientRequests.value || null },
+      { icon: Users, label: 'My Patients', to: '/my-patients' },
       { icon: CalendarCheck, label: 'Appointments', to: '/appointments', badge: pendingAppointments.value || null },
     ],
   },
@@ -207,29 +201,34 @@ const rndNavGroups = computed(() => [
 
 // Client-facing pages are still being built out (Phase 6) — only pages already
 // verified to work for a client role are linked here, see vault/TODO.md.
+// Grouping/order ported from feature/client's sidebar design.
 const clientNavGroups = computed(() => [
   {
-    label: 'MAIN',
+    label: 'OVERVIEW',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', to: '/client-dashboard' },
-      { icon: SearchIcon, label: 'Find an RND', to: '/find-rnd' },
-      { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
     ],
   },
   {
-    label: 'CLINICAL',
+    label: 'HEALTH',
     items: [
+      { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
       { icon: Target, label: 'My Meal Plan', to: '/meal-plan-view' },
       { icon: TrendingUp, label: 'Progress Tracker', to: '/progress-tracker' },
     ],
   },
   {
-    label: 'RESOURCES',
+    label: 'CLINICAL',
+    items: [
+      { icon: SearchIcon, label: 'Find an RND', to: '/find-rnd' },
+    ],
+  },
+  {
+    label: 'CONNECT',
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-library' },
-      { icon: MessageCircle, label: 'Messages', to: '/messages' },
+      { icon: AlarmClock, label: 'Reminders', to: '/reminders' },
       { icon: Receipt, label: 'Billing', to: '/invoices-billing' },
-      { icon: Star, label: 'Reviews', to: '/reviews' },
     ],
   },
 ])

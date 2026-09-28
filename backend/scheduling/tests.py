@@ -13,9 +13,12 @@ from profiles.models import RndProfile
 from .models import Appointment, RndClientRelationship
 
 
-def _make_rnd(email="rnd@t.ph", fee="500.00"):
+def _make_rnd(email="rnd@t.ph", fee="500.00", **profile_fields):
     user = User.objects.create_user(email=email, password="x", role="rnd", first_name="R", last_name="D")
-    RndProfile.objects.create(user=user, prc_license_number=f"PRC-{email}", consultation_fee=Decimal(fee))
+    profile_fields.setdefault("is_verified", True)
+    RndProfile.objects.create(
+        user=user, prc_license_number=f"PRC-{email}", consultation_fee=Decimal(fee), **profile_fields
+    )
     return user
 
 
@@ -23,89 +26,87 @@ def _make_client(email="client@t.ph"):
     return User.objects.create_user(email=email, password="x", role="client", first_name="C", last_name="L")
 
 
-class RelationshipLifecycleTests(TestCase):
+def _booking(rnd, type_="chat"):
+    return {
+        "rnd_id": rnd.id,
+        "scheduled_at": (timezone.now() + timedelta(days=1)).isoformat(),
+        "type": type_, "duration_minutes": 30,
+    }
+
+
+class AppointmentBookingTests(TestCase):
+    """Clients book directly — no separate request/accept step."""
+
     def setUp(self):
         self.client_api = APIClient()
         self.rnd = _make_rnd()
         self.client_user = _make_client()
-
-    def test_client_can_request_relationship(self):
         self.client_api.force_authenticate(self.client_user)
-        resp = self.client_api.post(f"/api/client/rnds/{self.rnd.id}/request/")
+
+    def test_first_booking_creates_pending_relationship(self):
+        resp = self.client_api.post("/api/client/appointments/", _booking(self.rnd))
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["status"], "pending")
+        rel = RndClientRelationship.objects.get(rnd=self.rnd, client=self.client_user)
+        self.assertEqual(rel.status, "pending")
+
+    def test_repeat_booking_reuses_relationship(self):
+        self.client_api.post("/api/client/appointments/", _booking(self.rnd))
+        resp = self.client_api.post("/api/client/appointments/", _booking(self.rnd))
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(RndClientRelationship.objects.filter(rnd=self.rnd, client=self.client_user).count(), 1)
+        self.assertEqual(Appointment.objects.count(), 2)
+
+    def test_booking_succeeds_with_active_relationship(self):
+        RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+
+        resp = self.client_api.post("/api/client/appointments/", _booking(self.rnd))
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        rel = RndClientRelationship.objects.get(rnd=self.rnd, client=self.client_user)
+        self.assertEqual(rel.status, "active")
+
+    def test_booking_reopens_discharged_relationship(self):
+        RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="discharged")
+
+        resp = self.client_api.post("/api/client/appointments/", _booking(self.rnd))
 
         self.assertEqual(resp.status_code, 201, resp.data)
         rel = RndClientRelationship.objects.get(rnd=self.rnd, client=self.client_user)
         self.assertEqual(rel.status, "pending")
 
-    def test_requesting_twice_is_idempotent(self):
-        self.client_api.force_authenticate(self.client_user)
-        self.client_api.post(f"/api/client/rnds/{self.rnd.id}/request/")
-        resp = self.client_api.post(f"/api/client/rnds/{self.rnd.id}/request/")
+    def test_cannot_book_unverified_rnd(self):
+        unverified = _make_rnd(email="unverified@t.ph", is_verified=False)
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(RndClientRelationship.objects.filter(rnd=self.rnd, client=self.client_user).count(), 1)
+        resp = self.client_api.post("/api/client/appointments/", _booking(unverified))
 
-    def test_rnd_can_accept_pending_request(self):
-        rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="pending")
-        self.client_api.force_authenticate(self.rnd)
-
-        resp = self.client_api.patch(f"/api/rnd/relationships/{rel.id}/accept/")
-
-        self.assertEqual(resp.status_code, 200)
-        rel.refresh_from_db()
-        self.assertEqual(rel.status, "active")
-        self.assertIsNotNone(rel.started_at)
-
-    def test_rnd_can_decline_pending_request(self):
-        rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="pending")
-        self.client_api.force_authenticate(self.rnd)
-
-        resp = self.client_api.patch(f"/api/rnd/relationships/{rel.id}/decline/")
-
-        self.assertEqual(resp.status_code, 200)
-        rel.refresh_from_db()
-        self.assertEqual(rel.status, "discharged")
-
-    def test_other_rnd_cannot_accept_someone_elses_request(self):
-        rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="pending")
-        other_rnd = _make_rnd(email="other-rnd@t.ph")
-        self.client_api.force_authenticate(other_rnd)
-
-        resp = self.client_api.patch(f"/api/rnd/relationships/{rel.id}/accept/")
-        self.assertEqual(resp.status_code, 404)
-
-
-class AppointmentBookingTests(TestCase):
-    def setUp(self):
-        self.client_api = APIClient()
-        self.rnd = _make_rnd()
-        self.client_user = _make_client()
-
-    def test_booking_requires_active_relationship(self):
-        RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="pending")
-        self.client_api.force_authenticate(self.client_user)
-
-        resp = self.client_api.post("/api/client/appointments/", {
-            "rnd_id": self.rnd.id,
-            "scheduled_at": (timezone.now() + timedelta(days=1)).isoformat(),
-            "type": "video", "duration_minutes": 30,
-        })
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(Appointment.objects.exists())
+        self.assertFalse(RndClientRelationship.objects.exists())
 
-    def test_booking_succeeds_with_active_relationship(self):
-        RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
-        self.client_api.force_authenticate(self.client_user)
+    def test_cannot_book_mode_rnd_does_not_offer(self):
+        video_only = _make_rnd(email="video-only@t.ph", consultation_modes=["video"])
 
-        resp = self.client_api.post("/api/client/appointments/", {
-            "rnd_id": self.rnd.id,
-            "scheduled_at": (timezone.now() + timedelta(days=1)).isoformat(),
-            "type": "chat", "duration_minutes": 30,
-        })
+        resp = self.client_api.post("/api/client/appointments/", _booking(video_only, type_="in_person"))
 
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("type", resp.data)
+        self.assertFalse(Appointment.objects.exists())
+
+    def test_new_client_cannot_book_rnd_not_accepting(self):
+        closed = _make_rnd(email="closed@t.ph", available_for_new_clients=False)
+
+        resp = self.client_api.post("/api/client/appointments/", _booking(closed))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_existing_client_can_still_book_rnd_not_accepting_new(self):
+        closed = _make_rnd(email="closed@t.ph", available_for_new_clients=False)
+        RndClientRelationship.objects.create(rnd=closed, client=self.client_user, status="active")
+
+        resp = self.client_api.post("/api/client/appointments/", _booking(closed))
         self.assertEqual(resp.status_code, 201, resp.data)
-        self.assertEqual(resp.data["status"], "pending")
-        self.assertTrue(Appointment.objects.filter(relationship__rnd=self.rnd, relationship__client=self.client_user).exists())
 
     def test_client_can_cancel_own_appointment(self):
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
@@ -152,6 +153,30 @@ class AppointmentConfirmScreeningGateTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         self.appt.refresh_from_db()
         self.assertEqual(self.appt.status, "confirmed")
+
+    def test_confirming_first_appointment_activates_relationship(self):
+        self.rel.status = RndClientRelationship.Status.PENDING
+        self.rel.save(update_fields=["status"])
+        PreConsultationScreening.objects.create(
+            client=self.client_user, height_cm=Decimal("170.00"), weight_kg=Decimal("65.00")
+        )
+
+        resp = self.client_api.patch(f"/api/rnd/appointments/{self.appt.id}/confirm/")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.rel.refresh_from_db()
+        self.assertEqual(self.rel.status, "active")
+        self.assertIsNotNone(self.rel.started_at)
+
+    def test_blocked_confirm_leaves_relationship_pending(self):
+        self.rel.status = RndClientRelationship.Status.PENDING
+        self.rel.save(update_fields=["status"])
+
+        resp = self.client_api.patch(f"/api/rnd/appointments/{self.appt.id}/confirm/")
+
+        self.assertEqual(resp.status_code, 403)
+        self.rel.refresh_from_db()
+        self.assertEqual(self.rel.status, "pending")
 
     def test_confirm_wrong_status_transition_rejected(self):
         PreConsultationScreening.objects.create(

@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import (
     FoodExchangeCategory,
     FoodExchangeItem,
+    MealLog,
     MealPlan,
     MealPlanFoodItem,
     MealPlanMeal,
@@ -81,3 +82,13 @@ class MealPlanSerializer(serializers.ModelSerializer):
         if value.rnd_id != request.user.id:
             raise serializers.ValidationError("You can only create meal plans for your own clients.")
         return value
+
+
+class MealLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealLog
+        fields = [
+            "id", "meal_plan_meal", "log_date", "status",
+            "time_logged", "reason_notes", "photo_url", "created_at", "updated_at",
+        ]
+        read_only_fields = ["meal_plan_meal", "log_date", "photo_url"]

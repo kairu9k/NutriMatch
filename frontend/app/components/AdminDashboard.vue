@@ -117,7 +117,7 @@ const peso = (n) => `₱${Number(n).toLocaleString()}`
             </div>
             <div class="min-w-0">
               <p class="text-sm font-semibold text-forest-dark truncate">{{ rnd.first_name }} {{ rnd.last_name }}</p>
-              <p class="text-xs text-forest/50 truncate">PRC {{ rnd.prc_license_number }} · Submitted {{ new Date(rnd.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</p>
+              <p class="text-xs text-forest/50 truncate"><template v-if="rnd.prc_license_number">PRC {{ rnd.prc_license_number }} · </template>Submitted {{ new Date(rnd.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</p>
             </div>
           </div>
           <div class="flex gap-2 shrink-0">

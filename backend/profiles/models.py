@@ -2,16 +2,31 @@ from django.conf import settings
 from django.db import models
 
 
+# Mirrors scheduling.Appointment.Type values.
+CONSULTATION_MODES = ["video", "chat", "in_person"]
+
+
+def default_consultation_modes():
+    return list(CONSULTATION_MODES)
+
+
 class RndProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rnd_profile"
     )
-    prc_license_number = models.CharField(max_length=50, unique=True)
+    # RNDs register with a photo of their PRC license, not a typed number;
+    # the number is optional (NULLs don't collide under the unique constraint).
+    prc_license_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    prc_license_image = models.CharField(
+        max_length=255, null=True, blank=True,
+        help_text="Cloudinary public_id of an authenticated (non-public) upload",
+    )
     prc_expiry_date = models.DateField(null=True, blank=True)
     specialization = models.CharField(max_length=255, null=True, blank=True)
     language_codes = models.JSONField(null=True, blank=True, help_text="Array of language codes")
     bio = models.TextField(null=True, blank=True)
     consultation_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    consultation_modes = models.JSONField(default=default_consultation_modes, help_text="Subset of video/chat/in_person")
     available_for_new_clients = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     verified_at = models.DateTimeField(null=True, blank=True)

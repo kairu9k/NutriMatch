@@ -113,6 +113,35 @@ class ScreeningViewTests(TestCase):
         self.assertIsNone(resp.data["bmr_kcal"])
         self.assertIsNone(resp.data["tdee_kcal"])
 
+    def test_submitted_age_and_sex_used_when_profile_lacks_them(self):
+        bare_client = User.objects.create_user(email="bare2@t.ph", password="x", role="client", first_name="B", last_name="C")
+        ClientProfile.objects.create(user=bare_client)
+        self.client_api.force_authenticate(bare_client)
+
+        # Hand-checked: 10*90 + 6.25*172 - 5*31 + 5 = 1825; x1.375 = 2509.375
+        resp = self.client_api.post("/api/client/screening/", {
+            "height_cm": "172", "weight_kg": "90", "age": 31, "sex": "male", "activity_level": "lightly_active",
+        })
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["bmr_kcal"], "1825.00")
+        self.assertEqual(resp.data["tdee_kcal"], "2509.38")
+        self.assertEqual(resp.data["bmi_category"], "Obese II")
+        self.assertNotIn("age", resp.data)
+        bare_client.client_profile.refresh_from_db()
+        self.assertEqual(bare_client.client_profile.sex, "male")
+
+    def test_submitted_age_overrides_profile_dob(self):
+        self.client_api.force_authenticate(self.client_user)
+
+        resp = self.client_api.post("/api/client/screening/", {
+            "height_cm": "170", "weight_kg": "70", "age": 40, "sex": "male",
+        })
+
+        # 10*70 + 6.25*170 - 5*40 + 5 = 1567.5
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["bmr_kcal"], "1567.50")
+
     def test_latest_screening_returns_most_recent(self):
         self.client_api.force_authenticate(self.client_user)
         self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})

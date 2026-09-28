@@ -11,7 +11,7 @@
       <p>By creating an account on NutriMatch, you agree to be bound by these Terms &amp; Conditions. NutriMatch is a web-based clinical nutrition consultation management system connecting clients with licensed Registered Nutritionist-Dietitians (RNDs) in the Philippines.</p>
 
       <h2>2. Eligibility &amp; Roles</h2>
-      <p>NutriMatch operates under three roles: Client, RND, and Administrator. RND accounts require a valid, unexpired PRC (Professional Regulation Commission) license number, which is manually verified by an administrator before clinical features become accessible. Clinical features — including the Nutrition Care Process, meal planning, and progress monitoring — are only accessible within a formally established, active RND-client relationship.</p>
+      <p>NutriMatch operates under three roles: Client, RND, and Administrator. RND accounts require a valid, unexpired PRC (Professional Regulation Commission) license, submitted as a photo at registration and manually verified by an administrator before clinical features become accessible. Clinical features — including the Nutrition Care Process, meal planning, and progress monitoring — are only accessible within a formally established, active RND-client relationship.</p>
 
       <h2>3. Nature of the Service</h2>
       <p>NutriMatch provides tools to support, not replace, professional clinical judgment. Automated computations including BMI, BMR, TDEE, and NRS-2002 nutritional risk scoring are intended as decision-support aids. Final clinical decisions remain the responsibility of the supervising RND. NutriMatch is not a substitute for emergency medical care.</p>

@@ -4,11 +4,10 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import User
 from accounts.permissions import IsClient, IsRnd
 from clinical.models import NcpRecord, PreConsultationScreening
 
@@ -22,44 +21,6 @@ from .serializers import (
     RndPatientListSerializer,
 )
 from .services import JitsiVideoService, VideoSessionError
-
-
-class RequestRelationshipView(APIView):
-    """Client requests to start a relationship with an RND. Starts as
-    'pending' until the RND accepts via RndRelationshipAcceptView."""
-
-    permission_classes = [IsClient]
-
-    def post(self, request, rnd_id):
-        try:
-            rnd = User.objects.get(id=rnd_id, role=User.Role.RND)
-        except User.DoesNotExist:
-            raise NotFound("RND not found.")
-
-        relationship, created = RndClientRelationship.objects.get_or_create(
-            rnd=rnd, client=request.user,
-            defaults={"status": RndClientRelationship.Status.PENDING},
-        )
-        if not created and relationship.status == RndClientRelationship.Status.DISCHARGED:
-            relationship.status = RndClientRelationship.Status.PENDING
-            relationship.save(update_fields=["status"])
-
-        return Response(
-            RndClientRelationshipSerializer(relationship).data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
-        )
-
-
-class RndRelationshipRequestsView(generics.ListAPIView):
-    """RND's incoming pending relationship requests."""
-
-    serializer_class = RndClientRelationshipSerializer
-    permission_classes = [IsRnd]
-
-    def get_queryset(self):
-        return RndClientRelationship.objects.filter(
-            rnd=self.request.user, status=RndClientRelationship.Status.PENDING
-        ).select_related("rnd", "client")
 
 
 class RndActiveRelationshipsView(generics.ListAPIView):
@@ -90,42 +51,6 @@ class RndPatientListView(generics.ListAPIView):
             Prefetch("appointments", to_attr="_prefetched_appointments"),
             Prefetch("ncp_records", queryset=NcpRecord.objects.only("id", "relationship_id", "status", "created_at"), to_attr="_prefetched_ncp_records"),
         ).order_by("-created_at")
-
-
-class RndRelationshipAcceptView(APIView):
-    permission_classes = [IsRnd]
-
-    def patch(self, request, pk):
-        relationship = get_object_or_404(
-            RndClientRelationship.objects.filter(
-                rnd=request.user, status=RndClientRelationship.Status.PENDING
-            ),
-            pk=pk,
-        )
-        relationship.status = RndClientRelationship.Status.ACTIVE
-        relationship.started_at = timezone.now()
-        relationship.save(update_fields=["status", "started_at", "updated_at"])
-        return Response(RndClientRelationshipSerializer(relationship).data)
-
-
-class RndRelationshipDeclineView(APIView):
-    """RND declining a pending request. No separate 'declined' status exists
-    on the model — discharged is the closest fit for a relationship that
-    never became active."""
-
-    permission_classes = [IsRnd]
-
-    def patch(self, request, pk):
-        relationship = get_object_or_404(
-            RndClientRelationship.objects.filter(
-                rnd=request.user, status=RndClientRelationship.Status.PENDING
-            ),
-            pk=pk,
-        )
-        relationship.status = RndClientRelationship.Status.DISCHARGED
-        relationship.ended_at = timezone.now()
-        relationship.save(update_fields=["status", "ended_at", "updated_at"])
-        return Response(RndClientRelationshipSerializer(relationship).data)
 
 
 class ClientActiveRelationshipsView(generics.ListAPIView):
@@ -246,6 +171,15 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             )
         response = super().patch(request, pk)
         appointment = get_object_or_404(Appointment, pk=response.data["id"])
+
+        # Clients book directly (no request/accept step), so confirming their
+        # appointment is what starts the care relationship.
+        relationship = appointment.relationship
+        if relationship.status != RndClientRelationship.Status.ACTIVE:
+            relationship.status = RndClientRelationship.Status.ACTIVE
+            relationship.started_at = timezone.now()
+            relationship.ended_at = None
+            relationship.save(update_fields=["status", "started_at", "ended_at", "updated_at"])
 
         if appointment.type == Appointment.Type.VIDEO:
             try:

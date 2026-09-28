@@ -81,7 +81,7 @@
           <h2>Your Details</h2>
           <p class="subtitle">Step 2 of 3 — Enter your personal information</p>
 
-          <form class="details-form" @submit.prevent="currentStep = 3">
+          <form class="details-form" @submit.prevent="goToConfirm">
             <div class="field-row">
               <div class="field">
                 <label>First Name</label>
@@ -166,8 +166,17 @@
 
             <template v-else-if="selectedRole === 'rnd'">
               <div class="field">
-                <label>PRC License Number</label>
-                <input v-model="form.prcLicenseNumber" type="text" placeholder="0012345" required />
+                <label>PRC License Photo</label>
+                <label class="license-upload" :class="{ 'has-file': licensePreview }">
+                  <input type="file" accept="image/jpeg,image/png,image/webp" class="license-input" @change="onLicenseSelected" />
+                  <img v-if="licensePreview" :src="licensePreview" alt="PRC license preview" class="license-preview" />
+                  <span v-else class="license-placeholder">
+                    <strong>Upload a clear photo of your PRC ID</strong>
+                    JPG, PNG, or WEBP · up to 5 MB
+                  </span>
+                </label>
+                <span v-if="form.prcLicenseImage" class="license-filename">{{ form.prcLicenseImage.name }} · click to change</span>
+                <span class="license-hint">Only our admin team sees this photo, to verify your license.</span>
               </div>
               <div class="field">
                 <label>Specialization</label>
@@ -192,14 +201,14 @@
           <div class="confirm-summary">
             <div class="confirm-row"><span>Role</span><strong>{{ selectedRole }}</strong></div>
             <div class="confirm-row"><span>Name</span><strong>{{ form.firstName }} {{ form.lastName }}</strong></div>
-            <div class="confirm-row"><span>Email</span><strong>{{ form.email }}</strong></div>
+            <div class="confirm-row"><span>Email</span><strong class="no-capitalize">{{ form.email }}</strong></div>
             <template v-if="selectedRole === 'patient'">
               <div class="confirm-row"><span>Date of Birth</span><strong>{{ form.dob }}</strong></div>
               <div class="confirm-row"><span>Gender</span><strong>{{ form.gender }}</strong></div>
               <div class="confirm-row"><span>Primary Health Concern</span><strong>{{ form.healthConcern }}</strong></div>
             </template>
             <template v-else-if="selectedRole === 'rnd'">
-              <div class="confirm-row"><span>PRC License Number</span><strong>{{ form.prcLicenseNumber }}</strong></div>
+              <div class="confirm-row"><span>PRC License Photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
               <div class="confirm-row"><span>Specialization</span><strong>{{ form.specialization || '—' }}</strong></div>
             </template>
           </div>
@@ -272,9 +281,41 @@ const form = reactive({
   dob: '',
   gender: '',
   healthConcern: '',
-  prcLicenseNumber: '',
+  prcLicenseImage: null,
   specialization: ''
 })
+
+const MAX_LICENSE_BYTES = 5 * 1024 * 1024
+const licensePreview = ref('')
+
+function onLicenseSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  errorMessage.value = ''
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    errorMessage.value = 'Upload a JPG, PNG, or WEBP photo of your PRC license.'
+    return
+  }
+  if (file.size > MAX_LICENSE_BYTES) {
+    errorMessage.value = 'The license photo must be 5 MB or smaller.'
+    return
+  }
+  if (licensePreview.value) URL.revokeObjectURL(licensePreview.value)
+  form.prcLicenseImage = file
+  licensePreview.value = URL.createObjectURL(file)
+}
+onBeforeUnmount(() => {
+  if (licensePreview.value) URL.revokeObjectURL(licensePreview.value)
+})
+
+function goToConfirm() {
+  if (selectedRole.value === 'rnd' && !form.prcLicenseImage) {
+    errorMessage.value = 'Please upload a photo of your PRC license.'
+    return
+  }
+  errorMessage.value = ''
+  currentStep.value = 3
+}
 
 const genderToSex = { Male: 'male', Female: 'female' }
 
@@ -320,7 +361,7 @@ async function submitRegistration() {
         last_name: form.lastName,
         email: form.email,
         password: form.password,
-        prc_license_number: form.prcLicenseNumber,
+        prc_license_image: form.prcLicenseImage,
         specialization: form.specialization,
       })
     } else {
@@ -341,7 +382,7 @@ async function submitRegistration() {
     currentStep.value = 4
   } catch (error) {
     const data = error?.data
-    errorMessage.value = data?.email?.[0] || data?.prc_license_number?.[0] || data?.detail || 'Registration failed. Please check your details and try again.'
+    errorMessage.value = data?.email?.[0] || data?.prc_license_image?.[0] || data?.detail || 'Registration failed. Please check your details and try again.'
   } finally {
     isSubmitting.value = false
   }
@@ -568,6 +609,21 @@ async function resendCode() {
 .field input:focus,
 .field select:focus { outline: none; border-color: #1a3a1a; }
 
+.license-upload {
+  display: flex; align-items: center; justify-content: center; min-height: 120px;
+  border: 1.5px dashed #b8c8b8; border-radius: 10px; background: #f7f9f7;
+  cursor: pointer; overflow: hidden; padding: 10px; text-transform: none; letter-spacing: normal;
+}
+.license-upload:hover { border-color: #1a3a1a; }
+.license-upload.has-file { border-style: solid; background: #fff; }
+.license-input { display: none; }
+.license-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.8rem; color: #8a9a8a; text-align: center; font-weight: 400; }
+.license-placeholder strong { color: #1a3a1a; font-size: 0.86rem; }
+.license-preview { max-height: 160px; max-width: 100%; border-radius: 6px; object-fit: contain; }
+.license-filename { font-size: 0.75rem; color: #4a5a4a; }
+.license-hint { font-size: 0.72rem; color: #9aaa9a; }
+.confirm-license { height: 56px; border-radius: 6px; object-fit: cover; }
+
 .input-icon-wrap { position: relative; display: flex; align-items: center; }
 .input-icon-wrap input { flex: 1; padding-left: 38px; padding-right: 60px; }
 .input-icon {
@@ -595,6 +651,7 @@ async function resendCode() {
 .confirm-row { display: flex; justify-content: space-between; gap: 16px; font-size: 0.9rem; }
 .confirm-row span { color: #8a9a8a; flex-shrink: 0; }
 .confirm-row strong { color: #1a3a1a; text-transform: capitalize; text-align: right; }
+.confirm-row strong.no-capitalize { text-transform: none; }
 
 /* BUTTONS */
 .form-nav { display: flex; gap: 12px; margin-top: 4px; }

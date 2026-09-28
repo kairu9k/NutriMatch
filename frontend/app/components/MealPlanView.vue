@@ -4,60 +4,126 @@
     <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
     <template v-else-if="plan">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">{{ plan.name }}</h1>
-          <p class="page-sub">{{ conditionLabel }} · Prescribed by your RND</p>
-        </div>
-        <span class="status-pill" :class="plan.status === 'active' ? 'success' : 'neutral'">{{ plan.status === 'active' ? 'Active' : 'Archived' }}</span>
-      </div>
-
-      <div class="surface target-card">
-        <div class="target-row">
+      <div class="targets-card">
+        <div class="targets-header">
           <div>
-            <p class="eyebrow">DAILY TARGET</p>
-            <p class="target-kcal">{{ plan.target_kcal ? Math.round(plan.target_kcal) : '—' }} <span class="kcal-unit">kcal</span></p>
+            <h3 class="targets-title">{{ plan.name }}</h3>
+            <p class="targets-sub">{{ conditionLabel }} · Prescribed by your RND</p>
           </div>
-          <div class="condition-block">
-            <p class="condition-label">Condition</p>
-            <span class="status-pill info">{{ conditionLabel }}</span>
-          </div>
+          <span class="progress-pill">{{ completionPct }}% Followed Today</span>
         </div>
-
-        <p class="eyebrow">FNRI FOOD EXCHANGE TOTALS (PER DAY)</p>
-        <div class="exchange-grid">
-          <div class="exchange-chip"><div class="ex-num">{{ plan.total_rice }}</div><div class="ex-label">Rice</div></div>
-          <div class="exchange-chip"><div class="ex-num">{{ plan.total_meat }}</div><div class="ex-label">Meat</div></div>
-          <div class="exchange-chip"><div class="ex-num">{{ plan.total_vegetable }}</div><div class="ex-label">Vegetable</div></div>
-          <div class="exchange-chip"><div class="ex-num">{{ plan.total_fruit }}</div><div class="ex-label">Fruit</div></div>
-          <div class="exchange-chip"><div class="ex-num">{{ plan.total_milk }}</div><div class="ex-label">Milk</div></div>
-          <div class="exchange-chip"><div class="ex-num">{{ plan.total_fat }}</div><div class="ex-label">Fat</div></div>
+        <div class="targets-grid">
+          <div class="target-box">
+            <p class="target-label">Calories</p>
+            <p class="target-value">{{ plan.target_kcal ? Math.round(plan.target_kcal).toLocaleString() : '—' }}</p>
+          </div>
+          <div class="target-box">
+            <p class="target-label">Carbs</p>
+            <p class="target-value gold">{{ plan.target_carb_g ? Math.round(plan.target_carb_g) + 'g' : '—' }}</p>
+          </div>
+          <div class="target-box">
+            <p class="target-label">Protein</p>
+            <p class="target-value green">{{ plan.target_protein_g ? Math.round(plan.target_protein_g) + 'g' : '—' }}</p>
+          </div>
+          <div class="target-box">
+            <p class="target-label">Fat</p>
+            <p class="target-value brown">{{ plan.target_fat_g ? Math.round(plan.target_fat_g) + 'g' : '—' }}</p>
+          </div>
         </div>
       </div>
 
-      <div v-if="plan.meals.length" class="meal-list">
-        <div v-for="meal in orderedMeals(plan.meals)" :key="meal.id" class="meal-block">
-          <div class="meal-block-header">
-            <span class="meal-name">
-              <component :is="mealIcon(meal.meal_time)" :size="16" class="meal-icon" />
-              {{ mealTimeLabel(meal.meal_time) }}
+      <div v-if="plan.notes" class="notes-panel">
+        <p class="notes-title">Your RND's Notes</p>
+        <p class="notes-text">{{ plan.notes }}</p>
+      </div>
+
+      <template v-if="orderedMeals(plan.meals).length">
+        <div class="meal-tabs">
+          <button
+            v-for="(meal, i) in orderedMeals(plan.meals)" :key="meal.id"
+            class="meal-tab" :class="{ active: activeMealIndex === i }"
+            @click="activeMealIndex = i"
+          >
+            <component :is="mealIcon(meal.meal_time)" :size="14" />
+            {{ mealTimeLabel(meal.meal_time) }}
+            <span v-if="logFor(meal.id)" class="tab-status-dot" :class="logFor(meal.id).status === 'followed' ? 'dot-green' : 'dot-gold'"></span>
+          </button>
+        </div>
+
+        <div class="meal-card">
+          <div class="meal-header">
+            <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
+            <span class="status-pill" :class="activeLog?.status === 'followed' ? 'pill-green' : 'pill-muted'">
+              {{ activeLog ? statusLabel(activeLog.status) : 'Not logged yet' }}
             </span>
-            <span class="status-pill neutral">{{ exchangeSummary(meal) }}</span>
           </div>
-          <div v-if="meal.food_items.length" class="food-item-list">
-            <div v-for="item in meal.food_items" :key="item.id" class="food-item-row">
-              <span>{{ item.food_name }}</span>
-              <span class="food-note">{{ item.notes || `${item.exchanges} Exchange` }}</span>
+
+          <div class="meal-body">
+            <div class="meal-col">
+              <span class="col-eyebrow">Planned Meal</span>
+              <span class="exchange-summary">{{ exchangeSummary(activeMeal) }}</span>
+              <div v-if="activeMeal.food_items.length" class="food-item-list">
+                <div v-for="item in activeMeal.food_items" :key="item.id" class="planned-item">
+                  <span class="planned-dot"></span>
+                  <div>
+                    <span class="food-name">{{ item.food_name }}</span>
+                    <span class="food-note">{{ item.notes || `${item.exchanges} Exchange` }}</span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="no-items-note">No specific foods listed for this meal yet.</p>
+              <p v-if="activeMeal.meal_notes" class="meal-note-text"><strong>Note:</strong> {{ activeMeal.meal_notes }}</p>
+            </div>
+
+            <div class="meal-col">
+              <span class="col-eyebrow">Actual Food Intake</span>
+
+              <label class="dropzone-inline">
+                <input type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
+                <UploadCloud :size="20" class="dropzone-icon" />
+                <span class="dropzone-text">
+                  <template v-if="logForm.photoName">{{ logForm.photoName }}</template>
+                  <template v-else-if="activeLog?.photo_url">Photo already logged for today — choose a file to replace it</template>
+                  <template v-else>Upload a photo of what you ate</template>
+                </span>
+              </label>
+
+              <div class="meal-log-row">
+                <div class="field">
+                  <label>Time Logged</label>
+                  <div class="time-input-wrap">
+                    <input v-model="logForm.timeLogged" type="time" />
+                    <Clock :size="14" class="time-icon" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Meal Status</label>
+                  <select v-model="logForm.status">
+                    <option value="">Select status</option>
+                    <option v-for="s in mealStatusOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div v-if="logForm.status === 'partially_followed' || logForm.status === 'not_followed'" class="field notes-field">
+                <label>Reason / Notes</label>
+                <textarea v-model="logForm.reasonNotes" rows="2" placeholder="e.g. Ran out of time, ate something else instead..."></textarea>
+              </div>
+
+              <p v-if="logError" class="form-error inline">{{ logError }}</p>
+
+              <button v-if="logForm.status" class="save-log-btn" :disabled="isSavingLog" @click="saveMealLog">
+                <Save :size="15" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
+              </button>
             </div>
           </div>
-          <p v-else class="no-items-note">No specific foods listed for this meal yet.</p>
         </div>
-      </div>
+      </template>
       <div v-else class="empty-note-card">No meals have been added to this plan yet.</div>
 
       <div class="info-note">
         <Info :size="16" />
-        <p>Exchange amounts are based on the FNRI Food Exchange Lists. Your RND may adjust portions during follow-up consultations based on your progress.</p>
+        <p>Exchange amounts are based on the FNRI Food Exchange Lists. Your RND may adjust portions during follow-up consultations based on your progress. Your meal logs are sent directly to your RND.</p>
       </div>
     </template>
 
@@ -66,19 +132,28 @@
       <p class="empty-title">No meal plan yet</p>
       <p class="empty-desc">Your RND will create a personalized meal plan for you as part of your care journey.</p>
     </div>
+
+    <Transition name="toast-fade">
+      <div v-if="toastVisible" class="toast">
+        <CheckCircle2 :size="16" /> {{ toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon } from 'lucide-vue-next'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, Clock, UploadCloud, Save, CheckCircle2 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
 
-const { get } = useApi()
+const { get, post } = useApi()
 
 const isLoading = ref(true)
 const errorMessage = ref('')
 const plans = ref([])
+const activeMealIndex = ref(0)
+const todayIso = new Date().toISOString().slice(0, 10)
 
 const plan = computed(() => plans.value.find(p => p.status === 'active') || plans.value[0] || null)
 
@@ -94,6 +169,15 @@ const MEAL_LABELS = {
   pm_snack: 'PM Snack', dinner: 'Dinner', bedtime_snack: 'Bedtime Snack',
 }
 const MEAL_ICONS = { breakfast: Sunrise, am_snack: Coffee, lunch: Sun, pm_snack: Coffee, dinner: Moon, bedtime_snack: Moon }
+
+const mealStatusOptions = [
+  { value: 'followed', label: 'Followed Plan' },
+  { value: 'partially_followed', label: 'Partially Followed' },
+  { value: 'not_followed', label: 'Did Not Follow' },
+]
+function statusLabel(value) {
+  return mealStatusOptions.find(s => s.value === value)?.label || value
+}
 
 function orderedMeals(meals) {
   return [...meals].sort((a, b) => MEAL_ORDER.indexOf(a.meal_time) - MEAL_ORDER.indexOf(b.meal_time))
@@ -114,11 +198,92 @@ function exchangeSummary(meal) {
   return parts.join(' · ') || 'No exchanges set'
 }
 
+const activeMeal = computed(() => orderedMeals(plan.value?.meals || [])[activeMealIndex.value] || null)
+
+/* ---------- ADHERENCE LOGS (today's actual food intake) ---------- */
+const todaysLogs = ref([]) // MealLog rows for today, keyed by meal_plan_meal id
+function logFor(mealId) {
+  return todaysLogs.value.find(l => l.meal_plan_meal === mealId) || null
+}
+const activeLog = computed(() => activeMeal.value ? logFor(activeMeal.value.id) : null)
+
+const logForm = reactive({ status: '', timeLogged: '', reasonNotes: '', photoFile: null, photoName: '' })
+
+function resetLogForm() {
+  const existing = activeLog.value
+  logForm.status = existing?.status || ''
+  logForm.timeLogged = existing?.time_logged?.slice(0, 5) || ''
+  logForm.reasonNotes = existing?.reason_notes || ''
+  logForm.photoFile = null
+  logForm.photoName = ''
+}
+watch(activeMealIndex, resetLogForm)
+watch(todaysLogs, resetLogForm)
+
+function onPhotoSelected(e) {
+  const file = e.target.files?.[0]
+  if (file) {
+    logForm.photoFile = file
+    logForm.photoName = file.name
+  }
+}
+
+const completionPct = computed(() => {
+  const meals = orderedMeals(plan.value?.meals || [])
+  if (!meals.length) return 0
+  const followed = meals.filter(m => logFor(m.id)?.status === 'followed').length
+  return Math.round((followed / meals.length) * 100)
+})
+
+/* ---------- SAVE + NOTIFY RND ---------- */
+const isSavingLog = ref(false)
+const logError = ref('')
+const toastVisible = ref(false)
+const toastMessage = ref('')
+let toastTimer = null
+function fireToast(msg) {
+  toastMessage.value = msg
+  toastVisible.value = true
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastVisible.value = false }, 4000)
+}
+
+async function saveMealLog() {
+  if (!activeMeal.value || !logForm.status) return
+  isSavingLog.value = true
+  logError.value = ''
+  try {
+    const form = new FormData()
+    form.append('log_date', todayIso)
+    form.append('status', logForm.status)
+    if (logForm.timeLogged) form.append('time_logged', logForm.timeLogged)
+    if (logForm.reasonNotes) form.append('reason_notes', logForm.reasonNotes)
+    if (logForm.photoFile) form.append('photo', logForm.photoFile)
+
+    const saved = await post(`/client/meals/${activeMeal.value.id}/log/`, form)
+    const idx = todaysLogs.value.findIndex(l => l.meal_plan_meal === activeMeal.value.id)
+    if (idx >= 0) todaysLogs.value.splice(idx, 1, saved)
+    else todaysLogs.value.push(saved)
+
+    fireToast(`${mealTimeLabel(activeMeal.value.meal_time)} log saved & sent to your RND!`)
+  } catch (error) {
+    logError.value = error?.data?.detail || 'Could not save this log. Please try again.'
+  } finally {
+    isSavingLog.value = false
+  }
+}
+
 async function loadMealPlans() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    plans.value = await get('/client/meal-plans/')
+    const [mealPlans, logs] = await Promise.all([
+      get('/client/meal-plans/'),
+      get(`/client/meal-logs/?date=${todayIso}`),
+    ])
+    plans.value = mealPlans
+    todaysLogs.value = logs
+    resetLogForm()
   } catch {
     errorMessage.value = 'Could not load your meal plan. Please try again later.'
   } finally {
@@ -131,54 +296,99 @@ onMounted(loadMealPlans)
 
 <style scoped>
 * { box-sizing: border-box; }
-
 .meal-plan-page { font-family: 'Inter', sans-serif; }
-
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.page-title { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: #1a3a1a; margin: 0 0 4px; }
-.page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
+.form-error.inline { margin: 14px 0 0; }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
 .status-pill { font-size: 0.76rem; font-weight: 700; padding: 5px 14px; border-radius: 14px; white-space: nowrap; }
-.status-pill.success { background: #e6efe0; color: #3a6b3a; }
-.status-pill.info { background: #e3edf7; color: #2f6fa8; }
-.status-pill.neutral { background: #eceeec; color: #7a8a7a; }
+.pill-green { background: #e3f3ea; color: #1f8f5c; }
+.pill-muted { background: #eceeec; color: #7a8a7a; }
 
-.surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; }
-.target-card { padding: 22px; margin-bottom: 20px; }
-.target-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
-.eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; color: #8a9a8a; margin: 0 0 8px; }
-.target-kcal { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.kcal-unit { font-size: 0.9rem; font-weight: 400; color: #9aaa9a; }
-.condition-block { text-align: right; }
-.condition-label { font-size: 0.82rem; color: #6a7a6a; margin: 0 0 6px; }
+/* TARGETS CARD */
+.targets-card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 26px 28px; margin-bottom: 22px; }
+.targets-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
+.targets-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; margin: 0 0 5px; }
+.targets-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
+.progress-pill { font-size: 0.82rem; font-weight: 700; background: #e3f3ea; color: #1f8f5c; padding: 6px 15px; border-radius: 999px; white-space: nowrap; }
 
-.exchange-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; }
-.exchange-chip { background: #f9f9f5; border-radius: 8px; padding: 14px; text-align: center; }
-.ex-num { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; }
-.ex-label { font-size: 0.68rem; color: #9aaa9a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.targets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+.target-box { background: #f7f9f7; border: 1px solid #eceeec; border-radius: 12px; padding: 18px; }
+.target-label { font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; color: #9aaa9a; font-weight: 700; margin: 0 0 8px; }
+.target-value { font-family: 'Playfair Display', serif; font-size: 1.65rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.target-value.gold { color: #D4A017; }
+.target-value.green { color: #1f8f5c; }
+.target-value.brown { color: #b8860b; }
 
-.meal-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
-.meal-block { background: #fff; border-radius: 12px; border: 1px solid #eceeec; overflow: hidden; }
-.meal-block-header {
-  background: #eef3ec; padding: 13px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+/* NOTES PANEL */
+.notes-panel { background: #fdf1d6; border-left: 4px solid #D4A017; border-radius: 12px; padding: 20px 24px; margin-bottom: 22px; }
+.notes-title { font-weight: 700; color: #b8860b; font-size: 0.92rem; letter-spacing: 0.03em; margin: 0 0 8px; }
+.notes-text { font-size: 0.9rem; color: #5a5240; line-height: 1.6; margin: 0; }
+
+/* MEAL TABS */
+.meal-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.meal-tab {
+  display: inline-flex; align-items: center; gap: 7px; border: 1px solid #eceeec; background: #fff;
+  padding: 10px 18px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: #6a7a6a; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.meal-name { font-weight: 700; color: #1a3a1a; font-size: 0.92rem; display: flex; align-items: center; gap: 8px; }
-.meal-icon { color: #D4A017; }
+.meal-tab:hover:not(.active) { background: #f7f9f7; }
+.meal-tab.active { background: #14301a; border-color: #14301a; color: #fff; }
+.tab-status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background-color: #4ade80; }
+.dot-gold { background-color: #D4A017; }
 
-.food-item-list { padding: 0; }
-.food-item-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 11px 20px; border-bottom: 1px solid #f4f4ec; font-size: 0.86rem; color: #2a3a2a;
+/* MEAL CARD */
+.meal-card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+.meal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 26px; background: #f2f7f3; }
+.meal-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0; }
+
+.meal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 22px 26px; }
+.meal-col { min-width: 0; }
+.col-eyebrow { display: block; font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; color: #1e4a26; margin-bottom: 12px; }
+.exchange-summary { display: block; font-size: 0.76rem; color: #9aaa9a; margin: -8px 0 12px; }
+
+.food-item-list { display: flex; flex-direction: column; gap: 10px; }
+.planned-item { display: flex; align-items: center; gap: 12px; background: #f7f9f7; border: 1px solid #eceeec; border-radius: 10px; padding: 13px 16px; }
+.planned-dot { width: 8px; height: 8px; border-radius: 50%; background: #D4A017; flex-shrink: 0; }
+.food-name { font-size: 0.9rem; color: #2a3a2a; font-weight: 600; margin-right: 8px; }
+.food-note { color: #9aaa9a; font-size: 0.78rem; }
+.no-items-note { font-size: 0.83rem; color: #9aaa9a; margin: 0; }
+.meal-note-text { font-size: 0.85rem; color: #4a5a4a; margin: 16px 0 0; line-height: 1.5; }
+.meal-note-text strong { color: #1a3a1a; }
+
+.dropzone-inline {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  background: #f7f9f7; border: 1.5px dashed #b8c8b8; border-radius: 10px;
+  min-height: 76px; padding: 16px; cursor: pointer; margin-bottom: 14px; text-align: center;
 }
-.food-item-row:last-child { border-bottom: none; }
-.food-note { color: #9aaa9a; font-size: 0.8rem; }
-.no-items-note { padding: 16px 20px; font-size: 0.83rem; color: #9aaa9a; margin: 0; }
+.dropzone-input { display: none; }
+.dropzone-icon { color: #1a5a2a; flex-shrink: 0; }
+.dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
+.meal-log-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field label { display: block; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; color: #9aaa9a; margin-bottom: 7px; }
+.field select {
+  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; background: #fff;
+}
+.time-input-wrap { position: relative; }
+.time-input-wrap input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 32px 11px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; }
+.time-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
+
+.notes-field { margin-top: 14px; }
+.notes-field textarea {
+  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #2a2a2a; resize: vertical;
+}
+
+.save-log-btn {
+  display: inline-flex; align-items: center; gap: 7px; background: #14301a; color: #fff; border: none;
+  border-radius: 8px; padding: 10px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-top: 16px;
+}
+.save-log-btn:hover { background: #1c421f; }
+.save-log-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .empty-note-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 24px; text-align: center;
@@ -201,4 +411,19 @@ onMounted(loadMealPlans)
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
+  display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
+  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  white-space: nowrap;
+}
+.toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
+
+@media (max-width: 800px) {
+  .targets-grid { grid-template-columns: repeat(2, 1fr); }
+  .meal-body { grid-template-columns: 1fr; }
+}
 </style>

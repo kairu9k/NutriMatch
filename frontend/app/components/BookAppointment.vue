@@ -133,7 +133,9 @@ async function submitBooking() {
     })
     await navigateTo('/appointments')
   } catch (error) {
-    submitError.value = error?.data?.detail || error?.data?.rnd_id?.[0] || 'Could not book this appointment. Please try again.'
+    const data = error?.data || {}
+    submitError.value = data.detail || data.non_field_errors?.[0] || data.type?.[0] || data.rnd_id?.[0]
+      || 'Could not book this appointment. Please try again.'
   } finally {
     isSubmitting.value = false
   }

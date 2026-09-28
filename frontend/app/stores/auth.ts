@@ -20,7 +20,7 @@ interface LoginResponse {
 
 export interface RndProfile {
   id: number
-  prc_license_number: string
+  prc_license_number: string | null
   prc_expiry_date: string | null
   specialization: string | null
   language_codes: string[] | null
@@ -123,11 +123,16 @@ export const useAuthStore = defineStore('auth', {
       last_name: string
       email: string
       password: string
-      prc_license_number: string
+      prc_license_image: File
       specialization?: string
     }) {
       const { post } = useApi()
-      return await post<NutriMatchUser>('/auth/register/rnd/', payload, { skipAuth: true })
+      // Multipart, since the PRC license photo is a file upload.
+      const body = new FormData()
+      for (const [key, value] of Object.entries(payload)) {
+        if (value !== undefined && value !== null) body.append(key, value)
+      }
+      return await post<NutriMatchUser>('/auth/register/rnd/', body, { skipAuth: true })
     },
 
     async verifyEmail(email: string, code: string) {

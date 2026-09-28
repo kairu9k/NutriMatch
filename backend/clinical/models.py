@@ -107,11 +107,19 @@ class NcpRecord(models.Model):
 
 
 class ProgressRecord(models.Model):
+    """RND-authored per-date checkpoint. bmi is not RND-entered — it's
+    auto-computed server-side (see RndProgressRecordListCreateView) from
+    weight_kg plus height_cm off the client's most recent
+    PreConsultationScreening, using clinical.services.calculate_bmi (same
+    WHO Asia-Pacific formula used everywhere else). Left null if the
+    client has no screening on file yet to source a height from."""
+
     relationship = models.ForeignKey(
         RndClientRelationship, on_delete=models.CASCADE, related_name="progress_records"
     )
     record_date = models.DateField()
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    bmi = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     blood_pressure = models.CharField(max_length=20, null=True, blank=True)
     blood_glucose = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     hba1c = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)

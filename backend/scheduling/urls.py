@@ -6,7 +6,6 @@ from .views import (
     ClientAppointmentDetailView,
     ClientAppointmentListCreateView,
     ClientReviewListCreateView,
-    RequestRelationshipView,
     RndActiveRelationshipsView,
     RndAppointmentCancelView,
     RndAppointmentCompleteView,
@@ -14,20 +13,13 @@ from .views import (
     RndAppointmentDetailView,
     RndAppointmentListView,
     RndPatientListView,
-    RndRelationshipAcceptView,
-    RndRelationshipDeclineView,
-    RndRelationshipRequestsView,
     RndReviewListView,
 )
 
 urlpatterns = [
-    path("client/rnds/<int:rnd_id>/request/", RequestRelationshipView.as_view(), name="request_relationship"),
     path("client/relationships/", ClientActiveRelationshipsView.as_view(), name="client_active_relationships"),
-    path("rnd/relationship-requests/", RndRelationshipRequestsView.as_view(), name="rnd_relationship_requests"),
     path("rnd/relationships/active/", RndActiveRelationshipsView.as_view(), name="rnd_active_relationships"),
     path("rnd/patients/", RndPatientListView.as_view(), name="rnd_patient_list"),
-    path("rnd/relationships/<int:pk>/accept/", RndRelationshipAcceptView.as_view(), name="rnd_relationship_accept"),
-    path("rnd/relationships/<int:pk>/decline/", RndRelationshipDeclineView.as_view(), name="rnd_relationship_decline"),
 
     path("client/appointments/", ClientAppointmentListCreateView.as_view(), name="client_appointments"),
     path("client/appointments/<int:pk>/", ClientAppointmentDetailView.as_view(), name="client_appointment_detail"),

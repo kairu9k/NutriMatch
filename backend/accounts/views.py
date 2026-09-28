@@ -2,6 +2,7 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -12,6 +13,7 @@ from .permissions import IsAdmin
 from .serializers import (
     AdminClientListSerializer,
     AdminRndListSerializer,
+    MeUpdateSerializer,
     NutriMatchTokenObtainPairSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -53,6 +55,7 @@ class RegisterClientView(generics.CreateAPIView):
 class RegisterRndView(generics.CreateAPIView):
     serializer_class = RegisterRndSerializer
     permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "register"
 
@@ -155,6 +158,12 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = MeUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(UserSerializer(request.user).data)
 
 

@@ -51,7 +51,7 @@
             </div>
             <div class="field">
               <label class="field-label">Email Address</label>
-              <input v-model="personalInfo.email" type="email" class="field-input" />
+              <input v-model="personalInfo.email" type="email" class="field-input" disabled />
             </div>
             <div class="field">
               <label class="field-label">Phone Number</label>
@@ -74,7 +74,30 @@
             <p class="field-hint">Shown on your public profile when patients search for an RND.</p>
           </div>
 
-          <button class="save-btn" type="button" @click="saveChanges">Save Changes</button>
+          <div class="field field-bio fee-field">
+            <label class="field-label">Consultation Fee</label>
+            <div class="fee-input-wrap">
+              <span class="fee-prefix">₱</span>
+              <input v-model="personalInfo.consultationFee" type="number" min="0" step="50" class="field-input fee-input" placeholder="e.g. 750" />
+              <span class="fee-suffix">per session</span>
+            </div>
+            <p class="field-hint">Shown to patients on Find an RND and your profile. Changes apply to future invoices only.</p>
+          </div>
+
+          <div class="field field-bio">
+            <label class="field-label">Consultation Formats</label>
+            <div class="mode-options">
+              <label v-for="m in MODE_OPTIONS" :key="m.value" class="mode-option" :class="{ checked: personalInfo.consultationModes.includes(m.value) }">
+                <input v-model="personalInfo.consultationModes" type="checkbox" :value="m.value" />
+                <component :is="m.icon" :size="15" /> {{ m.label }}
+              </label>
+            </div>
+            <p class="field-hint">Patients can only book the formats you offer.</p>
+          </div>
+
+          <p v-if="profileError" class="profile-error">{{ profileError }}</p>
+          <p v-if="profileSaved" class="profile-saved">Profile saved.</p>
+          <button class="save-btn" type="button" :disabled="isSavingProfile" @click="saveChanges">{{ isSavingProfile ? 'Saving…' : 'Save Changes' }}</button>
         </template>
 
         <!-- ============ EARNINGS ============ -->
@@ -167,64 +190,11 @@
               <h3 class="tab-panel-title">Availability</h3>
               <p class="tab-panel-sub">Set the hours clients can book consultations with you.</p>
             </div>
-            <button class="save-btn" type="button" :disabled="!week.length" @click="addSlot(week[0]?.day)"><Plus :size="15" /> Add Time Slot</button>
           </div>
 
-          <div class="day-list">
-            <div v-for="day in week" :key="day.day" class="day-row" :class="{ 'day-row-blocked': day.blocked }">
-              <span class="day-name" :class="{ 'day-name-blocked': day.blocked }">{{ day.day }}</span>
-
-              <div class="day-content">
-                <template v-if="day.blocked">
-                  <span class="blocked-pill">Blocked — No Availability</span>
-                </template>
-                <template v-else>
-                  <span v-for="slot in day.slots" :key="slot.id" class="slot-pill">
-                    {{ slot.start }} – {{ slot.end }}
-                    <button class="pill-icon-btn" @click="removeSlot(day, slot)"><X :size="13" /></button>
-                  </span>
-                </template>
-              </div>
-
-              <button v-if="day.blocked" class="day-action-link" @click="unblockDay(day)">Unblock Day</button>
-              <button v-else class="day-action-link" @click="addSlot(day.day)">+ Add Slot</button>
-            </div>
-          </div>
-
-          <div class="sub-panel block-panel">
-            <div class="block-header">
-              <CalendarOff :size="18" class="block-icon" />
-              <div>
-                <h4 class="sub-panel-title">Block a Day Off</h4>
-                <p class="block-desc">Quickly mark a specific date range as unavailable — useful for holidays, leave, or emergencies.</p>
-              </div>
-            </div>
-
-            <div class="block-form">
-              <div class="field">
-                <label class="field-label">From</label>
-                <input v-model="newBlock.from" type="date" class="field-input" />
-              </div>
-              <div class="field">
-                <label class="field-label">To <span class="optional">(optional)</span></label>
-                <input v-model="newBlock.to" type="date" class="field-input" />
-              </div>
-              <div class="field field-wide">
-                <label class="field-label">Reason <span class="optional">(optional)</span></label>
-                <input v-model="newBlock.reason" type="text" class="field-input" placeholder="e.g. Annual leave" />
-              </div>
-              <button class="save-btn block-btn" :disabled="!newBlock.from" @click="submitBlock">Block</button>
-            </div>
-
-            <div v-if="blocks.length" class="blocked-list">
-              <div v-for="b in blocks" :key="b.id" class="blocked-item">
-                <span class="blocked-dates">{{ formatDate(b.from) }}<template v-if="b.to"> – {{ formatDate(b.to) }}</template></span>
-                <span v-if="b.reason" class="blocked-reason">{{ b.reason }}</span>
-                <button class="remove-block-btn" @click="removeBlock(b)"><X :size="14" /></button>
-              </div>
-            </div>
-            <p v-else class="empty-note">No blocked dates yet.</p>
-          </div>
+          <!-- Real, saved schedule (RndAvailabilitySchedule) — the same one
+               clients see on your profile and in the booking calendar. -->
+          <Availability embedded />
         </template>
 
         <!-- ============ LANGUAGES ============ -->
@@ -322,15 +292,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   Briefcase, BadgeCheck,
   Landmark, Percent, Wallet, Hourglass, ChevronDown,
-  Star, CalendarClock, Plus, X, CalendarOff, Languages
+  Star, CalendarClock, X, Languages,
+  Video, MessageCircle, Users
 } from 'lucide-vue-next'
 import { db } from '~/mock/mockDatabase'
 
-const { get } = useApi()
+const { get, patch } = useApi()
 
 definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
@@ -349,7 +320,42 @@ const activeTab = ref(validTabKeys.includes(route.query.tab) ? route.query.tab :
 const activeTabLabel = computed(() => tabs.find(t => t.key === activeTab.value)?.label)
 
 /* ---------- PROFESSIONAL PROFILE ---------- */
-const personalInfo = ref({ ...db.personalInfo })
+const auth = useAuthStore()
+
+const MODE_OPTIONS = [
+  { value: 'video', label: 'Video', icon: Video },
+  { value: 'chat', label: 'Chat', icon: MessageCircle },
+  { value: 'in_person', label: 'In-Person', icon: Users },
+]
+
+const personalInfo = ref({
+  firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
+  consultationModes: [], initials: '', avatarColor: db.personalInfo.avatarColor,
+})
+const isSavingProfile = ref(false)
+const profileError = ref('')
+const profileSaved = ref(false)
+
+function applyProfile(user, rndProfile) {
+  personalInfo.value.firstName = user.first_name || ''
+  personalInfo.value.lastName = user.last_name || ''
+  personalInfo.value.email = user.email || ''
+  personalInfo.value.phone = user.phone || ''
+  personalInfo.value.bio = rndProfile.bio || ''
+  personalInfo.value.consultationFee = rndProfile.consultation_fee != null ? Number(rndProfile.consultation_fee) : ''
+  personalInfo.value.consultationModes = [...(rndProfile.consultation_modes || [])]
+  personalInfo.value.initials = `${personalInfo.value.firstName[0] ?? ''}${personalInfo.value.lastName[0] ?? ''}`.toUpperCase()
+}
+
+async function loadProfessionalProfile() {
+  try {
+    const rndProfile = await get('/rnd/profile/')
+    applyProfile(rndProfile.user, rndProfile)
+  } catch {
+    profileError.value = 'Could not load your profile. Please try again later.'
+  }
+}
+onMounted(loadProfessionalProfile)
 
 // TODO: mock/local only — wire to real RndLanguage endpoints
 // (backend/profiles/models.py already has the model, no serializer/view yet).
@@ -370,9 +376,41 @@ function removeLanguage(lang) {
   languages.value = languages.value.filter(l => l.id !== lang.id)
 }
 
-function saveChanges() {
-  // Wire this up to your real update-profile API call
-  personalInfo.value.initials = `${personalInfo.value.firstName?.[0] ?? ''}${personalInfo.value.lastName?.[0] ?? ''}`.toUpperCase()
+async function saveChanges() {
+  profileError.value = ''
+  profileSaved.value = false
+  if (!personalInfo.value.consultationModes.length) {
+    profileError.value = 'Offer at least one consultation format.'
+    return
+  }
+  const fee = personalInfo.value.consultationFee
+  if (fee === '' || fee === null || Number(fee) < 0) {
+    profileError.value = 'Enter a consultation fee of ₱0 or more.'
+    return
+  }
+  isSavingProfile.value = true
+  try {
+    const [user, rndProfile] = await Promise.all([
+      patch('/auth/me/', {
+        first_name: personalInfo.value.firstName,
+        last_name: personalInfo.value.lastName,
+        phone: personalInfo.value.phone || null,
+      }),
+      patch('/rnd/profile/', {
+        bio: personalInfo.value.bio,
+        consultation_fee: Number(fee).toFixed(2),
+        consultation_modes: personalInfo.value.consultationModes,
+      }),
+    ])
+    applyProfile(user, rndProfile)
+    await auth.fetchMe()
+    profileSaved.value = true
+  } catch (error) {
+    const data = error?.data || {}
+    profileError.value = data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
+  } finally {
+    isSavingProfile.value = false
+  }
 }
 
 /* ---------- EARNINGS ---------- */
@@ -485,37 +523,6 @@ const ratingBreakdown = ref(db.ratingBreakdown)
 const reviews = ref(db.reviews)
 const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.count)))
 
-/* ---------- AVAILABILITY ---------- */
-// Deep-copy so edits here don't mutate the shared mock db directly
-const week = reactive(structuredClone(db.weeklyAvailabilityFull))
-const blocks = reactive(structuredClone(db.blockedDaysOff))
-
-function addSlot(dayName) {
-  const day = week.find(d => d.day === dayName)
-  if (!day || day.blocked) return
-  day.slots.push({ id: 's' + Date.now(), start: '9:00 AM', end: '5:00 PM' })
-}
-function removeSlot(day, slot) {
-  day.slots = day.slots.filter(s => s.id !== slot.id)
-}
-function unblockDay(day) {
-  day.blocked = false
-}
-
-const newBlock = ref({ from: '', to: '', reason: '' })
-function submitBlock() {
-  if (!newBlock.value.from) return
-  blocks.push({ id: 'off-' + Date.now(), from: newBlock.value.from, to: newBlock.value.to, reason: newBlock.value.reason })
-  newBlock.value = { from: '', to: '', reason: '' }
-}
-function removeBlock(b) {
-  const idx = blocks.findIndex(x => x.id === b.id)
-  if (idx > -1) blocks.splice(idx, 1)
-}
-function formatDate(iso) {
-  if (!iso) return ''
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 </script>
 
 <style scoped>
@@ -581,6 +588,20 @@ function formatDate(iso) {
 .bio-count-warn { color: #c0483a; font-weight: 600; }
 .bio-textarea { resize: vertical; min-height: 90px; line-height: 1.55; font-family: inherit; }
 .field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
+.field-input:disabled { background: #f4f5f3; color: #8a9a8a; }
+.fee-input-wrap { display: flex; align-items: center; gap: 8px; max-width: 320px; margin-top: 8px; }
+.fee-prefix { font-weight: 700; color: #1a3a1a; }
+.fee-input { flex: 1; min-width: 0; }
+.fee-suffix { font-size: 0.8rem; color: #9aaa9a; white-space: nowrap; }
+.mode-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.mode-option {
+  display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid #d5dad5; border-radius: 10px;
+  padding: 9px 14px; font-size: 0.84rem; font-weight: 600; color: #4a5a4a; cursor: pointer; background: #fff;
+}
+.mode-option input { accent-color: #1f8f5c; margin: 0; }
+.mode-option.checked { border-color: #1f8f5c; background: #f0f9f4; color: #1a3a1a; }
+.profile-error { font-size: 0.82rem; color: #a12525; margin: 0 0 12px; }
+.profile-saved { font-size: 0.82rem; color: #1f8f5c; font-weight: 600; margin: 0 0 12px; }
 
 .save-btn {
   display: flex; align-items: center; gap: 6px;

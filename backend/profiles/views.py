@@ -1,4 +1,3 @@
-from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 from rest_framework.response import Response
@@ -41,30 +40,26 @@ class RndSearchView(generics.ListAPIView):
         if language:
             qs = qs.filter(user__languages__language_code=language)
 
-        return qs.distinct()
+        qs = qs.distinct()
+
+        # JSONField list containment isn't supported on SQLite (dev DB), so
+        # this filter runs in Python — the verified-RND list is small.
+        mode = self.request.query_params.get("mode")
+        if mode:
+            return [p for p in qs if mode in (p.consultation_modes or [])]
+        return qs
 
 
 class RndDetailView(generics.RetrieveAPIView):
+    """average_rating/review_count come from RndProfileSerializer itself
+    now, so this needs no special-case aggregate logic — same as the list
+    view (RndSearchView)."""
+
     serializer_class = RndProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = RndProfile.objects.select_related("user")
     lookup_url_kwarg = "rnd_id"
     lookup_field = "user_id"
-
-    def get_object(self):
-        obj = super().get_object()
-        agg = Review.objects.filter(rnd_id=obj.user_id, is_public=True).aggregate(
-            avg_rating=Avg("rating"), review_count=Count("id")
-        )
-        self._avg_rating = agg["avg_rating"]
-        self._review_count = agg["review_count"]
-        return obj
-
-    def retrieve(self, request, *args, **kwargs):
-        response = super().retrieve(request, *args, **kwargs)
-        response.data["average_rating"] = self._avg_rating
-        response.data["review_count"] = self._review_count
-        return response
 
 
 class RndPublicReviewsView(generics.ListAPIView):

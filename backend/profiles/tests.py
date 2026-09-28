@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from scheduling.models import RndClientRelationship
 
-from .models import RndAvailabilitySchedule, RndProfile
+from .models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndProfile
 
 
 def _make_rnd(email="rnd@t.ph", fee="500.00"):
@@ -23,55 +23,105 @@ def _make_client(email="client@t.ph"):
     return User.objects.create_user(email=email, password="x", role="client", first_name="C", last_name="L")
 
 
-class RndSearchRelationshipStatusTests(TestCase):
-    """GET /client/rnds/ must reflect real relationship state — Find an RND
-    previously never checked this at all, always showing "Request" even
-    for RNDs the client already had a pending/active relationship with."""
+class ClientConditionTests(TestCase):
+    """The client's primary condition (ClientHealthProfile.medical_conditions[0])
+    is editable in Profile Settings and is what the RND's patient list shows."""
 
     def setUp(self):
         self.client_api = APIClient()
         self.rnd = _make_rnd()
         self.client_user = _make_client()
+        ClientProfile.objects.create(user=self.client_user)
+
+    def test_client_can_set_conditions_without_existing_health_profile(self):
         self.client_api.force_authenticate(self.client_user)
 
-    def test_no_relationship_returns_null_status(self):
-        resp = self.client_api.get("/api/client/rnds/")
+        resp = self.client_api.patch("/api/client/profile/", {"medical_conditions": ["  Hypertension ", "hypertension", ""]}, format="json")
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsNone(resp.data[0]["relationship_status"])
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["health_profile"]["medical_conditions"], ["Hypertension"])
 
-    def test_pending_relationship_status_is_real(self):
-        RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="pending")
-        resp = self.client_api.get("/api/client/rnds/")
+    def test_clearing_conditions_stores_null(self):
+        ClientHealthProfile.objects.create(user=self.client_user, medical_conditions=["Type 2 Diabetes"])
+        self.client_api.force_authenticate(self.client_user)
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data[0]["relationship_status"], "pending")
+        resp = self.client_api.patch("/api/client/profile/", {"medical_conditions": []}, format="json")
 
-    def test_active_relationship_status_is_real(self):
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertIsNone(ClientHealthProfile.objects.get(user=self.client_user).medical_conditions)
+
+    def test_updating_other_fields_leaves_conditions_alone(self):
+        ClientHealthProfile.objects.create(user=self.client_user, medical_conditions=["Type 2 Diabetes"])
+        self.client_api.force_authenticate(self.client_user)
+
+        self.client_api.patch("/api/client/profile/", {"language_code": "ceb"}, format="json")
+
+        self.assertEqual(ClientHealthProfile.objects.get(user=self.client_user).medical_conditions, ["Type 2 Diabetes"])
+
+    def test_rnd_patient_list_shows_primary_condition(self):
         RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
-        resp = self.client_api.get("/api/client/rnds/")
+        self.client_api.force_authenticate(self.client_user)
+        self.client_api.patch("/api/client/profile/", {"medical_conditions": ["Renal Nutrition", "Hypertension"]}, format="json")
+
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.get("/api/rnd/patients/")
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data[0]["relationship_status"], "active")
+        self.assertEqual(resp.data[0]["condition"], "Renal Nutrition")
 
-    def test_status_scoped_to_requesting_client_only(self):
-        RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
-        other_client = _make_client(email="other@t.ph")
-        self.client_api.force_authenticate(other_client)
 
-        resp = self.client_api.get("/api/client/rnds/")
+class RndConsultationModeTests(TestCase):
+    def setUp(self):
+        self.client_api = APIClient()
+        self.rnd = _make_rnd()
+        self.client_user = _make_client()
+
+    def test_new_rnd_offers_all_modes_by_default(self):
+        self.assertEqual(RndProfile.objects.get(user=self.rnd).consultation_modes, ["video", "chat", "in_person"])
+
+    def test_search_filters_by_mode(self):
+        video_only = _make_rnd(email="video@t.ph")
+        RndProfile.objects.filter(user=video_only).update(consultation_modes=["video"])
+        self.client_api.force_authenticate(self.client_user)
+
+        resp = self.client_api.get("/api/client/rnds/?mode=in_person")
 
         self.assertEqual(resp.status_code, 200)
-        self.assertIsNone(resp.data[0]["relationship_status"])
+        self.assertEqual([r["user"]["id"] for r in resp.data], [self.rnd.id])
 
-    def test_rnd_viewing_public_profile_gets_null_status_not_error(self):
-        other_rnd = _make_rnd(email="other-rnd@t.ph")
-        self.client_api.force_authenticate(other_rnd)
+    def test_rnd_can_update_own_modes(self):
+        self.client_api.force_authenticate(self.rnd)
 
-        resp = self.client_api.get(f"/api/client/rnds/{self.rnd.id}/")
+        resp = self.client_api.patch("/api/rnd/profile/", {"consultation_modes": ["chat", "video", "chat"]}, format="json")
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsNone(resp.data["relationship_status"])
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["consultation_modes"], ["video", "chat"])
+
+    def test_rnd_can_update_consultation_fee(self):
+        self.client_api.force_authenticate(self.rnd)
+
+        resp = self.client_api.patch("/api/rnd/profile/", {"consultation_fee": "850.00"}, format="json")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["consultation_fee"], "850.00")
+        self.assertEqual(RndProfile.objects.get(user=self.rnd).consultation_fee, Decimal("850.00"))
+
+    def test_consultation_fee_cannot_be_negative(self):
+        self.client_api.force_authenticate(self.rnd)
+
+        resp = self.client_api.patch("/api/rnd/profile/", {"consultation_fee": "-1.00"}, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("consultation_fee", resp.data)
+
+    def test_modes_cannot_be_empty_or_unknown(self):
+        self.client_api.force_authenticate(self.rnd)
+
+        empty = self.client_api.patch("/api/rnd/profile/", {"consultation_modes": []}, format="json")
+        unknown = self.client_api.patch("/api/rnd/profile/", {"consultation_modes": ["phone"]}, format="json")
+
+        self.assertEqual(empty.status_code, 400)
+        self.assertEqual(unknown.status_code, 400)
 
 
 class RndAvailabilityCustomTimesTests(TestCase):

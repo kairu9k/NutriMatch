@@ -11,7 +11,7 @@
         <p class="banner-sub">
           <strong>{{ todaysAppointments.length }} consultations</strong> today ·
           <strong>{{ draftRecords.length }} NCP records</strong> awaiting finalization ·
-          <strong>{{ patientRequests.length }} new patient requests</strong>
+          <strong>{{ pendingBookings.length }} booking{{ pendingBookings.length === 1 ? '' : 's' }}</strong> awaiting confirmation
         </p>
         <div class="banner-actions">
           <NuxtLink to="/appointments" class="banner-btn">View Today's Schedule</NuxtLink>
@@ -125,18 +125,18 @@
         </div>
 
         <div class="panel">
-          <h3 class="panel-title">New Patient Requests</h3>
-          <div v-if="patientRequests.length" class="request-list">
-            <div v-for="r in patientRequests" :key="r.id" class="request-item">
-              <div class="request-avatar">{{ initialsFor(`${r.client.first_name} ${r.client.last_name}`) }}</div>
+          <h3 class="panel-title">New Patient Bookings</h3>
+          <div v-if="newPatientBookings.length" class="request-list">
+            <div v-for="a in newPatientBookings" :key="a.id" class="request-item">
+              <div class="request-avatar">{{ initialsFor(`${a.relationship.client.first_name} ${a.relationship.client.last_name}`) }}</div>
               <div class="request-info">
-                <p class="request-name">{{ r.client.first_name }} {{ r.client.last_name }}</p>
-                <p class="request-time">Requested {{ formatDate(r.created_at) }}</p>
+                <p class="request-name">{{ a.relationship.client.first_name }} {{ a.relationship.client.last_name }}</p>
+                <p class="request-time">First session · {{ formatDate(a.scheduled_at) }}, {{ formatTime(a.scheduled_at) }}</p>
               </div>
-              <button class="accept-btn" :disabled="busyRequestId === r.id" @click="acceptRequest(r)">Accept</button>
+              <NuxtLink to="/appointments" class="accept-btn">Review</NuxtLink>
             </div>
           </div>
-          <p v-else class="empty-text">No pending requests.</p>
+          <p v-else class="empty-text">No new patient bookings.</p>
         </div>
 
         <div class="panel">
@@ -159,7 +159,7 @@ import { Users, CalendarCheck, Landmark, Trophy } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
 
-const { get, patch } = useApi()
+const { get } = useApi()
 const auth = useAuthStore()
 
 const rndName = computed(() => auth.user ? `${auth.user.first_name} ${auth.user.last_name}` : 'RND')
@@ -181,9 +181,7 @@ function statusLabel(status) {
 const activeRelationships = ref([])
 const rawAppointments = ref([])
 const draftRecords = ref([])
-const patientRequests = ref([])
 const invoices = ref([])
-const busyRequestId = ref(null)
 
 // TODO: wire to a real weekly adherence endpoint once one exists.
 const weeklyAdherence = ref([
@@ -221,29 +219,25 @@ const earningsThisMonth = computed(() => {
   }
 })
 
-async function acceptRequest(request) {
-  busyRequestId.value = request.id
-  try {
-    await patch(`/rnd/relationships/${request.id}/accept/`)
-    patientRequests.value = patientRequests.value.filter(r => r.id !== request.id)
-    activeRelationships.value.push(request)
-  } finally {
-    busyRequestId.value = null
-  }
-}
+const pendingBookings = computed(() => rawAppointments.value.filter(a => a.status === 'pending'))
+// Clients book directly; a pending relationship means this is someone's first
+// booking with this RND. Confirming it (on Appointments) starts the relationship.
+const newPatientBookings = computed(() =>
+  pendingBookings.value
+    .filter(a => a.relationship.status === 'pending')
+    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+)
 
 async function loadDashboard() {
-  const [relationships, appointments, drafts, requests, rndInvoices] = await Promise.all([
+  const [relationships, appointments, drafts, rndInvoices] = await Promise.all([
     get('/rnd/relationships/active/').catch(() => []),
     get('/rnd/appointments/').catch(() => []),
     get('/rnd/ncp/drafts/').catch(() => []),
-    get('/rnd/relationship-requests/').catch(() => []),
     get('/rnd/invoices/').catch(() => []),
   ])
   activeRelationships.value = relationships
   rawAppointments.value = appointments
   draftRecords.value = drafts
-  patientRequests.value = requests
   invoices.value = rndInvoices
 }
 
@@ -373,8 +367,7 @@ onMounted(loadDashboard)
 .request-info { flex: 1; }
 .request-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .request-time { font-size: 0.74rem; color: #8a9a8a; margin: 0; }
-.accept-btn { background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
-.accept-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.accept-btn { background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.78rem; font-weight: 700; cursor: pointer; text-decoration: none; }
 
 /* EARNINGS SUMMARY */
 .earnings-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }

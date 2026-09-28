@@ -21,7 +21,7 @@
       <p>NutriMatch ("we," "our," "the platform") is committed to protecting the privacy of Registered Nutritionist-Dietitians (RNDs), clients, and administrators who use our clinical nutrition consultation management system. This policy explains what personal and health-related data we collect, how it is used, and the rights you hold under Philippine law.</p>
 
       <h2 id="collection">1. Information We Collect</h2>
-      <p>We collect identity information (name, email, phone), demographic data (date of birth, sex), and clinical data necessary for Medical Nutrition Therapy, including pre-consultation screening results (weight, height, BMI, NRS-2002 risk score), Nutrition Care Process records (assessment, diagnosis, intervention, monitoring notes), meal plans, and progress records (blood pressure, blood glucose, lipid profiles). RNDs additionally provide PRC license numbers and professional credentials for verification.</p>
+      <p>We collect identity information (name, email, phone), demographic data (date of birth, sex), and clinical data necessary for Medical Nutrition Therapy, including pre-consultation screening results (weight, height, BMI, NRS-2002 risk score), Nutrition Care Process records (assessment, diagnosis, intervention, monitoring notes), meal plans, and progress records (blood pressure, blood glucose, lipid profiles). RNDs additionally provide a photo of their PRC license and professional credentials for verification; the license photo is stored privately and is visible only to NutriMatch administrators.</p>
 
       <h2 id="use">2. How We Use Your Information</h2>
       <ul>

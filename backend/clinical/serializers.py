@@ -12,13 +12,17 @@ class PreConsultationScreeningSerializer(serializers.ModelSerializer):
 
     reduced_intake = serializers.BooleanField(write_only=True, required=False, default=False)
     has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
+    # Optional Mifflin-St Jeor inputs; when omitted, ScreeningCreateView falls
+    # back to the client's profile (date_of_birth / sex). Not stored here.
+    age = serializers.IntegerField(write_only=True, required=False, min_value=1, max_value=120)
+    sex = serializers.ChoiceField(write_only=True, required=False, choices=["male", "female"])
 
     class Meta:
         model = PreConsultationScreening
         fields = [
             "id", "appointment", "height_cm", "weight_kg", "bmi", "bmi_category",
             "bmr_kcal", "tdee_kcal", "activity_level", "nrs_score", "nrs_risk",
-            "reduced_intake", "has_chronic_illness", "symptoms", "created_at",
+            "reduced_intake", "has_chronic_illness", "age", "sex", "symptoms", "created_at",
         ]
         read_only_fields = ["bmi", "bmi_category", "bmr_kcal", "tdee_kcal", "nrs_score", "nrs_risk"]
 
@@ -88,9 +92,10 @@ class ProgressRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProgressRecord
         fields = [
-            "id", "relationship", "record_date", "weight_kg", "blood_pressure",
+            "id", "relationship", "record_date", "weight_kg", "bmi", "blood_pressure",
             "blood_glucose", "hba1c", "adherence_pct", "client_notes", "rnd_notes", "created_at",
         ]
+        read_only_fields = ["bmi"]
 
     def validate_relationship(self, value):
         request = self.context["request"]

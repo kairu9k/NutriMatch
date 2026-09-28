@@ -87,6 +87,82 @@ class BillingAndVideoViewTests(TestCase):
         self.assertIsNotNone(self.invoice.paid_at)
         self.assertEqual(PaymentTransaction.objects.filter(invoice=self.invoice).count(), 1)
 
+    def _paymongo_invoice(self, ref="ref_sync"):
+        self.invoice.payment_gateway = Invoice.PaymentGateway.PAYMONGO
+        self.invoice.gateway_reference_id = ref
+        self.invoice.save(update_fields=["payment_gateway", "gateway_reference_id"])
+
+    def _mock_link(self, mock_client_cls, link_status):
+        mock_client = MagicMock()
+        mock_client.__enter__.return_value = mock_client
+        mock_client.get.return_value = self._mock_resp({"data": {"id": "link_1", "attributes": {"status": link_status}}})
+        mock_client_cls.return_value = mock_client
+        return mock_client
+
+    @patch("billing.services.httpx.Client")
+    def test_sync_marks_paid_link_as_paid(self, mock_client_cls):
+        from core.models import AuditLog
+
+        self._paymongo_invoice()
+        self._mock_link(mock_client_cls, "paid")
+        self.client_api.force_authenticate(self.client_user)
+
+        resp = self.client_api.post("/api/client/invoices/sync/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["updated"], [self.invoice.id])
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.status, "paid")
+        self.assertEqual(PaymentTransaction.objects.filter(invoice=self.invoice, status="success").count(), 1)
+        self.assertEqual(AuditLog.objects.get(action="invoice.paid").new_values["source"], "status_check")
+
+    @patch("billing.services.httpx.Client")
+    def test_sync_leaves_unpaid_link_unpaid(self, mock_client_cls):
+        self._paymongo_invoice()
+        self._mock_link(mock_client_cls, "unpaid")
+        self.client_api.force_authenticate(self.client_user)
+
+        resp = self.client_api.post("/api/client/invoices/sync/")
+
+        self.assertEqual(resp.data["updated"], [])
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.status, "unpaid")
+        self.assertFalse(PaymentTransaction.objects.exists())
+
+    @patch("billing.services.httpx.Client")
+    def test_sync_only_checks_callers_own_invoices(self, mock_client_cls):
+        self._paymongo_invoice()
+        mock_client = self._mock_link(mock_client_cls, "paid")
+        other = User.objects.create_user(email="other@v.ph", password="x", role="client", first_name="O", last_name="T")
+        self.client_api.force_authenticate(other)
+
+        resp = self.client_api.post("/api/client/invoices/sync/")
+
+        self.assertEqual(resp.data["updated"], [])
+        mock_client.get.assert_not_called()
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.status, "unpaid")
+
+    @patch("billing.services.httpx.Client")
+    def test_webhook_after_sync_does_not_double_record(self, mock_client_cls):
+        self._paymongo_invoice(ref="ref_999")
+        self._mock_link(mock_client_cls, "paid")
+        self.client_api.force_authenticate(self.client_user)
+        self.client_api.post("/api/client/invoices/sync/")
+
+        payload = json.dumps({"data": {"attributes": {"type": "payment.paid", "data": {
+            "id": "pay_999", "attributes": {"external_reference_number": "ref_999"}
+        }}}}).encode()
+        timestamp = "1700000000"
+        te = hmac.new(b"whsec_fake", f"{timestamp}.{payload.decode()}".encode(), hashlib.sha256).hexdigest()
+        resp = self.client_api.post(
+            "/api/webhooks/paymongo/", data=payload, content_type="application/json",
+            HTTP_PAYMONGO_SIGNATURE=f"t={timestamp},te={te},li=x",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(PaymentTransaction.objects.filter(invoice=self.invoice).count(), 1)
+
     def test_webhook_rejects_bad_signature(self):
         payload = json.dumps({"data": {"attributes": {"type": "payment.paid"}}}).encode()
         resp = self.client_api.post(

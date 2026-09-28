@@ -5,6 +5,13 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from profiles.models import ClientHealthProfile, ClientProfile, RndProfile
+from profiles.services import (
+    ALLOWED_LICENSE_IMAGE_TYPES,
+    MAX_LICENSE_IMAGE_BYTES,
+    LicenseImageUploadError,
+    prc_license_image_url,
+    upload_prc_license_image,
+)
 
 from .models import User
 from .services import send_verification_code
@@ -18,6 +25,15 @@ class UserSerializer(serializers.ModelSerializer):
             "phone", "profile_photo", "is_active", "created_at",
         ]
         read_only_fields = fields
+
+
+class MeUpdateSerializer(serializers.ModelSerializer):
+    """Self-service edits. Email is deliberately excluded — changing it
+    would bypass the email-verification gate login relies on."""
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "phone"]
 
 
 class AdminClientListSerializer(serializers.ModelSerializer):
@@ -66,7 +82,8 @@ class AdminRndListSerializer(serializers.ModelSerializer):
     prefetches on the view, and only meaningful once verified (a pending
     RND's application shows submitted-credential fields instead)."""
 
-    prc_license_number = serializers.CharField(source="rnd_profile.prc_license_number")
+    prc_license_number = serializers.CharField(source="rnd_profile.prc_license_number", allow_null=True)
+    prc_license_image_url = serializers.SerializerMethodField()
     specialization = serializers.CharField(source="rnd_profile.specialization")
     is_verified = serializers.BooleanField(source="rnd_profile.is_verified")
     verified_at = serializers.DateTimeField(source="rnd_profile.verified_at")
@@ -80,10 +97,13 @@ class AdminRndListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "first_name", "last_name", "email", "is_active", "created_at",
-            "prc_license_number", "specialization", "is_verified", "verified_at", "submitted_at",
-            "patients", "consultations", "average_rating", "revenue",
+            "prc_license_number", "prc_license_image_url", "specialization", "is_verified", "verified_at",
+            "submitted_at", "patients", "consultations", "average_rating", "revenue",
         ]
         read_only_fields = fields
+
+    def get_prc_license_image_url(self, obj):
+        return prc_license_image_url(obj.rnd_profile.prc_license_image)
 
     def get_patients(self, obj):
         return len([rel for rel in getattr(obj, "_prefetched_relationships", []) if rel.status == "active"])
@@ -136,8 +156,14 @@ class RegisterClientSerializer(serializers.Serializer):
             last_name=validated_data["last_name"],
         )
         ClientProfile.objects.create(user=user, date_of_birth=date_of_birth, sex=sex)
+        # The sign-up "primary health concern" is the client's condition —
+        # it's what the RND's patient list and client chart show. "Other"
+        # carries no clinical meaning, so it's left for the client to specify
+        # later in Profile Settings.
+        has_condition = health_concern and health_concern.strip().lower() != "other"
         ClientHealthProfile.objects.create(
             user=user,
+            medical_conditions=[health_concern.strip()] if has_condition else None,
             health_goals=[health_concern] if health_concern else None,
         )
         send_verification_code(user)
@@ -149,7 +175,7 @@ class RegisterRndSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, validators=[validate_password])
-    prc_license_number = serializers.CharField(max_length=50)
+    prc_license_image = serializers.FileField(write_only=True)
     specialization = serializers.CharField(required=False, allow_blank=True)
 
     def validate_email(self, value):
@@ -157,13 +183,21 @@ class RegisterRndSerializer(serializers.Serializer):
             raise serializers.ValidationError("An account with this email already exists.")
         return value
 
-    def validate_prc_license_number(self, value):
-        if RndProfile.objects.filter(prc_license_number=value).exists():
-            raise serializers.ValidationError("This PRC license number is already registered.")
+    def validate_prc_license_image(self, value):
+        if getattr(value, "content_type", None) not in ALLOWED_LICENSE_IMAGE_TYPES:
+            raise serializers.ValidationError("Upload a JPG, PNG, or WEBP photo of your PRC license.")
+        if value.size > MAX_LICENSE_IMAGE_BYTES:
+            raise serializers.ValidationError("The license photo must be 5 MB or smaller.")
         return value
 
     @transaction.atomic
     def create(self, validated_data):
+        # Upload first so a failed upload never leaves a half-created account.
+        try:
+            license_image_id = upload_prc_license_image(validated_data["prc_license_image"])
+        except LicenseImageUploadError as exc:
+            raise serializers.ValidationError({"prc_license_image": [str(exc)]})
+
         user = User.objects.create_user(
             email=validated_data["email"],
             password=validated_data["password"],
@@ -173,7 +207,7 @@ class RegisterRndSerializer(serializers.Serializer):
         )
         RndProfile.objects.create(
             user=user,
-            prc_license_number=validated_data["prc_license_number"],
+            prc_license_image=license_image_id,
             specialization=validated_data.get("specialization", ""),
             is_verified=False,
         )

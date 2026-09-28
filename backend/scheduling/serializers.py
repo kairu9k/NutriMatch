@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
+from profiles.models import RndProfile
 
 from .models import Appointment, ConsultationSession, Review, RndClientRelationship
 
@@ -91,6 +92,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
 class AppointmentCreateSerializer(serializers.ModelSerializer):
+    """Clients book any verified RND directly — there's no separate
+    request/accept step. A first booking creates the relationship as
+    'pending'; RndAppointmentConfirmView activates it when the RND confirms."""
+
     rnd_id = serializers.IntegerField(write_only=True)
 
     class Meta:
@@ -98,20 +103,35 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         fields = ["rnd_id", "scheduled_at", "type", "duration_minutes", "notes"]
 
     def validate_rnd_id(self, value):
-        client = self.context["request"].user
-        relationship = RndClientRelationship.objects.filter(
-            rnd_id=value, client=client, status=RndClientRelationship.Status.ACTIVE
-        ).first()
-        if not relationship:
-            raise serializers.ValidationError(
-                "You must have an active relationship with this RND before booking."
-            )
-        self._relationship = relationship
+        profile = RndProfile.objects.filter(user_id=value, is_verified=True).first()
+        if not profile:
+            raise serializers.ValidationError("RND not found.")
+        self._rnd_profile = profile
         return value
 
+    def validate(self, attrs):
+        client = self.context["request"].user
+        profile = self._rnd_profile
+        relationship = RndClientRelationship.objects.filter(rnd_id=profile.user_id, client=client).first()
+        is_existing_client = relationship is not None and relationship.status == RndClientRelationship.Status.ACTIVE
+        if not profile.available_for_new_clients and not is_existing_client:
+            raise serializers.ValidationError("This RND isn't accepting new clients right now.")
+        if attrs.get("type", Appointment.Type.VIDEO) not in (profile.consultation_modes or []):
+            raise serializers.ValidationError({"type": ["This RND doesn't offer that consultation format."]})
+        return attrs
+
     def create(self, validated_data):
-        validated_data.pop("rnd_id")
-        return Appointment.objects.create(relationship=self._relationship, **validated_data)
+        rnd_id = validated_data.pop("rnd_id")
+        client = self.context["request"].user
+        relationship, _ = RndClientRelationship.objects.get_or_create(
+            rnd_id=rnd_id, client=client,
+            defaults={"status": RndClientRelationship.Status.PENDING},
+        )
+        if relationship.status == RndClientRelationship.Status.DISCHARGED:
+            relationship.status = RndClientRelationship.Status.PENDING
+            relationship.ended_at = None
+            relationship.save(update_fields=["status", "ended_at", "updated_at"])
+        return Appointment.objects.create(relationship=relationship, **validated_data)
 
 
 class ReviewSerializer(serializers.ModelSerializer):

@@ -7,7 +7,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin, IsClient, IsRnd
-from core.models import AuditLog
 
 from .models import Invoice, PaymentTransaction
 from .serializers import (
@@ -16,7 +15,12 @@ from .serializers import (
     InvoiceSerializer,
     RndInvoiceListSerializer,
 )
-from .services import InvalidWebhookSignatureError, PayMongoService, PaymentGatewayError
+from .services import (
+    InvalidWebhookSignatureError,
+    PayMongoService,
+    PaymentGatewayError,
+    record_successful_payment,
+)
 
 
 class ClientInvoiceListView(generics.ListAPIView):
@@ -113,6 +117,10 @@ class PayMongoWebhookView(APIView):
             # non-2xx responses.
             return Response(status=status.HTTP_200_OK)
 
+        if event["status"] == "success":
+            record_successful_payment(invoice, reference_id, event["raw"], source="webhook")
+            return Response(status=status.HTTP_200_OK)
+
         PaymentTransaction.objects.create(
             invoice=invoice,
             transaction_type=PaymentTransaction.TransactionType.PAYMENT,
@@ -121,19 +129,7 @@ class PayMongoWebhookView(APIView):
             gateway_payload=event["raw"],
             processed_at=timezone.now(),
         )
-
-        if event["status"] == "success" and invoice.status != Invoice.Status.PAID:
-            invoice.status = Invoice.Status.PAID
-            invoice.paid_at = timezone.now()
-            invoice.save(update_fields=["status", "paid_at"])
-
-            AuditLog.objects.create(
-                action="invoice.paid",
-                table_name="invoices",
-                record_id=invoice.id,
-                new_values={"status": "paid", "gateway_reference_id": reference_id},
-            )
-        elif event["status"] == "failed":
+        if event["status"] == "failed":
             invoice.status = Invoice.Status.CANCELLED
             invoice.save(update_fields=["status"])
         elif event["status"] == "refunded":
@@ -141,3 +137,33 @@ class PayMongoWebhookView(APIView):
             invoice.save(update_fields=["status"])
 
         return Response(status=status.HTTP_200_OK)
+
+
+class ClientInvoiceSyncView(APIView):
+    """Checks the caller's unpaid PayMongo invoices directly with PayMongo and
+    marks any that were paid — the fallback when the payment.paid webhook
+    never arrived (webhook disabled, tunnel down). The Billing page calls this
+    on load and when the client returns from the checkout tab."""
+
+    permission_classes = [IsClient]
+
+    def post(self, request):
+        pending = Invoice.objects.filter(
+            relationship__client=request.user,
+            status=Invoice.Status.UNPAID,
+            payment_gateway=Invoice.PaymentGateway.PAYMONGO,
+        ).exclude(gateway_reference_id__isnull=True).exclude(gateway_reference_id="")
+
+        service = PayMongoService()
+        updated = []
+        for invoice in pending:
+            try:
+                result = service.get_link_status(invoice.gateway_reference_id)
+            except PaymentGatewayError:
+                continue
+            if result["status"] == "success" and record_successful_payment(
+                invoice, invoice.gateway_reference_id, result["raw"], source="status_check"
+            ):
+                updated.append(invoice.id)
+
+        return Response({"updated": updated})

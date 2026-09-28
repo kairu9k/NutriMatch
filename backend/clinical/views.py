@@ -29,9 +29,12 @@ def _age_from_dob(dob: date) -> int:
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
-class ScreeningCreateView(generics.CreateAPIView):
+class ScreeningCreateView(generics.ListCreateAPIView):
     serializer_class = PreConsultationScreeningSerializer
     permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return PreConsultationScreening.objects.filter(client=self.request.user).order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -42,11 +45,22 @@ class ScreeningCreateView(generics.CreateAPIView):
         bmi = calculate_bmi(weight_kg, height_cm)
         bmi_category = classify_bmi_asia_pacific(bmi)
 
-        bmr_kcal = tdee_kcal = None
+        # Age/sex come from the form when given (it pre-fills them from the
+        # profile), otherwise from the profile itself.
         client_profile = getattr(request.user, "client_profile", None)
-        if client_profile and client_profile.date_of_birth and client_profile.sex:
+        age = serializer.validated_data.pop("age", None)
+        sex = serializer.validated_data.pop("sex", None)
+        if age is None and client_profile and client_profile.date_of_birth:
             age = _age_from_dob(client_profile.date_of_birth)
-            bmr_kcal = calculate_bmr_mifflin_st_jeor(weight_kg, height_cm, age, client_profile.sex)
+        if sex is None and client_profile:
+            sex = client_profile.sex
+        elif sex and client_profile and not client_profile.sex:
+            client_profile.sex = sex
+            client_profile.save(update_fields=["sex", "updated_at"])
+
+        bmr_kcal = tdee_kcal = None
+        if age and sex:
+            bmr_kcal = calculate_bmr_mifflin_st_jeor(weight_kg, height_cm, age, sex)
             activity_level = serializer.validated_data.get("activity_level", "sedentary")
             tdee_kcal = calculate_tdee(bmr_kcal, activity_level)
 
@@ -152,7 +166,18 @@ class RndProgressRecordListCreateView(generics.ListCreateAPIView):
         ).order_by("-record_date")
 
     def perform_create(self, serializer):
-        serializer.save()
+        record = serializer.save()
+        weight_kg = record.weight_kg
+        if weight_kg is not None:
+            # Height isn't stored as a standalone client field — sourced from
+            # their most recent screening, same lookup ScreeningCreateView
+            # uses for the weight-loss-% baseline.
+            latest_screening = PreConsultationScreening.objects.filter(
+                client=record.relationship.client_id
+            ).order_by("-created_at").first()
+            if latest_screening and latest_screening.height_cm:
+                record.bmi = calculate_bmi(weight_kg, latest_screening.height_cm)
+                record.save(update_fields=["bmi"])
 
 
 class ClientProgressRecordListView(generics.ListAPIView):

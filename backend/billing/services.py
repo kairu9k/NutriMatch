@@ -97,15 +97,21 @@ class PayMongoService:
             "raw": event,
         }
 
-    def get_payment_status(self, gateway_reference_id: str) -> str:
+    def get_link_status(self, reference_number: str) -> dict:
+        """Ask PayMongo directly whether a payment link has been paid — the
+        fallback for when the payment.paid webhook never arrived (webhook
+        disabled, tunnel down). PayMongo accepts the link's reference_number
+        in place of its id on GET /links/{id}. Returns
+        {'status': 'success'|'pending', 'raw': <link resource>}."""
         with self._client() as client:
-            response = client.get(f"{self.base_url}/payment_intents/{gateway_reference_id}")
+            response = client.get(f"{self.base_url}/links/{reference_number}")
 
         if response.is_error:
-            return "pending"
+            raise PaymentGatewayError("Could not check the payment status. Please try again later.")
 
-        status = response.json().get("data", {}).get("attributes", {}).get("status", "pending")
-        return self._map_paymongo_status(status)
+        link = response.json()["data"]
+        paid = link.get("attributes", {}).get("status") == "paid"
+        return {"status": "success" if paid else "pending", "raw": link}
 
     def _validate_signature(self, payload: bytes, signature: str) -> bool:
         """PayMongo's Paymongo-Signature header is a comma-separated string
@@ -135,12 +141,38 @@ class PayMongoService:
             "payment.refunded": "refunded",
         }.get(event_type, "pending")
 
-    @staticmethod
-    def _map_paymongo_status(status: str) -> str:
-        if status == "succeeded":
-            return "success"
-        if status in ("awaiting_payment_method", "processing"):
-            return "pending"
-        if status == "failed":
-            return "failed"
-        return "pending"
+
+
+def record_successful_payment(invoice, reference_id: str, payload: dict, source: str) -> bool:
+    """Record a confirmed payment and mark the invoice paid — shared by the
+    webhook and the direct status check so both behave identically.
+    Idempotent: returns False (and records nothing) if already paid."""
+    from django.db import transaction
+    from django.utils import timezone
+
+    from core.models import AuditLog
+
+    from .models import Invoice, PaymentTransaction
+
+    with transaction.atomic():
+        invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+        if invoice.status == Invoice.Status.PAID:
+            return False
+        PaymentTransaction.objects.create(
+            invoice=invoice,
+            transaction_type=PaymentTransaction.TransactionType.PAYMENT,
+            amount=invoice.amount,
+            status="success",
+            gateway_payload=payload,
+            processed_at=timezone.now(),
+        )
+        invoice.status = Invoice.Status.PAID
+        invoice.paid_at = timezone.now()
+        invoice.save(update_fields=["status", "paid_at"])
+        AuditLog.objects.create(
+            action="invoice.paid",
+            table_name="invoices",
+            record_id=invoice.id,
+            new_values={"status": "paid", "gateway_reference_id": reference_id, "source": source},
+        )
+    return True

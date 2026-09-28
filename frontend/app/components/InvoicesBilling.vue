@@ -6,6 +6,7 @@
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
+    <p v-if="paidNotice" class="paid-notice"><CheckCircle2 :size="16" /> {{ paidNotice }}</p>
 
     <div v-if="unpaidTotal > 0" class="unpaid-alert">
       <AlertCircle :size="18" />
@@ -62,7 +63,7 @@
 </template>
 
 <script setup>
-import { AlertCircle, Receipt } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Receipt } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Billing' })
 
@@ -89,16 +90,72 @@ function statusClass(status) {
   return { unpaid: 'warning', paid: 'success', cancelled: 'danger', refunded: 'neutral' }[status] || ''
 }
 
-async function loadInvoices() {
-  isLoading.value = true
+// Checks unpaid PayMongo invoices directly with PayMongo first, so a payment
+// still shows as paid even if its webhook never reached us. Best-effort:
+// the invoice list still loads if the check fails.
+async function loadInvoices({ quiet = false } = {}) {
+  if (!quiet) isLoading.value = true
   errorMessage.value = ''
   try {
+    await post('/client/invoices/sync/').catch(() => null)
     invoices.value = await get('/client/invoices/')
   } catch {
     errorMessage.value = 'Could not load your invoices. Please try again later.'
   } finally {
     isLoading.value = false
   }
+}
+
+// While the PayMongo checkout popup is open, ask PayMongo (via our sync
+// endpoint) whether this invoice is paid every few seconds. Payment Links
+// can't redirect after payment, so once it's paid we close the popup
+// ourselves — allowed because this page opened it. Also stops if the client
+// closes the popup, or after 30 minutes (the QR code's lifetime).
+const CHECK_EVERY_MS = 4000
+const MAX_WATCH_MS = 30 * 60 * 1000
+let checkoutWatch = null
+
+function stopWatchingCheckout() {
+  if (checkoutWatch) clearInterval(checkoutWatch)
+  checkoutWatch = null
+}
+
+function watchCheckout(popup, invoiceId) {
+  stopWatchingCheckout()
+  const startedAt = Date.now()
+  let checking = false
+  checkoutWatch = setInterval(async () => {
+    if (popup.closed || Date.now() - startedAt > MAX_WATCH_MS) {
+      stopWatchingCheckout()
+      loadInvoices({ quiet: true })
+      return
+    }
+    if (checking) return
+    checking = true
+    try {
+      // Check the invoice's actual status, not just whether this sync call
+      // flipped it — the webhook may have marked it paid first.
+      await post('/client/invoices/sync/').catch(() => null)
+      const latest = await get('/client/invoices/')
+      if (latest.find(i => i.id === invoiceId)?.status === 'paid') {
+        stopWatchingCheckout()
+        popup.close()
+        invoices.value = latest
+        paidNotice.value = `Payment received — INV-${String(invoiceId).padStart(4, '0')} is now paid.`
+      }
+    } catch {
+      // Transient — try again on the next tick.
+    } finally {
+      checking = false
+    }
+  }, CHECK_EVERY_MS)
+}
+
+const paidNotice = ref('')
+
+// Returning to this tab after paying in the PayMongo checkout re-checks.
+function onVisible() {
+  if (document.visibilityState === 'visible' && unpaidCount.value) loadInvoices({ quiet: true })
 }
 
 async function payInvoice(invoice) {
@@ -123,12 +180,7 @@ async function payInvoice(invoice) {
     if (result.payment_url) {
       if (popup) {
         popup.location.href = result.payment_url
-        const poll = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(poll)
-            loadInvoices()
-          }
-        }, 500)
+        watchCheckout(popup, invoice.id)
       } else {
         window.location.href = result.payment_url
       }
@@ -143,7 +195,14 @@ async function payInvoice(invoice) {
   }
 }
 
-onMounted(loadInvoices)
+onMounted(() => {
+  loadInvoices()
+  document.addEventListener('visibilitychange', onVisible)
+})
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisible)
+  stopWatchingCheckout()
+})
 </script>
 
 <style scoped>
@@ -155,6 +214,11 @@ onMounted(loadInvoices)
 .page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
+.paid-notice {
+  display: flex; align-items: center; gap: 8px;
+  background: #e3f3ea; border: 1px solid #b8dcc6; color: #1f8f5c;
+  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; margin: 0 0 16px;
+}
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;

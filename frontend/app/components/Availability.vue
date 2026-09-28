@@ -1,7 +1,7 @@
 <template>
   <div>
-    <!-- PAGE HEADER -->
-    <div class="page-header">
+    <!-- PAGE HEADER (hidden when embedded in Profile Settings, which has its own) -->
+    <div v-if="!embedded" class="page-header">
       <div>
         <h1 class="page-title">Weekly Availability</h1>
         <p class="page-subtitle">Set the hours clients can book consultations with you.</p>
@@ -92,6 +92,8 @@ import { X, CalendarOff } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Availability' })
 
+defineProps({ embedded: { type: Boolean, default: false } })
+
 const { get, post, patch, del } = useApi()
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -114,9 +116,12 @@ onMounted(async () => {
   }
 })
 
+// Displayed Monday-first (matches the public RND profile); day_of_week itself
+// keeps the backend's Sunday=0 convention.
+const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 const week = computed(() =>
-  DAY_NAMES.map((day, dayIndex) => ({
-    day,
+  DISPLAY_ORDER.map(dayIndex => ({
+    day: DAY_NAMES[dayIndex],
     dayIndex,
     slots: slots.value
       .filter(s => s.day_of_week === dayIndex)
@@ -145,7 +150,9 @@ async function confirmAddSlot(dayIndex) {
     return
   }
   try {
-    const today = new Date().toISOString().slice(0, 10)
+    // Local date — toISOString() is UTC and gives yesterday before 8 AM in PHT.
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const created = await post('/rnd/availability/', {
       day_of_week: dayIndex,
       start_time: `${addForm.start_time}:00`,

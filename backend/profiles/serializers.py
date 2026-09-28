@@ -1,9 +1,17 @@
+from django.db.models import Avg, Count
 from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
-from scheduling.models import RndClientRelationship, Review
+from scheduling.models import Review
 
-from .models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndLanguage, RndProfile
+from .models import (
+    CONSULTATION_MODES,
+    ClientHealthProfile,
+    ClientProfile,
+    RndAvailabilitySchedule,
+    RndLanguage,
+    RndProfile,
+)
 
 
 class PublicReviewSerializer(serializers.ModelSerializer):
@@ -50,28 +58,30 @@ class RndAvailabilityScheduleSerializer(serializers.ModelSerializer):
 class RndProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     languages = RndLanguageSerializer(source="user.languages", many=True, read_only=True)
-    relationship_status = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = RndProfile
         fields = [
             "id", "user", "prc_license_number", "prc_expiry_date", "specialization",
-            "language_codes", "bio", "consultation_fee", "available_for_new_clients",
-            "is_verified", "verified_at", "languages", "relationship_status",
+            "language_codes", "bio", "consultation_fee", "consultation_modes", "available_for_new_clients",
+            "is_verified", "verified_at", "languages", "average_rating", "review_count",
         ]
         read_only_fields = ["is_verified", "verified_at"]
 
-    def get_relationship_status(self, obj):
-        """The requesting client's relationship with this RND, if any —
-        None for non-client requesters (RND viewing another RND's public
-        profile, admin) so Find an RND's "Request" button reflects real
-        backend state instead of only what happened in the current page
-        visit (it previously never checked this at all)."""
-        request = self.context.get("request")
-        if not request or getattr(request.user, "role", None) != "client":
-            return None
-        rel = RndClientRelationship.objects.filter(rnd=obj.user, client=request.user).first()
-        return rel.status if rel else None
+    def _review_aggregate(self, obj):
+        if not hasattr(obj, "_review_aggregate_cache"):
+            obj._review_aggregate_cache = Review.objects.filter(
+                rnd_id=obj.user_id, is_public=True
+            ).aggregate(avg_rating=Avg("rating"), review_count=Count("id"))
+        return obj._review_aggregate_cache
+
+    def get_average_rating(self, obj):
+        return self._review_aggregate(obj)["avg_rating"]
+
+    def get_review_count(self, obj):
+        return self._review_aggregate(obj)["review_count"]
 
 
 class RndProfileUpdateSerializer(serializers.ModelSerializer):
@@ -79,7 +89,24 @@ class RndProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RndProfile
-        fields = ["specialization", "language_codes", "bio", "consultation_fee", "available_for_new_clients"]
+        fields = [
+            "specialization", "language_codes", "bio", "consultation_fee",
+            "consultation_modes", "available_for_new_clients",
+        ]
+
+    def validate_consultation_fee(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Consultation fee can't be negative.")
+        return value
+
+    def validate_consultation_modes(self, value):
+        if not isinstance(value, list) or not value:
+            raise serializers.ValidationError("Offer at least one consultation mode.")
+        invalid = [m for m in value if m not in CONSULTATION_MODES]
+        if invalid:
+            raise serializers.ValidationError(f"Unknown mode(s): {', '.join(map(str, invalid))}.")
+        # Keep a stable order and drop duplicates.
+        return [m for m in CONSULTATION_MODES if m in value]
 
 
 class ClientHealthProfileSerializer(serializers.ModelSerializer):
@@ -104,8 +131,35 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
 
 class ClientProfileUpdateSerializer(serializers.ModelSerializer):
-    """For the client editing their own profile — excludes the linked user."""
+    """For the client editing their own profile — excludes the linked user.
+    medical_conditions lives on ClientHealthProfile; the first entry is the
+    primary condition shown on the RND's patient list and client chart."""
+
+    medical_conditions = serializers.ListField(
+        child=serializers.CharField(max_length=100, allow_blank=True), required=False, allow_empty=True, max_length=10,
+        write_only=True,
+    )
 
     class Meta:
         model = ClientProfile
-        fields = ["date_of_birth", "sex", "language_code", "address", "emergency_contact", "emergency_phone"]
+        fields = [
+            "date_of_birth", "sex", "language_code", "address", "emergency_contact", "emergency_phone",
+            "medical_conditions",
+        ]
+
+    def validate_medical_conditions(self, value):
+        cleaned = []
+        for item in value:
+            item = item.strip()
+            if item and item.lower() not in {c.lower() for c in cleaned}:
+                cleaned.append(item)
+        return cleaned
+
+    def update(self, instance, validated_data):
+        conditions = validated_data.pop("medical_conditions", None)
+        instance = super().update(instance, validated_data)
+        if conditions is not None:
+            health_profile, _ = ClientHealthProfile.objects.get_or_create(user=instance.user)
+            health_profile.medical_conditions = conditions or None
+            health_profile.save(update_fields=["medical_conditions", "updated_at"])
+        return instance

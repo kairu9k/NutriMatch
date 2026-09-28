@@ -57,11 +57,7 @@
               <td :class="{ 'text-muted': p.status === 'discharged' }">{{ formatDate(p.next_appointment) }}</td>
               <td><span class="ncp-pill" :class="ncpClass(p.ncp_status)">{{ ncpLabel(p.ncp_status) }}</span></td>
               <td class="action-cell">
-                <span v-if="actionError[p.id]" class="row-error">{{ actionError[p.id] }}</span>
-                <template v-else-if="p.status === 'pending'">
-                  <button class="accept-btn" :disabled="busyId === p.id" @click="acceptPatient(p)">Accept</button>
-                  <button class="decline-btn" :disabled="busyId === p.id" @click="declinePatient(p)">Decline</button>
-                </template>
+                <NuxtLink v-if="p.status === 'pending'" to="/appointments" class="accept-btn">Review Booking</NuxtLink>
                 <NuxtLink v-else :to="`/client-detail/${p.id}`" class="chart-btn">View Chart</NuxtLink>
               </td>
             </tr>
@@ -93,15 +89,13 @@ import { Search, Users, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'My Patients' })
 
-const { get, patch } = useApi()
+const { get } = useApi()
 
 const isLoading = ref(true)
 const errorMessage = ref('')
 const patients = ref([])
 const search = ref('')
 const activeFilter = ref('All')
-const busyId = ref(null)
-const actionError = reactive({})
 const page = ref(1)
 const pageSize = 6
 
@@ -140,7 +134,7 @@ const pagedPatients = computed(() => {
 watch([search, activeFilter], () => { page.value = 1 })
 
 function statusLabel(status) {
-  return { active: 'Active', pending: 'Pending Request', discharged: 'Discharged' }[status] || status
+  return { active: 'Active', pending: 'New Booking', discharged: 'Discharged' }[status] || status
 }
 function statusClass(status) {
   return { active: 'status-active', pending: 'status-pending', discharged: 'status-discharged' }[status] || ''
@@ -161,32 +155,6 @@ async function loadPatients() {
     errorMessage.value = 'Could not load your patients. Please try again later.'
   } finally {
     isLoading.value = false
-  }
-}
-
-async function acceptPatient(patient) {
-  busyId.value = patient.id
-  delete actionError[patient.id]
-  try {
-    await patch(`/rnd/relationships/${patient.id}/accept/`)
-    patient.status = 'active'
-  } catch (error) {
-    actionError[patient.id] = error?.data?.detail || 'Could not accept this request.'
-  } finally {
-    busyId.value = null
-  }
-}
-
-async function declinePatient(patient) {
-  busyId.value = patient.id
-  delete actionError[patient.id]
-  try {
-    await patch(`/rnd/relationships/${patient.id}/decline/`)
-    patient.status = 'discharged'
-  } catch (error) {
-    actionError[patient.id] = error?.data?.detail || 'Could not decline this request.'
-  } finally {
-    busyId.value = null
   }
 }
 
@@ -260,14 +228,8 @@ onMounted(loadPatients)
 }
 .accept-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 6px;
-  padding: 7px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  padding: 7px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-decoration: none;
 }
-.accept-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.decline-btn {
-  background: none; border: none; color: #8a9a8a; font-size: 0.8rem; font-weight: 600; cursor: pointer;
-}
-.decline-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.row-error { font-size: 0.78rem; color: #a12525; }
 
 .empty-state {
   background: #fff; border-radius: 14px; border: 1px solid #eceeec;

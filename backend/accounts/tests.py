@@ -1,17 +1,24 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from profiles.models import ClientHealthProfile, ClientProfile, RndProfile
+from profiles.services import LicenseImageUploadError
 
 from .models import EmailVerificationCode, PasswordResetCode, User
 
 
 class RegisterViewTests(TestCase):
     def setUp(self):
+        # The register endpoint is rate-limited; its counter lives in the
+        # cache and would otherwise carry over between these tests.
+        cache.clear()
         self.client_api = APIClient()
 
     def test_register_client_creates_user_and_profiles(self):
@@ -26,10 +33,20 @@ class RegisterViewTests(TestCase):
         profile = ClientProfile.objects.get(user=user)
         self.assertEqual(str(profile.date_of_birth), "1995-05-01")
         self.assertEqual(user.health_profile.health_goals, ["Weight management"])
+        self.assertEqual(user.health_profile.medical_conditions, ["Weight management"])
         # registering sends a verification code and leaves the account
         # unverified — login should be refused until it's used
         self.assertIsNone(user.email_verified_at)
         self.assertTrue(EmailVerificationCode.objects.filter(user=user).exists())
+
+    def test_register_client_other_concern_is_not_stored_as_condition(self):
+        resp = self.client_api.post("/api/auth/register/client/", {
+            "first_name": "Ana", "last_name": "Reyes", "email": "other@t.ph", "password": "StrongPass123",
+            "primary_health_concern": "Other",
+        })
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIsNone(User.objects.get(email="other@t.ph").health_profile.medical_conditions)
 
     def test_register_client_duplicate_email_rejected(self):
         User.objects.create_user(email="dupe@t.ph", password="x", role="client", first_name="A", last_name="B")
@@ -38,26 +55,52 @@ class RegisterViewTests(TestCase):
         })
         self.assertEqual(resp.status_code, 400)
 
-    def test_register_rnd_creates_unverified_profile(self):
-        resp = self.client_api.post("/api/auth/register/rnd/", {
-            "first_name": "Ivy", "last_name": "Alba", "email": "ivy@t.ph", "password": "StrongPass123",
-            "prc_license_number": "PRC-0099", "specialization": "Diabetes",
-        })
+    def _rnd_payload(self, email="ivy@t.ph", image=None):
+        return {
+            "first_name": "Ivy", "last_name": "Alba", "email": email, "password": "StrongPass123",
+            "specialization": "Diabetes",
+            "prc_license_image": image or SimpleUploadedFile("license.jpg", b"fake-jpeg-bytes", content_type="image/jpeg"),
+        }
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/abc123")
+    def test_register_rnd_uploads_license_photo_and_creates_unverified_profile(self, mock_upload):
+        resp = self.client_api.post("/api/auth/register/rnd/", self._rnd_payload(), format="multipart")
 
         self.assertEqual(resp.status_code, 201, resp.data)
-        user = User.objects.get(email="ivy@t.ph")
-        profile = RndProfile.objects.get(user=user)
+        mock_upload.assert_called_once()
+        profile = RndProfile.objects.get(user__email="ivy@t.ph")
         self.assertFalse(profile.is_verified)
+        self.assertEqual(profile.prc_license_image, "prc-licenses/abc123")
+        self.assertIsNone(profile.prc_license_number)
 
-    def test_register_rnd_duplicate_prc_license_rejected(self):
-        existing = User.objects.create_user(email="rnd1@t.ph", password="x", role="rnd", first_name="A", last_name="B")
-        RndProfile.objects.create(user=existing, prc_license_number="PRC-DUPE")
+    @patch("accounts.serializers.upload_prc_license_image")
+    def test_register_rnd_requires_license_photo(self, mock_upload):
+        payload = self._rnd_payload()
+        del payload["prc_license_image"]
 
-        resp = self.client_api.post("/api/auth/register/rnd/", {
-            "first_name": "Ivy", "last_name": "Alba", "email": "ivy2@t.ph", "password": "StrongPass123",
-            "prc_license_number": "PRC-DUPE",
-        })
+        resp = self.client_api.post("/api/auth/register/rnd/", payload, format="multipart")
+
         self.assertEqual(resp.status_code, 400)
+        self.assertIn("prc_license_image", resp.data)
+        mock_upload.assert_not_called()
+        self.assertFalse(User.objects.filter(email="ivy@t.ph").exists())
+
+    @patch("accounts.serializers.upload_prc_license_image")
+    def test_register_rnd_rejects_non_image_file(self, mock_upload):
+        pdf = SimpleUploadedFile("license.pdf", b"%PDF-1.4", content_type="application/pdf")
+
+        resp = self.client_api.post("/api/auth/register/rnd/", self._rnd_payload(image=pdf), format="multipart")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("prc_license_image", resp.data)
+        mock_upload.assert_not_called()
+
+    @patch("accounts.serializers.upload_prc_license_image", side_effect=LicenseImageUploadError("upload failed"))
+    def test_failed_upload_creates_no_account(self, mock_upload):
+        resp = self.client_api.post("/api/auth/register/rnd/", self._rnd_payload(), format="multipart")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(User.objects.filter(email="ivy@t.ph").exists())
 
 
 class EmailVerificationTests(TestCase):

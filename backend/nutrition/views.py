@@ -1,12 +1,18 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, permissions
+from django.utils import timezone
+from rest_framework import generics, permissions, serializers, status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
+from communication.services import CloudinaryResourceUploadService, ResourceUploadError, notify
 
-from .models import FoodExchangeCategory, FoodExchangeItem, MealPlan, MealPlanFoodItem, MealPlanMeal
+from .models import FoodExchangeCategory, FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
 from .serializers import (
     FoodExchangeCategorySerializer,
     FoodExchangeItemSerializer,
+    MealLogSerializer,
     MealPlanFoodItemSerializer,
     MealPlanMealSerializer,
     MealPlanSerializer,
@@ -136,3 +142,68 @@ class ClientMealPlanListView(generics.ListAPIView):
         return MealPlan.objects.filter(
             relationship__client=self.request.user
         ).prefetch_related("meals__food_items").order_by("-created_at")
+
+
+class ClientMealLogListView(generics.ListAPIView):
+    """Client's own adherence logs, optionally filtered to one date via
+    ?date=YYYY-MM-DD (defaults to every log they've ever saved)."""
+
+    serializer_class = MealLogSerializer
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        qs = MealLog.objects.filter(client=self.request.user)
+        log_date = self.request.query_params.get("date")
+        if log_date:
+            qs = qs.filter(log_date=log_date)
+        return qs.order_by("-log_date")
+
+
+class ClientMealLogSaveView(APIView):
+    """Client logs (or updates) their actual intake for one prescribed meal
+    on one date. Upserts on (meal_plan_meal, log_date) — re-saving the same
+    meal/day edits that day's entry rather than creating duplicates.
+    Notifies the meal plan's RND on every save, matching the design's
+    'saved & sent to RND' confirmation."""
+
+    permission_classes = [IsClient]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request, meal_id):
+        meal = get_object_or_404(
+            MealPlanMeal.objects.select_related("meal_plan__relationship__rnd"),
+            pk=meal_id,
+            meal_plan__relationship__client=request.user,
+        )
+
+        log_date = request.data.get("log_date") or timezone.localdate().isoformat()
+        instance = MealLog.objects.filter(meal_plan_meal=meal, log_date=log_date).first()
+
+        serializer = MealLogSerializer(instance, data=request.data, partial=instance is not None)
+        serializer.is_valid(raise_exception=True)
+
+        photo = request.data.get("photo")
+        photo_url = instance.photo_url if instance else None
+        if photo is not None:
+            try:
+                photo_url = CloudinaryResourceUploadService().upload(photo, folder="meal-logs")
+            except ResourceUploadError as exc:
+                raise serializers.ValidationError({"photo": [str(exc)]})
+
+        meal_log = serializer.save(
+            meal_plan_meal=meal, client=request.user, log_date=log_date, photo_url=photo_url
+        )
+
+        rnd = meal.meal_plan.relationship.rnd
+        notify(
+            recipient=rnd,
+            notifiable_type="meal_log",
+            notifiable_id=meal_log.id,
+            subject="Meal log update",
+            content=(
+                f"{request.user.full_name} logged {meal.get_meal_time_display()} "
+                f"as \"{meal_log.get_status_display()}\" for {log_date}."
+            ),
+        )
+
+        return Response(MealLogSerializer(meal_log).data, status=status.HTTP_200_OK)

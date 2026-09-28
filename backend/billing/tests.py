@@ -117,16 +117,17 @@ class PayMongoServiceTests(TestCase):
         self.assertEqual(event["status"], "success")
 
     @patch("billing.services.httpx.Client")
-    def test_get_payment_status_maps_succeeded(self, mock_client_cls):
+    def test_get_link_status_paid_and_unpaid(self, mock_client_cls):
         mock_client = MagicMock()
         mock_client.__enter__.return_value = mock_client
-        mock_client.get.return_value = _mock_response({
-            "data": {"attributes": {"status": "succeeded"}}
-        })
         mock_client_cls.return_value = mock_client
 
-        status = PayMongoService().get_payment_status("pi_123")
-        self.assertEqual(status, "success")
+        mock_client.get.return_value = _mock_response({"data": {"id": "link_1", "attributes": {"status": "paid"}}})
+        self.assertEqual(PayMongoService().get_link_status("ref_1")["status"], "success")
+        mock_client.get.assert_called_with("https://api.paymongo.com/v1/links/ref_1")
+
+        mock_client.get.return_value = _mock_response({"data": {"id": "link_1", "attributes": {"status": "unpaid"}}})
+        self.assertEqual(PayMongoService().get_link_status("ref_1")["status"], "pending")
 
 
 class JitsiVideoServiceTests(TestCase):

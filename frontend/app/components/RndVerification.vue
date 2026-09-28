@@ -163,16 +163,23 @@ function fmtDate(iso) {
               </div>
               <div>
                 <p class="font-semibold text-forest-dark">{{ rnd.first_name }} {{ rnd.last_name }}</p>
-                <p class="text-xs text-forest/50">PRC {{ rnd.prc_license_number }} · {{ rnd.specialization || 'No specialization listed' }}</p>
+                <p class="text-xs text-forest/50"><template v-if="rnd.prc_license_number">PRC {{ rnd.prc_license_number }} · </template>{{ rnd.specialization || 'No specialization listed' }}</p>
               </div>
             </div>
             <span :class="['text-xs font-semibold px-3 py-1 rounded-full uppercase transition-colors', statusBadge(statusOf(rnd))]">{{ statusOf(rnd) }}</span>
           </div>
 
           <Transition name="dropdown" mode="out-in">
-            <div v-if="statusOf(rnd) === 'pending'" key="pending" class="grid grid-cols-2 gap-4 text-sm mb-4">
-              <div><p class="text-xs text-forest/40 uppercase">Submitted</p><p class="font-medium">{{ fmtDate(rnd.submitted_at) }}</p></div>
-              <div><p class="text-xs text-forest/40 uppercase">Specialization</p><p class="font-medium">{{ rnd.specialization || '—' }}</p></div>
+            <div v-if="statusOf(rnd) === 'pending'" key="pending" class="mb-4">
+              <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                <div><p class="text-xs text-forest/40 uppercase">Submitted</p><p class="font-medium">{{ fmtDate(rnd.submitted_at) }}</p></div>
+                <div><p class="text-xs text-forest/40 uppercase">Specialization</p><p class="font-medium">{{ rnd.specialization || '—' }}</p></div>
+              </div>
+              <p class="text-xs text-forest/40 uppercase mb-1">PRC License Photo</p>
+              <a v-if="rnd.prc_license_image_url" :href="rnd.prc_license_image_url" target="_blank" rel="noopener" class="block rounded-lg overflow-hidden border border-forest/10 bg-white" title="Open full size">
+                <img :src="rnd.prc_license_image_url" alt="PRC license photo" class="w-full max-h-56 object-contain" />
+              </a>
+              <p v-else class="text-sm text-forest/50">No license photo on file.</p>
             </div>
 
             <div v-else-if="statusOf(rnd) === 'verified'" key="verified" class="grid grid-cols-3 gap-4 text-sm mb-4">
