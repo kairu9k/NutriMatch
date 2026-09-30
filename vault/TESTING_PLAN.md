@@ -24,6 +24,9 @@ worktree on `http://localhost:3002`.
 
 ## 1. Demo data command — do this first
 
+**Done (2026-09-30):** `backend/core/management/commands/seed_demo.py` — 5 RNDs + 5 clients
+with proper names; `seed_demo --reset` wipes and rebuilds. Logins in `vault/test-logins.txt`.
+
 Build `python manage.py seed_demo` (idempotent, safe to re-run) that creates a known
 starting state every test can rely on:
 

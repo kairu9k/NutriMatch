@@ -18,7 +18,7 @@
             </div>
           </div>
         </div>
-        <NuxtLink to="/messages" class="message-btn">Message</NuxtLink>
+        <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="message-btn">Message</NuxtLink>
       </div>
 
       <nav class="detail-tabs">
@@ -113,9 +113,19 @@
 
           <div class="surface">
             <h3 class="surface-title">Quick Actions</h3>
-            <NuxtLink :to="`/meal-planning?relationship=${relationshipId}`" class="primary-btn small">Update Meal Plan</NuxtLink>
+            <!-- Meal plans come out of the NCP Intervention phase (diet
+                 prescription + targets), and only for active clients. -->
+            <template v-if="relationshipStatus === 'active'">
+              <NuxtLink v-if="interventionDone" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="primary-btn small">
+                {{ hasMealPlan ? 'Update Meal Plan' : 'Create Meal Plan' }}
+              </NuxtLink>
+              <template v-else>
+                <button class="primary-btn small" type="button" disabled>{{ hasMealPlan ? 'Update Meal Plan' : 'Create Meal Plan' }}</button>
+                <p class="action-hint">Complete the NCP Intervention (diet prescription and target calories) first.</p>
+              </template>
+            </template>
             <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="outline-btn small">Continue NCP Record</NuxtLink>
-            <NuxtLink to="/messages" class="outline-btn small">Send Message</NuxtLink>
+            <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="outline-btn small">Send Message</NuxtLink>
           </div>
         </div>
       </div>
@@ -137,6 +147,14 @@ const clientProfile = ref(null)
 const ncpRecords = ref([])
 const progressRecords = ref([])
 const appointments = ref([])
+const mealPlans = ref([])
+const relationshipStatus = ref(null)
+
+const hasMealPlan = computed(() => mealPlans.value.length > 0)
+const interventionDone = computed(() => {
+  const r = ncpRecords.value[0]
+  return !!(r && (r.diet_prescription || r.target_kcal))
+})
 
 const detailTabs = ['Overview', 'NCP Records', 'Meal Plan', 'Progress History', 'Appointments']
 const activeTab = ref('Overview')
@@ -210,16 +228,20 @@ async function loadData() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const [profile, ncp, progress, appts] = await Promise.all([
+    const [profile, ncp, progress, appts, plans, patients] = await Promise.all([
       get(`/rnd/relationships/${relationshipId}/client-profile/`),
       get(`/rnd/relationships/${relationshipId}/ncp/`),
       get(`/rnd/relationships/${relationshipId}/progress/`),
       get('/rnd/appointments/'),
+      get(`/rnd/relationships/${relationshipId}/meal-plans/`).catch(() => []),
+      get('/rnd/patients/').catch(() => []),
     ])
     clientProfile.value = profile
     ncpRecords.value = ncp
     progressRecords.value = progress
     appointments.value = appts
+    mealPlans.value = plans
+    relationshipStatus.value = patients.find(p => String(p.id) === String(relationshipId))?.status ?? null
   } catch {
     errorMessage.value = 'Could not load this patient. Please try again later.'
   } finally {
@@ -320,5 +342,7 @@ onMounted(loadData)
 .outline-btn { border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; }
 .primary-btn { background: #D4A017; color: #1a3a1a; }
 .small { padding: 9px; font-size: 0.83rem; margin-bottom: 8px; }
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.action-hint { font-size: 0.74rem; color: #b8860b; margin: -2px 0 10px; line-height: 1.4; }
 .small:last-child { margin-bottom: 0; }
 </style>

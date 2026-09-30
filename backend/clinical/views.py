@@ -199,6 +199,13 @@ class NcpRecordDetailView(generics.RetrieveUpdateAPIView):
     def get_queryset(self):
         return NcpRecord.objects.filter(relationship__rnd=self.request.user)
 
+    def perform_update(self, serializer):
+        # A finalized record is permanent — the UI locks it, but the API
+        # must refuse edits too.
+        if serializer.instance.status == NcpRecord.Status.COMPLETED:
+            raise PermissionDenied("This NCP record is finalized and can no longer be edited.")
+        serializer.save()
+
 
 class NcpRecordFinalizeView(generics.UpdateAPIView):
     serializer_class = NcpRecordSerializer
@@ -209,6 +216,19 @@ class NcpRecordFinalizeView(generics.UpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         record = self.get_object()
+        # Same checklist the Finalize panel shows in NCPRecords.vue.
+        missing = []
+        if not (record.weight_kg and record.height_cm):
+            missing.append("weight and height (Assessment)")
+        if not record.pes_problem:
+            missing.append("PES problem (Diagnosis)")
+        if not record.diet_prescription:
+            missing.append("diet prescription (Intervention)")
+        if missing:
+            return Response(
+                {"detail": "Can't finalize yet — missing " + ", ".join(missing) + "."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         record.status = NcpRecord.Status.COMPLETED
         record.save(update_fields=["status", "updated_at"])
         return Response(NcpRecordSerializer(record).data)

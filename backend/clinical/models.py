@@ -76,6 +76,9 @@ class NcpRecord(models.Model):
     hba1c = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     lab_notes = models.TextField(null=True, blank=True)
     assessment_notes = models.TextField(null=True, blank=True)
+    # RND-added measurements beyond the fixed fields above, e.g.
+    # [{"label": "Waist circumference", "value": "92", "unit": "cm"}].
+    assessment_extra = models.JSONField(default=list, blank=True)
 
     # Phase 2 — Diagnosis (PES statement)
     pes_problem = models.CharField(max_length=500, null=True, blank=True)
@@ -89,6 +92,9 @@ class NcpRecord(models.Model):
     target_carb_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     target_fat_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     intervention_notes = models.TextField(null=True, blank=True)
+    # RND-added intervention items beyond the fixed targets, e.g.
+    # [{"label": "Fluid restriction", "value": "1.5", "unit": "L/day"}].
+    intervention_extra = models.JSONField(default=list, blank=True)
 
     # Phase 4 — Monitoring & Evaluation
     monitoring_notes = models.TextField(null=True, blank=True)

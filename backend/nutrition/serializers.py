@@ -40,6 +40,7 @@ class MealPlanFoodItemSerializer(serializers.ModelSerializer):
         fields = [
             "id", "meal_plan_meal", "food_item", "food_name", "source_type",
             "external_food_id", "exchanges", "household_measure", "notes",
+            "kcal", "carbs_g", "protein_g", "fat_g",
         ]
         read_only_fields = ["meal_plan_meal"]
 
@@ -54,7 +55,8 @@ class MealPlanMealSerializer(serializers.ModelSerializer):
     class Meta:
         model = MealPlanMeal
         fields = [
-            "id", "meal_plan", "meal_time", "vegetable_exchanges", "fruit_exchanges",
+            "id", "meal_plan", "day_of_week", "meal_time", "scheduled_time",
+            "vegetable_exchanges", "fruit_exchanges",
             "milk_exchanges", "rice_exchanges", "meat_exchanges", "fat_exchanges",
             "sugar_exchanges", "meal_notes", "food_items",
         ]
@@ -73,14 +75,47 @@ class MealPlanSerializer(serializers.ModelSerializer):
             "id", "relationship", "name", "condition", "target_kcal",
             "target_protein_g", "target_carb_g", "target_fat_g",
             "total_vegetable", "total_fruit", "total_milk", "total_rice",
-            "total_meat", "total_fat", "total_sugar", "notes", "status",
-            "meals", "created_at", "updated_at",
+            "total_meat", "total_fat", "total_sugar", "notes", "allergies_restrictions",
+            "status", "sent_at", "meals", "created_at", "updated_at",
         ]
+        # Status only changes through "Send to Patient" (RndMealPlanSendView),
+        # which also archives the previous plan and notifies the client.
+        read_only_fields = ["status", "sent_at"]
 
     def validate_relationship(self, value):
         request = self.context["request"]
         if value.rnd_id != request.user.id:
             raise serializers.ValidationError("You can only create meal plans for your own clients.")
+        return value
+
+
+class WeekFoodItemSerializer(serializers.Serializer):
+    food_item = serializers.PrimaryKeyRelatedField(queryset=FoodExchangeItem.objects.all(), required=False, allow_null=True)
+    food_name = serializers.CharField(max_length=255)
+    household_measure = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    exchanges = serializers.DecimalField(max_digits=4, decimal_places=1, required=False, min_value=0)
+    kcal = serializers.DecimalField(max_digits=7, decimal_places=1, required=False, allow_null=True, min_value=0)
+    carbs_g = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True, min_value=0)
+    protein_g = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True, min_value=0)
+    fat_g = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True, min_value=0)
+
+
+class WeekMealSerializer(serializers.Serializer):
+    day_of_week = serializers.ChoiceField(choices=MealPlanMeal.DayOfWeek.choices)
+    meal_time = serializers.ChoiceField(choices=MealPlanMeal.MealTime.choices)
+    scheduled_time = serializers.TimeField(required=False, allow_null=True)
+    items = WeekFoodItemSerializer(many=True)
+
+
+class MealPlanWeekSerializer(serializers.Serializer):
+    """The whole weekly grid (day × meal slot → food rows) saved in one go."""
+
+    meals = WeekMealSerializer(many=True)
+
+    def validate_meals(self, value):
+        keys = [(m["day_of_week"], m["meal_time"]) for m in value]
+        if len(keys) != len(set(keys)):
+            raise serializers.ValidationError("Each day can have each meal slot only once.")
         return value
 
 

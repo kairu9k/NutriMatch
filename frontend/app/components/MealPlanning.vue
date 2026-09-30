@@ -1,43 +1,54 @@
 <template>
-  <div>
+  <div class="meal-planning-page">
     <!-- TOP CONTROLS -->
-    <div class="top-controls">
+    <div class="top-controls no-print">
       <div class="mode-toggle">
-        <button class="mode-btn" :class="{ active: mode === 'view' }" @click="mode = 'view'">
+        <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="mode = 'view'">
           <Eye :size="15" /> View Plans
         </button>
-        <button class="mode-btn" :class="{ active: mode === 'create' }" @click="mode = 'create'">
-          <Plus :size="15" /> Create Plan
+        <button class="mode-btn" :class="{ active: mode === 'create' }" :disabled="!patients.length" @click="openCreate">
+          <Plus :size="15" /> {{ selectedPlan ? 'Edit Plan' : 'Create Plan' }}
         </button>
       </div>
 
-      <div class="patient-select">
-        <select v-model="selectedPatient">
-          <option v-for="p in patients" :key="p" :value="p">{{ p }}</option>
+      <div v-if="patients.length" class="patient-select">
+        <select v-model="selectedRelId">
+          <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }}</option>
         </select>
         <ChevronDown :size="15" class="select-caret" />
       </div>
     </div>
 
+    <p v-if="errorMessage" class="form-error no-print">{{ errorMessage }}</p>
+    <p v-if="notice" class="form-notice no-print"><CheckCircle2 :size="15" /> {{ notice }}</p>
+
+    <p v-if="isLoading" class="macro-note">Loading…</p>
+
+    <div v-else-if="!patients.length" class="empty-state">
+      <p class="empty-title">No active patients yet</p>
+      <p class="macro-note">Meal plans can be created once a client's first appointment is confirmed.</p>
+    </div>
+
     <!-- ================= VIEW PLANS MODE ================= -->
-    <div v-if="mode === 'view' && !planCreated" class="empty-state">
-      <p class="empty-title">No meal plan yet for {{ selectedPatient }}</p>
-      <button class="btn-primary" @click="mode = 'create'"><Plus :size="15" /> Create Meal Plan</button>
+    <div v-else-if="mode === 'view' && !selectedPlan" class="empty-state">
+      <p class="empty-title">No meal plan yet for {{ selectedPatientName }}</p>
+      <button class="btn-primary" @click="startNewPlan"><Plus :size="15" /> Create Meal Plan</button>
     </div>
 
     <div v-else-if="mode === 'view'" class="planning-layout">
-      <div class="panel plan-panel">
+      <div class="panel plan-panel print-area">
         <div class="plan-header">
           <div>
-            <h3>Weekly Meal Plan — {{ selectedPatient }}</h3>
+            <h3>Weekly Meal Plan — {{ selectedPatientName }}</h3>
+            <p class="plan-subtitle">{{ planMeta.name }} · <span class="status-text">{{ statusLabel(selectedPlan.status) }}</span></p>
           </div>
           <div class="plan-badges">
-            <span class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
-            <span class="badge badge-gold">{{ planMeta.condition }}</span>
+            <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
+            <span class="badge badge-gold">{{ conditionLabel(planMeta.condition) }}</span>
           </div>
         </div>
 
-        <div class="day-tabs">
+        <div class="day-tabs no-print">
           <button
             v-for="day in days"
             :key="day"
@@ -49,46 +60,57 @@
           </button>
         </div>
 
-        <div class="meal-list">
-          <div class="meal-row" v-for="meal in currentDayMeals" :key="meal.type">
-            <div class="meal-info">
-              <div class="meal-label">
-                <component :is="meal.icon" :size="14" />
-                {{ meal.type }} · {{ meal.time }}
+        <!-- Screen: selected day. Print: the whole week. -->
+        <div v-for="day in printDays" :key="day" class="print-day" :class="{ 'screen-hidden': day !== activeDay }">
+          <h4 class="print-only print-day-title">{{ DAY_FULL[day] }}</h4>
+          <div class="meal-list">
+            <div class="meal-row" v-for="meal in mealsForDay(day)" :key="meal.type">
+              <div class="meal-info">
+                <div class="meal-label">
+                  <component :is="meal.icon" :size="14" />
+                  {{ meal.type }}<template v-if="meal.time"> · {{ formatTime(meal.time) }}</template>
+                </div>
+                <div class="meal-title">{{ meal.title }}</div>
+                <div class="meal-breakdown">{{ meal.breakdown }}</div>
               </div>
-              <div class="meal-title">{{ meal.title }}</div>
-              <div class="meal-breakdown">{{ meal.breakdown }}</div>
+              <div class="meal-kcal">{{ meal.kcal }} kcal</div>
             </div>
-            <div class="meal-kcal">{{ meal.kcal }} kcal</div>
           </div>
         </div>
 
-        <div class="plan-actions">
-          <button class="btn-secondary"><Printer :size="15" /> Print Plan</button>
+        <div v-if="instructions.allergies || instructions.notes" class="instructions-view">
+          <p v-if="instructions.allergies"><strong>Allergies / Restrictions:</strong> {{ instructions.allergies }}</p>
+          <p v-if="instructions.notes"><strong>RND Notes:</strong> {{ instructions.notes }}</p>
+        </div>
+
+        <div class="plan-actions no-print">
+          <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print Plan</button>
           <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit Plan</button>
-          <button class="btn-primary"><Send :size="15" /> Send to Patient</button>
+          <button class="btn-primary" :disabled="isSending" @click="sendToPatient">
+            <Send :size="15" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to Patient' : 'Send to Patient' }}
+          </button>
         </div>
       </div>
 
       <!-- RIGHT SIDEBAR -->
-      <div class="side-column">
+      <div class="side-column no-print">
         <div class="panel">
           <h4 class="side-title">Nutritional Summary</h4>
-          <span class="side-subtitle">{{ activeDay }}</span>
+          <span class="side-subtitle">{{ DAY_FULL[activeDay] }}</span>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Total Calories</span><span>{{ nutrition.calories.value }} / {{ nutrition.calories.target }} kcal</span></div>
+            <div class="nutrient-top"><span>Total Calories</span><span>{{ nutrition.calories.value }} / {{ nutrition.calories.target ?? '—' }} kcal</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.calories) + '%' }"></div></div>
           </div>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Carbohydrates</span><span>{{ nutrition.carbs.value }}g / {{ nutrition.carbs.target }}g</span></div>
+            <div class="nutrient-top"><span>Carbohydrates</span><span>{{ nutrition.carbs.value }}g / {{ nutrition.carbs.target ?? '—' }}g</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-gold" :style="{ width: pct(nutrition.carbs) + '%' }"></div></div>
           </div>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Protein</span><span>{{ nutrition.protein.value }}g / {{ nutrition.protein.target }}g</span></div>
+            <div class="nutrient-top"><span>Protein</span><span>{{ nutrition.protein.value }}g / {{ nutrition.protein.target ?? '—' }}g</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.protein) + '%' }"></div></div>
           </div>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Fat</span><span>{{ nutrition.fat.value }}g / {{ nutrition.fat.target }}g</span></div>
+            <div class="nutrient-top"><span>Fat</span><span>{{ nutrition.fat.value }}g / {{ nutrition.fat.target ?? '—' }}g</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-dark" :style="{ width: pct(nutrition.fat) + '%' }"></div></div>
           </div>
         </div>
@@ -96,15 +118,21 @@
         <div class="panel">
           <div class="side-header-row">
             <h4 class="side-title">Saved Plans</h4>
-            <button class="link-btn"><Plus :size="13" /> New Plan</button>
+            <button class="link-btn" @click="startNewPlan"><Plus :size="13" /> New Plan</button>
           </div>
-          <div class="saved-plan-card">
+          <button
+            v-for="p in plans"
+            :key="p.id"
+            class="saved-plan-card"
+            :class="{ selected: p.id === selectedPlanId }"
+            @click="selectPlan(p.id)"
+          >
             <div>
-              <div class="saved-plan-name">{{ planMeta.name }}</div>
-              <div class="saved-plan-meta">{{ planMeta.condition }} · {{ planMeta.kcalPerDay }} kcal/day</div>
+              <div class="saved-plan-name">{{ p.name }}</div>
+              <div class="saved-plan-meta">{{ conditionLabel(p.condition) }}<template v-if="p.target_kcal"> · {{ Math.round(p.target_kcal) }} kcal/day</template></div>
             </div>
-            <span class="active-pill">ACTIVE</span>
-          </div>
+            <span class="active-pill" :class="'pill-' + p.status">{{ p.status.toUpperCase() }}</span>
+          </button>
         </div>
 
         <div class="panel">
@@ -122,13 +150,14 @@
       </div>
     </div>
 
-    <!-- ================= CREATE PLAN MODE ================= -->
+    <!-- ================= CREATE / EDIT PLAN MODE ================= -->
     <div v-else class="planning-layout">
       <div class="create-column">
-        <!-- STEP 1: PLAN DETAILS (simplified form) -->
+        <!-- STEP 1: PLAN DETAILS -->
         <div class="panel">
-          <h4 v-if="!planCreated" class="no-plan-title">No meal plan yet for {{ selectedPatient }}</h4>
+          <h4 v-if="!selectedPlan" class="no-plan-title">No meal plan yet for {{ selectedPatientName }}</h4>
           <h4 v-else class="side-title">Plan Details</h4>
+          <p v-if="!selectedPlan && ncpTargets" class="macro-note prefill-note">Targets pre-filled from this client's NCP Intervention — adjust if needed.</p>
 
           <div class="form-row-6">
             <div class="field">
@@ -138,34 +167,34 @@
             <div class="field">
               <label>Condition</label>
               <select v-model="planMeta.condition">
-                <option v-for="c in conditionOptions" :key="c" :value="c">{{ c }}</option>
+                <option v-for="c in CONDITIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
               </select>
             </div>
             <div class="field">
               <label>Target Calories/day</label>
-              <input v-model.number="planMeta.kcalPerDay" type="number" placeholder="e.g., 1800" />
+              <input v-model.number="planMeta.kcalPerDay" type="number" min="0" placeholder="e.g., 1800" />
             </div>
             <div class="field">
               <label>Protein (g/day) <span class="optional">(optional)</span></label>
-              <input v-model.number="targets.protein" type="number" placeholder="e.g., 90" />
+              <input v-model.number="targets.protein" type="number" min="0" placeholder="e.g., 90" />
             </div>
             <div class="field">
               <label>Carbohydrate (g/day) <span class="optional">(optional)</span></label>
-              <input v-model.number="targets.carb" type="number" placeholder="e.g., 200" />
+              <input v-model.number="targets.carb" type="number" min="0" placeholder="e.g., 200" />
             </div>
             <div class="field">
               <label>Fat (g/day) <span class="optional">(optional)</span></label>
-              <input v-model.number="targets.fat" type="number" placeholder="e.g., 55" />
+              <input v-model.number="targets.fat" type="number" min="0" placeholder="e.g., 55" />
             </div>
           </div>
 
-          <button v-if="!planCreated" class="btn-primary" :disabled="!planMeta.name || !planMeta.kcalPerDay" @click="planCreated = true">
-            Create Meal Plan
+          <button v-if="!selectedPlan" class="btn-primary" :disabled="!planMeta.name || !planMeta.kcalPerDay || isSaving" @click="createPlan">
+            {{ isSaving ? 'Creating…' : 'Create Meal Plan' }}
           </button>
         </div>
 
-        <!-- STEP 2: DAILY MEALS — only once the plan header has been created -->
-        <template v-if="planCreated">
+        <!-- STEP 2: DAILY MEALS — only once the plan exists -->
+        <template v-if="selectedPlan">
           <div class="day-tabs">
             <button
               v-for="day in days"
@@ -181,7 +210,7 @@
           <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
             <div class="meal-edit-header">
               <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ meal.type.toUpperCase() }}</span>
-              <span class="meal-edit-time">{{ meal.time }}</span>
+              <input v-model="weeklyPlan[activeDay][meal.type].time" type="time" class="meal-time-input" title="Meal time" />
             </div>
 
             <div class="food-table">
@@ -193,20 +222,36 @@
                 <span>CARB(G)</span>
                 <span>PROT(G)</span>
                 <span>FAT(G)</span>
-                <span></span>
               </div>
               <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx">
-                <button class="remove-btn" @click="removeItem(meal, idx)"><X :size="12" /></button>
-                <input v-model="item.name" type="text" placeholder="e.g., Brown rice" />
+                <button class="remove-btn" title="Remove" @click="removeItem(meal, idx)"><X :size="12" /></button>
+                <input
+                  v-model="item.name"
+                  type="text"
+                  list="fnri-suggestions"
+                  placeholder="Search FNRI or type a food"
+                  @input="onFoodNameInput(item, $event.target.value)"
+                  @change="applyFnriMatch(item, $event.target.value)"
+                />
                 <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
-                <input v-model.number="item.kcal" type="number" placeholder="0" />
-                <input v-model.number="item.carb" type="number" placeholder="0" />
-                <input v-model.number="item.prot" type="number" placeholder="0" />
-                <input v-model.number="item.fat" type="number" placeholder="0" />
+                <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
+                <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
+                <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
+                <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
               </div>
             </div>
 
             <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
+          </div>
+
+          <datalist id="fnri-suggestions">
+            <option v-for="f in fnriSuggestions" :key="f.id" :value="f.name">{{ f.category.name }} · {{ f.household_measure || '1 exchange' }}</option>
+          </datalist>
+
+          <div class="plan-actions create-actions">
+            <button class="btn-secondary" @click="discardChanges">Cancel</button>
+            <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : 'Save Plan' }}</button>
+            <button class="btn-primary" :disabled="isSaving || isSending" @click="saveAndSend"><Send :size="15" /> Save &amp; Send to Patient</button>
           </div>
         </template>
       </div>
@@ -216,25 +261,22 @@
         <div class="panel">
           <div class="side-header-row">
             <h4 class="side-title">Live Preview</h4>
-            <span v-if="planCreated" class="preview-day">{{ activeDay === 'Mon' ? 'Monday' : activeDay }}</span>
+            <span v-if="selectedPlan" class="preview-day">{{ DAY_FULL[activeDay] }}</span>
           </div>
 
-          <!-- Before the plan header is created: nothing to preview yet -->
           <p v-if="!planMeta.name && !planMeta.kcalPerDay" class="macro-note">
             Fill in the plan details to see a live preview here.
           </p>
 
           <template v-else>
-            <!-- Plan summary card — updates as the form above is filled in -->
             <div class="preview-summary">
               <p class="preview-summary-name">{{ planMeta.name || 'Untitled Plan' }}</p>
               <div class="plan-badges">
-                <span v-if="planMeta.condition" class="badge badge-gold">{{ planMeta.condition }}</span>
+                <span v-if="planMeta.condition" class="badge badge-gold">{{ conditionLabel(planMeta.condition) }}</span>
                 <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
               </div>
             </div>
 
-            <!-- Macro targets, shown as soon as they're entered — even before any food items exist -->
             <div v-if="targets.protein || targets.carb || targets.fat" class="target-list">
               <div v-if="targets.protein" class="target-row"><span>Protein</span><span>{{ targets.protein }}g/day</span></div>
               <div v-if="targets.carb" class="target-row"><span>Carbohydrate</span><span>{{ targets.carb }}g/day</span></div>
@@ -242,18 +284,17 @@
             </div>
           </template>
 
-          <!-- Once meals have real food items, show the per-meal breakdown -->
-          <div v-if="planCreated && currentDayMeals.some(m => m.items.some(i => i.name))" class="preview-list">
+          <div v-if="selectedPlan && currentDayMeals.some(m => m.items.some(i => i.name))" class="preview-list">
             <div class="preview-item" v-for="meal in currentDayMeals.filter(m => m.items.some(i => i.name))" :key="meal.type" :class="'preview-' + meal.accent">
               <div class="preview-label"><component :is="meal.icon" :size="13" /> {{ meal.type }}</div>
               <div class="preview-food">{{ firstFoodSummary(meal) }}</div>
               <div class="preview-kcal">{{ mealTotal(meal, 'kcal') }} kcal</div>
             </div>
           </div>
-          <p v-else-if="planCreated" class="macro-note">No meals added yet. Add food items per day to see the nutrition breakdown.</p>
+          <p v-else-if="selectedPlan" class="macro-note">No meals added yet. Add food items per day to see the nutrition breakdown.</p>
         </div>
 
-        <div v-if="planCreated" class="panel">
+        <div v-if="selectedPlan" class="panel">
           <h4 class="side-title">Macro Tracker</h4>
           <div class="macro-row"><span>Calories</span><span class="macro-value">{{ dayTotal('kcal') }} kcal</span></div>
           <div class="macro-bar"><div class="macro-fill fill-dark" :style="{ width: macroPct('kcal') + '%' }"></div></div>
@@ -270,7 +311,7 @@
           <p class="macro-note">Based on foods entered for the selected day</p>
         </div>
 
-        <div v-if="planCreated" class="panel">
+        <div v-if="selectedPlan" class="panel">
           <h4 class="side-title">Special Instructions</h4>
           <div class="field">
             <label>Allergies / Restrictions</label>
@@ -287,49 +328,75 @@
 </template>
 
 <script setup>
-// ---- DESIGN PORTED FROM feature/landing-julia (2026-09-20) — STILL ON MOCK
-// DATA. Main's previous MealPlanning.vue (git history has it) was wired to
-// real endpoints: FNRI food search (/food-exchange/items/), server-computed
-// exchange totals (MealPlanMeal.recompute_exchanges), and NCP target_kcal
-// pre-fill. None of that is reconnected yet — day-of-week per-meal editing
-// doesn't exist in the current schema (MealPlanMeal.meal_time is
-// breakfast/lunch/dinner/snacks, not tied to a specific day), so wiring
-// this needs a real schema decision, not just a fetch() swap. Re-wire
-// deliberately; don't silently ship this on mock data. ----
 import {
-  Eye, Plus, ChevronDown, Printer, Pencil, Send, X,
+  Eye, Plus, ChevronDown, Printer, Pencil, Send, X, CheckCircle2,
   Sun, Coffee, Utensils, Apple, Moon
 } from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
 
-const mode = ref('view')
+const route = useRoute()
+const { get, post, patch, put } = useApi()
 
-// Patient list + selection — pulled from the shared mock db
-const patients = computed(() => db.patients.map(p => p.name))
-const selectedPatient = ref(db.patients[0]?.name || '')
+// Matches nutrition.MealPlan.Condition.
+const CONDITIONS = [
+  { value: 'diabetes', label: 'Diabetes' },
+  { value: 'hypertension', label: 'Hypertension' },
+  { value: 'renal', label: 'Renal Disease' },
+  { value: 'weight_loss', label: 'Weight Loss' },
+  { value: 'weight_gain', label: 'Weight Gain' },
+  { value: 'general', label: 'General' },
+]
+function conditionLabel(value) {
+  return CONDITIONS.find(c => c.value === value)?.label || value
+}
+function statusLabel(status) {
+  return { draft: 'Draft — not yet sent', active: 'Active — visible to patient', archived: 'Archived' }[status] || status
+}
 
-const selectedPatientId = computed(() => {
-  const match = db.patients.find(p => p.name === selectedPatient.value)
-  return match?.id || null
-})
-
-// TODO: replace with a real condition list (e.g. from the patient's own
-// record, or a shared taxonomy) once available — this is a placeholder set.
-const baseConditionOptions = ['Diabetes', 'Hypertension', 'Renal Disease', 'Weight Management', 'General']
-// Mock plans use freeform dietType strings (e.g. "Low GI") that don't always
-// match the placeholder list above — keep the loaded value selectable too.
-const conditionOptions = computed(() => {
-  if (planMeta.condition && !baseConditionOptions.includes(planMeta.condition)) {
-    return [planMeta.condition, ...baseConditionOptions]
-  }
-  return baseConditionOptions
-})
-
+// Design order Mon→Sun; day_of_week uses Sunday=0 (same as availability).
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const activeDay = ref('Mon')
+const DAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+const DAY_FULL = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' }
+const activeDay = ref(days[(new Date().getDay() + 6) % 7])
+
+// Design meal slots → nutrition.MealPlanMeal.MealTime.
 const mealOrder = ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner']
+const MEAL_TIME = { Breakfast: 'breakfast', 'Morning Snack': 'am_snack', Lunch: 'lunch', 'Afternoon Snack': 'pm_snack', Dinner: 'dinner' }
+const MEAL_TYPE = Object.fromEntries(Object.entries(MEAL_TIME).map(([k, v]) => [v, k]))
 const mealIcons = { Breakfast: Sun, 'Morning Snack': Coffee, Lunch: Utensils, 'Afternoon Snack': Apple, Dinner: Moon }
 const mealAccents = { Breakfast: 'green', 'Morning Snack': 'gold', Lunch: 'blue', 'Afternoon Snack': 'gold', Dinner: 'blue' }
+
+const mode = ref('view')
+const isLoading = ref(true)
+const isSaving = ref(false)
+const isSending = ref(false)
+const errorMessage = ref('')
+const notice = ref('')
+let noticeTimer = null
+function flash(message) {
+  notice.value = message
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => { notice.value = '' }, 4000)
+}
+function apiError(error, fallback) {
+  const data = error?.data || {}
+  return data.detail || Object.values(data).flat().find(v => typeof v === 'string') || fallback
+}
+
+/* ---------- Patients (the RND's active clients) ---------- */
+const patients = ref([])
+const selectedRelId = ref(null)
+const selectedPatientName = computed(() => patients.value.find(p => p.id === selectedRelId.value)?.name || '')
+
+/* ---------- Plans for the selected patient ---------- */
+const plans = ref([])
+const selectedPlanId = ref(null)
+const selectedPlan = computed(() => plans.value.find(p => p.id === selectedPlanId.value) || null)
+const ncpTargets = ref(null)
+
+const planMeta = reactive({ name: '', condition: 'general', kcalPerDay: null })
+const targets = reactive({ carb: null, protein: null, fat: null })
+const instructions = reactive({ allergies: '', notes: '' })
+const weeklyPlan = reactive(emptyWeek())
 
 function emptyWeek() {
   const week = {}
@@ -339,117 +406,352 @@ function emptyWeek() {
   }
   return week
 }
-
-// planCreated gates Step 2 (day tabs + food table) behind the simplified
-// Plan Details form, matching the "No meal plan yet" → "Create Meal Plan" flow.
-const planCreated = ref(false)
-
-const planMeta = reactive({ name: '', condition: baseConditionOptions[0], kcalPerDay: null })
-const targets = reactive({ carb: null, protein: null, fat: null })
-const instructions = reactive({ allergies: '', notes: '' })
-const weeklyPlan = reactive(emptyWeek())
-
-// Load whichever patient's plan matches the current selection, deep-copied
-// so edits here don't mutate the shared mock db directly.
-function loadPlanForPatient() {
-  const found = db.mealPlanDetails.find(m => m.patientId === selectedPatientId.value)
-
-  if (!found) {
-    planCreated.value = false
-    planMeta.name = ''
-    planMeta.condition = baseConditionOptions[0]
-    planMeta.kcalPerDay = null
-    targets.carb = null
-    targets.protein = null
-    targets.fat = null
-    instructions.allergies = ''
-    instructions.notes = ''
-    Object.assign(weeklyPlan, emptyWeek())
-    return
-  }
-
-  planCreated.value = true
-  planMeta.name = found.planName
-  planMeta.condition = found.dietType
-  planMeta.kcalPerDay = found.kcalTarget
-  targets.carb = found.carbTarget
-  targets.protein = found.proteinTarget
-  targets.fat = found.fatTarget
-  instructions.allergies = found.allergies
-  instructions.notes = found.notes
-  Object.assign(weeklyPlan, JSON.parse(JSON.stringify(found.week)))
+function num(v) {
+  return v === null || v === undefined || v === '' ? null : Number(v)
 }
 
-loadPlanForPatient()
-watch(selectedPatient, loadPlanForPatient)
-
-// Nutritional Summary is now computed live from the active day's actual items
-const nutrition = computed(() => {
-  const dayTotals = { calories: 0, carb: 0, protein: 0, fat: 0 }
-  for (const type of mealOrder) {
-    for (const item of weeklyPlan[activeDay.value][type].items) {
-      dayTotals.calories += Number(item.kcal) || 0
-      dayTotals.carb += Number(item.carb) || 0
-      dayTotals.protein += Number(item.prot) || 0
-      dayTotals.fat += Number(item.fat) || 0
+function fillFromPlan(plan) {
+  planMeta.name = plan.name
+  planMeta.condition = plan.condition
+  planMeta.kcalPerDay = num(plan.target_kcal) === null ? null : Math.round(num(plan.target_kcal))
+  targets.protein = num(plan.target_protein_g)
+  targets.carb = num(plan.target_carb_g)
+  targets.fat = num(plan.target_fat_g)
+  instructions.allergies = plan.allergies_restrictions || ''
+  instructions.notes = plan.notes || ''
+  Object.assign(weeklyPlan, emptyWeek())
+  for (const meal of plan.meals) {
+    const type = MEAL_TYPE[meal.meal_time]
+    const day = days.find(d => DAY_INDEX[d] === meal.day_of_week)
+    if (!type || !day) continue
+    weeklyPlan[day][type] = {
+      time: meal.scheduled_time ? meal.scheduled_time.slice(0, 5) : '',
+      items: meal.food_items.map(i => ({
+        foodItemId: i.food_item,
+        name: i.food_name,
+        portion: i.household_measure || '',
+        exchanges: num(i.exchanges),
+        kcal: num(i.kcal),
+        carb: num(i.carbs_g),
+        prot: num(i.protein_g),
+        fat: num(i.fat_g),
+      })),
     }
   }
-  return {
-    calories: { value: dayTotals.calories, target: planMeta.kcalPerDay },
-    carbs: { value: dayTotals.carb, target: targets.carb },
-    protein: { value: dayTotals.protein, target: targets.protein },
-    fat: { value: dayTotals.fat, target: targets.fat }
-  }
-})
-function pct(n) {
-  if (!n.target) return 0
-  return Math.min(100, Math.round((n.value / n.target) * 100))
 }
 
-const currentDayMeals = computed(() => {
+function resetForm() {
+  Object.assign(planMeta, { name: '', condition: 'general', kcalPerDay: null })
+  Object.assign(targets, { carb: null, protein: null, fat: null })
+  Object.assign(instructions, { allergies: '', notes: '' })
+  Object.assign(weeklyPlan, emptyWeek())
+  // Pre-fill targets from the NCP Intervention phase when available.
+  if (ncpTargets.value) {
+    planMeta.kcalPerDay = ncpTargets.value.kcal
+    targets.protein = ncpTargets.value.protein
+    targets.carb = ncpTargets.value.carb
+    targets.fat = ncpTargets.value.fat
+  }
+}
+
+function selectPlan(id) {
+  selectedPlanId.value = id
+  const plan = selectedPlan.value
+  if (plan) fillFromPlan(plan)
+  mode.value = 'view'
+}
+
+function startNewPlan() {
+  selectedPlanId.value = null
+  resetForm()
+  mode.value = 'create'
+}
+
+function openCreate() {
+  if (selectedPlan.value) fillFromPlan(selectedPlan.value)
+  else resetForm()
+  mode.value = 'create'
+}
+
+function discardChanges() {
+  if (selectedPlan.value) fillFromPlan(selectedPlan.value)
+  mode.value = 'view'
+}
+
+async function loadPatients() {
+  const rels = await get('/rnd/relationships/active/')
+  patients.value = rels.map(r => ({ id: r.id, name: `${r.client.first_name} ${r.client.last_name}` }))
+  const requested = Number(route.query.relationship)
+  selectedRelId.value = patients.value.find(p => p.id === requested)?.id ?? patients.value[0]?.id ?? null
+}
+
+async function loadPatientPlans() {
+  if (!selectedRelId.value) return
+  errorMessage.value = ''
+  const [planList, ncpList] = await Promise.all([
+    get(`/rnd/relationships/${selectedRelId.value}/meal-plans/`),
+    get(`/rnd/relationships/${selectedRelId.value}/ncp/`).catch(() => []),
+  ])
+  plans.value = planList
+  const ncp = ncpList[0]
+  ncpTargets.value = ncp && ncp.target_kcal
+    ? { kcal: Math.round(num(ncp.target_kcal)), protein: num(ncp.target_protein_g), carb: num(ncp.target_carb_g), fat: num(ncp.target_fat_g) }
+    : null
+
+  const preferred = planList.find(p => p.status === 'active') || planList.find(p => p.status === 'draft') || planList[0]
+  if (preferred) {
+    selectPlan(preferred.id)
+    if (route.query.edit) mode.value = 'create'
+  } else {
+    selectedPlanId.value = null
+    resetForm()
+    mode.value = route.query.edit ? 'create' : 'view'
+  }
+}
+
+watch(selectedRelId, async (id, previous) => {
+  if (!id || previous === undefined) return
+  try {
+    await loadPatientPlans()
+  } catch {
+    errorMessage.value = 'Could not load this patient\'s meal plans.'
+  }
+})
+
+onMounted(async () => {
+  try {
+    await loadPatients()
+    await loadPatientPlans()
+  } catch {
+    errorMessage.value = 'Could not load meal plans. Please try again later.'
+  } finally {
+    isLoading.value = false
+  }
+})
+
+/* ---------- Create / save / send ---------- */
+function planDetailsPayload() {
+  return {
+    name: planMeta.name.trim(),
+    condition: planMeta.condition,
+    target_kcal: planMeta.kcalPerDay ?? null,
+    target_protein_g: targets.protein ?? null,
+    target_carb_g: targets.carb ?? null,
+    target_fat_g: targets.fat ?? null,
+    allergies_restrictions: instructions.allergies || null,
+    notes: instructions.notes || null,
+  }
+}
+
+function weekPayload() {
+  const meals = []
+  for (const day of days) {
+    for (const type of mealOrder) {
+      const slot = weeklyPlan[day][type]
+      meals.push({
+        day_of_week: DAY_INDEX[day],
+        meal_time: MEAL_TIME[type],
+        scheduled_time: slot.time || null,
+        items: slot.items
+          .filter(i => i.name && i.name.trim())
+          .map(i => ({
+            food_item: i.foodItemId || null,
+            food_name: i.name.trim(),
+            household_measure: i.portion || null,
+            exchanges: i.exchanges || 1,
+            kcal: i.kcal ?? null,
+            carbs_g: i.carb ?? null,
+            protein_g: i.prot ?? null,
+            fat_g: i.fat ?? null,
+          })),
+      })
+    }
+  }
+  return { meals }
+}
+
+function replacePlan(updated) {
+  const idx = plans.value.findIndex(p => p.id === updated.id)
+  if (idx >= 0) plans.value.splice(idx, 1, updated)
+  else plans.value.unshift(updated)
+}
+
+async function createPlan() {
+  isSaving.value = true
+  errorMessage.value = ''
+  try {
+    const created = await post(`/rnd/relationships/${selectedRelId.value}/meal-plans/`, {
+      relationship: selectedRelId.value,
+      ...planDetailsPayload(),
+    })
+    replacePlan(created)
+    selectedPlanId.value = created.id
+    flash('Plan created as a draft — add meals for each day, then send it to your patient.')
+  } catch (error) {
+    errorMessage.value = apiError(error, 'Could not create the plan.')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function savePlan({ quiet = false } = {}) {
+  if (!selectedPlan.value) return false
+  if (!planMeta.name.trim()) {
+    errorMessage.value = 'Plan name is required.'
+    return false
+  }
+  isSaving.value = true
+  errorMessage.value = ''
+  try {
+    await patch(`/rnd/meal-plans/${selectedPlanId.value}/`, planDetailsPayload())
+    const saved = await put(`/rnd/meal-plans/${selectedPlanId.value}/week/`, weekPayload())
+    replacePlan(saved)
+    fillFromPlan(saved)
+    if (!quiet) flash('Plan saved.')
+    return true
+  } catch (error) {
+    errorMessage.value = apiError(error, 'Could not save the plan.')
+    return false
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function sendToPatient() {
+  isSending.value = true
+  errorMessage.value = ''
+  const wasActive = selectedPlan.value?.status === 'active'
+  try {
+    const sent = await post(`/rnd/meal-plans/${selectedPlanId.value}/send/`)
+    // Sending archives any other active plan for this patient.
+    plans.value = plans.value.map(p => (p.status === 'active' && p.id !== sent.id ? { ...p, status: 'archived' } : p))
+    replacePlan(sent)
+    flash(wasActive ? `Updated plan sent to ${selectedPatientName.value}.` : `Plan sent to ${selectedPatientName.value}.`)
+    mode.value = 'view'
+  } catch (error) {
+    errorMessage.value = apiError(error, 'Could not send the plan.')
+  } finally {
+    isSending.value = false
+  }
+}
+
+async function saveAndSend() {
+  if (await savePlan({ quiet: true })) await sendToPatient()
+}
+
+function printPlan() {
+  window.print()
+}
+
+/* ---------- FNRI food suggestions ---------- */
+const fnriSuggestions = ref([])
+let searchTimer = null
+// The value comes from the event: this handler can run before v-model has
+// copied the new text into item.name.
+function onFoodNameInput(item, value) {
+  // Typing clears any previous FNRI link until a suggestion is picked again.
+  item.foodItemId = null
+  const term = (value || '').trim()
+  clearTimeout(searchTimer)
+  if (term.length < 2) return
+  searchTimer = setTimeout(async () => {
+    try {
+      fnriSuggestions.value = (await get(`/food-exchange/items/?search=${encodeURIComponent(term)}`)).slice(0, 12)
+    } catch {
+      fnriSuggestions.value = []
+    }
+  }, 250)
+}
+// Picking an FNRI item fills 1 exchange's household measure and macros from
+// its FNRI category — the RND can still adjust the numbers.
+async function applyFnriMatch(item, value) {
+  const term = (value || '').trim()
+  let match = fnriSuggestions.value.find(f => f.name.toLowerCase() === term.toLowerCase())
+  // A name typed in full and tabbed out of can beat the debounced search —
+  // look it up directly instead of silently leaving the row unfilled.
+  if (!match && term.length >= 2) {
+    clearTimeout(searchTimer)
+    try {
+      const results = await get(`/food-exchange/items/?search=${encodeURIComponent(term)}`)
+      match = results.find(f => f.name.toLowerCase() === term.toLowerCase())
+    } catch {
+      return
+    }
+  }
+  if (!match) return
+  const cat = match.category
+  item.name = match.name
+  item.foodItemId = match.id
+  item.exchanges = 1
+  item.portion = match.household_measure || item.portion
+  item.kcal = num(cat.kcal_per_exchange)
+  item.carb = num(cat.carbs_g)
+  item.prot = num(cat.protein_g)
+  item.fat = num(cat.fat_g)
+}
+
+/* ---------- Meals, totals ---------- */
+function mealsForDay(day) {
   return mealOrder.map(type => {
-    const meal = weeklyPlan[activeDay.value][type]
-    const totalKcal = meal.items.reduce((sum, i) => sum + (Number(i.kcal) || 0), 0)
-    const summary = meal.items.filter(i => i.name).map(i => `${i.name} (${i.portion || '1'})`).join(' + ')
-    const breakdown = meal.items.filter(i => i.name)
-      .map(i => `${i.name}: ${i.kcal || 0}kcal | ${i.carb || 0}g carb | ${i.prot || 0}g prot | ${i.fat || 0}g fat`)
-      .join(' | ')
+    const meal = weeklyPlan[day][type]
+    const named = meal.items.filter(i => i.name)
     return {
       type,
       time: meal.time,
       items: meal.items,
       icon: mealIcons[type],
       accent: mealAccents[type],
-      kcal: totalKcal,
-      title: summary || 'No items added',
-      breakdown: breakdown || '—'
+      kcal: round(named.reduce((sum, i) => sum + (Number(i.kcal) || 0), 0)),
+      title: named.map(i => `${i.name}${i.portion ? ` (${i.portion})` : ''}`).join(' + ') || 'No items added',
+      breakdown: named.map(i => `${i.name}: ${i.kcal || 0}kcal | ${i.carb || 0}g carb | ${i.prot || 0}g prot | ${i.fat || 0}g fat`).join(' | ') || '—',
     }
   })
-})
-
-function addItem(meal) {
-  weeklyPlan[activeDay.value][meal.type].items.push({ name: '', portion: '', kcal: 0, carb: 0, prot: 0, fat: 0 })
 }
-function removeItem(meal, idx) {
-  weeklyPlan[activeDay.value][meal.type].items.splice(idx, 1)
-}
+const currentDayMeals = computed(() => mealsForDay(activeDay.value))
+// Print shows the whole week; the screen shows only the selected day.
+const printDays = days
 
-function firstFoodSummary(meal) {
-  const first = meal.items.find(i => i.name)
-  const count = meal.items.filter(i => i.name).length
-  return first ? `${first.name}${count > 1 ? ` (${count})` : ''}` : ''
+function round(n) {
+  return Math.round(n * 10) / 10
 }
 function mealTotal(meal, field) {
-  return meal.items.reduce((sum, i) => sum + (Number(i[field]) || 0), 0)
+  return round(meal.items.reduce((sum, i) => sum + (Number(i[field]) || 0), 0))
 }
 function dayTotal(field) {
-  return currentDayMeals.value.reduce((sum, meal) => sum + mealTotal(meal, field), 0)
+  return round(currentDayMeals.value.reduce((sum, meal) => sum + mealTotal(meal, field), 0))
 }
 function macroPct(field) {
   const fieldTargets = { kcal: planMeta.kcalPerDay, carb: targets.carb, prot: targets.protein, fat: targets.fat }
   const target = fieldTargets[field]
   if (!target) return 0
   return Math.min(100, Math.round((dayTotal(field) / target) * 100))
+}
+
+const nutrition = computed(() => ({
+  calories: { value: dayTotal('kcal'), target: planMeta.kcalPerDay },
+  carbs: { value: dayTotal('carb'), target: targets.carb },
+  protein: { value: dayTotal('prot'), target: targets.protein },
+  fat: { value: dayTotal('fat'), target: targets.fat },
+}))
+function pct(n) {
+  if (!n.target) return 0
+  return Math.min(100, Math.round((n.value / n.target) * 100))
+}
+
+function addItem(meal) {
+  weeklyPlan[activeDay.value][meal.type].items.push({ foodItemId: null, name: '', portion: '', exchanges: 1, kcal: null, carb: null, prot: null, fat: null })
+}
+function removeItem(meal, idx) {
+  weeklyPlan[activeDay.value][meal.type].items.splice(idx, 1)
+}
+function firstFoodSummary(meal) {
+  const named = meal.items.filter(i => i.name)
+  return named.length ? `${named[0].name}${named.length > 1 ? ` (+${named.length - 1} more)` : ''}` : ''
+}
+
+function formatTime(t) {
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
 }
 </script>
 
@@ -621,6 +923,47 @@ function macroPct(field) {
   padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0; }
+
+.mode-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-error {
+  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
+  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
+}
+.form-notice {
+  display: flex; align-items: center; gap: 8px;
+  background: #e3f3ea; border: 1px solid #b8dcc6; color: #1f8f5c;
+  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; margin: 0 0 16px;
+}
+.plan-subtitle { font-size: 0.8rem; color: #7a8a7a; margin: 4px 0 0; }
+.status-text { font-weight: 600; }
+.prefill-note { margin: -8px 0 14px; }
+
+button.saved-plan-card { width: 100%; border: 1.5px solid transparent; cursor: pointer; text-align: left; font-family: inherit; }
+button.saved-plan-card:hover { border-color: #cfe0cf; }
+button.saved-plan-card.selected { border-color: #163a1c; }
+.active-pill.pill-draft { background: #fdf1d6; color: #b8860b; }
+.active-pill.pill-archived { background: #eceeec; color: #7a8a7a; }
+
+.instructions-view { margin-top: 16px; padding: 14px 16px; background: #fafbfa; border-radius: 8px; }
+.instructions-view p { font-size: 0.8rem; color: #4a5a4a; margin: 0 0 6px; line-height: 1.5; }
+.instructions-view p:last-child { margin: 0; }
+
+.meal-time-input { border: 1px solid #d5dfd5; border-radius: 6px; padding: 5px 8px; font-size: 0.78rem; font-family: inherit; color: #1a3a1a; background: #fff; }
+.create-actions { margin: 0 0 20px; padding: 0; border-top: none; }
+
+.print-only { display: none; }
+.screen-hidden { display: none; }
+
+@media print {
+  :global(body *) { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+  .screen-hidden { display: block; }
+  .print-day { break-inside: avoid; margin-bottom: 14px; }
+  .print-day-title { font-size: 0.95rem; color: #1a3a1a; margin: 12px 0 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+}
 
 @media (max-width: 1150px) {
   .planning-layout { grid-template-columns: 1fr; }

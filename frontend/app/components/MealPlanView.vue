@@ -32,15 +32,17 @@
         </div>
       </div>
 
-      <div v-if="plan.notes" class="notes-panel">
+      <div v-if="plan.notes || plan.allergies_restrictions" class="notes-panel">
         <p class="notes-title">Your RND's Notes</p>
-        <p class="notes-text">{{ plan.notes }}</p>
+        <p v-if="plan.allergies_restrictions" class="notes-text"><strong>Allergies / Restrictions:</strong> {{ plan.allergies_restrictions }}</p>
+        <p v-if="plan.notes" class="notes-text">{{ plan.notes }}</p>
       </div>
 
-      <template v-if="orderedMeals(plan.meals).length">
+      <template v-if="todaysMeals.length">
+        <p class="today-label">Today · {{ todayLabel }}</p>
         <div class="meal-tabs">
           <button
-            v-for="(meal, i) in orderedMeals(plan.meals)" :key="meal.id"
+            v-for="(meal, i) in todaysMeals" :key="meal.id"
             class="meal-tab" :class="{ active: activeMealIndex === i }"
             @click="activeMealIndex = i"
           >
@@ -52,7 +54,10 @@
 
         <div class="meal-card">
           <div class="meal-header">
-            <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
+            <div>
+              <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
+              <p v-if="activeMeal.scheduled_time" class="meal-scheduled">Scheduled Time: {{ formatClock(activeMeal.scheduled_time) }}</p>
+            </div>
             <span class="status-pill" :class="activeLog?.status === 'followed' ? 'pill-green' : 'pill-muted'">
               {{ activeLog ? statusLabel(activeLog.status) : 'Not logged yet' }}
             </span>
@@ -67,7 +72,7 @@
                   <span class="planned-dot"></span>
                   <div>
                     <span class="food-name">{{ item.food_name }}</span>
-                    <span class="food-note">{{ item.notes || `${item.exchanges} Exchange` }}</span>
+                    <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} Exchange` }}</span>
                   </div>
                 </div>
               </div>
@@ -119,7 +124,7 @@
           </div>
         </div>
       </template>
-      <div v-else class="empty-note-card">No meals have been added to this plan yet.</div>
+      <div v-else class="empty-note-card">Your plan has no meals scheduled for today ({{ todayLabel }}).</div>
 
       <div class="info-note">
         <Info :size="16" />
@@ -153,9 +158,15 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const plans = ref([])
 const activeMealIndex = ref(0)
-const todayIso = new Date().toISOString().slice(0, 10)
+// Local date — toISOString() is UTC and gives yesterday before 8 AM in PHT.
+const now = new Date()
+const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+const todayDow = now.getDay()
+const todayLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
-const plan = computed(() => plans.value.find(p => p.status === 'active') || plans.value[0] || null)
+// Only the plan the RND has sent (drafts never reach the client; archived
+// plans have been replaced).
+const plan = computed(() => plans.value.find(p => p.status === 'active') || null)
 
 const CONDITION_LABELS = {
   diabetes: 'Diabetes Mellitus', hypertension: 'Hypertension', renal: 'Renal Condition',
@@ -198,7 +209,16 @@ function exchangeSummary(meal) {
   return parts.join(' · ') || 'No exchanges set'
 }
 
-const activeMeal = computed(() => orderedMeals(plan.value?.meals || [])[activeMealIndex.value] || null)
+// Plans are per weekday; meals with no day (older plans) apply every day.
+const todaysMeals = computed(() =>
+  orderedMeals((plan.value?.meals || []).filter(m => m.day_of_week === todayDow || m.day_of_week === null))
+)
+const activeMeal = computed(() => todaysMeals.value[activeMealIndex.value] || null)
+
+function formatClock(t) {
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}
 
 /* ---------- ADHERENCE LOGS (today's actual food intake) ---------- */
 const todaysLogs = ref([]) // MealLog rows for today, keyed by meal_plan_meal id
@@ -229,7 +249,7 @@ function onPhotoSelected(e) {
 }
 
 const completionPct = computed(() => {
-  const meals = orderedMeals(plan.value?.meals || [])
+  const meals = todaysMeals.value
   if (!meals.length) return 0
   const followed = meals.filter(m => logFor(m.id)?.status === 'followed').length
   return Math.round((followed / meals.length) * 100)
@@ -346,6 +366,8 @@ onMounted(loadMealPlans)
 .meal-card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
 .meal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 26px; background: #f2f7f3; }
 .meal-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0; }
+.meal-scheduled { font-size: 0.82rem; color: #9aaa9a; margin: 3px 0 0; }
+.today-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; color: #6a7a6a; text-transform: uppercase; margin: 0 0 10px; }
 
 .meal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 22px 26px; }
 .meal-col { min-width: 0; }

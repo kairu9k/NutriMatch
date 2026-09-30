@@ -49,24 +49,39 @@ class NcpDraftListSerializer(serializers.ModelSerializer):
         return f"{client.first_name} {client.last_name}"
 
 
+class NcpExtraFieldSerializer(serializers.Serializer):
+    """One RND-added row on the Assessment or Intervention form."""
+
+    # Blank labels are accepted here and dropped in NcpRecordSerializer.validate
+    # (an empty "+ Add Field" row the RND never filled in).
+    label = serializers.CharField(max_length=100, allow_blank=True)
+    value = serializers.CharField(max_length=500, allow_blank=True)
+    unit = serializers.CharField(max_length=30, allow_blank=True, required=False, default="")
+
+
 class NcpRecordSerializer(serializers.ModelSerializer):
+    assessment_extra = NcpExtraFieldSerializer(many=True, required=False)
+    intervention_extra = NcpExtraFieldSerializer(many=True, required=False)
+
     class Meta:
         model = NcpRecord
         fields = [
             "id", "relationship", "appointment", "encounter_date", "status",
             # Phase 1 — Assessment
             "weight_kg", "height_cm", "bmi", "blood_pressure", "blood_glucose",
-            "hba1c", "lab_notes", "assessment_notes",
+            "hba1c", "lab_notes", "assessment_notes", "assessment_extra",
             # Phase 2 — Diagnosis
             "pes_problem", "pes_etiology", "pes_signs",
             # Phase 3 — Intervention
             "diet_prescription", "target_kcal", "target_protein_g", "target_carb_g",
-            "target_fat_g", "intervention_notes",
+            "target_fat_g", "intervention_notes", "intervention_extra",
             # Phase 4 — Monitoring
             "monitoring_notes", "goal_status",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["bmi"]
+        # status only changes through NcpRecordFinalizeView — never via a
+        # plain PATCH, or a finalized record could be flipped back to draft.
+        read_only_fields = ["bmi", "status"]
 
     def validate(self, attrs):
         # bmi is always derived server-side from weight/height (or the
@@ -74,6 +89,17 @@ class NcpRecordSerializer(serializers.ModelSerializer):
         # calculate_bmi/classify_bmi_asia_pacific used by the screening flow —
         # never trust a client-supplied BMI.
         from .services import calculate_bmi
+
+        # Extra rows: trim, drop rows with no label, cap how many can be added.
+        for key in ("assessment_extra", "intervention_extra"):
+            if key in attrs:
+                rows = [
+                    {"label": r["label"].strip(), "value": r["value"].strip(), "unit": (r.get("unit") or "").strip()}
+                    for r in attrs[key] if r["label"].strip()
+                ]
+                if len(rows) > 30:
+                    raise serializers.ValidationError({key: ["You can add up to 30 extra fields."]})
+                attrs[key] = rows
 
         weight_kg = attrs.get("weight_kg", getattr(self.instance, "weight_kg", None))
         height_cm = attrs.get("height_cm", getattr(self.instance, "height_cm", None))

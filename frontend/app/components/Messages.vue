@@ -114,6 +114,7 @@ definePageMeta({ layout: 'dashboard', title: 'Messages' })
 
 const { get } = useApi()
 const authStore = useAuthStore()
+const route = useRoute()
 const config = useRuntimeConfig()
 
 const AVATAR_COLORS = ['#1a3a1a', '#D4A017', '#3a6b3a', '#8a5a2a', '#5a3a8a']
@@ -183,7 +184,11 @@ async function loadConversations() {
     const path = isRnd ? '/rnd/relationships/active/' : '/client/relationships/'
     relationships.value = await get(path)
     if (!activeConversationId.value && relationships.value.length) {
-      selectConversation(relationships.value[0].id)
+      // ?relationship=<id> (e.g. from a patient's chart) opens that
+      // conversation; otherwise fall back to the first one.
+      const requested = Number(route.query.relationship)
+      const target = relationships.value.find(r => r.id === requested) ?? relationships.value[0]
+      selectConversation(target.id)
     }
   } finally {
     loadingConversations.value = false

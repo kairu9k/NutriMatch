@@ -172,6 +172,23 @@
           <label class="field-label">Assessment Notes</label>
           <textarea v-model="assessment.assessment_notes" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
 
+          <div class="extra-section">
+            <div class="extra-header">
+              <span class="field-label extra-title">Additional Measurements <span class="optional">(optional)</span></span>
+              <button v-if="!isFinalized" type="button" class="extra-add-btn" @click="addExtra(assessment.extra)"><Plus :size="14" /> Add Field</button>
+            </div>
+            <p v-if="!assessment.extra.length" class="extra-empty">Add any measurement not listed above, e.g. waist circumference, cholesterol, creatinine.</p>
+            <div v-for="(row, idx) in assessment.extra" :key="idx" class="extra-row">
+              <input v-model="row.label" type="text" class="field-input" list="assessment-extra-labels" placeholder="Measurement" maxlength="100" :disabled="isFinalized" @change="fillUnit(row, ASSESSMENT_SUGGESTIONS)" />
+              <input v-model="row.value" type="text" class="field-input" placeholder="Value" maxlength="500" :disabled="isFinalized" />
+              <input v-model="row.unit" type="text" class="field-input extra-unit" placeholder="Unit" maxlength="30" :disabled="isFinalized" />
+              <button v-if="!isFinalized" type="button" class="extra-remove-btn" title="Remove" @click="assessment.extra.splice(idx, 1)"><X :size="14" /></button>
+            </div>
+            <datalist id="assessment-extra-labels">
+              <option v-for="s in ASSESSMENT_SUGGESTIONS" :key="s.label" :value="s.label" />
+            </datalist>
+          </div>
+
           <div class="auto-results-box">
             <span class="auto-results-label">COMPUTED · WHO ASIA-PACIFIC BMI</span>
             <div class="auto-results-grid single">
@@ -243,6 +260,23 @@
           <label class="field-label">Intervention Notes <span class="optional">(optional)</span></label>
           <textarea v-model="intervention.intervention_notes" class="field-textarea" rows="2" :disabled="isFinalized"></textarea>
 
+          <div class="extra-section">
+            <div class="extra-header">
+              <span class="field-label extra-title">Additional Intervention Items <span class="optional">(optional)</span></span>
+              <button v-if="!isFinalized" type="button" class="extra-add-btn" @click="addExtra(intervention.extra)"><Plus :size="14" /> Add Field</button>
+            </div>
+            <p v-if="!intervention.extra.length" class="extra-empty">Add any prescription item not listed above, e.g. fluid or sodium limits, supplements, activity goals.</p>
+            <div v-for="(row, idx) in intervention.extra" :key="idx" class="extra-row">
+              <input v-model="row.label" type="text" class="field-input" list="intervention-extra-labels" placeholder="Item" maxlength="100" :disabled="isFinalized" @change="fillUnit(row, INTERVENTION_SUGGESTIONS)" />
+              <input v-model="row.value" type="text" class="field-input" placeholder="Value / details" maxlength="500" :disabled="isFinalized" />
+              <input v-model="row.unit" type="text" class="field-input extra-unit" placeholder="Unit" maxlength="30" :disabled="isFinalized" />
+              <button v-if="!isFinalized" type="button" class="extra-remove-btn" title="Remove" @click="intervention.extra.splice(idx, 1)"><X :size="14" /></button>
+            </div>
+            <datalist id="intervention-extra-labels">
+              <option v-for="s in INTERVENTION_SUGGESTIONS" :key="s.label" :value="s.label" />
+            </datalist>
+          </div>
+
           <div class="linked-plan-banner">
             <Paperclip :size="15" class="info-icon" />
             Meal plans for this patient are managed separately —
@@ -309,7 +343,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { Check, Paperclip, Lock, Search, Plus } from 'lucide-vue-next'
+import { Check, Paperclip, Lock, Search, Plus, X } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'NCP Record' })
 
@@ -396,8 +430,9 @@ function phaseNumberClass(index) {
 function phaseSummary(index) {
   if (index === 0) {
     const a = assessment.value
-    if (!a.weight_kg && !a.height_cm && !a.assessment_notes) return 'No assessment data yet.'
-    return `Wt ${a.weight_kg || '—'}kg, Ht ${a.height_cm || '—'}cm, BP ${a.blood_pressure || '—'}, Glucose ${a.blood_glucose || '—'} mg/dL. ${a.assessment_notes || ''}`.trim()
+    const extra = extrasText(a.extra)
+    if (!a.weight_kg && !a.height_cm && !a.assessment_notes && !extra) return 'No assessment data yet.'
+    return `Wt ${a.weight_kg || '—'}kg, Ht ${a.height_cm || '—'}cm, BP ${a.blood_pressure || '—'}, Glucose ${a.blood_glucose || '—'} mg/dL.${extra ? ` ${extra}.` : ''} ${a.assessment_notes || ''}`.trim()
   }
   if (index === 1) {
     const d = diagnosis.value
@@ -406,17 +441,66 @@ function phaseSummary(index) {
   }
   if (index === 2) {
     const i = intervention.value
-    if (!i.diet_prescription) return 'No intervention plan yet.'
-    return `${i.diet_prescription} Targets: ${i.target_kcal || '—'} kcal, ${i.target_protein_g || '—'}g protein, ${i.target_carb_g || '—'}g carbs, ${i.target_fat_g || '—'}g fat.`
+    const extra = extrasText(i.extra)
+    if (!i.diet_prescription && !extra) return 'No intervention plan yet.'
+    return `${i.diet_prescription || ''} Targets: ${i.target_kcal || '—'} kcal, ${i.target_protein_g || '—'}g protein, ${i.target_carb_g || '—'}g carbs, ${i.target_fat_g || '—'}g fat.${extra ? ` ${extra}.` : ''}`.trim()
   }
   const m = monitoring.value
   if (!m.monitoring_notes) return 'Not started yet.'
   return `Goal status: ${m.goal_status || '—'}. ${m.monitoring_notes}`
 }
 
-const assessment = ref({ weight_kg: '', height_cm: '', blood_pressure: '', blood_glucose: '', hba1c: '', lab_notes: '', assessment_notes: '' })
+const assessment = ref({ weight_kg: '', height_cm: '', blood_pressure: '', blood_glucose: '', hba1c: '', lab_notes: '', assessment_notes: '', extra: [] })
 const diagnosis = ref({ pes_problem: '', pes_etiology: '', pes_signs: '' })
-const intervention = ref({ diet_prescription: '', target_kcal: '', target_protein_g: '', target_carb_g: '', target_fat_g: '', intervention_notes: '' })
+const intervention = ref({ diet_prescription: '', target_kcal: '', target_protein_g: '', target_carb_g: '', target_fat_g: '', intervention_notes: '', extra: [] })
+
+// Suggestions for the "+ Add Field" rows — the RND can also type any label.
+// Picking one pre-fills its usual unit.
+const ASSESSMENT_SUGGESTIONS = [
+  { label: 'Waist circumference', unit: 'cm' },
+  { label: 'Hip circumference', unit: 'cm' },
+  { label: 'Mid-upper arm circumference (MUAC)', unit: 'cm' },
+  { label: 'Body fat', unit: '%' },
+  { label: 'Total cholesterol', unit: 'mg/dL' },
+  { label: 'LDL cholesterol', unit: 'mg/dL' },
+  { label: 'HDL cholesterol', unit: 'mg/dL' },
+  { label: 'Triglycerides', unit: 'mg/dL' },
+  { label: 'Serum creatinine', unit: 'mg/dL' },
+  { label: 'eGFR', unit: 'mL/min/1.73m²' },
+  { label: 'Serum potassium', unit: 'mmol/L' },
+  { label: 'Serum sodium', unit: 'mmol/L' },
+  { label: 'Serum albumin', unit: 'g/dL' },
+  { label: 'Hemoglobin', unit: 'g/dL' },
+  { label: 'Uric acid', unit: 'mg/dL' },
+]
+const INTERVENTION_SUGGESTIONS = [
+  { label: 'Fluid restriction', unit: 'L/day' },
+  { label: 'Sodium limit', unit: 'mg/day' },
+  { label: 'Potassium limit', unit: 'mg/day' },
+  { label: 'Phosphorus limit', unit: 'mg/day' },
+  { label: 'Fiber goal', unit: 'g/day' },
+  { label: 'Water intake goal', unit: 'glasses/day' },
+  { label: 'Meal frequency', unit: 'meals/day' },
+  { label: 'Supplement', unit: '' },
+  { label: 'Physical activity', unit: 'min/day' },
+  { label: 'Nutrition education topic', unit: '' },
+]
+function localIsoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function addExtra(list) {
+  list.push({ label: '', value: '', unit: '' })
+}
+function fillUnit(row, suggestions) {
+  const match = suggestions.find(s => s.label.toLowerCase() === row.label.trim().toLowerCase())
+  if (match && !row.unit) row.unit = match.unit
+}
+function extrasText(list) {
+  return (list || [])
+    .filter(r => r.label && r.value)
+    .map(r => `${r.label}: ${r.value}${r.unit ? ` ${r.unit}` : ''}`)
+    .join(', ')
+}
 const goalOptions = [
   { value: 'met', label: 'Met' },
   { value: 'partially_met', label: 'Partially Met' },
@@ -442,11 +526,13 @@ function hydrateFromRecord(r) {
   assessment.value = {
     weight_kg: r.weight_kg ?? '', height_cm: r.height_cm ?? '', blood_pressure: r.blood_pressure ?? '',
     blood_glucose: r.blood_glucose ?? '', hba1c: r.hba1c ?? '', lab_notes: r.lab_notes ?? '', assessment_notes: r.assessment_notes ?? '',
+    extra: (r.assessment_extra || []).map(row => ({ ...row })),
   }
   diagnosis.value = { pes_problem: r.pes_problem ?? '', pes_etiology: r.pes_etiology ?? '', pes_signs: r.pes_signs ?? '' }
   intervention.value = {
     diet_prescription: r.diet_prescription ?? '', target_kcal: r.target_kcal ?? '', target_protein_g: r.target_protein_g ?? '',
     target_carb_g: r.target_carb_g ?? '', target_fat_g: r.target_fat_g ?? '', intervention_notes: r.intervention_notes ?? '',
+    extra: (r.intervention_extra || []).map(row => ({ ...row })),
   }
   monitoring.value = { goal_status: r.goal_status ?? '', monitoring_notes: r.monitoring_notes ?? '' }
 }
@@ -458,11 +544,13 @@ function buildPayload() {
     blood_pressure: assessment.value.blood_pressure || null, blood_glucose: num(assessment.value.blood_glucose),
     hba1c: num(assessment.value.hba1c), lab_notes: assessment.value.lab_notes || null,
     assessment_notes: assessment.value.assessment_notes || null,
+    assessment_extra: assessment.value.extra.filter(r => r.label.trim()),
     pes_problem: diagnosis.value.pes_problem || null, pes_etiology: diagnosis.value.pes_etiology || null,
     pes_signs: diagnosis.value.pes_signs || null,
     diet_prescription: intervention.value.diet_prescription || null, target_kcal: num(intervention.value.target_kcal),
     target_protein_g: num(intervention.value.target_protein_g), target_carb_g: num(intervention.value.target_carb_g),
     target_fat_g: num(intervention.value.target_fat_g), intervention_notes: intervention.value.intervention_notes || null,
+    intervention_extra: intervention.value.extra.filter(r => r.label.trim()),
     monitoring_notes: monitoring.value.monitoring_notes || null, goal_status: monitoring.value.goal_status || null,
   }
 }
@@ -510,7 +598,8 @@ async function saveDraft() {
     } else {
       record.value = await post(`/rnd/relationships/${relationshipId.value}/ncp/`, {
         relationship: Number(relationshipId.value),
-        encounter_date: new Date().toISOString().slice(0, 10),
+        // Local (PHT) date — toISOString() would give yesterday before 8 AM.
+        encounter_date: localIsoDate(new Date()),
         ...payload,
       })
     }
@@ -734,6 +823,26 @@ watch(relationshipId, (id) => {
 }
 .field-input:disabled, .field-textarea:disabled { background: #f4f6f4; color: #6a7a6a; }
 .field-textarea { resize: vertical; margin-bottom: 18px; }
+
+.extra-section { border-top: 1px dashed #e5e8e5; padding-top: 14px; margin-bottom: 18px; }
+.extra-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.extra-title { margin: 0; }
+.extra-add-btn {
+  display: inline-flex; align-items: center; gap: 4px; border: 1px solid #1f8f5c; color: #1f8f5c;
+  background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.extra-add-btn:hover { background: #e3f3ea; }
+.extra-empty { font-size: 0.78rem; color: #9aaa9a; margin: 0; }
+.extra-row { display: grid; grid-template-columns: 1.3fr 1fr 0.6fr auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+.extra-row .field-input { margin-bottom: 0; }
+.extra-remove-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border: 1px solid #f0d6d6; border-radius: 8px; background: #fff; color: #c0392b; cursor: pointer;
+}
+.extra-remove-btn:hover { background: #fbeaea; }
+@media (max-width: 600px) {
+  .extra-row { grid-template-columns: 1fr 1fr; }
+}
 
 .info-banner {
   display: flex; align-items: center; gap: 8px; background: #eef1f6; border-radius: 8px;

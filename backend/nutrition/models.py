@@ -62,6 +62,9 @@ class MealPlan(models.Model):
         GENERAL = "general", "General"
 
     class Status(models.TextChoices):
+        # Drafts are the RND's work in progress — not visible to the client
+        # until "Send to Patient" makes the plan active.
+        DRAFT = "draft", "Draft"
         ACTIVE = "active", "Active"
         ARCHIVED = "archived", "Archived"
 
@@ -82,7 +85,9 @@ class MealPlan(models.Model):
     total_fat = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     total_sugar = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     notes = models.TextField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    allergies_restrictions = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -102,8 +107,21 @@ class MealPlanMeal(models.Model):
         DINNER = "dinner", "Dinner"
         BEDTIME_SNACK = "bedtime_snack", "Bedtime Snack"
 
+    class DayOfWeek(models.IntegerChoices):
+        # Sunday=0, same convention as RndAvailabilitySchedule and JS Date#getDay.
+        SUNDAY = 0, "Sunday"
+        MONDAY = 1, "Monday"
+        TUESDAY = 2, "Tuesday"
+        WEDNESDAY = 3, "Wednesday"
+        THURSDAY = 4, "Thursday"
+        FRIDAY = 5, "Friday"
+        SATURDAY = 6, "Saturday"
+
     meal_plan = models.ForeignKey(MealPlan, on_delete=models.CASCADE, related_name="meals")
+    # Null = applies every day (plans made before per-day planning).
+    day_of_week = models.SmallIntegerField(choices=DayOfWeek.choices, null=True, blank=True)
     meal_time = models.CharField(max_length=20, choices=MealTime.choices)
+    scheduled_time = models.TimeField(null=True, blank=True)
     vegetable_exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     fruit_exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     milk_exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=0)
@@ -182,6 +200,13 @@ class MealPlanFoodItem(models.Model):
     exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=Decimal("1.0"))
     household_measure = models.CharField(max_length=100, null=True, blank=True)
     notes = models.CharField(max_length=500, null=True, blank=True)
+    # The RND's planned values for this portion (typed, or pre-filled from the
+    # local FNRI exchange list). Not an external lookup payload, so RA 10173's
+    # "food_name only" rule for external sources doesn't apply.
+    kcal = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
+    carbs_g = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    protein_g = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    fat_g = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
 
     class Meta:
         db_table = "meal_plan_food_items"

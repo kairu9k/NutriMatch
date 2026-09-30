@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, status
@@ -16,6 +19,7 @@ from .serializers import (
     MealPlanFoodItemSerializer,
     MealPlanMealSerializer,
     MealPlanSerializer,
+    MealPlanWeekSerializer,
 )
 
 
@@ -132,8 +136,124 @@ class RndMealPlanFoodItemDeleteView(generics.DestroyAPIView):
         meal.recompute_exchanges()
 
 
+class RndMealPlanWeekView(APIView):
+    """Saves the whole weekly grid (Mon–Sun × meal slots) in one request.
+
+    Meals are matched by (day_of_week, meal_time) and updated in place rather
+    than deleted and recreated — the client's MealLog rows point at these
+    meals, so recreating them would wipe the client's adherence history.
+    A slot left empty is removed only if nothing has been logged against it.
+    Food rows carry no logs, so they're simply replaced."""
+
+    permission_classes = [IsRnd]
+
+    def put(self, request, pk):
+        plan = get_object_or_404(MealPlan.objects.filter(relationship__rnd=request.user), pk=pk)
+        serializer = MealPlanWeekSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            existing = {
+                (m.day_of_week, m.meal_time): m
+                for m in plan.meals.filter(day_of_week__isnull=False)
+            }
+            for slot in serializer.validated_data["meals"]:
+                key = (slot["day_of_week"], slot["meal_time"])
+                items = [i for i in slot["items"] if i["food_name"].strip()]
+                meal = existing.pop(key, None)
+
+                if not items:
+                    if meal and not meal.logs.exists():
+                        meal.delete()
+                    elif meal:
+                        meal.food_items.all().delete()
+                        meal.scheduled_time = slot.get("scheduled_time")
+                        meal.save(update_fields=["scheduled_time"])
+                        meal.recompute_exchanges()
+                    continue
+
+                if meal is None:
+                    meal = MealPlanMeal.objects.create(
+                        meal_plan=plan, day_of_week=key[0], meal_time=key[1],
+                        scheduled_time=slot.get("scheduled_time"),
+                    )
+                else:
+                    meal.scheduled_time = slot.get("scheduled_time")
+                    meal.save(update_fields=["scheduled_time"])
+                    meal.food_items.all().delete()
+
+                MealPlanFoodItem.objects.bulk_create([
+                    MealPlanFoodItem(
+                        meal_plan_meal=meal,
+                        food_item=item.get("food_item"),
+                        food_name=item["food_name"].strip(),
+                        source_type=(
+                            MealPlanFoodItem.SourceType.FEL if item.get("food_item")
+                            else MealPlanFoodItem.SourceType.CUSTOM
+                        ),
+                        household_measure=item.get("household_measure") or None,
+                        exchanges=item.get("exchanges") or Decimal("1.0"),
+                        kcal=item.get("kcal"),
+                        carbs_g=item.get("carbs_g"),
+                        protein_g=item.get("protein_g"),
+                        fat_g=item.get("fat_g"),
+                    )
+                    for item in items
+                ])
+                meal.recompute_exchanges()
+
+            # Slots the RND didn't send at all — same rule as emptied slots.
+            for meal in existing.values():
+                if not meal.logs.exists():
+                    meal.delete()
+
+            plan.save(update_fields=["updated_at"])
+
+        plan = MealPlan.objects.prefetch_related("meals__food_items").get(pk=plan.pk)
+        return Response(MealPlanSerializer(plan, context={"request": request}).data)
+
+
+class RndMealPlanSendView(APIView):
+    """"Send to Patient": makes the plan the client's active plan (archiving
+    any other active plan for that client) and notifies them. Re-sending an
+    already-active plan after edits just notifies them of the update."""
+
+    permission_classes = [IsRnd]
+
+    def post(self, request, pk):
+        plan = get_object_or_404(
+            MealPlan.objects.select_related("relationship__client").filter(relationship__rnd=request.user), pk=pk,
+        )
+        if not plan.meals.filter(food_items__isnull=False).exists():
+            raise serializers.ValidationError({"detail": "Add at least one food item before sending the plan."})
+
+        was_active = plan.status == MealPlan.Status.ACTIVE
+        with transaction.atomic():
+            MealPlan.objects.filter(
+                relationship=plan.relationship, status=MealPlan.Status.ACTIVE
+            ).exclude(pk=plan.pk).update(status=MealPlan.Status.ARCHIVED)
+            plan.status = MealPlan.Status.ACTIVE
+            plan.sent_at = timezone.now()
+            plan.save(update_fields=["status", "sent_at", "updated_at"])
+
+        notify(
+            recipient=plan.relationship.client,
+            notifiable_type="meal_plan",
+            notifiable_id=plan.id,
+            subject="Meal plan updated" if was_active else "New meal plan",
+            content=(
+                f"{request.user.full_name} "
+                f"{'updated your meal plan' if was_active else 'sent you a new meal plan'}: {plan.name}."
+            ),
+        )
+
+        plan = MealPlan.objects.prefetch_related("meals__food_items").get(pk=plan.pk)
+        return Response(MealPlanSerializer(plan, context={"request": request}).data)
+
+
 class ClientMealPlanListView(generics.ListAPIView):
-    """Client's own meal plans, most recent first."""
+    """Client's own meal plans, most recent first. Drafts are the RND's work
+    in progress and stay hidden until sent."""
 
     serializer_class = MealPlanSerializer
     permission_classes = [IsClient]
@@ -141,7 +261,7 @@ class ClientMealPlanListView(generics.ListAPIView):
     def get_queryset(self):
         return MealPlan.objects.filter(
             relationship__client=self.request.user
-        ).prefetch_related("meals__food_items").order_by("-created_at")
+        ).exclude(status=MealPlan.Status.DRAFT).prefetch_related("meals__food_items").order_by("-created_at")
 
 
 class ClientMealLogListView(generics.ListAPIView):

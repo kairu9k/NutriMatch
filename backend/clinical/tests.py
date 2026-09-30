@@ -164,6 +164,35 @@ class NcpRecordLifecycleTests(TestCase):
         self.client_user = _make_client()
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
 
+    def test_extra_fields_saved_cleaned_and_returned(self):
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.post(f"/api/rnd/relationships/{self.rel.id}/ncp/", {
+            "relationship": self.rel.id, "encounter_date": str(timezone.now().date()),
+            "assessment_extra": [
+                {"label": " Waist circumference ", "value": " 92 ", "unit": "cm"},
+                {"label": "   ", "value": "dropped: no label"},
+            ],
+            "intervention_extra": [{"label": "Fluid restriction", "value": "1.5", "unit": "L/day"}],
+        }, format="json")
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["assessment_extra"], [{"label": "Waist circumference", "value": "92", "unit": "cm"}])
+        record = NcpRecord.objects.get(pk=resp.data["id"])
+        self.assertEqual(record.intervention_extra[0]["unit"], "L/day")
+
+        resp = self.client_api.patch(f"/api/rnd/ncp/{record.id}/", {"assessment_notes": "Updated"}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        record.refresh_from_db()
+        self.assertEqual(len(record.assessment_extra), 1)
+
+    def test_extra_fields_are_capped(self):
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.post(f"/api/rnd/relationships/{self.rel.id}/ncp/", {
+            "relationship": self.rel.id, "encounter_date": str(timezone.now().date()),
+            "assessment_extra": [{"label": f"Item {i}", "value": "1"} for i in range(31)],
+        }, format="json")
+        self.assertEqual(resp.status_code, 400)
+
     def test_rnd_can_create_draft_ncp_record(self):
         self.client_api.force_authenticate(self.rnd)
         resp = self.client_api.post(f"/api/rnd/relationships/{self.rel.id}/ncp/", {
@@ -215,6 +244,39 @@ class NcpRecordLifecycleTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         record.refresh_from_db()
         self.assertEqual(record.status, "completed")
+
+    def test_finalize_refused_when_required_fields_missing(self):
+        record = NcpRecord.objects.create(
+            relationship=self.rel, encounter_date=timezone.now().date(), weight_kg=Decimal("70"),
+        )
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.patch(f"/api/rnd/ncp/{record.id}/finalize/")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("PES problem", resp.data["detail"])
+        record.refresh_from_db()
+        self.assertEqual(record.status, "draft")
+
+    def test_finalized_record_cannot_be_edited(self):
+        record = NcpRecord.objects.create(
+            relationship=self.rel, encounter_date=timezone.now().date(),
+            status="completed", assessment_notes="original",
+        )
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.patch(f"/api/rnd/ncp/{record.id}/", {"assessment_notes": "changed"}, format="json")
+
+        self.assertEqual(resp.status_code, 403)
+        record.refresh_from_db()
+        self.assertEqual(record.assessment_notes, "original")
+
+    def test_status_cannot_be_changed_through_plain_update(self):
+        record = NcpRecord.objects.create(relationship=self.rel, encounter_date=timezone.now().date())
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.patch(f"/api/rnd/ncp/{record.id}/", {"status": "completed"}, format="json")
+
+        self.assertEqual(resp.status_code, 200)
+        record.refresh_from_db()
+        self.assertEqual(record.status, "draft")
 
     def test_list_is_scoped_to_relationship_and_ordered_newest_first(self):
         NcpRecord.objects.create(relationship=self.rel, encounter_date="2026-01-01")
