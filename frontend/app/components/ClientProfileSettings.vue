@@ -2,20 +2,10 @@
   <div class="client-profile-page">
     <p v-if="loadError" class="form-error">{{ loadError }}</p>
 
-    <div class="profile-banner">
-      <div class="banner-blob"></div>
-      <div class="banner-left">
-        <div class="banner-avatar">{{ initials }}</div>
-        <div>
-          <p class="banner-name">{{ displayName }}</p>
-          <p class="banner-sub">{{ auth.user?.email }}</p>
-          <div class="banner-chips">
-            <span class="chip">Patient</span>
-            <span v-if="memberSince" class="chip">Member since {{ memberSince }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div class="page-header">
+  <h1 class="page-title">Profile Settings</h1>
+  <p class="page-sub">Manage your personal information, health profile, and preferences.</p>
+</div>
 
     <div class="settings-layout">
       <nav class="settings-nav">
@@ -461,19 +451,10 @@ onMounted(async () => {
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
-/* BANNER */
-.profile-banner {
-  position: relative; overflow: hidden;
-  background: linear-gradient(135deg, #00382a 0%, #005a42 100%);
-  border-radius: 16px; padding: 28px 32px; margin-bottom: 20px; color: #fff;
-}
-.banner-blob { position: absolute; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,0.05); top: -70px; right: -50px; z-index: 0; }
-.banner-left { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
-.banner-avatar { width: 64px; height: 64px; border-radius: 50%; background: #D4A017; color: #1a3a1a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.3rem; flex-shrink: 0; }
-.banner-name { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin: 0; }
-.banner-sub { font-size: 0.87rem; color: #cfe0d5; margin: 4px 0 10px; }
-.banner-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.chip { font-size: 0.75rem; font-weight: 600; background: rgba(255,255,255,0.1); color: #fff; padding: 4px 12px; border-radius: 999px; }
+/* PAGE HEADER */
+.page-header { margin-bottom: 24px; }
+.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.page-sub { font-size: 0.9rem; color: #6a7a6a; margin: 6px 0 0; }
 
 /* LAYOUT */
 .settings-layout { display: grid; grid-template-columns: 210px 1.6fr 1fr; gap: 20px; align-items: start; }

@@ -1,6 +1,6 @@
 <template>
   <div class="appointments-page">
-    <!-- ============ RND VIEW (unchanged from before) ============ -->
+    <!-- ============ RND VIEW ============ -->
     <template v-if="isRnd">
       <div class="page-header">
         <div>
@@ -49,8 +49,7 @@
           </div>
           <div class="appt-action">
             <span v-if="actionError[appt.id]" class="appt-note">{{ actionError[appt.id] }}</span>
-            <button v-if="appt.status === 'pending'" class="confirm-btn" :disabled="busyId === appt.id" @click="confirmAppointment(appt)">Confirm</button>
-            <button v-if="appt.status === 'pending'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Decline</button>
+            <button v-if="appt.status === 'pending'" class="confirm-btn" @click="openPrescreen(appt)">View Pre-screening</button>
             <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom" :to="`/consultation-room/${appt.id}`" class="join-btn">Join Call</NuxtLink>
             <button v-if="appt.status === 'confirmed'" class="start-session-btn" :disabled="busyId === appt.id" @click="completeAppointment(appt)">Mark Completed</button>
             <button v-if="appt.status === 'confirmed'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Cancel</button>
@@ -66,6 +65,44 @@
         <div class="empty-icon"><CalendarDays :size="28" /></div>
         <p class="empty-title">No appointments yet</p>
         <p class="empty-desc">Once patients book sessions with you, they'll show up here.</p>
+      </div>
+
+      <!-- PRE-SCREENING OVERLAY (RND) -->
+      <div v-if="prescreenTarget" class="modal-overlay" @click.self="closePrescreen">
+        <div class="modal-box prescreen-modal">
+          <h3 class="modal-title">Pre-screening · {{ prescreenTarget.otherPartyName }}</h3>
+          <p v-if="prescreenLoading" class="empty-sub">Loading…</p>
+          <p v-else-if="prescreenError" class="form-error">{{ prescreenError }}</p>
+          <p v-else-if="!prescreen" class="empty-sub">No screening on file for this client.</p>
+          <div v-else class="ps-form">
+            <div class="ps-row-3">
+              <div class="ps-field"><label>Height (cm)</label><div class="ps-value">{{ prescreen.height_cm ?? '—' }}</div></div>
+              <div class="ps-field"><label>Weight (kg)</label><div class="ps-value">{{ prescreen.weight_kg ?? '—' }}</div></div>
+              <div class="ps-field"><label>Age</label><div class="ps-value">{{ prescreen.age ?? '—' }}</div></div>
+            </div>
+            <div class="ps-row-2">
+              <div class="ps-field"><label>Sex</label><div class="ps-value">{{ prettify(prescreen.sex) }}</div></div>
+              <div class="ps-field"><label>Activity Level</label><div class="ps-value">{{ prettify(prescreen.activity_level) }}</div></div>
+            </div>
+            <div class="ps-field">
+              <label>Current Symptoms</label>
+              <ul v-if="symptomList.length" class="ps-symptoms">
+                <li v-for="s in symptomList" :key="s">{{ s }}</li>
+              </ul>
+              <p v-else class="ps-none">None reported</p>
+            </div>
+            <div class="ps-results">
+              <span>BMI <strong>{{ prescreen.bmi }}</strong> ({{ prescreen.bmi_category }})</span>
+              <span>TDEE <strong>{{ Math.round(prescreen.tdee_kcal) }}</strong> kcal</span>
+              <span>NRS-2002 <strong>{{ prescreen.nrs_score ?? '—' }}</strong> {{ prescreenRiskLabel(prescreen.nrs_risk) }}</span>
+            </div>
+          </div>
+          <div class="modal-actions" style="margin-top: 18px;">
+            <button class="decline-btn" :disabled="busyId === prescreenTarget.id" @click="declineFromPrescreen">Decline</button>
+            <button class="confirm-btn" :disabled="busyId === prescreenTarget.id" @click="confirmFromPrescreen">Confirm</button>
+            <button class="chart-btn" @click="closePrescreen">Close</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -295,15 +332,15 @@ async function runTransition(appt, path) {
 }
 
 function confirmAppointment(appt) {
-  runTransition(appt, `/rnd/appointments/${appt.id}/confirm/`)
+  return runTransition(appt, `/rnd/appointments/${appt.id}/confirm/`)
 }
 
 function completeAppointment(appt) {
-  runTransition(appt, `/rnd/appointments/${appt.id}/complete/`)
+  return runTransition(appt, `/rnd/appointments/${appt.id}/complete/`)
 }
 
 function cancelAppointment(appt) {
-  runTransition(appt, `/rnd/appointments/${appt.id}/cancel/`)
+  return runTransition(appt, `/rnd/appointments/${appt.id}/cancel/`)
 }
 
 /* ---------- CLIENT: CANCEL MODAL ---------- */
@@ -354,6 +391,52 @@ async function submitReview() {
   } finally {
     isSubmittingReview.value = false
   }
+}
+
+/* ---------- RND: PRE-SCREENING OVERLAY ---------- */
+const prescreenTarget = ref(null)
+const prescreen = ref(null)
+const prescreenLoading = ref(false)
+const prescreenError = ref('')
+
+function prescreenRiskLabel(risk) {
+  return { no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[risk] || ''
+}
+function prettify(value) {
+  if (!value) return '—'
+  const text = String(value).replace(/_/g, ' ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+const symptomList = computed(() => {
+  const s = prescreen.value?.symptoms
+  return Array.isArray(s) ? s.map(prettify) : []
+})
+
+async function openPrescreen(appt) {
+  prescreenTarget.value = appt
+  prescreen.value = null
+  prescreenError.value = ''
+  prescreenLoading.value = true
+  try {
+    // TODO: replace with your real RND endpoint for a client's latest screening
+prescreen.value = await get(`/rnd/relationships/${appt.relationshipId}/screening/`)  } catch (error) {
+    if (error?.status !== 404 && error?.statusCode !== 404) {
+      prescreenError.value = 'Could not load the pre-screening. Please try again.'
+    }
+  } finally {
+    prescreenLoading.value = false
+  }
+}
+function closePrescreen() { prescreenTarget.value = null }
+async function confirmFromPrescreen() {
+  const appt = prescreenTarget.value
+  closePrescreen()
+  await confirmAppointment(appt)
+}
+async function declineFromPrescreen() {
+  const appt = prescreenTarget.value
+  closePrescreen()
+  await cancelAppointment(appt)
 }
 
 onMounted(loadAppointments)
@@ -503,6 +586,20 @@ onMounted(loadAppointments)
 .modal-box textarea { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; resize: vertical; margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .star-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 16px; }
+
+/* PRE-SCREENING OVERLAY */
+.prescreen-modal { max-width: 640px; }
+.ps-form { display: flex; flex-direction: column; gap: 18px; }
+.ps-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.ps-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ps-field { display: flex; flex-direction: column; gap: 6px; }
+.ps-field label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
+.ps-value { border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.87rem; color: #1a3a1a; background: #f7f9f7; }
+.ps-symptoms { margin: 0; padding: 12px 12px 12px 30px; background: #f7f9f7; border-radius: 10px; font-size: 0.87rem; color: #1a3a1a; display: flex; flex-direction: column; gap: 6px; }
+.ps-none { margin: 0; font-size: 0.85rem; color: #9aaa9a; }
+.ps-results { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.8rem; color: #6a7a6a; border-top: 1px solid #eceeec; padding-top: 14px; }
+.ps-results strong { color: #1a3a1a; }
+@media (max-width: 640px) { .ps-row-3, .ps-row-2 { grid-template-columns: 1fr; } }
 
 /* EMPTY STATE */
 .empty-state {

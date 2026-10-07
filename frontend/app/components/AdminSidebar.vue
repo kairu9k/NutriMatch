@@ -77,7 +77,7 @@ async function handleSignOut() {
 
 <template>
   <aside
-    class="shrink-0 bg-forest text-cream/90 flex flex-col h-screen top-0 z-40 transition-all duration-200 ease-out fixed lg:sticky"
+    class="shrink-0 bg-[#004D3A] text-cream/90 flex flex-col h-screen top-0 z-40 transition-all duration-200 ease-out fixed lg:sticky"
     :class="[
       open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
       isCollapsed ? 'lg:w-[76px]' : 'lg:w-[230px]',

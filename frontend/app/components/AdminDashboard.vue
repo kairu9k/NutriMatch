@@ -55,7 +55,7 @@ const peso = (n) => `₱${Number(n).toLocaleString()}`
     <p v-if="errorMessage" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">{{ errorMessage }}</p>
 
     <!-- Hero banner -->
-    <div class="animate-in relative overflow-hidden rounded-2xl bg-gradient-to-br from-forest to-forest-dark text-white p-6 mb-6">
+   <div class="animate-in relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#00382a_0%,#005a42_100%)] text-white p-6 mb-6">
       <span class="hero-circle hero-circle-1"></span>
       <span class="hero-circle hero-circle-2"></span>
       <span class="hero-circle hero-circle-3"></span>
@@ -136,7 +136,7 @@ const peso = (n) => `₱${Number(n).toLocaleString()}`
   cursor: pointer;
 }
 .hero-stat:hover {
-  background-color: rgba(255, 255, 255, 0.16);
+  background-color: rgba(0, 77, 58, 1.0);
   border-color: rgba(212, 175, 55, 0.35);
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
