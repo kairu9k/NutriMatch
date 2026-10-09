@@ -16,6 +16,7 @@ from .serializers import (
     FoodExchangeCategorySerializer,
     FoodExchangeItemSerializer,
     MealLogSerializer,
+    RndMealLogSerializer,
     MealPlanFoodItemSerializer,
     MealPlanMealSerializer,
     MealPlanSerializer,
@@ -262,6 +263,19 @@ class ClientMealPlanListView(generics.ListAPIView):
         return MealPlan.objects.filter(
             relationship__client=self.request.user
         ).exclude(status=MealPlan.Status.DRAFT).prefetch_related("meals__food_items").order_by("-created_at")
+
+
+class RndMealLogDetailView(generics.RetrieveAPIView):
+    """One of the RND's clients' meal logs — opened from the "Meal log
+    update" notification. Scoped to logs on this RND's own meal plans."""
+
+    serializer_class = RndMealLogSerializer
+    permission_classes = [IsRnd]
+
+    def get_queryset(self):
+        return MealLog.objects.filter(
+            meal_plan_meal__meal_plan__relationship__rnd=self.request.user
+        ).select_related("client", "meal_plan_meal__meal_plan").prefetch_related("meal_plan_meal__food_items")
 
 
 class ClientMealLogListView(generics.ListAPIView):

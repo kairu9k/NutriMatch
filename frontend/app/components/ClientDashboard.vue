@@ -251,11 +251,11 @@
             <!-- TODO: mock/local only — no vitals-log endpoint yet. -->
             <span class="section-eyebrow">VITALS ENTRY</span>
             <label class="field-label">Weight (kg)</label>
-            <input v-model.number="vitals.weight" type="number" class="full-input" />
+            <input v-model.number="vitals.weight" type="number" min="0" class="full-input" />
             <label class="field-label">Blood Pressure (mmHg)</label>
             <input v-model="vitals.bp" type="text" class="full-input" placeholder="120/80" />
             <label class="field-label">Fasting Blood Glucose (mg/dL)</label>
-            <input v-model.number="vitals.glucose" type="number" class="full-input" />
+            <input v-model.number="vitals.glucose" type="number" min="0" class="full-input" />
             <button class="primary-btn full-width" @click="saveVitals">Save Vitals</button>
           </div>
 
@@ -375,9 +375,19 @@ const tabs = [
 const activeTab = ref('overview')
 
 /* ---------- OVERVIEW: weight chart ---------- */
-// TODO: no weight-history endpoint yet — ProgressRecord exists on the
-// backend (clinical/models.py) but isn't surfaced here. Empty until wired.
+// From the RND-logged progress records (GET /client/progress/, newest
+// first) — oldest → newest, last 8 weigh-ins, so the line reads left to right.
 const weightHistory = ref([])
+function toWeightHistory(records) {
+  return records
+    .filter(r => r.weight_kg != null)
+    .slice(0, 8)
+    .reverse()
+    .map(r => ({
+      weight: Number(r.weight_kg),
+      label: new Date(r.record_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    }))
+}
 const weightDeltaLabel = computed(() => {
   if (weightHistory.value.length < 2) return ''
   const delta = weightHistory.value[0].weight - weightHistory.value[weightHistory.value.length - 1].weight
@@ -439,14 +449,16 @@ async function loadDashboard() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const [appts, rels, latestScreening] = await Promise.all([
+    const [appts, rels, latestScreening, progress] = await Promise.all([
       get('/client/appointments/'),
       get('/client/relationships/'),
       get('/client/screening/latest/').catch(() => null),
+      get('/client/progress/').catch(() => []),
     ])
     appointments.value = appts
     relationships.value = rels
     screening.value = latestScreening
+    weightHistory.value = toWeightHistory(progress)
 
     if (rels[0]) {
       rndProfile.value = await get(`/client/rnds/${rels[0].rnd.id}/`).catch(() => null)

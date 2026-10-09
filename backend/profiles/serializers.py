@@ -68,7 +68,9 @@ class RndProfileSerializer(serializers.ModelSerializer):
             "language_codes", "bio", "consultation_fee", "consultation_modes", "available_for_new_clients",
             "is_verified", "verified_at", "languages", "average_rating", "review_count",
         ]
-        read_only_fields = ["is_verified", "verified_at"]
+        # PRC details are set at registration and checked by the admin —
+        # never editable by the RND (Profile Settings shows them read-only).
+        read_only_fields = ["is_verified", "verified_at", "prc_license_number", "prc_expiry_date"]
 
     def _review_aggregate(self, obj):
         if not hasattr(obj, "_review_aggregate_cache"):
@@ -82,6 +84,23 @@ class RndProfileSerializer(serializers.ModelSerializer):
 
     def get_review_count(self, obj):
         return self._review_aggregate(obj)["review_count"]
+
+
+class MyRndProfileSerializer(RndProfileSerializer):
+    """The RND's own profile (GET/PATCH /api/rnd/profile/) — adds a
+    short-lived signed link to their own PRC license photo for the
+    read-only PRC section in Profile Settings. Never used for client-facing
+    RND search/detail: the photo is private (RA 10173)."""
+
+    prc_license_image_url = serializers.SerializerMethodField()
+
+    class Meta(RndProfileSerializer.Meta):
+        fields = RndProfileSerializer.Meta.fields + ["prc_license_image_url"]
+
+    def get_prc_license_image_url(self, obj):
+        from .services import prc_license_image_url
+
+        return prc_license_image_url(obj.prc_license_image)
 
 
 class RndProfileUpdateSerializer(serializers.ModelSerializer):

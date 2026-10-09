@@ -11,6 +11,7 @@ from .serializers import (
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
     PublicReviewSerializer,
+    MyRndProfileSerializer,
     RndAvailabilityScheduleSerializer,
     RndProfileSerializer,
     RndProfileUpdateSerializer,
@@ -81,14 +82,14 @@ class MyRndProfileView(APIView):
 
     def get(self, request):
         profile, _ = RndProfile.objects.get_or_create(user=request.user)
-        return Response(RndProfileSerializer(profile).data)
+        return Response(MyRndProfileSerializer(profile).data)
 
     def patch(self, request):
         profile, _ = RndProfile.objects.get_or_create(user=request.user)
         serializer = RndProfileUpdateSerializer(profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(RndProfileSerializer(profile).data)
+        return Response(MyRndProfileSerializer(profile).data)
 
 
 class MyClientProfileView(APIView):

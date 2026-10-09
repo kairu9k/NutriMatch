@@ -49,10 +49,12 @@
           </div>
           <div class="appt-action">
             <span v-if="actionError[appt.id]" class="appt-note">{{ actionError[appt.id] }}</span>
-            <button v-if="appt.status === 'pending'" class="confirm-btn" :disabled="busyId === appt.id" @click="confirmAppointment(appt)">Confirm</button>
-            <button v-if="appt.status === 'pending'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Decline</button>
+            <!-- Pending bookings are accepted/declined from the screening popup,
+                 so the RND reviews the client's screening before deciding. -->
+            <button v-if="appt.status === 'pending'" class="confirm-btn" @click="openScreening(appt)">View Screening</button>
+            <button v-else-if="appt.status !== 'cancelled'" class="chart-btn" @click="openScreening(appt)">View Screening</button>
             <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom" :to="`/consultation-room/${appt.id}`" class="join-btn">Join Call</NuxtLink>
-            <button v-if="appt.status === 'confirmed'" class="start-session-btn" :disabled="busyId === appt.id" @click="completeAppointment(appt)">Mark Completed</button>
+            <button v-if="appt.status === 'confirmed'" class="start-session-btn" :disabled="busyId === appt.id" @click="completeTarget = appt">Mark Completed</button>
             <button v-if="appt.status === 'confirmed'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Cancel</button>
             <button v-if="appt.status === 'confirmed' || appt.status === 'completed'" class="chart-btn" @click="navigateTo(`/client-detail/${appt.relationshipId}`)">
               {{ appt.status === 'completed' ? 'View NCP Record' : 'View Chart' }}
@@ -66,6 +68,142 @@
         <div class="empty-icon"><CalendarDays :size="28" /></div>
         <p class="empty-title">No appointments yet</p>
         <p class="empty-desc">Once patients book sessions with you, they'll show up here.</p>
+      </div>
+
+      <!-- MARK COMPLETED CONFIRMATION -->
+      <div v-if="completeTarget" class="scr-overlay" @click.self="completeTarget = null">
+        <div class="scr-box scr-box-small">
+          <div class="scr-header">
+            <div>
+              <h2 class="scr-title">Mark consultation complete?</h2>
+              <p class="scr-sub">{{ completeTarget.otherPartyName }} · {{ completeTarget.detail }}</p>
+            </div>
+          </div>
+          <p class="scr-banner">
+            <AlertTriangle :size="15" class="scr-banner-icon" />
+            This sends {{ completeTarget.otherPartyName }} an invoice for your consultation fee. It can't be undone.
+          </p>
+          <p v-if="actionError[completeTarget.id]" class="form-error">{{ actionError[completeTarget.id] }}</p>
+          <div class="scr-actions">
+            <button class="scr-decline-btn scr-neutral-btn" :disabled="busyId === completeTarget.id" @click="completeTarget = null">Not yet</button>
+            <button class="scr-accept-btn" :disabled="busyId === completeTarget.id" @click="confirmComplete">
+              {{ busyId === completeTarget.id ? 'Completing…' : 'Mark Completed' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRE-CONSULTATION SCREENING POPUP (same look as the NCP record modal) -->
+      <div v-if="screeningTarget" class="scr-overlay" @click.self="closeScreening">
+        <div class="scr-box">
+          <div class="scr-header">
+            <div>
+              <h2 class="scr-title">Pre-Consultation Screening</h2>
+              <p class="scr-sub">{{ screeningTarget.detail }}</p>
+            </div>
+            <div class="scr-patient-chip">
+              <span class="scr-patient-avatar">{{ screeningTarget.initials }}</span>
+              {{ screeningTarget.otherPartyName }}
+            </div>
+          </div>
+
+          <p v-if="screeningLoading" class="scr-muted">Loading screening…</p>
+          <p v-else-if="screeningError" class="form-error">{{ screeningError }}</p>
+
+          <template v-else-if="screeningData">
+            <div class="scr-body">
+              <span class="scr-eyebrow">CLIENT DETAILS</span>
+              <div class="scr-grid-3">
+                <div>
+                  <label class="scr-label">Age</label>
+                  <input class="scr-input" :value="screeningData.client.age ?? '—'" disabled />
+                </div>
+                <div>
+                  <label class="scr-label">Sex</label>
+                  <input class="scr-input" :value="capitalize(screeningData.client.sex) || '—'" disabled />
+                </div>
+                <div>
+                  <label class="scr-label">Consultation</label>
+                  <input class="scr-input" :value="capitalize(screeningData.appointment.type.replace('_', ' '))" disabled />
+                </div>
+              </div>
+              <div class="scr-grid-2">
+                <div>
+                  <label class="scr-label">Medical Conditions</label>
+                  <input class="scr-input" :value="listText(screeningData.client.medical_conditions)" disabled />
+                </div>
+                <div>
+                  <label class="scr-label">Allergies</label>
+                  <input class="scr-input" :value="listText(screeningData.client.allergies)" disabled />
+                </div>
+              </div>
+              <label class="scr-label">Notes for the RND</label>
+              <textarea class="scr-textarea" rows="2" :value="screeningData.appointment.notes || 'No notes added.'" disabled></textarea>
+
+              <template v-if="screeningData.screening">
+                <span class="scr-eyebrow">SCREENING — SUBMITTED {{ formatDate(screeningData.screening.created_at) }}</span>
+                <div class="scr-grid-3">
+                  <div>
+                    <label class="scr-label">Height (cm)</label>
+                    <input class="scr-input" :value="screeningData.screening.height_cm" disabled />
+                  </div>
+                  <div>
+                    <label class="scr-label">Weight (kg)</label>
+                    <input class="scr-input" :value="screeningData.screening.weight_kg" disabled />
+                  </div>
+                  <div>
+                    <label class="scr-label">Activity Level</label>
+                    <input class="scr-input" :value="activityLabel(screeningData.screening.activity_level)" disabled />
+                  </div>
+                </div>
+                <label class="scr-label">Current Symptoms</label>
+                <textarea class="scr-textarea" rows="2" :value="screeningData.screening.symptoms || 'None reported.'" disabled></textarea>
+
+                <div class="scr-results-box">
+                  <span class="scr-results-label">COMPUTED · MIFFLIN-ST JEOR · WHO ASIA-PACIFIC · NRS-2002</span>
+                  <div class="scr-results-grid">
+                    <div class="scr-result-item">
+                      <p class="scr-result-value">{{ screeningData.screening.bmi ?? '—' }}</p>
+                      <p class="scr-result-label">BMI · {{ screeningData.screening.bmi_category || '—' }}</p>
+                    </div>
+                    <div class="scr-result-item">
+                      <p class="scr-result-value">{{ wholeNumber(screeningData.screening.bmr_kcal) }}</p>
+                      <p class="scr-result-label">BMR kcal/day</p>
+                    </div>
+                    <div class="scr-result-item">
+                      <p class="scr-result-value">{{ wholeNumber(screeningData.screening.tdee_kcal) }}</p>
+                      <p class="scr-result-label">TDEE kcal/day</p>
+                    </div>
+                    <div class="scr-result-item">
+                      <p class="scr-result-value">{{ screeningData.screening.nrs_score ?? '—' }}</p>
+                      <p class="scr-result-label">NRS-2002 · {{ riskLabel(screeningData.screening.nrs_risk) }}</p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <p v-else class="scr-banner">
+                <AlertTriangle :size="15" class="scr-banner-icon" />
+                This client hasn't submitted a pre-consultation screening yet, so the booking can't be accepted.
+              </p>
+            </div>
+
+            <p v-if="actionError[screeningTarget.id]" class="form-error">{{ actionError[screeningTarget.id] }}</p>
+
+            <div v-if="screeningTarget.status === 'pending'" class="scr-actions">
+              <button class="scr-decline-btn" :disabled="busyId === screeningTarget.id" @click="decideBooking('decline')">Decline</button>
+              <button
+                class="scr-accept-btn"
+                :disabled="busyId === screeningTarget.id || !screeningData.screening"
+                @click="decideBooking('accept')"
+              >
+                {{ busyId === screeningTarget.id ? 'Saving…' : 'Accept Booking' }}
+              </button>
+            </div>
+            <div v-else class="scr-actions">
+              <button class="scr-accept-btn" @click="closeScreening">Close</button>
+            </div>
+          </template>
+        </div>
       </div>
     </template>
 
@@ -287,23 +425,70 @@ async function runTransition(appt, path) {
   try {
     await patch(path)
     await loadAppointments()
+    return true
   } catch (error) {
     actionError[appt.id] = error?.data?.detail || 'Action failed. Please try again.'
+    return false
   } finally {
     busyId.value = null
   }
 }
 
-function confirmAppointment(appt) {
-  runTransition(appt, `/rnd/appointments/${appt.id}/confirm/`)
-}
-
-function completeAppointment(appt) {
-  runTransition(appt, `/rnd/appointments/${appt.id}/complete/`)
+// Completing creates the client's invoice and can't be undone, so it goes
+// through a confirmation popup first.
+const completeTarget = ref(null)
+async function confirmComplete() {
+  const appt = completeTarget.value
+  if (await runTransition(appt, `/rnd/appointments/${appt.id}/complete/`)) completeTarget.value = null
 }
 
 function cancelAppointment(appt) {
   runTransition(appt, `/rnd/appointments/${appt.id}/cancel/`)
+}
+
+/* ---------- RND: SCREENING POPUP (accept / decline a booking) ---------- */
+const screeningTarget = ref(null)
+const screeningData = ref(null)
+const screeningLoading = ref(false)
+const screeningError = ref('')
+
+async function openScreening(appt) {
+  screeningTarget.value = appt
+  screeningData.value = null
+  screeningError.value = ''
+  delete actionError[appt.id]
+  screeningLoading.value = true
+  try {
+    screeningData.value = await get(`/rnd/appointments/${appt.id}/screening/`)
+  } catch (error) {
+    screeningError.value = error?.data?.detail || 'Could not load the screening. Please try again.'
+  } finally {
+    screeningLoading.value = false
+  }
+}
+function closeScreening() {
+  screeningTarget.value = null
+}
+async function decideBooking(decision) {
+  const appt = screeningTarget.value
+  const path = decision === 'accept'
+    ? `/rnd/appointments/${appt.id}/confirm/`
+    : `/rnd/appointments/${appt.id}/cancel/`
+  if (await runTransition(appt, path)) closeScreening()
+}
+
+const ACTIVITY_LABELS = {
+  sedentary: 'Sedentary', lightly_active: 'Lightly Active', moderately_active: 'Moderately Active',
+  very_active: 'Very Active', extra_active: 'Extra Active',
+}
+const RISK_LABELS = { no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }
+function activityLabel(value) { return ACTIVITY_LABELS[value] || '—' }
+function riskLabel(value) { return RISK_LABELS[value] || '—' }
+function capitalize(value) { return value ? value.charAt(0).toUpperCase() + value.slice(1) : '' }
+function listText(list) { return list?.length ? list.join(', ') : 'None' }
+function wholeNumber(value) { return value == null ? '—' : Math.round(Number(value)).toLocaleString('en-US') }
+function formatDate(value) {
+  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
 }
 
 /* ---------- CLIENT: CANCEL MODAL ---------- */
@@ -520,5 +705,66 @@ onMounted(loadAppointments)
 @media (max-width: 640px) {
   .appt-card.accent-green, .appt-card.accent-gold, .appt-card.accent-red, .appt-card.accent-muted { flex-direction: column; align-items: flex-start; }
   .appt-actions { width: 100%; }
+}
+/* ============ RND SCREENING POPUP — mirrors the NCP record modal (NCPRecords.vue) ============ */
+.scr-overlay {
+  position: fixed; inset: 0; background: rgba(20,30,20,0.5);
+  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+}
+.scr-box {
+  background: #fff; border-radius: 16px; width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto; padding: 28px;
+}
+.scr-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #eceeec; }
+.scr-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #1a3a1a; margin: 0 0 4px; }
+.scr-sub { font-size: 0.82rem; color: #8a9a8a; margin: 0; text-transform: capitalize; }
+.scr-patient-chip {
+  display: flex; align-items: center; gap: 8px; border: 1px solid #e5e8e5; border-radius: 20px;
+  padding: 6px 14px 6px 6px; font-size: 0.82rem; font-weight: 700; color: #1a3a1a; white-space: nowrap;
+}
+.scr-patient-avatar {
+  width: 26px; height: 26px; border-radius: 50%; background: #14301a; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; flex-shrink: 0;
+}
+.scr-muted { font-size: 0.85rem; color: #8a9a8a; }
+.scr-body { display: flex; flex-direction: column; }
+.scr-eyebrow { font-size: 0.68rem; letter-spacing: 0.08em; color: #b8860b; font-weight: 700; margin: 4px 0 16px; }
+.scr-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+.scr-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
+.scr-label { display: block; font-size: 0.82rem; font-weight: 600; color: #2a2a2a; margin: 0 0 6px; }
+.scr-input, .scr-textarea {
+  width: 100%; border: 1px solid #e5e8e5; border-radius: 8px; padding: 11px 14px; font-family: inherit;
+  font-size: 0.86rem; background: #f4f6f4; color: #4a5a4a; margin-bottom: 4px;
+}
+.scr-textarea { resize: none; margin-bottom: 18px; }
+.scr-results-box { background: #f4f8f5; border: 1px solid #dbe8dd; border-radius: 10px; padding: 16px; margin: 0 0 20px; }
+.scr-results-label { display: block; font-size: 0.66rem; letter-spacing: 0.06em; color: #6a8a70; font-weight: 700; margin-bottom: 12px; }
+.scr-results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.scr-result-item { background: #fff; border-radius: 8px; padding: 10px; text-align: center; }
+.scr-result-value { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.scr-result-label { font-size: 0.68rem; color: #9aaa9a; margin: 4px 0 0; }
+.scr-banner {
+  display: flex; align-items: center; gap: 8px; background: #fdf8ee; color: #8a6a1a; border-radius: 8px;
+  padding: 12px 16px; font-size: 0.82rem; margin: 0 0 20px;
+}
+.scr-banner-icon { color: #b8860b; flex-shrink: 0; }
+.scr-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.scr-decline-btn {
+  border: 1px solid #f0d6d6; background: #fff; color: #c0392b; border-radius: 8px;
+  padding: 11px 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.scr-decline-btn:hover:not(:disabled) { background: #fbeaea; }
+.scr-accept-btn {
+  flex: 1; background: #14301a; color: #fff; border: none; border-radius: 8px;
+  padding: 12px 20px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+}
+.scr-box-small { max-width: 460px; }
+.scr-neutral-btn { border-color: #d5dad5; color: #4a5a4a; }
+.scr-neutral-btn:hover:not(:disabled) { background: #f4f6f4; }
+.scr-accept-btn:disabled, .scr-decline-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .scr-grid-3, .scr-grid-2 { grid-template-columns: 1fr; }
+  .scr-results-grid { grid-template-columns: repeat(2, 1fr); }
+  .scr-header { flex-direction: column; }
 }
 </style>

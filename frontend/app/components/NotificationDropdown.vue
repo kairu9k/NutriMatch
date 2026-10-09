@@ -39,6 +39,32 @@ function timeAgo(iso) {
 
 const close = () => { open.value = false }
 
+async function markRead(n) {
+  if (n.is_read) return
+  n.is_read = true
+  try {
+    await patch(`/notifications/${n.id}/read/`)
+  } catch {
+    n.is_read = false
+  }
+}
+
+// "Meal log update" notifications carry the log itself (RND only) —
+// clicking one opens it with the photo and what was planned.
+const openMealLog = ref(null)
+function openNotification(n) {
+  markRead(n)
+  if (n.meal_log) {
+    openMealLog.value = n.meal_log
+    close()
+  }
+}
+const STATUS_CLASS = {
+  followed: 'bg-emerald-50 text-emerald-700',
+  partially_followed: 'bg-amber-50 text-amber-700',
+  not_followed: 'bg-red-50 text-red-600',
+}
+
 onMounted(loadNotifications)
 </script>
 
@@ -75,10 +101,19 @@ onMounted(loadNotifications)
             v-for="n in notifications"
             :key="n.id"
             class="flex items-start gap-3 px-5 py-3 hover:bg-cream-soft transition-colors border-b border-forest/5 last:border-0"
+            :class="n.meal_log ? 'cursor-pointer' : ''"
+            @click="openNotification(n)"
           >
-            <div class="flex-1">
+            <!-- meal log: photo thumbnail -->
+            <img v-if="n.meal_log?.photo_url" :src="n.meal_log.photo_url" alt="" class="w-12 h-12 rounded-lg object-cover border border-forest/10 shrink-0" />
+            <div v-else-if="n.meal_log" class="w-12 h-12 rounded-lg bg-cream-soft border border-forest/10 shrink-0 flex items-center justify-center text-[10px] text-forest/40">No photo</div>
+            <div class="flex-1 min-w-0">
               <p class="text-sm text-forest-dark font-medium">{{ n.subject }}</p>
               <p class="text-xs text-forest/60">{{ n.content }}</p>
+              <p v-if="n.meal_log" class="mt-1 flex items-center gap-2">
+                <span class="text-[11px] font-semibold rounded-full px-2 py-0.5" :class="STATUS_CLASS[n.meal_log.status]">{{ n.meal_log.status_label }}</span>
+                <span class="text-[11px] font-semibold text-emerald-700">View log →</span>
+              </p>
               <p class="text-xs text-forest/50 mt-0.5">{{ timeAgo(n.created_at) }}</p>
             </div>
             <span v-if="!n.is_read" class="w-2 h-2 rounded-full bg-emerald-700 mt-1.5 shrink-0"></span>
@@ -86,5 +121,7 @@ onMounted(loadNotifications)
         </TransitionGroup>
       </div>
     </Transition>
+
+    <MealLogPopup v-if="openMealLog" :meal-log-id="openMealLog.id" :initial="openMealLog" @close="openMealLog = null" />
   </div>
 </template>

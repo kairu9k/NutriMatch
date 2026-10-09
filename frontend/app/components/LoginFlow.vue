@@ -48,7 +48,7 @@
         </button>
       </form>
 
-      <button type="button" class="back-to-user" @click="isAdminMode = false">
+      <button type="button" class="back-to-user" @click="navigateTo('/login')">
         ← Back to regular sign in
       </button>
     </div>
@@ -140,9 +140,6 @@
             <span class="google-icon">G</span> Sign in with Google
           </button>
 
-          <button type="button" class="btn-admin" @click="isAdminMode = true">
-            <span class="admin-icon">🛡</span> Sign in as Admin
-          </button>
         </form>
 
         <p class="signup-link">
@@ -156,10 +153,10 @@
 <script setup>
 const auth = useAuthStore()
 
-// isAdminMode toggles between the two views below — both live in this
-// same component, so clicking "Sign in as Admin" just swaps what's
-// rendered instead of navigating to a different route/app.
-const isAdminMode = ref(false)
+// Admins sign in on their own route (/admin/login → pages/admin/login.vue
+// passes `admin`); /login is for clients and RNDs only.
+const props = defineProps({ admin: { type: Boolean, default: false } })
+const isAdminMode = computed(() => props.admin)
 
 const showPassword = ref(false)
 const form = reactive({
@@ -188,6 +185,11 @@ async function handleLogin() {
   isSubmitting.value = true
   try {
     const user = await auth.login(form.email, form.password)
+    if (user.role === 'admin') {
+      auth.logout()
+      errorMessage.value = 'Admin accounts sign in on the admin sign-in page.'
+      return
+    }
     navigateTo(roleRedirect[user.role] || '/')
   } catch (error) {
     errorMessage.value = error?.data?.detail || 'Invalid email or password.'

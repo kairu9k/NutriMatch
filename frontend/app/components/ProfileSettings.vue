@@ -59,6 +59,30 @@
             </div>
           </div>
 
+          <!-- PRC LICENSE — read-only: set at registration, checked by the admin -->
+          <div class="prc-section">
+            <div class="prc-header">
+              <span class="field-label prc-title"><Lock :size="13" /> PRC License</span>
+              <span class="prc-status" :class="personalInfo.prcVerified ? 'prc-verified' : 'prc-pending'">
+                {{ personalInfo.prcVerified ? 'Verified' : 'Pending admin verification' }}
+              </span>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label class="field-label">PRC License Number</label>
+                <input :value="personalInfo.prcNumber || 'Not provided'" type="text" class="field-input" disabled />
+              </div>
+              <div class="field">
+                <label class="field-label">Verified On</label>
+                <input :value="personalInfo.prcVerifiedOn || '—'" type="text" class="field-input" disabled />
+              </div>
+            </div>
+            <a v-if="personalInfo.prcPhotoUrl" :href="personalInfo.prcPhotoUrl" target="_blank" rel="noopener" class="prc-photo-link">
+              <FileImage :size="15" /> View license photo
+            </a>
+            <p class="field-hint">Your PRC details can't be edited here. To update them, contact the NutriMatch admin.</p>
+          </div>
+
           <div class="field field-bio">
             <div class="bio-label-row">
               <label class="field-label">Professional Bio</label>
@@ -297,7 +321,7 @@ import {
   Briefcase, BadgeCheck,
   Landmark, Percent, Wallet, Hourglass, ChevronDown,
   Star, CalendarClock, X, Languages,
-  Video, MessageCircle, Users
+  Video, MessageCircle, Users, Lock, FileImage
 } from 'lucide-vue-next'
 import { db } from '~/mock/mockDatabase'
 
@@ -331,6 +355,7 @@ const MODE_OPTIONS = [
 const personalInfo = ref({
   firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
   consultationModes: [], initials: '', avatarColor: db.personalInfo.avatarColor,
+  prcVerified: false, prcNumber: '', prcVerifiedOn: '', prcPhotoUrl: '',
 })
 const isSavingProfile = ref(false)
 const profileError = ref('')
@@ -344,6 +369,14 @@ function applyProfile(user, rndProfile) {
   personalInfo.value.bio = rndProfile.bio || ''
   personalInfo.value.consultationFee = rndProfile.consultation_fee != null ? Number(rndProfile.consultation_fee) : ''
   personalInfo.value.consultationModes = [...(rndProfile.consultation_modes || [])]
+  // PRC — read-only. The photo link is signed and short-lived (it's a
+  // private upload), so it's refreshed every time the profile loads.
+  personalInfo.value.prcVerified = Boolean(rndProfile.is_verified)
+  personalInfo.value.prcNumber = rndProfile.prc_license_number || ''
+  personalInfo.value.prcVerifiedOn = rndProfile.verified_at
+    ? new Date(rndProfile.verified_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : ''
+  personalInfo.value.prcPhotoUrl = rndProfile.prc_license_image_url || ''
   personalInfo.value.initials = `${personalInfo.value.firstName[0] ?? ''}${personalInfo.value.lastName[0] ?? ''}`.toUpperCase()
 }
 
@@ -589,6 +622,19 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .bio-textarea { resize: vertical; min-height: 90px; line-height: 1.55; font-family: inherit; }
 .field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
 .field-input:disabled { background: #f4f5f3; color: #8a9a8a; }
+
+.prc-section { border: 1px solid #e5e8e5; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; background: #fafbfa; }
+.prc-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.prc-title { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.prc-status { font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
+.prc-verified { background: #e3f3ea; color: #1f8f5c; }
+.prc-pending { background: #fdf1d6; color: #b8860b; }
+.prc-section .form-grid { margin-bottom: 12px; }
+.prc-photo-link {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600;
+  color: #1f8f5c; text-decoration: none; border: 1px solid #1f8f5c; border-radius: 8px; padding: 7px 12px;
+}
+.prc-photo-link:hover { background: #e3f3ea; }
 .fee-input-wrap { display: flex; align-items: center; gap: 8px; max-width: 320px; margin-top: 8px; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
 .fee-input { flex: 1; min-width: 0; }

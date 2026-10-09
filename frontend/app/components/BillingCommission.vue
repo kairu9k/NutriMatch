@@ -124,7 +124,7 @@ const peso = (n) => `₱${Number(n).toLocaleString(undefined, { minimumFractionD
         <div class="bg-white rounded-2xl border border-forest/15 p-6">
           <h3 class="font-display text-lg text-forest-dark mb-4">Commission Settings</h3>
           <label class="text-xs text-forest/50">Platform commission rate (%)</label>
-          <input v-model="commissionRate" type="number" step="0.01" :disabled="!settingsLoaded" class="w-full border border-forest/15 rounded-lg px-3 py-2 text-sm mb-3 mt-1 bg-white transition-shadow focus:outline-none focus:ring-2 focus:ring-forest/20" />
+          <input v-model="commissionRate" type="number" min="0" max="100" step="0.01" :disabled="!settingsLoaded" class="w-full border border-forest/15 rounded-lg px-3 py-2 text-sm mb-3 mt-1 bg-white transition-shadow focus:outline-none focus:ring-2 focus:ring-forest/20" />
           <button class="btn-press w-full bg-gold text-forest-dark font-semibold rounded-lg py-2.5 text-sm hover:brightness-95 hover:scale-[1.01] disabled:opacity-60" :disabled="isSaving || !settingsLoaded" @click="saveSettings">
             {{ isSaving ? 'Saving…' : 'Save settings' }}
           </button>

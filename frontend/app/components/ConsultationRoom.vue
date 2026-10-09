@@ -33,9 +33,9 @@
           <div class="screening-row"><span>NRS-2002</span><span>{{ screening.nrs_score ?? '—' }}</span></div>
           <div class="screening-row"><span>TDEE</span><span>{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal) + ' kcal' : '—' }}</span></div>
         </template>
-        <p v-else class="empty-note">No screening linked to this appointment.</p>
+        <p v-else class="empty-note">No pre-consultation screening on file yet.</p>
 
-        <NuxtLink v-if="isRnd && appointment" :to="`/ncp-records?relationship=${appointment.relationship.id}`" class="outline-btn">
+        <NuxtLink v-if="isRnd && appointment" :to="`/client-detail/${appointment.relationship.id}?tab=ncp`" class="outline-btn">
           Open NCP Record
         </NuxtLink>
       </div>
@@ -81,7 +81,12 @@ async function loadAppointment() {
 async function loadScreening() {
   isLoadingScreening.value = true
   try {
-    screening.value = await get(`/client/screening/${route.params.id}/`)
+    // Screenings aren't tied to an appointment (a client screens once,
+    // before booking), so show the client's latest one: the RND gets it
+    // through the appointment, the client reads their own.
+    screening.value = isRnd.value
+      ? (await get(`/rnd/appointments/${route.params.id}/screening/`)).screening
+      : await get('/client/screening/latest/')
   } catch {
     screening.value = null
   } finally {

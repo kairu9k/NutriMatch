@@ -123,22 +123,41 @@ landing (`index.vue`), login, register (client+rnd combined flow), admin-dashboa
 
 ## Phase 7 — Testing & polish
 - [ ] **Full testing plan (2026-09-28)** — see `vault/TESTING_PLAN.md`: demo-data seed command, backend gap tests, Playwright end-to-end flows (onboarding → booking → clinical care → billing → reviews → admin), manual checklist, and RA 10173/security/performance checks.
+- [ ] **ON HOLD (2026-10-09, user's call — team change requests first): make the client Progress Tracker useful.** Today it's empty for real users: progress records can only be created via `POST /api/rnd/relationships/<id>/progress/` and no screen calls it; Client Detail's "Progress History" tab is a placeholder; the client dashboard's "Save Vitals" is a `console.log` stub. Agreed plan:
+  - [ ] (1) Finalizing an NCP record auto-creates a `ProgressRecord` from its Assessment (weight, BMI, BP, glucose, HbA1c; dated that day); optionally the screening as the baseline point.
+  - [ ] (2) Client Detail → "Progress History" tab: list of the client's progress records + a "Log Progress" form for between-visit check-ins (date, weight, BP, glucose, adherence %, note).
+  - [ ] (later, optional) client self-logged vitals — would need a "self-reported" flag to keep them apart from clinical measurements.
+- [ ] **Team change requests (`NUTRIMATCH-edited.md`, reviewed 2026-10-09)**
+  - [x] RND Appointments: "View Screening" popup (NCP-modal style) with Accept / Decline — `GET /api/rnd/appointments/<id>/screening/`
+  - [x] No negative values anywhere: `core/validators.py` `NonNegativeNumbersMixin` on the NCP, screening, progress-record and meal-plan serializers; `plugins/non-negative-inputs.client.ts` blocks the "-" key in number inputs with `min` ≥ 0 and raises pasted values below `min` to `min`
+  - [x] Blood pressure is two number boxes (systolic / diastolic), API accepts only `number/number`
+  - [x] Assessment "+ Add Field": no suggestions dropdown, label is "Measured Variable"
+  - [x] NCP record shows its created date **and time** (header + history table)
+  - [x] Admin signs in at `/admin/login`; the "Sign in as Admin" button is gone from `/login`, which now refuses admin accounts
+  - [x] NCP flow reworked (2026-10-09), shared form `NcpRecordModal.vue`: initial record = Assessment → Diagnosis → Intervention; follow-up (client already has a finalized record, `NcpRecord.is_follow_up()`) adds Monitoring. No Save/Draft buttons — a tab autosaves once its required fields (every field not marked optional) are filled; the record **finalizes itself** 10 s after every tab is complete and the RND stops typing (countdown shown, typing restarts it). One open draft per client (API enforces), resumed on reopen. Finalize API also requires goal status on follow-ups.
+  - [x] NCP Records page = cross-patient history table only (per-patient phase cards removed); clicking a record opens it read-only; "New NCP Record" picks a patient. Client Detail's "NCP Records" tab lists that patient's records + New/Continue; old `/ncp-records?relationship=` links forward to `/client-detail/<id>?tab=ncp`. Also fixed: "Continue NCP Record" after finalizing, and Phase 1's check mark using the wrong field.
+  - [x] Meal Planning "like the assessment" (2026-10-09): Plan Name / Condition / Target Calories stay fixed; the other targets are Measured Variable / Value / Unit rows (`MealPlan.nutrient_targets`, "+ Add Field"), pre-filled Protein / Carbohydrate / Fat from the NCP. Gram rows for those three keep `target_protein_g` / `target_carb_g` / `target_fat_g` in sync (now read-only on the API), so the Macro Tracker and the client view still work; extra rows (fiber, sodium…) show on the client's plan as "Other targets". Existing plans migrated (`nutrition/0005`).
+  - [x] Client meal logs → RND (2026-10-09): the RND's "Meal log update" notification now carries the log itself — photo thumbnail + status in the bell dropdown and on the Notifications page; clicking opens `MealLogPopup.vue` (photo, time vs scheduled, status, client's note, and what was planned). `GET /api/rnd/meal-logs/<id>/` (RND-scoped) + `meal_log` on `NotificationLogSerializer` (only for the recipient RND's own clients).
+  - [ ] Optional follow-ups: RND "Looks good / Needs changes" review + comment back to the client; patient chart → Meal Plan tab listing all logs; **meal-log photos are uploaded as public Cloudinary images** (health data, RA 10173) — switch to authenticated uploads + signed URLs like the PRC license photos.
+  - [x] RND Profile Settings: read-only "PRC License" section — status, license number, verified date, and a signed link to their own license photo (`MyRndProfileSerializer`, own profile only; client-facing RND endpoints never include it). PRC fields were already ignored on save; now also read-only on the read serializer, test-locked. Also fixed the "PRC Verified" badge, which never showed.
+  - [x] Intervention "+ Add Field" made consistent with Assessment — no suggestions dropdown, "Additional Measured Variables" / "Measured Variable" / "Value" / "Unit"
 - [ ] **Bugs from the full website walkthrough (2026-09-30)** — new RND + new client created through the site (`rnd.demo@nutrimatch.test` / `client.demo@nutrimatch.test`, passwords in `vault/test-logins.txt`), then register → admin PRC approval → screening → booking → confirm → full 4-phase NCP + finalize → meal plan → meal log → complete → PayMongo QR Ph test payment. Everything worked end to end; open issues:
   - **Need fixing**
     - [ ] Patient chart (`ClientDetail.vue`) **Meal Plan tab is a placeholder** — RND can't see the client's plan or meal logs there. Overlaps with the team's in-progress meal logs work; wait for their update before touching it.
     - [ ] RND dashboard **"Patient Adherence — Weekly" chart is fake data** — shows bars for a brand-new RND and didn't change after the client logged a meal. Wire to real `MealLog` data or remove.
-    - [ ] Booking modal says "You'll be asked to pay after your RND confirms", but the invoice is only created when the RND marks the appointment **Completed** (`RndAppointmentCompleteView`). Fix the text or the flow.
-    - [ ] **Mark Completed has no confirmation** — one click completes the appointment and creates the invoice, can't be undone.
-    - [ ] Opening a protected page while logged out shows "Could not load this patient" instead of redirecting to `/login`.
-    - [ ] Client dashboard **Weight Progress chart is never wired** (`ClientDashboard.vue` `weightHistory` has a TODO) — always says "No weight history yet", even for Carla (seed_demo) who has 4 progress records. `GET /client/progress/` already exists (Progress Tracker uses it); just needs hooking up.
+    - [x] Booking modal says "You'll be asked to pay after your RND confirms", but the invoice is only created when the RND marks the appointment **Completed** (`RndAppointmentCompleteView`). Fix the text or the flow.
+    - [x] **Mark Completed has no confirmation** — one click completes the appointment and creates the invoice, can't be undone.
+    - [x] Opening a protected page while logged out shows "Could not load this patient" instead of redirecting to `/login`.
+    - [x] Consultation room's **Pre-Consultation Screening side panel never finds a screening** — `ConsultationRoom.vue` calls `/client/screening/<appointment id>/`, but screenings aren't linked to appointments (0 of 6 in the dev DB are). Switch the RND side to `GET /api/rnd/appointments/<id>/screening/` (added 2026-10-09 for the Appointments "View Screening" popup).
+    - [x] Client dashboard **Weight Progress chart is never wired** (`ClientDashboard.vue` `weightHistory` has a TODO) — always says "No weight history yet", even for Carla (seed_demo) who has 4 progress records. `GET /client/progress/` already exists (Progress Tracker uses it); just needs hooking up.
   - **Smaller issues**
     - [ ] RND profile page (client view): "Pre-consultation screening is required" note still shows after the client already did their screening.
-    - [ ] Patient chart: "Continue NCP Record" still shows after the record is finalized — should offer a new record instead.
+    - [x] Patient chart: "Continue NCP Record" still shows after the record is finalized — should offer a new record instead.
     - [ ] Paid invoices don't save the payment method (`Invoice.payment_method` stays null after a QR Ph payment).
     - [ ] Login page: the email field's placeholder looks like a real pre-filled address, easy to mistake for a filled-in field.
   - **Known Client Detail gaps (from earlier)**
     - [ ] "Active Relationship" chip is hardcoded; several tabs are still placeholders.
-    - [ ] Phase 1 check mark is based on the wrong field (`pes_problem` instead of assessment data).
+    - [x] Phase 1 check mark is based on the wrong field (`pes_problem` instead of assessment data).
     - [ ] "Manage Appointment" isn't limited to this patient.
     - [ ] Health Profile (allergies/restrictions/goals) not editable — user said leave for later.
   - **Fixed during the walkthrough (uncommitted as of 2026-09-30)**

@@ -148,7 +148,7 @@
             <BadgeCheck :size="15" /> {{ isBooking ? 'Booking…' : 'Confirm Booking' }}
           </button>
           <p v-if="bookingHint" class="booking-hint">{{ bookingHint }}</p>
-          <p class="submit-note">You'll be asked to pay after your RND confirms the appointment.</p>
+          <p class="submit-note">You'll pay after your consultation — the invoice appears in Billing once your RND marks the session complete.</p>
         </div>
       </div>
     </div>

@@ -111,6 +111,16 @@ class NcpRecord(models.Model):
     def __str__(self):
         return f"NCP Record #{self.id} — {self.encounter_date} ({self.status})"
 
+    def is_follow_up(self) -> bool:
+        """A follow-up record is one written after the client already has a
+        finalized record with this RND. The first (initial) record ends at
+        Intervention; follow-ups also carry Monitoring & Evaluation, which
+        evaluates the previous record's goals."""
+        earlier = NcpRecord.objects.filter(relationship_id=self.relationship_id, status=NcpRecord.Status.COMPLETED)
+        if self.pk:
+            earlier = earlier.exclude(pk=self.pk).filter(created_at__lt=self.created_at)
+        return earlier.exists()
+
 
 class ProgressRecord(models.Model):
     """RND-authored per-date checkpoint. bmi is not RND-entered — it's

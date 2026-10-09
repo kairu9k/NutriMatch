@@ -6,6 +6,7 @@ from .views import (
     NcpRecordDetailView,
     NcpRecordFinalizeView,
     NcpRecordListCreateView,
+    RndAppointmentScreeningView,
     RndNcpDraftListView,
     RndProgressRecordListCreateView,
     ScreeningCreateView,
@@ -16,6 +17,8 @@ urlpatterns = [
     path("client/screening/", ScreeningCreateView.as_view(), name="screening_create"),
     path("client/screening/latest/", LatestScreeningView.as_view(), name="screening_latest"),
     path("client/screening/<int:appointment_id>/", ScreeningDetailView.as_view(), name="screening_detail"),
+
+    path("rnd/appointments/<int:appointment_id>/screening/", RndAppointmentScreeningView.as_view(), name="rnd_appointment_screening"),
 
     path("rnd/relationships/<int:relationship_id>/ncp/", NcpRecordListCreateView.as_view(), name="ncp_list_create"),
     path("rnd/ncp/drafts/", RndNcpDraftListView.as_view(), name="rnd_ncp_drafts"),
