@@ -46,28 +46,79 @@ class NotificationLogSerializer(serializers.ModelSerializer):
         return RndMealLogSerializer(log).data if log else None
 
 
+# Which files each resource type accepts, and how big (Cloudinary free tier:
+# 10 MB for images/PDFs/documents, 100 MB for videos). The upload page's
+# file picker uses the same lists.
+RESOURCE_FILE_RULES = {
+    Resource.Type.PDF: ({".pdf"}, 10),
+    Resource.Type.ARTICLE: ({".pdf", ".doc", ".docx"}, 10),
+    Resource.Type.VIDEO: ({".mp4", ".webm", ".mov"}, 100),
+}
+
+
+def resource_download_url(file_path, title):
+    """The Cloudinary URL with `fl_attachment` added, so the browser saves
+    the file (named after the resource's title) instead of opening it.
+    Documents Cloudinary stores as "raw" files already download as-is."""
+    from django.utils.text import slugify
+
+    if not file_path:
+        return None
+    filename = slugify(title or "")[:80] or "resource"
+    for marker in ("/image/upload/", "/video/upload/"):
+        if marker in file_path:
+            return file_path.replace(marker, f"{marker}fl_attachment:{filename}/", 1)
+    return file_path
+
+
 class ResourceSerializer(serializers.ModelSerializer):
     # Write-only — the view uploads this to Cloudinary via
     # CloudinaryResourceUploadService and writes the returned URL into
     # file_path itself; it's never assigned directly from validated_data.
     file = serializers.FileField(write_only=True, required=False)
+    download_url = serializers.SerializerMethodField()
+    # RND views only: how many active clients it's shared with (the view
+    # annotates `_shared_count`; a just-created resource has none yet).
+    shared_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Resource
-        fields = ["id", "title", "description", "type", "file", "file_path", "url", "is_active", "created_at"]
+        fields = [
+            "id", "title", "description", "type", "file", "file_path", "download_url",
+            "url", "is_active", "created_at", "shared_count",
+        ]
         read_only_fields = ["file_path"]
 
+    def get_download_url(self, obj):
+        return resource_download_url(obj.file_path, obj.title)
+
+    def get_shared_count(self, obj):
+        return getattr(obj, "_shared_count", 0)
+
     def validate(self, attrs):
+        import os
+
         resource_type = attrs.get("type", getattr(self.instance, "type", None))
         if resource_type == Resource.Type.LINK:
             if not attrs.get("url") and not (self.instance and self.instance.url):
                 raise serializers.ValidationError({"url": "A URL is required for link resources."})
         else:
+            file = attrs.get("file")
             has_existing_file = self.instance and self.instance.file_path
-            if not attrs.get("file") and not has_existing_file:
+            if not file and not has_existing_file:
                 raise serializers.ValidationError(
                     {"file": "A file is required for PDF/video/article resources."}
                 )
+            if file and resource_type in RESOURCE_FILE_RULES:
+                extensions, max_mb = RESOURCE_FILE_RULES[resource_type]
+                ext = os.path.splitext(file.name)[1].lower()
+                if ext not in extensions:
+                    allowed = ", ".join(sorted(extensions))
+                    raise serializers.ValidationError(
+                        {"file": f"This file type isn't allowed for a {Resource.Type(resource_type).label} resource. Use {allowed}."}
+                    )
+                if file.size > max_mb * 1024 * 1024:
+                    raise serializers.ValidationError({"file": f"The file is too large. The limit is {max_mb} MB."})
         return attrs
 
 
@@ -156,6 +207,25 @@ class NotificationDetailSerializer(NotificationLogSerializer):
         return {
             "id": plan.id, "relationship_id": plan.relationship_id, "with": self._other_party(plan.relationship, user),
             "name": plan.name, "status": plan.status, "target_kcal": plan.target_kcal, "sent_at": plan.sent_at,
+        }
+
+    def _related_resource(self, pk, user):
+        from scheduling.models import RndClientRelationship
+
+        resource = (
+            Resource.objects.filter(
+                pk=pk, is_active=True,
+                shares__relationship__client=user,
+                shares__relationship__status=RndClientRelationship.Status.ACTIVE,
+            )
+            .select_related("uploaded_by")
+            .first()
+        )
+        if resource is None:
+            return None
+        return {
+            "id": resource.id, "title": resource.title, "type": resource.type,
+            "with": {"name": resource.uploaded_by.full_name, "role": resource.uploaded_by.role},
         }
 
     def _related_payout(self, pk, user):

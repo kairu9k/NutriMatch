@@ -16,7 +16,7 @@
 
         <p v-if="loading" class="nm-muted">Loading details…</p>
         <p v-else-if="error" class="nm-field-error">{{ error }}</p>
-
+ 
         <template v-else-if="related">
           <p class="nm-section-title">Details</p>
 
@@ -53,6 +53,12 @@
               <div v-if="related.sent_at"><dt>Sent</dt><dd>{{ dateTime(related.sent_at) }}</dd></div>
             </template>
 
+            <template v-else-if="type === 'resource'">
+              <div><dt>Resource</dt><dd>{{ related.title }}</dd></div>
+              <div><dt>{{ withLabel }}</dt><dd>{{ related.with.name }}</dd></div>
+              <div><dt>Type</dt><dd>{{ RESOURCE_LABELS[related.type] || related.type }}</dd></div>
+            </template>
+
             <template v-else-if="type === 'payout'">
               <div><dt>Amount</dt><dd><strong>{{ peso(related.amount) }}</strong></dd></div>
               <div><dt>Sent via</dt><dd>{{ related.method === 'gcash' ? 'GCash' : 'Bank transfer' }}</dd></div>
@@ -76,7 +82,7 @@
 </template>
 
 <script setup>
-import { ArrowRight, Bell, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X } from 'lucide-vue-next'
+import { ArrowRight, Bell, BookOpen, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X } from 'lucide-vue-next'
 
 // Full detail of one notification + a button to the page it's about.
 // `notification` is the list row (shown right away); the related record is
@@ -93,8 +99,8 @@ const related = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout' }
-const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet }
+const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource' }
+const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen }
 const TONES = { appointment: 'gold', invoice: 'warn', message: 'info', payout: 'good' }
 const APPT_LABELS = { pending: 'Awaiting confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
 const APPT_PILLS = { pending: 'gold', confirmed: 'green', completed: 'blue', cancelled: 'muted' }
@@ -102,6 +108,7 @@ const INVOICE_LABELS = { unpaid: 'Awaiting payment', paid: 'Paid', refund_pendin
 const INVOICE_PILLS = { unpaid: 'gold', paid: 'green', refund_pending: 'red', refunded: 'blue', cancelled: 'muted' }
 const METHOD_LABELS = { card: 'Card', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', bank_transfer: 'Bank transfer', cash: 'Cash', other: 'Other' }
 const PLAN_LABELS = { draft: 'Draft', active: 'Active', archived: 'Archived' }
+const RESOURCE_LABELS = { pdf: 'PDF', video: 'Video', article: 'Article', link: 'Link' }
 
 const icon = computed(() => ICONS[type.value] || Bell)
 const tone = computed(() => TONES[type.value] || '')
@@ -135,6 +142,7 @@ const link = computed(() => {
     invoice: { label: r?.status === 'unpaid' ? 'Go to Billing to pay' : 'Go to Billing', to: '/invoices-billing' },
     message: messages,
     meal_plan: { label: 'View my meal plan', to: '/meal-plan-view' },
+    resource: { label: 'Open Resources', to: '/resource-library' },
   }[t] || null
 })
 

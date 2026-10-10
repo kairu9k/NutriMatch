@@ -360,6 +360,19 @@ Table resources {
   Note: 'Educational materials uploaded'
 }
 
+Table resource_shares {
+  id int [pk, increment]
+  resource_id int [not null]
+  relationship_id int [not null]
+  shared_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (resource_id, relationship_id) [unique]
+  }
+
+  Note: 'Added 2026-10-11 (not in the original proposal): which confirmed clients an RND sent a resource to. Uploading shares with nobody; access ends when the relationship is no longer active.'
+}
+
 Table reminders {
   id int [pk, increment]
   client_id int [not null]
@@ -518,6 +531,8 @@ Ref: messages.relationship_id > rnd_client_relationships.id
 Ref: messages.sender_id > users.id
 
 Ref: resources.uploaded_by > users.id
+Ref: resource_shares.resource_id > resources.id
+Ref: resource_shares.relationship_id > rnd_client_relationships.id
 Ref: reminders.client_id > users.id
 Ref: notification_logs.recipient_id > users.id
 

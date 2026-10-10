@@ -9,6 +9,8 @@ from .views import (
     NotificationMarkAllReadView,
     NotificationMarkReadView,
     RndResourceListCreateView,
+    RndResourceShareView,
+    RndResourceUnshareView,
     RndResourceUpdateView,
 )
 
@@ -23,5 +25,11 @@ urlpatterns = [
 
     path("rnd/resources/", RndResourceListCreateView.as_view(), name="rnd_resource_list_create"),
     path("rnd/resources/<int:pk>/", RndResourceUpdateView.as_view(), name="rnd_resource_update"),
+    path("rnd/resources/<int:pk>/share/", RndResourceShareView.as_view(), name="rnd_resource_share"),
+    path(
+        "rnd/resources/<int:pk>/share/<int:relationship_id>/",
+        RndResourceUnshareView.as_view(),
+        name="rnd_resource_unshare",
+    ),
     path("client/resources/", ClientResourceListView.as_view(), name="client_resource_list"),
 ]

@@ -271,3 +271,201 @@ class NotificationDetailTests(TestCase):
         other = _make_client("other2@t.ph")
         n = notify(other, "appointment", self.appt.id, "x", "y")  # points at someone else's appointment
         self.assertIsNone(self._get(n, other).data["related"])
+
+
+class ResourceSharingTests(TestCase):
+    """RND uploads a resource, picks which confirmed clients get it; those
+    clients can view + download it."""
+
+    FILE_URL = "https://res.cloudinary.com/demo/image/upload/v1/resources/abc.pdf"
+
+    def setUp(self):
+        from core.test_utils import approve_rnd
+
+        self.api = APIClient()
+        self.rnd = _make_rnd()
+        approve_rnd(self.rnd)
+        self.client_user = _make_client()
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+
+    def _resource(self, share_with=(), **fields):
+        from .models import Resource, ResourceShare
+
+        defaults = {"uploaded_by": self.rnd, "title": "Healthy Plate Guide", "type": "pdf", "file_path": self.FILE_URL}
+        defaults.update(fields)
+        resource = Resource.objects.create(**defaults)
+        for rel in share_with:
+            ResourceShare.objects.create(resource=resource, relationship=rel)
+        return resource
+
+    def _client_titles(self, user):
+        self.api.force_authenticate(user)
+        return [r["title"] for r in self.api.get("/api/client/resources/").data]
+
+    def test_active_client_gets_view_and_download_links(self):
+        self._resource(share_with=[self.rel])
+        self.api.force_authenticate(self.client_user)
+        resp = self.api.get("/api/client/resources/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data), 1)
+        self.assertEqual(resp.data[0]["file_path"], self.FILE_URL)
+        self.assertEqual(
+            resp.data[0]["download_url"],
+            "https://res.cloudinary.com/demo/image/upload/fl_attachment:healthy-plate-guide/v1/resources/abc.pdf",
+        )
+
+    def test_video_and_raw_download_urls(self):
+        from .serializers import resource_download_url
+
+        self.assertEqual(
+            resource_download_url("https://res.cloudinary.com/d/video/upload/v1/r/a.mp4", "Meal Prep 101"),
+            "https://res.cloudinary.com/d/video/upload/fl_attachment:meal-prep-101/v1/r/a.mp4",
+        )
+        raw = "https://res.cloudinary.com/d/raw/upload/v1/r/a.docx"
+        self.assertEqual(resource_download_url(raw, "Doc"), raw)
+        self.assertIsNone(resource_download_url(None, "Link"))
+
+    def test_link_resource_has_no_download_url(self):
+        self._resource(share_with=[self.rel], type="link", file_path=None, url="https://fnri.dost.gov.ph")
+        self.api.force_authenticate(self.client_user)
+        resp = self.api.get("/api/client/resources/")
+
+        self.assertIsNone(resp.data[0]["download_url"])
+        self.assertEqual(resp.data[0]["url"], "https://fnri.dost.gov.ph")
+
+    def test_uploading_alone_shares_with_nobody(self):
+        self._resource()
+        self.assertEqual(self._client_titles(self.client_user), [])
+
+    def test_only_clients_it_was_shared_with_see_it(self):
+        second = _make_client("second@t.ph")
+        second_rel = RndClientRelationship.objects.create(rnd=self.rnd, client=second, status="active")
+        self._resource(share_with=[second_rel], title="Only for second")
+        self._resource(share_with=[self.rel], is_active=False, title="Hidden by RND")
+
+        self.assertEqual(self._client_titles(self.client_user), [])
+        self.assertEqual(self._client_titles(second), ["Only for second"])
+
+    def test_share_list_shows_only_the_rnds_confirmed_clients(self):
+        pending = _make_client("pending@t.ph")
+        RndClientRelationship.objects.create(rnd=self.rnd, client=pending, status="pending")
+        other_rnd = _make_rnd("other@t.ph")
+        their_client = _make_client("theirs@t.ph")
+        RndClientRelationship.objects.create(rnd=other_rnd, client=their_client, status="active")
+        resource = self._resource(share_with=[self.rel])
+
+        self.api.force_authenticate(self.rnd)
+        resp = self.api.get(f"/api/rnd/resources/{resource.id}/share/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual([r["client"]["email"] for r in resp.data], ["client@t.ph"])
+        self.assertTrue(resp.data[0]["shared"])
+
+    def test_share_notifies_new_recipients_once(self):
+        resource = self._resource()
+        self.api.force_authenticate(self.rnd)
+        url = f"/api/rnd/resources/{resource.id}/share/"
+
+        resp = self.api.post(url, {"relationship_ids": [self.rel.id]}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertTrue(resp.data[0]["shared"])
+        self.assertEqual(self._client_titles(self.client_user), ["Healthy Plate Guide"])
+
+        self.api.force_authenticate(self.rnd)
+        self.api.post(url, {"relationship_ids": [self.rel.id]}, format="json")
+        notes = NotificationLog.objects.filter(recipient=self.client_user, notifiable_type="resource")
+        self.assertEqual(notes.count(), 1)
+        self.assertEqual(resource.shares.count(), 1)
+
+        self.api.force_authenticate(self.client_user)
+        detail = self.api.get(f"/api/notifications/{notes.first().id}/").data
+        self.assertEqual(detail["related"]["title"], "Healthy Plate Guide")
+
+        self.api.force_authenticate(self.rnd)
+        listed = self.api.get("/api/rnd/resources/").data
+        self.assertEqual(listed[0]["shared_count"], 1)
+
+    def test_cannot_share_with_unconfirmed_or_other_rnds_clients(self):
+        resource = self._resource()
+        pending = _make_client("pending@t.ph")
+        pending_rel = RndClientRelationship.objects.create(rnd=self.rnd, client=pending, status="pending")
+        other_rnd = _make_rnd("other@t.ph")
+        theirs = RndClientRelationship.objects.create(rnd=other_rnd, client=_make_client("theirs@t.ph"), status="active")
+
+        self.api.force_authenticate(self.rnd)
+        url = f"/api/rnd/resources/{resource.id}/share/"
+        for ids in ([pending_rel.id], [theirs.id], [self.rel.id, theirs.id], [], "x", [True]):
+            resp = self.api.post(url, {"relationship_ids": ids}, format="json")
+            self.assertEqual(resp.status_code, 400, ids)
+        self.assertEqual(resource.shares.count(), 0)
+
+    def test_other_rnd_cannot_touch_my_resource(self):
+        from core.test_utils import approve_rnd
+
+        resource = self._resource(share_with=[self.rel])
+        other_rnd = _make_rnd("other@t.ph")
+        approve_rnd(other_rnd)
+        self.api.force_authenticate(other_rnd)
+
+        self.assertEqual(self.api.get(f"/api/rnd/resources/{resource.id}/share/").status_code, 404)
+        self.assertEqual(self.api.delete(f"/api/rnd/resources/{resource.id}/share/{self.rel.id}/").status_code, 404)
+        self.assertEqual(resource.shares.count(), 1)
+
+    def test_unshare_and_discharge_remove_access(self):
+        resource = self._resource(share_with=[self.rel])
+        self.api.force_authenticate(self.rnd)
+        resp = self.api.delete(f"/api/rnd/resources/{resource.id}/share/{self.rel.id}/")
+        self.assertEqual(resp.status_code, 204)
+        self.assertEqual(self._client_titles(self.client_user), [])
+
+        self._resource(share_with=[self.rel], title="Second")
+        self.assertEqual(self._client_titles(self.client_user), ["Second"])
+        self.rel.status = "discharged"
+        self.rel.save(update_fields=["status"])
+        self.assertEqual(self._client_titles(self.client_user), [])
+
+    def test_upload_rejects_wrong_file_type_and_oversized_files(self):
+        from unittest.mock import patch
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.api.force_authenticate(self.rnd)
+        with patch("communication.views.CloudinaryResourceUploadService.upload") as upload:
+            wrong = SimpleUploadedFile("notes.exe", b"x", content_type="application/octet-stream")
+            resp = self.api.post("/api/rnd/resources/", {"title": "T", "type": "pdf", "file": wrong}, format="multipart")
+            self.assertEqual(resp.status_code, 400)
+            self.assertIn("file", resp.data)
+
+            big = SimpleUploadedFile("guide.pdf", b"x" * (10 * 1024 * 1024 + 1), content_type="application/pdf")
+            resp = self.api.post("/api/rnd/resources/", {"title": "T", "type": "pdf", "file": big}, format="multipart")
+            self.assertEqual(resp.status_code, 400)
+            self.assertIn("10 MB", str(resp.data["file"]))
+            upload.assert_not_called()
+
+            upload.return_value = self.FILE_URL
+            ok = SimpleUploadedFile("Guide.PDF", b"%PDF-1.4", content_type="application/pdf")
+            resp = self.api.post("/api/rnd/resources/", {"title": "Guide", "type": "pdf", "file": ok}, format="multipart")
+            self.assertEqual(resp.status_code, 201, resp.data)
+            self.assertEqual(resp.data["file_path"], self.FILE_URL)
+            self.assertIn("fl_attachment:guide/", resp.data["download_url"])
+
+    def test_new_upload_is_active_and_visible_once_shared(self):
+        """The upload form sends no is_active; that must not hide the file."""
+        from unittest.mock import patch
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.api.force_authenticate(self.rnd)
+        with patch("communication.views.CloudinaryResourceUploadService.upload", return_value=self.FILE_URL):
+            pdf = SimpleUploadedFile("plate.pdf", b"%PDF-1.4", content_type="application/pdf")
+            resp = self.api.post("/api/rnd/resources/", {"title": "Plate", "type": "pdf", "file": pdf}, format="multipart")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertTrue(resp.data["is_active"])
+
+        self.api.post(f"/api/rnd/resources/{resp.data['id']}/share/", {"relationship_ids": [self.rel.id]}, format="json")
+        self.assertEqual(self._client_titles(self.client_user), ["Plate"])
+
+        note = NotificationLog.objects.get(recipient=self.client_user, notifiable_type="resource")
+        detail = self.api.get(f"/api/notifications/{note.id}/").data
+        self.assertEqual(detail["related"]["title"], "Plate")
