@@ -9,11 +9,13 @@ from .views import (
     RndDetailView,
     RndPublicAvailabilityView,
     RndPublicReviewsView,
+    RndSearchOptionsView,
     RndSearchView,
 )
 
 urlpatterns = [
     path("client/rnds/", RndSearchView.as_view(), name="rnd_search"),
+    path("client/rnds/options/", RndSearchOptionsView.as_view(), name="rnd_search_options"),
     path("client/rnds/<int:rnd_id>/", RndDetailView.as_view(), name="rnd_detail"),
     path("client/rnds/<int:rnd_id>/reviews/", RndPublicReviewsView.as_view(), name="rnd_public_reviews"),
     path("client/rnds/<int:rnd_id>/availability/", RndPublicAvailabilityView.as_view(), name="rnd_public_availability"),

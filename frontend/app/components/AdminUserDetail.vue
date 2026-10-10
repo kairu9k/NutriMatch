@@ -106,6 +106,7 @@
                 <div><dt>Modes</dt><dd>{{ (rnd.profile.consultation_modes || []).map(m => MODE_LABELS[m] || m).join(', ') || '—' }}</dd></div>
                 <div><dt>Languages</dt><dd>{{ rnd.languages.join(', ') || '—' }}</dd></div>
                 <div><dt>New clients</dt><dd>{{ rnd.profile.available_for_new_clients ? 'Accepting' : 'Not accepting' }}</dd></div>
+                <div v-if="(rnd.profile.consultation_modes || []).includes('in_person')"><dt>Clinic address</dt><dd :class="{ muted: !rnd.profile.clinic_address }">{{ rnd.profile.clinic_address || 'Not added yet' }}</dd></div>
               </dl>
               <p class="nm-section-title">Weekly hours</p>
               <p v-if="!hours.length" class="nm-muted">No availability set.</p>

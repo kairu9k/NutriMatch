@@ -303,6 +303,14 @@
               </div>
             </div>
 
+            <div v-if="form.modes.includes('in_person')" class="field">
+              <label for="reg-clinic">Clinic Address <span class="required-tag">Required</span></label>
+              <input id="reg-clinic" v-model="form.clinicAddress" type="text" maxlength="255"
+                placeholder="e.g. 2F Bajada Medical Bldg, J.P. Laurel Ave, Bajada, Davao City" />
+              <span v-if="clinicAddressError" class="field-error">{{ clinicAddressError }}</span>
+              <span v-else class="license-hint">Where clients go for in-person consultations — shown on your profile.</span>
+            </div>
+
             <div class="field">
               <label>Weekly Availability <span class="required-tag">Required</span></label>
               <span class="license-hint">Clients can only book within these hours. Each block must be at least 1 hour.</span>
@@ -375,6 +383,7 @@
               <div class="confirm-row"><span>Languages</span><strong>{{ form.languages.map(languageName).join(', ') }}</strong></div>
               <div class="confirm-row"><span>Consultation Fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
               <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
+              <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic Address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
               <div class="confirm-row confirm-block"><span>Weekly Availability</span>
                 <ul class="confirm-hours">
                   <li v-for="line in availabilitySummary" :key="line">{{ line }}</li>
@@ -491,6 +500,7 @@ const form = reactive({
   languages: [],
   fee: '',
   modes: ['video'],
+  clinicAddress: '',
 })
 
 // Both consent checkboxes on the Confirm step must be ticked to register.
@@ -721,8 +731,16 @@ const feeError = computed(() => {
   return ''
 })
 const profileValid = computed(() => form.bio.trim().length >= 50 && form.languages.length > 0)
+// Only asked for (and required) when they offer in-person consultations.
+const clinicAddressError = computed(() => {
+  if (!form.modes.includes('in_person')) return ''
+  const v = form.clinicAddress.trim()
+  if (!v) return ''
+  return v.length < 10 ? 'Enter the full address — building, street, barangay and city.' : ''
+})
+const clinicAddressOk = computed(() => !form.modes.includes('in_person') || (form.clinicAddress.trim().length >= 10))
 const consultationValid = computed(() =>
-  Number(form.fee) >= MIN_FEE && !feeError.value && form.modes.length > 0 && !availabilityError.value
+  Number(form.fee) >= MIN_FEE && !feeError.value && form.modes.length > 0 && !availabilityError.value && clinicAddressOk.value
 )
 function goToConsultation() {
   if (!profileValid.value) {
@@ -819,6 +837,7 @@ async function submitRegistration() {
         consultation_fee: Number(form.fee).toFixed(2),
         // List fields travel as JSON strings in the multipart form.
         consultation_modes: JSON.stringify(form.modes),
+        clinic_address: form.modes.includes('in_person') ? form.clinicAddress.trim() : undefined,
         languages: JSON.stringify(form.languages),
         availability: JSON.stringify(availability.value.map(b => ({ day_of_week: b.day, start_time: b.start, end_time: b.end }))),
         profile_photo: form.profilePhoto || undefined,
@@ -846,13 +865,13 @@ async function submitRegistration() {
   } catch (error) {
     const data = error?.data
     const FIELDS = ['email', 'first_name', 'last_name', 'password', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
-      'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'availability', 'accept_terms', 'data_privacy_consent']
+      'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'availability', 'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
     errorMessage.value = (failed && data[failed][0]) || data?.detail || 'Registration failed. Please check your details and try again.'
     // Send them back to the step that has the problem.
     if (selectedRole.value === 'rnd' && failed) {
       if (['bio', 'languages', 'profile_photo'].includes(failed)) currentStep.value = 5
-      else if (['consultation_fee', 'consultation_modes', 'availability'].includes(failed)) currentStep.value = 6
+      else if (['consultation_fee', 'consultation_modes', 'clinic_address', 'availability'].includes(failed)) currentStep.value = 6
       else if (!['accept_terms', 'data_privacy_consent'].includes(failed)) currentStep.value = 2
     }
   } finally {

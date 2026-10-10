@@ -135,6 +135,7 @@ export const useAuthStore = defineStore('auth', {
       bio: string
       consultation_fee: string
       consultation_modes: string
+      clinic_address?: string
       languages: string
       availability: string
       profile_photo?: File

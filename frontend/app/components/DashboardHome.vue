@@ -32,6 +32,15 @@
       <NuxtLink :to="requiredMissing.some(m => m.key === 'availability') && requiredMissing.length === 1 ? '/profile-settings?tab=availability' : '/profile-settings'" class="setup-btn">Complete profile →</NuxtLink>
     </section>
 
+    <!-- IN-PERSON WITHOUT AN ADDRESS — clients can't book in-person until it's added -->
+    <section v-if="needsClinicAddress" class="setup-card" role="status">
+      <div>
+        <p class="setup-title">Add your clinic address</p>
+        <p class="setup-sub">You offer in-person consultations, but clients can't book them until they know where your clinic is.</p>
+      </div>
+      <NuxtLink to="/profile-settings" class="setup-btn">Add address →</NuxtLink>
+    </section>
+
     <!-- PAYOUT DETAILS — earnings are held until the RND adds GCash/bank details -->
     <section v-if="payoutReminder" class="setup-card" role="status">
       <div>
@@ -280,6 +289,7 @@ onMounted(async () => {
 
 const setupMissing = ref([])
 const requiredMissing = computed(() => setupMissing.value.filter(m => !m.optional))
+const needsClinicAddress = computed(() => setupMissing.value.some(m => m.key === 'clinic_address'))
 onMounted(async () => {
   try {
     setupMissing.value = (await get('/auth/me/onboarding/')).missing || []

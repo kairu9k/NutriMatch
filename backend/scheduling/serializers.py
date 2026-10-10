@@ -223,6 +223,8 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This RND isn't accepting new clients right now.")
         if attrs.get("type", Appointment.Type.VIDEO) not in (profile.consultation_modes or []):
             raise serializers.ValidationError({"type": ["This RND doesn't offer that consultation format."]})
+        if attrs.get("type") == Appointment.Type.IN_PERSON and not (profile.clinic_address or "").strip():
+            raise serializers.ValidationError({"type": ["This RND hasn't added a clinic address yet, so in-person consultations can't be booked."]})
 
         # The booking modal only offers open slots inside the RND's hours, but
         # the API enforces the same rules so they can't be bypassed.

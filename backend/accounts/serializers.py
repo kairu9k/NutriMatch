@@ -215,6 +215,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
     consultation_fee = serializers.DecimalField(source="rnd_profile.consultation_fee", max_digits=8, decimal_places=2)
     consultation_modes = serializers.JSONField(source="rnd_profile.consultation_modes")
     date_of_birth = serializers.DateField(source="rnd_profile.date_of_birth", allow_null=True)
+    clinic_address = serializers.CharField(source="rnd_profile.clinic_address", allow_null=True)
     languages = serializers.SerializerMethodField()
     availability = serializers.SerializerMethodField()
     patients = serializers.SerializerMethodField()
@@ -229,7 +230,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
             "prc_license_number", "prc_license_image_url", "specialization", "is_verified", "verified_at",
             "submitted_at", "patients", "consultations", "average_rating", "revenue",
             "review_status", "rejection_reason", "reviewed_at", "bio", "consultation_fee", "consultation_modes",
-            "date_of_birth", "languages", "availability", "profile_photo", "email_verified_at",
+            "date_of_birth", "languages", "availability", "profile_photo", "email_verified_at", "clinic_address",
         ]
         read_only_fields = fields
 
@@ -329,6 +330,19 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     languages = JsonListField()
     availability = JsonListField()
     profile_photo = serializers.FileField(write_only=True, required=False)
+    # Required only when they offer in-person consultations.
+    clinic_address = serializers.CharField(required=False, allow_blank=True, max_length=255, trim_whitespace=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        address = (attrs.get("clinic_address") or "").strip()
+        if "in_person" in (attrs.get("consultation_modes") or []):
+            if not address:
+                raise serializers.ValidationError({"clinic_address": ["Add your clinic address — clients need to know where to go for in-person consultations."]})
+            if len(address) < 10:
+                raise serializers.ValidationError({"clinic_address": ["Enter the full address — building, street, barangay and city."]})
+        attrs["clinic_address"] = address or None
+        return attrs
 
     def validate_consultation_modes(self, value):
         from profiles.models import CONSULTATION_MODES
@@ -432,6 +446,7 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             bio=validated_data["bio"],
             consultation_fee=validated_data["consultation_fee"],
             consultation_modes=validated_data["consultation_modes"],
+            clinic_address=validated_data.get("clinic_address") if "in_person" in validated_data["consultation_modes"] else None,
             language_codes=validated_data["languages"],
             is_verified=False,
             review_status=RndProfile.ReviewStatus.PENDING,

@@ -18,6 +18,17 @@ from .serializers import (
 )
 
 
+class RndSearchOptionsView(APIView):
+    """Specializations / languages / formats for the Find an RND filters."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .public import search_options
+
+        return Response(search_options())
+
+
 class RndSearchView(generics.ListAPIView):
     """Client-facing RND search: filter by specialty, language, availability.
 
@@ -25,8 +36,12 @@ class RndSearchView(generics.ListAPIView):
     (pending PRC review) must not appear to clients.
     """
 
-    serializer_class = RndProfileSerializer
     permission_classes = [IsClient]
+
+    def get_serializer_class(self):
+        from .public import PublicRndProfileSerializer
+
+        return PublicRndProfileSerializer
 
     def get_queryset(self):
         from .services import bookable_rnd_profiles
@@ -43,7 +58,21 @@ class RndSearchView(generics.ListAPIView):
         if language:
             qs = qs.filter(user__languages__language_code=language)
 
-        qs = qs.distinct()
+        name = (self.request.query_params.get("search") or "").strip()
+        if name:
+            from django.db.models import Q
+
+            for part in name.split():
+                qs = qs.filter(Q(user__first_name__icontains=part) | Q(user__last_name__icontains=part))
+
+        max_fee = self.request.query_params.get("max_fee")
+        if max_fee:
+            try:
+                qs = qs.filter(consultation_fee__lte=float(max_fee))
+            except ValueError:
+                pass
+
+        qs = qs.distinct().prefetch_related("user__languages")
 
         # JSONField list containment isn't supported on SQLite (dev DB), so
         # this filter runs in Python — the verified-RND list is small.
@@ -58,9 +87,16 @@ class RndDetailView(generics.RetrieveAPIView):
     now, so this needs no special-case aggregate logic — same as the list
     view (RndSearchView)."""
 
-    serializer_class = RndProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = RndProfile.objects.select_related("user")
+
+    def get_serializer_class(self):
+        from .public import PublicRndDetailSerializer
+
+        return PublicRndDetailSerializer
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), "slot_count": 6}
     lookup_url_kwarg = "rnd_id"
     lookup_field = "user_id"
 

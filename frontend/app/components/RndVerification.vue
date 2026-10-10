@@ -94,6 +94,7 @@
             <dl class="nm-dl">
               <div><dt>Fee</dt><dd>{{ peso(selected.consultation_fee) }}</dd></div>
               <div><dt>Formats</dt><dd>{{ (selected.consultation_modes || []).map(m => MODE_LABELS[m] || m).join(', ') || '—' }}</dd></div>
+              <div v-if="(selected.consultation_modes || []).includes('in_person')"><dt>Clinic address</dt><dd :class="{ muted: !selected.clinic_address }">{{ selected.clinic_address || 'Not given' }}</dd></div>
               <div><dt>Languages</dt><dd>{{ (selected.languages || []).join(', ') || '—' }}</dd></div>
               <div>
                 <dt>Weekly hours</dt>

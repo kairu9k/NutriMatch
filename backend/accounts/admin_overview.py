@@ -106,6 +106,7 @@ def user_overview(user, *, viewer, request=None):
                 "rejection_reason": profile.rejection_reason if profile else None,
                 "verified_at": profile.verified_at if profile else None,
                 "date_of_birth": profile.date_of_birth if profile else None,
+                "clinic_address": profile.clinic_address if profile else None,
             },
             "languages": [lang.language_name for lang in user.languages.all()],
             "availability": [

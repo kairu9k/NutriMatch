@@ -4,7 +4,7 @@
     python manage.py seed_demo --reset   # delete every demo account + its activity, then re-create
 
 5 RNDs and 5 clients, each at a different point in the journey (see RNDS /
-CLIENTS below). All demo accounts use the @nutrimatch.test domain (can't
+CLIENTS below), plus a demo admin (admin@nutrimatch.test). All demo accounts use the @nutrimatch.test domain (can't
 receive mail), are already email-verified, and share one password:
 DEMO_PASSWORD from .env (default below). Dev-only — refuses to run with
 DEBUG=False unless --force is passed.
@@ -12,7 +12,8 @@ DEBUG=False unless --force is passed.
 Clinical numbers (BMI, BMR, TDEE, NRS-2002) are computed with the same
 clinical/services.py functions the app uses, never typed in, and paid
 invoices go through billing.services.record_successful_payment() like a
-real PayMongo payment does. Dates are relative to "today" in Philippine
+real PayMongo payment does; Maria's payout goes through
+billing.payouts.release_payout() like an admin's release does. Dates are relative to "today" in Philippine
 time, so the data always looks current.
 """
 import secrets
@@ -31,7 +32,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import User
-from billing.models import Invoice
+from billing.models import Invoice, RndPayoutAccount
 from billing.services import record_successful_payment
 from clinical.models import NcpRecord, PreConsultationScreening, ProgressRecord
 from clinical.services import (
@@ -43,7 +44,7 @@ from clinical.services import (
 )
 from communication.models import Message
 from communication.services import notify
-from core.models import SystemSetting
+from core.models import AuditLog, SystemSetting
 from nutrition.models import FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
 from profiles.models import (
     ClientHealthProfile,
@@ -64,15 +65,16 @@ from profiles.models import LANGUAGE_NAMES  # noqa: E402  (shared language list;
 # day_of_week uses the app's convention: Sunday=0 … Saturday=6.
 RNDS = [
     {
-        "key": "maria", "first_name": "Maria", "last_name": "Santos",
+        "key": "maria", "dob": date(1988, 6, 14), "first_name": "Maria", "last_name": "Santos",
         "specialization": "Diabetes & Weight Management",
         "bio": "Registered Nutritionist-Dietitian with 8 years of clinical experience helping Filipino adults manage type 2 diabetes and lose weight through practical, rice-aware meal plans.",
         "fee": Decimal("800"), "modes": ["video", "chat", "in_person"], "languages": ["en", "tl", "ceb"],
+        "clinic": "Unit 204, Bajada Medical Arts Bldg, J.P. Laurel Ave, Bajada, Davao City",
         "availability": [(d, time(9), time(17)) for d in (1, 2, 3, 4, 5)],
         "verified": True, "accepting": True, "prc": "0123456",
     },
     {
-        "key": "jose", "first_name": "Jose", "last_name": "Reyes",
+        "key": "jose", "dob": date(1982, 2, 3), "first_name": "Jose", "last_name": "Reyes",
         "specialization": "Renal & Hypertension Nutrition",
         "bio": "Hospital-based RND focused on kidney disease and blood pressure control. Specializes in low-sodium, potassium-aware Filipino diets.",
         "fee": Decimal("1000"), "modes": ["video"], "languages": ["en", "tl"],
@@ -80,7 +82,7 @@ RNDS = [
         "verified": True, "accepting": True, "prc": "0234567",
     },
     {
-        "key": "angela", "first_name": "Angela", "last_name": "Villanueva",
+        "key": "angela", "dob": date(1993, 8, 21), "first_name": "Angela", "last_name": "Villanueva",
         "specialization": "Sports Nutrition",
         "bio": "Works with athletes and active adults on performance nutrition, body composition and recovery. Currently at full capacity.",
         "fee": Decimal("600"), "modes": ["video", "chat"], "languages": ["en", "tl"],
@@ -88,20 +90,21 @@ RNDS = [
         "verified": True, "accepting": False, "prc": "0345678",
     },
     {
-        "key": "ramon", "first_name": "Ramon", "last_name": "Dela Cruz",
+        "key": "ramon", "dob": date(1979, 12, 1), "first_name": "Ramon", "last_name": "Dela Cruz",
         "specialization": "Pediatric & General Nutrition",
         "bio": "Community nutritionist in Davao City. Helps families with child growth, picky eating and healthy home cooking on a budget.",
         "fee": Decimal("700"), "modes": ["video", "in_person"], "languages": ["ceb", "tl", "en"],
+        "clinic": "Barangay Health Center Annex, Quimpo Blvd, Matina, Davao City",
         "availability": [(d, time(10), time(16)) for d in (1, 2, 3, 4, 5, 6)],
         "verified": True, "accepting": True, "prc": "0456789",
     },
     {
-        "key": "kristine", "first_name": "Kristine", "last_name": "Bautista",
+        "key": "kristine", "dob": date(1999, 5, 27), "first_name": "Kristine", "last_name": "Bautista",
         "specialization": "Cardiovascular Nutrition",
         "bio": "Newly registered RND focused on heart-healthy eating and cholesterol management.",
         "fee": Decimal("750"), "modes": ["video", "chat"], "languages": ["en", "tl"],
         "availability": [(d, time(9), time(15)) for d in (1, 3, 5)],
-        "verified": False, "accepting": True, "prc": None,  # pending admin review — has a license photo instead
+        "verified": False, "accepting": True, "prc": "0567890",  # pending admin review (+ a license photo)
     },
 ]
 
@@ -125,8 +128,12 @@ def demo_email(first_name, last_name):
     return f"{first_name}.{last_name}".lower().replace(" ", "") + f"@{DEMO_DOMAIN}"
 
 
+# A demo admin, so a fresh database has a login for every role.
+DEMO_ADMIN = {"first_name": "Demo", "last_name": "Admin", "email": f"admin@{DEMO_DOMAIN}"}
+
+
 def all_demo_emails():
-    return [demo_email(p["first_name"], p["last_name"]) for p in RNDS + CLIENTS]
+    return [demo_email(p["first_name"], p["last_name"]) for p in RNDS + CLIENTS] + [DEMO_ADMIN["email"]]
 
 
 def dow(d: date) -> int:
@@ -198,6 +205,7 @@ class Command(BaseCommand):
         call_command("seed", stdout=self.stdout)
 
         with transaction.atomic():
+            self.admin = self._create_admin()
             self.rnds = {p["key"]: self._create_rnd(p) for p in RNDS}
             self.clients = {p["key"]: self._create_client(p) for p in CLIENTS}
             self._benjamin()
@@ -216,6 +224,13 @@ class Command(BaseCommand):
             .values_list("prc_license_image", flat=True)
         )
         count = demo_users.count()
+        # Payouts protect their RND and invoices (money records must not
+        # vanish by accident) — for demo accounts, unlink and remove them first.
+        from billing.models import Payout
+
+        demo_payouts = Payout.objects.filter(rnd__in=demo_users)
+        Invoice.objects.filter(payout__in=demo_payouts).update(payout=None)
+        demo_payouts.delete()
         demo_users.delete()  # cascades to every relationship, appointment, record, plan, invoice, message…
         for public_id in license_ids:
             self._destroy_license(public_id)
@@ -233,15 +248,31 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------ accounts
     def _create_user(self, profile, role):
-        return User.objects.create_user(
+        now = timezone.now()
+        user = User.objects.create_user(
             email=demo_email(profile["first_name"], profile["last_name"]),
             password=self.password,
             role=role,
             first_name=profile["first_name"],
             last_name=profile["last_name"],
             phone="09" + "".join(secrets.choice("0123456789") for _ in range(9)),
-            email_verified_at=timezone.now(),
+            email_verified_at=now,
+            # Registration requires informed consent (RA 10173) — same record it writes.
+            terms_accepted_at=now,
+            data_consent_at=now,
         )
+        AuditLog.objects.create(
+            user=user, action="consent.given", table_name="users", record_id=user.id,
+            new_values={"terms_and_privacy_policy": True, "data_processing_consent": True, "role": role, "source": "seed_demo"},
+        )
+        return user
+
+    def _create_admin(self):
+        user = User.objects.create_superuser(
+            email=DEMO_ADMIN["email"], password=self.password,
+            first_name=DEMO_ADMIN["first_name"], last_name=DEMO_ADMIN["last_name"],
+        )
+        return user
 
     def _create_rnd(self, p):
         user = self._create_user(p, User.Role.RND)
@@ -253,6 +284,8 @@ class Command(BaseCommand):
             bio=p["bio"],
             consultation_fee=p["fee"],
             consultation_modes=p["modes"],
+            clinic_address=p.get("clinic"),
+            date_of_birth=p["dob"],
             available_for_new_clients=p["accepting"],
             is_verified=p["verified"],
             verified_at=timezone.now() if p["verified"] else None,
@@ -342,7 +375,11 @@ class Command(BaseCommand):
             appt.video_session_url = room["participant_url"]
             appt.meeting_id = room["external_session_id"]
             appt.save(update_fields=["video_session_url", "meeting_id"])
-        Appointment.objects.filter(pk=appt.pk).update(created_at=when - timedelta(days=3))
+        Appointment.objects.filter(pk=appt.pk).update(
+            created_at=when - timedelta(days=3),
+            completed_at=when + timedelta(minutes=60) if status == Appointment.Status.COMPLETED else None,
+        )
+        appt.refresh_from_db()
         return appt
 
     def _invoice(self, appt, paid_method=None, issued_at=None):
@@ -413,6 +450,30 @@ class Command(BaseCommand):
         )
         return plan
 
+    def _release_past_payout(self, rnd, appt):
+        """Release `rnd`'s Posted balance with the real release_payout(),
+        dated the most recent payout day — if the visit had already cleared
+        the hold by then. The RND email is skipped (.test addresses can't
+        receive mail)."""
+        from unittest import mock
+
+        from billing.models import PaymentTransaction, Payout
+        from billing.payouts import HOLD_DAYS, PAYOUT_DAY, release_payout
+
+        payday = self.today.replace(day=PAYOUT_DAY)
+        if self.today.day < PAYOUT_DAY:
+            payday = (payday.replace(day=1) - timedelta(days=1)).replace(day=PAYOUT_DAY)
+        if appt.completed_at.astimezone(MANILA).date() + timedelta(days=HOLD_DAYS) > payday:
+            return None
+        admin = self.admin
+        with mock.patch("accounts.emails.send_notice_email"):
+            payout = release_payout(rnd, reference=f"GC-{payday:%Y%m%d}-{secrets.randbelow(9000) + 1000}",
+                                    released_by=admin, notes="Demo payout (seed_demo)")
+        released = at(payday, time(10))
+        Payout.objects.filter(pk=payout.pk).update(payout_date=payday, released_at=released)
+        PaymentTransaction.objects.filter(invoice__payout=payout, transaction_type="payout").update(processed_at=released)
+        return payout
+
     def _messages(self, rel, lines, days_ago):
         start = at(self.today - timedelta(days=days_ago), time(9))
         for i, (sender_is_rnd, text) in enumerate(lines):
@@ -449,6 +510,10 @@ class Command(BaseCommand):
         upcoming = self._appointment(rel, at(upcoming_day, time(14)), Appointment.Status.CONFIRMED)
 
         self._invoice(first, paid_method=Invoice.PaymentMethod.GCASH)
+        # Maria has GCash payout details and was paid for her first visit on
+        # the last payout day; the follow-up is Posted, waiting for the next 5th.
+        RndPayoutAccount.objects.create(rnd=maria, method="gcash", account_name="Maria Santos", account_number="09171234567")
+        self._release_past_payout(maria, first)
         self._invoice(followup, paid_method=Invoice.PaymentMethod.QRPH)
         # Confirmed yesterday, not paid yet — demos "pay before your consultation".
         self._invoice(upcoming, issued_at=timezone.now() - timedelta(days=1))
@@ -611,6 +676,9 @@ class Command(BaseCommand):
         day = shift_to_day(self.today + timedelta(days=3), ramon.demo_days, 1)
         appt = self._appointment(rel, at(day, time(11)), Appointment.Status.PENDING, kind="in_person",
                                  notes="Would like help planning healthier meals for my two kids.")
+        # Booked 30 hours ago and Ramon hasn't answered — admins see it as a
+        # request waiting over 24 hours (sidebar badge on Appointments).
+        Appointment.objects.filter(pk=appt.pk).update(created_at=timezone.now() - timedelta(hours=30))
         notify(recipient=ramon, notifiable_type="appointment", notifiable_id=appt.id,
                subject="New booking", content="Elena Ramos booked an in-person consultation.")
 
@@ -631,15 +699,18 @@ class Command(BaseCommand):
     def _summary(self):
         self.stdout.write(self.style.SUCCESS("Demo data created."))
         self.stdout.write(f"All demo accounts use the password from DEMO_PASSWORD (default: {DEFAULT_DEMO_PASSWORD}).")
+        self.stdout.write(f"  Admin   {DEMO_ADMIN['email']:38} signs in at /admin/login")
         for p in RNDS:
             state = "pending verification" if not p["verified"] else ("not accepting new clients" if not p["accepting"] else "verified")
+            if p["key"] == "maria":
+                state += " — GCash payout details, 1 payout released"
             self.stdout.write(f"  RND     {demo_email(p['first_name'], p['last_name']):38} {p['specialization']} — {state}")
         notes = {
             "ana": "brand new — goes through client onboarding on first sign-in",
             "benjamin": "screened, no RND yet",
             "carla": "Maria's patient — full history, upcoming visit with payment due",
-            "daniel": "Jose's patient — 1 paid visit, meal plan",
-            "elena": "first booking with Ramon, waiting for confirmation",
+            "daniel": "Jose's patient — 1 paid visit, meal plan (Jose has no payout details yet)",
+            "elena": "first booking with Ramon, waiting over 24 hours for confirmation",
         }
         for p in CLIENTS:
             self.stdout.write(f"  Client  {demo_email(p['first_name'], p['last_name']):38} {notes[p['key']]}")

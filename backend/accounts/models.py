@@ -27,6 +27,11 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("first_name", "Admin")
         extra_fields.setdefault("last_name", "User")
         extra_fields["role"] = "admin"
+        # Created from the command line, so there's no inbox code to enter —
+        # sign-in requires a verified email, so mark it verified here.
+        from django.utils import timezone
+
+        extra_fields.setdefault("email_verified_at", timezone.now())
         return self._create_user(email, password, **extra_fields)
 
 

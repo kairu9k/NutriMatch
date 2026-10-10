@@ -118,6 +118,12 @@
                 </span>
               </dd>
             </div>
+            <div v-if="personalInfo.consultationModes.includes('in_person')" class="info-item">
+              <dt>Clinic Address</dt>
+              <dd :class="{ muted: !personalInfo.clinicAddress }">
+                {{ personalInfo.clinicAddress || 'Not added yet — clients can\'t book in-person consultations until you add it.' }}
+              </dd>
+            </div>
           </dl>
 
           <template v-else>
@@ -156,6 +162,14 @@
                 </label>
               </div>
               <p class="field-hint">Patients can only book the formats you offer.</p>
+            </div>
+
+            <div v-if="personalInfo.consultationModes.includes('in_person')" class="field field-bio">
+              <label class="field-label" for="rp-address">Clinic Address</label>
+              <input id="rp-address" v-model="personalInfo.clinicAddress" type="text" class="field-input" :class="{ invalid: fieldErrors.clinicAddress }"
+                maxlength="255" placeholder="e.g. 2F Bajada Medical Bldg, J.P. Laurel Ave, Bajada, Davao City" />
+              <p v-if="fieldErrors.clinicAddress" class="field-error">{{ fieldErrors.clinicAddress }}</p>
+              <p v-else class="field-hint">Where clients go for in-person consultations — shown on your profile.</p>
             </div>
           </template>
 
@@ -472,7 +486,7 @@ const MODE_OPTIONS = [
 
 const personalInfo = ref({
   firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
-  consultationModes: [], initials: '', avatarColor: db.personalInfo.avatarColor,
+  consultationModes: [], clinicAddress: '', initials: '', avatarColor: db.personalInfo.avatarColor,
   prcVerified: false, prcNumber: '', prcVerifiedOn: '', prcPhotoUrl: '',
 })
 const isSavingProfile = ref(false)
@@ -481,7 +495,7 @@ const isEditing = ref(false)
 const profileLoaded = ref(false)
 // Last loaded profile — Cancel restores the form from it.
 const lastLoaded = ref(null)
-const fieldErrors = reactive({ firstName: '', lastName: '' })
+const fieldErrors = reactive({ firstName: '', lastName: '', clinicAddress: '' })
 
 const identityName = computed(() => `RND ${personalInfo.value.firstName} ${personalInfo.value.lastName}`.trim())
 const identitySubtitle = computed(() => {
@@ -523,6 +537,7 @@ function applyProfile(user, rndProfile) {
   personalInfo.value.bio = rndProfile.bio || ''
   personalInfo.value.consultationFee = rndProfile.consultation_fee != null ? Number(rndProfile.consultation_fee) : ''
   personalInfo.value.consultationModes = [...(rndProfile.consultation_modes || [])]
+  personalInfo.value.clinicAddress = rndProfile.clinic_address || ''
   // PRC — read-only. The photo link is signed and short-lived (it's a
   // private upload), so it's refreshed every time the profile loads.
   personalInfo.value.prcVerified = Boolean(rndProfile.is_verified)
@@ -591,7 +606,7 @@ const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑ�
 
 async function saveChanges() {
   profileError.value = ''
-  fieldErrors.firstName = fieldErrors.lastName = ''
+  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.clinicAddress = ''
   personalInfo.value.firstName = personalInfo.value.firstName.trim()
   personalInfo.value.lastName = personalInfo.value.lastName.trim()
   if (!personalInfo.value.firstName) fieldErrors.firstName = 'Enter your first name.'
@@ -602,6 +617,12 @@ async function saveChanges() {
   if (!personalInfo.value.consultationModes.length) {
     profileError.value = 'Offer at least one consultation format.'
     return
+  }
+  const address = (personalInfo.value.clinicAddress || '').trim()
+  if (personalInfo.value.consultationModes.includes('in_person')) {
+    if (!address) fieldErrors.clinicAddress = 'Add your clinic address — clients need to know where to go.'
+    else if (address.length < 10) fieldErrors.clinicAddress = 'Enter the full address — building, street, barangay and city.'
+    if (fieldErrors.clinicAddress) return
   }
   const fee = personalInfo.value.consultationFee
   if (fee === '' || fee === null || Number(fee) < 100) {
@@ -620,6 +641,7 @@ async function saveChanges() {
         bio: personalInfo.value.bio,
         consultation_fee: Number(fee).toFixed(2),
         consultation_modes: personalInfo.value.consultationModes,
+        clinic_address: personalInfo.value.consultationModes.includes('in_person') ? address : (address || null),
       }),
     ])
     applyProfile(user, rndProfile)
@@ -631,7 +653,8 @@ async function saveChanges() {
     const first = (v) => (Array.isArray(v) ? v[0] : v) || ''
     fieldErrors.firstName = first(data.first_name)
     fieldErrors.lastName = first(data.last_name)
-    profileError.value = fieldErrors.firstName || fieldErrors.lastName
+    fieldErrors.clinicAddress = first(data.clinic_address)
+    profileError.value = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.clinicAddress
       ? ''
       : data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
   } finally {

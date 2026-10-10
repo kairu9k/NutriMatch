@@ -242,7 +242,7 @@ class ClientOnboardingTests(TestCase):
         api = APIClient()
         api.force_authenticate(rnd)
         keys = {m["key"] for m in api.get("/api/auth/me/onboarding/").data["missing"]}
-        self.assertEqual(keys, {"fee", "availability", "languages"})
+        self.assertEqual(keys, {"fee", "availability", "languages", "clinic_address"})
 
 
 class WelcomeMessageTests(TestCase):

@@ -127,6 +127,9 @@ def rnd_missing_setup(profile):
         missing.append({"key": "bio", "label": "Write your professional bio"})
     if not profile.user.availability_schedules.filter(is_available=True).exists():
         missing.append({"key": "availability", "label": "Add your weekly availability"})
+    if "in_person" in (profile.consultation_modes or []) and not (profile.clinic_address or "").strip():
+        # Doesn't hide them from Find an RND — only in-person booking is blocked.
+        missing.append({"key": "clinic_address", "label": "Add your clinic address for in-person consultations", "optional": True, "warn": True})
     if not profile.user.languages.exists():
         missing.append({"key": "languages", "label": "Add the languages you consult in", "optional": True})
     return missing

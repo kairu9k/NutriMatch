@@ -69,7 +69,7 @@ class RndProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "user", "prc_license_number", "prc_expiry_date", "specialization",
             "language_codes", "bio", "consultation_fee", "consultation_modes", "available_for_new_clients",
-            "is_verified", "verified_at", "languages", "average_rating", "review_count",
+            "is_verified", "verified_at", "languages", "average_rating", "review_count", "clinic_address",
         ]
         # PRC details are set at registration and checked by the admin —
         # never editable by the RND (Profile Settings shows them read-only).
@@ -116,8 +116,25 @@ class RndProfileUpdateSerializer(serializers.ModelSerializer):
         model = RndProfile
         fields = [
             "specialization", "language_codes", "bio", "consultation_fee",
-            "consultation_modes", "available_for_new_clients", "languages",
+            "consultation_modes", "available_for_new_clients", "languages", "clinic_address",
         ]
+
+    def validate_clinic_address(self, value):
+        value = (value or "").strip()
+        if value and len(value) < 10:
+            raise serializers.ValidationError("Enter the full address — building, street, barangay and city.")
+        return value or None
+
+    def validate(self, attrs):
+        # Checked when formats or the address are being saved (the Professional
+        # Profile form), so an unrelated edit (e.g. languages) never gets stuck.
+        if "consultation_modes" not in attrs and "clinic_address" not in attrs:
+            return attrs
+        modes = attrs.get("consultation_modes", getattr(self.instance, "consultation_modes", None)) or []
+        address = attrs["clinic_address"] if "clinic_address" in attrs else getattr(self.instance, "clinic_address", None)
+        if "in_person" in modes and not address:
+            raise serializers.ValidationError({"clinic_address": ["Add your clinic address — clients need to know where to go for in-person consultations."]})
+        return attrs
 
     def validate_consultation_fee(self, value):
         if value < MIN_CONSULTATION_FEE:

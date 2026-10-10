@@ -61,6 +61,8 @@ class RndProfile(models.Model):
     bio = models.TextField(null=True, blank=True)
     consultation_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     consultation_modes = models.JSONField(default=default_consultation_modes, help_text="Subset of video/chat/in_person")
+    # Where in-person consultations happen — required once "in_person" is offered.
+    clinic_address = models.CharField(max_length=255, null=True, blank=True)
     available_for_new_clients = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     verified_at = models.DateTimeField(null=True, blank=True)

@@ -1,74 +1,149 @@
 <template>
-  <div class="profile-page">
-    <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-    <p v-if="isLoading" class="placeholder-text">Loading…</p>
+  <div class="profile-page nm-page">
+    <p v-if="errorMessage" class="nm-error">{{ errorMessage }}</p>
+
+    <div v-if="isLoading" class="loading-hero"><span class="sk sk-avatar" /><span style="flex: 1"><span class="sk sk-line w40" /><span class="sk sk-line w60" /></span></div>
 
     <template v-else-if="rnd">
-      <p class="breadcrumb"><NuxtLink to="/find-rnd">Find an RND</NuxtLink> / RND {{ rnd.user.first_name }} {{ rnd.user.last_name }}</p>
+      <p class="breadcrumb"><NuxtLink to="/find-rnd">Find an RND</NuxtLink> / {{ fullName }}</p>
 
-      <div class="profile-banner">
-        <div class="big-avatar" :style="{ background: colorForId(rnd.user.id) }">{{ initialsFor(rnd.user) }}</div>
-        <div class="banner-info">
-          <h1 class="banner-name">RND {{ rnd.user.first_name }} {{ rnd.user.last_name }} <BadgeCheck :size="18" class="verified-icon" /></h1>
-          <p class="banner-specialty">{{ rnd.specialization || 'General Practice' }}<template v-if="rnd.prc_license_number"> · PRC License #{{ rnd.prc_license_number }}</template></p>
-          <div class="banner-chips">
-            <span v-if="rnd.average_rating" class="chip chip-gold">★ {{ rnd.average_rating.toFixed(1) }} ({{ rnd.review_count }} review{{ rnd.review_count === 1 ? '' : 's' }})</span>
-            <span v-if="rnd.languages.length" class="chip"><Languages :size="13" /> {{ rnd.languages.map(l => l.language_name).join(' · ') }}</span>
-            <span v-for="f in offeredFormats" :key="f.key" class="chip"><component :is="f.icon" :size="12" /> {{ f.short }} Available</span>
+      <!-- hero -->
+      <section class="hero">
+        <img v-if="rnd.user.profile_photo" :src="rnd.user.profile_photo" class="hero-avatar" alt="" />
+        <span v-else class="hero-avatar initials">{{ userInitials(rnd.user.first_name, rnd.user.last_name) }}</span>
+        <div class="hero-main">
+          <span class="hero-badge"><ShieldCheck :size="13" /> PRC-verified<template v-if="rnd.verified_at"> since {{ monthYear(rnd.verified_at) }}</template></span>
+          <h1 class="hero-name">{{ fullName }}</h1>
+          <p class="hero-spec">{{ rnd.specialization || 'General / Clinical Nutrition' }}<template v-if="rnd.prc_license_number"> · PRC License No. {{ rnd.prc_license_number }}</template></p>
+          <div class="hero-stats">
+            <span v-if="rnd.review_count"><Star :size="14" class="gold" /> <strong>{{ rnd.average_rating.toFixed(1) }}</strong> ({{ rnd.review_count }} review{{ rnd.review_count === 1 ? '' : 's' }})</span>
+            <span v-else><Star :size="14" /> No reviews yet</span>
+            <span><CalendarCheck :size="14" /> <strong>{{ rnd.consultations_completed }}</strong> consultation{{ rnd.consultations_completed === 1 ? '' : 's' }} done</span>
+            <span><Users :size="14" /> <strong>{{ rnd.active_patients }}</strong> active patient{{ rnd.active_patients === 1 ? '' : 's' }}</span>
+            <span><Clock :size="14" /> On NutriMatch since {{ monthYear(rnd.member_since) }}</span>
+          </div>
+          <div class="hero-chips">
+            <span v-for="l in rnd.languages" :key="l.code" class="hero-chip"><Languages :size="12" /> {{ l.language_name }}</span>
+            <span v-for="f in offeredFormats" :key="f.key" class="hero-chip"><component :is="f.icon" :size="12" /> {{ f.short }}</span>
           </div>
         </div>
-        <div class="banner-fee">
-          <div class="fee-amount">₱{{ formatFee(rnd.consultation_fee) }}</div>
-          <div class="fee-unit">per session</div>
+        <div class="hero-fee">
+          <p class="fee-amount">₱{{ formatFee(rnd.consultation_fee) }}</p>
+          <p class="fee-unit">per {{ SESSION_MINUTES }}-minute session</p>
         </div>
-      </div>
+      </section>
 
-      <div class="content-grid">
-        <div class="main-col">
-          <div class="surface">
-            <h3 class="surface-title">About</h3>
+      <div class="nm-grid">
+        <div class="nm-col">
+          <div class="nm-panel">
+            <h2 class="nm-panel-title">About {{ rnd.user.first_name }}</h2>
             <p class="bio-text">{{ rnd.bio || 'This RND has not added a bio yet.' }}</p>
           </div>
 
-          <div class="surface">
-            <h3 class="surface-title">Weekly Availability</h3>
-            <div v-if="isLoadingAvailability" class="placeholder-text">Loading…</div>
+          <div class="nm-panel">
+            <h2 class="nm-panel-title">How your care works</h2>
+            <p class="nm-panel-sub">NutriMatch follows the Nutrition Care Process used by RNDs.</p>
+            <ol class="steps">
+              <li v-for="(st, i) in CARE_STEPS" :key="st.title">
+                <span class="step-num">{{ i + 1 }}</span>
+                <span><strong>{{ st.title }}</strong><span class="step-text">{{ st.text }}</span></span>
+              </li>
+            </ol>
+          </div>
+
+          <div class="nm-panel">
+            <h2 class="nm-panel-title">Where &amp; how you'll meet</h2>
+            <div v-for="f in offeredFormats" :key="f.key" class="nm-row how-row">
+              <span class="nm-stat-icon" style="margin: 0"><component :is="f.icon" :size="16" /></span>
+              <div class="nm-row-main">
+                <p class="nm-row-title">{{ f.label }}</p>
+                <p class="nm-row-sub">{{ f.how }}</p>
+                <template v-if="f.key === 'in_person'">
+                  <p class="address"><MapPin :size="13" /> {{ rnd.clinic_address }}</p>
+                  <a :href="mapUrl" target="_blank" rel="noopener" class="nm-panel-link map-link">Open in Google Maps <ExternalLink :size="11" /></a>
+                </template>
+              </div>
+            </div>
+            <p v-if="inPersonWithoutAddress" class="nm-note" style="margin: 12px 0 0">
+              {{ rnd.user.first_name }} hasn't added a clinic address yet, so in-person consultations can't be booked for now.
+            </p>
+          </div>
+
+          <div class="nm-panel">
+            <h2 class="nm-panel-title">Weekly hours</h2>
+            <p class="nm-panel-sub">Philippine time</p>
+            <div v-if="isLoadingAvailability" class="nm-muted" style="margin-top: 12px">Loading…</div>
             <div v-else-if="availabilityByDay.some(d => d.slots.length)" class="avail-grid">
               <div v-for="d in availabilityWeekMonFirst" :key="d.day" class="avail-box" :class="{ muted: !d.slots.length }">
                 <p class="avail-day">{{ d.short }}</p>
                 <p class="avail-hours">{{ d.slots.length ? d.slots.map(s => compactHours(s.start_time, s.end_time)).join(', ') : '—' }}</p>
               </div>
             </div>
-            <p v-else class="empty-note">This RND hasn't set their availability yet.</p>
+            <p v-else class="nm-muted" style="margin-top: 12px">This RND hasn't set their hours yet.</p>
           </div>
 
-          <div class="surface">
-            <div class="reviews-header">
-              <h3 class="surface-title">Patient Reviews</h3>
-              <span v-if="rnd.average_rating" class="chip chip-gold">★ {{ rnd.average_rating.toFixed(1) }} average</span>
-            </div>
-            <div v-if="isLoadingReviews" class="placeholder-text">Loading reviews…</div>
-            <div v-else-if="reviews.length" class="review-list">
-              <div v-for="review in reviews" :key="review.id" class="review-row">
-                <div class="review-top">
-                  <span class="review-name">{{ review.client_name }}</span>
-                  <span class="review-stars">{{ '★'.repeat(review.rating) }}{{ '☆'.repeat(5 - review.rating) }}</span>
+          <div class="nm-panel">
+            <h2 class="nm-panel-title">Patient reviews</h2>
+            <div v-if="rnd.review_count" class="rating-summary">
+              <div class="rating-big">
+                <p class="rating-num">{{ rnd.average_rating.toFixed(1) }}</p>
+                <p class="rating-stars">{{ starText(Math.round(rnd.average_rating)) }}</p>
+                <p class="nm-muted">{{ rnd.review_count }} review{{ rnd.review_count === 1 ? '' : 's' }}</p>
+              </div>
+              <div class="bars">
+                <div v-for="star in [5, 4, 3, 2, 1]" :key="star" class="bar-row">
+                  <span>{{ star }}★</span>
+                  <span class="bar"><span :style="{ width: `${barPct(star)}%` }" /></span>
+                  <span class="bar-n">{{ rnd.rating_breakdown?.[star] || 0 }}</span>
                 </div>
-                <p v-if="review.comment" class="review-comment">"{{ review.comment }}"</p>
               </div>
             </div>
-            <p v-else class="empty-note">No reviews yet.</p>
+            <div v-if="isLoadingReviews" class="nm-muted" style="margin-top: 12px">Loading reviews…</div>
+            <div v-else-if="reviews.length">
+              <div v-for="review in reviews" :key="review.id" class="nm-row review-row">
+                <div class="nm-row-main">
+                  <p class="review-top"><span class="nm-row-title">{{ review.client_name }}</span><span class="rating-stars small">{{ starText(review.rating) }}</span></p>
+                  <p v-if="review.comment" class="review-comment">"{{ review.comment }}"</p>
+                  <p class="nm-row-sub">{{ shortDate(review.created_at) }}</p>
+                </div>
+              </div>
+            </div>
+            <p v-else class="nm-muted" style="margin-top: 12px">No reviews yet — be one of {{ rnd.user.first_name }}'s first patients.</p>
           </div>
         </div>
 
-        <div class="sidebar-col">
-          <div class="surface sticky-card">
-            <h3 class="surface-title">Start Your Care Journey</h3>
-            <p class="sidebar-desc">
-              Book a session with RND {{ rnd.user.first_name }} {{ rnd.user.last_name }}. They'll confirm your appointment, and your care plan starts from there.
-            </p>
+        <!-- booking card -->
+        <div class="nm-col side">
+          <div class="nm-panel book-card">
+            <template v-if="rnd.is_my_rnd">
+              <span class="nm-pill green">Your RND</span>
+              <p class="book-text">You're already seeing {{ rnd.user.first_name }}. Your appointments and messages are in one place.</p>
+              <div class="book-links">
+                <NuxtLink to="/appointments" class="nm-btn-outline">My appointments</NuxtLink>
+                <NuxtLink to="/messages" class="nm-btn-outline">Messages</NuxtLink>
+              </div>
+              <div class="divider" />
+            </template>
 
-            <button class="primary-btn" type="button" :disabled="!offeredFormats.length" @click="openBookingModal">Book Appointment</button>
+            <p class="book-fee">₱{{ formatFee(rnd.consultation_fee) }} <span>/ {{ SESSION_MINUTES }}-min session</span></p>
+            <p class="nm-section-title" style="margin-top: 14px">Next open times</p>
+            <div v-if="rnd.next_open_slots.length" class="slot-grid">
+              <button v-for="slot in rnd.next_open_slots" :key="slot" type="button" class="slot" @click="bookSlot(slot)">
+                <span class="slot-day">{{ slotDay(slot) }}</span>
+                <span class="slot-time">{{ slotTime(slot) }}</span>
+              </button>
+            </div>
+            <p v-else class="nm-muted">No open times in the next 4 weeks.</p>
+
+            <button class="nm-btn-dark book-btn" type="button" :disabled="!offeredFormats.length || !rnd.next_open_slots.length" @click="openBookingModal()">
+              <CalendarPlus :size="15" /> {{ rnd.next_open_slots.length ? 'See all times & book' : 'No times available' }}
+            </button>
+
+            <ul class="policy">
+              <li><CreditCard :size="13" /> Pay after {{ rnd.user.first_name }} confirms — before the session starts.</li>
+              <li><RotateCcw :size="13" /> Cancel before it starts and a paid session is refunded.</li>
+              <li><Clock :size="13" /> Your booking is a request until {{ rnd.user.first_name }} confirms it.</li>
+            </ul>
 
             <!-- Only for clients who haven't screened yet — the RND can't
                  confirm a first appointment without it. -->
@@ -91,7 +166,7 @@
 
         <div class="booking-left">
           <h2 class="booking-title">Book Your <em>Consultation</em></h2>
-          <p class="booking-sub">Pick a session format and a time that works — RND {{ rnd.user.first_name }} {{ rnd.user.last_name }} will confirm within 24 hours.</p>
+          <p class="booking-sub">Pick a session format and a time that works — {{ fullName }} will confirm within 24 hours.</p>
 
           <div class="booking-section">
             <h4 class="section-h">Session Format</h4>
@@ -106,11 +181,12 @@
                 <span class="format-name">{{ f.label }}</span>
               </button>
             </div>
+            <p v-if="bookingType === 'in_person'" class="address booking-address"><MapPin :size="13" /> {{ rnd.clinic_address }}</p>
           </div>
 
           <div class="booking-section">
             <h4 class="section-h">Pick a Date</h4>
-            <p class="section-sub">Based on RND {{ rnd.user.first_name }}'s weekly availability.</p>
+            <p class="section-sub">Based on {{ rnd.user.first_name }}'s weekly hours.</p>
 
             <div class="calendar-head">
               <span class="calendar-month">{{ viewMonthLabel }}</span>
@@ -153,7 +229,7 @@
             <BadgeCheck :size="15" /> {{ isBooking ? 'Booking…' : 'Confirm Booking' }}
           </button>
           <p v-if="bookingHint" class="booking-hint">{{ bookingHint }}</p>
-          <p class="submit-note">You'll pay after your consultation — the invoice appears in Billing once your RND marks the session complete.</p>
+          <p class="submit-note">Once {{ rnd.user.first_name }} confirms, you'll get an invoice — pay it before the session starts to join.</p>
         </div>
       </div>
     </div>
@@ -161,7 +237,10 @@
 </template>
 
 <script setup>
-import { BadgeCheck, Languages, Info, X, ChevronLeft, ChevronRight, Video, MessageSquare, MapPin } from 'lucide-vue-next'
+import {
+  BadgeCheck, CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Info, Languages,
+  MapPin, MessageSquare, RotateCcw, ShieldCheck, Star, Users, Video, X,
+} from 'lucide-vue-next'
 
 const route = useRoute()
 const { get, post } = useApi()
@@ -207,12 +286,33 @@ function formatFee(fee) {
   return Number(fee).toLocaleString('en-PH', { maximumFractionDigits: 2 })
 }
 
-const AVATAR_COLORS = ['#1e4a26', '#3a6b3a', '#D4A017', '#6a8a6a', '#8a6a3a']
-function colorForId(id) {
-  return AVATAR_COLORS[id % AVATAR_COLORS.length]
+const fullName = computed(() => (rnd.value ? `${rnd.value.user.first_name} ${rnd.value.user.last_name}` : ''))
+const mapUrl = computed(() => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rnd.value?.clinic_address || '')}`)
+const CARE_STEPS = [
+  { title: 'Health screening', text: 'A short form about your height, weight and health so your RND comes prepared.' },
+  { title: 'First consultation', text: 'Your RND assesses your diet and health and agrees on goals with you.' },
+  { title: 'Your meal plan', text: 'A weekly plan built from Filipino foods, which you can follow and log in the app.' },
+  { title: 'Follow-ups', text: 'Regular check-ins to track your progress and adjust the plan.' },
+]
+const PH = { timeZone: 'Asia/Manila' }
+function monthYear(v) {
+  return v ? new Date(v).toLocaleDateString('en-PH', { ...PH, month: 'short', year: 'numeric' }) : ''
 }
-function initialsFor(user) {
-  return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase()
+function slotDay(iso) {
+  const day = new Date(iso).toLocaleDateString('en-CA', PH)
+  if (day === new Date().toLocaleDateString('en-CA', PH)) return 'Today'
+  if (day === new Date(Date.now() + 86400000).toLocaleDateString('en-CA', PH)) return 'Tomorrow'
+  return new Date(iso).toLocaleDateString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric' })
+}
+function slotTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' })
+}
+function starText(n) {
+  return '★'.repeat(n) + '☆'.repeat(5 - n)
+}
+function barPct(star) {
+  const n = rnd.value?.rating_breakdown?.[star] || 0
+  return rnd.value?.review_count ? Math.round((n / rnd.value.review_count) * 100) : 0
 }
 
 async function loadProfile() {
@@ -273,11 +373,14 @@ onMounted(async () => {
 /* ---------- BOOK APPOINTMENT MODAL ---------- */
 const bookingModalOpen = ref(false)
 const formats = [
-  { key: 'video', label: 'Video Call', short: 'Video', icon: Video },
-  { key: 'chat', label: 'Chat', short: 'Chat', icon: MessageSquare },
-  { key: 'in_person', label: 'In-Person', short: 'In-Person', icon: MapPin },
+  { key: 'video', label: 'Video call', short: 'Video', icon: Video, how: 'Right in your browser — no app to install. The Join button appears in My Appointments 15 minutes before the start, once you\'ve paid.' },
+  { key: 'chat', label: 'Chat consultation', short: 'Chat', icon: MessageSquare, how: 'A live text session in NutriMatch Messages at your booked time.' },
+  { key: 'in_person', label: 'In-person', short: 'In-person', icon: MapPin, how: 'Visit the clinic at your booked time.' },
 ]
-const offeredFormats = computed(() => formats.filter(f => rnd.value?.consultation_modes?.includes(f.key)))
+// In-person needs a clinic address on file (the API refuses it otherwise).
+const offeredFormats = computed(() => formats.filter(f => rnd.value?.consultation_modes?.includes(f.key)
+  && (f.key !== 'in_person' || rnd.value?.clinic_address)))
+const inPersonWithoutAddress = computed(() => rnd.value?.consultation_modes?.includes('in_person') && !rnd.value?.clinic_address)
 const bookingType = ref('video')
 const selectedDateISO = ref('')
 const selectedTime = ref('')
@@ -400,7 +503,7 @@ function isSlotTaken(iso, minutes) {
   return bookedSlots.value.some(b => b.start < end && start < b.end)
 }
 
-function openBookingModal() {
+function openBookingModal(slotIso = null) {
   loadBookedSlots()
   bookingType.value = offeredFormats.value[0]?.key || 'video'
   selectedDateISO.value = ''
@@ -408,7 +511,17 @@ function openBookingModal() {
   bookingNotes.value = ''
   bookingError.value = ''
   viewMonth.value = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  if (slotIso) {
+    // The calendar works in the browser's local time, like the slot list.
+    const d = new Date(slotIso)
+    selectedDateISO.value = toISO(d)
+    selectedTime.value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    viewMonth.value = new Date(d.getFullYear(), d.getMonth(), 1)
+  }
   bookingModalOpen.value = true
+}
+function bookSlot(iso) {
+  openBookingModal(iso)
 }
 function closeBookingModal() {
   bookingModalOpen.value = false
@@ -447,83 +560,100 @@ async function confirmBooking() {
 * { box-sizing: border-box; }
 
 .profile-page { font-family: 'Inter', sans-serif; }
-
 .breadcrumb { font-size: 0.8rem; color: #8a9a8a; margin: 0 0 14px; }
-.breadcrumb :deep(a) { color: #3a6b3a; text-decoration: none; }
+.breadcrumb :deep(a) { color: #1f8f5c; text-decoration: none; font-weight: 600; }
 
-.form-error {
-  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
+.hero {
+  position: relative; overflow: hidden; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+  background: linear-gradient(135deg, #00382a 0%, #005a42 100%); color: #fff; border-radius: 16px; padding: 28px 30px; margin-bottom: 20px;
 }
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+.hero::after { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); top: -100px; right: -40px; }
+.hero > * { position: relative; z-index: 1; }
+.hero-avatar { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255, 255, 255, 0.25); flex-shrink: 0; }
+.hero-avatar.initials { display: flex; align-items: center; justify-content: center; background: #D4A017; color: #1a3a1a; font-weight: 700; font-size: 1.8rem; }
+.hero-main { flex: 1; min-width: 240px; }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.22); color: #D4A017; font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; }
+.hero-name { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 10px 0 4px; color: #fff; }
+.hero-spec { font-size: 0.88rem; color: #cfe0d5; margin: 0; }
+.hero-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0; font-size: 0.82rem; color: #e3eee7; }
+.hero-stats span { display: inline-flex; align-items: center; gap: 6px; }
+.hero-stats strong { color: #fff; }
+.gold { color: #D4A017; fill: #D4A017; }
+.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.hero-chip { display: inline-flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 14px; padding: 4px 11px; font-size: 0.74rem; }
+.hero-fee { text-align: right; }
+.fee-amount { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; margin: 0; }
+.fee-unit { font-size: 0.76rem; color: #a9c0a9; margin: 2px 0 0; }
 
-.profile-banner {
-  background: #14301a; border-radius: 14px; padding: 28px 32px; color: #fff;
-  display: flex; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;
-}
-.big-avatar {
-  width: 76px; height: 76px; border-radius: 50%; color: #fff; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.4rem;
-}
-.banner-info { flex: 1; min-width: 200px; }
-.banner-name { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin: 0; display: flex; align-items: center; gap: 8px; }
-.verified-icon { color: #D4A017; }
-.banner-specialty { font-size: 0.85rem; color: #c9d9c9; margin: 6px 0 10px; }
-.banner-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.chip {
-  font-size: 0.74rem; font-weight: 600; padding: 4px 11px; border-radius: 20px;
-  background: rgba(255,255,255,0.12); color: #fff; display: inline-flex; align-items: center; gap: 5px;
-}
-.chip-gold { background: #D4A017; color: #1a3a1a; }
-.banner-fee { text-align: right; }
-.fee-amount { font-size: 1.4rem; font-weight: 700; }
-.fee-unit { font-size: 0.72rem; color: #a9c0a9; }
+.bio-text { font-size: 0.88rem; color: #4a5a4a; line-height: 1.7; margin: 12px 0 0; white-space: pre-line; }
+.steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; color: #1a3a1a; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: #eef3ec; color: #1e4a26; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.82rem; }
+.step-text { display: block; color: #6a7a6a; font-size: 0.8rem; line-height: 1.5; margin-top: 2px; }
+.how-row { align-items: flex-start; }
+.address { display: flex; align-items: flex-start; gap: 6px; font-size: 0.82rem; color: #2a3a2a; margin: 8px 0 4px; line-height: 1.45; }
+.address svg { flex-shrink: 0; margin-top: 2px; color: #1f8f5c; }
+.map-link { display: inline-flex; align-items: center; gap: 4px; }
+.booking-address { background: #f7f9f7; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
 
-.content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
-
-.main-col { display: flex; flex-direction: column; gap: 16px; }
-.surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px 22px; }
-.surface-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 12px; }
-
-.bio-text { font-size: 0.87rem; color: #4a5a4a; line-height: 1.6; margin: 0; }
-
-.avail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-.avail-box { background: #f7f9f7; border-radius: 8px; padding: 10px 6px; text-align: center; }
-.avail-box.muted { background: #f2f3f1; opacity: 0.6; }
+.avail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 14px; }
+.avail-box { background: #eef6f0; border-radius: 8px; padding: 10px 6px; text-align: center; }
+.avail-box.muted { background: #f7f9f7; }
+.avail-box.muted .avail-day, .avail-box.muted .avail-hours { color: #b0bab0; }
 .avail-day { font-size: 0.75rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.avail-hours { font-size: 0.75rem; color: #6a7a6a; margin: 3px 0 0; }
-.avail-box.muted .avail-day, .avail-box.muted .avail-hours { color: #9aaa9a; }
+.avail-hours { font-size: 0.74rem; color: #1f6f46; margin: 3px 0 0; }
 
-@media (max-width: 640px) {
-  .avail-grid { grid-template-columns: repeat(4, 1fr); }
-}
+.rating-summary { display: flex; gap: 24px; align-items: center; margin: 14px 0 6px; flex-wrap: wrap; }
+.rating-big { text-align: center; min-width: 110px; }
+.rating-num { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.rating-stars { color: #D4A017; letter-spacing: 1px; margin: 0; }
+.rating-stars.small { font-size: 0.8rem; }
+.bars { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: grid; grid-template-columns: 28px 1fr 24px; gap: 10px; align-items: center; font-size: 0.76rem; color: #6a7a6a; }
+.bar { height: 8px; background: #f0f2f0; border-radius: 4px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: #D4A017; border-radius: 4px; }
+.bar-n { text-align: right; }
+.review-row { display: block; }
+.review-top { display: flex; justify-content: space-between; gap: 10px; margin: 0 0 4px; }
+.review-comment { font-size: 0.86rem; color: #3a4a3a; margin: 0 0 4px; line-height: 1.55; }
 
-.reviews-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.review-list { margin-top: 8px; }
-.review-row { padding: 14px 0; border-bottom: 1px solid #f0f0e6; }
-.review-row:last-child { border-bottom: none; }
-.review-top { display: flex; justify-content: space-between; margin-bottom: 4px; }
-.review-name { font-weight: 700; font-size: 0.87rem; color: #1a3a1a; }
-.review-stars { color: #D4A017; font-size: 0.8rem; }
-.review-comment { font-size: 0.85rem; color: #6a7a6a; margin: 0; }
-.empty-note { font-size: 0.85rem; color: #9aaa9a; margin: 0; }
-
-.sidebar-col { position: sticky; top: 20px; }
-.sticky-card { display: flex; flex-direction: column; }
-.sidebar-desc { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
-
-.primary-btn {
-  display: block; width: 100%; text-align: center; text-decoration: none; border: none;
-  background: #D4A017; color: #1a3a1a; border-radius: 8px; padding: 12px;
-  font-weight: 700; font-size: 0.88rem; cursor: pointer; margin-bottom: 10px;
-}
-.primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
+.side { position: sticky; top: 16px; }
+.book-card { display: flex; flex-direction: column; }
+.book-text { font-size: 0.84rem; color: #4a5a4a; line-height: 1.5; margin: 10px 0 12px; }
+.book-links { display: flex; gap: 8px; }
+.book-links > * { flex: 1; }
+.divider { border-top: 1px solid #f0f2f0; margin: 18px 0 4px; }
+.book-fee { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: #1a3a1a; margin: 6px 0 0; }
+.book-fee span { font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 500; color: #8a9a8a; }
+.slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.slot { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 1px solid #d3e2d6; background: #f7fbf8; border-radius: 10px; padding: 9px 12px; cursor: pointer; font-family: inherit; text-align: left; }
+.slot:hover { border-color: #1f8f5c; background: #eef6f0; }
+.slot-day { font-size: 0.72rem; color: #6a7a6a; font-weight: 600; }
+.slot-time { font-size: 0.88rem; color: #1a3a1a; font-weight: 700; }
+.book-btn { width: 100%; margin-top: 14px; padding: 12px 16px; }
+.policy { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.policy li { display: flex; gap: 8px; align-items: flex-start; font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
+.policy svg { flex-shrink: 0; margin-top: 2px; color: #1f8f5c; }
 .info-note-link { color: #2a5a8a; font-weight: 700; text-decoration: underline; white-space: nowrap; }
-.info-note {
-  display: flex; align-items: flex-start; gap: 8px; margin-top: 16px;
-  background: #e3edf7; color: #2f6fa8; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem;
+.info-note { display: flex; gap: 8px; align-items: flex-start; background: #eaf2fb; color: #2a5a8a; border-radius: 10px; padding: 11px 12px; font-size: 0.8rem; line-height: 1.5; margin-top: 16px; }
+
+.loading-hero { display: flex; gap: 20px; align-items: center; background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 28px; }
+.sk { display: block; background: linear-gradient(90deg, #f0f2f0 25%, #e6eae6 50%, #f0f2f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
+.sk-avatar { width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0; }
+.sk-line { height: 14px; margin: 8px 0; }
+.w60 { width: 60%; } .w40 { width: 40%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (max-width: 1100px) {
+  .side { position: static; }
+}
+@media (max-width: 640px) {
+  .hero { padding: 22px 18px; gap: 16px; }
+  .hero-avatar { width: 76px; height: 76px; }
+  .hero-name { font-size: 1.4rem; }
+  .hero-fee { text-align: left; width: 100%; }
+  .steps { grid-template-columns: 1fr; }
+  .avail-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* BOOK APPOINTMENT MODAL */

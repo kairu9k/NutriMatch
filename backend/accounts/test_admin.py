@@ -74,6 +74,12 @@ class AdminUserTests(TestCase):
         self.assertEqual(str(wrong.data["detail"]), "Incorrect email or password.")
         self.assertNotIn("support_email", wrong.data)
 
+    def test_createsuperuser_admin_can_sign_in(self):
+        User.objects.create_superuser(email="boss@a.ph", password="Secret123!")
+        resp = APIClient().post("/api/auth/login/", {"email": "boss@a.ph", "password": "Secret123!"}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["user"]["role"], "admin")
+
     def test_cannot_deactivate_yourself(self):
         resp = self.api.post(f"/api/admin/users/{self.admin.id}/deactivate/", {"reason": "Testing self-deactivation."}, format="json")
         self.assertEqual(resp.status_code, 400)
