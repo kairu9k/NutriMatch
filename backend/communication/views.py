@@ -245,16 +245,27 @@ class ClientResourceListView(generics.ListAPIView):
     RND relationship is still active (confirmed). Uploading alone doesn't
     put anything here — the RND picks recipients via RndResourceShareView."""
 
-    serializer_class = ResourceSerializer
     permission_classes = [IsClient]
 
+    def get_serializer_class(self):
+        from .serializers import ClientResourceSerializer
+
+        return ClientResourceSerializer
+
     def get_queryset(self):
+        from django.db.models import Prefetch
+
+        mine = ResourceShare.objects.filter(
+            relationship__client=self.request.user, relationship__status=RndClientRelationship.Status.ACTIVE,
+        ).order_by("-shared_at")
         return (
             Resource.objects.filter(
                 is_active=True,
                 shares__relationship__client=self.request.user,
                 shares__relationship__status=RndClientRelationship.Status.ACTIVE,
             )
+            .select_related("uploaded_by")
+            .prefetch_related(Prefetch("shares", queryset=mine, to_attr="_my_shares"))
             .distinct()
             .order_by("-created_at")
         )

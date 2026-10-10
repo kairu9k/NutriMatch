@@ -95,6 +95,7 @@ class ResourceSerializer(serializers.ModelSerializer):
     def get_shared_count(self, obj):
         return getattr(obj, "_shared_count", 0)
 
+
     def validate(self, attrs):
         import os
 
@@ -120,6 +121,31 @@ class ResourceSerializer(serializers.ModelSerializer):
                 if file.size > max_mb * 1024 * 1024:
                     raise serializers.ValidationError({"file": f"The file is too large. The limit is {max_mb} MB."})
         return attrs
+
+
+class ClientResourceSerializer(ResourceSerializer):
+    """What a client sees: the resource plus which RND shared it and when
+    (their own share — the view prefetches it as `_my_shares`)."""
+
+    shared_by = serializers.SerializerMethodField()
+    shared_at = serializers.SerializerMethodField()
+
+    class Meta(ResourceSerializer.Meta):
+        fields = [f for f in ResourceSerializer.Meta.fields if f != "shared_count"] + ["shared_by", "shared_at"]
+
+    def _share(self, obj):
+        shares = getattr(obj, "_my_shares", None)
+        return shares[0] if shares else None
+
+    def get_shared_by(self, obj):
+        u = obj.uploaded_by
+        return {"id": u.id, "name": u.full_name, "profile_photo": u.profile_photo}
+
+    def get_shared_at(self, obj):
+        share = self._share(obj)
+        return share.shared_at if share else None
+
+
 
 
 def _party_q(user):

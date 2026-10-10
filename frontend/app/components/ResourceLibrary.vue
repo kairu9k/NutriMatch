@@ -1,198 +1,210 @@
 <template>
-  <div class="library-page">
-    <div class="page-header">
-      <div>
-        <!-- <h1 class="page-title">Resources</h1> -->
-        <p class="page-sub">Nutrition education materials shared by your RND.</p>
+  <div class="nm-page">
+    <p class="nm-page-sub intro">Guides, videos and links your RND shared with you, to help you follow your plan.</p>
+    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+
+    <div v-if="resources.length" class="nm-toolbar">
+      <div class="nm-tabs">
+        <button v-for="f in FILTERS" :key="f.value" class="nm-tab" :class="{ active: activeType === f.value }" @click="activeType = f.value">
+          {{ f.label }}<span v-if="countOf(f.value)" class="nm-count"> {{ countOf(f.value) }}</span>
+        </button>
       </div>
-      <div class="search-box">
-        <Search :size="16" class="search-icon" />
-        <input v-model="search" type="text" placeholder="Search resources..." />
+      <div class="nm-search">
+        <Search :size="15" />
+        <input v-model="search" type="search" placeholder="Search resources" />
       </div>
     </div>
 
-    <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-
-    <div v-if="resources.length" class="filter-chips">
-      <button v-for="f in filters" :key="f.value" class="filter-chip" :class="{ active: activeType === f.value }" @click="activeType = f.value">
-        <component :is="f.icon" v-if="f.icon" :size="14" /> {{ f.label }}
-      </button>
+    <div v-if="loading" class="library-grid">
+      <div v-for="n in 3" :key="n" class="nm-panel card skeleton"><span class="sk sk-icon" /><span class="sk sk-line w80" /><span class="sk sk-line w50" /></div>
     </div>
 
-    <div v-if="isLoading" class="placeholder-text">Loading…</div>
+    <div v-else-if="!resources.length && !error" class="nm-panel nm-empty">
+      <BookOpen :size="28" />
+      <p>No resources shared yet.</p>
+      <p class="nm-hint" style="margin-top: 4px">Your RND usually shares guides and materials after your consultation. They'll appear here.</p>
+    </div>
 
-    <template v-else-if="resources.length">
-      <div v-if="filteredResources.length" class="resource-grid">
-        <div v-for="r in filteredResources" :key="r.id" class="resource-card">
-          <div class="resource-icon" :class="typeClass(r.type)">
-            <component :is="typeIcon(r.type)" :size="20" />
-          </div>
-          <span class="badge-pill" :class="typeClass(r.type)">{{ typeLabel(r.type) }}</span>
-          <h3 class="resource-title">{{ r.title }}</h3>
-          <p class="resource-desc">{{ r.description || 'No description provided.' }}</p>
-          <span class="resource-date">Added {{ timeAgo(r.created_at) }}</span>
-          <!-- Uploaded files: View opens it in a new tab (browser PDF viewer /
-               video player); Download uses the API's download_url, which tells
-               Cloudinary to send it as a file named after the title. -->
-          <div v-if="r.file_path" class="resource-actions">
-            <a :href="r.file_path" target="_blank" rel="noopener noreferrer" class="nm-btn-outline nm-btn-sm">
-              <Eye :size="14" /> View
-            </a>
-            <a :href="r.download_url || r.file_path" class="nm-btn-dark nm-btn-sm">
-              <Download :size="14" /> Download
-            </a>
-          </div>
-          <div v-else-if="r.url" class="resource-actions">
-            <a :href="r.url" target="_blank" rel="noopener noreferrer" class="nm-btn-outline nm-btn-sm">
-              <ExternalLink :size="14" /> Open link
-            </a>
-          </div>
-        </div>
+    <template v-else>
+      <div v-if="filtered.length" class="library-grid">
+        <button v-for="r in filtered" :key="r.id" type="button" class="nm-panel card" @click="open(r)">
+          <span class="card-top">
+            <span class="type-icon" :class="'t-' + r.type"><component :is="TYPE_ICONS[r.type] || FileText" :size="18" /></span>
+            <span class="nm-pill muted">{{ TYPE_LABELS[r.type] || r.type }}</span>
+            <span v-if="isNew(r)" class="nm-pill gold new">New</span>
+          </span>
+          <span class="card-title">{{ r.title }}</span>
+          <span v-if="r.description" class="card-desc">{{ r.description }}</span>
+          <span class="card-from">
+            <img v-if="r.shared_by?.profile_photo" :src="r.shared_by.profile_photo" class="mini-avatar" alt="" />
+            <span v-else class="mini-avatar">{{ nameInitials(r.shared_by?.name) }}</span>
+            <span>From RND {{ r.shared_by?.name }} · shared {{ shortDate(r.shared_at || r.created_at) }}</span>
+          </span>
+        </button>
       </div>
-      <p v-else class="empty-text">No resources match this filter.</p>
+      <div v-else class="nm-panel nm-empty">
+        <SearchX :size="28" />
+        <p>No resources match.</p>
+      </div>
     </template>
 
-    <div v-else class="empty-state">
-      <div class="empty-icon"><BookOpen :size="28" /></div>
-      <p class="empty-title">No resources shared yet</p>
-      <p class="empty-desc">Your RND hasn't shared any education materials yet.</p>
+    <!-- preview -->
+    <div v-if="current" class="nm-modal-overlay" @click.self="current = null">
+      <div class="nm-modal preview-modal" role="dialog" aria-modal="true" :aria-label="current.title">
+        <div class="pm-head">
+          <span class="type-icon" :class="'t-' + current.type"><component :is="TYPE_ICONS[current.type] || FileText" :size="18" /></span>
+          <div style="flex: 1; min-width: 0">
+            <h3 class="nm-modal-title" style="margin: 0">{{ current.title }}</h3>
+            <p class="nm-panel-sub">From RND {{ current.shared_by?.name }} · shared {{ shortDate(current.shared_at || current.created_at) }}</p>
+          </div>
+          <button class="close-btn" aria-label="Close" @click="current = null"><X :size="18" /></button>
+        </div>
+
+        <div class="preview">
+          <iframe v-if="previewKind === 'pdf'" :src="current.file_path" :title="current.title" class="preview-frame" />
+          <video v-else-if="previewKind === 'video'" :src="current.file_path" controls preload="metadata" class="preview-video" />
+          <div v-else-if="previewKind === 'link'" class="preview-none">
+            <Link2 :size="22" />
+            <p>This resource is a link to another website.</p>
+            <p class="preview-url">{{ current.url }}</p>
+          </div>
+          <div v-else class="preview-none">
+            <FileText :size="22" />
+            <p>This file can't be previewed here — download it to open it.</p>
+          </div>
+        </div>
+        <p v-if="current.description" class="pm-desc">{{ current.description }}</p>
+
+        <div class="nm-modal-actions">
+          <template v-if="current.file_path">
+            <a :href="current.file_path" target="_blank" rel="noopener noreferrer" class="nm-btn-outline"><ExternalLink :size="14" /> Open in new tab</a>
+            <a :href="current.download_url || current.file_path" class="nm-btn-dark"><Download :size="14" /> Download</a>
+          </template>
+          <a v-else-if="current.url" :href="current.url" target="_blank" rel="noopener noreferrer" class="nm-btn-dark"><ExternalLink :size="14" /> Open link</a>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { Search, BookOpen, FileText, PlayCircle, FileType, Link2, ExternalLink, Eye, Download } from 'lucide-vue-next'
+import { BookOpen, Download, ExternalLink, FileText, FileType, Link2, PlayCircle, Search, SearchX, X } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
 
 const { get } = useApi()
 
-const isLoading = ref(true)
-const errorMessage = ref('')
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'video', label: 'Video' },
+  { value: 'article', label: 'Article' },
+  { value: 'link', label: 'Link' },
+]
+const TYPE_ICONS = { pdf: FileText, video: PlayCircle, article: FileType, link: Link2 }
+const TYPE_LABELS = { pdf: 'PDF', video: 'Video', article: 'Article', link: 'Link' }
+const NEW_DAYS = 7
+
+const loading = ref(true)
+const error = ref('')
 const resources = ref([])
 const search = ref('')
 const activeType = ref('all')
+const current = ref(null)
 
-const filters = [
-  { value: 'all', label: 'All', icon: null },
-  { value: 'pdf', label: 'PDF', icon: FileText },
-  { value: 'video', label: 'Video', icon: PlayCircle },
-  { value: 'article', label: 'Article', icon: FileType },
-  { value: 'link', label: 'Link', icon: Link2 },
-]
-
-const TYPE_ICONS = { pdf: FileText, video: PlayCircle, article: FileType, link: Link2 }
-const TYPE_LABELS = { pdf: 'PDF', video: 'Video', article: 'Article', link: 'Link' }
-const TYPE_CLASSES = { pdf: 'danger', video: 'info', article: 'neutral', link: 'gold' }
-
-function typeIcon(t) { return TYPE_ICONS[t] || FileText }
-function typeLabel(t) { return TYPE_LABELS[t] || t }
-function typeClass(t) { return TYPE_CLASSES[t] || 'neutral' }
-
-function timeAgo(iso) {
-  const seconds = Math.floor((Date.now() - new Date(iso)) / 1000)
-  const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]]
-  for (const [label, secs] of units) {
-    const value = Math.floor(seconds / secs)
-    if (value >= 1) return `${value} ${label}${value > 1 ? 's' : ''} ago`
-  }
-  return 'just now'
-}
-
-const filteredResources = computed(() => {
-  return resources.value.filter(r => {
-    const matchesType = activeType.value === 'all' || r.type === activeType.value
-    const matchesSearch = r.title.toLowerCase().includes(search.value.toLowerCase())
-    return matchesType && matchesSearch
-  })
-})
-
-async function loadResources() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function load() {
+  loading.value = true
+  error.value = ''
   try {
     resources.value = await get('/client/resources/')
   } catch {
-    errorMessage.value = 'Could not load resources. Please try again later.'
+    error.value = 'Could not load your resources.'
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
 }
+onMounted(load)
 
-onMounted(loadResources)
+const countOf = type => (type === 'all' ? resources.value.length : resources.value.filter(r => r.type === type).length)
+// Newest shares first.
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return resources.value
+    .filter(r => (activeType.value === 'all' || r.type === activeType.value)
+      && (!q || `${r.title} ${r.description || ''} ${r.shared_by?.name || ''}`.toLowerCase().includes(q)))
+    .sort((a, b) => new Date(b.shared_at || b.created_at) - new Date(a.shared_at || a.created_at))
+})
+
+function isNew(r) {
+  const at = r.shared_at || r.created_at
+  return at && Date.now() - new Date(at) < NEW_DAYS * 86400000
+}
+function open(r) {
+  current.value = r
+}
+// PDF / video play in the page; Word documents can't, so they're downloaded.
+const previewKind = computed(() => {
+  const r = current.value
+  if (!r) return null
+  if (r.type === 'link') return 'link'
+  const path = (r.file_path || '').toLowerCase().split('?')[0]
+  if (r.type === 'video' || /\.(mp4|webm|mov)$/.test(path)) return 'video'
+  if (path.endsWith('.pdf') || r.type === 'pdf') return 'pdf'
+  return null
+})
+function onKey(e) {
+  if (e.key === 'Escape') current.value = null
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+function nameInitials(name) {
+  const parts = String(name || '').split(' ').filter(Boolean)
+  return userInitials(parts[0], parts[parts.length - 1])
+}
 </script>
 
 <style scoped>
-* { box-sizing: border-box; }
+.intro { margin: 0 0 16px; }
+.library-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.card { display: flex; flex-direction: column; gap: 10px; text-align: left; cursor: pointer; font-family: inherit; color: inherit; min-width: 0; overflow-wrap: anywhere; }
+.card:hover { border-color: #c7d6ca; box-shadow: 0 4px 14px rgba(31, 143, 92, 0.08); }
+.card-top { display: flex; align-items: center; gap: 8px; }
+.new { margin-left: auto; }
+.card-title { font-family: 'Playfair Display', serif; font-size: 1.02rem; font-weight: 700; color: #1a3a1a; line-height: 1.35; }
+.card-desc { font-size: 0.82rem; color: #6a7a6a; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-from { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #8a9a8a; margin-top: auto; padding-top: 10px; border-top: 1px solid #f0f2f0; }
+.type-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
+.type-icon.t-pdf { background: #fdecec; color: #a13a2f; }
+.type-icon.t-video { background: #e3edf7; color: #2f6fa8; }
+.type-icon.t-link { background: #fdf1d6; color: #b8860b; }
+.mini-avatar { width: 22px; height: 22px; border-radius: 50%; background: #00382a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 700; object-fit: cover; flex-shrink: 0; }
 
-.library-page { font-family: 'Inter', sans-serif; }
+.preview-modal { max-width: 760px; }
+.pm-head { display: flex; gap: 12px; align-items: flex-start; }
+.close-btn { background: none; border: none; color: #8a9a8a; cursor: pointer; padding: 4px; }
+.preview { margin-top: 16px; border: 1px solid #eceeec; border-radius: 12px; overflow: hidden; background: #f7f9f7; }
+.preview-frame { display: block; width: 100%; height: 60vh; border: 0; background: #fff; }
+.preview-video { display: block; width: 100%; max-height: 60vh; background: #000; }
+.preview-none { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 16px; color: #8a9a8a; font-size: 0.84rem; text-align: center; }
+.preview-none p { margin: 0; }
+.preview-url { color: #1f8f5c; overflow-wrap: anywhere; }
+.pm-desc { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 14px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
-.page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
+.skeleton { pointer-events: none; }
+.sk { display: block; background: linear-gradient(90deg, #f0f2f0 25%, #e6eae6 50%, #f0f2f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
+.sk-icon { width: 36px; height: 36px; border-radius: 9px; }
+.sk-line { height: 12px; margin: 4px 0; }
+.w80 { width: 80%; } .w50 { width: 50%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
 
-.search-box {
-  display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e5e8e5;
-  border-radius: 8px; padding: 10px 14px; width: 260px; flex-shrink: 0;
+@media (max-width: 1100px) {
+  .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.search-box input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; }
-.search-icon { color: #9aaa9a; flex-shrink: 0; }
-
-.form-error {
-  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
-}
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
-
-.filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-.filter-chip {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
-  background: #fff; border: 1px solid #eceeec; color: #6a7a6a; cursor: pointer;
-}
-.filter-chip.active { background: #14301a; color: #fff; border-color: #14301a; }
-
-.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.resource-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px;
-  display: flex; flex-direction: column;
-}
-.resource-icon {
-  width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
-}
-.resource-icon.danger { background: rgba(192,57,43,0.1); color: #c0392b; }
-.resource-icon.info { background: rgba(47,111,168,0.1); color: #2f6fa8; }
-.resource-icon.gold { background: rgba(212,160,23,0.14); color: #b8860b; }
-.resource-icon.neutral { background: #eef3ec; color: #1e4a26; }
-
-.badge-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; width: fit-content; margin-bottom: 10px; }
-.badge-pill.danger { background: rgba(192,57,43,0.1); color: #c0392b; }
-.badge-pill.info { background: rgba(47,111,168,0.1); color: #2f6fa8; }
-.badge-pill.gold { background: rgba(212,160,23,0.14); color: #b8860b; }
-.badge-pill.neutral { background: #eef3ec; color: #1e4a26; }
-
-.resource-title { font-family: 'Playfair Display', serif; font-size: 0.95rem; color: #1a3a1a; margin: 0 0 8px; }
-.resource-desc { font-size: 0.82rem; color: #8a9a8a; line-height: 1.5; margin: 0; flex-grow: 1; }
-
-.resource-date { font-size: 0.74rem; color: #9aaa9a; margin-top: 14px; }
-.resource-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.resource-actions > * { flex: 1; }
-
-.empty-state {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
-  padding: 60px 20px; text-align: center;
-}
-.empty-icon {
-  width: 56px; height: 56px; border-radius: 50%; background: #eef3ec; color: #1e4a26;
-  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
-}
-.empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
-.empty-text { font-size: 0.85rem; color: #9aaa9a; padding: 20px; text-align: center; }
-
 @media (max-width: 640px) {
-  .page-header > div:first-child { width: 100%; }
-  .search-box { width: 100%; }
-  .resource-grid { grid-template-columns: 1fr; }
+  .library-grid { grid-template-columns: minmax(0, 1fr); }
+  /* the preview opens as a full-screen sheet */
+  .preview-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
+  .preview-frame { height: auto; flex: 1; min-height: 50vh; }
 }
 </style>

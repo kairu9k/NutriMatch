@@ -41,65 +41,127 @@
         <div class="nm-stat-icon gold"><EyeOff :size="17" /></div>
         <p class="nm-stat-value">{{ stats.notShared }}</p>
         <p class="nm-stat-label">Not shared yet</p>
-        <p class="nm-stat-note" :class="{ warn: stats.notShared }">{{ stats.notShared ? 'Use Share Resource on the card' : 'Everything is shared' }}</p>
+        <p class="nm-stat-note" :class="{ warn: stats.notShared }">{{ stats.notShared ? 'Choose clients in the panel' : 'Everything is shared' }}</p>
       </div>
     </section>
 
     <!-- TOOLBAR -->
-    <div class="toolbar">
-      <div class="search-box-wide">
-        <Search :size="16" class="search-icon" />
-        <input v-model="search" type="text" placeholder="Search resources..." />
+    <div class="nm-toolbar">
+      <div class="nm-tabs">
+        <button v-for="t in TABS" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" @click="tab = t.key">
+          {{ t.label }} <span class="nm-count">{{ countOf(t.key) }}</span>
+        </button>
       </div>
-      <select v-model="typeFilter" class="filter-select">
-        <option value="All Types">All Types</option>
-        <option v-for="t in types" :key="t" :value="t">{{ t }}</option>
-      </select>
-      <div class="view-toggle">
-        <button class="view-btn" :class="{ active: view === 'grid' }" @click="view = 'grid'"><LayoutGrid :size="14" /> Grid</button>
-        <button class="view-btn" :class="{ active: view === 'list' }" @click="view = 'list'"><List :size="14" /> List</button>
+      <div class="nm-search">
+        <Search :size="15" />
+        <input v-model="search" type="search" placeholder="Search your resources" />
       </div>
     </div>
 
-    <!-- MY UPLOADED RESOURCES -->
-    <section class="resource-section">
-      <div class="section-header">
-        <h3 class="section-title">My uploaded resources</h3>
-        <span class="nm-pill gold">{{ filteredResources.length }} file{{ filteredResources.length === 1 ? '' : 's' }}</span>
+    <div v-if="isLoading" class="nm-panel"><p class="nm-muted">Loading your resources…</p></div>
+
+    <div v-else-if="!resources.length" class="nm-panel nm-empty">
+      <BookOpen :size="28" />
+      <p>No resources uploaded yet.</p>
+      <p class="nm-hint" style="margin-top: 4px">Upload a guide, video or link, then choose which clients receive it.</p>
+      <button class="nm-btn-gold" style="margin-top: 14px" @click="openUploadModal"><Upload :size="15" /> Upload resource</button>
+    </div>
+
+    <div v-else class="review-layout">
+      <!-- list -->
+      <div class="nm-panel queue">
+        <p v-if="!filteredResources.length" class="nm-muted" style="padding: 10px">Nothing here.</p>
+        <button v-for="r in filteredResources" :key="r.id" class="queue-item" :class="{ active: selected?.id === r.id }" @click="select(r.id)">
+          <span class="type-icon" :class="'t-' + r.type.toLowerCase()"><component :is="iconFor(r.type)" :size="17" /></span>
+          <span class="queue-main">
+            <span class="queue-name">{{ r.title }}</span>
+            <span class="queue-sub">{{ r.type }} · {{ shortDate(r.created_at) }}</span>
+          </span>
+          <span class="queue-end">
+            <span v-if="!r.is_active" class="nm-pill muted">Hidden</span>
+            <span v-else-if="r.shared_count" class="nm-pill green">{{ r.shared_count }} client{{ r.shared_count === 1 ? '' : 's' }}</span>
+            <span v-else class="nm-pill gold">Not shared</span>
+          </span>
+          <ChevronRight :size="16" class="queue-chevron" />
+        </button>
       </div>
 
-      <div v-if="isLoading" class="placeholder-text">Loading…</div>
+      <!-- panel (a full-screen sheet on phones) -->
+      <div v-if="selected" ref="panelWrap" class="panel-wrap">
+        <div class="nm-panel detail">
+          <button class="back-btn" @click="selectedId = null"><ArrowLeft :size="15" /> All resources</button>
 
-      <template v-else>
-        <div v-if="filteredResources.length" class="resource-grid" :class="{ 'resource-list-view': view === 'list' }">
-          <div v-for="r in filteredResources" :key="r.id" class="resource-card">
-            <button class="card-remove-btn" :disabled="busyId === r.id" @click="toggleActive(r)"><X :size="14" /></button>
-            <div class="resource-icon" :class="'icon-' + r.type.toLowerCase()">
-              <component :is="iconFor(r.type)" :size="18" />
+          <div class="detail-head">
+            <span class="type-icon lg" :class="'t-' + selected.type.toLowerCase()"><component :is="iconFor(selected.type)" :size="20" /></span>
+            <div style="flex: 1; min-width: 0">
+              <h2 class="nm-panel-title detail-title">{{ selected.title }}</h2>
+              <p class="nm-panel-sub">{{ selected.type }} · Uploaded {{ shortDate(selected.created_at) }}</p>
             </div>
-            <p class="resource-title">{{ r.title }}</p>
-            <p class="resource-desc">{{ r.description }}</p>
-            <div class="resource-tags">
-              <span class="type-pill" :class="'type-' + r.type.toLowerCase()">{{ r.type }}</span>
-              <span class="category-pill" :class="r.is_active ? 'status-active' : 'status-inactive'">{{ r.is_active ? 'Active' : 'Inactive' }}</span>
-            </div>
-            <p class="resource-meta">
-              {{ timeAgo(r.created_at) }} ·
-              <span :class="{ 'shared-none': !r.shared_count }">{{ sharedLabel(r) }}</span>
-            </p>
-            <a v-if="r.file_path || r.url" :href="r.file_path || r.url" target="_blank" rel="noopener noreferrer" class="nm-btn-outline nm-btn-sm">
-              <Eye :size="14" /> {{ r.file_path ? 'View file' : 'Open link' }}
+            <span v-if="!selected.is_active" class="nm-pill muted">Hidden from clients</span>
+          </div>
+
+          <!-- preview -->
+          <div class="preview">
+            <iframe v-if="previewKind === 'pdf'" :src="selected.file_path" :title="selected.title" class="preview-frame" />
+            <video v-else-if="previewKind === 'video'" :src="selected.file_path" controls preload="metadata" class="preview-video" />
+            <a v-else-if="previewKind === 'link'" :href="selected.url" target="_blank" rel="noopener" class="preview-link">
+              <LinkIcon :size="18" />
+              <span><strong>Open link</strong><span class="preview-url">{{ selected.url }}</span></span>
+              <ExternalLink :size="15" />
             </a>
-            <button class="share-btn" @click="sharingResource = r"><Share2 :size="14" /> Share Resource</button>
+            <div v-else class="preview-none">
+              <FileText :size="22" />
+              <p>This file type can't be previewed here.</p>
+            </div>
+          </div>
+          <div v-if="selected.file_path" class="preview-actions">
+            <a :href="selected.file_path" target="_blank" rel="noopener" class="nm-panel-link"><ExternalLink :size="13" /> Open in new tab</a>
+            <a v-if="selected.download_url" :href="selected.download_url" class="nm-panel-link"><Download :size="13" /> Download</a>
+          </div>
+
+          <p v-if="selected.description" class="detail-desc">{{ selected.description }}</p>
+
+          <!-- sharing -->
+          <div class="share-box">
+            <div class="share-head">
+              <p class="share-title">Shared with</p>
+              <button v-if="shareRows.length > 1" class="nm-panel-link" @click="toggleAllClients">{{ allSelected ? 'Clear all' : 'Select all' }}</button>
+            </div>
+            <p v-if="!selected.is_active" class="nm-note" style="margin: 0 0 10px">It's hidden, so clients can't see it even if it's shared. Show it again to give them access.</p>
+            <p v-if="shareLoading" class="nm-muted">Loading your clients…</p>
+            <p v-else-if="shareError" class="nm-error">{{ shareError }}</p>
+            <p v-else-if="!shareRows.length" class="nm-muted">You don't have any active clients yet — once an appointment is confirmed you can share resources with them.</p>
+            <div v-else class="client-grid">
+              <label v-for="row in shareRows" :key="row.relationship_id" class="client-check" :class="{ on: chosen.includes(row.relationship_id) }">
+                <input v-model="chosen" type="checkbox" :value="row.relationship_id" />
+                <img v-if="row.client.profile_photo" :src="row.client.profile_photo" class="mini-avatar" alt="" />
+                <span v-else class="mini-avatar">{{ nameInitials(row.client.full_name) }}</span>
+                <span class="client-name">{{ row.client.full_name }}</span>
+              </label>
+            </div>
+            <div v-if="shareRows.length" class="share-foot">
+              <span class="nm-hint" style="margin: 0">{{ shareSummary }}</span>
+              <button class="nm-btn-dark nm-btn-sm" :disabled="!shareChanged || shareSaving" @click="saveSharing">
+                {{ shareSaving ? 'Saving…' : 'Save sharing' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <button v-if="selected.is_active" class="nm-btn-outline" :disabled="busyId === selected.id" @click="toggleActive(selected)">
+              <EyeOff :size="14" /> Hide from clients
+            </button>
+            <button v-else class="nm-btn-dark" :disabled="busyId === selected.id" @click="toggleActive(selected)">
+              <Eye :size="14" /> Show to clients again
+            </button>
           </div>
         </div>
-        <div v-else class="empty-state">
-          <BookOpen :size="28" class="empty-icon" />
-          <p class="empty-title">No resources uploaded yet</p>
-          <p class="empty-desc">Click "Upload Resource" to share your first guide, video, or article with patients.</p>
-        </div>
-      </template>
-    </section>
+      </div>
+      <div v-else class="nm-panel panel-placeholder">
+        <BookOpen :size="28" />
+        <p>Select a resource to preview and share it.</p>
+      </div>
+    </div>
 
     <!-- YOUR TOOLS — links to the app's own clinical tools -->
     <section class="resource-section">
@@ -163,7 +225,7 @@
 
         <p v-if="uploadError" class="form-error">{{ uploadError }}</p>
 
-        <p class="upload-note">Uploading doesn't send it to anyone yet. Use <strong>Share Resource</strong> on the card to choose which clients receive it.</p>
+        <p class="upload-note">Uploading doesn't send it to anyone yet — after it uploads, tick the clients who should receive it.</p>
 
         <div class="modal-actions">
           <button class="modal-cancel-btn" @click="closeUploadModal">Cancel</button>
@@ -176,13 +238,6 @@
       </div>
     </div>
 
-    <ShareResourceModal
-      v-if="sharingResource"
-      :resource="sharingResource"
-      @close="sharingResource = null"
-      @saved="onShared"
-    />
-
     <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
@@ -190,15 +245,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
-  Upload, Search, LayoutGrid, List, Library, Eye,
-  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon, Share2, X,
+  Upload, Search, Library, Eye, ArrowLeft, Download, ExternalLink,
+  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon, Share2,
   Table2, ClipboardList, HeartPulse, Leaf,
   UploadCloud, CheckCircle2, EyeOff, Users, ChevronRight
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
 
-const { get, post, patch } = useApi()
+const { get, post, patch, del } = useApi()
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
@@ -236,19 +291,26 @@ const stats = computed(() => {
   }
 })
 
-/* ---------- TOOLBAR ---------- */
+/* ---------- LIST + PANEL ---------- */
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'shared', label: 'Shared' },
+  { key: 'not_shared', label: 'Not shared' },
+  { key: 'hidden', label: 'Hidden' },
+]
+const tab = ref('all')
 const search = ref('')
-const typeFilter = ref('All Types')
-const view = ref('grid')
-
-const types = computed(() => [...new Set(resources.value.map(r => r.type).filter(Boolean))])
-
+function inTab(r, key) {
+  if (key === 'shared') return r.is_active && r.shared_count > 0
+  if (key === 'not_shared') return r.is_active && !r.shared_count
+  if (key === 'hidden') return !r.is_active
+  return true
+}
+const countOf = key => resources.value.filter(r => inTab(r, key)).length
 const filteredResources = computed(() => {
-  return resources.value.filter(r => {
-    const matchesSearch = r.title.toLowerCase().includes(search.value.toLowerCase())
-    const matchesType = typeFilter.value === 'All Types' || r.type === typeFilter.value
-    return matchesSearch && matchesType
-  })
+  const q = search.value.trim().toLowerCase()
+  return resources.value.filter(r => inTab(r, tab.value)
+    && (!q || `${r.title} ${r.description || ''}`.toLowerCase().includes(q)))
 })
 
 function iconFor(type) {
@@ -259,29 +321,97 @@ function iconFor(type) {
   return FileText
 }
 
-/* ---------- SHARING (ShareResourceModal) ---------- */
-const sharingResource = ref(null)
+const selectedId = ref(null)
+const selected = computed(() => resources.value.find(r => r.id === selectedId.value) || null)
+const panelWrap = ref(null)
+const isWide = () => import.meta.client && window.matchMedia('(min-width: 1000px)').matches
+function select(id) {
+  selectedId.value = id
+  nextTick(() => { if (panelWrap.value) panelWrap.value.scrollTop = 0 })
+}
+// On desktop a resource is always open while the list has any.
+watch(filteredResources, (list) => {
+  if (selectedId.value && !list.some(r => r.id === selectedId.value)) selectedId.value = null
+  if (!selectedId.value && isWide() && list.length) select(list[0].id)
+})
+
+// PDF / video play in the page; Word documents can't, so they get a link.
+const previewKind = computed(() => {
+  const r = selected.value
+  if (!r) return null
+  if (r.type === 'Link') return r.url ? 'link' : null
+  const path = (r.file_path || '').toLowerCase().split('?')[0]
+  if (r.type === 'Video' || /\.(mp4|webm|mov)$/.test(path)) return 'video'
+  if (path.endsWith('.pdf') || r.type === 'PDF') return 'pdf'
+  return null
+})
+
+/* sharing — same API as before: GET who's shared, POST to add, DELETE to remove */
+const shareRows = ref([])
+const chosen = ref([])
+const shareLoading = ref(false)
+const shareSaving = ref(false)
+const shareError = ref('')
+const originallyShared = computed(() => shareRows.value.filter(r => r.shared).map(r => r.relationship_id))
+const toAdd = computed(() => chosen.value.filter(id => !originallyShared.value.includes(id)))
+const toRemove = computed(() => originallyShared.value.filter(id => !chosen.value.includes(id)))
+const shareChanged = computed(() => toAdd.value.length > 0 || toRemove.value.length > 0)
+const allSelected = computed(() => shareRows.value.length > 0 && shareRows.value.every(r => chosen.value.includes(r.relationship_id)))
+const shareSummary = computed(() => {
+  const parts = [chosen.value.length ? `${chosen.value.length} selected` : 'Nobody selected']
+  if (toAdd.value.length) parts.push(`${toAdd.value.length} will be notified`)
+  if (toRemove.value.length) parts.push(`${toRemove.value.length} will lose access`)
+  return parts.join(' · ')
+})
+function toggleAllClients() {
+  chosen.value = allSelected.value ? [] : shareRows.value.map(r => r.relationship_id)
+}
+async function loadSharing(id) {
+  shareLoading.value = true
+  shareError.value = ''
+  shareRows.value = []
+  chosen.value = []
+  try {
+    const rows = await get(`/rnd/resources/${id}/share/`)
+    if (selectedId.value !== id) return
+    shareRows.value = rows
+    chosen.value = rows.filter(r => r.shared).map(r => r.relationship_id)
+  } catch {
+    shareError.value = 'Could not load your clients. Please try again.'
+  } finally {
+    shareLoading.value = false
+  }
+}
+watch(selectedId, (id) => { if (id) loadSharing(id) })
+
+async function saveSharing() {
+  const r = selected.value
+  shareSaving.value = true
+  shareError.value = ''
+  const added = toAdd.value.length
+  const removed = toRemove.value.length
+  try {
+    if (added) await post(`/rnd/resources/${r.id}/share/`, { relationship_ids: toAdd.value })
+    for (const id of toRemove.value) await del(`/rnd/resources/${r.id}/share/${id}/`)
+    r.shared_count = chosen.value.length
+    await loadSharing(r.id)
+    const parts = []
+    if (added) parts.push(`Shared with ${added} client${added > 1 ? 's' : ''} — they were notified`)
+    if (removed) parts.push(`removed from ${removed}`)
+    showToast(parts.join(', ') + '.')
+  } catch (e) {
+    shareError.value = e?.data?.relationship_ids?.[0] || e?.data?.detail || 'Could not update sharing. Please try again.'
+  } finally {
+    shareSaving.value = false
+  }
+}
+
 const toast = ref('')
 let toastTimer = null
-
 function showToast(text) {
   toast.value = text
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toast.value = '' }, 3500)
-}
-
-function sharedLabel(r) {
-  const n = r.shared_count || 0
-  return n ? `Shared with ${n} client${n > 1 ? 's' : ''}` : 'Not shared yet'
-}
-
-function onShared({ sharedCount, added, removed }) {
-  sharingResource.value.shared_count = sharedCount
-  sharingResource.value = null
-  const parts = []
-  if (added) parts.push(`Shared with ${added} client${added > 1 ? 's' : ''}`)
-  if (removed) parts.push(`removed from ${removed}`)
-  showToast(parts.join(', ') + '.')
 }
 
 async function toggleActive(r) {
@@ -289,11 +419,17 @@ async function toggleActive(r) {
   try {
     await patch(`/rnd/resources/${r.id}/`, { is_active: !r.is_active })
     r.is_active = !r.is_active
+    showToast(r.is_active ? 'Clients you shared it with can see it again.' : 'Hidden — clients can no longer see it.')
   } catch {
     errorMessage.value = 'Could not update this resource. Please try again.'
   } finally {
     busyId.value = null
   }
+}
+
+function nameInitials(name) {
+  const parts = String(name || '').split(' ').filter(Boolean)
+  return userInitials(parts[0], parts[parts.length - 1])
 }
 
 /* ---------- UPLOAD NEW RESOURCE MODAL ---------- */
@@ -376,10 +512,12 @@ async function submitUpload() {
     } else {
       form.append('file', newUpload.value.file)
     }
-    await post('/rnd/resources/', form)
+    const created = await post('/rnd/resources/', form)
     showUploadModal.value = false
+    tab.value = 'all'
     await loadResources()
-    showToast('Resource uploaded. Use Share Resource to send it to your clients.')
+    if (created?.id) select(created.id)
+    showToast('Uploaded — now tick the clients who should receive it.')
   } catch (error) {
     uploadError.value = error?.data?.non_field_errors?.[0] || error?.data?.url?.[0] || error?.data?.file?.[0] || error?.data?.title?.[0] || 'Could not add this resource. Please try again.'
   } finally {
@@ -387,18 +525,9 @@ async function submitUpload() {
   }
 }
 
-function timeAgo(iso) {
-  if (!iso) return ''
-  const seconds = Math.floor((Date.now() - new Date(iso)) / 1000)
-  const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]]
-  for (const [label, secs] of units) {
-    const value = Math.floor(seconds / secs)
-    if (value >= 1) return `${value} ${label}${value > 1 ? 's' : ''} ago`
-  }
-  return 'just now'
-}
 
 onMounted(loadResources)
+
 
 /* ---------- YOUR TOOLS ---------- */
 const TOOLS = [
@@ -441,21 +570,8 @@ const TOOLS = [
 
 /* STAT CARDS */
 
-/* TOOLBAR */
-.toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
-.search-box-wide {
-  width: 100%; max-width: 420px; display: flex; align-items: center; gap: 10px; background: #fff;
- border: 1px solid #d5dad5; border-radius: 10px; padding: 11px 16px;
-}
-.search-box-wide input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; color: #4a5a4a; }
-.search-icon { color: #9aaa9a; flex-shrink: 0; }
-.filter-select { border: 1px solid #d5dad5; border-radius: 10px; padding: 11px 16px; font-size: 0.85rem; color: #4a5a4a; background: #fff; cursor: pointer; }
-.view-toggle { display: flex; border: 1px solid #d5dad5; border-radius: 8px; overflow: hidden; margin-left: auto; }
-.view-btn { display: flex; align-items: center; gap: 5px; border: none; background: #fff; color: #4a5a4a; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-.view-btn.active { background: #14301a; color: #fff; }
-
 /* SECTIONS */
-.resource-section { margin-bottom: 32px; }
+.resource-section { margin: 28px 0 0; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .section-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; font-weight: 700; margin: 0; }
 .tools-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -466,72 +582,70 @@ const TOOLS = [
 .tool-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; }
 .tool-desc { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
 .tool-arrow { color: #b0bab0; flex-shrink: 0; }
-.section-count { background: #fdf1d6; color: #b8860b; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
 
-/* RESOURCE GRID */
-.resource-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.resource-list-view { grid-template-columns: 1fr; }
-.resource-card {
-  position: relative; background: #fff; border-radius: 14px; border: 1.5px solid #eceeec;
-  padding: 18px; display: flex; flex-direction: column; gap: 8px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.resource-card:hover {
-  border-color: #1f8f5c;
-  box-shadow: 0 4px 14px rgba(31,143,92,0.12);
-}
-.card-remove-btn {
-  position: absolute; top: 12px; right: 12px; background: none; border: none; color: #b0b8b0;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
-.card-remove-btn:hover { color: #c0392b; }
-.card-remove-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* type icon colors (shared by list + panel) */
+.type-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
+.type-icon.lg { width: 46px; height: 46px; border-radius: 11px; }
+.type-icon.t-pdf { background: #fdecec; color: #a13a2f; }
+.type-icon.t-video { background: #e3edf7; color: #2f6fa8; }
+.type-icon.t-link { background: #fdf1d6; color: #b8860b; }
 
-.resource-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
-.icon-pdf { background: #fbe1de; color: #c0483a; }
-.icon-video { background: #e3edfc; color: #3b6fd6; }
-.icon-article { background: #e6f4e6; color: #2e7d32; }
-.icon-link { background: #fdf1d6; color: #b8860b; }
+/* LIST + PANEL (same layout as RND Applications) */
+.review-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.queue { padding: 10px; position: sticky; top: 16px; max-height: calc(100vh - 140px); overflow-y: auto; }
+.queue-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; color: inherit; }
+.queue-item + .queue-item { margin-top: 2px; }
+.queue-item:hover { background: #f7f9f7; }
+.queue-item.active { background: #eef3ec; border-color: #d3e2d6; }
+.queue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.queue-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.queue-sub { font-size: 0.74rem; color: #8a9a8a; }
+.queue-end { flex-shrink: 0; }
+.queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
 
-.resource-title { font-weight: 700; color: #1f8f5c; font-size: 0.92rem; margin: 0; }
-.resource-desc { font-size: 0.8rem; color: #6a7a6a; margin: 0; line-height: 1.45; flex: 1; }
+.detail { min-width: 0; }
+.detail-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.detail-title { font-size: 1.2rem; overflow-wrap: anywhere; }
+.back-btn { display: none; align-items: center; gap: 6px; background: none; border: none; color: #1f8f5c; font-weight: 600; font-size: 0.84rem; padding: 0; margin-bottom: 14px; cursor: pointer; font-family: inherit; }
+.preview { margin-top: 16px; border: 1px solid #eceeec; border-radius: 12px; overflow: hidden; background: #f7f9f7; }
+.preview-frame { display: block; width: 100%; height: 420px; border: 0; background: #fff; }
+.preview-video { display: block; width: 100%; max-height: 420px; background: #000; }
+.preview-link { display: flex; align-items: center; gap: 12px; padding: 18px; text-decoration: none; color: #1a3a1a; }
+.preview-link > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 0.88rem; }
+.preview-url { font-size: 0.78rem; color: #1f8f5c; overflow-wrap: anywhere; }
+.preview-none { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 16px; color: #8a9a8a; font-size: 0.84rem; }
+.preview-none p { margin: 0; }
+.preview-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+.preview-actions .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
+.detail-desc { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 14px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 
-.resource-tags { display: flex; gap: 6px; flex-wrap: wrap; }
-.type-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 12px; white-space: nowrap; }
-.type-pdf { background: #fbe1de; color: #c0483a; }
-.type-video { background: #e3edfc; color: #3b6fd6; }
-.type-article { background: #eef0ee; color: #4a5a4a; }
-.type-link { background: #fdf1d6; color: #b8860b; }
-.type-tool { background: #fdf1d6; color: #b8860b; }
-.type-handout { background: #e6f4e6; color: #2e7d32; }
-.category-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 12px; background: #f0e9f7; color: #6a3aa0; white-space: nowrap; }
-.category-pill.status-active { background: #e6efe0; color: #3a6b3a; }
-.category-pill.status-inactive { background: #eceeec; color: #7a8a7a; }
-
-.resource-meta { font-size: 0.72rem; color: #9aaa9a; margin: 2px 0 6px; border-top: 1px solid #f2f4f2; padding-top: 10px; }
-
-.share-btn {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  background: #14301a; color: #fff; border: none; border-radius: 8px;
-  padding: 10px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
-  margin-top: 4px;
-}
-.share-btn:hover { background: #0d2312; }
-.shared-none { color: #b8860b; font-weight: 600; }
-
-.reference-card { padding-bottom: 18px; }
-
-/* EMPTY STATE */
-.empty-state {
-  text-align: center; padding: 56px 24px; background: #fff; border-radius: 14px; border: 1px solid #eceeec;
-}
-.empty-icon { display: block; color: #c8d0c8; margin: 0 auto 12px; }
-.empty-title { font-size: 0.95rem; font-weight: 700; color: #4a5a4a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.82rem; color: #9aaa9a; margin: 0; }
+.share-box { margin-top: 18px; background: #fafbfa; border: 1px solid #eceeec; border-radius: 12px; padding: 14px 16px; }
+.share-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.share-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.client-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.client-check { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e3e8e3; border-radius: 10px; padding: 8px 10px; cursor: pointer; min-width: 0; }
+.client-check.on { border-color: #1f8f5c; background: #f2f9f4; }
+.client-check input { width: 16px; height: 16px; accent-color: #163a1c; flex-shrink: 0; }
+.mini-avatar { width: 28px; height: 28px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; object-fit: cover; flex-shrink: 0; }
+.client-name { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.share-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.detail-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #f0f2f0; }
+.panel-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9aaa9a; min-height: 300px; font-size: 0.86rem; }
+.panel-placeholder p { margin: 0; }
 
 @media (max-width: 1100px) {
-  .resource-grid { grid-template-columns: repeat(2, 1fr); }
   .hero-banner { flex-direction: column; align-items: flex-start; }
+}
+/* below 1000px: just the list; a resource opens as a full-screen sheet */
+@media (max-width: 999px) {
+  .review-layout { grid-template-columns: minmax(0, 1fr); }
+  .queue { position: static; max-height: none; }
+  .queue-chevron { display: block; }
+  .queue-item.active { background: none; border-color: transparent; }
+  .panel-placeholder { display: none; }
+  .panel-wrap { position: fixed; inset: 0; z-index: 250; background: #f4f5f3; overflow-y: auto; padding: 16px; }
+  .back-btn { display: inline-flex; }
+  .preview-frame { height: 60vh; }
 }
 
 /* ============ UPLOAD NEW RESOURCE MODAL ============ */
@@ -584,7 +698,8 @@ const TOOLS = [
 .modal-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 640px) {
-  .resource-grid { grid-template-columns: 1fr; }
+  .tools-grid, .client-grid { grid-template-columns: minmax(0, 1fr); }
+  .detail-actions > * { flex: 1; }
   .type-selector { grid-template-columns: repeat(2, 1fr); }
   .modal-box { padding: 22px 18px; }
 }

@@ -334,6 +334,14 @@ class ResourceSharingTests(TestCase):
         self.assertIsNone(resp.data[0]["download_url"])
         self.assertEqual(resp.data[0]["url"], "https://fnri.dost.gov.ph")
 
+    def test_client_sees_who_shared_it_and_when(self):
+        self._resource(share_with=[self.rel])
+        self.api.force_authenticate(self.client_user)
+        row = self.api.get("/api/client/resources/").data[0]
+        self.assertEqual(row["shared_by"]["name"], self.rnd.full_name)
+        self.assertIsNotNone(row["shared_at"])
+        self.assertNotIn("shared_count", row)  # how many others got it is the RND's business
+
     def test_uploading_alone_shares_with_nobody(self):
         self._resource()
         self.assertEqual(self._client_titles(self.client_user), [])

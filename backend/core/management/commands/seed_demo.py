@@ -42,7 +42,7 @@ from clinical.services import (
     calculate_tdee,
     classify_bmi_asia_pacific,
 )
-from communication.models import Message
+from communication.models import Message, Resource, ResourceShare
 from communication.services import notify
 from core.models import AuditLog, SystemSetting
 from nutrition.models import FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
@@ -611,6 +611,20 @@ class Command(BaseCommand):
                 weight_kg=Decimal(weight), bmi=calculate_bmi(Decimal(weight), height),
                 blood_pressure=bp, blood_glucose=Decimal(glucose), adherence_pct=adherence, rnd_notes=note,
             )
+
+        # Resources: one shared with Carla, one Maria hasn't shared yet. Links
+        # only, so seeding needs no file upload (Cloudinary).
+        healthy = Resource.objects.create(
+            uploaded_by=maria, type=Resource.Type.LINK, title="Healthy diet — WHO fact sheet",
+            description="What a healthy diet looks like and simple ways to cut salt, sugar and fat.",
+            url="https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+        )
+        ResourceShare.objects.create(resource=healthy, relationship=rel)
+        Resource.objects.create(
+            uploaded_by=maria, type=Resource.Type.LINK, title="FNRI — Food and Nutrition Research Institute",
+            description="The Philippine government's food and nutrition reference, including the Food Exchange Lists.",
+            url="https://www.fnri.dost.gov.ph/",
+        )
 
         self._messages(rel, [
             (False, "Good morning po! Is it okay to eat pan de sal instead of rice for breakfast?"),
