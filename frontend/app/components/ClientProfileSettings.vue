@@ -233,21 +233,53 @@
         <template v-else-if="activeTab === 'notifications'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Notifications</h3>
-              <p class="tab-panel-sub">Choose how NutriMatch keeps you updated.</p>
+              <h3 class="tab-panel-title">Notifications &amp; reminders</h3>
+              <p class="tab-panel-sub">NutriMatch reminds you automatically. You always get them in the app — choose which ones, and whether to get emails too.</p>
             </div>
           </div>
-          <!-- TODO: mock/local only — no notification-preference field or endpoint exists yet. -->
-          <div class="setting-row">
-            <div>
-              <p class="setting-label">Appointment, meal plan, and reminder alerts</p>
-              <p class="setting-detail">Receive push and email notifications</p>
+
+          <p v-if="reminderError" class="form-error">{{ reminderError }}</p>
+          <p v-if="!reminderPrefs" class="placeholder-text">Loading…</p>
+          <template v-else>
+            <div v-for="opt in REMINDER_OPTIONS" :key="opt.key" class="setting-row">
+              <div>
+                <p class="setting-label">{{ opt.label }}</p>
+                <p class="setting-detail">{{ opt.detail }}</p>
+              </div>
+              <label class="toggle">
+                <input :checked="reminderPrefs[opt.key]" type="checkbox" @change="savePref(opt.key, $event.target.checked)" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
             </div>
-            <label class="toggle">
-              <input v-model="notificationsEnabled" type="checkbox" />
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            </label>
-          </div>
+            <div class="setting-row">
+              <div>
+                <p class="setting-label">Also send reminders by email</p>
+                <p class="setting-detail">To {{ auth.user?.email }}. Off by default — in-app notifications are always on.</p>
+              </div>
+              <label class="toggle">
+                <input :checked="reminderPrefs.email" type="checkbox" @change="savePref('email', $event.target.checked)" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="rnd-reminders">
+              <p class="setting-label" style="margin-bottom: 4px">Set by your RND</p>
+              <p class="setting-detail" style="margin-bottom: 12px">Medication and habit reminders your RND set for you. Mute one if you don't need it.</p>
+              <p v-if="!rndReminders.length" class="placeholder-text">Your RND hasn't set any reminders for you.</p>
+              <div v-for="r in rndReminders" :key="r.id" class="rnd-reminder" :class="{ muted: r.is_muted }">
+                <span class="rr-icon"><component :is="r.type === 'medication' ? Pill : AlarmClock" :size="16" /></span>
+                <div class="rr-main">
+                  <p class="rr-title">{{ r.title }}</p>
+                  <p class="rr-sub">{{ r.repeat_label }} at {{ clock(r.time_of_day) }}<template v-if="r.repeat === 'once'"> · {{ dayLabel(r.next_at) }}</template> · from RND {{ r.created_by_name }}</p>
+                  <p v-if="r.message" class="rr-msg">{{ r.message }}</p>
+                </div>
+                <label class="toggle" :title="r.is_muted ? 'Muted' : 'On'">
+                  <input :checked="!r.is_muted" type="checkbox" @change="setMuted(r, !$event.target.checked)" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+            </div>
+          </template>
         </template>
 
         <!-- ============ PRIVACY & DATA ============ -->
@@ -313,12 +345,12 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   User, HeartPulse, Shield, Bell, FileText, History as HistoryIcon, CheckCircle2,
   Printer, ClipboardList, ShieldCheck, CalendarCheck, UtensilsCrossed,
-  Stethoscope, Scale, Flame, Activity, Pencil, Check,
+  Stethoscope, Scale, Flame, Activity, Pencil, Check, AlarmClock, Pill,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
-const { get, patch } = useApi()
+const { get, patch, put } = useApi()
 
 const tabs = [
   { key: 'personal', label: 'Personal Info', icon: User },
@@ -525,7 +557,56 @@ function nrsLabel(risk) {
 }
 
 // TODO: mock/local only — no notification-preference field on User/ClientProfile.
-const notificationsEnabled = ref(true)
+/* ---------- NOTIFICATIONS & REMINDERS ---------- */
+const REMINDER_OPTIONS = [
+  { key: 'appointments', label: 'Consultation reminders', detail: '24 hours and 1 hour before each confirmed consultation.' },
+  { key: 'payments', label: 'Payment reminders', detail: "If a consultation is still unpaid the day before — unpaid ones are cancelled at the start time." },
+  { key: 'meal_logging', label: 'Meal logging reminders', detail: "At each meal time in your meal plan, if you haven't logged that meal yet." },
+  { key: 'rnd_reminders', label: 'Reminders from your RND', detail: 'Medication and habit reminders your RND sets for you.' },
+]
+const reminderPrefs = ref(null)
+const rndReminders = ref([])
+const reminderError = ref('')
+async function loadReminders() {
+  try {
+    const [prefs, list] = await Promise.all([get('/client/reminder-settings/'), get('/client/reminders/')])
+    reminderPrefs.value = prefs
+    rndReminders.value = list
+  } catch {
+    reminderError.value = 'Could not load your reminder settings. Please refresh.'
+  }
+}
+async function savePref(key, value) {
+  const before = reminderPrefs.value[key]
+  reminderPrefs.value[key] = value
+  reminderError.value = ''
+  try {
+    reminderPrefs.value = await put('/client/reminder-settings/', { [key]: value })
+    fireReminderToast(value ? 'Turned on.' : 'Turned off.')
+  } catch {
+    reminderPrefs.value[key] = before
+    reminderError.value = 'Could not save. Please try again.'
+  }
+}
+async function setMuted(r, muted) {
+  try {
+    Object.assign(r, await patch(`/client/reminders/${r.id}/`, { is_muted: muted }))
+    fireReminderToast(muted ? 'Reminder muted.' : 'Reminder turned back on.')
+  } catch {
+    reminderError.value = 'Could not update this reminder. Please try again.'
+  }
+}
+function clock(hhmm) {
+  const [h, m] = String(hhmm || '00:00').split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}
+function dayLabel(iso) {
+  return iso ? new Date(iso).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric' }) : ''
+}
+function fireReminderToast(text) {
+  fireToast(text)
+}
+onMounted(loadReminders)
 
 /* ---------- Care team ---------- */
 const careRnd = ref(null)
@@ -744,6 +825,14 @@ onMounted(async () => {
 .mini-stat-label { font-size: 0.75rem; color: #8a9a8a; margin: 3px 0 0; }
 
 /* SETTING ROWS (security, notifications, privacy, care team) */
+.rnd-reminders { margin-top: 22px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
+.rnd-reminder { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid #eceeec; border-radius: 12px; margin-bottom: 8px; }
+.rnd-reminder.muted { opacity: 0.6; }
+.rr-icon { width: 32px; height: 32px; border-radius: 9px; background: #fdf1d6; color: #b8860b; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rr-main { flex: 1; min-width: 0; }
+.rr-title { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
+.rr-sub { font-size: 0.76rem; color: #8a9a8a; margin: 2px 0 0; }
+.rr-msg { font-size: 0.8rem; color: #4a5a4a; margin: 6px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
 .setting-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;

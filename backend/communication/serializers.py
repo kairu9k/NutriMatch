@@ -235,6 +235,18 @@ class NotificationDetailSerializer(NotificationLogSerializer):
             "name": plan.name, "status": plan.status, "target_kcal": plan.target_kcal, "sent_at": plan.sent_at,
         }
 
+    def _related_reminder(self, pk, user):
+        from .models import Reminder
+
+        r = Reminder.objects.filter(pk=pk, client=user).select_related("created_by").first()
+        if r is None:
+            return None
+        return {
+            "id": r.id, "title": r.title, "message": r.message, "repeat": r.get_repeat_display(),
+            "next_at": None if r.is_sent else r.send_at, "is_muted": r.is_muted,
+            "with": {"name": r.created_by.full_name, "role": r.created_by.role} if r.created_by else None,
+        }
+
     def _related_resource(self, pk, user):
         from scheduling.models import RndClientRelationship
 

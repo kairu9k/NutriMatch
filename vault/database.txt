@@ -378,12 +378,32 @@ Table reminders {
   client_id int [not null]
   title varchar(255) [not null]
   message text [null]
-  type "enum('appointment','meal_log','medication','general')" [not null, default: 'general']
-  send_at datetime [not null]
+  type "enum('appointment','payment','meal_log','medication','general')" [not null, default: 'general']
+  send_at datetime [not null, note: 'next time it fires']
   is_sent tinyint(1) [not null, default: 0]
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_by int [null, note: 'RND who set it; null = automatic']
+  relationship_id int [null]
+  repeat "enum('once','daily','weekdays','weekly')" [not null, default: 'once']
+  is_active tinyint(1) [not null, default: 1, note: 'RND paused it']
+  is_muted tinyint(1) [not null, default: 0, note: 'client muted it']
+  last_sent_at datetime [null]
+  source_key varchar(100) [null, unique, note: 'automatic reminders, e.g. appt:12:24h — sent once']
 
-  Note: 'Scheduled events triggers queue'
+  Note: 'Scheduled events triggers queue (communication/reminders.py, manage.py send_reminders). Added 2026-10-11: RND-set repeating reminders + automatic appointment/payment/meal-logging ones'
+}
+
+Table reminder_preferences {
+  id int [pk, increment]
+  user_id int [not null, unique]
+  appointments tinyint(1) [not null, default: 1]
+  payments tinyint(1) [not null, default: 1]
+  meal_logging tinyint(1) [not null, default: 1]
+  rnd_reminders tinyint(1) [not null, default: 1]
+  email tinyint(1) [not null, default: 0, note: 'in-app is always on; email is opt-in']
+  updated_at timestamp [not null]
+
+  Note: 'Client reminder settings (Profile Settings > Notifications & reminders). Added 2026-10-11'
 }
 
 Table notification_logs {
@@ -534,6 +554,9 @@ Ref: resources.uploaded_by > users.id
 Ref: resource_shares.resource_id > resources.id
 Ref: resource_shares.relationship_id > rnd_client_relationships.id
 Ref: reminders.client_id > users.id
+Ref: reminders.created_by > users.id
+Ref: reminders.relationship_id > rnd_client_relationships.id
+Ref: reminder_preferences.user_id - users.id
 Ref: notification_logs.recipient_id > users.id
 
 Ref: invoices.relationship_id > rnd_client_relationships.id

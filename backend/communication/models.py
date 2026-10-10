@@ -82,11 +82,28 @@ class ResourceShare(models.Model):
 
 
 class Reminder(models.Model):
+    """Scheduled reminders to a client (proposal: automated reminder module).
+
+    Two kinds share this table:
+    - automatic ones (appointment / payment / meal logging) written by
+      communication/reminders.py when they're sent — `source_key` makes each
+      one unique so it's never sent twice;
+    - ones an RND sets for a client (`created_by`), e.g. medication cues or
+      habit prompts, which can repeat; `send_at` is the next time it fires.
+    """
+
     class Type(models.TextChoices):
         APPOINTMENT = "appointment", "Appointment"
+        PAYMENT = "payment", "Payment"
         MEAL_LOG = "meal_log", "Meal Log"
         MEDICATION = "medication", "Medication"
         GENERAL = "general", "General"
+
+    class Repeat(models.TextChoices):
+        ONCE = "once", "Once"
+        DAILY = "daily", "Every day"
+        WEEKDAYS = "weekdays", "Weekdays"
+        WEEKLY = "weekly", "Every week"
 
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reminders"
@@ -97,12 +114,46 @@ class Reminder(models.Model):
     send_at = models.DateTimeField()
     is_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    # RND-set reminders
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name="reminders_created"
+    )
+    relationship = models.ForeignKey(
+        "scheduling.RndClientRelationship", on_delete=models.CASCADE, null=True, blank=True, related_name="reminders"
+    )
+    repeat = models.CharField(max_length=10, choices=Repeat.choices, default=Repeat.ONCE)
+    is_active = models.BooleanField(default=True)  # the RND paused it
+    is_muted = models.BooleanField(default=False)  # the client muted it
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+    # automatic reminders: e.g. "appt:12:24h" — one row per reminder sent
+    source_key = models.CharField(max_length=100, null=True, blank=True, unique=True)
 
     class Meta:
         db_table = "reminders"
 
     def __str__(self):
         return f"{self.title} — {self.send_at:%Y-%m-%d %H:%M}"
+
+
+class ReminderPreference(models.Model):
+    """A client's reminder settings (Profile Settings > Notifications &
+    reminders). In-app notifications are always on; email is opt-in."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reminder_preference")
+    appointments = models.BooleanField(default=True)
+    payments = models.BooleanField(default=True)
+    meal_logging = models.BooleanField(default=True)
+    rnd_reminders = models.BooleanField(default=True)
+    email = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reminder_preferences"
+
+    @classmethod
+    def for_user(cls, user):
+        pref, _ = cls.objects.get_or_create(user=user)
+        return pref
 
 
 class NotificationLog(models.Model):

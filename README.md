@@ -82,7 +82,16 @@ npm run dev
 
 Open **http://localhost:3000** in your browser. Use `localhost`, not `127.0.0.1` — the backend only accepts requests from those exact addresses.
 
-### 5. (Optional) Real-time messages — Redis
+### 5. (Optional) Reminders on a schedule
+
+Reminders (consultations, payments, meal logging, RND reminders) are also sent whenever a client opens the app, so nothing extra is needed to test them. To send them on a timer like a real server would, run in a third terminal:
+
+```bash
+.\.venv\Scripts\python.exe manage.py send_reminders --loop 300     # Windows — every 5 minutes
+.venv/bin/python manage.py send_reminders --loop 300               # macOS / Linux
+```
+
+### 6. (Optional) Real-time messages — Redis
 
 The **Messages** page needs Redis. Everything else works without it. With Docker Desktop running:
 
@@ -132,7 +141,7 @@ You don't need any passwords or API keys to test most of the app. The `.env` you
 | Sign-up emails (verification code, password reset) | Nothing is sent — **the email, including the 6-digit code, is printed in the backend terminal (#1)**. Copy the code from there. | Gmail App Password in `GMAIL_HOST_USER` / `GMAIL_HOST_PASSWORD` |
 | Registering a **new RND** (PRC license photo) and **profile photos** | Shows "Cloudinary is not configured". Use the demo RNDs instead. | Cloudinary keys in `CLOUDINARY_*` (ask the team lead — never commit them) |
 | **Paying** an invoice (PayMongo) | Paying shows "PAYMONGO_SECRET_KEY is not configured." Demo data already has paid invoices. | PayMongo **test** keys in `PAYMONGO_SECRET_KEY` |
-| Messages (real-time chat) | Can't send | Redis — [step 5](#5-optional-real-time-messages--redis) |
+| Messages (real-time chat) | Can't send | Redis — [step 6](#6-optional-real-time-messages--redis) |
 | Video consultation | Works (free Jitsi, no key) | — |
 
 Registering a new **client** works without any keys — grab the verification code from the backend terminal.
@@ -195,7 +204,7 @@ If the demo data looks off after a big update, run `seed_demo --reset`.
 | Frontend not on port 3000 (e.g. 3001) | Another `npm run dev` is still running, and the backend only accepts port 3000. Close the other one and start again. |
 | `no such table` / `no such column` errors | You skipped `migrate` after pulling — run it. |
 | `ModuleNotFoundError` | Run Python through `.venv` (step 3) and re-run `pip install -r requirements.txt`. |
-| Messages won't send | Redis isn't running — open Docker Desktop ([step 5](#5-optional-real-time-messages--redis)). |
+| Messages won't send | Redis isn't running — open Docker Desktop ([step 6](#6-optional-real-time-messages--redis)). |
 
 ## Running the automated tests
 

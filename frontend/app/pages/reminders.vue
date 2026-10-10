@@ -1,7 +1,9 @@
 <template>
-  <Reminders />
+  <div></div>
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'Reminders' })
+// Reminders are automatic now; their settings live in Profile Settings.
+definePageMeta({ layout: 'dashboard' })
+navigateTo({ path: '/profile-settings', query: { tab: 'notifications' } }, { replace: true })
 </script>

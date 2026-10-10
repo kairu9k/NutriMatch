@@ -65,6 +65,11 @@
         <p v-else class="empty-note">No NCP records yet.{{ relationshipStatus === 'active' ? ' Start the first one with "New NCP Record".' : '' }}</p>
       </div>
 
+      <!-- REMINDERS TAB: medication / habit reminders the RND sets for this client -->
+      <div v-else-if="activeTab === 'Reminders'" class="surface">
+        <RndClientReminders :relationship-id="relationshipId" :client-name="clientName" :can-edit="relationshipStatus === 'active'" />
+      </div>
+
       <div v-else-if="activeTab !== 'Overview'" class="surface">
         <p class="empty-note">{{ activeTab }} isn't broken out separately yet — use the links in Overview below.</p>
       </div>
@@ -191,7 +196,7 @@ const interventionDone = computed(() =>
   ncpRecords.value.some(r => r.diet_prescription || r.target_kcal)
 )
 
-const detailTabs = ['Overview', 'NCP Records', 'Meal Plan', 'Progress History', 'Appointments']
+const detailTabs = ['Overview', 'NCP Records', 'Reminders', 'Meal Plan', 'Progress History', 'Appointments']
 const RELATIONSHIP_CHIP = {
   active: { label: 'Active Relationship', cls: 'chip-success' },
   pending: { label: 'Pending — first visit not confirmed', cls: 'chip-warning' },
@@ -199,7 +204,7 @@ const RELATIONSHIP_CHIP = {
 }
 // ?tab=ncp opens straight on the NCP Records tab (links from the NCP
 // Records page, dashboard drafts, consultation room).
-const activeTab = ref(route.query.tab === 'ncp' ? 'NCP Records' : 'Overview')
+const activeTab = ref({ ncp: 'NCP Records', reminders: 'Reminders' }[route.query.tab] || 'Overview')
 
 const clientName = computed(() => {
   const u = clientProfile.value?.user

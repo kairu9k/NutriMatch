@@ -42,7 +42,7 @@ from clinical.services import (
     calculate_tdee,
     classify_bmi_asia_pacific,
 )
-from communication.models import Message, Resource, ResourceShare
+from communication.models import Message, Reminder, Resource, ResourceShare
 from communication.services import notify
 from core.models import AuditLog, SystemSetting
 from nutrition.models import FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
@@ -625,6 +625,22 @@ class Command(BaseCommand):
             description="The Philippine government's food and nutrition reference, including the Food Exchange Lists.",
             url="https://www.fnri.dost.gov.ph/",
         )
+
+        # Reminders Maria set for Carla (medication cue + habit prompt).
+        for title, message, kind, repeat, clock_at in [
+            ("Check your blood sugar", "Before breakfast — note the result for your next consultation.", Reminder.Type.MEDICATION,
+             Reminder.Repeat.DAILY, time(6, 30)),
+            ("30-minute walk", "A brisk walk after dinner helps keep your blood sugar steady.", Reminder.Type.GENERAL,
+             Reminder.Repeat.WEEKDAYS, time(18, 30)),
+        ]:
+            from communication.reminders import first_occurrence, next_occurrence
+
+            start = first_occurrence(repeat, datetime.combine(self.today, clock_at, tzinfo=MANILA))
+            probe = Reminder(send_at=start, repeat=repeat)
+            if start <= timezone.now():
+                start = next_occurrence(probe, timezone.now())
+            Reminder.objects.create(client=carla, relationship=rel, created_by=maria, title=title, message=message,
+                                    type=kind, repeat=repeat, send_at=start)
 
         self._messages(rel, [
             (False, "Good morning po! Is it okay to eat pan de sal instead of rice for breakfast?"),

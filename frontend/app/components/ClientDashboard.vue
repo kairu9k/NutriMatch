@@ -145,6 +145,23 @@
         </div>
 
         <div class="dash-col">
+          <!-- COMING UP TODAY (reminders) -->
+          <div class="panel">
+            <div class="panel-header-row">
+              <h3 class="panel-title flush">Coming up today</h3>
+              <NuxtLink to="/profile-settings?tab=notifications" class="panel-link">Reminders →</NuxtLink>
+            </div>
+            <NuxtLink v-for="(item, i) in todayItems" :key="i" :to="item.link" class="today-row" :class="{ done: item.done }">
+              <span class="today-icon" :class="'k-' + item.kind"><component :is="TODAY_ICONS[item.kind]" :size="15" /></span>
+              <span class="today-main">
+                <span class="today-title">{{ item.title }}</span>
+                <span v-if="item.detail" class="today-detail">{{ item.detail }}</span>
+              </span>
+              <span class="today-time">{{ phClock(item.at) }}</span>
+            </NuxtLink>
+            <p v-if="todayLoaded && !todayItems.length" class="empty-note">Nothing scheduled for today. Reminders for consultations, meals and anything your RND sets will show up here.</p>
+          </div>
+
           <!-- YOUR RND -->
           <div class="panel">
             <h3 class="panel-title">Your RND</h3>
@@ -209,7 +226,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import {
-  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee,
+  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -508,6 +525,24 @@ async function loadDashboard() {
 }
 
 onMounted(loadDashboard)
+
+/* Coming up today — consultations, meals to log and RND reminders (also
+   sends any reminder that's due right now). */
+const TODAY_ICONS = { appointment: CalendarCheck, meal: UtensilsCrossed, reminder: AlarmClock }
+const todayItems = ref([])
+const todayLoaded = ref(false)
+onMounted(async () => {
+  try {
+    todayItems.value = await get('/client/today/')
+  } catch {
+    todayItems.value = []
+  } finally {
+    todayLoaded.value = true
+  }
+})
+function phClock(iso) {
+  return new Date(iso).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
+}
 </script>
 
 <style scoped>
@@ -581,6 +616,17 @@ onMounted(loadDashboard)
 .dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
 .dash-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
+.today-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f0; text-decoration: none; color: inherit; }
+.panel-header-row + .today-row { margin-top: 12px; border-top: none; }
+.today-row.done { opacity: 0.55; }
+.today-row.done .today-title { text-decoration: line-through; }
+.today-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
+.today-icon.k-reminder { background: #fdf1d6; color: #b8860b; }
+.today-icon.k-appointment { background: #e3edf7; color: #2f6fa8; }
+.today-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.today-title { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
+.today-detail { font-size: 0.72rem; color: #8a9a8a; }
+.today-time { font-size: 0.76rem; font-weight: 700; color: #4a5a4a; white-space: nowrap; }
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
 .panel-title.flush { margin: 0; }
 .panel-sub { font-size: 0.78rem; color: #8a9a8a; margin: 3px 0 0; }

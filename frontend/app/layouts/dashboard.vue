@@ -118,7 +118,7 @@
 import {
   LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, FileText, MessageSquare,
-  UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, AlarmClock, Sparkles,
+  UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, Sparkles,
   ShieldCheck, Wallet, ScrollText, BarChart3, Settings
 } from 'lucide-vue-next'
 
@@ -247,7 +247,6 @@ const clientNavGroups = computed(() => [
     label: 'CONNECT',
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-library' },
-      { icon: AlarmClock, label: 'Reminders', to: '/reminders' },
       { icon: Receipt, label: 'Billing & Invoice', to: '/invoices-billing' },
     ],
   },

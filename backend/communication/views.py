@@ -67,6 +67,10 @@ class NotificationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if self.request.user.role == "client":
+            from .reminders import run_for_client_throttled
+
+            run_for_client_throttled(self.request.user)
         return NotificationLog.objects.filter(
             recipient=self.request.user, channel=NotificationLog.Channel.IN_APP
         ).order_by("-created_at")

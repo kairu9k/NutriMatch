@@ -1,5 +1,13 @@
 from django.urls import path
 
+from .reminder_views import (
+    ClientReminderListView,
+    ClientReminderMuteView,
+    ClientReminderSettingsView,
+    ClientTodayView,
+    RndClientReminderListCreateView,
+    RndReminderDetailView,
+)
 from .views import (
     ClientResourceListView,
     MessageDeleteView,
@@ -32,4 +40,11 @@ urlpatterns = [
         name="rnd_resource_unshare",
     ),
     path("client/resources/", ClientResourceListView.as_view(), name="client_resource_list"),
+
+    path("client/reminder-settings/", ClientReminderSettingsView.as_view(), name="client_reminder_settings"),
+    path("client/reminders/", ClientReminderListView.as_view(), name="client_reminders"),
+    path("client/reminders/<int:pk>/", ClientReminderMuteView.as_view(), name="client_reminder_mute"),
+    path("client/today/", ClientTodayView.as_view(), name="client_today"),
+    path("rnd/relationships/<int:relationship_id>/reminders/", RndClientReminderListCreateView.as_view(), name="rnd_client_reminders"),
+    path("rnd/reminders/<int:pk>/", RndReminderDetailView.as_view(), name="rnd_reminder_detail"),
 ]
