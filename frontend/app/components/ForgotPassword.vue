@@ -314,11 +314,14 @@ async function handleConfirm() {
 }
 
 @media (max-width: 900px) {
-  .login-page { grid-template-columns: 1fr; }
+  .login-page { grid-template-columns: minmax(0, 1fr); }
   .left-panel { padding: 32px; min-height: 240px; }
   .left-content { margin-top: 32px; }
   .right-panel { padding: 32px; }
   .form-wrap { margin-top: 32px; }
   .trust-badges { margin-top: 24px; }
+}
+@media (max-width: 480px) {
+  .left-panel, .right-panel { padding: 24px 20px; }
 }
 </style>

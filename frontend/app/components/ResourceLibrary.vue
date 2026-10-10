@@ -2,7 +2,7 @@
   <div class="library-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Resources</h1>
+        <!-- <h1 class="page-title">Resources</h1> -->
         <p class="page-sub">Nutrition education materials shared by your RND.</p>
       </div>
       <div class="search-box">
@@ -30,10 +30,21 @@
           <span class="badge-pill" :class="typeClass(r.type)">{{ typeLabel(r.type) }}</span>
           <h3 class="resource-title">{{ r.title }}</h3>
           <p class="resource-desc">{{ r.description || 'No description provided.' }}</p>
-          <div class="resource-footer">
-            <span class="resource-date">Added {{ timeAgo(r.created_at) }}</span>
-            <a v-if="r.url" :href="r.url" target="_blank" rel="noopener noreferrer" class="open-btn">
-              <ExternalLink :size="14" />
+          <span class="resource-date">Added {{ timeAgo(r.created_at) }}</span>
+          <!-- Uploaded files: View opens it in a new tab (browser PDF viewer /
+               video player); Download uses the API's download_url, which tells
+               Cloudinary to send it as a file named after the title. -->
+          <div v-if="r.file_path" class="resource-actions">
+            <a :href="r.file_path" target="_blank" rel="noopener noreferrer" class="nm-btn-outline nm-btn-sm">
+              <Eye :size="14" /> View
+            </a>
+            <a :href="r.download_url || r.file_path" class="nm-btn-dark nm-btn-sm">
+              <Download :size="14" /> Download
+            </a>
+          </div>
+          <div v-else-if="r.url" class="resource-actions">
+            <a :href="r.url" target="_blank" rel="noopener noreferrer" class="nm-btn-outline nm-btn-sm">
+              <ExternalLink :size="14" /> Open link
             </a>
           </div>
         </div>
@@ -50,7 +61,7 @@
 </template>
 
 <script setup>
-import { Search, BookOpen, FileText, PlayCircle, FileType, Link2, ExternalLink } from 'lucide-vue-next'
+import { Search, BookOpen, FileText, PlayCircle, FileType, Link2, ExternalLink, Eye, Download } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
 
@@ -163,12 +174,9 @@ onMounted(loadResources)
 .resource-title { font-family: 'Playfair Display', serif; font-size: 0.95rem; color: #1a3a1a; margin: 0 0 8px; }
 .resource-desc { font-size: 0.82rem; color: #8a9a8a; line-height: 1.5; margin: 0; flex-grow: 1; }
 
-.resource-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
-.resource-date { font-size: 0.74rem; color: #9aaa9a; }
-.open-btn {
-  width: 30px; height: 30px; border-radius: 6px; border: 1px solid #d5dad5;
-  display: flex; align-items: center; justify-content: center; color: #1a3a1a; text-decoration: none;
-}
+.resource-date { font-size: 0.74rem; color: #9aaa9a; margin-top: 14px; }
+.resource-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.resource-actions > * { flex: 1; }
 
 .empty-state {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec;
@@ -181,4 +189,10 @@ onMounted(loadResources)
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 .empty-text { font-size: 0.85rem; color: #9aaa9a; padding: 20px; text-align: center; }
+
+@media (max-width: 640px) {
+  .page-header > div:first-child { width: 100%; }
+  .search-box { width: 100%; }
+  .resource-grid { grid-template-columns: 1fr; }
+}
 </style>

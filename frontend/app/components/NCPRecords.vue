@@ -28,10 +28,11 @@
               <th>PHASE</th>
               <th>CREATED</th>
               <th>STATUS</th>
+              <th class="actions-col">ACTIONS</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="h in filteredRecords" :key="h.id" class="clickable-row" @click="openRecord(h)">
+            <tr v-for="h in filteredRecords" :key="h.id">
               <td class="patient-cell">
                 <div class="history-avatar">{{ h.initials }}</div>
                 <p class="history-name">{{ h.client_name }}</p>
@@ -40,6 +41,9 @@
               <td>{{ h.phaseLabel }}</td>
               <td>{{ formatDateTime(h.created_at) }}</td>
               <td><span class="status-pill" :class="h.status === 'completed' ? 'pill-green' : 'pill-gold'">{{ h.displayStatus }}</span></td>
+              <td class="actions-col">
+                <NcpRowActions :record="h" :patient-name="h.client_name" @view="openRecord(h)" @edit="editRecord(h)" @deleted="onDeleted" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -80,7 +84,8 @@
 
 <script setup>
 // NCP Records (sidebar): every NCP record across the RND's patients.
-// Clicking a record opens it read-only; new records are started here (pick
+// Each row has View / Edit / Delete (NcpRowActions — edit/delete only for
+// unfinished drafts); new records are started here (pick
 // a patient) or from that patient's Client Detail → NCP Records tab. The
 // per-patient view lives on Client Detail now — old ?relationship= links
 // are forwarded there.
@@ -143,6 +148,13 @@ async function loadRecords() {
 function openRecord(r) {
   modal.value = { relationshipId: r.relationship_id, recordId: r.id, patientName: r.client_name, mode: 'view' }
 }
+// A patient has at most one draft, and edit mode opens that draft.
+function editRecord(r) {
+  modal.value = { relationshipId: r.relationship_id, recordId: null, patientName: r.client_name, mode: 'edit' }
+}
+function onDeleted(r) {
+  records.value = records.value.filter(x => x.id !== r.id)
+}
 
 /* ---------- New NCP Record: pick a patient ---------- */
 const showPicker = ref(false)
@@ -202,8 +214,20 @@ onMounted(() => {
 .history-table th { text-align: left; font-size: 0.7rem; letter-spacing: 0.05em; color: #9aaa9a; font-weight: 700; padding: 14px 16px 10px; border-bottom: 1px solid #eceeec; }
 .history-table td { padding: 14px 16px; border-bottom: 1px solid #f2f4f2; font-size: 0.86rem; color: #2a2a2a; }
 .history-table tr:last-child td { border-bottom: none; }
-.clickable-row { cursor: pointer; transition: background 0.1s ease; }
-.clickable-row:hover { background: #f7f9f7; }
+.history-table td { white-space: nowrap; }
+.actions-col { text-align: right; width: 1%; }
+
+@media (max-width: 640px) {
+  .table-wrap { padding: 0 16px; }
+  .history-table thead { display: none; }
+  .history-table, .history-table tbody { display: block; }
+  .history-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px 0; border-bottom: 1px solid #f2f4f2; }
+  .history-table tr:last-child { border-bottom: none; }
+  .history-table td { padding: 0; border: none; white-space: nowrap; font-size: 0.82rem; }
+  .history-table td.actions-col { width: 100%; margin-top: 6px; }
+  .history-table td.actions-col :deep(.ncp-actions) { justify-content: flex-start; }
+  .history-table td.patient-cell { width: 100%; }
+}
 .patient-cell { display: flex; align-items: center; gap: 10px; }
 .history-avatar {
   width: 30px; height: 30px; border-radius: 50%; background: #eceeec; color: #4a5a4a; display: flex;

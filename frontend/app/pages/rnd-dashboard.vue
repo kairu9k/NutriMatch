@@ -1,5 +1,5 @@
 <template>
-  <DashboardHome />
+  <RNDDashboard />
 </template>
 
 <script setup>

@@ -247,8 +247,9 @@ function slotText(iso) {
 .filter-field .nm-select { width: 100%; }
 .results-row { margin: 0 0 14px; }
 
-.rnd-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
-.card { display: flex; flex-direction: column; gap: 12px; }
+/* minmax(0, 1fr) + overflow-wrap: long unbroken text can't widen a card past the screen */
+.rnd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.card { display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
 .card-head { display: flex; gap: 14px; align-items: flex-start; }
 .card-id { flex: 1; min-width: 0; }
 .card-name { font-family: 'Playfair Display', serif; font-size: 1.12rem; color: #1a3a1a; margin: 0; display: flex; align-items: center; gap: 6px; }
@@ -284,7 +285,7 @@ function slotText(iso) {
   .filter-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 860px) {
-  .rnd-grid { grid-template-columns: 1fr; }
+  .rnd-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .filters-toggle { display: inline-flex; }

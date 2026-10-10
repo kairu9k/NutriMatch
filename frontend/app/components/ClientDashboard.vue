@@ -511,7 +511,7 @@ onMounted(loadDashboard)
 </script>
 
 <style scoped>
-/* Same tokens as the RND dashboard (DashboardHome.vue): banner, stat cards,
+/* Same tokens as the RND dashboard (RNDDashboard.vue): banner, stat cards,
    panels, panel links and the outlined block button. */
 * { box-sizing: border-box; }
 

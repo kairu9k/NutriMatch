@@ -5,7 +5,7 @@
   <div class="appointments-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">My Appointments</h1>
+       
         <p class="page-sub">Your upcoming consultations and past visits.</p>
       </div>
       <NuxtLink :to="bookLink" class="btn-dark"><CalendarPlus :size="15" /> Book a Consultation</NuxtLink>
@@ -630,7 +630,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   .ghost-danger-btn { margin-left: 0; width: 100%; text-align: center; }
   .history-panel { padding: 4px 16px; }
   .history-row { flex-wrap: wrap; }
-  .history-actions { flex-direction: row; width: 100%; padding-left: 72px; }
+  .history-actions { flex-direction: row; flex-wrap: wrap; width: 100%; padding-left: 0; }
   .history-actions > * { flex: 1; }
   .toast { white-space: normal; max-width: calc(100% - 32px); }
 }

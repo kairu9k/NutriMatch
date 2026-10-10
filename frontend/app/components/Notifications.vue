@@ -17,9 +17,10 @@
       <div
         v-for="n in notifications"
         :key="n.id"
-        class="notif-item"
-        :class="{ unread: !n.is_read, clickable: n.meal_log }"
-        @click="openNotification(n)"
+        class="notif-item clickable"
+        :class="{ unread: !n.is_read }"
+        role="button" tabindex="0"
+        @click="openNotification(n)" @keydown.enter="openNotification(n)"
       >
         <img v-if="n.meal_log?.photo_url" :src="n.meal_log.photo_url" alt="" class="notif-photo" />
         <div v-else class="notif-icon" :class="iconClass(n.notifiable_type)">
@@ -43,6 +44,7 @@
     </div>
 
     <MealLogPopup v-if="openMealLog" :meal-log-id="openMealLog.id" :initial="openMealLog" @close="openMealLog = null" />
+    <NotificationDetailModal v-if="openDetail" :notification="openDetail" @close="openDetail = null" />
   </div>
 </template>
 
@@ -93,12 +95,15 @@ async function loadNotifications() {
   }
 }
 
-// "Meal log update" notifications carry the log itself (RND only) —
-// clicking one opens it with the photo and what was planned.
+// Clicking a notification opens its full detail (NotificationDetailModal).
+// "Meal log update" notifications carry the log itself (RND only) — those
+// open the log with the photo and what was planned instead.
 const openMealLog = ref(null)
+const openDetail = ref(null)
 function openNotification(n) {
   if (!n.is_read) markRead(n)
   if (n.meal_log) openMealLog.value = n.meal_log
+  else openDetail.value = n
 }
 
 async function markRead(n) {

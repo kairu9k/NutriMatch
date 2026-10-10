@@ -247,7 +247,7 @@ class ClientProgressRecordListView(generics.ListAPIView):
         ).order_by("-record_date")
 
 
-class NcpRecordDetailView(generics.RetrieveUpdateAPIView):
+class NcpRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = NcpRecordSerializer
     permission_classes = [IsRnd]
 
@@ -260,6 +260,19 @@ class NcpRecordDetailView(generics.RetrieveUpdateAPIView):
         if serializer.instance.status == NcpRecord.Status.COMPLETED:
             raise PermissionDenied("This NCP record is finalized and can no longer be edited.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        # Only an unfinished draft can be discarded; a finalized record is
+        # part of the patient's clinical history and stays.
+        from core.models import AuditLog
+
+        if instance.status == NcpRecord.Status.COMPLETED:
+            raise PermissionDenied("This NCP record is finalized and can't be deleted.")
+        AuditLog.objects.create(
+            user=self.request.user, action="ncp_record.deleted", table_name="ncp_records", record_id=instance.id,
+            old_values={"status": instance.status, "relationship_id": instance.relationship_id},
+        )
+        instance.delete()
 
 
 class NcpRecordFinalizeView(generics.UpdateAPIView):

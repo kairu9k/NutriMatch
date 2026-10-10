@@ -1,7 +1,7 @@
 <template>
   <div class="billing-page">
     <div class="page-header">
-      <h1 class="page-title">Billing &amp; Invoices</h1>
+      <!-- <h1 class="page-title">Billing &amp; Invoices</h1> -->
       <p class="page-sub">View and pay for your consultations.</p>
     </div>
 

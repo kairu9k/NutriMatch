@@ -191,7 +191,7 @@ watch(() => auth.hydrated, (hydrated) => { if (hydrated) loadBadgeCounts() }, { 
 
 // Main nav split into MAIN / CLINICAL / RESOURCES groups. Availability/
 // Earnings/Reviews live as tabs inside Profile Settings rather than
-// separate nav destinations — see ProfileSettings.vue's rndTabs.
+// separate nav destinations — see RNDProfileSettings.vue's rndTabs.
 // Notifications moved to the topbar bell (real unread badge, not a nav
 // link) instead of a dedicated page.
 const rndNavGroups = computed(() => [
@@ -248,7 +248,7 @@ const clientNavGroups = computed(() => [
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-library' },
       { icon: AlarmClock, label: 'Reminders', to: '/reminders' },
-      { icon: Receipt, label: 'Billing', to: '/invoices-billing' },
+      { icon: Receipt, label: 'Billing & Invoice', to: '/invoices-billing' },
     ],
   },
 ])
@@ -504,9 +504,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     z-index: 40;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.2);
   }
-  .sidebar.sidebar-open { transform: translateX(0); }
+  .sidebar.sidebar-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.2); }
 
   .sidebar-overlay {
     display: block;

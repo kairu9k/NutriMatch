@@ -2,7 +2,7 @@
   <div class="my-patients-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">My Patients</h1>
+        <!-- <h1 class="page-title">My Patients</h1> -->
         <p class="page-sub">Manage your active and pending client relationships.</p>
       </div>
     </div>
@@ -180,7 +180,7 @@ onMounted(loadPatients)
 .toolbar { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
 .search-box-wide {
   display: flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid #a8b3a8;
-  border-radius: 24px; padding: 12px 18px; width: 100%; max-width: 420px;
+  border-radius: 10px; padding: 11px 16px; width: 100%; max-width: 420px;
 }
 .search-box-wide input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; color: #4a5a4a; }
 .search-icon { color: #9aaa9a; flex-shrink: 0; }

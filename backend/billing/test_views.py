@@ -238,3 +238,70 @@ class PaymentMethodRecordedTests(TestCase):
         self.assertEqual(payment_method_from_source({"type": "paymaya"}), "maya")
         self.assertEqual(payment_method_from_source({"type": "grab_pay"}), "other")
         self.assertIsNone(payment_method_from_source(None))
+
+
+class AdminInvoiceDetailTests(TestCase):
+    """Billing & Commission invoice overlay: details + the payment receipt."""
+
+    PAYMENT = {
+        "id": "pay_abc123", "type": "payment",
+        "attributes": {
+            "amount": 80000, "fee": 1840, "net_amount": 78160, "currency": "PHP", "status": "paid",
+            "description": "NutriMatch Consultation Invoice #1", "external_reference_number": "ref_r1",
+            "paid_at": 1760000000, "livemode": False,
+            "source": {"type": "card", "brand": "visa", "last4": "4242"},
+            "billing": {"name": "C L", "email": "client@d.ph", "phone": "09171234567"},
+        },
+    }
+
+    def setUp(self):
+        self.api = APIClient()
+        self.admin = User.objects.create_superuser(email="admin@d.ph", password="x")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd@d.ph", password="x", role="rnd", first_name="R", last_name="D"))
+        self.client_user = User.objects.create_user(email="client@d.ph", password="x", role="client", first_name="C", last_name="L")
+        rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+        appt = Appointment.objects.create(relationship=rel, scheduled_at=timezone.now() + timedelta(days=1), type="video", duration_minutes=60)
+        self.invoice = Invoice.objects.create(relationship=rel, appointment=appt, amount=Decimal("800.00"), payment_gateway="paymongo", gateway_reference_id="ref_r1")
+
+    def _get(self, user=None):
+        self.api.force_authenticate(user or self.admin)
+        return self.api.get(f"/api/admin/invoices/{self.invoice.id}/")
+
+    def test_webhook_payment_receipt(self):
+        from .services import record_successful_payment
+
+        event = {"data": {"attributes": {"type": "payment.paid", "data": self.PAYMENT}}}
+        record_successful_payment(self.invoice, "ref_r1", event, source="webhook", payment_method="card")
+        resp = self._get()
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["client"]["email"], "client@d.ph")
+        self.assertEqual(resp.data["appointment"]["duration_minutes"], 60)
+        receipt = resp.data["transactions"][0]["receipt"]
+        self.assertEqual(receipt["payment_id"], "pay_abc123")
+        self.assertEqual(receipt["amount"], "800")
+        self.assertEqual(receipt["fee"], "18.4")
+        self.assertEqual(receipt["card_last4"], "4242")
+        self.assertEqual(receipt["payer_name"], "C L")
+        self.assertTrue(receipt["paid_at"].startswith("2025-10-09"))
+        self.assertNotIn("gateway_payload", resp.data["transactions"][0])
+
+    def test_status_check_payment_receipt(self):
+        from .services import record_successful_payment
+
+        link = {"id": "link_1", "attributes": {"status": "paid", "payments": [{"data": self.PAYMENT}]}}
+        record_successful_payment(self.invoice, "ref_r1", link, source="status_check")
+        receipt = self._get().data["transactions"][0]["receipt"]
+        self.assertEqual(receipt["payment_id"], "pay_abc123")
+        self.assertEqual(receipt["source_type"], "card")
+
+    def test_payment_without_paymongo_data_has_empty_receipt(self):
+        from .services import record_successful_payment
+
+        record_successful_payment(self.invoice, "demo", {"source": "seed_demo"}, source="seed_demo")
+        tx = self._get().data["transactions"][0]
+        self.assertEqual(tx["receipt"], {})
+        self.assertEqual(tx["source"], "seed_demo")
+
+    def test_admin_only(self):
+        self.assertEqual(self._get(self.client_user).status_code, 403)
+        self.assertEqual(self._get(self.rnd).status_code, 403)

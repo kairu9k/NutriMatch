@@ -804,7 +804,7 @@ function formatTime(t) {
 }
 .select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
 
-.planning-layout { display: grid; grid-template-columns: 2.3fr 1fr; gap: 24px; align-items: start; }
+.planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 
 .panel { background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #eceeec; margin-bottom: 20px; }
 
@@ -830,13 +830,13 @@ function formatTime(t) {
 }
 .meal-row:first-child { padding-top: 0; }
 .meal-row:last-child { border-bottom: none; }
-.meal-info { flex: 1; }
+.meal-info { flex: 1; min-width: 0; }
 .meal-label {
   display: flex; align-items: center; gap: 6px;
   font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; text-transform: uppercase; margin-bottom: 6px;
 }
 .meal-title { font-size: 0.92rem; font-weight: 600; color: #1a3a1a; margin-bottom: 4px; }
-.meal-breakdown { font-size: 0.75rem; color: #9aaa9a; }
+.meal-breakdown { font-size: 0.75rem; color: #9aaa9a; overflow-wrap: anywhere; }
 .meal-kcal { font-size: 0.85rem; font-weight: 600; color: #3a4a3a; white-space: nowrap; margin-left: 16px; }
 
 .plan-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
@@ -1017,10 +1017,37 @@ button.saved-plan-card.selected { border-color: #163a1c; }
 }
 
 @media (max-width: 1150px) {
-  .planning-layout { grid-template-columns: 1fr; }
+  .planning-layout { grid-template-columns: minmax(0, 1fr); }
   .form-row-6 { grid-template-columns: 1fr 1fr; }
   .food-table-head, .food-table-row { grid-template-columns: 20px 2fr 1fr 1fr 1fr; }
   .food-table-head span:nth-child(6), .food-table-row input:nth-child(6),
   .food-table-head span:nth-child(7), .food-table-row input:nth-child(7) { display: none; }
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .top-controls { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .mode-toggle { flex-wrap: wrap; }
+  .patient-select, .patient-select select { width: 100%; }
+  .panel { padding: 16px; }
+  .plan-header { flex-wrap: wrap; gap: 10px; }
+  .plan-badges { flex-wrap: wrap; }
+  /* seven day tabs: swipe sideways instead of overflowing */
+  .day-tabs { overflow-x: auto; scrollbar-width: none; margin-left: -16px; margin-right: -16px; padding: 0 16px 2px; }
+  .day-tabs::-webkit-scrollbar { display: none; }
+  .day-tab { flex-shrink: 0; }
+  .meal-kcal { margin-left: 10px; }
+  .plan-actions { flex-wrap: wrap; }
+  .plan-actions > * { flex: 1 1 auto; justify-content: center; }
+  .form-row-6 { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .targets-header { flex-wrap: wrap; }
+  .targets-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .targets-row > :first-child { grid-column: 1 / -1; }
+  .meal-edit-header { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  /* the food editor keeps its columns and scrolls sideways inside the card */
+  .food-table { overflow-x: auto; padding: 16px 16px 4px; }
+  .food-table-head, .food-table-row { min-width: 480px; }
+  .btn-add-food { width: calc(100% - 32px); margin: 6px 16px 18px; }
+  .saved-plan-card { gap: 10px; }
 }
 </style>

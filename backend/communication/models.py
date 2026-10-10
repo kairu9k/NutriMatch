@@ -58,6 +58,29 @@ class Resource(models.Model):
         return self.title
 
 
+class ResourceShare(models.Model):
+    """A resource the RND chose to send to one of their clients (2026-10-11).
+    Uploading alone shares nothing — clients only see resources with a row
+    here. It points at the relationship, not the client, so a resource can
+    only go to the RND's own matched clients, and a client loses access once
+    the relationship stops being active."""
+
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name="shares")
+    relationship = models.ForeignKey(
+        RndClientRelationship, on_delete=models.CASCADE, related_name="resource_shares"
+    )
+    shared_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "resource_shares"
+        constraints = [
+            models.UniqueConstraint(fields=["resource", "relationship"], name="unique_resource_share"),
+        ]
+
+    def __str__(self):
+        return f"{self.resource} → relationship {self.relationship_id}"
+
+
 class Reminder(models.Model):
     class Type(models.TextChoices):
         APPOINTMENT = "appointment", "Appointment"

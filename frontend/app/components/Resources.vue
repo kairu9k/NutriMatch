@@ -89,8 +89,14 @@
               <span class="type-pill" :class="'type-' + r.type.toLowerCase()">{{ r.type }}</span>
               <span class="category-pill" :class="r.is_active ? 'status-active' : 'status-inactive'">{{ r.is_active ? 'Active' : 'Inactive' }}</span>
             </div>
-            <p class="resource-meta">{{ timeAgo(r.created_at) }}</p>
-            <button class="share-btn" @click="shareResource(r)"><Share2 :size="14" /> Share Resource</button>
+            <p class="resource-meta">
+              {{ timeAgo(r.created_at) }} ·
+              <span :class="{ 'shared-none': !r.shared_count }">{{ sharedLabel(r) }}</span>
+            </p>
+            <a v-if="r.file_path || r.url" :href="r.file_path || r.url" target="_blank" rel="noopener noreferrer" class="nm-btn-outline nm-btn-sm">
+              <Eye :size="14" /> {{ r.file_path ? 'View file' : 'Open link' }}
+            </a>
+            <button class="share-btn" @click="sharingResource = r"><Share2 :size="14" /> Share Resource</button>
           </div>
         </div>
         <div v-else class="empty-state">
@@ -118,7 +124,6 @@
             <span class="type-pill" :class="'type-' + p.type.toLowerCase()">{{ p.type }}</span>
             <span class="category-pill">{{ p.tag }}</span>
           </div>
-          <button class="share-btn" @click="shareResource(p)"><Share2 :size="14" /> Share Resource</button>
         </div>
       </div>
     </section>
@@ -140,7 +145,6 @@
             <span class="type-pill" :class="'type-' + e.type.toLowerCase()">{{ e.type }}</span>
             <span class="category-pill">{{ e.tag }}</span>
           </div>
-          <button class="share-btn" @click="shareResource(e)"><Share2 :size="14" /> Share Resource</button>
         </div>
       </div>
     </section>
@@ -178,19 +182,19 @@
         <template v-else>
           <label class="field-label">Upload File</label>
           <label class="dropzone">
-            <input type="file" class="dropzone-input" @change="onFileSelected" />
+            <input type="file" class="dropzone-input" :accept="fileRule.accept" @change="onFileSelected" />
             <UploadCloud :size="26" class="dropzone-icon" />
             <span class="dropzone-text">
               <template v-if="newUpload.fileName">{{ newUpload.fileName }}</template>
               <template v-else>Drag file here or <strong>browse</strong></template>
             </span>
+            <span class="dropzone-hint">{{ fileRule.hint }}</span>
           </label>
         </template>
 
-        <label class="checkbox-row">
-          <input type="checkbox" v-model="newUpload.visible" />
-          Make visible to patients immediately
-        </label>
+        <p v-if="uploadError" class="form-error">{{ uploadError }}</p>
+
+        <p class="upload-note">Uploading doesn't send it to anyone yet. Use <strong>Share Resource</strong> on the card to choose which clients receive it.</p>
 
         <div class="modal-actions">
           <button class="modal-cancel-btn" @click="closeUploadModal">Cancel</button>
@@ -202,16 +206,25 @@
         </div>
       </div>
     </div>
+
+    <ShareResourceModal
+      v-if="sharingResource"
+      :resource="sharingResource"
+      @close="sharingResource = null"
+      @saved="onShared"
+    />
+
+    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   Upload, Search, LayoutGrid, List, Library, Copy, Eye, Download,
   BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon, Share2, X, Pin,
   Table2, Calculator, ClipboardList, HeartPulse, GraduationCap, Leaf, Cookie, Link2, ShieldCheck,
-  UploadCloud
+  UploadCloud, CheckCircle2
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
@@ -274,9 +287,29 @@ function iconFor(type) {
   return FileText
 }
 
-function shareResource(r) {
-  // TODO: wire up to a real share flow (link/copy)
-  console.log('Share resource', r)
+/* ---------- SHARING (ShareResourceModal) ---------- */
+const sharingResource = ref(null)
+const toast = ref('')
+let toastTimer = null
+
+function showToast(text) {
+  toast.value = text
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toast.value = '' }, 3500)
+}
+
+function sharedLabel(r) {
+  const n = r.shared_count || 0
+  return n ? `Shared with ${n} client${n > 1 ? 's' : ''}` : 'Not shared yet'
+}
+
+function onShared({ sharedCount, added, removed }) {
+  sharingResource.value.shared_count = sharedCount
+  sharingResource.value = null
+  const parts = []
+  if (added) parts.push(`Shared with ${added} client${added > 1 ? 's' : ''}`)
+  if (removed) parts.push(`removed from ${removed}`)
+  showToast(parts.join(', ') + '.')
 }
 
 async function toggleActive(r) {
@@ -301,15 +334,29 @@ const resourceTypeOptions = [
   { value: 'Link', label: 'Link', icon: LinkIcon }
 ]
 
-const newUpload = ref({ type: 'PDF', title: '', description: '', url: '', file: null, fileName: '', visible: true })
+const newUpload = ref({ type: 'PDF', title: '', description: '', url: '', file: null, fileName: '' })
 
 const canSubmit = computed(() => {
   if (!newUpload.value.title.trim()) return false
   return newUpload.value.type === 'Link' ? !!newUpload.value.url.trim() : !!newUpload.value.file
 })
 
+// Same lists/limits as RESOURCE_FILE_RULES in communication/serializers.py
+// (the API enforces them; this keeps the picker and the message in step).
+const FILE_RULES = {
+  PDF: { exts: ['.pdf'], maxMb: 10 },
+  Article: { exts: ['.pdf', '.doc', '.docx'], maxMb: 10 },
+  Video: { exts: ['.mp4', '.webm', '.mov'], maxMb: 100 },
+}
+const fileRule = computed(() => {
+  const rule = FILE_RULES[newUpload.value.type] || FILE_RULES.PDF
+  return { ...rule, accept: rule.exts.join(','), hint: `${rule.exts.join(', ')} · up to ${rule.maxMb} MB` }
+})
+const uploadError = ref('')
+
 function openUploadModal() {
-  newUpload.value = { type: 'PDF', title: '', description: '', url: '', file: null, fileName: '', visible: true }
+  newUpload.value = { type: 'PDF', title: '', description: '', url: '', file: null, fileName: '' }
+  uploadError.value = ''
   showUploadModal.value = true
 }
 function closeUploadModal() {
@@ -318,20 +365,40 @@ function closeUploadModal() {
 function onFileSelected(e) {
   const file = e.target.files?.[0]
   if (!file) return
+  uploadError.value = ''
+  const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+  const rule = fileRule.value
+  if (!rule.exts.includes(ext)) {
+    uploadError.value = `This file type isn't allowed for a ${newUpload.value.type} resource. Use ${rule.exts.join(', ')}.`
+  } else if (file.size > rule.maxMb * 1024 * 1024) {
+    uploadError.value = `The file is too large. The limit is ${rule.maxMb} MB.`
+  }
+  if (uploadError.value) {
+    e.target.value = ''
+    newUpload.value.file = null
+    newUpload.value.fileName = ''
+    return
+  }
   newUpload.value.file = file
   newUpload.value.fileName = file.name
 }
+// A file picked for one type may not fit another — pick again after switching.
+watch(() => newUpload.value.type, () => {
+  newUpload.value.file = null
+  newUpload.value.fileName = ''
+  uploadError.value = ''
+})
 async function submitUpload() {
   if (!canSubmit.value) return
   isSubmitting.value = true
   errorMessage.value = ''
+  uploadError.value = ''
   try {
     const isLink = newUpload.value.type === 'Link'
     const form = new FormData()
     form.append('title', newUpload.value.title)
     if (newUpload.value.description) form.append('description', newUpload.value.description)
     form.append('type', toApiType(newUpload.value.type))
-    form.append('is_active', String(newUpload.value.visible))
     if (isLink) {
       form.append('url', newUpload.value.url)
     } else {
@@ -340,8 +407,9 @@ async function submitUpload() {
     await post('/rnd/resources/', form)
     showUploadModal.value = false
     await loadResources()
+    showToast('Resource uploaded. Use Share Resource to send it to your clients.')
   } catch (error) {
-    errorMessage.value = error?.data?.non_field_errors?.[0] || error?.data?.url?.[0] || error?.data?.file?.[0] || 'Could not add this resource. Please try again.'
+    uploadError.value = error?.data?.non_field_errors?.[0] || error?.data?.url?.[0] || error?.data?.file?.[0] || error?.data?.title?.[0] || 'Could not add this resource. Please try again.'
   } finally {
     isSubmitting.value = false
   }
@@ -483,13 +551,9 @@ const patientEducationMaterials = ref([
   background: #14301a; color: #fff; border: none; border-radius: 8px;
   padding: 10px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
   margin-top: 4px;
-  visibility: hidden; opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.resource-card:hover .share-btn {
-  visibility: visible; opacity: 1;
 }
 .share-btn:hover { background: #0d2312; }
+.shared-none { color: #b8860b; font-weight: 600; }
 
 .reference-card { padding-bottom: 18px; }
 
@@ -544,9 +608,9 @@ const patientEducationMaterials = ref([
 .dropzone-icon { color: #1a5a2a; }
 .dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
 .dropzone-text strong { color: #1a5a2a; text-decoration: underline; }
+.dropzone-hint { font-size: 0.74rem; color: #8a9a8a; }
 
-.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #3a4a3a; margin-bottom: 22px; cursor: pointer; }
-.checkbox-row input { width: 16px; height: 16px; accent-color: #14301a; cursor: pointer; }
+.upload-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; background: #fdf8ee; border: 1px solid #f1e3bd; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
 
 .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .modal-cancel-btn { background: none; border: none; color: #4a5a4a; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 11px 16px; }
@@ -555,4 +619,10 @@ const patientEducationMaterials = ref([
   padding: 11px 24px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
 }
 .modal-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .resource-grid { grid-template-columns: 1fr; }
+  .type-selector { grid-template-columns: repeat(2, 1fr); }
+  .modal-box { padding: 22px 18px; }
+}
 </style>

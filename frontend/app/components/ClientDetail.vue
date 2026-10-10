@@ -35,7 +35,7 @@
         </button>
       </nav>
 
-      <!-- NCP RECORDS TAB: this patient's records; click one to read it -->
+      <!-- NCP RECORDS TAB: this patient's records, each with View / Edit / Delete -->
       <div v-if="activeTab === 'NCP Records'" class="surface">
         <div class="surface-header">
           <h3 class="surface-title">NCP Records</h3>
@@ -45,14 +45,20 @@
         </div>
         <table v-if="ncpRecords.length" class="ncp-table">
           <thead>
-            <tr><th>CREATED</th><th>RECORD</th><th>PHASE</th><th>STATUS</th></tr>
+            <tr><th>CREATED</th><th>RECORD</th><th>PHASE</th><th>STATUS</th><th class="actions-col">ACTIONS</th></tr>
           </thead>
           <tbody>
-            <tr v-for="r in ncpRecords" :key="r.id" class="clickable-row" @click="viewNcpRecord(r)">
+            <tr v-for="r in ncpRecords" :key="r.id">
               <td>{{ formatDateTime(r.created_at) }}</td>
               <td>{{ r.is_follow_up ? 'Follow-up' : 'Initial' }}</td>
               <td>{{ ncpPhaseLabel(r) }}</td>
               <td><span class="status-pill" :class="r.status === 'completed' ? 'success' : 'warning'">{{ r.status === 'completed' ? 'Finalized' : 'In Progress' }}</span></td>
+              <td class="actions-col">
+                <NcpRowActions
+                  :record="r" :patient-name="clientName" :editable="relationshipStatus === 'active'"
+                  @view="viewNcpRecord(r)" @edit="openNcpForm" @deleted="reloadNcp"
+                />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -369,8 +375,8 @@ onMounted(loadData)
 .detail-tab.active { background: #14301a; color: #fff; }
 
 .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
-.main-col, .side-col { display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 900px) { .content-grid { grid-template-columns: minmax(0, 1fr); } }
+.main-col, .side-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 .surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px 22px; }
 .surface-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
@@ -430,7 +436,33 @@ button.outline-btn, button.primary-btn { cursor: pointer; font-family: inherit; 
 .ncp-table th { text-align: left; font-size: 0.7rem; letter-spacing: 0.05em; color: #9aaa9a; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid #eceeec; }
 .ncp-table td { padding: 12px; border-bottom: 1px solid #f2f4f2; font-size: 0.86rem; color: #2a2a2a; }
 .ncp-table tr:last-child td { border-bottom: none; }
-.clickable-row { cursor: pointer; transition: background 0.1s ease; }
-.clickable-row:hover { background: #f7f9f7; }
+.actions-col { text-align: right; width: 1%; }
 .small:last-child { margin-bottom: 0; }
+
+/* PHONE */
+@media (max-width: 640px) {
+  .patient-banner { padding: 20px; }
+  .banner-left { gap: 14px; min-width: 0; }
+  .banner-info { min-width: 0; }
+  .big-avatar { width: 52px; height: 52px; font-size: 1.1rem; }
+  /* tabs: one swipeable row */
+  .detail-tabs { width: auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .detail-tabs::-webkit-scrollbar { display: none; }
+  .detail-tab { flex-shrink: 0; white-space: nowrap; padding: 9px 14px; }
+  .surface { padding: 16px; }
+  .surface-header { flex-wrap: wrap; gap: 8px; }
+  .phase-grid, .phase-grid.three-phases, .vitals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .vital-num { font-size: 1.15rem; overflow-wrap: anywhere; }
+  .info-row { gap: 12px; }
+  .info-row span:last-child { overflow-wrap: anywhere; }
+  /* NCP history table scrolls sideways inside its card */
+  /* NCP records: rows become compact cards */
+  .ncp-table thead { display: none; }
+  .ncp-table, .ncp-table tbody { display: block; }
+  .ncp-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px 0; border-bottom: 1px solid #f2f4f2; }
+  .ncp-table tr:last-child { border-bottom: none; }
+  .ncp-table td { padding: 0; border: none; white-space: nowrap; font-size: 0.82rem; }
+  .ncp-table td.actions-col { width: 100%; margin-top: 6px; }
+  .ncp-table td.actions-col :deep(.ncp-actions) { justify-content: flex-start; }
+}
 </style>

@@ -74,7 +74,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="inv in filteredInvoices" :key="inv.id">
+            <tr
+              v-for="inv in filteredInvoices" :key="inv.id" class="clickable" tabindex="0"
+              :aria-label="`View ${invNo(inv)} details`" @click="openInvoice(inv)" @keydown.enter="openInvoice(inv)"
+            >
               <td data-label="Invoice" class="mono"><strong>{{ invNo(inv) }}</strong></td>
               <td data-label="Client → RND">{{ inv.client_name }} → {{ inv.rnd_name }}</td>
               <td data-label="Issued">{{ shortDate(inv.created_at) }}</td>
@@ -142,12 +145,106 @@
       </div>
     </div>
 
+    <!-- INVOICE DETAIL + RECEIPT -->
+    <div v-if="selected" class="nm-modal-overlay" @click.self="closeInvoice">
+      <div class="nm-modal detail" role="dialog" aria-modal="true" :aria-label="`${invNo(selected)} details`">
+        <div class="detail-head">
+          <div>
+            <p class="nm-section-title" style="margin: 0 0 4px">Invoice</p>
+            <h3 class="nm-modal-title mono" style="margin: 0">{{ invNo(selected) }}</h3>
+            <p class="nm-panel-sub">Issued {{ dateTime(selected.created_at) }}</p>
+          </div>
+          <div class="head-right">
+            <span class="nm-pill" :class="STATUS_PILLS[selected.status] || 'muted'">{{ STATUS_LABELS[selected.status] || selected.status }}</span>
+            <button class="close-btn" aria-label="Close" @click="closeInvoice"><X :size="18" /></button>
+          </div>
+        </div>
+
+        <p v-if="detailError" class="nm-error" style="margin-top: 14px">{{ detailError }}</p>
+        <p v-else-if="!detail" class="nm-muted" style="margin-top: 14px">Loading invoice…</p>
+
+        <template v-else>
+          <p class="nm-section-title">Consultation</p>
+          <dl class="nm-dl">
+            <div>
+              <dt>Client</dt>
+              <dd>{{ detail.client.name }}<span class="sub">{{ detail.client.email }}</span></dd>
+            </div>
+            <div>
+              <dt>RND</dt>
+              <dd>{{ detail.rnd.name }}<span class="sub">{{ detail.rnd.email }}</span></dd>
+            </div>
+            <template v-if="detail.appointment">
+              <div>
+                <dt>Scheduled</dt>
+                <dd>{{ dateTime(detail.appointment.scheduled_at) }}<span class="sub">{{ detail.appointment.duration_minutes || 60 }} min · {{ MODE_LABELS[detail.appointment.type] || detail.appointment.type }}</span></dd>
+              </div>
+              <div>
+                <dt>Appointment</dt>
+                <dd>{{ APPT_LABELS[detail.appointment.status] || detail.appointment.status }}<span v-if="detail.appointment.cancellation_reason" class="sub">{{ detail.appointment.cancellation_reason }}</span></dd>
+              </div>
+            </template>
+            <div v-else>
+              <dt>Appointment</dt>
+              <dd class="muted">No longer linked</dd>
+            </div>
+          </dl>
+
+          <p class="nm-section-title">Amount</p>
+          <div class="lines">
+            <div class="line"><span>Consultation fee</span><span>{{ peso(detail.amount) }}</span></div>
+            <div class="line"><span>Platform commission ({{ Number(detail.commission_pct) }}%)</span><span>− {{ peso(detail.commission_amt) }}</span></div>
+            <div class="line total"><span>RND's share</span><span>{{ peso(detail.net) }}</span></div>
+            <p class="nm-hint">{{ detail.payout ? 'Paid out to the RND in a monthly payout.' : 'Not paid out to the RND yet.' }}</p>
+          </div>
+
+          <p class="nm-section-title">Payment receipt</p>
+          <div v-if="payment" class="receipt">
+            <div class="receipt-top">
+              <CheckCircle2 :size="20" />
+              <div>
+                <p class="receipt-amount">{{ peso(payment.receipt.amount || payment.amount) }}</p>
+                <p class="nm-hint" style="margin: 0">Paid by {{ payment.receipt.payer_name || detail.client.name }} · {{ dateTime(payment.receipt.paid_at || detail.paid_at || payment.processed_at) }}</p>
+              </div>
+              <span v-if="payment.receipt.livemode === false" class="nm-pill gold test-pill">Test mode</span>
+            </div>
+            <dl class="receipt-rows">
+              <div><dt>Payment method</dt><dd>{{ methodText }}</dd></div>
+              <div v-if="payment.receipt.payment_id"><dt>PayMongo payment ID</dt><dd class="mono">{{ payment.receipt.payment_id }}</dd></div>
+              <div v-if="detail.gateway_reference_id"><dt>Reference no.</dt><dd class="mono">{{ detail.gateway_reference_id }}</dd></div>
+              <div v-if="payment.receipt.payer_email"><dt>Payer email</dt><dd>{{ payment.receipt.payer_email }}</dd></div>
+              <div v-if="payment.receipt.payer_phone"><dt>Payer phone</dt><dd>{{ payment.receipt.payer_phone }}</dd></div>
+              <div v-if="payment.receipt.description"><dt>Description</dt><dd>{{ payment.receipt.description }}</dd></div>
+              <div v-if="payment.receipt.fee"><dt>PayMongo fee</dt><dd>− {{ peso(payment.receipt.fee) }}</dd></div>
+              <div v-if="payment.receipt.net_amount"><dt>Received by NutriMatch</dt><dd><strong>{{ peso(payment.receipt.net_amount) }}</strong></dd></div>
+              <div><dt>Recorded via</dt><dd>{{ SOURCE_LABELS[payment.source] || payment.source || '—' }}</dd></div>
+            </dl>
+            <p v-if="!payment.receipt.payment_id" class="nm-hint" style="margin-top: 10px">
+              The gateway's receipt details weren't stored for this payment{{ payment.source === 'seed_demo' ? ' (demo data)' : '' }}, so only NutriMatch's record is shown.
+            </p>
+          </div>
+          <div v-else class="nm-empty" style="padding: 14px 12px">
+            <Receipt :size="24" />
+            <p>{{ selected.status === 'unpaid' ? 'The client hasn\'t paid this invoice yet.' : 'No payment was made on this invoice.' }}</p>
+          </div>
+
+          <template v-if="refunds.length">
+            <p class="nm-section-title">Refunds</p>
+            <div v-for="r in refunds" :key="r.id" class="line">
+              <span>Refunded {{ dateTime(r.processed_at || r.created_at) }}<span v-if="r.reference" class="sub mono">Ref {{ r.reference }}</span></span>
+              <span>{{ peso(r.amount) }}</span>
+            </div>
+          </template>
+        </template>
+      </div>
+    </div>
+
     <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
-import { Banknote, CheckCircle2, Coins, Receipt, RotateCcw, Search, Wallet } from 'lucide-vue-next'
+import { Banknote, CheckCircle2, Coins, Receipt, RotateCcw, Search, Wallet, X } from 'lucide-vue-next'
 
 const { get, patch, post } = useApi()
 const route = useRoute()
@@ -195,6 +292,38 @@ const filteredInvoices = computed(() => {
   return invoices.value.filter(i =>
     (!statusFilter.value || i.status === statusFilter.value)
     && (!q || `${invNo(i)} ${i.client_name} ${i.rnd_name}`.toLowerCase().includes(q)))
+})
+
+/* invoice detail overlay — details + the client's payment receipt */
+const APPT_LABELS = { pending: 'Awaiting RND confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
+const SOURCE_LABELS = { webhook: 'PayMongo notification', status_check: 'PayMongo status check', seed_demo: 'Demo data', admin: 'Admin', paymongo: 'PayMongo' }
+const selected = ref(null)
+const detail = ref(null)
+const detailError = ref('')
+
+async function openInvoice(inv) {
+  selected.value = inv
+  detail.value = null
+  detailError.value = ''
+  try {
+    const d = await get(`/admin/invoices/${inv.id}/`)
+    if (selected.value?.id === inv.id) detail.value = d
+  } catch (e) {
+    if (selected.value?.id === inv.id) detailError.value = apiError(e, 'Could not load this invoice. Please try again.')
+  }
+}
+function closeInvoice() { selected.value = null }
+function onKey(e) { if (e.key === 'Escape' && selected.value) closeInvoice() }
+
+// The successful payment (newest, in case of a re-payment).
+const payment = computed(() => [...(detail.value?.transactions || [])].reverse()
+  .find(t => t.transaction_type === 'payment' && t.status === 'success') || null)
+const refunds = computed(() => (detail.value?.transactions || []).filter(t => t.transaction_type === 'refund'))
+const methodText = computed(() => {
+  const r = payment.value?.receipt || {}
+  if (r.card_last4) return `${r.card_brand ? r.card_brand.charAt(0).toUpperCase() + r.card_brand.slice(1) : 'Card'} •••• ${r.card_last4}`
+  const m = detail.value?.payment_method
+  return m ? (METHOD_LABELS[m] || m) : (r.source_type || '—')
 })
 
 /* refunds — not automated: the admin refunds in PayMongo, then records it */
@@ -258,12 +387,37 @@ async function saveCommission() {
 onMounted(() => {
   loadInvoices()
   loadSettings()
+  window.addEventListener('keydown', onKey)
 })
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <style scoped>
 .mono { font-variant-numeric: tabular-nums; }
 .refund-row { flex-wrap: wrap; }
+.detail { max-width: 560px; }
+.detail-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.head-right { display: flex; align-items: center; gap: 6px; }
+.close-btn { background: none; border: none; color: #8a9a8a; cursor: pointer; padding: 4px; }
+.sub { display: block; font-size: 0.76rem; font-weight: 400; color: #8a9a8a; margin-top: 2px; }
+.lines { border: 1px solid #eceeec; border-radius: 10px; padding: 4px 14px 10px; }
+.line { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 0.86rem; color: #2a3a2a; }
+.line + .line { border-top: 1px solid #f0f2f0; }
+.line > span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.line.total { font-weight: 700; color: #1a3a1a; }
+.receipt { border: 1px dashed #c7d6ca; background: #fafcfa; border-radius: 10px; padding: 14px; }
+.receipt-top { display: flex; align-items: center; gap: 10px; color: #2e7d32; padding-bottom: 12px; border-bottom: 1px dashed #d8e2da; }
+.receipt-amount { font-size: 1.15rem; font-weight: 700; color: #1a3a1a; margin: 0; font-variant-numeric: tabular-nums; }
+.test-pill { margin-left: auto; }
+.receipt-rows { margin: 0; }
+.receipt-rows > div { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; font-size: 0.83rem; }
+.receipt-rows > div + div { border-top: 1px solid #eef1ee; }
+.receipt-rows dt { color: #8a9a8a; font-weight: 500; flex-shrink: 0; }
+.receipt-rows dd { margin: 0; color: #1a3a1a; text-align: right; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .detail .nm-dl { grid-template-columns: 1fr; }
+  .detail .nm-dl > div:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 11px; }
+}
 .refund-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .refund-actions .nm-input { width: 240px; max-width: 100%; }
 @media (max-width: 640px) {

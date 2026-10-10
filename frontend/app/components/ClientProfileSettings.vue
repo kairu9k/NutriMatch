@@ -1,5 +1,5 @@
 <template>
-  <!-- Same layout as the RND Profile Settings (ProfileSettings.vue): page
+  <!-- Same layout as the RND Profile Settings (RNDProfileSettings.vue): page
        header, tab list on the left, one panel on the right. -->
   <div class="profile-page">
     <div class="page-header">
@@ -627,7 +627,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Mirrors ProfileSettings.vue (RND) — keep the two in step. */
+/* Mirrors RNDProfileSettings.vue — keep the two in step. */
 * { box-sizing: border-box; }
 
 .profile-page { font-family: 'Inter', sans-serif; }

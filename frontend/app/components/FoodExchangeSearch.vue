@@ -167,7 +167,7 @@ onMounted(loadData)
 .safety-toggle input { cursor: pointer; }
 .safety-toggle.active { color: #1a3a1a; font-weight: 700; }
 
-.item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.item-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .item-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 18px 20px;
   display: flex; flex-direction: column;
@@ -181,9 +181,9 @@ onMounted(loadData)
 .category-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
 .free-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: #e6efe0; color: #3a6b3a; }
 
-.item-name { font-family: 'Playfair Display', serif; font-size: 0.95rem; color: #1a3a1a; margin: 0 0 2px; }
-.item-local { font-size: 0.8rem; color: #8a9a8a; font-style: italic; margin: 0 0 8px; }
-.item-measure { font-size: 0.82rem; color: #4a5a4a; margin: 0 0 12px; }
+.item-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 2px; overflow-wrap: anywhere; }
+.item-local { font-size: 0.85rem; color: #8a9a8a; font-style: italic; margin: 0 0 8px; }
+.item-measure { font-size: 0.85rem; color: #4a5a4a; margin: 0 0 12px; }
 
 .flag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .flag-pill { font-size: 0.68rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; }
@@ -205,6 +205,13 @@ onMounted(loadData)
 .empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 .empty-text { font-size: 0.85rem; color: #9aaa9a; padding: 20px; text-align: center; }
 
-@media (max-width: 1400px) { .item-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 900px) { .item-grid { grid-template-columns: repeat(2, 1fr); } .page-header { flex-direction: column; } }
+@media (max-width: 1400px) { .item-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .page-header { flex-direction: column; } }
+@media (max-width: 560px) {
+  .item-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .page-header { margin-bottom: 20px; }
+  .filter-row { align-items: stretch; }
+  .category-select-wrap, .category-select { width: 100%; min-width: 0; }
+  .item-card { padding: 16px; }
+}
 </style>

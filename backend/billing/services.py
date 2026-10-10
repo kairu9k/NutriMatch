@@ -341,3 +341,63 @@ def expire_unpaid_appointments(**scope):
                    subject="Consultation not paid", content=text)
         count += 1
     return count
+
+
+# ---------------------------------------------------------------------------
+# Payment receipts (admin invoice detail)
+# ---------------------------------------------------------------------------
+
+def _find_payment_resource(payload):
+    """The PayMongo payment resource ({"id": "pay_...", "attributes": {...}})
+    inside a stored gateway_payload — a payment.paid webhook event nests it at
+    data.attributes.data; a GET /links status check lists it under
+    attributes.payments (sometimes wrapped in its own {"data": ...})."""
+    if not isinstance(payload, dict):
+        return None
+    event_data = (payload.get("data") or {}).get("attributes", {}).get("data")
+    if isinstance(event_data, dict) and str(event_data.get("id", "")).startswith("pay_"):
+        return event_data
+    for p in (payload.get("attributes") or {}).get("payments") or []:
+        p = p.get("data", p) if isinstance(p, dict) else None
+        if isinstance(p, dict) and str(p.get("id", "")).startswith("pay_"):
+            return p
+    return None
+
+
+def payment_receipt(payload) -> dict:
+    """The receipt details of a payment, picked out of its stored PayMongo
+    payload — only what a receipt shows (no raw payload is sent to the
+    browser). PayMongo amounts are in centavos. Empty dict when the payment
+    wasn't made through PayMongo (e.g. demo data)."""
+    from datetime import datetime, timezone as dt_timezone
+    from decimal import Decimal
+
+    payment = _find_payment_resource(payload)
+    if not payment:
+        return {}
+    attrs = payment.get("attributes") or {}
+    source = attrs.get("source") or {}
+    billing = attrs.get("billing") or {}
+
+    def pesos(centavos):
+        return str(Decimal(centavos) / 100) if isinstance(centavos, int) else None
+
+    paid_at = attrs.get("paid_at")
+    return {
+        "payment_id": payment.get("id"),
+        "status": attrs.get("status"),
+        "description": attrs.get("description"),
+        "reference_number": attrs.get("external_reference_number"),
+        "currency": attrs.get("currency") or "PHP",
+        "amount": pesos(attrs.get("amount")),
+        "fee": pesos(attrs.get("fee")),
+        "net_amount": pesos(attrs.get("net_amount")),
+        "paid_at": datetime.fromtimestamp(paid_at, dt_timezone.utc).isoformat() if isinstance(paid_at, int) else None,
+        "source_type": source.get("type"),
+        "card_brand": source.get("brand"),
+        "card_last4": source.get("last4"),
+        "payer_name": billing.get("name"),
+        "payer_email": billing.get("email"),
+        "payer_phone": billing.get("phone"),
+        "livemode": attrs.get("livemode"),
+    }

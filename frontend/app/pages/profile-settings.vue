@@ -3,7 +3,7 @@
        rendering the branch server-side would hydrate the wrong component. -->
   <ClientOnly>
     <ClientProfileSettings v-if="auth.user?.role === 'client'" />
-    <ProfileSettings v-else />
+    <RNDProfileSettings v-else />
   </ClientOnly>
 </template>
 

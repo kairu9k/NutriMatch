@@ -1,6 +1,6 @@
 <template>
   <!-- Avatar + name header shared by the client (ClientProfileSettings.vue)
-       and RND (ProfileSettings.vue) settings pages, so the two stay the same.
+       and RND (RNDProfileSettings.vue) settings pages, so the two stay the same.
        The photo uploads/removes immediately via POST/DELETE /auth/me/photo/;
        the page's own buttons (Edit Profile / Cancel / Save) go in #actions. -->
   <div class="identity-row">
