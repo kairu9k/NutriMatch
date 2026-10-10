@@ -1,9 +1,13 @@
+from decimal import Decimal
+
 from rest_framework import serializers
+
+from core.validators import NonNegativeNumbersMixin, validate_blood_pressure
 
 from .models import NcpRecord, PreConsultationScreening, ProgressRecord
 
 
-class PreConsultationScreeningSerializer(serializers.ModelSerializer):
+class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
     """reduced_intake/has_chronic_illness are write-only NRS-2002 inputs —
     not stored on the model (same pattern as activity_level feeding TDEE
     without being a "result" field itself). Weight-loss-percent isn't an
@@ -14,8 +18,35 @@ class PreConsultationScreeningSerializer(serializers.ModelSerializer):
     has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
     # Optional Mifflin-St Jeor inputs; when omitted, ScreeningCreateView falls
     # back to the client's profile (date_of_birth / sex). Not stored here.
-    age = serializers.IntegerField(write_only=True, required=False, min_value=1, max_value=120)
+    # Only used when the profile has no date of birth — otherwise the age
+    # comes from the DOB (clients must be 18+, accounts.validators).
+    age = serializers.IntegerField(
+        write_only=True, required=False, min_value=18, max_value=120,
+        error_messages={"min_value": "Age must be between 18 and 120 years.", "max_value": "Age must be between 18 and 120 years."},
+    )
     sex = serializers.ChoiceField(write_only=True, required=False, choices=["male", "female"])
+    # Realistic adult ranges, so a typo like 1700 cm or 7 kg can't produce a
+    # nonsense BMI/BMR. Mirrored in PreConsultationScreening.vue.
+    height_cm = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("100"), max_value=Decimal("250"),
+        error_messages={
+            "min_value": "Height must be between 100 and 250 cm.",
+            "max_value": "Height must be between 100 and 250 cm.",
+            "max_digits": "Height must be between 100 and 250 cm.",
+            "max_decimal_places": "Use at most 2 decimal places.",
+            "invalid": "Enter a number.",
+        },
+    )
+    weight_kg = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("25"), max_value=Decimal("300"),
+        error_messages={
+            "min_value": "Weight must be between 25 and 300 kg.",
+            "max_value": "Weight must be between 25 and 300 kg.",
+            "max_digits": "Weight must be between 25 and 300 kg.",
+            "max_decimal_places": "Use at most 2 decimal places.",
+            "invalid": "Enter a number.",
+        },
+    )
 
     class Meta:
         model = PreConsultationScreening
@@ -36,13 +67,17 @@ class NcpDraftListSerializer(serializers.ModelSerializer):
     every clinical field cross-patient."""
 
     client_name = serializers.SerializerMethodField()
+    is_follow_up = serializers.SerializerMethodField()
 
     class Meta:
         model = NcpRecord
         fields = [
-            "id", "relationship_id", "client_name", "status", "updated_at",
+            "id", "relationship_id", "client_name", "status", "is_follow_up", "created_at", "updated_at",
             "weight_kg", "height_cm", "pes_problem", "diet_prescription", "goal_status",
         ]
+
+    def get_is_follow_up(self, obj):
+        return obj.is_follow_up()
 
     def get_client_name(self, obj):
         client = obj.relationship.client
@@ -59,9 +94,10 @@ class NcpExtraFieldSerializer(serializers.Serializer):
     unit = serializers.CharField(max_length=30, allow_blank=True, required=False, default="")
 
 
-class NcpRecordSerializer(serializers.ModelSerializer):
+class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
     assessment_extra = NcpExtraFieldSerializer(many=True, required=False)
     intervention_extra = NcpExtraFieldSerializer(many=True, required=False)
+    is_follow_up = serializers.SerializerMethodField()
 
     class Meta:
         model = NcpRecord
@@ -77,11 +113,14 @@ class NcpRecordSerializer(serializers.ModelSerializer):
             "target_fat_g", "intervention_notes", "intervention_extra",
             # Phase 4 — Monitoring
             "monitoring_notes", "goal_status",
-            "created_at", "updated_at",
+            "is_follow_up", "created_at", "updated_at",
         ]
         # status only changes through NcpRecordFinalizeView — never via a
         # plain PATCH, or a finalized record could be flipped back to draft.
         read_only_fields = ["bmi", "status"]
+
+    def get_is_follow_up(self, obj):
+        return obj.is_follow_up()
 
     def validate(self, attrs):
         # bmi is always derived server-side from weight/height (or the
@@ -113,8 +152,11 @@ class NcpRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("You can only create NCP records for your own clients.")
         return value
 
+    def validate_blood_pressure(self, value):
+        return validate_blood_pressure(value)
 
-class ProgressRecordSerializer(serializers.ModelSerializer):
+
+class ProgressRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
     class Meta:
         model = ProgressRecord
         fields = [
@@ -128,3 +170,6 @@ class ProgressRecordSerializer(serializers.ModelSerializer):
         if value.rnd_id != request.user.id:
             raise serializers.ValidationError("You can only log progress for your own clients.")
         return value
+
+    def validate_blood_pressure(self, value):
+        return validate_blood_pressure(value)

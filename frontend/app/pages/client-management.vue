@@ -1,7 +1,9 @@
-<script setup>
-definePageMeta({ layout: 'admin', title: 'Client Management', subtitle: 'Monitor client accounts and resolve flags' })
-</script>
-
 <template>
-  <ClientManagement />
+  <div></div>
 </template>
+
+<script setup>
+// Client Management became the Users page (Clients / RNDs / Admins).
+definePageMeta({ layout: 'dashboard', admin: true })
+navigateTo('/users', { replace: true })
+</script>

@@ -8,6 +8,7 @@ export interface NutriMatchUser {
   role: 'client' | 'rnd' | 'admin'
   phone: string | null
   profile_photo: string | null
+  onboarding_completed_at?: string | null
   is_active: boolean
   created_at: string
 }
@@ -110,9 +111,11 @@ export const useAuthStore = defineStore('auth', {
       last_name: string
       email: string
       password: string
-      date_of_birth?: string
+      date_of_birth: string
       sex?: string
       primary_health_concern?: string
+      accept_terms: boolean
+      data_privacy_consent: boolean
     }) {
       const { post } = useApi()
       return await post<NutriMatchUser>('/auth/register/client/', payload, { skipAuth: true })
@@ -123,8 +126,20 @@ export const useAuthStore = defineStore('auth', {
       last_name: string
       email: string
       password: string
+      prc_license_number: string
       prc_license_image: File
-      specialization?: string
+      date_of_birth: string
+      specialization: string
+      // The rest of the application, reviewed by an admin before sign-in.
+      // List fields (modes/languages/availability) are JSON strings.
+      bio: string
+      consultation_fee: string
+      consultation_modes: string
+      languages: string
+      availability: string
+      profile_photo?: File
+      accept_terms: boolean
+      data_privacy_consent: boolean
     }) {
       const { post } = useApi()
       // Multipart, since the PRC license photo is a file upload.

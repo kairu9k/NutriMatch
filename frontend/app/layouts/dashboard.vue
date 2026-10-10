@@ -191,7 +191,7 @@ watch(() => auth.hydrated, (hydrated) => { if (hydrated) loadBadgeCounts() }, { 
 
 // Main nav split into MAIN / CLINICAL / RESOURCES groups. Availability/
 // Earnings/Reviews live as tabs inside Profile Settings rather than
-// separate nav destinations — see ProfileSettings.vue's rndTabs.
+// separate nav destinations — see RNDProfileSettings.vue's rndTabs.
 // Notifications moved to the topbar bell (real unread badge, not a nav
 // link) instead of a dedicated page.
 const rndNavGroups = computed(() => [

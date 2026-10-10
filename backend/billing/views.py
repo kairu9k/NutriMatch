@@ -59,6 +59,9 @@ class AdminInvoiceListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
+        from .services import expire_unpaid_appointments
+
+        expire_unpaid_appointments()
         return Invoice.objects.select_related(
             "relationship__client", "relationship__rnd"
         ).order_by("-created_at")
@@ -85,10 +88,19 @@ class InitiatePaymentView(APIView):
     permission_classes = [IsClient]
 
     def post(self, request, invoice_id):
+        from django.utils import timezone
+
+        from .services import expire_unpaid_appointments
+
+        expire_unpaid_appointments(relationship__client=request.user)
         invoice = get_object_or_404(
             Invoice.objects.filter(relationship__client=request.user, status=Invoice.Status.UNPAID),
             pk=invoice_id,
         )
+        # Pay before the consultation: no paying for one that already started.
+        appt = invoice.appointment
+        if appt is not None and appt.status in ("confirmed", "pending") and appt.scheduled_at <= timezone.now():
+            return Response({"detail": "This consultation has already started, so it can't be paid online."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             result = PayMongoService().create_payment_link(invoice)
@@ -133,7 +145,9 @@ class PayMongoWebhookView(APIView):
             return Response(status=status.HTTP_200_OK)
 
         if event["status"] == "success":
-            record_successful_payment(invoice, reference_id, event["raw"], source="webhook")
+            record_successful_payment(
+                invoice, reference_id, event["raw"], source="webhook", payment_method=event.get("payment_method")
+            )
             return Response(status=status.HTTP_200_OK)
 
         PaymentTransaction.objects.create(
@@ -177,8 +191,184 @@ class ClientInvoiceSyncView(APIView):
             except PaymentGatewayError:
                 continue
             if result["status"] == "success" and record_successful_payment(
-                invoice, invoice.gateway_reference_id, result["raw"], source="status_check"
+                invoice, invoice.gateway_reference_id, result["raw"], source="status_check",
+                payment_method=result.get("payment_method"),
             ):
                 updated.append(invoice.id)
 
         return Response({"updated": updated})
+
+
+
+class AdminMarkRefundedView(APIView):
+    """Admin confirms a refund-pending invoice was refunded in PayMongo."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, invoice_id):
+        from django.utils import timezone
+
+        from communication.services import notify
+        from core.models import AuditLog
+
+        from .models import PaymentTransaction
+
+        invoice = get_object_or_404(Invoice, pk=invoice_id)
+        if invoice.status != Invoice.Status.REFUND_PENDING:
+            return Response({"detail": "Only refund-pending invoices can be marked refunded."}, status=status.HTTP_400_BAD_REQUEST)
+        reference = (request.data.get("reference") or "").strip()[:100]
+        invoice.status = Invoice.Status.REFUNDED
+        invoice.save(update_fields=["status"])
+        PaymentTransaction.objects.create(
+            invoice=invoice,
+            transaction_type=PaymentTransaction.TransactionType.REFUND,
+            amount=invoice.amount,
+            status="success",
+            gateway_payload={"source": "admin", "reference": reference},
+            processed_at=timezone.now(),
+        )
+        AuditLog.objects.create(
+            user=request.user, action="invoice.refunded", table_name="invoices", record_id=invoice.id,
+            new_values={"status": "refunded", "reference": reference},
+        )
+        notify(
+            recipient=invoice.relationship.client, notifiable_type="invoice", notifiable_id=invoice.id,
+            subject="Refund completed",
+            content=f"Your ₱{invoice.amount:,.2f} refund for INV-{invoice.id:04d} has been processed.",
+        )
+        return Response({"id": invoice.id, "status": invoice.status})
+
+
+
+# --------------------------------------------------------------- payouts
+class RndPayoutAccountView(APIView):
+    """The RND's own GCash/bank details (GET; PUT creates or replaces)."""
+
+    permission_classes = [IsRnd]
+
+    def get(self, request):
+        from .models import RndPayoutAccount
+        from .serializers import RndPayoutAccountSerializer
+
+        account = RndPayoutAccount.objects.filter(rnd=request.user).first()
+        return Response(RndPayoutAccountSerializer(account).data if account else None)
+
+    def put(self, request):
+        from core.models import AuditLog
+
+        from .models import RndPayoutAccount
+        from .serializers import RndPayoutAccountSerializer
+
+        account = RndPayoutAccount.objects.filter(rnd=request.user).first()
+        serializer = RndPayoutAccountSerializer(account, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        saved = serializer.save(rnd=request.user)
+        AuditLog.objects.create(
+            user=request.user, action="payout_account.updated", table_name="rnd_payout_accounts",
+            record_id=saved.id, new_values={"method": saved.method},
+        )
+        return Response(RndPayoutAccountSerializer(saved).data)
+
+
+class RndEarningsView(APIView):
+    """Pending / Posted / Paid out + next payout day + history (RND Earnings tab)."""
+
+    permission_classes = [IsRnd]
+
+    def get(self, request):
+        from .models import Payout
+        from .payouts import rnd_earnings
+        from .serializers import PayoutSerializer
+
+        data = rnd_earnings(request.user)
+        data["payouts"] = PayoutSerializer(Payout.objects.filter(rnd=request.user), many=True).data
+        return Response(data)
+
+
+class AdminPayoutRunView(APIView):
+    """Every RND with earnings — balances, eligibility and payout details —
+    for the admin's monthly payout run (payout day is the 5th)."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        from accounts.models import User
+
+        from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, next_payout_date, rnd_earnings
+
+        rows = []
+        for rnd in User.objects.filter(role="rnd").order_by("first_name"):
+            data = rnd_earnings(rnd)
+            if not (data["pending"] or data["posted"] or data["paid_out"]):
+                continue
+            account = getattr(rnd, "payout_account", None)
+            if data["eligible"]:
+                reason = None
+            elif account is None:
+                reason = "No payout details yet"
+            else:
+                reason = "Below the minimum - carries over"
+            rows.append({
+                "rnd_id": rnd.id,
+                "rnd_name": rnd.full_name,
+                "email": rnd.email,
+                "profile_photo": rnd.profile_photo,
+                "pending": data["pending"],
+                "posted": data["posted"],
+                "paid_out": data["paid_out"],
+                "posted_count": sum(1 for i in data["items"] if i["state"] == "posted"),
+                "eligible": data["eligible"],
+                "reason": reason,
+                "payout_account": {
+                    "method": account.method, "method_label": account.get_method_display(),
+                    "account_name": account.account_name, "account_number": account.account_number,
+                    "bank_name": account.bank_name,
+                } if account else None,
+            })
+        today = timezone.localdate()
+        return Response({
+            "next_payout_date": next_payout_date(today),
+            "payout_day_reached": today.day >= PAYOUT_DAY,
+            "minimum_payout": MIN_PAYOUT,
+            "hold_days": HOLD_DAYS,
+            "rows": rows,
+            "due_total": sum((r["posted"] for r in rows if r["eligible"]), 0),
+        })
+
+
+class AdminReleasePayoutView(APIView):
+    """Admin records that they sent an RND's posted balance (with the
+    GCash/bank reference)."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, rnd_id):
+        from accounts.models import User
+
+        from .payouts import PayoutError, release_payout
+        from .serializers import PayoutSerializer
+
+        rnd = get_object_or_404(User, pk=rnd_id, role="rnd")
+        try:
+            payout = release_payout(rnd, reference=request.data.get("reference"), released_by=request.user, notes=request.data.get("notes", ""))
+        except PayoutError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PayoutSerializer(payout).data, status=status.HTTP_201_CREATED)
+
+
+class AdminPayoutListView(generics.ListAPIView):
+    """Payout history (optionally ?rnd=<id>)."""
+
+    permission_classes = [IsAdmin]
+
+    def get_serializer_class(self):
+        from .serializers import PayoutSerializer
+
+        return PayoutSerializer
+
+    def get_queryset(self):
+        from .models import Payout
+
+        qs = Payout.objects.select_related("rnd", "released_by")
+        rnd = self.request.query_params.get("rnd")
+        return qs.filter(rnd_id=rnd) if rnd else qs

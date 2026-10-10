@@ -3,7 +3,7 @@ from decimal import Decimal
 from datetime import date
 
 from rest_framework import generics, status
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from accounts.permissions import IsClient, IsRnd
@@ -45,16 +45,19 @@ class ScreeningCreateView(generics.ListCreateAPIView):
         bmi = calculate_bmi(weight_kg, height_cm)
         bmi_category = classify_bmi_asia_pacific(bmi)
 
-        # Age/sex come from the form when given (it pre-fills them from the
-        # profile), otherwise from the profile itself.
+        # Age and sex always come from the profile when it has them (given at
+        # registration; the form shows them read-only and they're changed in
+        # Profile Settings). A typed value is only the fallback — older
+        # accounts without a DOB, or "Prefer not to say" at registration —
+        # and a typed sex is then saved to the profile.
         client_profile = getattr(request.user, "client_profile", None)
         age = serializer.validated_data.pop("age", None)
         sex = serializer.validated_data.pop("sex", None)
-        if age is None and client_profile and client_profile.date_of_birth:
+        if client_profile and client_profile.date_of_birth:
             age = _age_from_dob(client_profile.date_of_birth)
-        if sex is None and client_profile:
+        if client_profile and client_profile.sex:
             sex = client_profile.sex
-        elif sex and client_profile and not client_profile.sex:
+        elif sex and client_profile:
             client_profile.sex = sex
             client_profile.save(update_fields=["sex", "updated_at"])
 
@@ -122,6 +125,53 @@ class ScreeningDetailView(generics.RetrieveAPIView):
         return obj
 
 
+class RndAppointmentScreeningView(generics.GenericAPIView):
+    """What the RND reviews before accepting a booking (the Appointments
+    page's "View Screening" popup): the client's latest pre-consultation
+    screening plus their basic health profile.
+
+    Screenings aren't tied to a specific appointment — a client screens
+    once, before booking — so this returns the client's most recent one,
+    the same rule RndAppointmentConfirmView uses for its screening gate.
+    `screening` is null when the client hasn't submitted one yet."""
+
+    permission_classes = [IsRnd]
+
+    def get(self, request, appointment_id):
+        from scheduling.models import Appointment
+
+        appointment = Appointment.objects.select_related(
+            "relationship__client__client_profile", "relationship__client__health_profile"
+        ).filter(pk=appointment_id, relationship__rnd=request.user).first()
+        if appointment is None:
+            raise NotFound("Appointment not found.")
+
+        client = appointment.relationship.client
+        profile = getattr(client, "client_profile", None)
+        health = getattr(client, "health_profile", None)
+        screening = PreConsultationScreening.objects.filter(client=client).order_by("-created_at").first()
+
+        return Response({
+            "appointment": {
+                "id": appointment.id,
+                "status": appointment.status,
+                "type": appointment.type,
+                "scheduled_at": appointment.scheduled_at,
+                "notes": appointment.notes,
+            },
+            "client": {
+                "name": client.full_name,
+                "age": _age_from_dob(profile.date_of_birth) if profile and profile.date_of_birth else None,
+                "sex": profile.sex if profile else None,
+                "medical_conditions": (health.medical_conditions if health else None) or [],
+                "allergies": (health.allergies if health else None) or [],
+                "dietary_restrictions": (health.dietary_restrictions if health else None) or [],
+                "health_goals": (health.health_goals if health else None) or [],
+            },
+            "screening": PreConsultationScreeningSerializer(screening).data if screening else None,
+        })
+
+
 class NcpRecordListCreateView(generics.ListCreateAPIView):
     serializer_class = NcpRecordSerializer
     permission_classes = [IsRnd]
@@ -129,9 +179,14 @@ class NcpRecordListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         return NcpRecord.objects.filter(
             relationship_id=self.kwargs["relationship_id"], relationship__rnd=self.request.user
-        ).order_by("-encounter_date")
+        ).order_by("-encounter_date", "-created_at")
 
     def perform_create(self, serializer):
+        # One open draft per client at a time: the form resumes it rather
+        # than starting another (also guards against a double autosave POST).
+        relationship = serializer.validated_data["relationship"]
+        if NcpRecord.objects.filter(relationship=relationship, status=NcpRecord.Status.DRAFT).exists():
+            raise ValidationError("This client already has an unfinished NCP record — continue that one instead.")
         serializer.save()
 
 
@@ -229,7 +284,8 @@ class NcpRecordFinalizeView(generics.UpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         record = self.get_object()
-        # Same checklist the Finalize panel shows in NCPRecords.vue.
+        # The clinical minimum; the form itself requires every non-optional
+        # field before it auto-finalizes (NcpRecordModal.vue).
         missing = []
         if not (record.weight_kg and record.height_cm):
             missing.append("weight and height (Assessment)")
@@ -237,6 +293,9 @@ class NcpRecordFinalizeView(generics.UpdateAPIView):
             missing.append("PES problem (Diagnosis)")
         if not record.diet_prescription:
             missing.append("diet prescription (Intervention)")
+        # Follow-up records also evaluate the previous record's goals.
+        if record.is_follow_up() and not record.goal_status:
+            missing.append("goal status (Monitoring)")
         if missing:
             return Response(
                 {"detail": "Can't finalize yet — missing " + ", ".join(missing) + "."},

@@ -45,8 +45,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True, help_text="False = deactivated")
     is_staff = models.BooleanField(default=False)
     email_verified_at = models.DateTimeField(null=True, blank=True)
+    # Informed consent given at registration (RA 10173): agreeing to the
+    # Terms & Privacy Policy, and consenting to the processing of personal and
+    # health data for nutrition care. Null for accounts created before
+    # consent was collected. Each is also written to the audit log.
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    data_consent_at = models.DateTimeField(null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True, help_text="Soft delete")
     created_at = models.DateTimeField(auto_now_add=True)
+    # Set when the client finishes onboarding (or, for an RND, when their
+    # application is approved). Accounts that existed before onboarding was
+    # added were marked onboarded by a data migration.
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True)
+    # When the user closed the one-time "Welcome to NutriMatch" message
+    # (WelcomeModal.vue). Finishing client onboarding also sets it, since its
+    # Welcome step already greets new clients.
+    welcome_seen_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = UserManager()

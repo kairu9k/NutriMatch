@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ClientMealLogListView,
     ClientMealLogSaveView,
+    RndMealLogDetailView,
     ClientMealPlanListView,
     FoodExchangeCategoryListView,
     FoodExchangeItemListView,
@@ -30,5 +31,6 @@ urlpatterns = [
     path("rnd/food-items/<int:pk>/", RndMealPlanFoodItemDeleteView.as_view(), name="rnd_meal_food_item_delete"),
     path("client/meal-plans/", ClientMealPlanListView.as_view(), name="client_meal_plan_list"),
     path("client/meal-logs/", ClientMealLogListView.as_view(), name="client_meal_log_list"),
+    path("rnd/meal-logs/<int:pk>/", RndMealLogDetailView.as_view(), name="rnd_meal_log_detail"),
     path("client/meals/<int:meal_id>/log/", ClientMealLogSaveView.as_view(), name="client_meal_log_save"),
 ]

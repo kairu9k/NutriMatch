@@ -18,13 +18,32 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class NotificationLogSerializer(serializers.ModelSerializer):
+    # For a "Meal log update" sent to an RND: the log itself (photo, meal,
+    # status, what was planned), so the notification can show it. Only when
+    # the log belongs to one of the recipient's own clients; None otherwise.
+    meal_log = serializers.SerializerMethodField()
+
     class Meta:
         model = NotificationLog
         fields = [
             "id", "notifiable_type", "notifiable_id", "subject", "content",
-            "is_read", "created_at",
+            "is_read", "created_at", "meal_log",
         ]
         read_only_fields = fields
+
+    def get_meal_log(self, obj):
+        if obj.notifiable_type != "meal_log" or not obj.notifiable_id:
+            return None
+        from nutrition.models import MealLog
+        from nutrition.serializers import RndMealLogSerializer
+
+        log = (
+            MealLog.objects.filter(pk=obj.notifiable_id, meal_plan_meal__meal_plan__relationship__rnd_id=obj.recipient_id)
+            .select_related("client", "meal_plan_meal__meal_plan")
+            .prefetch_related("meal_plan_meal__food_items")
+            .first()
+        )
+        return RndMealLogSerializer(log).data if log else None
 
 
 class ResourceSerializer(serializers.ModelSerializer):

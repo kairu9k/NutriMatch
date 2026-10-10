@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ layout: 'admin', title: 'Platform Reports', subtitle: 'Performance analytics and custom exports' })
+definePageMeta({ layout: 'dashboard', title: 'Platform Reports', subtitle: 'How NutriMatch is growing', admin: true })
 </script>
 
 <template>

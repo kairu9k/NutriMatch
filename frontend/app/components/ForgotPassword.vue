@@ -52,7 +52,7 @@
 
         <!-- STEP 2: ENTER CODE + NEW PASSWORD -->
         <template v-else-if="step === 'confirm'">
-          <div class="sent-icon">✉️</div>
+          <div class="sent-icon"><Mail :size="26" aria-hidden="true" /></div>
           <h2>Check Your Inbox</h2>
           <p class="subtitle">
             We've sent a 6-digit code to <strong>{{ email }}</strong>. Enter it below along with your new password.
@@ -104,6 +104,7 @@
 </template>
 
 <script setup>
+import { Mail } from 'lucide-vue-next'
 const auth = useAuthStore()
 
 const step = ref('request')
@@ -224,7 +225,10 @@ async function handleConfirm() {
 
 .form-wrap { max-width: 480px; margin: 40px auto 0; width: 100%; }
 
-.sent-icon { font-size: 2rem; margin-bottom: 8px; }
+.sent-icon {
+  width: 52px; height: 52px; border-radius: 50%; background: #f1f3f1; color: #9aa8a0;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+}
 
 .form-wrap h2 {
   font-family: 'Playfair Display', serif;

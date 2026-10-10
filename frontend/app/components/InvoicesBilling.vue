@@ -45,7 +45,10 @@
                 >
                   {{ payingId === inv.id ? 'Loading…' : 'Pay Now' }}
                 </button>
-                <span v-else-if="inv.status === 'paid'" class="paid-note">Paid {{ formatDate(inv.paid_at) }}</span>
+                <span v-else-if="inv.status === 'paid'" class="paid-note">Paid {{ formatDate(inv.paid_at) }}{{ inv.payment_method ? ` · via ${PAYMENT_METHOD_LABELS[inv.payment_method] || inv.payment_method}` : '' }}</span>
+                <span v-else-if="inv.status === 'refund_pending'" class="muted-note">Appointment cancelled — refund being processed</span>
+                <span v-else-if="inv.status === 'refunded'" class="muted-note">Refunded</span>
+                <span v-else-if="inv.status === 'cancelled'" class="muted-note">Appointment cancelled — nothing to pay</span>
                 <span v-else class="muted-note">—</span>
               </td>
             </tr>
@@ -57,7 +60,7 @@
     <div v-else class="empty-state">
       <div class="empty-icon"><Receipt :size="28" /></div>
       <p class="empty-title">No invoices yet</p>
-      <p class="empty-desc">Invoices appear here after a consultation is marked completed by your RND.</p>
+      <p class="empty-desc">An invoice appears here when your RND confirms a booking. Pay it before the consultation to start it.</p>
     </div>
   </div>
 </template>
@@ -68,11 +71,11 @@ import { AlertCircle, CheckCircle2, Receipt } from 'lucide-vue-next'
 definePageMeta({ layout: 'dashboard', title: 'Billing' })
 
 const { get, post } = useApi()
+const PAYMENT_METHOD_LABELS = { card: 'Card', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', bank_transfer: 'Bank Transfer', cash: 'Cash', other: 'Other' }
 
 const isLoading = ref(true)
 const errorMessage = ref('')
 const invoices = ref([])
-const payingId = ref(null)
 
 const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid'))
 const unpaidCount = computed(() => unpaidInvoices.value.length)
@@ -83,11 +86,13 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// cancelled = voided (its appointment was cancelled or not paid in time);
+// refund_pending = a paid appointment was cancelled and is being refunded.
 function statusLabel(status) {
-  return { unpaid: 'Unpaid', paid: 'Paid', cancelled: 'Cancelled', refunded: 'Refunded' }[status] || status
+  return { unpaid: 'Unpaid', paid: 'Paid', cancelled: 'Voided', refund_pending: 'Refund pending', refunded: 'Refunded' }[status] || status
 }
 function statusClass(status) {
-  return { unpaid: 'warning', paid: 'success', cancelled: 'danger', refunded: 'neutral' }[status] || ''
+  return { unpaid: 'warning', paid: 'success', cancelled: 'neutral', refund_pending: 'warning', refunded: 'neutral' }[status] || ''
 }
 
 // Checks unpaid PayMongo invoices directly with PayMongo first, so a payment
@@ -106,51 +111,6 @@ async function loadInvoices({ quiet = false } = {}) {
   }
 }
 
-// While the PayMongo checkout popup is open, ask PayMongo (via our sync
-// endpoint) whether this invoice is paid every few seconds. Payment Links
-// can't redirect after payment, so once it's paid we close the popup
-// ourselves — allowed because this page opened it. Also stops if the client
-// closes the popup, or after 30 minutes (the QR code's lifetime).
-const CHECK_EVERY_MS = 4000
-const MAX_WATCH_MS = 30 * 60 * 1000
-let checkoutWatch = null
-
-function stopWatchingCheckout() {
-  if (checkoutWatch) clearInterval(checkoutWatch)
-  checkoutWatch = null
-}
-
-function watchCheckout(popup, invoiceId) {
-  stopWatchingCheckout()
-  const startedAt = Date.now()
-  let checking = false
-  checkoutWatch = setInterval(async () => {
-    if (popup.closed || Date.now() - startedAt > MAX_WATCH_MS) {
-      stopWatchingCheckout()
-      loadInvoices({ quiet: true })
-      return
-    }
-    if (checking) return
-    checking = true
-    try {
-      // Check the invoice's actual status, not just whether this sync call
-      // flipped it — the webhook may have marked it paid first.
-      await post('/client/invoices/sync/').catch(() => null)
-      const latest = await get('/client/invoices/')
-      if (latest.find(i => i.id === invoiceId)?.status === 'paid') {
-        stopWatchingCheckout()
-        popup.close()
-        invoices.value = latest
-        paidNotice.value = `Payment received — INV-${String(invoiceId).padStart(4, '0')} is now paid.`
-      }
-    } catch {
-      // Transient — try again on the next tick.
-    } finally {
-      checking = false
-    }
-  }, CHECK_EVERY_MS)
-}
-
 const paidNotice = ref('')
 
 // Returning to this tab after paying in the PayMongo checkout re-checks.
@@ -158,41 +118,20 @@ function onVisible() {
   if (document.visibilityState === 'visible' && unpaidCount.value) loadInvoices({ quiet: true })
 }
 
-async function payInvoice(invoice) {
-  payingId.value = invoice.id
+const { pay, payingId, payError } = usePayInvoice()
+watch(payError, (msg) => { if (msg) errorMessage.value = msg })
+
+function payInvoice(invoice) {
   errorMessage.value = ''
-
-  // Popups must be opened synchronously within the click handler or browsers
-  // block them — open a blank window first, then redirect it once the
-  // payment link comes back from the API.
-  const width = 480
-  const height = 720
-  const left = window.screenX + (window.outerWidth - width) / 2
-  const top = window.screenY + (window.outerHeight - height) / 2
-  const popup = window.open(
-    '',
-    'paymongo-checkout',
-    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-  )
-
-  try {
-    const result = await post(`/client/invoices/${invoice.id}/pay/`)
-    if (result.payment_url) {
-      if (popup) {
-        popup.location.href = result.payment_url
-        watchCheckout(popup, invoice.id)
-      } else {
-        window.location.href = result.payment_url
-      }
-    } else if (popup) {
-      popup.close()
-    }
-  } catch (error) {
-    errorMessage.value = error?.data?.detail || 'Could not start payment. Please try again.'
-    if (popup) popup.close()
-  } finally {
-    payingId.value = null
-  }
+  pay(invoice.id, {
+    onPaid(latest) {
+      invoices.value = latest
+      paidNotice.value = `Payment received — INV-${String(invoice.id).padStart(4, '0')} is now paid.`
+    },
+    onClosed() {
+      loadInvoices({ quiet: true })
+    },
+  })
 }
 
 onMounted(() => {
@@ -201,7 +140,6 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisible)
-  stopWatchingCheckout()
 })
 </script>
 

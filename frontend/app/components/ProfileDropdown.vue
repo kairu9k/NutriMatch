@@ -13,7 +13,7 @@ const initials = computed(() => {
 
 async function handleSignOut() {
   auth.logout()
-  await navigateTo('/login')
+  await navigateTo('/admin/login')
 }
 </script>
 

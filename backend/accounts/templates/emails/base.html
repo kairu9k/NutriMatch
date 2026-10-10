@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>{{ subject }}</title>
+</head>
+<!-- Shared layout for every NutriMatch email (accounts/emails.py). Inline
+     styles only and a table layout, because Gmail/Outlook strip <style>
+     and ignore flexbox. The logo is an inline (cid:) attachment so it shows
+     without loading anything from the internet. -->
+<body style="margin:0; padding:0; background-color:#eef2ee; -webkit-text-size-adjust:100%;">
+  <!-- Inbox preview text (hidden in the email itself) -->
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#eef2ee; opacity:0;">
+    {{ preheader }}&nbsp;&#8204;&nbsp;&#8204;&nbsp;&#8204;&nbsp;&#8204;&nbsp;&#8204;&nbsp;&#8204;&nbsp;&#8204;&nbsp;&#8204;
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef2ee;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #dfe6df;">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="background-color:#00382a; background-image:linear-gradient(135deg,#00382a 0%,#005a42 100%); padding:26px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle; padding-right:12px;">
+                    <img src="cid:nutrimatch-logo" width="40" height="41" alt="" style="display:block; border:0; outline:none;">
+                  </td>
+                  <td style="vertical-align:middle; font-family:Georgia,'Times New Roman',serif; font-size:22px; font-weight:bold; color:#ffffff; letter-spacing:0.2px;">
+                    Nutri<span style="color:#D4A017;">Match</span>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:6px 0 0; font-family:Arial,Helvetica,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#9fc2b0;">
+                Clinical Nutrition Consultation
+              </p>
+            </td>
+          </tr>
+
+          <!-- BODY -->
+          <tr>
+            <td style="padding:36px 32px 12px; font-family:Arial,Helvetica,sans-serif; color:#1a3a1a;">
+              {% block body %}{% endblock %}
+            </td>
+          </tr>
+
+          <!-- SIGN-OFF -->
+          <tr>
+            <td style="padding:8px 32px 32px; font-family:Arial,Helvetica,sans-serif; font-size:14px; line-height:22px; color:#4a5a4a;">
+              Salamat,<br>
+              <strong style="color:#1a3a1a;">The NutriMatch Team</strong>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="background-color:#f6f8f6; border-top:1px solid #e4eae4; padding:20px 32px; font-family:Arial,Helvetica,sans-serif; font-size:11px; line-height:17px; color:#8a9a8a;">
+              This is an automated message from NutriMatch — please don't reply to this email.<br>
+              Your personal and health information is protected under the Data Privacy Act of 2012 (RA 10173).<br>
+              &copy; {{ year }} NutriMatch · STI College Davao
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -13,6 +13,27 @@
         <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
         <div v-if="isLoading" class="placeholder-text">Loading…</div>
         <div v-else-if="!appointment" class="placeholder-text">Appointment not found.</div>
+        <!-- Pay before the consultation: the API only returns the room link to
+             the client once the invoice is paid. -->
+        <div v-else-if="!appointment.video_session_url && appointment.payment?.status === 'unpaid'" class="no-room">
+          <VideoOff :size="28" />
+          <p>
+            Your consultation opens once it's paid.
+            Pay ₱{{ Number(appointment.payment.amount).toFixed(2) }} before the start time to join.
+          </p>
+          <NuxtLink to="/appointments" class="no-room-link">Go to My Appointments to pay →</NuxtLink>
+        </div>
+        <!-- Join window: 15 min before the start → 15 min after the end. -->
+        <div v-else-if="windowState === 'early'" class="no-room">
+          <VideoOff :size="28" />
+          <p>Your consultation room opens {{ opensLabel }} — 15 minutes before the start. This page opens it automatically.</p>
+          <NuxtLink to="/appointments" class="no-room-link">Back to Appointments →</NuxtLink>
+        </div>
+        <div v-else-if="windowState === 'closed' || appointment.status !== 'confirmed'" class="no-room">
+          <VideoOff :size="28" />
+          <p>This consultation's room is closed.</p>
+          <NuxtLink to="/appointments" class="no-room-link">Back to Appointments →</NuxtLink>
+        </div>
         <div v-else-if="!appointment.video_session_url" class="no-room">
           <VideoOff :size="28" />
           <p>No video room has been set up for this appointment yet.</p>
@@ -33,9 +54,9 @@
           <div class="screening-row"><span>NRS-2002</span><span>{{ screening.nrs_score ?? '—' }}</span></div>
           <div class="screening-row"><span>TDEE</span><span>{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal) + ' kcal' : '—' }}</span></div>
         </template>
-        <p v-else class="empty-note">No screening linked to this appointment.</p>
+        <p v-else class="empty-note">No pre-consultation screening on file yet.</p>
 
-        <NuxtLink v-if="isRnd && appointment" :to="`/ncp-records?relationship=${appointment.relationship.id}`" class="outline-btn">
+        <NuxtLink v-if="isRnd && appointment" :to="`/client-detail/${appointment.relationship.id}?tab=ncp`" class="outline-btn">
           Open NCP Record
         </NuxtLink>
       </div>
@@ -81,7 +102,12 @@ async function loadAppointment() {
 async function loadScreening() {
   isLoadingScreening.value = true
   try {
-    screening.value = await get(`/client/screening/${route.params.id}/`)
+    // Screenings aren't tied to an appointment (a client screens once,
+    // before booking), so show the client's latest one: the RND gets it
+    // through the appointment, the client reads their own.
+    screening.value = isRnd.value
+      ? (await get(`/rnd/appointments/${route.params.id}/screening/`)).screening
+      : await get('/client/screening/latest/')
   } catch {
     screening.value = null
   } finally {
@@ -92,6 +118,26 @@ async function loadScreening() {
 onMounted(() => {
   loadAppointment()
   loadScreening()
+})
+
+/* ---------- Join window ---------- */
+const now = useNow(15000)
+const windowState = computed(() => {
+  const a = appointment.value
+  if (!a?.join_opens_at) return 'open'
+  if (now.value < new Date(a.join_opens_at).getTime()) return 'early'
+  if (now.value > new Date(a.join_closes_at).getTime()) return 'closed'
+  return 'open'
+})
+const opensLabel = computed(() => (appointment.value?.join_opens_at ? formatJoinTime(appointment.value.join_opens_at, now.value) : ''))
+// The API sends the client's room link only inside the window — fetch it
+// once the window opens while this page is open.
+let refetched = false
+watch(windowState, (state, prev) => {
+  if (prev === 'early' && state === 'open' && !refetched) {
+    refetched = true
+    loadAppointment()
+  }
 })
 </script>
 
@@ -124,6 +170,7 @@ onMounted(() => {
 .placeholder-text.small { font-size: 0.82rem; }
 .form-error { color: #f3b8b8; font-size: 0.85rem; }
 
+.no-room-link { color: #D4A017; font-weight: 700; font-size: 0.85rem; text-decoration: none; margin-top: 6px; }
 .no-room {
   display: flex; flex-direction: column; align-items: center; gap: 12px;
   color: #9ab09a; font-size: 0.88rem; text-align: center; max-width: 320px;

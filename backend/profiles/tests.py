@@ -8,6 +8,7 @@ from accounts.models import User
 from scheduling.models import RndClientRelationship
 
 from .models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndProfile
+from core.test_utils import approve_rnd
 
 
 def _make_rnd(email="rnd@t.ph", fee="500.00"):
@@ -16,7 +17,7 @@ def _make_rnd(email="rnd@t.ph", fee="500.00"):
         user=user, prc_license_number=f"PRC-{email}", consultation_fee=Decimal(fee),
         is_verified=True, available_for_new_clients=True,
     )
-    return user
+    return approve_rnd(user)
 
 
 def _make_client(email="client@t.ph"):
@@ -182,3 +183,49 @@ class RndAvailabilityCustomTimesTests(TestCase):
         # still be caught, not bypassed just because end_time wasn't in this request
         resp = self.client_api.patch(f"/api/rnd/availability/{slot.id}/", {"start_time": "18:00:00"})
         self.assertEqual(resp.status_code, 400)
+
+
+class RndPrcReadOnlyTests(TestCase):
+    """Profile Settings shows the PRC license read-only: the RND can see it
+    (including a signed link to their own license photo) but not change it,
+    and clients never get the photo link."""
+
+    def setUp(self):
+        self.client_api = APIClient()
+        self.rnd = _make_rnd()
+        RndProfile.objects.filter(user=self.rnd).update(prc_license_image="prc-licenses/abc123")
+
+    def test_rnd_cannot_change_prc_details(self):
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.patch("/api/rnd/profile/", {
+            "prc_license_number": "CHANGED", "prc_expiry_date": "2099-01-01",
+            "prc_license_image": "prc-licenses/other", "is_verified": False, "bio": "Updated bio — helping clients manage diabetes with Filipino meals.",
+        }, format="json")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        profile = RndProfile.objects.get(user=self.rnd)
+        self.assertEqual(profile.prc_license_number, "PRC-rnd@t.ph")
+        self.assertIsNone(profile.prc_expiry_date)
+        self.assertEqual(profile.prc_license_image, "prc-licenses/abc123")
+        self.assertTrue(profile.is_verified)
+        self.assertEqual(profile.bio, "Updated bio — helping clients manage diabetes with Filipino meals.")  # the editable fields still save
+
+    def test_own_profile_includes_signed_license_photo_link(self):
+        from unittest.mock import patch
+
+        self.client_api.force_authenticate(self.rnd)
+        with patch("profiles.services.prc_license_image_url", return_value="https://signed.example/abc123") as signer:
+            resp = self.client_api.get("/api/rnd/profile/")
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["prc_license_image_url"], "https://signed.example/abc123")
+        signer.assert_called_once_with("prc-licenses/abc123")
+        self.assertEqual(resp.data["prc_license_number"], "PRC-rnd@t.ph")
+
+    def test_clients_never_get_the_license_photo_link(self):
+        self.client_api.force_authenticate(_make_client())
+        resp = self.client_api.get(f"/api/client/rnds/{self.rnd.id}/")
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertNotIn("prc_license_image_url", resp.data)
+        self.assertNotIn("prc_license_image", resp.data)

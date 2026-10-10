@@ -30,6 +30,11 @@
             <p class="target-value brown">{{ plan.target_fat_g ? Math.round(plan.target_fat_g) + 'g' : '—' }}</p>
           </div>
         </div>
+        <!-- Any other targets the RND added (fiber, sodium, ...) -->
+        <div v-if="otherTargets.length" class="other-targets">
+          <span class="other-targets-label">Other targets</span>
+          <span v-for="t in otherTargets" :key="t.label" class="other-target-chip">{{ t.label }}: {{ t.value }}{{ t.unit ? ` ${t.unit}` : '' }}</span>
+        </div>
       </div>
 
       <div v-if="plan.notes || plan.allergies_restrictions" class="notes-panel">
@@ -210,6 +215,12 @@ function exchangeSummary(meal) {
 }
 
 // Plans are per weekday; meals with no day (older plans) apply every day.
+// Plan targets other than the three macros shown in the boxes above.
+const MACRO_LABELS = ['protein', 'proteins', 'carb', 'carbs', 'carbohydrate', 'carbohydrates', 'fat', 'fats', 'total fat']
+const otherTargets = computed(() =>
+  (plan.value?.nutrient_targets || []).filter(t => t.value && !MACRO_LABELS.includes(t.label.toLowerCase()))
+)
+
 const todaysMeals = computed(() =>
   orderedMeals((plan.value?.meals || []).filter(m => m.day_of_week === todayDow || m.day_of_week === null))
 )
@@ -337,6 +348,9 @@ onMounted(loadMealPlans)
 .progress-pill { font-size: 0.82rem; font-weight: 700; background: #e3f3ea; color: #1f8f5c; padding: 6px 15px; border-radius: 999px; white-space: nowrap; }
 
 .targets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+.other-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 18px; }
+.other-targets-label { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: #9aaa9a; font-weight: 700; }
+.other-target-chip { font-size: 0.8rem; color: #1a3a1a; background: #f2f5f2; border-radius: 14px; padding: 4px 12px; }
 .target-box { background: #f7f9f7; border: 1px solid #eceeec; border-radius: 12px; padding: 18px; }
 .target-label { font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; color: #9aaa9a; font-weight: 700; margin: 0 0 8px; }
 .target-value { font-family: 'Playfair Display', serif; font-size: 1.65rem; font-weight: 700; color: #1a3a1a; margin: 0; }

@@ -11,6 +11,7 @@ from .serializers import (
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
     PublicReviewSerializer,
+    MyRndProfileSerializer,
     RndAvailabilityScheduleSerializer,
     RndProfileSerializer,
     RndProfileUpdateSerializer,
@@ -28,9 +29,11 @@ class RndSearchView(generics.ListAPIView):
     permission_classes = [IsClient]
 
     def get_queryset(self):
-        qs = RndProfile.objects.filter(
-            is_verified=True, available_for_new_clients=True
-        ).select_related("user")
+        from .services import bookable_rnd_profiles
+
+        # Approved + fee + bio + availability (bookable_rnd_profiles), and
+        # taking new clients.
+        qs = bookable_rnd_profiles().filter(available_for_new_clients=True).select_related("user")
 
         specialty = self.request.query_params.get("specialty")
         if specialty:
@@ -81,14 +84,14 @@ class MyRndProfileView(APIView):
 
     def get(self, request):
         profile, _ = RndProfile.objects.get_or_create(user=request.user)
-        return Response(RndProfileSerializer(profile).data)
+        return Response(MyRndProfileSerializer(profile).data)
 
     def patch(self, request):
         profile, _ = RndProfile.objects.get_or_create(user=request.user)
         serializer = RndProfileUpdateSerializer(profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(RndProfileSerializer(profile).data)
+        return Response(MyRndProfileSerializer(profile).data)
 
 
 class MyClientProfileView(APIView):

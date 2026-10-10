@@ -56,6 +56,8 @@ class Appointment(models.Model):
     meeting_id = models.CharField(max_length=255, null=True, blank=True)
     cancellation_reason = models.CharField(max_length=500, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+    # When the RND marked it completed — starts the 3-day payout hold.
+    completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

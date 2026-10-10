@@ -77,6 +77,13 @@ class MealPlan(models.Model):
     target_protein_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     target_carb_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     target_fat_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    # The plan's targets beyond calories, as Measured Variable / Value / Unit
+    # rows — like the NCP "+ Add Field" rows, e.g.
+    # [{"label": "Protein", "value": "70", "unit": "g/day"}, {"label": "Fiber", ...}].
+    # The protein/carb/fat columns above are kept in sync from rows with a
+    # gram unit (MealPlanSerializer), so the Macro Tracker and the client's
+    # plan view keep reading them.
+    nutrient_targets = models.JSONField(default=list, blank=True)
     total_vegetable = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     total_fruit = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     total_milk = models.DecimalField(max_digits=4, decimal_places=1, default=0)
@@ -96,6 +103,30 @@ class MealPlan(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_condition_display()})"
+
+    def save(self, *args, **kwargs):
+        # A plan created with only the protein/carb/fat columns (seed data,
+        # older code paths) gets matching target rows so the form shows them.
+        if not self.nutrient_targets:
+            self.nutrient_targets = macro_rows_from_columns(self)
+        super().save(*args, **kwargs)
+
+
+# (label, column) for the three macros the Macro Tracker measures.
+MACRO_COLUMNS = [("Protein", "target_protein_g"), ("Carbohydrate", "target_carb_g"), ("Fat", "target_fat_g")]
+
+
+def _plain_number(value):
+    text = format(value.normalize(), "f") if hasattr(value, "normalize") else str(value)
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def macro_rows_from_columns(plan):
+    return [
+        {"label": label, "value": _plain_number(getattr(plan, column)), "unit": "g/day"}
+        for label, column in MACRO_COLUMNS
+        if getattr(plan, column) is not None
+    ]
 
 
 class MealPlanMeal(models.Model):

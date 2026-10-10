@@ -1,157 +1,285 @@
 <template>
-  <div class="client-profile-page">
+  <!-- Same layout as the RND Profile Settings (RNDProfileSettings.vue): page
+       header, tab list on the left, one panel on the right. -->
+  <div class="profile-page">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Profile Settings</h1>
+        <p class="page-sub">Manage your personal details, health profile, and account preferences.</p>
+      </div>
+      <span class="role-pill"><User :size="14" /> Patient</span>
+    </div>
+
     <p v-if="loadError" class="form-error">{{ loadError }}</p>
 
-    <div class="page-header">
-  <h1 class="page-title">Profile Settings</h1>
-  <p class="page-sub">Manage your personal information, health profile, and preferences.</p>
-</div>
-
-    <div class="settings-layout">
-      <nav class="settings-nav">
+    <div class="profile-layout">
+      <!-- TABS -->
+      <div class="tab-card">
         <button
-          v-for="tab in tabs" :key="tab.key"
-          class="settings-nav-item" :class="{ active: activeTab === tab.key }"
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-item"
+          :class="{ active: activeTab === tab.key }"
+          type="button"
           @click="activeTab = tab.key"
         >
-          <component :is="tab.icon" :size="16" />
+          <component :is="tab.icon" :size="17" />
           {{ tab.label }}
         </button>
-      </nav>
+      </div>
 
-      <div class="settings-main">
-        <!-- PERSONAL INFO -->
-        <div v-if="activeTab === 'personal'" class="panel">
-          <h3 class="panel-title">Personal Information</h3>
-          <div class="form-row-2">
-            <div class="field">
-              <label>First Name</label>
-              <input v-model="form.firstName" type="text" />
-            </div>
-            <div class="field">
-              <label>Last Name</label>
-              <input v-model="form.lastName" type="text" />
-            </div>
-          </div>
-          <div class="form-row-2">
-            <div class="field">
-              <label>Email Address</label>
-              <input :value="auth.user?.email" type="email" disabled />
-              <span class="field-hint">Email can't be changed here.</span>
-            </div>
-            <div class="field">
-              <label>Phone Number</label>
-              <input v-model="form.phone" type="tel" placeholder="e.g. 0917 123 4567" />
-            </div>
-          </div>
-          <div class="form-row-3">
-            <div class="field">
-              <label>Date of Birth</label>
-              <input v-model="form.dateOfBirth" type="date" />
-            </div>
-            <div class="field">
-              <label>Sex</label>
-              <select v-model="form.sex">
-                <option value="">Select</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Preferred Language</label>
-              <select v-model="form.languageCode">
-                <option value="">Select</option>
-                <option v-for="l in languageOptions" :key="l.code" :value="l.code">{{ l.label }}</option>
-              </select>
-            </div>
-          </div>
-          <p v-if="saveError" class="form-error">{{ saveError }}</p>
-          <button class="primary-btn" :disabled="isSaving" @click="saveProfile">{{ isSaving ? 'Saving…' : 'Save Changes' }}</button>
-        </div>
+      <!-- PANEL -->
+      <div class="panel-card">
+        <!-- ============ PERSONAL INFO ============ -->
+        <!-- Read-only until "Edit Profile"; Save/Cancel replace it while editing. -->
+        <template v-if="activeTab === 'personal'">
+          <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" @photo-changed="fireToast">
+            <template #actions>
+              <button v-if="!isEditing" class="btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
+                <Pencil :size="15" /> Edit Profile
+              </button>
+              <template v-else>
+                <button class="outline-btn" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
+                <button class="btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
+                  <Check :size="15" /> {{ isSaving ? 'Saving…' : 'Save Changes' }}
+                </button>
+              </template>
+            </template>
+          </ProfileIdentityHeader>
 
-        <!-- HEALTH PROFILE -->
-        <div v-else-if="activeTab === 'health'" class="panel">
-          <h3 class="panel-title">Health Profile</h3>
-          <p class="tab-desc">Your latest screening results on file.</p>
-          <div v-if="screening" class="health-grid">
-            <div class="health-box"><p class="health-label">BMI</p><p class="health-value">{{ screening.bmi }}</p><p class="health-sub">{{ screening.bmi_category }}</p></div>
-            <div class="health-box"><p class="health-label">TDEE</p><p class="health-value">{{ Math.round(screening.tdee_kcal) }} <span>kcal</span></p></div>
-            <div class="health-box"><p class="health-label">NRS-2002</p><p class="health-value">{{ screening.nrs_score ?? '—' }}</p><p class="health-sub">{{ nrsLabel(screening.nrs_risk) }}</p></div>
-          </div>
-          <p v-else class="tab-desc">No screening on file yet.</p>
-          <button class="outline-btn" @click="navigateTo('/pre-consultation-screening')">Update Screening</button>
+          <!-- READ-ONLY VIEW -->
+          <dl v-if="!isEditing" class="info-grid">
+            <div class="info-item"><dt>First Name</dt><dd>{{ form.firstName || '—' }}</dd></div>
+            <div class="info-item"><dt>Last Name</dt><dd>{{ form.lastName || '—' }}</dd></div>
+            <div class="info-item"><dt>Email Address</dt><dd>{{ auth.user?.email || '—' }}</dd></div>
+            <div class="info-item"><dt>Phone Number</dt><dd :class="{ muted: !form.phone }">{{ form.phone || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Date of Birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Sex</dt><dd :class="{ muted: !form.sex }">{{ sexLabel || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Preferred Language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Primary Health Condition</dt><dd :class="{ muted: !conditionLabel }">{{ conditionLabel || 'None / not sure' }}</dd></div>
+            <div class="info-item"><dt>Food Allergies</dt><dd :class="{ muted: !background.allergiesList.length }">{{ background.allergiesAnswered ? (background.allergiesList.join(', ') || 'None') : 'Not answered yet' }}</dd></div>
+            <div class="info-item"><dt>Dietary Restrictions</dt><dd :class="{ muted: !background.dietList.length }">{{ background.dietList.join(', ') || 'None' }}</dd></div>
+            <div class="info-item"><dt>Religion</dt><dd :class="{ muted: !background.religion }">{{ background.religion || 'Not provided' }}</dd></div>
+          </dl>
 
-          <div class="condition-section">
-            <h4 class="section-title">Primary Health Condition</h4>
-            <p class="tab-desc">Your RND sees this on your patient record so they can prepare for your care.</p>
-            <div class="form-row-2">
+          <!-- EDIT FORM -->
+          <template v-else>
+            <div class="form-grid">
               <div class="field">
-                <label>Condition</label>
-                <select v-model="conditionChoice">
+                <label class="field-label" for="pi-first">First Name</label>
+                <input id="pi-first" v-model="form.firstName" type="text" class="field-input" :class="{ invalid: fieldErrors.firstName }" maxlength="150" />
+                <p v-if="fieldErrors.firstName" class="field-error">{{ fieldErrors.firstName }}</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-last">Last Name</label>
+                <input id="pi-last" v-model="form.lastName" type="text" class="field-input" :class="{ invalid: fieldErrors.lastName }" maxlength="150" />
+                <p v-if="fieldErrors.lastName" class="field-error">{{ fieldErrors.lastName }}</p>
+              </div>
+              <div class="field">
+                <label class="field-label">Email Address</label>
+                <input :value="auth.user?.email" type="email" class="field-input" disabled />
+                <p class="field-hint">Email can't be changed here.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-phone">Phone Number</label>
+                <input id="pi-phone" v-model="form.phone" type="tel" inputmode="tel" class="field-input" maxlength="20" placeholder="e.g. 0917 123 4567" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-dob">Date of Birth</label>
+                <input id="pi-dob" v-model="form.dateOfBirth" type="date" class="field-input" :class="{ invalid: fieldErrors.dateOfBirth }" :max="latestBirthDate" min="1900-01-01" />
+                <p v-if="fieldErrors.dateOfBirth" class="field-error">{{ fieldErrors.dateOfBirth }}</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-sex">Sex</label>
+                <select id="pi-sex" v-model="form.sex" class="field-input">
+                  <option value="">Prefer not to say</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-lang">Preferred Language</label>
+                <select id="pi-lang" v-model="form.languageCode" class="field-input">
+                  <option value="">Select</option>
+                  <option v-for="l in languageOptions" :key="l.code" :value="l.code">{{ l.label }}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-condition">Primary Health Condition</label>
+                <select id="pi-condition" v-model="conditionChoice" class="field-input">
                   <option value="">None / not sure</option>
                   <option v-for="c in CONDITION_OPTIONS" :key="c" :value="c">{{ c }}</option>
                   <option value="__other">Other</option>
                 </select>
+                <p class="field-hint">Your RND sees this on your patient record.</p>
               </div>
               <div v-if="conditionChoice === '__other'" class="field">
-                <label>Please specify</label>
-                <input v-model="conditionOther" type="text" maxlength="100" placeholder="e.g. High cholesterol" />
+                <label class="field-label" for="pi-condition-other">Please specify</label>
+                <input id="pi-condition-other" v-model="conditionOther" type="text" maxlength="100" class="field-input" :class="{ invalid: fieldErrors.condition }" placeholder="e.g. High cholesterol" />
+                <p v-if="fieldErrors.condition" class="field-error">{{ fieldErrors.condition }}</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-allergies">Food Allergies</label>
+                <input id="pi-allergies" v-model="background.allergiesText" type="text" maxlength="300" class="field-input" placeholder="e.g. Shrimp, Peanuts — leave empty if none" />
+                <p class="field-hint">Separate with commas. Your RND plans your meals around these.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-diet">Dietary Restrictions</label>
+                <input id="pi-diet" v-model="background.dietText" type="text" maxlength="300" class="field-input" placeholder="e.g. Halal, Low sodium" />
+                <p class="field-hint">Separate with commas.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-religion">Religion</label>
+                <select id="pi-religion" v-model="background.religion" class="field-input">
+                  <option value="">Prefer not to say</option>
+                  <option v-for="r in RELIGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
+                </select>
               </div>
             </div>
-            <p v-if="conditionError" class="form-error">{{ conditionError }}</p>
-            <button class="primary-btn" :disabled="isSavingCondition" @click="saveCondition">{{ isSavingCondition ? 'Saving…' : 'Save Condition' }}</button>
-          </div>
-        </div>
+          </template>
 
-        <!-- SECURITY -->
-        <div v-else-if="activeTab === 'security'" class="panel">
-          <h3 class="panel-title">Security</h3>
-          <div class="account-row">
+          <p v-if="saveError" class="profile-error">{{ saveError }}</p>
+        </template>
+
+        <!-- ============ HEALTH PROFILE ============ -->
+        <template v-else-if="activeTab === 'health'">
+          <div class="tab-panel-header">
             <div>
-              <p class="account-label">Password</p>
-              <p class="account-detail">We'll email you a 6-digit code to set a new password.</p>
+              <h3 class="tab-panel-title">Health Profile</h3>
+              <p class="tab-panel-sub">Your latest screening results on file.</p>
             </div>
-            <button class="outline-btn small" @click="navigateTo('/forgot-password')">Change Password</button>
+            <button class="outline-btn" type="button" @click="navigateTo('/pre-consultation-screening')">Update Screening</button>
           </div>
-        </div>
 
-        <!-- NOTIFICATIONS -->
-        <div v-else-if="activeTab === 'notifications'" class="panel">
-          <h3 class="panel-title">Notifications</h3>
-          <!-- TODO: mock/local only — no notification-preference field or endpoint exists yet. -->
-          <div class="account-row">
+          <div v-if="screening" class="stat-grid-3">
+            <div class="mini-stat-card">
+              <div class="mini-stat-icon"><Scale :size="17" /></div>
+              <p class="mini-stat-value">{{ screening.bmi }}</p>
+              <p class="mini-stat-label">BMI · {{ screening.bmi_category }}</p>
+            </div>
+            <div class="mini-stat-card">
+              <div class="mini-stat-icon"><Flame :size="17" /></div>
+              <p class="mini-stat-value">{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal) : '—' }} <span class="mini-stat-unit">kcal</span></p>
+              <p class="mini-stat-label">Daily Target (TDEE)</p>
+            </div>
+            <div class="mini-stat-card">
+              <div class="mini-stat-icon"><Activity :size="17" /></div>
+              <p class="mini-stat-value">{{ screening.nrs_score ?? '—' }}</p>
+              <p class="mini-stat-label">NRS-2002 · {{ nrsLabel(screening.nrs_risk) }}</p>
+            </div>
+          </div>
+          <p v-else class="empty-note">No screening on file yet.</p>
+
+          <p class="field-hint health-note">
+            Your primary health condition is under
+            <button class="link-btn" type="button" @click="activeTab = 'personal'">Personal Info</button>.
+          </p>
+        </template>
+
+        <!-- ============ CARE TEAM ============ -->
+        <template v-else-if="activeTab === 'care'">
+          <div class="tab-panel-header">
             <div>
-              <p class="account-label">Appointment, meal plan, and reminder alerts</p>
-              <p class="account-detail">Receive push and email notifications</p>
+              <h3 class="tab-panel-title">Care Team</h3>
+              <p class="tab-panel-sub">The RND currently handling your nutrition care.</p>
+            </div>
+          </div>
+
+          <div v-if="careRnd" class="setting-row">
+            <div class="rnd-row">
+              <div class="rnd-avatar">{{ careRndInitials }}</div>
+              <div>
+                <NuxtLink :to="`/rnd-profile-view/${careRnd.user.id}`" class="rnd-name">RND {{ careRnd.user.first_name }} {{ careRnd.user.last_name }}</NuxtLink>
+                <p class="rnd-specialty">{{ careRnd.specialization || 'General Practice' }}</p>
+                <p v-if="careRnd.review_count" class="rnd-rating">★ {{ Number(careRnd.average_rating).toFixed(1) }} ({{ careRnd.review_count }} review{{ careRnd.review_count === 1 ? '' : 's' }})</p>
+              </div>
+            </div>
+            <button class="outline-btn" type="button" @click="navigateTo('/messages')">Send a Message</button>
+          </div>
+          <div v-else class="setting-row">
+            <div>
+              <p class="setting-label">No RND yet</p>
+              <p class="setting-detail">You're not connected with an RND yet.</p>
+            </div>
+            <button class="outline-btn" type="button" @click="navigateTo('/find-rnd')">Find an RND</button>
+          </div>
+        </template>
+
+        <!-- ============ SECURITY ============ -->
+        <template v-else-if="activeTab === 'security'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Security</h3>
+              <p class="tab-panel-sub">Keep your account safe.</p>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="setting-label">Password</p>
+              <p class="setting-detail">We'll email you a 6-digit code to set a new password.</p>
+            </div>
+            <button class="outline-btn" type="button" @click="navigateTo('/forgot-password')">Change Password</button>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="setting-label">Sign Out</p>
+              <p class="setting-detail">Sign out of NutriMatch on this device.</p>
+            </div>
+            <button class="danger-outline-btn" type="button" @click="handleLogout">Sign Out</button>
+          </div>
+        </template>
+
+        <!-- ============ NOTIFICATIONS ============ -->
+        <template v-else-if="activeTab === 'notifications'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Notifications</h3>
+              <p class="tab-panel-sub">Choose how NutriMatch keeps you updated.</p>
+            </div>
+          </div>
+          <!-- TODO: mock/local only — no notification-preference field or endpoint exists yet. -->
+          <div class="setting-row">
+            <div>
+              <p class="setting-label">Appointment, meal plan, and reminder alerts</p>
+              <p class="setting-detail">Receive push and email notifications</p>
             </div>
             <label class="toggle">
               <input v-model="notificationsEnabled" type="checkbox" />
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
             </label>
           </div>
-        </div>
+        </template>
 
-        <!-- PRIVACY & DATA -->
-        <div v-else-if="activeTab === 'privacy'" class="panel">
-          <h3 class="panel-title">Privacy &amp; Data</h3>
-          <p class="tab-desc">Your health data is only shared with your assigned RND under RA 10173 (Data Privacy Act of 2012).</p>
-          <!-- TODO: no data-export endpoint exists yet. -->
-          <button class="outline-btn" disabled title="Coming soon">Download My Data</button>
-        </div>
-
-        <!-- HISTORY -->
-        <div v-else-if="activeTab === 'history'" class="panel">
-          <div class="panel-header-row">
+        <!-- ============ PRIVACY & DATA ============ -->
+        <template v-else-if="activeTab === 'privacy'">
+          <div class="tab-panel-header">
             <div>
-              <h3 class="panel-title flush">Your Activity</h3>
-              <p class="panel-sub">Every screening, appointment, and meal log on your account.</p>
+              <h3 class="tab-panel-title">Privacy &amp; Data</h3>
+              <p class="tab-panel-sub">How your information is handled.</p>
             </div>
-            <div class="header-actions">
-              <div class="filter-tabs">
-                <button v-for="f in historyFilters" :key="f.key" class="filter-tab" :class="{ active: historyFilter === f.key }" @click="historyFilter = f.key">{{ f.label }}</button>
-              </div>
-              <button class="outline-btn small print-btn" @click="printHistory"><Printer :size="14" /> Print</button>
+          </div>
+          <div class="setting-row">
+            <div>
+              <p class="setting-label">Data sharing</p>
+              <p class="setting-detail">Your health data is only shared with your assigned RND under RA 10173 (Data Privacy Act of 2012).</p>
             </div>
+            <!-- TODO: no data-export endpoint exists yet. -->
+            <button class="outline-btn" type="button" disabled title="Coming soon">Download My Data</button>
+          </div>
+        </template>
+
+        <!-- ============ HISTORY ============ -->
+        <template v-else-if="activeTab === 'history'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Your Activity</h3>
+              <p class="tab-panel-sub">Every screening, appointment, and meal log on your account.</p>
+            </div>
+            <button class="outline-btn print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
+          </div>
+
+          <div class="filter-tabs">
+            <button v-for="f in historyFilters" :key="f.key" class="filter-tab" :class="{ active: historyFilter === f.key }" type="button" @click="historyFilter = f.key">{{ f.label }}</button>
           </div>
 
           <p v-if="isLoadingHistory" class="placeholder-text">Loading…</p>
@@ -168,41 +296,13 @@
             </div>
             <span class="entry-time">{{ formatTimestamp(entry.at) }}</span>
           </div>
-        </div>
-      </div>
-
-      <!-- SIDE -->
-      <div class="settings-side">
-        <div class="panel">
-          <h3 class="panel-title">Care Team</h3>
-          <template v-if="careRnd">
-            <div class="rnd-row">
-              <div class="rnd-avatar">{{ careRndInitials }}</div>
-              <div>
-                <NuxtLink :to="`/rnd-profile-view/${careRnd.user.id}`" class="rnd-name">RND {{ careRnd.user.first_name }} {{ careRnd.user.last_name }}</NuxtLink>
-                <p class="rnd-specialty">{{ careRnd.specialization || 'General Practice' }}</p>
-                <p v-if="careRnd.review_count" class="rnd-rating">★ {{ Number(careRnd.average_rating).toFixed(1) }} ({{ careRnd.review_count }} review{{ careRnd.review_count === 1 ? '' : 's' }})</p>
-              </div>
-            </div>
-            <button class="outline-btn full-width" @click="navigateTo('/messages')">Send a Message</button>
-          </template>
-          <template v-else>
-            <p class="tab-desc">You're not connected with an RND yet.</p>
-            <button class="outline-btn full-width" @click="navigateTo('/find-rnd')">Find an RND</button>
-          </template>
-        </div>
-
-        <div class="panel danger-panel">
-          <h3 class="panel-title">Sign Out</h3>
-          <p class="danger-text">Sign out of NutriMatch on this device.</p>
-          <button class="danger-outline-btn full-width" @click="handleLogout">Sign Out</button>
-        </div>
+        </template>
       </div>
     </div>
 
     <Transition name="toast-fade">
       <div v-if="toastVisible" class="toast">
-        <CheckCircle2 :size="16" /> Profile updated!
+        <CheckCircle2 :size="16" /> {{ toastMessage }}
       </div>
     </Transition>
   </div>
@@ -213,6 +313,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   User, HeartPulse, Shield, Bell, FileText, History as HistoryIcon, CheckCircle2,
   Printer, ClipboardList, ShieldCheck, CalendarCheck, UtensilsCrossed,
+  Stethoscope, Scale, Flame, Activity, Pencil, Check,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
@@ -222,12 +323,15 @@ const { get, patch } = useApi()
 const tabs = [
   { key: 'personal', label: 'Personal Info', icon: User },
   { key: 'health', label: 'Health Profile', icon: HeartPulse },
+  { key: 'care', label: 'Care Team', icon: Stethoscope },
   { key: 'security', label: 'Security', icon: Shield },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'privacy', label: 'Privacy & Data', icon: FileText },
   { key: 'history', label: 'History', icon: HistoryIcon },
 ]
-const activeTab = ref('personal')
+// ?tab=health etc. opens a tab directly, like the RND settings page.
+const route = useRoute()
+const activeTab = ref(tabs.some(t => t.key === route.query.tab) ? route.query.tab : 'personal')
 
 const languageOptions = [
   { code: 'tl', label: 'Filipino (Tagalog)' },
@@ -239,14 +343,63 @@ const languageOptions = [
 const loadError = ref('')
 const displayName = computed(() => `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim())
 const initials = computed(() => `${auth.user?.first_name?.[0] || ''}${auth.user?.last_name?.[0] || ''}`.toUpperCase())
+const identitySubtitle = computed(() =>
+  [auth.user?.email, memberSince.value && `Member since ${memberSince.value}`].filter(Boolean).join(' · ')
+)
 const memberSince = computed(() =>
   auth.user?.created_at ? new Date(auth.user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''
 )
 
-/* ---------- Personal info ---------- */
+/* ---------- Personal info (read-only until Edit Profile) ---------- */
 const form = reactive({ firstName: '', lastName: '', phone: '', dateOfBirth: '', sex: '', languageCode: '' })
 const isSaving = ref(false)
 const saveError = ref('')
+const isEditing = ref(false)
+const profileLoaded = ref(false)
+// Last profile from the API — Cancel restores the form from it.
+const lastProfile = ref(null)
+const fieldErrors = reactive({ firstName: '', lastName: '', dateOfBirth: '', condition: '' })
+
+// Same rules the API enforces (accounts/validators.py): clients are 18+.
+const MIN_CLIENT_AGE = 18
+const latestBirthDate = computed(() => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - MIN_CLIENT_AGE)
+  return d.toISOString().slice(0, 10)
+})
+const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑñ]+)*\.?$/
+
+const sexLabel = computed(() => ({ female: 'Female', male: 'Male' }[form.sex] || ''))
+const languageLabel = computed(() => languageOptions.find(l => l.code === form.languageCode)?.label || '')
+const dobLabel = computed(() => {
+  if (!form.dateOfBirth) return ''
+  const d = new Date(`${form.dateOfBirth}T00:00:00`)
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--
+  return `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (${age} years old)`
+})
+const conditionLabel = computed(() =>
+  conditionChoice.value === '__other' ? conditionOther.value.trim() : conditionChoice.value
+)
+
+function clearFieldErrors() {
+  Object.keys(fieldErrors).forEach(k => { fieldErrors[k] = '' })
+}
+function startEdit() {
+  saveError.value = ''
+  clearFieldErrors()
+  isEditing.value = true
+}
+function cancelEdit() {
+  if (lastProfile.value) {
+    fillForm(lastProfile.value)
+    fillCondition(lastProfile.value)
+  }
+  saveError.value = ''
+  clearFieldErrors()
+  isEditing.value = false
+}
 
 function fillForm(profile) {
   form.firstName = profile.user.first_name || ''
@@ -257,31 +410,68 @@ function fillForm(profile) {
   form.languageCode = profile.language_code || ''
 }
 
+function validatePersonal() {
+  clearFieldErrors()
+  form.firstName = form.firstName.trim()
+  form.lastName = form.lastName.trim()
+  if (!form.firstName) fieldErrors.firstName = 'Enter your first name.'
+  else if (!NAME_RE.test(form.firstName)) fieldErrors.firstName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
+  if (!form.lastName) fieldErrors.lastName = 'Enter your last name.'
+  else if (!NAME_RE.test(form.lastName)) fieldErrors.lastName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
+  if (!form.dateOfBirth) fieldErrors.dateOfBirth = 'Enter your date of birth.'
+  else if (form.dateOfBirth > latestBirthDate.value) fieldErrors.dateOfBirth = `You must be at least ${MIN_CLIENT_AGE} years old.`
+  else if (form.dateOfBirth < '1900-01-01') fieldErrors.dateOfBirth = 'Enter a valid date of birth.'
+  if (conditionChoice.value === '__other' && !conditionOther.value.trim()) fieldErrors.condition = 'Please type your condition, or pick one from the list.'
+  return !Object.values(fieldErrors).some(Boolean)
+}
+
+// One Save for everything on the tab, including the primary condition.
 async function saveProfile() {
-  isSaving.value = true
   saveError.value = ''
+  if (!validatePersonal()) return
+  isSaving.value = true
+  const primary = conditionChoice.value === '__other' ? conditionOther.value.trim() : conditionChoice.value
   try {
-    await Promise.all([
-      patch('/auth/me/', { first_name: form.firstName, last_name: form.lastName, phone: form.phone || null }),
+    const [, profile] = await Promise.all([
+      patch('/auth/me/', { first_name: form.firstName, last_name: form.lastName, phone: form.phone.trim() || null }),
       patch('/client/profile/', {
         date_of_birth: form.dateOfBirth || null,
         sex: form.sex || null,
         language_code: form.languageCode || null,
+        medical_conditions: primary ? [primary, ...otherConditions.value] : otherConditions.value,
+        // Health background (also asked during onboarding). An empty allergy
+        // list means "no food allergies".
+        allergies: splitList(background.allergiesText),
+        dietary_restrictions: splitList(background.dietText),
+        religion: background.religion,
       }),
     ])
     await auth.fetchMe()
+    // The API capitalizes names; show exactly what was saved.
+    const saved = await get('/client/profile/').catch(() => profile)
+    lastProfile.value = saved
+    fillForm(saved)
+    fillCondition(saved)
+    isEditing.value = false
     fireToast()
   } catch (error) {
     const data = error?.data || {}
-    saveError.value = data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
+    const first = (v) => (Array.isArray(v) ? v[0] : v) || ''
+    fieldErrors.firstName = first(data.first_name)
+    fieldErrors.lastName = first(data.last_name)
+    fieldErrors.dateOfBirth = first(data.date_of_birth)
+    const shown = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.dateOfBirth
+    saveError.value = shown ? '' : data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
   } finally {
     isSaving.value = false
   }
 }
 
 const toastVisible = ref(false)
+const toastMessage = ref('Profile updated!')
 let toastTimer = null
-function fireToast() {
+function fireToast(message = 'Profile updated!') {
+  toastMessage.value = message
   toastVisible.value = true
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastVisible.value = false }, 3500)
@@ -296,13 +486,30 @@ const conditionChoice = ref('')
 const conditionOther = ref('')
 // medical_conditions[0] is the primary condition; anything after it is kept.
 const otherConditions = ref([])
-const isSavingCondition = ref(false)
-const conditionError = ref('')
+
+/* ---------- Health background (allergies / diet / religion) ---------- */
+const RELIGION_OPTIONS = ['Roman Catholic', 'Christian', 'Islam', 'Iglesia ni Cristo', 'Seventh-day Adventist', 'Other']
+const background = reactive({ allergiesAnswered: false, allergiesList: [], dietList: [], religion: '', allergiesText: '', dietText: '' })
+function splitList(text) {
+  const seen = new Set()
+  return text.split(',').map(x => x.trim()).filter(x => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()))
+}
+function fillBackground(profile) {
+  const hp = profile.health_profile || {}
+  background.allergiesAnswered = Array.isArray(hp.allergies)
+  background.allergiesList = [...(hp.allergies || [])]
+  background.dietList = [...(hp.dietary_restrictions || [])]
+  background.religion = hp.religion || ''
+  background.allergiesText = background.allergiesList.join(', ')
+  background.dietText = background.dietList.join(', ')
+}
 
 function fillCondition(profile) {
+  fillBackground(profile)
   const conditions = profile.health_profile?.medical_conditions || []
   const primary = conditions[0] || ''
   otherConditions.value = conditions.slice(1)
+  conditionOther.value = ''
   if (!primary) {
     conditionChoice.value = ''
   } else if (CONDITION_OPTIONS.includes(primary)) {
@@ -313,30 +520,6 @@ function fillCondition(profile) {
   }
 }
 
-async function saveCondition() {
-  conditionError.value = ''
-  let primary = conditionChoice.value
-  if (primary === '__other') {
-    primary = conditionOther.value.trim()
-    if (!primary) {
-      conditionError.value = 'Please type your condition, or pick one from the list.'
-      return
-    }
-  }
-  isSavingCondition.value = true
-  try {
-    const profile = await patch('/client/profile/', {
-      medical_conditions: primary ? [primary, ...otherConditions.value] : otherConditions.value,
-    })
-    fillCondition(profile)
-    fireToast()
-  } catch (error) {
-    const data = error?.data || {}
-    conditionError.value = data.detail || Object.values(data).flat()[0] || 'Could not save your condition. Please try again.'
-  } finally {
-    isSavingCondition.value = false
-  }
-}
 function nrsLabel(risk) {
   return { no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[risk] || ''
 }
@@ -405,7 +588,7 @@ async function loadHistory() {
 
 watch(activeTab, (tab) => {
   if (tab === 'history' && !historyLoaded) loadHistory()
-})
+}, { immediate: true })
 
 const filteredHistory = computed(() =>
   historyFilter.value === 'all' ? historyEntries.value : historyEntries.value.filter(e => e.type === historyFilter.value)
@@ -430,8 +613,10 @@ onMounted(async () => {
       get('/client/screening/latest/').catch(() => null),
       get('/client/relationships/').catch(() => []),
     ])
+    lastProfile.value = profile
     fillForm(profile)
     fillCondition(profile)
+    profileLoaded.value = true
     screening.value = latestScreening
     const active = relationships.find(r => r.status === 'active')
     if (active) careRnd.value = await get(`/client/rnds/${active.rnd.id}/`).catch(() => null)
@@ -442,8 +627,20 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Mirrors RNDProfileSettings.vue — keep the two in step. */
 * { box-sizing: border-box; }
-.client-profile-page { font-family: 'Inter', sans-serif; }
+
+.profile-page { font-family: 'Inter', sans-serif; }
+
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
+.page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
+
+.role-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #e6efe0; color: #3a6b3a; font-size: 0.78rem; font-weight: 700;
+  padding: 7px 14px; border-radius: 20px; white-space: nowrap;
+}
 
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
@@ -451,60 +648,108 @@ onMounted(async () => {
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
-/* PAGE HEADER */
-.page-header { margin-bottom: 24px; }
-.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.page-sub { font-size: 0.9rem; color: #6a7a6a; margin: 6px 0 0; }
-
 /* LAYOUT */
-.settings-layout { display: grid; grid-template-columns: 210px 1.6fr 1fr; gap: 20px; align-items: start; }
-.settings-nav { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
-.settings-nav-item {
-  display: flex; align-items: center; gap: 10px; border: none; background: none; text-align: left;
-  padding: 11px 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; color: #6a7a6a; cursor: pointer;
+.profile-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+
+.tab-card {
+  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  padding: 10px; display: flex; flex-direction: column; gap: 2px;
 }
-.settings-nav-item:hover { background: #f7f9f7; }
-.settings-nav-item.active { background: #eef3ee; color: #1a3a1a; }
-.settings-main, .settings-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-
-.panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px 24px; }
-.panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
-.panel-title.flush { margin: 0; }
-.panel-sub { font-size: 0.82rem; color: #9aaa9a; margin: 4px 0 0; }
-.tab-desc { font-size: 0.85rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
-
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.form-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 18px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
-.field input, .field select {
-  border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.87rem; font-family: inherit; color: #1a3a1a; width: 100%; background: #fff;
+.tab-item {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  border: none; background: none; border-radius: 8px; padding: 12px 14px;
+  font-size: 0.88rem; font-weight: 600; color: #4a5a4a; cursor: pointer; font-family: inherit;
+  white-space: nowrap;
 }
-.field input:disabled { background: #f4f5f3; color: #8a9a8a; }
-.field input:focus, .field select:focus { outline: none; border-color: #D4A017; }
-.field-hint { font-size: 0.72rem; color: #9aaa9a; }
+.tab-item:hover { background: #f7f9f7; }
+.tab-item.active { background: #eef3ec; color: #1a3a1a; }
 
-.health-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
-.health-box { background: #f7f9f7; border-radius: 10px; padding: 14px; text-align: center; }
-.health-label { font-size: 0.72rem; color: #9aaa9a; font-weight: 700; margin: 0 0 4px; }
-.health-value { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.health-value span { font-size: 0.7rem; font-weight: 400; color: #9aaa9a; }
-.health-sub { font-size: 0.72rem; color: #6a7a6a; margin: 4px 0 0; }
-.condition-section { border-top: 1px solid #eceeec; margin-top: 22px; padding-top: 20px; }
-.section-title { font-family: 'Playfair Display', serif; font-size: 0.98rem; color: #1a3a1a; margin: 0 0 4px; }
+.panel-card {
+  background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 28px; min-width: 0;
+}
 
-.primary-btn { background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px; padding: 11px 20px; font-weight: 700; font-size: 0.87rem; cursor: pointer; }
-.primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.outline-btn { border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 10px 16px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+
+/* Same as the "Create Meal Plan" button (MealPlanning.vue .btn-primary). */
+.btn-dark {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: #163a1c; color: #fff; border: none;
+  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; font-family: inherit;
+}
+.btn-dark:hover:not(:disabled) { background: #0f2a14; }
+.btn-dark:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* READ-ONLY PERSONAL INFO */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin: 0; }
+.info-item { padding: 14px 0; border-top: 1px solid #f0f2f0; min-width: 0; }
+.info-item:nth-child(-n + 2) { border-top: none; padding-top: 0; }
+.info-item dt { font-size: 0.76rem; font-weight: 600; color: #8a9a8a; margin: 0 0 4px; }
+.info-item dd { font-size: 0.92rem; font-weight: 500; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
+.info-item dd.muted { color: #aab5aa; font-weight: 400; }
+.field-error { font-size: 0.76rem; color: #c0392b; margin: 4px 0 0; }
+.field-input.invalid { border-color: #c0392b; }
+.health-note { margin-top: 18px; }
+.link-btn { background: none; border: none; padding: 0; color: #1a3a1a; font-weight: 700; text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* FORM */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 24px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field-label { display: block; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; margin: 0 0 8px; }
+.field-input {
+  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 12px 14px;
+  font-size: 0.88rem; color: #2a2a2a; font-family: inherit; background: #fff;
+}
+.field-input:focus { outline: none; border-color: #D4A017; }
+.field-input:disabled { background: #f4f5f3; color: #8a9a8a; }
+.field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
+.section-hint { margin: -8px 0 16px; }
+.profile-error { font-size: 0.82rem; color: #a12525; margin: 0 0 12px; }
+
+.save-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
+  padding: 12px 22px; font-weight: 700; font-size: 0.88rem; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.outline-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px;
+  padding: 10px 16px; font-weight: 600; font-size: 0.84rem; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.outline-btn:hover:not(:disabled) { background: #f7f9f7; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.outline-btn.small { padding: 8px 14px; font-size: 0.8rem; }
-.outline-btn.full-width { width: 100%; }
-.danger-outline-btn { border: 1px solid #c0392b; background: #fff; color: #c0392b; border-radius: 8px; padding: 10px 16px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
-.danger-outline-btn.full-width { width: 100%; }
+.danger-outline-btn {
+  flex-shrink: 0; border: 1px solid #c0392b; background: #fff; color: #c0392b; border-radius: 8px;
+  padding: 10px 16px; font-weight: 700; font-size: 0.84rem; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.danger-outline-btn:hover { background: #fdecec; }
 
-.account-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.account-label { font-size: 0.87rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.account-detail { font-size: 0.78rem; color: #9aaa9a; margin: 2px 0 0; }
+/* SHARED TAB PANEL HEADER */
+.tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
+.tab-panel-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 4px; }
+.tab-panel-sub { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
+.sub-panel { border-top: 1px solid #f0f2f0; padding-top: 20px; margin-top: 24px; }
+.sub-panel-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: #1a3a1a; margin: 0 0 16px; }
+.empty-note { font-size: 0.85rem; color: #9aaa9a; text-align: center; padding: 30px 0; margin: 0; }
+
+/* HEALTH STATS */
+.stat-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.mini-stat-card { background: #fafbfa; border-radius: 10px; padding: 16px 18px; border: 1px solid #f0f2f0; }
+.mini-stat-icon {
+  width: 30px; height: 30px; border-radius: 8px; background: #eef1ee;
+  display: flex; align-items: center; justify-content: center; color: #4a5a4a; margin-bottom: 10px;
+}
+.mini-stat-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.mini-stat-unit { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 500; color: #9aaa9a; }
+.mini-stat-label { font-size: 0.75rem; color: #8a9a8a; margin: 3px 0 0; }
+
+/* SETTING ROWS (security, notifications, privacy, care team) */
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
+}
+.setting-label { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.setting-detail { font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0; line-height: 1.5; }
 
 .toggle { position: relative; display: inline-block; cursor: pointer; flex-shrink: 0; }
 .toggle input { display: none; }
@@ -513,15 +758,19 @@ onMounted(async () => {
 .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
 .toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); }
 
+/* CARE TEAM */
+.rnd-row { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.rnd-avatar { width: 48px; height: 48px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.rnd-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; text-decoration: none; }
+.rnd-name:hover { text-decoration: underline; }
+.rnd-specialty { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
+.rnd-rating { font-size: 0.78rem; color: #b8860b; font-weight: 600; margin: 2px 0 0; }
+
 /* HISTORY */
-.panel-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.filter-tabs { display: flex; gap: 4px; background: #f4f5f3; border-radius: 999px; padding: 3px; }
-.filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; cursor: pointer; }
+.filter-tabs { display: inline-flex; gap: 4px; background: #f4f5f3; border-radius: 999px; padding: 3px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; cursor: pointer; font-family: inherit; }
 .filter-tab.active { background: #14301a; color: #fff; }
-.print-btn { display: inline-flex; align-items: center; gap: 6px; }
 .entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #f0f2f0; }
-.entry-row:first-of-type { border-top: none; }
 .entry-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .icon-blue { background: #e3ecf7; color: #2a5a8a; }
 .icon-gold { background: #fdf1d6; color: #b8860b; }
@@ -535,17 +784,6 @@ onMounted(async () => {
 .empty-icon { color: #d5dad5; margin-bottom: 8px; }
 .empty-sub { font-size: 0.78rem; margin-top: 4px !important; }
 
-/* CARE TEAM */
-.rnd-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-.rnd-avatar { width: 48px; height: 48px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-.rnd-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; text-decoration: none; }
-.rnd-name:hover { text-decoration: underline; }
-.rnd-specialty { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
-.rnd-rating { font-size: 0.78rem; color: #b8860b; font-weight: 600; margin: 2px 0 0; }
-
-.danger-panel { border-color: #f5d5cf; }
-.danger-text { font-size: 0.83rem; color: #6a7a6a; margin: 0 0 14px; }
-
 /* TOAST */
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
@@ -556,16 +794,28 @@ onMounted(async () => {
 .toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
 .toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
-@media (max-width: 1100px) {
-  .settings-layout { grid-template-columns: 1fr; }
-  .settings-nav { flex-direction: row; overflow-x: auto; }
+/* MOBILE — tabs become a sideways-scrolling strip above the panel. */
+@media (max-width: 900px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .tab-card { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .tab-card::-webkit-scrollbar { display: none; }
+  .tab-item { flex-shrink: 0; padding: 10px 12px; }
 }
 @media (max-width: 640px) {
-  .form-row-2, .form-row-3, .health-grid { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; gap: 10px; }
+  .page-title { font-size: 1.4rem; }
+  .panel-card { padding: 20px 16px; }
+  .form-grid, .stat-grid-3, .info-grid { grid-template-columns: 1fr; }
+  .info-item:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 14px; }
+  .tab-panel-header, .setting-row { flex-direction: column; align-items: stretch; }
+  .outline-btn, .danger-outline-btn, .save-btn { justify-content: center; }
+  .entry-row { flex-wrap: wrap; }
+  .entry-time { width: 100%; padding-left: 48px; }
 }
 
 @media print {
-  .profile-banner, .settings-nav, .settings-side, .header-actions { display: none !important; }
-  .settings-layout { grid-template-columns: 1fr; }
+  .page-header, .tab-card, .print-btn, .filter-tabs { display: none !important; }
+  .profile-layout { grid-template-columns: 1fr; }
+  .panel-card { border: none; padding: 0; }
 }
 </style>

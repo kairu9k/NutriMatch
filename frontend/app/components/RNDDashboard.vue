@@ -19,6 +19,31 @@
       </div>
     </section>
 
+    <!-- MISSING SETUP — RNDs approved before onboarding existed may be missing
+         what clients need to book them (GET /auth/me/onboarding/ `missing`). -->
+    <section v-if="requiredMissing.length" class="setup-card" role="status">
+      <div>
+        <p class="setup-title">Finish your profile so clients can book you</p>
+        <p class="setup-sub">You won't appear in Find an RND until these are done:</p>
+        <ul class="setup-list">
+          <li v-for="m in requiredMissing" :key="m.key">{{ m.label }}</li>
+        </ul>
+      </div>
+      <NuxtLink :to="requiredMissing.some(m => m.key === 'availability') && requiredMissing.length === 1 ? '/profile-settings?tab=availability' : '/profile-settings'" class="setup-btn">Complete profile →</NuxtLink>
+    </section>
+
+    <!-- PAYOUT DETAILS — earnings are held until the RND adds GCash/bank details -->
+    <section v-if="payoutReminder" class="setup-card" role="status">
+      <div>
+        <p class="setup-title">Add your payout details</p>
+        <p class="setup-sub">
+          We send your earnings every 5th of the month to your GCash or bank account.
+          <template v-if="payoutReminder.balance > 0">You have {{ peso(payoutReminder.balance) }} waiting — it's kept safe until you add them.</template>
+        </p>
+      </div>
+      <NuxtLink to="/profile-settings?tab=earnings" class="setup-btn">Add payout details →</NuxtLink>
+    </section>
+
     <!-- STAT CARDS -->
     <section class="stat-grid">
       <div class="stat-card">
@@ -242,6 +267,26 @@ async function loadDashboard() {
 }
 
 onMounted(loadDashboard)
+
+const payoutReminder = ref(null)
+onMounted(async () => {
+  try {
+    const e = await get('/rnd/earnings/')
+    payoutReminder.value = e.has_payout_account ? null : { balance: Number(e.pending) + Number(e.posted) }
+  } catch {
+    payoutReminder.value = null
+  }
+})
+
+const setupMissing = ref([])
+const requiredMissing = computed(() => setupMissing.value.filter(m => !m.optional))
+onMounted(async () => {
+  try {
+    setupMissing.value = (await get('/auth/me/onboarding/')).missing || []
+  } catch {
+    setupMissing.value = []
+  }
+})
 </script>
 
 <style scoped>
@@ -383,4 +428,16 @@ onMounted(loadDashboard)
   .dash-grid { grid-template-columns: 1fr; }
   .outcomes-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* MISSING SETUP */
+.setup-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: #fff; border: 1px solid #eceeec; border-left: 4px solid #D4A017; border-radius: 14px;
+  padding: 16px 20px; margin: -8px 0 20px;
+}
+.setup-title { font-family: 'Playfair Display', serif; font-size: 1.02rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
+.setup-sub { font-size: 0.82rem; color: #6a7a6a; margin: 0 0 6px; }
+.setup-list { margin: 0; padding-left: 18px; font-size: 0.84rem; color: #1a3a1a; line-height: 1.6; }
+.setup-btn { background: #163a1c; color: #fff; text-decoration: none; border-radius: 8px; padding: 10px 16px; font-size: 0.84rem; font-weight: 600; white-space: nowrap; }
+.setup-btn:hover { background: #0f2a14; }
 </style>

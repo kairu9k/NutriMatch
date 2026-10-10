@@ -22,13 +22,13 @@
 
       <form class="admin-form" @submit.prevent="handleAdminLogin">
         <div class="field">
-          <label>Email</label>
-          <input v-model="adminForm.email" type="email" placeholder="admin@nutrimatch.ph" required />
+          <label>Email Address</label>
+          <input v-model="adminForm.email" type="email" placeholder="Enter your admin email address" required />
         </div>
 
         <div class="field">
           <label>Password</label>
-          <div class="input-icon-wrap">
+          <div class="input-icon-wrap no-icon">
             <input
               v-model="adminForm.password"
               :type="showAdminPassword ? 'text' : 'password'"
@@ -41,14 +41,19 @@
           </div>
         </div>
 
-        <p v-if="errorMessage && isAdminMode" class="form-error">{{ errorMessage }}</p>
+        <div v-if="deactivated && isAdminMode" class="form-error deactivated-box" role="alert">
+          <p class="deactivated-title">Your account has been deactivated</p>
+          <p>The NutriMatch admin deactivated this account, so you can't sign in right now. If you think this is a mistake, email us to request a review.</p>
+          <a :href="deactivatedMailto" class="deactivated-link">{{ deactivated }}</a>
+        </div>
+        <p v-else-if="errorMessage && isAdminMode" class="form-error">{{ errorMessage }}</p>
 
         <button type="submit" class="btn-signin" :disabled="isSubmitting">
           {{ isSubmitting ? 'Signing in…' : 'Sign In' }}
         </button>
       </form>
 
-      <button type="button" class="back-to-user" @click="isAdminMode = false">
+      <button type="button" class="back-to-user" @click="navigateTo('/login')">
         ← Back to regular sign in
       </button>
     </div>
@@ -99,15 +104,15 @@
           <div class="field">
             <label>Email Address</label>
             <div class="input-icon-wrap">
-              <span class="input-icon">👤</span>
-              <input v-model="form.email" type="email" placeholder="blessedhope2003@email.com" required />
+              <User class="input-icon" aria-hidden="true" />
+              <input v-model="form.email" type="email" placeholder="Enter your email address" required />
             </div>
           </div>
 
           <div class="field">
             <label>Password</label>
             <div class="input-icon-wrap">
-              <span class="input-icon">🔒</span>
+              <Lock class="input-icon" aria-hidden="true" />
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
@@ -128,7 +133,12 @@
             <a href="#" class="forgot-link" @click.prevent="navigateTo('/forgot-password')">Forgot Password?</a>
           </div>
 
-          <p v-if="errorMessage && !isAdminMode" class="form-error">{{ errorMessage }}</p>
+          <div v-if="deactivated && !isAdminMode" class="form-error deactivated-box" role="alert">
+            <p class="deactivated-title">Your account has been deactivated</p>
+            <p>The NutriMatch admin deactivated this account, so you can't sign in right now. If you think this is a mistake, email us to request a review.</p>
+            <a :href="deactivatedMailto" class="deactivated-link">{{ deactivated }}</a>
+          </div>
+          <p v-else-if="errorMessage && !isAdminMode" class="form-error">{{ errorMessage }}</p>
 
           <button type="submit" class="btn-primary" :disabled="isSubmitting">
             {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
@@ -140,9 +150,6 @@
             <span class="google-icon">G</span> Sign in with Google
           </button>
 
-          <button type="button" class="btn-admin" @click="isAdminMode = true">
-            <span class="admin-icon">🛡</span> Sign in as Admin
-          </button>
         </form>
 
         <p class="signup-link">
@@ -154,12 +161,13 @@
 </template>
 
 <script setup>
+import { Lock, User } from 'lucide-vue-next'
 const auth = useAuthStore()
 
-// isAdminMode toggles between the two views below — both live in this
-// same component, so clicking "Sign in as Admin" just swaps what's
-// rendered instead of navigating to a different route/app.
-const isAdminMode = ref(false)
+// Admins sign in on their own route (/admin/login → pages/admin/login.vue
+// passes `admin`); /login is for clients and RNDs only.
+const props = defineProps({ admin: { type: Boolean, default: false } })
+const isAdminMode = computed(() => props.admin)
 
 const showPassword = ref(false)
 const form = reactive({
@@ -175,6 +183,18 @@ const adminForm = reactive({
 })
 
 const errorMessage = ref('')
+// Deactivated by an admin: the API returns the support email to appeal to.
+const deactivated = ref('')
+const deactivatedMailto = computed(() => {
+  const subject = encodeURIComponent('Request to review my deactivated NutriMatch account')
+  const body = encodeURIComponent(`Hi NutriMatch team,\n\nMy account (${form.email || adminForm.email}) was deactivated. I'd like to request a review.\n\nThank you.`)
+  return `mailto:${deactivated.value}?subject=${subject}&body=${body}`
+})
+function showLoginError(error) {
+  const data = error?.data || {}
+  deactivated.value = data.code === 'account_deactivated' ? (data.support_email || '') : ''
+  errorMessage.value = data.detail || 'Incorrect email or password.'
+}
 const isSubmitting = ref(false)
 
 const roleRedirect = {
@@ -185,12 +205,18 @@ const roleRedirect = {
 
 async function handleLogin() {
   errorMessage.value = ''
+  deactivated.value = ''
   isSubmitting.value = true
   try {
     const user = await auth.login(form.email, form.password)
+    if (user.role === 'admin') {
+      auth.logout()
+      errorMessage.value = 'Admin accounts sign in on the admin sign-in page.'
+      return
+    }
     navigateTo(roleRedirect[user.role] || '/')
   } catch (error) {
-    errorMessage.value = error?.data?.detail || 'Invalid email or password.'
+    showLoginError(error)
   } finally {
     isSubmitting.value = false
   }
@@ -203,6 +229,7 @@ function handleGoogleLogin() {
 
 async function handleAdminLogin() {
   errorMessage.value = ''
+  deactivated.value = ''
   isSubmitting.value = true
   try {
     const user = await auth.login(adminForm.email, adminForm.password)
@@ -213,7 +240,7 @@ async function handleAdminLogin() {
     }
     navigateTo('/admin-dashboard')
   } catch (error) {
-    errorMessage.value = error?.data?.detail || 'Invalid email or password.'
+    showLoginError(error)
   } finally {
     isSubmitting.value = false
   }
@@ -347,10 +374,11 @@ async function handleAdminLogin() {
 .input-icon-wrap { position: relative; display: flex; align-items: center; }
 .input-icon-wrap input { flex: 1; padding-left: 38px; padding-right: 60px; }
 .input-icon {
-  position: absolute; left: 12px;
-  font-size: 0.9rem; color: #9aa8a0;
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: #9aa8a0;
   pointer-events: none;
 }
+.input-icon-wrap.no-icon input { padding-left: 14px; }
 .toggle-visibility {
   position: absolute; right: 12px;
   background: none; border: none; cursor: pointer;
@@ -582,16 +610,22 @@ async function handleAdminLogin() {
 }
 .back-to-user:hover { color: #1a3a1a; }
 
+/* Phones/tablets: the green hero would stack above the form and push it
+   off-screen, so it shrinks to a slim branded bar and Sign in comes first. */
 @media (max-width: 900px) {
-  .login-page { grid-template-columns: 1fr; }
-  .left-panel { padding: 32px; min-height: 280px; }
-  .left-content { margin-top: 32px; }
-  .right-panel { padding: 32px; }
-  .form-wrap { margin-top: 32px; }
-  .trust-badges { margin-top: 24px; }
+  .login-page { grid-template-columns: 1fr; min-height: 100vh; min-height: 100dvh; grid-template-rows: auto 1fr; }
+  .left-panel { padding: 16px 20px; min-height: 0; }
+  .left-content, .trust-badges, .circle { display: none; }
+  .brand { font-size: 1.1rem; }
+  .logo-icon { width: 34px; height: 34px; }
+  .right-panel { padding: 24px 20px 32px; }
+  .form-wrap { margin-top: 8px; }
 }
 
 @media (max-width: 500px) {
   .admin-card { padding: 32px 28px 36px; }
 }
+.deactivated-box p { margin: 0 0 6px; line-height: 1.5; }
+.deactivated-title { font-weight: 700; }
+.deactivated-link { font-weight: 700; color: inherit; text-decoration: underline; word-break: break-all; }
 </style>

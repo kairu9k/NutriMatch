@@ -107,6 +107,8 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+    # Record each sign-in in User.last_login (shown on the admin user page).
+    'UPDATE_LAST_LOGIN': True,
 }
 
 # Real-time messaging (Django Channels). REDIS_URL defaults to a local
@@ -172,6 +174,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+    # Uppercase + lowercase + number + special character — the registration
+    # form shows the same rules as a live checklist.
+    {
+        'NAME': 'accounts.validators.PasswordComplexityValidator',
+    },
 ]
 
 
@@ -217,6 +224,10 @@ CLOUDINARY = {
 GMAIL_HOST_USER = config('GMAIL_HOST_USER', default='')
 GMAIL_HOST_PASSWORD = config('GMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=GMAIL_HOST_USER or 'noreply@nutrimatch.ph')
+# Where links in emails point (sign in, apply again).
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000').rstrip('/')
+# Fallback for the `support_email` system setting (core/support.py).
+SUPPORT_EMAIL = config('SUPPORT_EMAIL', default='nutrimatch36@gmail.com')
 
 MAILERS = {
     'default': (

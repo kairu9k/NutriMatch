@@ -4,6 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from core.test_utils import approve_rnd
 from scheduling.models import RndClientRelationship
 
 from .models import (
@@ -20,7 +21,7 @@ class MealPlanExchangeRecomputeTests(TestCase):
     items, not manually entered — see MealPlanMeal.recompute_exchanges."""
 
     def setUp(self):
-        rnd = User.objects.create_user(email="rnd@nt.ph", password="x", role="rnd", first_name="R", last_name="D")
+        rnd = approve_rnd(User.objects.create_user(email="rnd@nt.ph", password="x", role="rnd", first_name="R", last_name="D"))
         client = User.objects.create_user(email="client@nt.ph", password="x", role="client", first_name="C", last_name="L")
         rel = RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Test Plan")
@@ -92,7 +93,7 @@ class MealPlanFoodItemViewTests(TestCase):
 
     def setUp(self):
         self.client_api = APIClient()
-        self.rnd = User.objects.create_user(email="rnd2@nt.ph", password="x", role="rnd", first_name="R", last_name="D")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd2@nt.ph", password="x", role="rnd", first_name="R", last_name="D"))
         client = User.objects.create_user(email="client2@nt.ph", password="x", role="client", first_name="C", last_name="L")
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=client, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Test Plan")
@@ -142,7 +143,7 @@ class WeeklyMealPlanTests(TestCase):
 
     def setUp(self):
         self.client_api = APIClient()
-        self.rnd = User.objects.create_user(email="rnd3@nt.ph", password="x", role="rnd", first_name="R", last_name="D")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd3@nt.ph", password="x", role="rnd", first_name="R", last_name="D"))
         self.client_user = User.objects.create_user(email="client3@nt.ph", password="x", role="client", first_name="C", last_name="L")
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
         self.plan = MealPlan.objects.create(relationship=self.rel, name="Week Plan", target_kcal=Decimal("1800"))
@@ -211,7 +212,7 @@ class WeeklyMealPlanTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_other_rnd_cannot_save_week(self):
-        other = User.objects.create_user(email="rnd4@nt.ph", password="x", role="rnd", first_name="O", last_name="R")
+        other = approve_rnd(User.objects.create_user(email="rnd4@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
         self.client_api.force_authenticate(other)
         self.assertEqual(self._save(self._week([{"food_name": "Oatmeal"}])).status_code, 404)
 
@@ -248,3 +249,120 @@ class WeeklyMealPlanTests(TestCase):
         self.client_api.patch(f"/api/rnd/meal-plans/{self.plan.id}/", {"status": "active"}, format="json")
         self.plan.refresh_from_db()
         self.assertEqual(self.plan.status, MealPlan.Status.DRAFT)
+
+
+class NonNegativeMealPlanTests(TestCase):
+    setUp = WeeklyMealPlanTests.setUp  # same RND / client / plan fixture
+
+    def test_negative_plan_target_rejected(self):
+        resp = self.client_api.patch(f"/api/rnd/meal-plans/{self.plan.id}/", {"target_kcal": "-100"}, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("target_kcal", resp.data)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.target_kcal, Decimal("1800"))
+
+    def test_negative_food_macro_in_week_rejected(self):
+        resp = self.client_api.put(f"/api/rnd/meal-plans/{self.plan.id}/week/", {"meals": [{
+            "day_of_week": 1, "meal_time": "breakfast", "items": [{"food_name": "Rice", "kcal": "-5"}],
+        }]}, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+
+
+class MealPlanNutrientTargetTests(TestCase):
+    """Plan targets beyond calories are Measured Variable / Value / Unit rows;
+    gram rows for protein/carbs/fat also fill the macro columns."""
+
+    setUp = WeeklyMealPlanTests.setUp
+
+    def _patch(self, rows):
+        return self.client_api.patch(f"/api/rnd/meal-plans/{self.plan.id}/", {"nutrient_targets": rows}, format="json")
+
+    def test_rows_saved_and_macro_columns_synced(self):
+        resp = self._patch([
+            {"label": "Protein", "value": "70", "unit": "g/day"},
+            {"label": "carbohydrate", "value": "210", "unit": "g"},
+            {"label": "Fat", "value": "30", "unit": "% of kcal"},  # not grams → no fat column
+            {"label": "Fiber", "value": "25", "unit": "g/day"},
+            {"label": "  ", "value": "", "unit": ""},  # empty row dropped
+        ])
+
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual([r["label"] for r in resp.data["nutrient_targets"]], ["Protein", "carbohydrate", "Fat", "Fiber"])
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.target_protein_g, Decimal("70"))
+        self.assertEqual(self.plan.target_carb_g, Decimal("210"))
+        self.assertIsNone(self.plan.target_fat_g)
+
+    def test_negative_value_rejected(self):
+        resp = self._patch([{"label": "Protein", "value": "-5", "unit": "g/day"}])
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_macro_columns_are_not_directly_writable(self):
+        self._patch([{"label": "Protein", "value": "70", "unit": "g/day"}])
+        resp = self.client_api.patch(f"/api/rnd/meal-plans/{self.plan.id}/", {"target_protein_g": "999"}, format="json")
+
+        self.assertEqual(resp.status_code, 200)
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.target_protein_g, Decimal("70"))
+
+    def test_plan_saved_with_only_columns_gets_rows(self):
+        plan = MealPlan.objects.create(
+            relationship=self.rel, name="Seeded", target_protein_g=Decimal("80.00"), target_fat_g=Decimal("55.5"),
+        )
+        self.assertEqual(plan.nutrient_targets, [
+            {"label": "Protein", "value": "80", "unit": "g/day"},
+            {"label": "Fat", "value": "55.5", "unit": "g/day"},
+        ])
+
+
+class RndMealLogNotificationTests(TestCase):
+    """When a client logs a meal, the RND's notification carries the log
+    (meal, status, photo, what was planned) and the RND can open it."""
+
+    def setUp(self):
+        self.client_api = APIClient()
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd9@nt.ph", password="x", role="rnd", first_name="Maria", last_name="S"))
+        self.client_user = User.objects.create_user(email="client9@nt.ph", password="x", role="client", first_name="Ana", last_name="C")
+        rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+        plan = MealPlan.objects.create(relationship=rel, name="Plan", status="active")
+        self.meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=1, meal_time="breakfast")
+        MealPlanFoodItem.objects.create(meal_plan_meal=self.meal, food_name="Rice, boiled", household_measure="1/2 cup", kcal=Decimal("100"))
+
+        self.client_api.force_authenticate(self.client_user)
+        resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {
+            "status": "partially_followed", "time_logged": "07:15", "reason_notes": "Only half the rice",
+        }, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.log_id = resp.data["id"]
+
+    def test_rnd_notification_includes_the_meal_log(self):
+        self.client_api.force_authenticate(self.rnd)
+        notifications = self.client_api.get("/api/notifications/").data
+        meal_note = next(n for n in notifications if n["notifiable_type"] == "meal_log")
+
+        log = meal_note["meal_log"]
+        self.assertEqual(log["id"], self.log_id)
+        self.assertEqual(log["meal_label"], "Breakfast")
+        self.assertEqual(log["status_label"], "Partially Followed")
+        self.assertEqual(log["reason_notes"], "Only half the rice")
+        self.assertEqual(log["client_name"], "Ana C")
+        self.assertEqual(log["planned_items"][0]["food_name"], "Rice, boiled")
+
+    def test_rnd_can_open_the_log_but_others_cannot(self):
+        self.client_api.force_authenticate(self.rnd)
+        self.assertEqual(self.client_api.get(f"/api/rnd/meal-logs/{self.log_id}/").status_code, 200)
+
+        other = approve_rnd(User.objects.create_user(email="rnd10@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
+        self.client_api.force_authenticate(other)
+        self.assertEqual(self.client_api.get(f"/api/rnd/meal-logs/{self.log_id}/").status_code, 404)
+
+        self.client_api.force_authenticate(self.client_user)
+        self.assertEqual(self.client_api.get(f"/api/rnd/meal-logs/{self.log_id}/").status_code, 403)
+
+    def test_other_notification_types_have_no_meal_log(self):
+        self.client_api.force_authenticate(self.client_user)
+        for n in self.client_api.get("/api/notifications/").data:
+            self.assertIsNone(n["meal_log"])

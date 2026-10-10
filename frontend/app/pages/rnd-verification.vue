@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ layout: 'admin', title: 'RND Verification', subtitle: 'Review PRC credentials and manage practitioner status' })
+definePageMeta({ layout: 'dashboard', title: 'RND Applications', subtitle: 'Review PRC licenses and RND profiles', admin: true })
 </script>
 
 <template>

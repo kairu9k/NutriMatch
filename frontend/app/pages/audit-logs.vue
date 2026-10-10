@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ layout: 'admin', title: 'Audit Logs', subtitle: 'RA 10173-compliant activity trail' })
+definePageMeta({ layout: 'dashboard', title: 'Audit Logs', subtitle: 'Every important action, for RA 10173 accountability', admin: true })
 </script>
 
 <template>
