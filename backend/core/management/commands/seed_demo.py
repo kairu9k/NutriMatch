@@ -204,7 +204,11 @@ class Command(BaseCommand):
         # FNRI foods + system settings the meal plans and invoices rely on.
         call_command("seed", stdout=self.stdout)
 
-        with transaction.atomic():
+        # Demo payments go through the real record_successful_payment(), but
+        # .test addresses can't receive mail — skip the receipt emails.
+        from unittest import mock
+
+        with mock.patch("billing.receipts.send_payment_receipts"), transaction.atomic():
             self.admin = self._create_admin()
             self.rnds = {p["key"]: self._create_rnd(p) for p in RNDS}
             self.clients = {p["key"]: self._create_client(p) for p in CLIENTS}

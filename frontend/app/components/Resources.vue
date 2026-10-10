@@ -17,37 +17,31 @@
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
-    <!-- STAT CARDS -->
-    <section class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-icon icon-purple"><Copy :size="17" /></div>
-        <div>
-          <p class="stat-value">{{ stats.total }}</p>
-          <p class="stat-label">Total Resources</p>
-        </div>
+    <!-- STAT CARDS — real numbers only -->
+    <section class="nm-stat-grid">
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><Library :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.total }}</p>
+        <p class="nm-stat-label">My resources</p>
+        <p class="nm-stat-note">{{ stats.active }} active</p>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon icon-blue"><Upload :size="17" /></div>
-        <div>
-          <p class="stat-value">{{ stats.myUploads }}</p>
-          <p class="stat-label">My Uploads</p>
-        </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><Share2 :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.shared }}</p>
+        <p class="nm-stat-label">Shared with clients</p>
+        <p class="nm-stat-note">Resources at least one client can see</p>
       </div>
-      <div class="stat-card">
-        <!-- TODO: patient views isn't tracked by the backend yet -->
-        <div class="stat-icon icon-red"><Eye :size="17" /></div>
-        <div>
-          <p class="stat-value">{{ stats.patientViews }}</p>
-          <p class="stat-label">Patient Views</p>
-        </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon gold"><Users :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.shares }}</p>
+        <p class="nm-stat-label">Client shares</p>
+        <p class="nm-stat-note">Total across all resources</p>
       </div>
-      <div class="stat-card">
-        <!-- TODO: download counts aren't tracked by the backend yet -->
-        <div class="stat-icon icon-gold"><Download :size="17" /></div>
-        <div>
-          <p class="stat-value">{{ stats.downloads }}</p>
-          <p class="stat-label">Downloads</p>
-        </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon gold"><EyeOff :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.notShared }}</p>
+        <p class="nm-stat-label">Not shared yet</p>
+        <p class="nm-stat-note" :class="{ warn: stats.notShared }">{{ stats.notShared ? 'Use Share Resource on the card' : 'Everything is shared' }}</p>
       </div>
     </section>
 
@@ -70,8 +64,8 @@
     <!-- MY UPLOADED RESOURCES -->
     <section class="resource-section">
       <div class="section-header">
-        <h3 class="section-title"><Upload :size="15" /> MY UPLOADED RESOURCES</h3>
-        <span class="section-count">{{ filteredResources.length }} files</span>
+        <h3 class="section-title">My uploaded resources</h3>
+        <span class="nm-pill gold">{{ filteredResources.length }} file{{ filteredResources.length === 1 ? '' : 's' }}</span>
       </div>
 
       <div v-if="isLoading" class="placeholder-text">Loading…</div>
@@ -107,45 +101,20 @@
       </template>
     </section>
 
-    <!-- PINNED CLINICAL REFERENCES -->
-    <!-- Static app-level reference content, not tied to a per-RND data source -->
+    <!-- YOUR TOOLS — links to the app's own clinical tools -->
     <section class="resource-section">
       <div class="section-header">
-        <h3 class="section-title"><Pin :size="15" /> PINNED CLINICAL REFERENCES</h3>
+        <h3 class="section-title">Your tools</h3>
       </div>
-      <div class="resource-grid">
-        <div v-for="p in pinnedReferences" :key="p.title" class="resource-card reference-card">
-          <div class="resource-icon" :class="'icon-' + p.iconType">
-            <component :is="p.icon" :size="18" />
-          </div>
-          <p class="resource-title">{{ p.title }}</p>
-          <p class="resource-desc">{{ p.description }}</p>
-          <div class="resource-tags">
-            <span class="type-pill" :class="'type-' + p.type.toLowerCase()">{{ p.type }}</span>
-            <span class="category-pill">{{ p.tag }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PATIENT EDUCATION MATERIALS -->
-    <!-- Static app-level reference content, not tied to a per-RND data source -->
-    <section class="resource-section">
-      <div class="section-header">
-        <h3 class="section-title"><GraduationCap :size="15" /> PATIENT EDUCATION MATERIALS</h3>
-      </div>
-      <div class="resource-grid">
-        <div v-for="e in patientEducationMaterials" :key="e.title" class="resource-card reference-card">
-          <div class="resource-icon" :class="'icon-' + e.iconType">
-            <component :is="e.icon" :size="18" />
-          </div>
-          <p class="resource-title">{{ e.title }}</p>
-          <p class="resource-desc">{{ e.description }}</p>
-          <div class="resource-tags">
-            <span class="type-pill" :class="'type-' + e.type.toLowerCase()">{{ e.type }}</span>
-            <span class="category-pill">{{ e.tag }}</span>
-          </div>
-        </div>
+      <div class="tools-grid">
+        <NuxtLink v-for="t in TOOLS" :key="t.to" :to="t.to" class="nm-panel tool-card">
+          <span class="nm-stat-icon" :class="t.gold ? 'gold' : ''"><component :is="t.icon" :size="17" /></span>
+          <span class="tool-main">
+            <span class="tool-title">{{ t.title }}</span>
+            <span class="tool-desc">{{ t.desc }}</span>
+          </span>
+          <ChevronRight :size="16" class="tool-arrow" />
+        </NuxtLink>
       </div>
     </section>
 
@@ -221,10 +190,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
-  Upload, Search, LayoutGrid, List, Library, Copy, Eye, Download,
-  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon, Share2, X, Pin,
-  Table2, Calculator, ClipboardList, HeartPulse, GraduationCap, Leaf, Cookie, Link2, ShieldCheck,
-  UploadCloud, CheckCircle2
+  Upload, Search, LayoutGrid, List, Library, Eye,
+  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon, Share2, X,
+  Table2, ClipboardList, HeartPulse, Leaf,
+  UploadCloud, CheckCircle2, EyeOff, Users, ChevronRight
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
@@ -255,14 +224,17 @@ async function loadResources() {
 }
 
 /* ---------- STATS ---------- */
-// TODO: patientViews and downloads aren't tracked by the backend yet —
-// wire these up to real analytics once available.
-const stats = computed(() => ({
-  total: resources.value.length,
-  myUploads: resources.value.length,
-  patientViews: 0,
-  downloads: 0
-}))
+// Only what the app actually records (views/downloads aren't tracked).
+const stats = computed(() => {
+  const list = resources.value
+  return {
+    total: list.length,
+    active: list.filter(r => r.is_active).length,
+    shared: list.filter(r => r.shared_count).length,
+    shares: list.reduce((n, r) => n + (r.shared_count || 0), 0),
+    notShared: list.filter(r => !r.shared_count).length,
+  }
+})
 
 /* ---------- TOOLBAR ---------- */
 const search = ref('')
@@ -428,20 +400,13 @@ function timeAgo(iso) {
 
 onMounted(loadResources)
 
-/* ---------- PINNED CLINICAL REFERENCES (static, app-level content) ---------- */
-const pinnedReferences = ref([
-  { title: 'FNRI Food Exchange Lists 4th Ed.', description: 'Philippine-specific food exchange reference for MNT planning.', icon: Table2, iconType: 'article', type: 'PDF', tag: 'Official' },
-  { title: 'BMI & IBW Calculator', description: 'Auto-calculate BMI, IBW, and calorie needs using patient data.', icon: Calculator, iconType: 'pdf', type: 'Tool', tag: 'Interactive' },
-  { title: 'NCP Documentation Template', description: '4-phase NCP template pre-formatted for RA 10173 compliance.', icon: ClipboardList, iconType: 'video', type: 'DOCX', tag: 'Compliance' },
-  { title: 'T2DM MNT Protocol 2024', description: 'Evidence-based MNT protocol for Type 2 Diabetes management.', icon: HeartPulse, iconType: 'link', type: 'PDF', tag: 'Clinical' }
-])
-
-const patientEducationMaterials = ref([
-  { title: 'Healthy Filipino Eating Guide', description: 'Patient-friendly visual guide to balanced Filipino meals.', icon: Leaf, iconType: 'article', type: 'Handout', tag: 'Patient' },
-  { title: 'Low-GI Filipino Foods List', description: 'Glycemic index reference for common Philippine foods.', icon: Cookie, iconType: 'pdf', type: 'PDF', tag: 'Patient' },
-  { title: 'DASH Diet for Filipinos', description: 'Localized DASH diet guide using accessible Filipino ingredients.', icon: Link2, iconType: 'link', type: 'PDF', tag: 'Patient' },
-  { title: 'CKD Dietary Restrictions', description: 'Potassium, phosphorus, and sodium restriction guide for CKD.', icon: ShieldCheck, iconType: 'video', type: 'PDF', tag: 'Patient' }
-])
+/* ---------- YOUR TOOLS ---------- */
+const TOOLS = [
+  { title: 'Food Exchange Search', desc: 'FNRI Food Exchange Lists — exchanges, portions and macros.', to: '/food-exchange-search', icon: Table2 },
+  { title: 'Meal Planning', desc: 'Build and send weekly meal plans to your patients.', to: '/meal-planning', icon: Leaf, gold: true },
+  { title: 'NCP Records', desc: 'Assessment, diagnosis, intervention and monitoring notes.', to: '/ncp-records', icon: ClipboardList },
+  { title: 'My Patients', desc: 'Screenings, progress and plans for each patient.', to: '/my-patients', icon: HeartPulse, gold: true },
+]
 </script>
 
 <style scoped>
@@ -475,33 +440,32 @@ const patientEducationMaterials = ref([
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
 /* STAT CARDS */
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 35px; }
-.stat-card { background: #fff; border-radius: 14px; padding: 14px 18px; border: 1px solid #CBD5E1; display: flex; align-items: center; gap: 14px; }
-.stat-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-icon.icon-purple { background: #ece3f7; color: #6a3aa0; }
-.stat-icon.icon-blue { background: #e3ecf7; color: #2a5a8a; }
-.stat-icon.icon-red { background: #fbe0e0; color: #c0392b; }
-.stat-icon.icon-gold { background: #fdf1d6; color: #b8860b; }
-.stat-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.stat-label { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 0; }
 
 /* TOOLBAR */
 .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
 .search-box-wide {
   width: 100%; max-width: 420px; display: flex; align-items: center; gap: 10px; background: #fff;
- border: 1px solid #CBD5E1; border-radius: 10px; padding: 11px 16px;
+ border: 1px solid #d5dad5; border-radius: 10px; padding: 11px 16px;
 }
 .search-box-wide input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; color: #4a5a4a; }
 .search-icon { color: #9aaa9a; flex-shrink: 0; }
-.filter-select { border: 1px solid #CBD5E1; border-radius: 10px; padding: 11px 16px; font-size: 0.85rem; color: #4a5a4a; background: #fff; cursor: pointer; }
-.view-toggle { display: flex; border: 1px solid #CBD5E1; border-radius: 8px; overflow: hidden; margin-left: auto; }
+.filter-select { border: 1px solid #d5dad5; border-radius: 10px; padding: 11px 16px; font-size: 0.85rem; color: #4a5a4a; background: #fff; cursor: pointer; }
+.view-toggle { display: flex; border: 1px solid #d5dad5; border-radius: 8px; overflow: hidden; margin-left: auto; }
 .view-btn { display: flex; align-items: center; gap: 5px; border: none; background: #fff; color: #4a5a4a; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .view-btn.active { background: #14301a; color: #fff; }
 
 /* SECTIONS */
 .resource-section { margin-bottom: 32px; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.section-title { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; letter-spacing: 0.08em; color: #6a7a6a; font-weight: 700; margin: 0; }
+.section-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; font-weight: 700; margin: 0; }
+.tools-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.tool-card { display: flex; align-items: center; gap: 14px; text-decoration: none; padding: 16px 18px; }
+.tool-card:hover { border-color: #c7d6ca; background: #fafbfa; }
+.tool-card .nm-stat-icon { margin: 0; flex-shrink: 0; }
+.tool-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tool-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; }
+.tool-desc { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
+.tool-arrow { color: #b0bab0; flex-shrink: 0; }
 .section-count { background: #fdf1d6; color: #b8860b; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
 
 /* RESOURCE GRID */
@@ -561,12 +525,11 @@ const patientEducationMaterials = ref([
 .empty-state {
   text-align: center; padding: 56px 24px; background: #fff; border-radius: 14px; border: 1px solid #eceeec;
 }
-.empty-icon { color: #c8d0c8; margin-bottom: 12px; }
+.empty-icon { display: block; color: #c8d0c8; margin: 0 auto 12px; }
 .empty-title { font-size: 0.95rem; font-weight: 700; color: #4a5a4a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.82rem; color: #9aaa9a; margin: 0; }
 
 @media (max-width: 1100px) {
-  .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .resource-grid { grid-template-columns: repeat(2, 1fr); }
   .hero-banner { flex-direction: column; align-items: flex-start; }
 }
