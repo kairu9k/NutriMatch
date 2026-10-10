@@ -2,7 +2,7 @@
   <div class="library-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Resources</h1>
+        <!-- <h1 class="page-title">Resources</h1> -->
         <p class="page-sub">Nutrition education materials shared by your RND.</p>
       </div>
       <div class="search-box">

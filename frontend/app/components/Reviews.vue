@@ -133,7 +133,7 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
 /* SUMMARY */
-.summary-row { display: grid; grid-template-columns: 260px 1fr; gap: 16px; margin-bottom: 24px; }
+.summary-row { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; margin-bottom: 24px; }
 
 .score-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec;
@@ -180,4 +180,13 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
+
+/* PHONE */
+@media (max-width: 640px) {
+  .summary-row { grid-template-columns: minmax(0, 1fr); }
+  .breakdown-card { padding: 18px; }
+  .review-card { padding: 16px; }
+  .review-top { flex-wrap: wrap; gap: 6px; }
+  .review-comment { margin-left: 0; overflow-wrap: anywhere; }
+}
 </style>

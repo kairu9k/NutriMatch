@@ -185,6 +185,27 @@ class NcpRecordLifecycleTests(TestCase):
         record.refresh_from_db()
         self.assertEqual(len(record.assessment_extra), 1)
 
+    def test_draft_can_be_deleted_and_is_audit_logged(self):
+        from core.models import AuditLog
+
+        record = NcpRecord.objects.create(relationship=self.rel, encounter_date=timezone.now().date())
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.delete(f"/api/rnd/ncp/{record.id}/")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(NcpRecord.objects.filter(pk=record.id).exists())
+        self.assertTrue(AuditLog.objects.filter(action="ncp_record.deleted", record_id=record.id).exists())
+
+    def test_finalized_record_cannot_be_deleted(self):
+        record = NcpRecord.objects.create(relationship=self.rel, encounter_date=timezone.now().date(), status="completed")
+        self.client_api.force_authenticate(self.rnd)
+        self.assertEqual(self.client_api.delete(f"/api/rnd/ncp/{record.id}/").status_code, 403)
+        self.assertTrue(NcpRecord.objects.filter(pk=record.id).exists())
+
+    def test_other_rnd_cannot_delete(self):
+        record = NcpRecord.objects.create(relationship=self.rel, encounter_date=timezone.now().date())
+        self.client_api.force_authenticate(_make_rnd("other-rnd@t.ph"))
+        self.assertEqual(self.client_api.delete(f"/api/rnd/ncp/{record.id}/").status_code, 404)
+
     def test_extra_fields_are_capped(self):
         self.client_api.force_authenticate(self.rnd)
         resp = self.client_api.post(f"/api/rnd/relationships/{self.rel.id}/ncp/", {

@@ -4,7 +4,7 @@
     <template v-if="isRnd">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Appointments</h1>
+          <!-- <h1 class="page-title">Appointments</h1> -->
           <p class="page-sub">Manage your upcoming and past consultations.</p>
         </div>
       </div>
@@ -492,7 +492,7 @@ onMounted(loadAppointments)
   display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
 }
 
-.appt-info { flex: 1; min-width: 200px; }
+.appt-info { flex: 1; min-width: 0; }
 .appt-name { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
 .appt-status-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
 .appt-status-pill.confirmed { background: #e6efe0; color: #3a6b3a; }
@@ -617,5 +617,11 @@ onMounted(loadAppointments)
 @media (max-width: 640px) {
   .appt-card.accent-green, .appt-card.accent-gold, .appt-card.accent-red, .appt-card.accent-muted { flex-direction: column; align-items: flex-start; }
   .appt-actions { width: 100%; }
+  .appt-card { flex-wrap: wrap; padding: 16px; gap: 12px; }
+  .appt-info { flex-basis: calc(100% - 120px); }
+  .appt-name { flex-wrap: wrap; gap: 6px; }
+  .appt-action { width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+  .appt-action > * { flex: 1 1 auto; text-align: center; }
+  .appt-note { max-width: none; text-align: left; }
 }
 </style>

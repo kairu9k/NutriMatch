@@ -2,7 +2,7 @@
   <div class="tracker-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Progress Tracker</h1>
+        <!-- <h1 class="page-title">Progress Tracker</h1> -->
         <p class="page-sub">Your health journey over time, as recorded by your RND.</p>
       </div>
       <div v-if="records.length" class="range-dropdown" ref="rangeDropdownEl">
@@ -283,7 +283,7 @@ onMounted(loadRecords)
   text-align: left; font-size: 0.7rem; letter-spacing: 0.04em; color: #8a9a8a;
   padding: 10px 12px; border-bottom: 1px solid #eceeec; font-weight: 700; text-transform: uppercase;
 }
-.record-table td { padding: 12px; border-bottom: 1px solid #f4f5f2; color: #4a5a4a; }
+.record-table td { padding: 12px; border-bottom: 1px solid #f4f5f2; color: #4a5a4a; white-space: nowrap; }
 .record-table tr:last-child td { border-bottom: none; }
 .notes-cell { color: #8a9a8a; font-style: italic; }
 

@@ -19,18 +19,18 @@
          labels from wrapping mid-animation. -->
     <aside
       class="sidebar"
-      :class="{ collapsed: isCollapsed, 'sidebar-open': isSidebarOpen }"
+      :class="{ collapsed: !expanded, 'sidebar-open': isSidebarOpen }"
       @mouseenter="isCollapsed = false"
-      @mouseleave="isCollapsed = true"
+      @mouseleave="collapseSidebar"
     >
       <div class="sidebar-top">
         <div class="sidebar-brand">
           <img src="/resources/nutrimatchlogo.png" alt="NutriMatch" class="logo-mark" />
-          <span v-if="!isCollapsed" class="logo-text">Nutri<span class="logo-match">Match</span></span>
+          <span v-if="expanded" class="logo-text">Nutri<span class="logo-match">Match</span></span>
         </div>
-        <span v-if="!isCollapsed" class="brand-tagline">Clinical Nutrition System</span>
-        <div v-if="!isCollapsed" class="portal-badge"><span class="portal-dot"></span>{{ portalLabel }}</div>
-        <div v-if="!isCollapsed" class="sidebar-divider"></div>
+        <span v-if="expanded" class="brand-tagline">Clinical Nutrition System</span>
+        <div v-if="expanded" class="portal-badge"><span class="portal-dot"></span>{{ portalLabel }}</div>
+        <div v-if="expanded" class="sidebar-divider"></div>
       </div>
 
       <!-- NAV + ACCOUNT FOOTER — gated on auth.hydrated: auth.user only exists
@@ -42,40 +42,47 @@
       <template v-if="auth.hydrated">
         <nav class="sidebar-nav">
           <template v-for="group in navGroups" :key="group.label">
-            <p v-if="!isCollapsed" class="nav-group-label">{{ group.label }}</p>
+            <p v-if="expanded" class="nav-group-label">{{ group.label }}</p>
             <NuxtLink
               v-for="item in group.items"
               :key="item.label"
               :to="item.to"
               class="nav-item"
-              :class="{ active: route.path === item.to }"
-              :title="isCollapsed ? item.label : null"
+              :class="{ active: route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to + '/')) }"
+              :title="!expanded ? item.label : null"
               @click="isSidebarOpen = false"
             >
               <component :is="item.icon" class="nav-icon" :size="17" />
-              <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
-              <span v-if="item.badge && !isCollapsed" class="nav-badge">{{ item.badge }}</span>
-              <span v-else-if="item.badge && isCollapsed" class="nav-badge-dot"></span>
+              <span v-if="expanded" class="nav-label">{{ item.label }}</span>
+              <span v-if="item.badge && expanded" class="nav-badge">{{ item.badge }}</span>
+              <span v-else-if="item.badge && !expanded" class="nav-badge-dot"></span>
             </NuxtLink>
           </template>
         </nav>
 
         <div class="sidebar-account">
-          <button class="account-trigger" type="button" @click.stop="showAccountMenu = !showAccountMenu" :title="isCollapsed ? displayName : null">
-            <div class="account-avatar">{{ userInitials }}</div>
-            <div v-if="!isCollapsed" class="account-info">
+          <button class="account-trigger" type="button" @click.stop="showAccountMenu = !showAccountMenu" :title="!expanded ? displayName : null">
+            <img v-if="auth.user?.profile_photo" :src="auth.user.profile_photo" alt="" class="account-avatar account-avatar-img" />
+            <div v-else class="account-avatar">{{ userInitials }}</div>
+            <div v-if="expanded" class="account-info">
               <p class="account-name">{{ displayName }}</p>
               <p class="account-role">{{ isRnd ? 'RND' : roleLabel }}</p>
             </div>
-            <component v-if="!isCollapsed" :is="showAccountMenu ? ChevronUp : ChevronDown" class="account-chevron" :size="15" />
+            <component v-if="expanded" :is="showAccountMenu ? ChevronUp : ChevronDown" class="account-chevron" :size="15" />
           </button>
 
-          <div v-if="showAccountMenu" class="account-menu" :class="{ 'account-menu-collapsed': isCollapsed }">
-            <NuxtLink to="/profile-settings" class="account-menu-item" @click="showAccountMenu = false">
-              <UserCog :size="15" /> <span v-if="!isCollapsed">Profile Settings</span>
+          <div v-if="showAccountMenu" class="account-menu" :class="{ 'account-menu-collapsed': !expanded }">
+            <NuxtLink v-if="auth.user?.role !== 'admin'" to="/profile-settings" class="account-menu-item" @click="showAccountMenu = false">
+              <UserCog :size="15" /> <span v-if="expanded">Profile Settings</span>
             </NuxtLink>
+            <NuxtLink v-else to="/system-settings" class="account-menu-item" @click="showAccountMenu = false">
+              <Settings :size="15" /> <span v-if="expanded">System Settings</span>
+            </NuxtLink>
+            <button v-if="welcomeRole" class="account-menu-item" type="button" @click="openWelcome">
+              <Sparkles :size="15" /> <span v-if="expanded">How NutriMatch works</span>
+            </button>
             <button class="account-menu-item logout" type="button" @click="handleLogout">
-              <LogOut :size="15" /> <span v-if="!isCollapsed">Sign Out</span>
+              <LogOut :size="15" /> <span v-if="expanded">Sign Out</span>
             </button>
           </div>
         </div>
@@ -102,6 +109,8 @@
         <slot />
       </main>
     </div>
+
+    <WelcomeModal :open="welcomeOpen" :role="welcomeRole || 'client'" :first-name="auth.user?.first_name || ''" @close="closeWelcome" />
   </div>
 </template>
 
@@ -109,7 +118,8 @@
 import {
   LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, FileText, MessageSquare,
-  UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, AlarmClock
+  UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, AlarmClock, Sparkles,
+  ShieldCheck, Wallet, ScrollText, BarChart3, Settings
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -117,6 +127,16 @@ const auth = useAuthStore()
 const { get } = useApi()
 const isSidebarOpen = ref(false)
 const isCollapsed = ref(true)
+// Labels render only when expanded: on desktop that's while hovering; the
+// mobile drawer (opened with the menu button) is always expanded — a phone
+// has no hover, so it used to slide open as a wide icon-only rail.
+const expanded = computed(() => isSidebarOpen.value || !isCollapsed.value)
+// Leaving the desktop sidebar collapses it back to the icon rail — close the
+// account menu too, or it's left squeezed into the rail as bare icons.
+function collapseSidebar() {
+  isCollapsed.value = true
+  showAccountMenu.value = false
+}
 const showAccountMenu = ref(false)
 
 const todayLabel = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }))
@@ -228,12 +248,92 @@ const clientNavGroups = computed(() => [
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-library' },
       { icon: AlarmClock, label: 'Reminders', to: '/reminders' },
-      { icon: Receipt, label: 'Billing', to: '/invoices-billing' },
+      { icon: Receipt, label: 'Billing & Invoice', to: '/invoices-billing' },
     ],
   },
 ])
 
-const navGroups = computed(() => (isRnd.value ? rndNavGroups.value : clientNavGroups.value))
+// Admin menu — same layout and design as the client/RND portals.
+const adminCounts = ref({ pending: 0, payouts: 0, refunds: 0, staleRequests: 0 })
+async function loadAdminCounts() {
+  if (auth.user?.role !== 'admin') return
+  try {
+    const stats = await get('/admin/platform-stats/')
+    adminCounts.value = {
+      pending: stats.pending_verif || 0,
+      payouts: stats.payouts_due_count || 0,
+      refunds: stats.refunds_pending || 0,
+      staleRequests: stats.appointments?.stale_requests || 0,
+    }
+  } catch {
+    // badges are optional
+  }
+}
+watch(() => [auth.hydrated, route.path], ([hydrated]) => { if (hydrated) loadAdminCounts() }, { immediate: true })
+const adminNavGroups = computed(() => [
+  { label: 'OVERVIEW', items: [{ icon: LayoutDashboard, label: 'Dashboard', to: '/admin-dashboard' }] },
+  {
+    label: 'PEOPLE',
+    items: [
+      { icon: ShieldCheck, label: 'RND Applications', to: '/rnd-verification', badge: adminCounts.value.pending || null },
+      { icon: Users, label: 'Users', to: '/users' },
+      { icon: CalendarCheck, label: 'Appointments', to: '/admin-appointments', badge: adminCounts.value.staleRequests || null },
+    ],
+  },
+  {
+    label: 'MONEY',
+    items: [
+      { icon: Receipt, label: 'Billing & Commission', to: '/billing-commission', badge: adminCounts.value.refunds || null },
+      { icon: Wallet, label: 'Payouts', to: '/payouts', badge: adminCounts.value.payouts || null },
+    ],
+  },
+  {
+    label: 'SYSTEM',
+    items: [
+      { icon: ScrollText, label: 'Audit Logs', to: '/audit-logs' },
+      { icon: BarChart3, label: 'Platform Reports', to: '/platform-reports' },
+    ],
+  },
+])
+
+const navGroups = computed(() => (auth.user?.role === 'admin' ? adminNavGroups.value : isRnd.value ? rndNavGroups.value : clientNavGroups.value))
+
+/* ---------- One-time welcome (WelcomeModal.vue) ---------- */
+// Shown once per account (User.welcome_seen_at), the first time a client or
+// RND reaches the app; reopened from the account menu. A session saved
+// before the field existed is refreshed once so it gets the welcome too.
+const welcomeOpen = ref(false)
+const welcomeRole = computed(() => (['client', 'rnd'].includes(auth.user?.role) ? auth.user.role : null))
+const { post: postApi } = useApi()
+function maybeShowWelcome() {
+  const user = auth.user
+  if (!welcomeRole.value || !user) return
+  if (route.path === '/onboarding') return
+  if (Object.prototype.hasOwnProperty.call(user, 'welcome_seen_at') && !user.welcome_seen_at) welcomeOpen.value = true
+}
+function openWelcome() {
+  showAccountMenu.value = false
+  isSidebarOpen.value = false
+  welcomeOpen.value = true
+}
+async function closeWelcome() {
+  welcomeOpen.value = false
+  if (auth.user && !auth.user.welcome_seen_at) {
+    try {
+      auth.user = await postApi('/auth/me/welcome-seen/')
+      auth.persist()
+    } catch {
+      // Not critical — it will just show again next time.
+    }
+  }
+}
+watch(() => auth.hydrated, async (hydrated) => {
+  if (!hydrated || !auth.user) return
+  if (!Object.prototype.hasOwnProperty.call(auth.user, 'welcome_seen_at')) {
+    await auth.fetchMe().catch(() => null)
+  }
+  maybeShowWelcome()
+}, { immediate: true })
 
 function handleLogout() {
   auth.logout()
@@ -328,6 +428,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   width: 36px; height: 36px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
 }
+.account-avatar-img { object-fit: cover; background: #00382a; }
 .account-info { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; }
 .account-name { font-size: 0.86rem; font-weight: 700; color: #fff; margin: 0; overflow: hidden; text-overflow: ellipsis; }
 .account-role { font-size: 0.72rem; color: #9ab89a; margin: 0; }
@@ -403,20 +504,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     z-index: 40;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.2);
   }
-  .sidebar.sidebar-open { transform: translateX(0); }
-  .sidebar.collapsed .sidebar-brand,
-  .sidebar.collapsed .nav-item,
-  .sidebar.collapsed .account-trigger { justify-content: flex-start; }
-  .sidebar.collapsed .logo-text,
-  .sidebar.collapsed .brand-tagline,
-  .sidebar.collapsed .portal-badge,
-  .sidebar.collapsed .sidebar-divider,
-  .sidebar.collapsed .nav-label,
-  .sidebar.collapsed .nav-group-label,
-  .sidebar.collapsed .account-info { display: block; }
-  .sidebar.collapsed .nav-item.active { padding-left: 7px; border-left: 3px solid #D4A017; }
+  .sidebar.sidebar-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.2); }
 
   .sidebar-overlay {
     display: block;

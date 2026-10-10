@@ -10,6 +10,7 @@ from accounts.permissions import IsAdmin, IsClient, IsRnd
 
 from .models import Invoice, PaymentTransaction
 from .serializers import (
+    AdminInvoiceDetailSerializer,
     AdminInvoiceListSerializer,
     InvoiceListSerializer,
     InvoiceSerializer,
@@ -61,6 +62,20 @@ class AdminInvoiceListView(generics.ListAPIView):
         return Invoice.objects.select_related(
             "relationship__client", "relationship__rnd"
         ).order_by("-created_at")
+
+
+class AdminInvoiceDetailView(generics.RetrieveAPIView):
+    """One invoice with its payment receipt — the Billing & Commission
+    invoice overlay."""
+
+    serializer_class = AdminInvoiceDetailSerializer
+    permission_classes = [IsAdmin]
+    lookup_url_kwarg = "invoice_id"
+
+    def get_queryset(self):
+        return Invoice.objects.select_related(
+            "relationship__client", "relationship__rnd", "appointment"
+        )
 
 
 class InitiatePaymentView(APIView):

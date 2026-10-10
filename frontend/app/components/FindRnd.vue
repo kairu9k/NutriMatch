@@ -205,14 +205,15 @@ onMounted(loadRnds)
 .sort-select { border: 1px solid #d5dad5; border-radius: 8px; padding: 9px 12px; font-size: 0.83rem; color: #2a2a2a; background: #fff; cursor: pointer; }
 
 /* RND GRID */
-.rnd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.rnd-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .rnd-card {
   background: #fff; border-radius: 14px; border: 1.5px solid #eceeec; padding: 22px;
-  display: flex; flex-direction: column; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex; flex-direction: column; transition: border-color 0.15s ease, box-shadow 0.15s ease; min-width: 0;
 }
 .rnd-card:hover { border-color: #1f8f5c; box-shadow: 0 4px 14px rgba(31,143,92,0.1); }
 
 .rnd-card-top { display: flex; gap: 14px; margin-bottom: 14px; }
+.rnd-card-top > div { min-width: 0; overflow-wrap: anywhere; }
 .rnd-avatar { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
 .rnd-name { display: flex; align-items: center; gap: 5px; font-weight: 700; color: #1a3a1a; margin: 0; font-size: 0.92rem; }
 .verified-icon { color: #D4A017; }
@@ -221,13 +222,13 @@ onMounted(loadRnds)
 .rnd-rating.no-reviews { font-weight: 400; color: #9aaa9a; }
 .rnd-review-count { font-weight: 400; color: #9aaa9a; }
 
-.rnd-desc { font-size: 0.83rem; color: #6a7a6a; line-height: 1.5; margin: 0 0 14px; flex: 1; }
+.rnd-desc { font-size: 0.83rem; color: #6a7a6a; line-height: 1.5; margin: 0 0 14px; flex: 1; overflow-wrap: anywhere; }
 
 .rnd-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .lang-chip { font-size: 0.7rem; background: #eef3ec; color: #1a5a2a; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
 .mode-pill { display: flex; align-items: center; gap: 4px; font-size: 0.7rem; background: #e3ecf7; color: #2a5a8a; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
 
-.rnd-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid #f0f2f0; }
+.rnd-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 14px; border-top: 1px solid #f0f2f0; }
 .rnd-price { font-weight: 700; color: #1a3a1a; font-size: 0.92rem; }
 .rnd-price-unit { font-size: 0.72rem; font-weight: 400; color: #9aaa9a; }
 .outline-btn { border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 0.82rem; cursor: pointer; white-space: nowrap; text-decoration: none; }
@@ -252,11 +253,12 @@ onMounted(loadRnds)
 .empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 
 @media (max-width: 1150px) {
-  .rnd-grid { grid-template-columns: repeat(2, 1fr); }
+  .rnd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-row { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 700px) {
-  .rnd-grid { grid-template-columns: 1fr; }
-  .filter-row { grid-template-columns: 1fr; }
+  .rnd-grid { grid-template-columns: minmax(0, 1fr); }
+  .filter-row { grid-template-columns: minmax(0, 1fr); }
+  .rnd-card { padding: 18px; }
 }
 </style>

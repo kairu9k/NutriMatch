@@ -17,15 +17,21 @@
       <div
         v-for="n in notifications"
         :key="n.id"
-        class="notif-item"
+        class="notif-item clickable"
         :class="{ unread: !n.is_read }"
-        @click="!n.is_read && markRead(n)"
+        role="button" tabindex="0"
+        @click="openNotification(n)" @keydown.enter="openNotification(n)"
       >
-        <div class="notif-icon" :class="iconClass(n.notifiable_type)">
+        <img v-if="n.meal_log?.photo_url" :src="n.meal_log.photo_url" alt="" class="notif-photo" />
+        <div v-else class="notif-icon" :class="iconClass(n.notifiable_type)">
           <component :is="iconFor(n.notifiable_type)" :size="18" />
         </div>
         <div class="notif-body">
           <p class="notif-text"><strong>{{ n.subject }}</strong> — {{ n.content }}</p>
+          <p v-if="n.meal_log" class="notif-log-row">
+            <span class="notif-log-status" :class="`log-${n.meal_log.status}`">{{ n.meal_log.status_label }}</span>
+            <span class="notif-log-link">View log →</span>
+          </p>
           <span class="notif-time">{{ timeAgo(n.created_at) }}</span>
         </div>
       </div>
@@ -36,11 +42,14 @@
       <p class="empty-title">No notifications yet</p>
       <p class="empty-desc">You'll see updates here about appointments, messages, and invoices.</p>
     </div>
+
+    <MealLogPopup v-if="openMealLog" :meal-log-id="openMealLog.id" :initial="openMealLog" @close="openMealLog = null" />
+    <NotificationDetailModal v-if="openDetail" :notification="openDetail" @close="openDetail = null" />
   </div>
 </template>
 
 <script setup>
-import { Bell, CalendarCheck, MessageSquare, Receipt } from 'lucide-vue-next'
+import { Bell, CalendarCheck, MessageSquare, Receipt, Utensils } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Notifications' })
 
@@ -53,7 +62,7 @@ const notifications = ref([])
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
 
-const ICONS = { appointment: CalendarCheck, message: MessageSquare, invoice: Receipt }
+const ICONS = { appointment: CalendarCheck, message: MessageSquare, invoice: Receipt, meal_log: Utensils }
 function iconFor(type) {
   return ICONS[type] || Bell
 }
@@ -84,6 +93,17 @@ async function loadNotifications() {
   } finally {
     isLoading.value = false
   }
+}
+
+// Clicking a notification opens its full detail (NotificationDetailModal).
+// "Meal log update" notifications carry the log itself (RND only) — those
+// open the log with the photo and what was planned instead.
+const openMealLog = ref(null)
+const openDetail = ref(null)
+function openNotification(n) {
+  if (!n.is_read) markRead(n)
+  if (n.meal_log) openMealLog.value = n.meal_log
+  else openDetail.value = n
 }
 
 async function markRead(n) {
@@ -149,6 +169,14 @@ onMounted(loadNotifications)
 .notif-icon.neutral { background: #eceeec; color: #7a8a7a; }
 
 .notif-body { flex: 1; }
+.notif-item.clickable { cursor: pointer; }
+.notif-photo { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e5e8e5; flex-shrink: 0; }
+.notif-log-row { display: flex; align-items: center; gap: 10px; margin: 2px 0 4px; }
+.notif-log-status { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 12px; }
+.log-followed { background: #e3f3ea; color: #1f8f5c; }
+.log-partially_followed { background: #fdf1d6; color: #b8860b; }
+.log-not_followed { background: #fbe1de; color: #c0483a; }
+.notif-log-link { font-size: 0.76rem; font-weight: 700; color: #1f8f5c; }
 .notif-text { font-size: 0.88rem; color: #2a3a2a; margin: 0 0 4px; line-height: 1.5; }
 .notif-time { font-size: 0.74rem; color: #9aaa9a; }
 

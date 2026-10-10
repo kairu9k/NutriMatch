@@ -1,5 +1,5 @@
 <template>
-  <div class="messages-page">
+  <div class="messages-page" :class="{ 'show-chat': mobileChatOpen }">
     <!-- CONVERSATION LIST -->
     <div class="conv-pane">
       <div class="conv-pane-header">
@@ -24,7 +24,7 @@
           :key="conv.id"
           class="conv-item"
           :class="{ active: activeConversationId === conv.id }"
-          @click="selectConversation(conv.id)"
+          @click="openConversation(conv.id)"
         >
           <div class="conv-avatar-wrap">
             <div class="conv-avatar" :style="{ background: conv.avatarColor }">{{ conv.initials }}</div>
@@ -52,8 +52,11 @@
       <template v-if="activeConversation">
         <div class="chat-header">
           <div class="chat-who">
+            <button class="back-btn" type="button" aria-label="Back to conversations" @click="mobileChatOpen = false">
+              <ArrowLeft :size="18" />
+            </button>
             <div class="chat-avatar" :style="{ background: activeConversation.avatarColor }">{{ activeConversation.initials }}</div>
-            <div>
+            <div class="chat-who-text">
               <p class="chat-name">{{ activeConversation.name }}</p>
               <p class="chat-sub">RA 10173-compliant</p>
             </div>
@@ -107,7 +110,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { Search, Send, MessageCircle, Lock } from 'lucide-vue-next'
+import { ArrowLeft, Search, Send, MessageCircle, Lock } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Messages' })
@@ -175,6 +178,14 @@ const activeMessages = computed(() =>
 function formatTime(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+// Phones show one pane at a time: the list, or the open chat (with a back
+// button). Desktop ignores this and shows both side by side.
+const mobileChatOpen = ref(Boolean(route.query.relationship))
+function openConversation(id) {
+  mobileChatOpen.value = true
+  if (id !== activeConversationId.value) selectConversation(id)
 }
 
 async function loadConversations() {
@@ -337,7 +348,7 @@ onUnmounted(() => {
 }
 
 /* CONVERSATION LIST */
-.conv-pane { border-right: 1px solid #eceeec; display: flex; flex-direction: column; }
+.conv-pane { border-right: 1px solid #eceeec; display: flex; flex-direction: column; min-width: 0; }
 
 .conv-pane-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 14px; }
 .conv-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
@@ -379,13 +390,15 @@ onUnmounted(() => {
 .conv-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
 
 /* CHAT PANEL */
-.chat-pane { display: flex; flex-direction: column; background: #fff; }
+.chat-pane { display: flex; flex-direction: column; background: #fff; min-width: 0; }
 
 .chat-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 22px; background: #fff; border-bottom: 1px solid #eceeec;
 }
-.chat-who { display: flex; align-items: center; gap: 12px; }
+.chat-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.chat-who-text { min-width: 0; }
+.back-btn { display: none; }
 .chat-avatar {
   width: 38px; height: 38px; border-radius: 50%; color: #fff;
   display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
@@ -409,7 +422,7 @@ onUnmounted(() => {
 .msg-block-me { align-items: flex-end; margin-left: auto; }
 .msg-sender { font-size: 0.78rem; font-weight: 700; color: #4a5a4a; margin-bottom: 5px; }
 
-.msg-bubble { padding: 12px 16px; border-radius: 12px; font-size: 0.86rem; line-height: 1.5; }
+.msg-bubble { padding: 12px 16px; border-radius: 12px; font-size: 0.86rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bubble-them { background: #f4f6f4; color: #2a2a2a; }
 .bubble-me { background: #14301a; color: #fff; }
 .msg-time { font-size: 0.72rem; color: #9aaa9a; margin-top: 5px; }
@@ -441,4 +454,40 @@ onUnmounted(() => {
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.84rem; color: #8a9a8a; margin: 0; }
+
+/* TABLET / PHONE — under the layout's 900px breakpoint the page scrolls as a
+   whole, so size the chat to the screen minus the two top bars + padding. */
+@media (max-width: 900px) {
+  .messages-page { grid-template-columns: 260px minmax(0, 1fr); height: calc(100dvh - 160px); min-height: 420px; }
+}
+
+/* PHONE — one pane at a time */
+@media (max-width: 767px) {
+  .messages-page { grid-template-columns: minmax(0, 1fr); }
+  .conv-pane { border-right: none; min-height: 0; }
+  .chat-pane { display: none; min-height: 0; }
+  .show-chat .conv-pane { display: none; }
+  .show-chat .chat-pane { display: flex; }
+
+  .back-btn {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 32px; height: 32px; margin-left: -6px; border: none; border-radius: 8px;
+    background: none; color: #1a3a1a; cursor: pointer;
+  }
+  .back-btn:active { background: #f0f2ef; }
+  .chat-header { padding: 10px 14px; gap: 10px; }
+  .chat-who { gap: 10px; }
+  .chat-avatar { width: 34px; height: 34px; }
+  .chat-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .online-status { font-size: 0.76rem; }
+
+  .chat-body { padding: 16px 14px; }
+  .msg-block { max-width: 85%; margin-bottom: 14px; }
+  .msg-bubble { padding: 10px 13px; }
+
+  .chat-error { padding: 6px 14px 0; }
+  .chat-input-row { padding: 10px 12px; gap: 8px; }
+  /* 16px stops iOS Safari from zooming in when the input is focused */
+  .chat-input, .search-input { font-size: 16px; }
+}
 </style>

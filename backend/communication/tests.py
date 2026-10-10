@@ -211,3 +211,63 @@ class NotificationViewTests(TestCase):
 
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(NotificationLog.objects.filter(recipient=self.user, is_read=False).exists())
+
+
+class NotificationDetailTests(TestCase):
+    """The notification overlay: full detail + what it's about, own records only."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from decimal import Decimal
+
+        from django.utils import timezone
+
+        from billing.models import Invoice
+        from scheduling.models import Appointment
+
+        from .services import notify
+
+        self.api = APIClient()
+        self.rnd = _make_rnd()
+        self.client_user = _make_client()
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+        self.appt = Appointment.objects.create(relationship=self.rel, scheduled_at=timezone.now() + timedelta(days=2), type="video", duration_minutes=60, status="confirmed")
+        self.invoice = Invoice.objects.create(relationship=self.rel, appointment=self.appt, amount=Decimal("800.00"))
+        self.msg = Message.objects.create(relationship=self.rel, sender=self.rnd, message="See you on Friday! " * 20)
+        self.n_appt = notify(self.client_user, "appointment", self.appt.id, "Appointment confirmed", "Confirmed.")
+        self.n_inv = notify(self.client_user, "invoice", self.invoice.id, "Invoice issued", "Please pay.")
+        self.n_msg = notify(self.client_user, "message", self.msg.id, "New message", "R D: See you…")
+
+    def _get(self, n, user=None):
+        self.api.force_authenticate(user or self.client_user)
+        return self.api.get(f"/api/notifications/{n.id}/")
+
+    def test_appointment_detail(self):
+        resp = self._get(self.n_appt)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        rel = resp.data["related"]
+        self.assertEqual(rel["with"]["name"], "R D")
+        self.assertEqual(rel["status"], "confirmed")
+        self.assertEqual(rel["invoice"]["id"], self.invoice.id)
+
+    def test_invoice_detail(self):
+        rel = self._get(self.n_inv).data["related"]
+        self.assertEqual(str(rel["amount"]), "800.00")
+        self.assertEqual(rel["status"], "unpaid")
+        self.assertEqual(rel["appointment"]["id"], self.appt.id)
+
+    def test_message_detail_has_full_text_and_relationship(self):
+        rel = self._get(self.n_msg).data["related"]
+        self.assertEqual(rel["message"], self.msg.message)
+        self.assertEqual(rel["relationship_id"], self.rel.id)
+
+    def test_other_users_cannot_open_it(self):
+        other = _make_client("other@t.ph")
+        self.assertEqual(self._get(self.n_appt, other).status_code, 404)
+
+    def test_related_is_hidden_when_record_is_not_the_recipients(self):
+        from .services import notify
+
+        other = _make_client("other2@t.ph")
+        n = notify(other, "appointment", self.appt.id, "x", "y")  # points at someone else's appointment
+        self.assertIsNone(self._get(n, other).data["related"])

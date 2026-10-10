@@ -13,7 +13,9 @@
             <h1 class="banner-name">{{ clientName }}</h1>
             <p class="banner-meta">{{ age !== null ? `${age} y/o ` : '' }}{{ sexLabel }}{{ conditions ? ' · ' + conditions : '' }}</p>
             <div class="banner-chips">
-              <span class="chip chip-success">Active Relationship</span>
+              <span v-if="relationshipStatus" class="chip" :class="RELATIONSHIP_CHIP[relationshipStatus]?.cls">
+                {{ RELATIONSHIP_CHIP[relationshipStatus]?.label || relationshipStatus }}
+              </span>
               <span v-if="allergies" class="chip">Allergy: {{ allergies }}</span>
             </div>
           </div>
@@ -33,7 +35,37 @@
         </button>
       </nav>
 
-      <div v-if="activeTab !== 'Overview'" class="surface">
+      <!-- NCP RECORDS TAB: this patient's records, each with View / Edit / Delete -->
+      <div v-if="activeTab === 'NCP Records'" class="surface">
+        <div class="surface-header">
+          <h3 class="surface-title">NCP Records</h3>
+          <button v-if="relationshipStatus === 'active'" class="primary-btn small inline-btn" type="button" @click="openNcpForm">
+            {{ openDraft ? 'Continue Record' : 'New NCP Record' }}
+          </button>
+        </div>
+        <table v-if="ncpRecords.length" class="ncp-table">
+          <thead>
+            <tr><th>CREATED</th><th>RECORD</th><th>PHASE</th><th>STATUS</th><th class="actions-col">ACTIONS</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in ncpRecords" :key="r.id">
+              <td>{{ formatDateTime(r.created_at) }}</td>
+              <td>{{ r.is_follow_up ? 'Follow-up' : 'Initial' }}</td>
+              <td>{{ ncpPhaseLabel(r) }}</td>
+              <td><span class="status-pill" :class="r.status === 'completed' ? 'success' : 'warning'">{{ r.status === 'completed' ? 'Finalized' : 'In Progress' }}</span></td>
+              <td class="actions-col">
+                <NcpRowActions
+                  :record="r" :patient-name="clientName" :editable="relationshipStatus === 'active'"
+                  @view="viewNcpRecord(r)" @edit="openNcpForm" @deleted="reloadNcp"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="empty-note">No NCP records yet.{{ relationshipStatus === 'active' ? ' Start the first one with "New NCP Record".' : '' }}</p>
+      </div>
+
+      <div v-else-if="activeTab !== 'Overview'" class="surface">
         <p class="empty-note">{{ activeTab }} isn't broken out separately yet — use the links in Overview below.</p>
       </div>
 
@@ -46,26 +78,13 @@
                 {{ latestNcp.status === 'completed' ? 'Finalized' : `Draft (Phase ${currentPhaseNumber})` }}
               </span>
             </div>
-            <div v-if="latestNcp" class="phase-grid">
-              <div class="phase-card" :class="{ done: !!(latestNcp.pes_problem) }">
-                <div class="phase-num"><Check v-if="latestNcp.weight_kg" :size="14" /><span v-else>1</span></div>
-                <div class="phase-label">Assessment</div>
-                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.weight_kg ? 'View' : 'Continue' }}</NuxtLink>
-              </div>
-              <div class="phase-card" :class="{ done: !!latestNcp.pes_problem }">
-                <div class="phase-num"><Check v-if="latestNcp.pes_problem" :size="14" /><span v-else>2</span></div>
-                <div class="phase-label">Diagnosis</div>
-                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.pes_problem ? 'View' : 'Continue' }}</NuxtLink>
-              </div>
-              <div class="phase-card" :class="{ done: !!latestNcp.diet_prescription }">
-                <div class="phase-num"><Check v-if="latestNcp.diet_prescription" :size="14" /><span v-else>3</span></div>
-                <div class="phase-label">Intervention</div>
-                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.diet_prescription ? 'View' : 'Continue' }}</NuxtLink>
-              </div>
-              <div class="phase-card" :class="{ done: !!latestNcp.goal_status }">
-                <div class="phase-num"><Check v-if="latestNcp.goal_status" :size="14" /><span v-else>4</span></div>
-                <div class="phase-label">Monitoring</div>
-                <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="phase-action">{{ latestNcp.goal_status ? 'View' : 'Continue' }}</NuxtLink>
+            <div v-if="latestNcp" class="phase-grid" :class="{ 'three-phases': !latestNcp.is_follow_up }">
+              <div v-for="(phase, i) in latestPhases" :key="phase.label" class="phase-card" :class="{ done: phase.done }">
+                <div class="phase-num"><Check v-if="phase.done" :size="14" /><span v-else>{{ i + 1 }}</span></div>
+                <div class="phase-label">{{ phase.label }}</div>
+                <button type="button" class="phase-action" @click="openLatestNcp">
+                  {{ latestNcp.status === 'completed' || phase.done ? 'View' : 'Continue' }}
+                </button>
               </div>
             </div>
             <p v-else class="empty-note">No NCP record started yet.</p>
@@ -108,7 +127,7 @@
               <p class="appt-time">{{ formatTime(nextAppointment.scheduled_at) }} · {{ nextAppointment.type.replace('_', ' ') }}</p>
             </template>
             <p v-else class="empty-note">No upcoming appointment.</p>
-            <NuxtLink to="/appointments" class="outline-btn small">Manage Appointment</NuxtLink>
+            <NuxtLink :to="`/appointments?relationship=${relationshipId}`" class="outline-btn small">Manage Appointment</NuxtLink>
           </div>
 
           <div class="surface">
@@ -124,12 +143,27 @@
                 <p class="action-hint">Complete the NCP Intervention (diet prescription and target calories) first.</p>
               </template>
             </template>
-            <NuxtLink :to="`/ncp-records?relationship=${relationshipId}`" class="outline-btn small">Continue NCP Record</NuxtLink>
+            <button v-if="relationshipStatus === 'active'" type="button" class="outline-btn small" @click="openNcpForm">
+              {{ openDraft ? 'Continue NCP Record' : 'New NCP Record' }}
+            </button>
             <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="outline-btn small">Send Message</NuxtLink>
           </div>
         </div>
       </div>
     </template>
+
+    <NcpRecordModal
+      v-if="ncpModal"
+      :key="`${ncpModal.mode}-${ncpModal.recordId}`"
+      :relationship-id="relationshipId"
+      :patient-name="clientName"
+      :mode="ncpModal.mode"
+      :record-id="ncpModal.recordId"
+      :can-continue="relationshipStatus === 'active'"
+      @close="ncpModal = null"
+      @changed="reloadNcp"
+      @continue="ncpModal = { mode: 'edit', recordId: null }"
+    />
   </div>
 </template>
 
@@ -151,13 +185,21 @@ const mealPlans = ref([])
 const relationshipStatus = ref(null)
 
 const hasMealPlan = computed(() => mealPlans.value.length > 0)
-const interventionDone = computed(() => {
-  const r = ncpRecords.value[0]
-  return !!(r && (r.diet_prescription || r.target_kcal))
-})
+// Any NCP record with the Intervention filled in — not just the newest one,
+// which may be a follow-up still in progress (Assessment/Diagnosis only).
+const interventionDone = computed(() =>
+  ncpRecords.value.some(r => r.diet_prescription || r.target_kcal)
+)
 
 const detailTabs = ['Overview', 'NCP Records', 'Meal Plan', 'Progress History', 'Appointments']
-const activeTab = ref('Overview')
+const RELATIONSHIP_CHIP = {
+  active: { label: 'Active Relationship', cls: 'chip-success' },
+  pending: { label: 'Pending — first visit not confirmed', cls: 'chip-warning' },
+  discharged: { label: 'Discharged', cls: 'chip-muted' },
+}
+// ?tab=ncp opens straight on the NCP Records tab (links from the NCP
+// Records page, dashboard drafts, consultation room).
+const activeTab = ref(route.query.tab === 'ncp' ? 'NCP Records' : 'Overview')
 
 const clientName = computed(() => {
   const u = clientProfile.value?.user
@@ -198,6 +240,45 @@ const nextAppointment = computed(() => {
 })
 
 const latestNcp = computed(() => ncpRecords.value[0] || null)
+const openDraft = computed(() => ncpRecords.value.find(r => r.status === 'draft') || null)
+const latestPhases = computed(() => {
+  const r = latestNcp.value
+  if (!r) return []
+  const phases = [
+    { label: 'Assessment', done: !!(r.weight_kg && r.height_cm) },
+    { label: 'Diagnosis', done: !!r.pes_problem },
+    { label: 'Intervention', done: !!r.diet_prescription },
+  ]
+  if (r.is_follow_up) phases.push({ label: 'Monitoring', done: !!r.goal_status })
+  return phases
+})
+function ncpPhaseLabel(r) {
+  if (r.status === 'completed') return r.is_follow_up ? 'Monitoring' : 'Intervention'
+  if (!(r.weight_kg && r.height_cm)) return 'Assessment'
+  if (!r.pes_problem) return 'Diagnosis'
+  if (!r.diet_prescription) return 'Intervention'
+  return r.is_follow_up ? 'Monitoring' : 'Intervention'
+}
+
+/* ---------- NCP record form (shared NcpRecordModal) ---------- */
+const ncpModal = ref(null) // { mode: 'edit' | 'view', recordId }
+function openNcpForm() {
+  ncpModal.value = { mode: 'edit', recordId: null }
+}
+function viewNcpRecord(r) {
+  ncpModal.value = { mode: 'view', recordId: r.id }
+}
+function openLatestNcp() {
+  const r = latestNcp.value
+  if (r.status === 'draft' && relationshipStatus.value === 'active') openNcpForm()
+  else viewNcpRecord(r)
+}
+async function reloadNcp() {
+  ncpRecords.value = await get(`/rnd/relationships/${relationshipId}/ncp/`).catch(() => ncpRecords.value)
+}
+function formatDateTime(iso) {
+  return iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+}
 // Whichever phase has no data filled in yet is the current one — a draft
 // with only Assessment done is "Phase 2", one with Assessment+Diagnosis+
 // Intervention is "Phase 4", etc.
@@ -282,6 +363,8 @@ onMounted(loadData)
 .banner-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { font-size: 0.74rem; font-weight: 600; padding: 4px 11px; border-radius: 20px; background: rgba(255,255,255,0.12); color: #fff; }
 .chip-success { background: #e6efe0; color: #3a6b3a; }
+.chip-warning { background: #faead0; color: #8a6a1a; }
+.chip-muted { background: #eceeec; color: #5a6a5a; }
 .message-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
   padding: 9px 18px; font-weight: 700; font-size: 0.85rem; text-decoration: none; white-space: nowrap;
@@ -292,8 +375,8 @@ onMounted(loadData)
 .detail-tab.active { background: #14301a; color: #fff; }
 
 .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
-.main-col, .side-col { display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 900px) { .content-grid { grid-template-columns: minmax(0, 1fr); } }
+.main-col, .side-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 .surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px 22px; }
 .surface-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
@@ -344,5 +427,42 @@ onMounted(loadData)
 .small { padding: 9px; font-size: 0.83rem; margin-bottom: 8px; }
 .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .action-hint { font-size: 0.74rem; color: #b8860b; margin: -2px 0 10px; line-height: 1.4; }
+button.outline-btn, button.primary-btn { cursor: pointer; font-family: inherit; }
+.inline-btn { width: auto; padding: 9px 16px; margin: 0; }
+
+.phase-grid.three-phases { grid-template-columns: repeat(3, 1fr); }
+
+.ncp-table { width: 100%; border-collapse: collapse; }
+.ncp-table th { text-align: left; font-size: 0.7rem; letter-spacing: 0.05em; color: #9aaa9a; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid #eceeec; }
+.ncp-table td { padding: 12px; border-bottom: 1px solid #f2f4f2; font-size: 0.86rem; color: #2a2a2a; }
+.ncp-table tr:last-child td { border-bottom: none; }
+.actions-col { text-align: right; width: 1%; }
 .small:last-child { margin-bottom: 0; }
+
+/* PHONE */
+@media (max-width: 640px) {
+  .patient-banner { padding: 20px; }
+  .banner-left { gap: 14px; min-width: 0; }
+  .banner-info { min-width: 0; }
+  .big-avatar { width: 52px; height: 52px; font-size: 1.1rem; }
+  /* tabs: one swipeable row */
+  .detail-tabs { width: auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .detail-tabs::-webkit-scrollbar { display: none; }
+  .detail-tab { flex-shrink: 0; white-space: nowrap; padding: 9px 14px; }
+  .surface { padding: 16px; }
+  .surface-header { flex-wrap: wrap; gap: 8px; }
+  .phase-grid, .phase-grid.three-phases, .vitals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .vital-num { font-size: 1.15rem; overflow-wrap: anywhere; }
+  .info-row { gap: 12px; }
+  .info-row span:last-child { overflow-wrap: anywhere; }
+  /* NCP history table scrolls sideways inside its card */
+  /* NCP records: rows become compact cards */
+  .ncp-table thead { display: none; }
+  .ncp-table, .ncp-table tbody { display: block; }
+  .ncp-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px 0; border-bottom: 1px solid #f2f4f2; }
+  .ncp-table tr:last-child { border-bottom: none; }
+  .ncp-table td { padding: 0; border: none; white-space: nowrap; font-size: 0.82rem; }
+  .ncp-table td.actions-col { width: 100%; margin-top: 6px; }
+  .ncp-table td.actions-col :deep(.ncp-actions) { justify-content: flex-start; }
+}
 </style>

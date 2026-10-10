@@ -10,7 +10,7 @@ from accounts.permissions import IsClient, IsRnd
 from scheduling.models import RndClientRelationship
 
 from .models import Message, NotificationLog, Resource
-from .serializers import MessageSerializer, NotificationLogSerializer, ResourceSerializer
+from .serializers import MessageSerializer, NotificationDetailSerializer, NotificationLogSerializer, ResourceSerializer
 from .services import CloudinaryResourceUploadService, ResourceUploadError, notify
 
 
@@ -70,6 +70,17 @@ class NotificationListView(generics.ListAPIView):
         return NotificationLog.objects.filter(
             recipient=self.request.user, channel=NotificationLog.Channel.IN_APP
         ).order_by("-created_at")
+
+
+class NotificationDetailView(generics.RetrieveAPIView):
+    """One of the user's own notifications with a summary of what it's
+    about — the notification detail overlay."""
+
+    serializer_class = NotificationDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return NotificationLog.objects.filter(recipient=self.request.user, channel=NotificationLog.Channel.IN_APP)
 
 
 class NotificationMarkReadView(APIView):

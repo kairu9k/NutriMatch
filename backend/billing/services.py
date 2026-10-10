@@ -94,6 +94,7 @@ class PayMongoService:
             # namespace than what create_payment_link() stores on the invoice.
             "gateway_reference_id": payment_attrs.get("external_reference_number"),
             "status": self._map_event_to_status(event_type),
+            "payment_method": payment_method_from_source(payment_attrs.get("source")),
             "raw": event,
         }
 
@@ -111,7 +112,24 @@ class PayMongoService:
 
         link = response.json()["data"]
         paid = link.get("attributes", {}).get("status") == "paid"
-        return {"status": "success" if paid else "pending", "raw": link}
+        method = None
+        if paid:
+            # The link resource doesn't say how the client paid — the payment
+            # resource does (attributes.source.type). Best-effort: a failed
+            # lookup still records the payment, just without the method.
+            payments = link.get("attributes", {}).get("payments") or []
+            payment_id = payments[0].get("id") if payments else None
+            if payment_id:
+                try:
+                    with self._client() as client:
+                        payment = client.get(f"{self.base_url}/payments/{payment_id}")
+                    if not payment.is_error:
+                        method = payment_method_from_source(
+                            payment.json()["data"].get("attributes", {}).get("source")
+                        )
+                except (httpx.HTTPError, KeyError, ValueError):
+                    method = None
+        return {"status": "success" if paid else "pending", "payment_method": method, "raw": link}
 
     def _validate_signature(self, payload: bytes, signature: str) -> bool:
         """PayMongo's Paymongo-Signature header is a comma-separated string
@@ -143,10 +161,35 @@ class PayMongoService:
 
 
 
-def record_successful_payment(invoice, reference_id: str, payload: dict, source: str) -> bool:
+# PayMongo payment source types → Invoice.PaymentMethod.
+_SOURCE_TO_METHOD = {
+    "card": "card",
+    "gcash": "gcash",
+    "paymaya": "maya",
+    "maya": "maya",
+    "qrph": "qrph",
+    "dob": "bank_transfer",
+    "dob_ubp": "bank_transfer",
+    "brankas_bdo": "bank_transfer",
+    "brankas_landbank": "bank_transfer",
+    "brankas_metrobank": "bank_transfer",
+}
+
+
+def payment_method_from_source(source) -> str | None:
+    """Map a PayMongo payment's `source` ({"type": "qrph", ...}) to an
+    Invoice.PaymentMethod value; unknown types → "other", no source → None."""
+    source_type = (source or {}).get("type") if isinstance(source, dict) else None
+    if not source_type:
+        return None
+    return _SOURCE_TO_METHOD.get(source_type, "other")
+
+
+def record_successful_payment(invoice, reference_id: str, payload: dict, source: str, payment_method: str | None = None) -> bool:
     """Record a confirmed payment and mark the invoice paid — shared by the
     webhook and the direct status check so both behave identically.
-    Idempotent: returns False (and records nothing) if already paid."""
+    Idempotent: returns False (and records nothing) if already paid.
+    `payment_method` (e.g. "qrph", "gcash") is saved on the invoice when known."""
     from django.db import transaction
     from django.utils import timezone
 
@@ -168,7 +211,16 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
         )
         invoice.status = Invoice.Status.PAID
         invoice.paid_at = timezone.now()
-        invoice.save(update_fields=["status", "paid_at"])
+        update_fields = ["status", "paid_at"]
+        if payment_method:
+            invoice.payment_method = payment_method
+            update_fields.append("payment_method")
+        # Paid after the appointment was already cancelled/expired (e.g. the
+        # webhook arrived late) — keep the money on record, flag a refund.
+        appt = invoice.appointment
+        if appt is not None and appt.status == appt.Status.CANCELLED:
+            invoice.status = Invoice.Status.REFUND_PENDING
+        invoice.save(update_fields=update_fields)
         AuditLog.objects.create(
             action="invoice.paid",
             table_name="invoices",
@@ -176,3 +228,176 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
             new_values={"status": "paid", "gateway_reference_id": reference_id, "source": source},
         )
     return True
+
+
+
+# ---------------------------------------------------------------------------
+# Pay before the consultation (2026-10-10): the invoice is created when the
+# RND confirms; the client pays before the scheduled start; the consultation
+# (video link, chat, "Complete") only opens once it's paid.
+# ---------------------------------------------------------------------------
+
+NOT_PAID_REASON = "Not paid before the scheduled start time."
+
+
+def appointment_invoice(appointment):
+    """The appointment's current invoice (newest), or None."""
+    return appointment.invoices.order_by("-created_at").first()
+
+
+def is_appointment_paid(appointment) -> bool:
+    from .models import Invoice
+
+    return appointment.invoices.filter(status=Invoice.Status.PAID).exists()
+
+
+def create_appointment_invoice(appointment):
+    """Create the invoice for an appointment (once). Amount is the RND's
+    consultation fee now; commission % is frozen at creation (proposal
+    rule) from SystemSetting `platform_commission_pct` or the model default."""
+    from decimal import Decimal, InvalidOperation
+
+    from core.models import SystemSetting
+
+    from .models import Invoice
+
+    existing = appointment.invoices.exclude(status=Invoice.Status.CANCELLED).first()
+    if existing:
+        return existing, False
+    rnd_profile = getattr(appointment.relationship.rnd, "rnd_profile", None)
+    kwargs = {
+        "relationship": appointment.relationship,
+        "appointment": appointment,
+        "amount": rnd_profile.consultation_fee if rnd_profile else 0,
+    }
+    setting = SystemSetting.objects.filter(key="platform_commission_pct").first()
+    if setting and setting.value:
+        try:
+            kwargs["commission_pct"] = Decimal(setting.value)
+        except (InvalidOperation, TypeError):
+            pass
+    return Invoice.objects.create(**kwargs), True
+
+
+def settle_cancelled_appointment(appointment):
+    """After an appointment is cancelled: a paid invoice becomes
+    refund-pending (client told), an unpaid one is voided. Returns the
+    invoice touched, if any."""
+    from communication.services import notify
+
+    from .models import Invoice
+
+    invoice = appointment_invoice(appointment)
+    if invoice is None:
+        return None
+    if invoice.status == Invoice.Status.PAID:
+        invoice.status = Invoice.Status.REFUND_PENDING
+        invoice.save(update_fields=["status"])
+        notify(
+            recipient=appointment.relationship.client,
+            notifiable_type="invoice",
+            notifiable_id=invoice.id,
+            subject="Refund being processed",
+            content=(
+                f"Your appointment was cancelled, so your ₱{invoice.amount:,.2f} payment for "
+                f"INV-{invoice.id:04d} will be refunded. The NutriMatch team will process it."
+            ),
+        )
+    elif invoice.status == Invoice.Status.UNPAID:
+        invoice.status = Invoice.Status.CANCELLED
+        invoice.save(update_fields=["status"])
+    return invoice
+
+
+def expire_unpaid_appointments(**scope):
+    """Confirmed appointments whose start time passed while their invoice was
+    still unpaid are cancelled ("not paid") and the invoice voided, so the
+    slot is released and it can't be paid late. Run lazily wherever
+    appointments/invoices are listed. Returns how many were expired."""
+    from django.utils import timezone
+
+    from communication.services import notify
+    from scheduling.models import Appointment
+
+    from .models import Invoice
+
+    due = Appointment.objects.filter(
+        status=Appointment.Status.CONFIRMED,
+        scheduled_at__lte=timezone.now(),
+        invoices__status=Invoice.Status.UNPAID,
+        **scope,
+    ).exclude(invoices__status=Invoice.Status.PAID).select_related("relationship__client", "relationship__rnd").distinct()
+    count = 0
+    for appt in due:
+        appt.status = Appointment.Status.CANCELLED
+        appt.cancellation_reason = NOT_PAID_REASON
+        appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        appt.invoices.filter(status=Invoice.Status.UNPAID).update(status=Invoice.Status.CANCELLED)
+        for recipient, text in (
+            (appt.relationship.client, "Your consultation was cancelled because it wasn't paid before the start time. You can book a new time."),
+            (appt.relationship.rnd, f"{appt.relationship.client.full_name}'s consultation was cancelled because it wasn't paid before the start time. The slot is open again."),
+        ):
+            notify(recipient=recipient, notifiable_type="appointment", notifiable_id=appt.id,
+                   subject="Consultation not paid", content=text)
+        count += 1
+    return count
+
+
+# ---------------------------------------------------------------------------
+# Payment receipts (admin invoice detail)
+# ---------------------------------------------------------------------------
+
+def _find_payment_resource(payload):
+    """The PayMongo payment resource ({"id": "pay_...", "attributes": {...}})
+    inside a stored gateway_payload — a payment.paid webhook event nests it at
+    data.attributes.data; a GET /links status check lists it under
+    attributes.payments (sometimes wrapped in its own {"data": ...})."""
+    if not isinstance(payload, dict):
+        return None
+    event_data = (payload.get("data") or {}).get("attributes", {}).get("data")
+    if isinstance(event_data, dict) and str(event_data.get("id", "")).startswith("pay_"):
+        return event_data
+    for p in (payload.get("attributes") or {}).get("payments") or []:
+        p = p.get("data", p) if isinstance(p, dict) else None
+        if isinstance(p, dict) and str(p.get("id", "")).startswith("pay_"):
+            return p
+    return None
+
+
+def payment_receipt(payload) -> dict:
+    """The receipt details of a payment, picked out of its stored PayMongo
+    payload — only what a receipt shows (no raw payload is sent to the
+    browser). PayMongo amounts are in centavos. Empty dict when the payment
+    wasn't made through PayMongo (e.g. demo data)."""
+    from datetime import datetime, timezone as dt_timezone
+    from decimal import Decimal
+
+    payment = _find_payment_resource(payload)
+    if not payment:
+        return {}
+    attrs = payment.get("attributes") or {}
+    source = attrs.get("source") or {}
+    billing = attrs.get("billing") or {}
+
+    def pesos(centavos):
+        return str(Decimal(centavos) / 100) if isinstance(centavos, int) else None
+
+    paid_at = attrs.get("paid_at")
+    return {
+        "payment_id": payment.get("id"),
+        "status": attrs.get("status"),
+        "description": attrs.get("description"),
+        "reference_number": attrs.get("external_reference_number"),
+        "currency": attrs.get("currency") or "PHP",
+        "amount": pesos(attrs.get("amount")),
+        "fee": pesos(attrs.get("fee")),
+        "net_amount": pesos(attrs.get("net_amount")),
+        "paid_at": datetime.fromtimestamp(paid_at, dt_timezone.utc).isoformat() if isinstance(paid_at, int) else None,
+        "source_type": source.get("type"),
+        "card_brand": source.get("brand"),
+        "card_last4": source.get("last4"),
+        "payer_name": billing.get("name"),
+        "payer_email": billing.get("email"),
+        "payer_phone": billing.get("phone"),
+        "livemode": attrs.get("livemode"),
+    }
