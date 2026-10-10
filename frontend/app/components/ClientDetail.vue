@@ -13,7 +13,9 @@
             <h1 class="banner-name">{{ clientName }}</h1>
             <p class="banner-meta">{{ age !== null ? `${age} y/o ` : '' }}{{ sexLabel }}{{ conditions ? ' · ' + conditions : '' }}</p>
             <div class="banner-chips">
-              <span class="chip chip-success">Active Relationship</span>
+              <span v-if="relationshipStatus" class="chip" :class="RELATIONSHIP_CHIP[relationshipStatus]?.cls">
+                {{ RELATIONSHIP_CHIP[relationshipStatus]?.label || relationshipStatus }}
+              </span>
               <span v-if="allergies" class="chip">Allergy: {{ allergies }}</span>
             </div>
           </div>
@@ -119,7 +121,7 @@
               <p class="appt-time">{{ formatTime(nextAppointment.scheduled_at) }} · {{ nextAppointment.type.replace('_', ' ') }}</p>
             </template>
             <p v-else class="empty-note">No upcoming appointment.</p>
-            <NuxtLink to="/appointments" class="outline-btn small">Manage Appointment</NuxtLink>
+            <NuxtLink :to="`/appointments?relationship=${relationshipId}`" class="outline-btn small">Manage Appointment</NuxtLink>
           </div>
 
           <div class="surface">
@@ -177,12 +179,18 @@ const mealPlans = ref([])
 const relationshipStatus = ref(null)
 
 const hasMealPlan = computed(() => mealPlans.value.length > 0)
-const interventionDone = computed(() => {
-  const r = ncpRecords.value[0]
-  return !!(r && (r.diet_prescription || r.target_kcal))
-})
+// Any NCP record with the Intervention filled in — not just the newest one,
+// which may be a follow-up still in progress (Assessment/Diagnosis only).
+const interventionDone = computed(() =>
+  ncpRecords.value.some(r => r.diet_prescription || r.target_kcal)
+)
 
 const detailTabs = ['Overview', 'NCP Records', 'Meal Plan', 'Progress History', 'Appointments']
+const RELATIONSHIP_CHIP = {
+  active: { label: 'Active Relationship', cls: 'chip-success' },
+  pending: { label: 'Pending — first visit not confirmed', cls: 'chip-warning' },
+  discharged: { label: 'Discharged', cls: 'chip-muted' },
+}
 // ?tab=ncp opens straight on the NCP Records tab (links from the NCP
 // Records page, dashboard drafts, consultation room).
 const activeTab = ref(route.query.tab === 'ncp' ? 'NCP Records' : 'Overview')
@@ -349,6 +357,8 @@ onMounted(loadData)
 .banner-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { font-size: 0.74rem; font-weight: 600; padding: 4px 11px; border-radius: 20px; background: rgba(255,255,255,0.12); color: #fff; }
 .chip-success { background: #e6efe0; color: #3a6b3a; }
+.chip-warning { background: #faead0; color: #8a6a1a; }
+.chip-muted { background: #eceeec; color: #5a6a5a; }
 .message-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
   padding: 9px 18px; font-weight: 700; font-size: 0.85rem; text-decoration: none; white-space: nowrap;

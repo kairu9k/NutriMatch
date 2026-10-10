@@ -98,6 +98,8 @@ const specializations = [
   { label: 'Hypertension & Cardiac Care', keyword: 'Hypertension' },
   { label: 'Weight Management', keyword: 'Weight' },
   { label: 'Pediatric Nutrition', keyword: 'Pediatric' },
+  { label: 'Sports Nutrition', keyword: 'Sports' },
+  { label: 'General / Clinical Nutrition', keyword: 'General' },
 ]
 
 // Same set used on the RND-side Languages tab — there's no fixed language

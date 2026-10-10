@@ -59,7 +59,7 @@ MANILA = ZoneInfo("Asia/Manila")
 DEMO_DOMAIN = "nutrimatch.test"
 DEFAULT_DEMO_PASSWORD = "NutriMatchDemo1!"
 
-LANGUAGE_NAMES = {"en": "English", "fil": "Filipino", "ceb": "Cebuano"}
+from profiles.models import LANGUAGE_NAMES  # noqa: E402  (shared language list; "tl" = Filipino)
 
 # day_of_week uses the app's convention: Sunday=0 … Saturday=6.
 RNDS = [
@@ -67,7 +67,7 @@ RNDS = [
         "key": "maria", "first_name": "Maria", "last_name": "Santos",
         "specialization": "Diabetes & Weight Management",
         "bio": "Registered Nutritionist-Dietitian with 8 years of clinical experience helping Filipino adults manage type 2 diabetes and lose weight through practical, rice-aware meal plans.",
-        "fee": Decimal("800"), "modes": ["video", "chat", "in_person"], "languages": ["en", "fil", "ceb"],
+        "fee": Decimal("800"), "modes": ["video", "chat", "in_person"], "languages": ["en", "tl", "ceb"],
         "availability": [(d, time(9), time(17)) for d in (1, 2, 3, 4, 5)],
         "verified": True, "accepting": True, "prc": "0123456",
     },
@@ -75,7 +75,7 @@ RNDS = [
         "key": "jose", "first_name": "Jose", "last_name": "Reyes",
         "specialization": "Renal & Hypertension Nutrition",
         "bio": "Hospital-based RND focused on kidney disease and blood pressure control. Specializes in low-sodium, potassium-aware Filipino diets.",
-        "fee": Decimal("1000"), "modes": ["video"], "languages": ["en", "fil"],
+        "fee": Decimal("1000"), "modes": ["video"], "languages": ["en", "tl"],
         "availability": [(d, time(13), time(18)) for d in (2, 4, 6)],
         "verified": True, "accepting": True, "prc": "0234567",
     },
@@ -83,7 +83,7 @@ RNDS = [
         "key": "angela", "first_name": "Angela", "last_name": "Villanueva",
         "specialization": "Sports Nutrition",
         "bio": "Works with athletes and active adults on performance nutrition, body composition and recovery. Currently at full capacity.",
-        "fee": Decimal("600"), "modes": ["video", "chat"], "languages": ["en", "fil"],
+        "fee": Decimal("600"), "modes": ["video", "chat"], "languages": ["en", "tl"],
         "availability": [(d, time(8), time(12)) for d in (1, 3, 5)],
         "verified": True, "accepting": False, "prc": "0345678",
     },
@@ -91,7 +91,7 @@ RNDS = [
         "key": "ramon", "first_name": "Ramon", "last_name": "Dela Cruz",
         "specialization": "Pediatric & General Nutrition",
         "bio": "Community nutritionist in Davao City. Helps families with child growth, picky eating and healthy home cooking on a budget.",
-        "fee": Decimal("700"), "modes": ["video", "in_person"], "languages": ["ceb", "fil", "en"],
+        "fee": Decimal("700"), "modes": ["video", "in_person"], "languages": ["ceb", "tl", "en"],
         "availability": [(d, time(10), time(16)) for d in (1, 2, 3, 4, 5, 6)],
         "verified": True, "accepting": True, "prc": "0456789",
     },
@@ -99,7 +99,7 @@ RNDS = [
         "key": "kristine", "first_name": "Kristine", "last_name": "Bautista",
         "specialization": "Cardiovascular Nutrition",
         "bio": "Newly registered RND focused on heart-healthy eating and cholesterol management.",
-        "fee": Decimal("750"), "modes": ["video", "chat"], "languages": ["en", "fil"],
+        "fee": Decimal("750"), "modes": ["video", "chat"], "languages": ["en", "tl"],
         "availability": [(d, time(9), time(15)) for d in (1, 3, 5)],
         "verified": False, "accepting": True, "prc": None,  # pending admin review — has a license photo instead
     },
@@ -256,7 +256,14 @@ class Command(BaseCommand):
             available_for_new_clients=p["accepting"],
             is_verified=p["verified"],
             verified_at=timezone.now() if p["verified"] else None,
+            # Approved RNDs went through the application review; a pending one
+            # (Kristine) can't sign in until an admin approves her.
+            review_status=RndProfile.ReviewStatus.APPROVED if p["verified"] else RndProfile.ReviewStatus.PENDING,
+            reviewed_at=timezone.now() if p["verified"] else None,
         )
+        if p["verified"]:
+            user.onboarding_completed_at = timezone.now()
+            user.save(update_fields=["onboarding_completed_at"])
         for code in p["languages"]:
             RndLanguage.objects.create(rnd=user, language_code=code, language_name=LANGUAGE_NAMES[code])
         for day, start, end in p["availability"]:
@@ -269,11 +276,17 @@ class Command(BaseCommand):
 
     def _create_client(self, p):
         user = self._create_user(p, User.Role.CLIENT)
-        ClientProfile.objects.create(user=user, date_of_birth=p["dob"], sex=p["sex"], language_code="fil")
+        ClientProfile.objects.create(user=user, date_of_birth=p["dob"], sex=p["sex"], language_code="tl")
+        # Ana is "brand new": she hasn't onboarded (allergies unanswered, no
+        # screening), so signing in as her shows the client onboarding.
+        brand_new = p["key"] == "ana"
+        if not brand_new:
+            user.onboarding_completed_at = timezone.now()
+            user.save(update_fields=["onboarding_completed_at"])
         ClientHealthProfile.objects.create(
             user=user,
             medical_conditions=p["conditions"],
-            allergies=p.get("allergies", []),
+            allergies=None if brand_new else p.get("allergies", []),
             dietary_restrictions=p.get("restrictions", []),
             health_goals=p["goals"],
         )
@@ -332,28 +345,35 @@ class Command(BaseCommand):
         Appointment.objects.filter(pk=appt.pk).update(created_at=when - timedelta(days=3))
         return appt
 
-    def _invoice(self, appt, paid_method=None):
-        """Same amount/commission rules as RndAppointmentCompleteView; a paid
-        invoice goes through record_successful_payment like a real payment."""
+    def _invoice(self, appt, paid_method=None, issued_at=None):
+        """Pay before the consultation: the invoice is issued when the RND
+        confirms (same amount/commission rules as
+        billing.services.create_appointment_invoice) and paid before the
+        visit; a paid invoice goes through record_successful_payment like a
+        real payment. An unpaid one is "payment due" for an upcoming visit."""
         fee = appt.relationship.rnd.rnd_profile.consultation_fee
         kwargs = {"relationship": appt.relationship, "appointment": appt, "amount": fee}
         setting = SystemSetting.objects.filter(key="platform_commission_pct").first()
         if setting and setting.value:
             kwargs["commission_pct"] = Decimal(setting.value)
         invoice = Invoice.objects.create(**kwargs)
-        completed_at = appt.scheduled_at + timedelta(hours=1)
-        Invoice.objects.filter(pk=invoice.pk).update(created_at=completed_at)
+        issued = issued_at or appt.scheduled_at - timedelta(days=2)
+        Invoice.objects.filter(pk=invoice.pk).update(created_at=issued)
         if paid_method:
             reference = f"demo-{secrets.token_hex(4)}"
             record_successful_payment(invoice, reference, {"source": "seed_demo"}, source="seed_demo")
             Invoice.objects.filter(pk=invoice.pk).update(
                 payment_gateway=Invoice.PaymentGateway.PAYMONGO, payment_method=paid_method,
-                gateway_reference_id=reference, paid_at=completed_at + timedelta(hours=2),
+                gateway_reference_id=reference, paid_at=issued + timedelta(hours=2),
             )
         else:
             notify(
                 recipient=appt.relationship.client, notifiable_type="invoice", notifiable_id=invoice.id,
-                subject="Invoice ready", content=f"INV-{invoice.id:04d} for ₱{invoice.amount:.2f} is ready for payment.",
+                subject="Appointment confirmed — payment due",
+                content=(
+                    f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) before your consultation "
+                    f"to start it."
+                ),
             )
         return invoice
 
@@ -412,7 +432,7 @@ class Command(BaseCommand):
 
     def _carla(self):
         """Maria's active patient with a full history: 2 completed visits
-        (one paid + reviewed, one invoice still unpaid), finalized NCP +
+        (both paid, one reviewed; the upcoming visit's invoice is still unpaid), finalized NCP +
         a follow-up draft, weekly meal plan with meal logs, 4 progress
         records, messages, and an upcoming confirmed video visit."""
         carla, maria = self.clients["carla"], self.rnds["maria"]
@@ -426,10 +446,12 @@ class Command(BaseCommand):
         followup_day = shift_to_day(self.today - timedelta(days=7), maria.demo_days, -1)
         followup = self._appointment(rel, at(followup_day, time(10)), Appointment.Status.COMPLETED)
         upcoming_day = shift_to_day(self.today + timedelta(days=5), maria.demo_days, 1)
-        self._appointment(rel, at(upcoming_day, time(14)), Appointment.Status.CONFIRMED)
+        upcoming = self._appointment(rel, at(upcoming_day, time(14)), Appointment.Status.CONFIRMED)
 
         self._invoice(first, paid_method=Invoice.PaymentMethod.GCASH)
-        self._invoice(followup)  # left unpaid so the Pay Now flow can be demoed
+        self._invoice(followup, paid_method=Invoice.PaymentMethod.QRPH)
+        # Confirmed yesterday, not paid yet — demos "pay before your consultation".
+        self._invoice(upcoming, issued_at=timezone.now() - timedelta(days=1))
         Review.objects.create(
             appointment=first, client=carla, rnd=maria, rating=5,
             comment="Very clear explanations and a meal plan I can actually follow with Filipino food.",
@@ -613,9 +635,9 @@ class Command(BaseCommand):
             state = "pending verification" if not p["verified"] else ("not accepting new clients" if not p["accepting"] else "verified")
             self.stdout.write(f"  RND     {demo_email(p['first_name'], p['last_name']):38} {p['specialization']} — {state}")
         notes = {
-            "ana": "brand new, no screening",
+            "ana": "brand new — goes through client onboarding on first sign-in",
             "benjamin": "screened, no RND yet",
-            "carla": "Maria's patient — full history, 1 unpaid invoice, upcoming visit",
+            "carla": "Maria's patient — full history, upcoming visit with payment due",
             "daniel": "Jose's patient — 1 paid visit, meal plan",
             "elena": "first booking with Ramon, waiting for confirmation",
         }

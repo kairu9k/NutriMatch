@@ -19,7 +19,26 @@ export default defineNuxtRouteMiddleware((to) => {
 
   const auth = useAuthStore()
   auth.hydrate() // no-op once app.vue has already restored the session
-  if (auth.isAuthenticated) return
+  const isAdminPage = to.meta.layout === 'admin' || to.meta.admin === true
+  if (!auth.isAuthenticated) {
+    return navigateTo(isAdminPage ? '/admin/login' : '/login')
+  }
+  if (isAdminPage && auth.user?.role !== 'admin') {
+    return navigateTo(auth.user?.role === 'rnd' ? '/rnd-dashboard' : '/client-dashboard')
+  }
 
-  return navigateTo(to.meta.layout === 'admin' ? '/admin/login' : '/login')
+  // Strict client onboarding: until it's finished, a client is sent to
+  // /onboarding (Profile Settings stays reachable). A session saved before
+  // onboarding existed has no `onboarding_completed_at` key at all — those
+  // accounts were marked onboarded, so only an explicit null redirects.
+  const user = auth.user
+  const needsOnboarding = user?.role === 'client'
+    && Object.prototype.hasOwnProperty.call(user, 'onboarding_completed_at')
+    && !user.onboarding_completed_at
+  if (needsOnboarding && !['/onboarding', '/profile-settings'].includes(path)) {
+    return navigateTo('/onboarding')
+  }
+  if (path === '/onboarding' && !needsOnboarding) {
+    return navigateTo(user?.role === 'rnd' ? '/rnd-dashboard' : user?.role === 'admin' ? '/admin-dashboard' : '/client-dashboard')
+  }
 })

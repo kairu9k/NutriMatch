@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from core.test_utils import approve_rnd
 from profiles.models import ClientProfile, RndProfile
 from scheduling.models import RndClientRelationship
 
@@ -22,7 +23,7 @@ from .services import (
 def _make_rnd(email="rnd@t.ph"):
     user = User.objects.create_user(email=email, password="x", role="rnd", first_name="R", last_name="D")
     RndProfile.objects.create(user=user, prc_license_number=f"PRC-{email}")
-    return user
+    return approve_rnd(user)
 
 
 def _make_client(email="client@t.ph", dob=None, sex="male"):
@@ -131,16 +132,57 @@ class ScreeningViewTests(TestCase):
         bare_client.client_profile.refresh_from_db()
         self.assertEqual(bare_client.client_profile.sex, "male")
 
-    def test_submitted_age_overrides_profile_dob(self):
+    def test_profile_dob_wins_over_submitted_age(self):
         self.client_api.force_authenticate(self.client_user)
-
-        resp = self.client_api.post("/api/client/screening/", {
+        from_dob = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70", "sex": "male"})
+        typed = self.client_api.post("/api/client/screening/", {
             "height_cm": "170", "weight_kg": "70", "age": 40, "sex": "male",
         })
 
-        # 10*70 + 6.25*170 - 5*40 + 5 = 1567.5
-        self.assertEqual(resp.status_code, 201, resp.data)
-        self.assertEqual(resp.data["bmr_kcal"], "1567.50")
+        # The age field is read-only in the form when a DOB is on file; a
+        # tampered request can't change the BMR either.
+        self.assertEqual(typed.status_code, 201, typed.data)
+        self.assertEqual(typed.data["bmr_kcal"], from_dob.data["bmr_kcal"])
+
+    def test_profile_sex_wins_over_submitted_sex(self):
+        self.client_api.force_authenticate(self.client_user)
+        profile = self.client_user.client_profile
+        on_file = profile.sex
+        other = "female" if on_file == "male" else "male"
+        from_profile = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})
+        typed = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70", "sex": other})
+
+        self.assertEqual(typed.status_code, 201, typed.data)
+        self.assertEqual(typed.data["bmr_kcal"], from_profile.data["bmr_kcal"])
+        profile.refresh_from_db()
+        self.assertEqual(profile.sex, on_file)
+
+    def test_screening_rejects_unrealistic_measurements(self):
+        self.client_api.force_authenticate(self.client_user)
+        cases = [
+            ({"height_cm": "99", "weight_kg": "70"}, "height_cm"),
+            ({"height_cm": "509999", "weight_kg": "70"}, "height_cm"),
+            ({"height_cm": "abc", "weight_kg": "70"}, "height_cm"),
+            ({"height_cm": "251", "weight_kg": "70"}, "height_cm"),
+            ({"height_cm": "170", "weight_kg": "24"}, "weight_kg"),
+            ({"height_cm": "170", "weight_kg": "301"}, "weight_kg"),
+            ({"height_cm": "170.255", "weight_kg": "70"}, "height_cm"),
+        ]
+        for payload, field in cases:
+            resp = self.client_api.post("/api/client/screening/", payload, format="json")
+            self.assertEqual(resp.status_code, 400, payload)
+            self.assertIn(field, resp.data, payload)
+        ok = self.client_api.post("/api/client/screening/", {"height_cm": "250", "weight_kg": "25"}, format="json")
+        self.assertEqual(ok.status_code, 201, ok.data)
+
+    def test_typed_age_limits_when_no_dob(self):
+        bare_client = User.objects.create_user(email="bare3@t.ph", password="x", role="client", first_name="B", last_name="C")
+        ClientProfile.objects.create(user=bare_client)
+        self.client_api.force_authenticate(bare_client)
+        for age in (5, 17, 500):
+            resp = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70", "age": age, "sex": "male"})
+            self.assertEqual(resp.status_code, 400, age)
+            self.assertIn("age", resp.data)
 
     def test_latest_screening_returns_most_recent(self):
         self.client_api.force_authenticate(self.client_user)

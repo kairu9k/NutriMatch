@@ -1,4 +1,6 @@
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
 
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
@@ -21,6 +23,16 @@ from .serializers import (
     RndPatientListSerializer,
 )
 from .services import JitsiVideoService, VideoSessionError
+
+
+PH_TZ = ZoneInfo("Asia/Manila")
+
+
+def format_ph_datetime(value):
+    """Appointment times are stored in UTC; messages to users show Philippine
+    time (e.g. "September 28, 2026 at 9:00 AM")."""
+    local = value.astimezone(PH_TZ)
+    return f"{local:%B} {local.day}, {local.year} at {local.hour % 12 or 12}:{local:%M} {local:%p}"
 
 
 class RndActiveRelationshipsView(generics.ListAPIView):
@@ -69,6 +81,9 @@ class ClientAppointmentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsClient]
 
     def get_queryset(self):
+        from billing.services import expire_unpaid_appointments
+
+        expire_unpaid_appointments(relationship__client=self.request.user)
         return Appointment.objects.filter(
             relationship__client=self.request.user
         ).select_related("relationship").order_by("-scheduled_at")
@@ -80,6 +95,19 @@ class ClientAppointmentListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         appointment = serializer.save()
+
+        from communication.services import notify
+
+        notify(
+            recipient=appointment.relationship.rnd,
+            notifiable_type="appointment",
+            notifiable_id=appointment.id,
+            subject="New booking request",
+            content=(
+                f"{request.user.full_name} requested a {appointment.get_type_display().lower()} consultation "
+                f"for {format_ph_datetime(appointment.scheduled_at)}. Review it in Appointments."
+            ),
+        )
         return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
 
 
@@ -96,12 +124,39 @@ class ClientAppointmentCancelView(APIView):
 
     def patch(self, request, pk):
         appointment = get_object_or_404(
-            Appointment.objects.filter(relationship__client=request.user), pk=pk
+            Appointment.objects.filter(relationship__client=request.user).select_related("relationship"), pk=pk
         )
+        # Same rule as the RND's cancel: only an upcoming (pending/confirmed)
+        # appointment can be cancelled — never a completed one (it already has
+        # an invoice) or one that's already cancelled.
+        if appointment.status not in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED):
+            return Response(
+                {"detail": f"This appointment is already {appointment.get_status_display().lower()} and can't be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        reason = (request.data.get("reason") or "").strip()[:500]
         appointment.status = Appointment.Status.CANCELLED
-        appointment.cancellation_reason = request.data.get("reason", "")
+        appointment.cancellation_reason = reason
         appointment.save(update_fields=["status", "cancellation_reason", "updated_at"])
-        return Response(AppointmentSerializer(appointment).data)
+
+        from billing.services import settle_cancelled_appointment
+
+        settle_cancelled_appointment(appointment)
+
+        from communication.services import notify
+
+        notify(
+            recipient=appointment.relationship.rnd,
+            notifiable_type="appointment",
+            notifiable_id=appointment.id,
+            subject="Appointment cancelled",
+            content=(
+                f"{appointment.relationship.client.full_name} cancelled their {appointment.get_type_display().lower()} "
+                f"consultation for {format_ph_datetime(appointment.scheduled_at)}."
+                + (f" Reason: {reason}" if reason else "")
+            ),
+        )
+        return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 
 
 class RndAppointmentListView(generics.ListAPIView):
@@ -109,6 +164,9 @@ class RndAppointmentListView(generics.ListAPIView):
     permission_classes = [IsRnd]
 
     def get_queryset(self):
+        from billing.services import expire_unpaid_appointments
+
+        expire_unpaid_appointments(relationship__rnd=self.request.user)
         return Appointment.objects.filter(
             relationship__rnd=self.request.user
         ).select_related("relationship").order_by("-scheduled_at")
@@ -139,7 +197,7 @@ class _RndAppointmentTransitionView(APIView):
         if self.to_status == Appointment.Status.CANCELLED:
             appointment.cancellation_reason = request.data.get("reason", "")
         appointment.save()
-        return Response(AppointmentSerializer(appointment).data)
+        return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 
 
 class RndAppointmentConfirmView(_RndAppointmentTransitionView):
@@ -162,6 +220,8 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
         appointment = get_object_or_404(
             Appointment.objects.filter(relationship__rnd=request.user), pk=pk
         )
+        if appointment.status == Appointment.Status.PENDING and appointment.scheduled_at <= timezone.now():
+            raise PermissionDenied("This request's time has already passed, so it can't be confirmed.")
         has_screening = PreConsultationScreening.objects.filter(
             client_id=appointment.relationship.client_id
         ).exists()
@@ -198,69 +258,59 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
                 appointment.meeting_id = room["external_session_id"]
                 appointment.save(update_fields=["video_session_url", "meeting_id", "updated_at"])
 
+        from billing.services import create_appointment_invoice
         from communication.services import notify
 
-        scheduled_str = appointment.scheduled_at.strftime("%B %d, %Y at %I:%M %p").replace(" 0", " ")
+        # Pay before the consultation: the invoice is issued on confirmation.
+        invoice, _ = create_appointment_invoice(appointment)
+        scheduled_str = format_ph_datetime(appointment.scheduled_at)
         notify(
             recipient=appointment.relationship.client,
-            notifiable_type="appointment",
-            notifiable_id=appointment.id,
-            subject="Appointment confirmed",
+            notifiable_type="invoice",
+            notifiable_id=invoice.id,
+            subject="Appointment confirmed — payment due",
             content=(
                 f"RND {appointment.relationship.rnd.full_name} confirmed your "
-                f"{appointment.type} consultation for {scheduled_str}."
+                f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
+                f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) before then to start your consultation."
             ),
         )
 
-        return Response(AppointmentSerializer(appointment).data)
+        return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 
 
 class RndAppointmentCompleteView(_RndAppointmentTransitionView):
-    """Completing an appointment also generates its invoice — this is the
-    only place an Invoice gets created. Amount is the RND's current
-    consultation_fee at completion time (not the fee at booking time, since
-    the model doesn't snapshot it on the appointment)."""
+    """Completing requires the consultation to be paid (the invoice is issued
+    at confirmation). Appointments confirmed before pay-first existed have no
+    invoice: those still get one issued now, as before (pay after)."""
 
     from_statuses = [Appointment.Status.CONFIRMED]
     to_status = Appointment.Status.COMPLETED
 
     def patch(self, request, pk):
+        from billing.services import appointment_invoice, create_appointment_invoice
+        from communication.services import notify
+
+        appointment = get_object_or_404(
+            Appointment.objects.filter(relationship__rnd=request.user), pk=pk
+        )
+        invoice = appointment_invoice(appointment)
+        if invoice is not None and invoice.status != "paid":
+            raise PermissionDenied("This consultation hasn't been paid yet, so it can't be completed.")
+
         response = super().patch(request, pk)
-        appointment = get_object_or_404(Appointment, pk=response.data["id"])
-
-        from billing.models import Invoice
-        from core.models import SystemSetting
-
-        if not Invoice.objects.filter(appointment=appointment).exists():
-            rnd_profile = getattr(appointment.relationship.rnd, "rnd_profile", None)
-            fee = rnd_profile.consultation_fee if rnd_profile else 0
-
-            invoice_kwargs = {
-                "relationship": appointment.relationship,
-                "appointment": appointment,
-                "amount": fee,
-            }
-            # Admin-configurable via SystemSetting (BillingCommission.vue) —
-            # falls back to the Invoice model's own default if unset/blank.
-            setting = SystemSetting.objects.filter(key="platform_commission_pct").first()
-            if setting and setting.value:
-                try:
-                    invoice_kwargs["commission_pct"] = Decimal(setting.value)
-                except (InvalidOperation, TypeError):
-                    pass
-
-            invoice = Invoice.objects.create(**invoice_kwargs)
-
-            from communication.services import notify
-
-            notify(
-                recipient=appointment.relationship.client,
-                notifiable_type="invoice",
-                notifiable_id=invoice.id,
-                subject="Invoice ready",
-                content=f"INV-{invoice.id:04d} for ₱{invoice.amount:.2f} is ready for payment.",
-            )
-
+        Appointment.objects.filter(pk=appointment.pk).update(completed_at=timezone.now())  # starts the payout hold
+        if invoice is None:  # legacy: confirmed before pay-first
+            appointment.refresh_from_db()
+            invoice, created = create_appointment_invoice(appointment)
+            if created:
+                notify(
+                    recipient=appointment.relationship.client,
+                    notifiable_type="invoice",
+                    notifiable_id=invoice.id,
+                    subject="Invoice ready",
+                    content=f"INV-{invoice.id:04d} for ₱{invoice.amount:.2f} is ready for payment.",
+                )
         return response
 
 
@@ -268,6 +318,26 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
     from_statuses = [Appointment.Status.PENDING, Appointment.Status.CONFIRMED]
     to_status = Appointment.Status.CANCELLED
 
+    def patch(self, request, pk):
+        from billing.services import settle_cancelled_appointment
+        from communication.services import notify
+
+        response = super().patch(request, pk)
+        appointment = Appointment.objects.select_related("relationship__client", "relationship__rnd").get(pk=pk)
+        settle_cancelled_appointment(appointment)
+        reason = (appointment.cancellation_reason or "").strip()
+        notify(
+            recipient=appointment.relationship.client,
+            notifiable_type="appointment",
+            notifiable_id=appointment.id,
+            subject="Appointment cancelled",
+            content=(
+                f"RND {appointment.relationship.rnd.full_name} cancelled your "
+                f"{appointment.get_type_display().lower()} consultation for {format_ph_datetime(appointment.scheduled_at)}."
+                + (f" Reason: {reason}" if reason else "")
+            ),
+        )
+        return response
 
 class ClientReviewListCreateView(generics.ListCreateAPIView):
     """Reviews the logged-in client has left (GET, newest first) and
@@ -297,3 +367,27 @@ class RndReviewListView(generics.ListAPIView):
         return Review.objects.filter(
             rnd=self.request.user, is_public=True
         ).select_related("client").order_by("-created_at")
+
+
+class RndBookedSlotsView(APIView):
+    """Times an RND is already booked (pending/confirmed, upcoming), so the
+    client booking modal can hide taken slots. Only start/end are returned,
+    never who booked them."""
+
+    permission_classes = [IsClient]
+
+    def get(self, request, rnd_id):
+        from .serializers import DEFAULT_SESSION_MINUTES
+
+        upcoming = Appointment.objects.filter(
+            relationship__rnd_id=rnd_id,
+            status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
+            scheduled_at__gte=timezone.now() - timedelta(hours=3),
+        ).order_by("scheduled_at")
+        return Response([
+            {
+                "start": a.scheduled_at,
+                "end": a.scheduled_at + timedelta(minutes=a.duration_minutes or DEFAULT_SESSION_MINUTES),
+            }
+            for a in upcoming
+        ])

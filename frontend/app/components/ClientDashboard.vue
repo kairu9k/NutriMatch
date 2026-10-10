@@ -1,287 +1,205 @@
 <template>
+  <!-- Client home — one page, real data only. The "next step" banner follows
+       where the client is in their journey (screen → find an RND → booking
+       → consultation → meal plan). Sections with nothing to show explain
+       what fills them, instead of showing placeholder data. -->
   <div class="client-dashboard">
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
     <p v-else-if="isLoading" class="placeholder-text">Loading…</p>
 
     <template v-else>
-      <!-- WELCOME BANNER -->
+      <!-- NEXT-STEP BANNER -->
       <section class="welcome-banner">
-        <div class="banner-blob"></div>
+        <div class="banner-blob banner-blob-1"></div>
+        <div class="banner-blob banner-blob-2"></div>
         <div class="banner-content">
-          <span class="banner-badge"><span class="banner-badge-dot"></span> {{ todayLabel }}</span>
-          <h1 class="banner-title">Hi {{ auth.user?.first_name }}, welcome back.</h1>
-          <p class="banner-sub">{{ welcomeSubtext }}</p>
+          <span class="banner-badge"><span class="banner-badge-dot"></span> {{ nextStep.eyebrow }}</span>
+          <h2 class="banner-title">Hi {{ auth.user?.first_name }}, welcome back.</h2>
+          <p class="banner-sub">{{ nextStep.text }}</p>
           <div class="banner-actions">
-            <button v-if="upcomingAppointment" class="banner-btn" @click="navigateTo('/appointments')">View Appointment</button>
-            <button v-else class="banner-btn" @click="navigateTo('/find-rnd')">Find an RND</button>
+            <NuxtLink :to="nextStep.to" class="banner-btn">{{ nextStep.action }}</NuxtLink>
           </div>
         </div>
       </section>
 
-      <!-- STAT CARDS -->
+      <!-- UNPAID INVOICE -->
+      <NuxtLink v-if="unpaidInvoices.length" to="/invoices-billing" class="notice-row">
+        <div class="stat-icon icon-gold"><Receipt :size="17" /></div>
+        <span class="notice-text">
+          You have {{ unpaidInvoices.length === 1 ? 'an unpaid invoice' : `${unpaidInvoices.length} unpaid invoices` }}
+          — <strong>₱{{ unpaidTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</strong>
+        </span>
+        <span class="panel-link">Pay now →</span>
+      </NuxtLink>
+
+      <!-- HEALTH SNAPSHOT -->
       <section class="stat-grid">
         <div class="stat-card">
-          <div class="stat-icon"><Activity :size="17" /></div>
-          <p class="stat-value">{{ screening?.bmi ?? '—' }}</p>
+          <div class="stat-top"><div class="stat-icon"><Activity :size="17" /></div></div>
+          <p class="stat-value">{{ screening ? Number(screening.bmi).toFixed(1) : '—' }}</p>
           <p class="stat-label">Current BMI</p>
-          <span class="status-pill" :class="screening ? bmiBadgeClass : 'pill-muted'">{{ screening?.bmi_category ?? 'Not yet screened' }}</span>
+          <p class="stat-delta" :class="screening ? bmiTone : 'neutral'">{{ screening?.bmi_category ?? 'Not yet screened' }}</p>
         </div>
         <div class="stat-card">
-          <div class="stat-icon icon-gold"><Flame :size="17" /></div>
-          <p class="stat-value">{{ screening?.tdee_kcal ? Math.round(screening.tdee_kcal) : '—' }} <span v-if="screening?.tdee_kcal" class="unit">kcal</span></p>
-          <p class="stat-label">Daily Target (TDEE)</p>
-          <p class="stat-note">Protein {{ macros.protein }}g · Carbs {{ macros.carbs }}g · Fat {{ macros.fat }}g</p>
+          <div class="stat-top"><div class="stat-icon icon-gold"><Flame :size="17" /></div></div>
+          <p class="stat-value">
+            {{ calorieTarget.value ? calorieTarget.value.toLocaleString() : '—' }}
+            <span v-if="calorieTarget.value" class="unit">kcal</span>
+          </p>
+          <p class="stat-label">{{ calorieTarget.label }}</p>
+          <p class="stat-delta neutral">{{ calorieTarget.note }}</p>
         </div>
         <div class="stat-card">
-          <div class="stat-icon"><ClipboardCheck :size="17" /></div>
+          <div class="stat-top"><div class="stat-icon"><ClipboardCheck :size="17" /></div></div>
           <p class="stat-value">{{ screening?.nrs_score ?? '—' }}</p>
           <p class="stat-label">NRS-2002 Score</p>
-          <span class="status-pill" :class="screening ? nrsBadgeClass : 'pill-muted'">{{ screening ? nrsRiskLabel : 'Pending screening' }}</span>
+          <p class="stat-delta" :class="screening ? nrsTone : 'neutral'">{{ screening ? nrsRiskLabel : 'Pending screening' }}</p>
         </div>
         <div class="stat-card">
-          <div class="stat-icon"><CalendarDays :size="17" /></div>
-          <p class="stat-value">{{ upcomingAppointment ? formatShortDate(upcomingAppointment.scheduled_at) : '—' }}</p>
+          <div class="stat-top"><div class="stat-icon"><CalendarDays :size="17" /></div></div>
+          <p class="stat-value">{{ nextAppointment ? formatShortDate(nextAppointment.scheduled_at) : '—' }}</p>
           <p class="stat-label">Next Appointment</p>
-          <p v-if="upcomingAppointment" class="stat-note">{{ formatTime(upcomingAppointment.scheduled_at) }} · {{ upcomingAppointment.type.replace('_', ' ') }}</p>
+          <p v-if="nextAppointment" class="stat-delta" :class="nextAppointment.status === 'pending' ? 'warn' : 'neutral'">
+            {{ formatTime(nextAppointment.scheduled_at) }} · {{ APPT_TYPES[nextAppointment.type] || nextAppointment.type }}{{ nextAppointment.status === 'pending' ? ' · awaiting confirmation' : '' }}
+          </p>
+          <p v-else class="stat-delta neutral">Nothing booked yet</p>
         </div>
       </section>
 
-      <!-- TABS -->
-      <nav class="dash-tabs">
-        <button v-for="tab in tabs" :key="tab.key" class="tab-item" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key">
-          <component :is="tab.icon" :size="15" /> {{ tab.label }}
-        </button>
-      </nav>
-
-      <!-- ============ OVERVIEW ============ -->
-      <section v-if="activeTab === 'overview'" class="dash-grid">
+      <section class="dash-grid">
         <div class="dash-col">
+          <!-- TODAY'S MEAL PLAN -->
           <div class="panel">
             <div class="panel-header-row">
-              <h3 class="panel-title">Weight Progress (kg)</h3>
-              <span v-if="weightHistory.length > 1" class="status-pill pill-green">{{ weightDeltaLabel }}</span>
+              <div>
+                <h3 class="panel-title flush">Today's Meal Plan</h3>
+                <p v-if="activePlan" class="panel-sub">{{ weekdayLabel }} · {{ activePlan.name || 'Your meal plan' }}</p>
+              </div>
+              <NuxtLink v-if="activePlan" to="/meal-plan-view" class="panel-link">Log meals →</NuxtLink>
+            </div>
+
+            <template v-if="activePlan">
+              <div v-if="planMacros" class="macro-strip">
+                <span><strong>{{ planMacros.kcal }}</strong> kcal</span>
+                <span v-if="planMacros.carbs"><strong>{{ planMacros.carbs }}g</strong> carbs</span>
+                <span v-if="planMacros.protein"><strong>{{ planMacros.protein }}g</strong> protein</span>
+                <span v-if="planMacros.fat"><strong>{{ planMacros.fat }}g</strong> fat</span>
+                <span class="macro-source">daily targets from your RND</span>
+              </div>
+
+              <ul v-if="todaysMeals.length" class="meal-list">
+                <li v-for="meal in todaysMeals" :key="meal.id" class="meal-row">
+                  <div class="meal-icon"><component :is="MEAL_ICONS[meal.meal_time] || Sun" :size="15" /></div>
+                  <div class="meal-info">
+                    <p class="meal-name">{{ MEAL_LABELS[meal.meal_time] || meal.meal_time }}</p>
+                    <p class="meal-detail">
+                      <template v-if="meal.scheduled_time">{{ formatClock(meal.scheduled_time) }} · </template>
+                      {{ mealFoodsLabel(meal) }}
+                    </p>
+                  </div>
+                  <span class="status-pill" :class="logPillClass(meal)">{{ logLabel(meal) }}</span>
+                </li>
+              </ul>
+              <p v-else class="empty-note">No meals are scheduled for today in your plan.</p>
+
+              <div class="adherence-row">
+                <div class="adherence-item">
+                  <p class="adherence-value">{{ todayLoggedCount }}/{{ todaysMeals.length }}</p>
+                  <p class="adherence-label">meals logged today</p>
+                </div>
+                <div class="adherence-item">
+                  <p class="adherence-value">{{ weekAdherence.logged ? `${weekAdherence.followedPct}%` : '—' }}</p>
+                  <p class="adherence-label">
+                    {{ weekAdherence.logged ? `followed in the last 7 days (${weekAdherence.followed} of ${weekAdherence.logged} logged meals)` : 'no meals logged in the last 7 days' }}
+                  </p>
+                </div>
+              </div>
+            </template>
+            <div v-else class="empty-state">
+              <UtensilsCrossed :size="24" class="empty-icon" />
+              <p>No meal plan yet.</p>
+              <p class="empty-sub">Your RND prepares your meal plan after your consultation. It will show up here, meal by meal.</p>
+            </div>
+          </div>
+
+          <!-- WEIGHT PROGRESS -->
+          <div class="panel">
+            <div class="panel-header-row">
+              <h3 class="panel-title flush">Weight Progress (kg)</h3>
+              <span v-if="weightHistory.length > 1" class="panel-meta">{{ weightDeltaLabel }}</span>
             </div>
             <div v-if="weightHistory.length" class="weight-chart">
-              <svg viewBox="0 0 460 110" width="100%" style="overflow: visible;">
+              <svg viewBox="0 0 460 110" width="100%" style="overflow: visible;" role="img" :aria-label="`Weight history, latest ${weightHistory[weightHistory.length - 1].weight} kg`">
                 <defs><linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a3a1a" stop-opacity=".12" /><stop offset="100%" stop-color="#1a3a1a" stop-opacity="0" /></linearGradient></defs>
                 <g transform="translate(20,8)">
                   <polyline :points="chartPoints" stroke="#1a3a1a" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
                   <polygon :points="chartFillPoints" fill="url(#wGrad)" />
                   <circle v-for="(p, i) in chartCoords" :key="i" :cx="p.x" :cy="p.y" :r="i === chartCoords.length - 1 ? 4 : 3.5" :fill="i === chartCoords.length - 1 ? '#D4A017' : '#1a3a1a'" />
-                  <text v-for="(p, i) in chartCoords" :key="'l' + i" :x="p.x - (i === chartCoords.length - 1 ? 10 : 4)" y="104" font-size="9" :fill="i === chartCoords.length - 1 ? '#D4A017' : '#8aaa8a'" :font-weight="i === chartCoords.length - 1 ? 700 : 400" font-family="Inter, sans-serif">{{ p.label }}</text>
+                  <text v-for="(p, i) in chartCoords" :key="'w' + i" :x="p.x" :y="p.y - 9" text-anchor="middle" font-size="9" fill="#4a5a4a" font-family="Inter, sans-serif">{{ p.weight }}</text>
+                  <text v-for="(p, i) in chartCoords" :key="'l' + i" :x="p.x" y="104" text-anchor="middle" font-size="9" :fill="i === chartCoords.length - 1 ? '#D4A017' : '#8aaa8a'" :font-weight="i === chartCoords.length - 1 ? 700 : 400" font-family="Inter, sans-serif">{{ p.label }}</text>
                 </g>
               </svg>
             </div>
-            <p v-else class="empty-note">No weight history yet — this fills in as your RND logs progress at each consultation.</p>
-          </div>
-
-          <div class="panel">
-            <h3 class="panel-title">Clinical Alerts</h3>
-            <!-- TODO: no clinical-alerts endpoint yet — derive real ones from
-                 screening/progress data once that's available server-side. -->
-            <p v-if="!clinicalAlerts.length" class="empty-note">No alerts right now.</p>
-            <div v-else class="alert-list">
-              <div v-for="alert in clinicalAlerts" :key="alert.title" class="alert-item" :class="alert.level">
-                <component :is="alert.level === 'level-warning' ? AlertTriangle : CheckCircle" :size="16" class="alert-icon" />
-                <div class="alert-text">
-                  <p class="alert-name">{{ alert.title }}</p>
-                  <p class="alert-detail">{{ alert.detail }}</p>
-                </div>
-                <NuxtLink v-if="alert.actionLabel" to="/messages" class="alert-action">{{ alert.actionLabel }} →</NuxtLink>
-              </div>
-            </div>
-          </div>
-
-          <div class="panel">
-            <h3 class="panel-title">Today's Macronutrient Targets</h3>
-            <div v-if="screening?.tdee_kcal" class="macro-grid">
-              <div class="macro-item">
-                <p class="macro-value">{{ macros.carbs }}g</p>
-                <p class="macro-label">Carbohydrates</p>
-                <div class="macro-track"><div class="macro-fill fill-green" style="width: 100%"></div></div>
-              </div>
-              <div class="macro-item">
-                <p class="macro-value gold">{{ macros.protein }}g</p>
-                <p class="macro-label">Protein</p>
-                <div class="macro-track"><div class="macro-fill fill-gold" style="width: 100%"></div></div>
-              </div>
-              <div class="macro-item">
-                <p class="macro-value">{{ macros.fat }}g</p>
-                <p class="macro-label">Fat</p>
-                <div class="macro-track"><div class="macro-fill fill-green" style="width: 100%"></div></div>
-              </div>
-            </div>
-            <p v-else class="empty-note">Complete your screening to see daily targets.</p>
+            <p v-else class="empty-note">No weight history yet — this fills in as your RND records your progress at each consultation.</p>
           </div>
         </div>
 
         <div class="dash-col">
-          <div class="panel" v-if="recentActivity.length">
-            <div class="panel-header-row">
-              <h3 class="panel-title">Recent Activity</h3>
-              <NuxtLink to="/history" class="view-all-link">View All →</NuxtLink>
-            </div>
-            <div class="activity-row" v-for="entry in recentActivity" :key="entry.id">
-              <span class="activity-dot" :class="activityDotClass(entry.type)"></span>
-              <div>
-                <p class="activity-title">{{ entry.title }}</p>
-                <p class="activity-time">{{ entry.timestamp }}</p>
+          <!-- YOUR RND -->
+          <div class="panel">
+            <h3 class="panel-title">Your RND</h3>
+            <template v-if="careRnd">
+              <div class="rnd-row">
+                <img v-if="careRnd.photo" :src="careRnd.photo" alt="" class="rnd-avatar rnd-avatar-img" />
+                <div v-else class="rnd-avatar">{{ careRnd.initials }}</div>
+                <div class="rnd-text">
+                  <p class="rnd-name">RND {{ careRnd.name }}</p>
+                  <p class="rnd-specialty">{{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}</p>
+                  <p v-if="careRnd.reviewCount" class="rnd-rating">★ {{ careRnd.rating }} ({{ careRnd.reviewCount }} review{{ careRnd.reviewCount === 1 ? '' : 's' }})</p>
+                  <p v-if="careRnd.pending" class="rnd-pending">Waiting to confirm your first booking</p>
+                </div>
               </div>
-            </div>
+              <div class="btn-row">
+                <NuxtLink v-if="!careRnd.pending" to="/messages" class="block-btn">Send a Message</NuxtLink>
+                <NuxtLink :to="`/rnd-profile-view/${careRnd.id}`" class="block-btn">View Profile</NuxtLink>
+              </div>
+            </template>
+            <template v-else>
+              <p class="empty-note spaced">You're not connected with an RND yet.</p>
+              <NuxtLink to="/find-rnd" class="block-btn">Find an RND</NuxtLink>
+            </template>
           </div>
 
+          <!-- LATEST SCREENING -->
           <div class="panel">
             <h3 class="panel-title">Latest Screening</h3>
             <template v-if="screening">
               <p class="screening-summary-text">
-                Recorded {{ formatShortDate(screening.created_at) }} — BMI {{ screening.bmi }} ({{ screening.bmi_category }}), NRS-2002 {{ screening.nrs_score }}.
+                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
               </p>
-              <button class="outline-btn full-width" @click="navigateTo('/pre-consultation-screening')">Update Screening</button>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Update Screening</NuxtLink>
             </template>
             <template v-else>
-              <p class="screening-summary-text">No screening on file yet — this is recorded ahead of your first consultation.</p>
-              <button class="outline-btn full-width" @click="navigateTo('/pre-consultation-screening')">Complete Screening</button>
+              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
             </template>
           </div>
 
+          <!-- RECENT ACTIVITY (real notifications) -->
           <div class="panel">
-            <h3 class="panel-title">Your RND</h3>
-            <div v-if="activeRelationship" class="rnd-row">
-              <div class="rnd-avatar" :style="{ background: colorForId(activeRelationship.rnd.id) }">{{ initialsFor(activeRelationship.rnd) }}</div>
-              <div>
-                <p class="rnd-name">RND {{ activeRelationship.rnd.first_name }} {{ activeRelationship.rnd.last_name }}</p>
-                <p v-if="rndProfile?.specialization" class="rnd-specialty">{{ rndProfile.specialization }}</p>
-                <p v-if="rndProfile?.average_rating" class="rnd-rating">★ {{ Number(rndProfile.average_rating).toFixed(1) }} ({{ rndProfile.review_count }} reviews)</p>
+            <div class="panel-header-row">
+              <h3 class="panel-title flush">Recent Activity</h3>
+              <NuxtLink v-if="notifications.length" to="/notifications" class="panel-link">View all →</NuxtLink>
+            </div>
+            <div v-for="n in recentActivity" :key="n.id" class="activity-row">
+              <span class="activity-dot" :class="{ unread: !n.is_read }"></span>
+              <div class="activity-text">
+                <p class="activity-title">{{ n.subject }}</p>
+                <p class="activity-time">{{ timeAgo(n.created_at) }}</p>
               </div>
             </div>
-            <p v-else class="empty-note">No active RND yet.</p>
-            <button class="outline-btn full-width" @click="navigateTo(activeRelationship ? '/messages' : '/find-rnd')">
-              {{ activeRelationship ? 'Send a Message' : 'Find an RND' }}
-            </button>
+            <p v-if="!recentActivity.length" class="empty-note">Nothing yet — updates about your bookings, meal plans and payments show up here.</p>
           </div>
-
-          <div class="panel">
-            <h3 class="panel-title">Today's Reminders</h3>
-            <!-- TODO: mock/local only — Reminder has a DB model but no
-                 serializer/view/endpoint yet. -->
-            <div v-if="!todaysReminders.length" class="empty-note">No reminders set.</div>
-            <div v-else class="reminder-list">
-              <div v-for="r in todaysReminders" :key="r.label" class="reminder-item">
-                <component :is="r.icon" :size="16" :style="{ color: r.color }" />
-                <span class="reminder-label">{{ r.label }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ HEALTH SCREENING ============ -->
-      <section v-if="activeTab === 'screening'" class="dash-grid-single">
-        <div class="panel" v-if="screening">
-          <span class="section-eyebrow">PRE-CONSULTATION SCREENING RECORD</span>
-          <div class="screening-stats">
-            <div class="screening-stat">
-              <p class="screening-value">{{ screening.bmi }}</p>
-              <p class="screening-label">BMI</p>
-              <span class="status-pill" :class="bmiBadgeClass">{{ screening.bmi_category }}</span>
-            </div>
-            <div class="screening-stat">
-              <p class="screening-value">{{ screening.bmr_kcal ? Math.round(screening.bmr_kcal).toLocaleString() : '—' }}</p>
-              <p class="screening-label">BMR (kcal)</p>
-            </div>
-            <div class="screening-stat">
-              <p class="screening-value">{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal).toLocaleString() : '—' }}</p>
-              <p class="screening-label">TDEE (kcal)</p>
-            </div>
-            <div class="screening-stat">
-              <p class="screening-value">{{ screening.nrs_score ?? '—' }}</p>
-              <p class="screening-label">NRS-2002 Score</p>
-              <span v-if="screening.nrs_risk" class="status-pill" :class="nrsBadgeClass">{{ nrsRiskLabel }}</span>
-            </div>
-          </div>
-          <div class="info-banner">
-            <Info :size="15" class="info-icon" />
-            Your RND uses these values to personalize your care plan.
-            <NuxtLink to="/pre-consultation-screening" class="info-link">Update Screening →</NuxtLink>
-          </div>
-        </div>
-        <div class="panel" v-else>
-          <span class="section-eyebrow">PRE-CONSULTATION SCREENING RECORD</span>
-          <p class="screening-summary-text">No screening on file yet — this is recorded ahead of your first consultation.</p>
-          <NuxtLink to="/pre-consultation-screening" class="outline-btn full-width" style="display: inline-block; text-align: center; text-decoration: none;">Complete Screening</NuxtLink>
-        </div>
-
-        <!-- TODO: no screening-history list endpoint yet (only /client/screening/latest/
-             and a per-appointment detail exist) — wire this up once one is added. -->
-      </section>
-
-      <!-- ============ MY TASKS ============ -->
-      <section v-if="activeTab === 'tasks'" class="dash-grid-single">
-        <!-- TODO: mock/local only — no assigned-tasks concept/endpoint on the backend yet. -->
-        <div class="panel">
-          <div class="panel-header-row">
-            <h3 class="panel-title">Tasks Assigned{{ activeRelationship ? ` by RND ${activeRelationship.rnd.first_name} ${activeRelationship.rnd.last_name}` : '' }}</h3>
-            <span class="status-pill pill-gold">{{ pendingTaskCount }} pending</span>
-          </div>
-          <p v-if="!tasks.length" class="empty-note">No tasks assigned yet.</p>
-          <div v-else class="task-list">
-            <label v-for="task in tasks" :key="task.label" class="task-row">
-              <input type="checkbox" v-model="task.done" />
-              <div class="task-info">
-                <p class="task-label">{{ task.label }}</p>
-                <p class="task-detail">{{ task.schedule }}</p>
-              </div>
-              <span class="status-pill" :class="task.done ? 'pill-green' : 'pill-gold'">{{ task.done ? 'Done today' : 'Pending' }}</span>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ LOG PROGRESS ============ -->
-      <section v-if="activeTab === 'logging'" class="dash-grid">
-        <div class="dash-col">
-          <div class="panel">
-            <span class="section-eyebrow">ACTUAL FOOD INTAKE</span>
-            <p class="empty-note">Meal-by-meal adherence logging (with photo, time, and status per meal) now lives on the <NuxtLink to="/meal-plan-view" class="inline-link">My Meal Plan</NuxtLink> page, next to what your RND actually prescribed for each meal.</p>
-          </div>
-        </div>
-
-        <div class="dash-col">
-          <div class="panel">
-            <!-- TODO: mock/local only — no vitals-log endpoint yet. -->
-            <span class="section-eyebrow">VITALS ENTRY</span>
-            <label class="field-label">Weight (kg)</label>
-            <input v-model.number="vitals.weight" type="number" min="0" class="full-input" />
-            <label class="field-label">Blood Pressure (mmHg)</label>
-            <input v-model="vitals.bp" type="text" class="full-input" placeholder="120/80" />
-            <label class="field-label">Fasting Blood Glucose (mg/dL)</label>
-            <input v-model.number="vitals.glucose" type="number" min="0" class="full-input" />
-            <button class="primary-btn full-width" @click="saveVitals">Save Vitals</button>
-          </div>
-
-          <div class="panel">
-            <span class="section-eyebrow">NOTES FOR RND</span>
-            <textarea v-model="notesForRnd" rows="3" placeholder="Anything you'd like your RND to know..."></textarea>
-            <button class="outline-btn full-width" @click="sendNotesToRnd">Send Notes</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ CONSULTATION SUMMARIES ============ -->
-      <section v-if="activeTab === 'summaries'" class="dash-grid-single">
-        <!-- TODO: mock/local only — no consultation-summary endpoint yet;
-             real NCP records exist (clinical/models.py NcpRecord) but aren't
-             surfaced to the client role. -->
-        <p v-if="!consultationSummaries.length" class="empty-note">No consultation summaries yet.</p>
-        <div v-for="s in consultationSummaries" :key="s.title" class="panel summary-card">
-          <div class="panel-header-row">
-            <div>
-              <p class="summary-title">{{ s.title }}</p>
-              <p class="summary-meta">{{ s.date }} · {{ s.mode }}</p>
-            </div>
-            <span class="status-pill pill-muted">Completed</span>
-          </div>
-          <p class="summary-notes"><strong>Key Notes:</strong> {{ s.notes }}</p>
         </div>
       </section>
     </template>
@@ -291,10 +209,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import {
-  Activity, Flame, ClipboardCheck, CalendarDays, LayoutGrid, ShieldCheck, CheckSquare,
-  PlusCircle, FileText, AlertTriangle, CheckCircle, Info, Droplet, HeartPulse, BookCheck,
+  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee,
 } from 'lucide-vue-next'
-import { useClientHistory } from '~/composables/useClientHistory'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
 
@@ -307,76 +223,217 @@ const appointments = ref([])
 const relationships = ref([])
 const rndProfile = ref(null)
 const screening = ref(null)
+const mealPlans = ref([])
+const mealLogs = ref([])
+const invoices = ref([])
+const notifications = ref([])
 
-const AVATAR_COLORS = ['#1e4a26', '#3a6b3a', '#D4A017', '#6a8a6a', '#8a6a3a']
-function colorForId(id) {
-  return AVATAR_COLORS[id % AVATAR_COLORS.length]
+const APPT_TYPES = { video: 'Video', chat: 'Chat', in_person: 'In-person' }
+const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
+const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch', pm_snack: 'PM Snack', dinner: 'Dinner', bedtime_snack: 'Bedtime Snack' }
+const MEAL_ICONS = { breakfast: Sunrise, am_snack: Coffee, lunch: Sun, pm_snack: Coffee, dinner: Moon, bedtime_snack: Moon }
+const LOG_LABELS = { followed: 'Followed', partially_followed: 'Partly followed', not_followed: 'Not followed' }
+
+// Local dates — toISOString() is UTC and would give yesterday before 8 AM in PHT.
+const now = new Date()
+function localIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-function initialsFor(user) {
-  return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase()
-}
-
-const todayLabel = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase())
-
-const activeRelationship = computed(() => relationships.value[0] || null)
-
-const upcomingAppointment = computed(() => {
-  const upcoming = appointments.value
-    .filter(a => ['pending', 'confirmed'].includes(a.status) && new Date(a.scheduled_at) > new Date())
-    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
-  return upcoming[0] || null
-})
-
-const welcomeSubtext = computed(() => {
-  if (upcomingAppointment.value && activeRelationship.value) {
-    return `Next consultation with RND ${activeRelationship.value.rnd.first_name} ${activeRelationship.value.rnd.last_name} on ${formatShortDate(upcomingAppointment.value.scheduled_at)}. Your BMI is in the ${screening.value?.bmi_category ?? 'not yet screened'} range.`
-  }
-  if (activeRelationship.value) {
-    return `You're working with RND ${activeRelationship.value.rnd.first_name} ${activeRelationship.value.rnd.last_name}.`
-  }
-  return "You haven't connected with an RND yet."
-})
-
-const nrsRiskLabel = computed(() => ({ no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[screening.value?.nrs_risk] || screening.value?.nrs_risk))
-const nrsBadgeClass = computed(() => ({ no_risk: 'badge-success', at_risk: 'badge-warning', high_risk: 'badge-danger' }[screening.value?.nrs_risk] || ''))
-const bmiBadgeClass = computed(() => {
-  const cat = (screening.value?.bmi_category || '').toLowerCase()
-  if (cat.includes('normal')) return 'badge-success'
-  if (cat.includes('underweight')) return 'badge-info'
-  return 'badge-warning'
-})
+const todayIso = localIso(now)
+const weekdayLabel = now.toLocaleDateString('en-US', { weekday: 'long' })
 
 function formatShortDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
+function formatLongDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
+function formatClock(t) {
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}
+function timeAgo(iso) {
+  const mins = Math.round((Date.now() - new Date(iso)) / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs} hr${hrs === 1 ? '' : 's'} ago`
+  const days = Math.round(hrs / 24)
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`
+  return formatLongDate(iso)
+}
 
-// TODO: TDEE-based macro split is a placeholder ratio (40/30/30-ish),
-// not a real RND-assigned macro plan — no such field/endpoint exists yet.
-const macros = computed(() => {
-  const tdee = screening.value?.tdee_kcal
-  if (!tdee) return { carbs: '—', protein: '—', fat: '—' }
+/* ---------- Appointments & RND ---------- */
+const activeRelationship = computed(() => relationships.value[0] || null)
+
+// Upcoming = not cancelled/completed and not over yet (an in-progress call still counts).
+const nextAppointment = computed(() => {
+  const upcoming = appointments.value
+    .filter(a => ['pending', 'confirmed'].includes(a.status))
+    .filter(a => new Date(a.scheduled_at).getTime() + (a.duration_minutes || 60) * 60000 > Date.now())
+    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+  return upcoming[0] || null
+})
+
+// Most recent still-"pending" request whose time has already passed.
+const expiredRequest = computed(() =>
+  appointments.value
+    .filter(a => a.status === 'pending' && new Date(a.scheduled_at) <= new Date())
+    .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at))[0] || null
+)
+
+// The RND to show: the active care relationship, or the RND of a first
+// booking that hasn't been confirmed yet.
+const careRnd = computed(() => {
+  const rnd = activeRelationship.value?.rnd || nextAppointment.value?.relationship?.rnd
+  if (!rnd) return null
+  const profile = rndProfile.value
   return {
-    carbs: Math.round((tdee * 0.5) / 4),
-    protein: Math.round((tdee * 0.2) / 4),
-    fat: Math.round((tdee * 0.3) / 9),
+    id: rnd.id,
+    name: `${rnd.first_name} ${rnd.last_name}`,
+    initials: `${rnd.first_name?.[0] || ''}${rnd.last_name?.[0] || ''}`.toUpperCase(),
+    photo: profile?.user?.profile_photo || '',
+    specialization: profile?.specialization || '',
+    rating: profile?.average_rating ? Number(profile.average_rating).toFixed(1) : '',
+    reviewCount: profile?.review_count || 0,
+    pending: !activeRelationship.value,
   }
 })
 
-const tabs = [
-  { key: 'overview', label: 'Overview', icon: LayoutGrid },
-  { key: 'screening', label: 'Health Screening', icon: ShieldCheck },
-  { key: 'tasks', label: 'My Tasks', icon: CheckSquare },
-  { key: 'logging', label: 'Log Progress', icon: PlusCircle },
-  { key: 'summaries', label: 'Consultation Summaries', icon: FileText },
-]
-const activeTab = ref('overview')
+/* ---------- Billing ---------- */
+const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid'))
+const unpaidTotal = computed(() => unpaidInvoices.value.reduce((sum, i) => sum + Number(i.amount), 0))
 
-/* ---------- OVERVIEW: weight chart ---------- */
-// From the RND-logged progress records (GET /client/progress/, newest
-// first) — oldest → newest, last 8 weigh-ins, so the line reads left to right.
+/* ---------- Next step (banner) ---------- */
+const nextStep = computed(() => {
+  const appt = nextAppointment.value
+  const rndName = careRnd.value ? `RND ${careRnd.value.name}` : 'your RND'
+  if (!screening.value) {
+    return {
+      eyebrow: 'YOUR NEXT STEP',
+      text: 'Complete your health screening. It takes about a minute and gives your RND your BMI, calorie needs and nutrition risk before you meet.',
+      action: 'Start Screening', to: '/pre-consultation-screening',
+    }
+  }
+  // Pay before the consultation (unpaid ones are cancelled at the start time).
+  if (appt?.status === 'confirmed' && appt.payment?.status === 'unpaid') {
+    const amount = Number(appt.payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    return {
+      eyebrow: 'PAYMENT DUE',
+      text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} before then to start it — unpaid bookings are cancelled at the start time.`,
+      action: `Pay ₱${amount}`, to: '/appointments',
+    }
+  }
+  if (appt?.status === 'confirmed') {
+    const when = `${formatLongDate(appt.scheduled_at)} at ${formatTime(appt.scheduled_at)}`
+    // The API only sends the room link inside the join window (15 min early).
+    const canJoin = appt.type === 'video' && appt.video_session_url
+    return {
+      eyebrow: 'UPCOMING CONSULTATION',
+      text: `${APPT_TYPES[appt.type] || ''} consultation with ${rndName} on ${when}.`,
+      action: canJoin ? 'Join Video Call' : 'View Appointment',
+      to: canJoin ? `/consultation-room/${appt.id}` : '/appointments',
+    }
+  }
+  if (appt?.status === 'pending') {
+    return {
+      eyebrow: 'WAITING FOR CONFIRMATION',
+      text: `Your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} booking is waiting for ${rndName} to confirm. We'll notify you as soon as they do.`,
+      action: 'View Booking', to: '/appointments',
+    }
+  }
+  // A booking request whose time passed before the RND confirmed it.
+  if (!activeRelationship.value && expiredRequest.value) {
+    const rnd = expiredRequest.value.relationship?.rnd
+    return {
+      eyebrow: 'BOOKING NOT CONFIRMED',
+      text: `Your ${formatLongDate(expiredRequest.value.scheduled_at)} booking request${rnd ? ` with RND ${rnd.first_name} ${rnd.last_name}` : ''} wasn't confirmed before its time passed. Pick a new time, or choose another RND.`,
+      action: 'Book a New Time', to: rnd ? `/rnd-profile-view/${rnd.id}?book=1` : '/find-rnd',
+    }
+  }
+  if (activeRelationship.value) {
+    return {
+      eyebrow: 'STAY ON TRACK',
+      text: activePlan.value
+        ? `You don't have an upcoming consultation with ${rndName}. Keep logging your meals, and book a follow-up when you're ready.`
+        : `You don't have an upcoming consultation with ${rndName}. Book one to continue your care.`,
+      action: 'Book a Consultation', to: `/rnd-profile-view/${activeRelationship.value.rnd.id}?book=1`,
+    }
+  }
+  return {
+    eyebrow: 'YOUR NEXT STEP',
+    text: 'Your screening is done. Find a licensed RND who fits your needs and book your first consultation.',
+    action: 'Find an RND', to: '/find-rnd',
+  }
+})
+
+/* ---------- Screening badges ---------- */
+const nrsRiskLabel = computed(() => ({ no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[screening.value?.nrs_risk] || ''))
+const nrsTone = computed(() => ({ no_risk: 'good', at_risk: 'warn', high_risk: 'bad' }[screening.value?.nrs_risk] || 'neutral'))
+const bmiTone = computed(() => ((screening.value?.bmi_category || '').toLowerCase().includes('normal') ? 'good' : 'warn'))
+
+/* ---------- Meal plan ---------- */
+// Only the plan the RND has sent (drafts never reach the client).
+const activePlan = computed(() => mealPlans.value.find(p => p.status === 'active') || null)
+
+// The RND's target when there's a plan; otherwise the screening's estimate.
+const calorieTarget = computed(() => {
+  if (activePlan.value?.target_kcal) {
+    return { value: Math.round(Number(activePlan.value.target_kcal)), label: 'Daily Calorie Target', note: 'Set by your RND in your meal plan' }
+  }
+  if (screening.value?.tdee_kcal) {
+    return { value: Math.round(Number(screening.value.tdee_kcal)), label: 'Estimated Daily Needs (TDEE)', note: 'Your RND will set your actual target' }
+  }
+  return { value: null, label: 'Daily Calorie Target', note: 'Complete your screening first' }
+})
+const planMacros = computed(() => {
+  const p = activePlan.value
+  if (!p?.target_kcal) return null
+  const g = (v) => (v ? Math.round(Number(v)) : null)
+  return { kcal: Math.round(Number(p.target_kcal)).toLocaleString(), carbs: g(p.target_carb_g), protein: g(p.target_protein_g), fat: g(p.target_fat_g) }
+})
+
+// Plans are per weekday (Sunday = 0); meals with no day (older plans) apply every day.
+const todaysMeals = computed(() =>
+  (activePlan.value?.meals || [])
+    .filter(m => m.day_of_week === now.getDay() || m.day_of_week === null)
+    .sort((a, b) => MEAL_ORDER.indexOf(a.meal_time) - MEAL_ORDER.indexOf(b.meal_time))
+)
+function mealFoodsLabel(meal) {
+  const names = (meal.food_items || []).map(f => f.food_name).filter(Boolean)
+  if (!names.length) return 'No foods listed'
+  return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3} more` : names.join(', ')
+}
+
+const todaysLogsByMeal = computed(() => {
+  const map = {}
+  for (const log of mealLogs.value) if (log.log_date === todayIso) map[log.meal_plan_meal] = log
+  return map
+})
+function logLabel(meal) {
+  const log = todaysLogsByMeal.value[meal.id]
+  return log ? LOG_LABELS[log.status] || log.status : 'Not logged'
+}
+function logPillClass(meal) {
+  const status = todaysLogsByMeal.value[meal.id]?.status
+  return { followed: 'pill-green', partially_followed: 'pill-gold', not_followed: 'badge-danger' }[status] || 'pill-muted'
+}
+const todayLoggedCount = computed(() => todaysMeals.value.filter(m => todaysLogsByMeal.value[m.id]).length)
+
+// Last 7 days including today, from the client's own meal logs.
+const weekAdherence = computed(() => {
+  const start = new Date(now)
+  start.setDate(start.getDate() - 6)
+  const startIso = localIso(start)
+  const logs = mealLogs.value.filter(l => l.log_date >= startIso && l.log_date <= todayIso)
+  const followed = logs.filter(l => l.status === 'followed').length
+  return { logged: logs.length, followed, followedPct: logs.length ? Math.round((followed / logs.length) * 100) : 0 }
+})
+
+/* ---------- Weight chart (RND-recorded progress, oldest → newest) ---------- */
 const weightHistory = ref([])
 function toWeightHistory(records) {
   return records
@@ -390,8 +447,9 @@ function toWeightHistory(records) {
 }
 const weightDeltaLabel = computed(() => {
   if (weightHistory.value.length < 2) return ''
-  const delta = weightHistory.value[0].weight - weightHistory.value[weightHistory.value.length - 1].weight
-  return `${delta >= 0 ? '↓' : '↑'} ${Math.abs(delta).toFixed(1)} kg total`
+  const delta = weightHistory.value[weightHistory.value.length - 1].weight - weightHistory.value[0].weight
+  if (Math.abs(delta) < 0.05) return 'No change'
+  return `${delta < 0 ? '↓' : '↑'} ${Math.abs(delta).toFixed(1)} kg overall`
 })
 const chartCoords = computed(() => {
   if (!weightHistory.value.length) return []
@@ -399,70 +457,49 @@ const chartCoords = computed(() => {
   const minW = Math.min(...weights)
   const maxW = Math.max(...weights)
   const range = maxW - minW || 1
+  const n = weightHistory.value.length
   return weightHistory.value.map((w, i) => ({
     label: w.label,
-    x: weightHistory.value.length > 1 ? (i / (weightHistory.value.length - 1)) * 400 : 0,
+    weight: w.weight,
+    x: n > 1 ? (i / (n - 1)) * 400 : 200,
     y: 80 - ((w.weight - minW) / range) * 56,
   }))
 })
 const chartPoints = computed(() => chartCoords.value.map(p => `${p.x},${p.y}`).join(' '))
-const chartFillPoints = computed(() => chartPoints.value + ` 400,90 0,90`)
+const chartFillPoints = computed(() => {
+  const c = chartCoords.value
+  if (!c.length) return ''
+  return `${chartPoints.value} ${c[c.length - 1].x},90 ${c[0].x},90`
+})
 
-// TODO: mock/local only — no clinical-alerts endpoint yet.
-const clinicalAlerts = ref([])
-
-/* ---------- Recent activity (shared with the History page) ---------- */
-const { historyLog } = useClientHistory()
-const recentActivity = computed(() => historyLog.value.slice(0, 3))
-function activityDotClass(type) {
-  return { screening: 'dot-blue', appointment: 'dot-gold', mealLog: 'dot-green' }[type] || 'dot-green'
-}
-
-// TODO: mock/local only — Reminder has a DB model but no endpoint yet.
-const todaysReminders = ref([
-  { label: 'Hydration (8 glasses — 2L)', icon: Droplet, color: '#2a5a8a' },
-  { label: 'Check fasting blood sugar', icon: HeartPulse, color: '#c0392b' },
-  { label: "Log today's meals", icon: BookCheck, color: '#1a3a1a' },
-])
-
-/* ---------- My Tasks (mock/local only) ---------- */
-const tasks = ref([])
-const pendingTaskCount = computed(() => tasks.value.filter(t => !t.done).length)
-
-/* ---------- Log Progress (mock/local only) ---------- */
-const vitals = ref({ weight: null, bp: '', glucose: null })
-function saveVitals() {
-  // TODO: wire up to a real save-vitals API call
-  console.log('Saving vitals', vitals.value)
-}
-const notesForRnd = ref('')
-function sendNotesToRnd() {
-  // TODO: wire up to a real send-note API call
-  console.log('Sending note to RND', notesForRnd.value)
-  notesForRnd.value = ''
-}
-
-/* ---------- Consultation Summaries (mock/local only) ---------- */
-const consultationSummaries = ref([])
+/* ---------- Recent activity ---------- */
+const recentActivity = computed(() => notifications.value.slice(0, 5))
 
 async function loadDashboard() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const [appts, rels, latestScreening, progress] = await Promise.all([
+    const [appts, rels, latestScreening, progress, plans, logs, invs, notes] = await Promise.all([
       get('/client/appointments/'),
       get('/client/relationships/'),
       get('/client/screening/latest/').catch(() => null),
       get('/client/progress/').catch(() => []),
+      get('/client/meal-plans/').catch(() => []),
+      get('/client/meal-logs/').catch(() => []),
+      get('/client/invoices/').catch(() => []),
+      get('/notifications/').catch(() => []),
     ])
     appointments.value = appts
     relationships.value = rels
     screening.value = latestScreening
     weightHistory.value = toWeightHistory(progress)
+    mealPlans.value = plans
+    mealLogs.value = logs
+    invoices.value = invs
+    notifications.value = Array.isArray(notes) ? notes : notes?.results || []
 
-    if (rels[0]) {
-      rndProfile.value = await get(`/client/rnds/${rels[0].rnd.id}/`).catch(() => null)
-    }
+    const rndId = careRnd.value?.id
+    if (rndId) rndProfile.value = await get(`/client/rnds/${rndId}/`).catch(() => null)
   } catch {
     errorMessage.value = 'Could not load your dashboard. Please try again later.'
   } finally {
@@ -474,6 +511,8 @@ onMounted(loadDashboard)
 </script>
 
 <style scoped>
+/* Same tokens as the RND dashboard (DashboardHome.vue): banner, stat cards,
+   panels, panel links and the outlined block button. */
 * { box-sizing: border-box; }
 
 .client-dashboard { font-family: 'Inter', sans-serif; }
@@ -484,159 +523,148 @@ onMounted(loadDashboard)
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
-.empty-note { font-size: 0.85rem; color: #9aaa9a; margin: 0; }
-.inline-link { color: #1a5a2a; font-weight: 600; text-decoration: underline; }
+.empty-note { font-size: 0.85rem; color: #9aaa9a; margin: 0; line-height: 1.5; }
+.empty-note.spaced { margin-bottom: 16px; }
 
 /* WELCOME BANNER */
 .welcome-banner {
-  position: relative; overflow: hidden;
+  position: relative;
   background: linear-gradient(135deg, #00382a 0%, #005a42 100%);
-  border-radius: 16px; padding: 28px 32px; margin-bottom: 20px; color: #fff;
+  border-radius: 16px; padding: 32px 36px; overflow: hidden;
+  margin: 0 0 24px; color: #fff;
+  width: 100%;
 }
-.banner-blob { position: absolute; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,0.05); top: -70px; right: -50px; z-index: 0; }
+.banner-blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.05); }
+.banner-blob-1 { width: 260px; height: 260px; top: -90px; right: 40px; }
+.banner-blob-2 { width: 160px; height: 160px; bottom: -70px; right: -20px; background: rgba(255,255,255,0.04); }
 .banner-content { position: relative; z-index: 1; }
-.banner-badge { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; padding: 5px 14px; border-radius: 20px; margin-bottom: 14px; }
+.banner-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(0,0,0,0.2); color: #D4A017;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  padding: 5px 14px; border-radius: 20px; margin-bottom: 14px;
+}
 .banner-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: #D4A017; }
-.banner-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.5rem; margin: 0 0 8px; color: #fff; }
-.banner-sub { font-size: 0.85rem; color: #cfe0d5; margin: 0 0 18px; max-width: 600px; line-height: 1.5; }
+.banner-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.7rem; margin: 0 0 8px; color: #fff; }
+.banner-sub { font-size: 0.85rem; color: #cfe0d5; margin: 0 0 20px; max-width: 620px; line-height: 1.5; }
 .banner-actions { display: flex; gap: 10px; }
-.banner-btn { background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px; padding: 11px 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+.banner-btn {
+  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
+  padding: 11px 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  text-decoration: none; display: inline-block;
+}
+
+/* UNPAID INVOICE ROW */
+.notice-row {
+  display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #eceeec;
+  border-radius: 14px; padding: 14px 20px; margin: -8px 0 20px; text-decoration: none; color: #4a5a4a;
+}
+.notice-row .stat-icon { flex-shrink: 0; }
+.notice-text { flex: 1; font-size: 0.85rem; }
+.notice-text strong { color: #1a3a1a; }
 
 /* STAT CARDS */
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 14px; padding: 18px 20px; border: 1px solid #CBD5E1; }
-.stat-icon { width: 34px; height: 34px; border-radius: 9px; background: #eef3ec; display: flex; align-items: center; justify-content: center; color: #1e4a26; margin-bottom: 12px; }
+.stat-card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #eceeec; min-width: 0; }
+.stat-top { margin-bottom: 12px; }
+.stat-icon { width: 34px; height: 34px; border-radius: 9px; background: #eef3ec; display: flex; align-items: center; justify-content: center; color: #1e4a26; }
 .stat-icon.icon-gold { background: #fdf1d6; color: #b8860b; }
-.stat-value { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.stat-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .stat-label { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 8px; }
-.stat-note { font-size: 0.72rem; color: #9aaa9a; margin: 0; }
+.stat-delta { font-size: 0.75rem; margin: 0; line-height: 1.4; }
+.stat-delta.neutral { color: #8a9a8a; }
+.stat-delta.good { color: #1f8f5c; font-weight: 600; }
+.stat-delta.warn { color: #b8860b; font-weight: 600; }
+.stat-delta.bad { color: #c0392b; font-weight: 600; }
 
-/* TABS */
-.dash-tabs { display: flex; gap: 24px; border-bottom: 1px solid #e5e8e5; margin-bottom: 20px; overflow-x: auto; }
-.tab-item { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; padding: 10px 2px; font-size: 0.85rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; border-bottom: 2px solid transparent; }
-.tab-item.active { color: #1a3a1a; border-bottom-color: #D4A017; }
-
-/* GRID */
+/* GRID + PANELS */
 .dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
-.dash-grid-single { display: flex; flex-direction: column; gap: 16px; }
-.dash-col { display: flex; flex-direction: column; gap: 20px; }
+.dash-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
-.panel-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.panel-header-row .panel-title { margin: 0; }
-.section-eyebrow { display: block; font-size: 0.72rem; letter-spacing: 0.08em; color: #D4A017; font-weight: 700; margin-bottom: 16px; }
+.panel-title.flush { margin: 0; }
+.panel-sub { font-size: 0.78rem; color: #8a9a8a; margin: 3px 0 0; }
+.panel-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.panel-link { font-size: 0.78rem; color: #1f8f5c; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.panel-link:hover { text-decoration: underline; }
+.panel-meta { font-size: 0.78rem; color: #6a7a6a; font-weight: 600; white-space: nowrap; }
 
-/* PILLS */
+/* PILLS (meal log status only) */
 .status-pill { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
 .pill-green { background: #e3f3ea; color: #1f8f5c; }
 .pill-gold { background: #fdf1d6; color: #b8860b; }
 .pill-muted { background: #eceeec; color: #8a9a8a; }
-.badge-success { background: #e6efe0; color: #3a6b3a; }
-.badge-warning { background: #faead0; color: #b8860b; }
-.badge-info { background: #e3edf7; color: #2f6fa8; }
 .badge-danger { background: #fdecec; color: #a12525; }
 
+/* BUTTON — the RND dashboard's outlined block button */
+.block-btn {
+  display: block; width: 100%; text-align: center; background: #fff; border: 1px solid #1a3a1a; color: #1a3a1a;
+  border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; text-decoration: none;
+}
+.block-btn:hover { background: #f7f9f7; }
+.btn-row { display: flex; gap: 10px; }
+
+/* TODAY'S MEAL PLAN */
+.macro-strip {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline;
+  background: #f7f9f7; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #4a5a4a;
+}
+.macro-strip strong { color: #1a3a1a; }
+.macro-source { font-size: 0.72rem; color: #9aaa9a; margin-left: auto; }
+.meal-list { list-style: none; margin: 0; padding: 0; }
+.meal-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #f0f2f0; }
+.meal-row:first-child { border-top: none; padding-top: 0; }
+.meal-icon { width: 32px; height: 32px; border-radius: 9px; background: #eef3ec; color: #1e4a26; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.meal-info { flex: 1; min-width: 0; }
+.meal-name { font-size: 0.87rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.meal-detail { font-size: 0.76rem; color: #8a9a8a; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adherence-row { display: grid; grid-template-columns: auto 1fr; gap: 18px; border-top: 1px solid #f0f2f0; margin-top: 12px; padding-top: 14px; }
+.adherence-item { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.adherence-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.adherence-label { font-size: 0.76rem; color: #8a9a8a; margin: 0; }
+.empty-state { text-align: center; padding: 18px 10px; color: #9aaa9a; font-size: 0.85rem; }
+.empty-state p { margin: 0; }
+.empty-icon { color: #c5d0c5; margin-bottom: 8px; }
+.empty-sub { font-size: 0.78rem; margin-top: 4px !important; line-height: 1.5; }
+
 /* WEIGHT CHART */
-.weight-chart { padding: 4px 0; }
-
-/* ALERTS */
-.alert-list { display: flex; flex-direction: column; gap: 10px; }
-.alert-item { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 10px; }
-.alert-item.level-warning { background: #faf1de; }
-.alert-item.level-success { background: #e6efe0; }
-.alert-icon { flex-shrink: 0; margin-top: 1px; color: #b8860b; }
-.level-success .alert-icon { color: #3a6b3a; }
-.alert-text { flex: 1; }
-.alert-name { font-weight: 700; font-size: 0.87rem; color: #2a2a2a; margin: 0 0 3px; }
-.alert-detail { font-size: 0.78rem; color: #6a6a6a; margin: 0; }
-.alert-action { font-size: 0.78rem; font-weight: 700; color: #b8860b; text-decoration: none; white-space: nowrap; }
-
-/* MACROS */
-.macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center; }
-.macro-value { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.macro-value.gold { color: #b8860b; }
-.macro-label { font-size: 0.72rem; color: #8a9a8a; margin: 2px 0 8px; }
-.macro-track { height: 6px; background: #eceeec; border-radius: 3px; overflow: hidden; }
-.macro-fill { height: 100%; border-radius: 3px; }
-.fill-green { background: #1f8f5c; }
-.fill-gold { background: #D4A017; }
-
-/* LATEST SCREENING */
-.screening-summary-text { font-size: 0.85rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
-
-/* RECENT ACTIVITY */
-.view-all-link { font-size: 0.78rem; font-weight: 700; color: #b8860b; text-decoration: none; white-space: nowrap; }
-.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f0; }
-.activity-row:first-of-type { border-top: none; padding-top: 0; }
-.activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; display: inline-block; }
-.activity-dot.dot-blue { background: #2a5a8a; }
-.activity-dot.dot-gold { background: #D4A017; }
-.activity-dot.dot-green { background: #1f8f5c; }
-.activity-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; margin: 0; }
-.activity-time { font-size: 0.72rem; color: #9aaa9a; margin: 2px 0 0; }
+.weight-chart { padding: 10px 0 4px; }
 
 /* RND CARD */
 .rnd-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-.rnd-avatar { width: 52px; height: 52px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.rnd-avatar { width: 52px; height: 52px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.rnd-avatar-img { object-fit: cover; }
+.rnd-text { min-width: 0; }
 .rnd-name { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .rnd-specialty { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
 .rnd-rating { font-size: 0.78rem; color: #b8860b; font-weight: 600; margin: 2px 0 0; }
+.rnd-pending { font-size: 0.76rem; color: #b8860b; margin: 4px 0 0; }
 
-/* REMINDERS (overview mini) */
-.reminder-list { display: flex; flex-direction: column; gap: 10px; }
-.reminder-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; border-left: 3px solid #D4A017; background: #f7f9f7; }
-.reminder-label { font-size: 0.85rem; font-weight: 600; color: #2a2a2a; }
+/* LATEST SCREENING */
+.screening-summary-text { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
 
-/* BUTTONS */
-.primary-btn { background: #14301a; color: #fff; border: none; border-radius: 8px; padding: 11px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
-.outline-btn { border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 11px 18px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
-.full-width { width: 100%; }
-
-/* INFO BANNER */
-.info-banner { display: flex; align-items: center; gap: 8px; background: #eef1f6; border-radius: 8px; padding: 12px 16px; font-size: 0.82rem; color: #3a4a5a; }
-.info-icon { color: #2a5a8a; flex-shrink: 0; }
-.info-link { color: #2a5a8a; font-weight: 600; text-decoration: none; }
-
-/* SCREENING STATS */
-.screening-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center; margin-bottom: 20px; }
-.screening-value { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.screening-label { font-size: 0.75rem; color: #8a9a8a; margin: 2px 0 6px; }
-
-/* TASKS */
-.task-list { display: flex; flex-direction: column; }
-.task-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f2f0; cursor: pointer; }
-.task-row:last-child { border-bottom: none; }
-.task-row input { width: 17px; height: 17px; accent-color: #14301a; cursor: pointer; }
-.task-info { flex: 1; }
-.task-label { font-size: 0.87rem; font-weight: 600; color: #1a3a1a; margin: 0; }
-.task-detail { font-size: 0.76rem; color: #9aaa9a; margin: 2px 0 0; }
-
-/* LOG PROGRESS FORM */
-.form-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field label, .field-label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
-.field-label { display: block; margin: 0 0 8px; }
-.field input, .field select, textarea, .full-input {
-  border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #2a2a2a; width: 100%;
-}
-textarea { resize: vertical; margin-bottom: 16px; }
-.full-input { margin-bottom: 16px; }
-
-.log-list { display: flex; flex-direction: column; }
-.log-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f0f2f0; font-size: 0.85rem; }
-.log-row:last-child { border-bottom: none; }
-.log-label { font-weight: 600; color: #1a3a1a; }
-.log-detail { color: #8a9a8a; flex: 1; text-align: right; margin-right: 8px; }
-
-/* SUMMARIES */
-.summary-title { font-weight: 700; color: #1a3a1a; margin: 0; }
-.summary-meta { font-size: 0.78rem; color: #9aaa9a; margin: 3px 0 0; }
-.summary-notes { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 14px 0 0; }
-.summary-notes strong { color: #1a3a1a; }
+/* RECENT ACTIVITY */
+.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f0; }
+.activity-row:first-of-type { border-top: none; padding-top: 0; }
+.activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; background: #c5d0c5; }
+.activity-dot.unread { background: #D4A017; }
+.activity-text { min-width: 0; }
+.activity-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
+.activity-time { font-size: 0.72rem; color: #9aaa9a; margin: 2px 0 0; }
 
 @media (max-width: 1100px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .dash-grid { grid-template-columns: 1fr; }
-  .form-row-3, .macro-grid, .screening-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .welcome-banner { padding: 24px 20px; }
+  .banner-title { font-size: 1.35rem; }
+  .banner-btn { width: 100%; text-align: center; }
+  .stat-grid { gap: 12px; }
+  .stat-card { padding: 16px; }
+  .stat-value { font-size: 1.35rem; }
+  .panel { padding: 18px 16px; }
+  .adherence-row { grid-template-columns: 1fr; gap: 8px; }
+  .macro-source { margin-left: 0; width: 100%; }
 }
 </style>

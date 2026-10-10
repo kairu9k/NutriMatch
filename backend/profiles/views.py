@@ -29,9 +29,11 @@ class RndSearchView(generics.ListAPIView):
     permission_classes = [IsClient]
 
     def get_queryset(self):
-        qs = RndProfile.objects.filter(
-            is_verified=True, available_for_new_clients=True
-        ).select_related("user")
+        from .services import bookable_rnd_profiles
+
+        # Approved + fee + bio + availability (bookable_rnd_profiles), and
+        # taking new clients.
+        qs = bookable_rnd_profiles().filter(available_for_new_clients=True).select_related("user")
 
         specialty = self.request.query_params.get("specialty")
         if specialty:

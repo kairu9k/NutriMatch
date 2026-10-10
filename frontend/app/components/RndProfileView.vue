@@ -70,9 +70,14 @@
 
             <button class="primary-btn" type="button" :disabled="!offeredFormats.length" @click="openBookingModal">Book Appointment</button>
 
-            <div class="info-note">
+            <!-- Only for clients who haven't screened yet — the RND can't
+                 confirm a first appointment without it. -->
+            <div v-if="hasScreening === false" class="info-note">
               <Info :size="15" />
-              <span>Pre-consultation screening is required before your first appointment can be confirmed.</span>
+              <span>
+                Pre-consultation screening is required before your first appointment can be confirmed.
+                <NuxtLink to="/pre-consultation-screening" class="info-note-link">Complete it now →</NuxtLink>
+              </span>
             </div>
           </div>
         </div>
@@ -244,10 +249,25 @@ async function loadAvailability() {
   }
 }
 
-onMounted(() => {
-  loadProfile()
+// null until known, so the note doesn't flash for clients who have screened.
+const hasScreening = ref(null)
+async function loadScreeningStatus() {
+  try {
+    await get('/client/screening/latest/')
+    hasScreening.value = true
+  } catch (error) {
+    hasScreening.value = (error?.response?.status ?? error?.status) === 404 ? false : null
+  }
+}
+
+onMounted(async () => {
   loadReviews()
   loadAvailability()
+  loadScreeningStatus()
+  await loadProfile()
+  // ?book=1 (e.g. the client dashboard's "Book a Consultation") opens the
+  // booking modal straight away.
+  if (route.query.book === '1' && offeredFormats.value.length) openBookingModal()
 })
 
 /* ---------- BOOK APPOINTMENT MODAL ---------- */
@@ -342,6 +362,7 @@ function slotsForDate(iso) {
     const end = toMinutes(s.end_time)
     for (let start = toMinutes(s.start_time); start + SESSION_MINUTES <= end; start += SESSION_MINUTES) {
       if (isToday && start <= nowMinutes) continue
+      if (isSlotTaken(iso, start)) continue
       const h = Math.floor(start / 60)
       const m = start % 60
       const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
@@ -361,7 +382,26 @@ const bookingHint = computed(() => {
 
 const canConfirmBooking = computed(() => selectedDateISO.value !== '' && selectedTime.value !== '')
 
+// Times this RND is already booked (start/end only), so taken slots aren't offered.
+const bookedSlots = ref([])
+async function loadBookedSlots() {
+  try {
+    const rows = await get(`/client/rnds/${route.params.id}/booked-slots/`)
+    bookedSlots.value = rows.map(r => ({ start: new Date(r.start).getTime(), end: new Date(r.end).getTime() }))
+  } catch {
+    bookedSlots.value = []
+  }
+}
+function isSlotTaken(iso, minutes) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  const start = new Date(`${iso}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`).getTime()
+  const end = start + SESSION_MINUTES * 60000
+  return bookedSlots.value.some(b => b.start < end && start < b.end)
+}
+
 function openBookingModal() {
+  loadBookedSlots()
   bookingType.value = offeredFormats.value[0]?.key || 'video'
   selectedDateISO.value = ''
   selectedTime.value = ''
@@ -390,8 +430,13 @@ async function confirmBooking() {
     await navigateTo('/appointments')
   } catch (error) {
     const data = error?.data || {}
-    bookingError.value = data.detail || data.non_field_errors?.[0] || data.type?.[0] || data.rnd_id?.[0]
-      || 'Could not book this appointment. Please try again.'
+    bookingError.value = data.detail || data.non_field_errors?.[0] || data.scheduled_at?.[0] || data.type?.[0]
+      || data.duration_minutes?.[0] || data.rnd_id?.[0] || 'Could not book this appointment. Please try again.'
+    // The slot may have just been taken — refresh what's open.
+    if (data.scheduled_at) {
+      selectedTime.value = ''
+      await loadBookedSlots()
+    }
   } finally {
     isBooking.value = false
   }
@@ -475,6 +520,7 @@ async function confirmBooking() {
 }
 .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.info-note-link { color: #2a5a8a; font-weight: 700; text-decoration: underline; white-space: nowrap; }
 .info-note {
   display: flex; align-items: flex-start; gap: 8px; margin-top: 16px;
   background: #e3edf7; color: #2f6fa8; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem;

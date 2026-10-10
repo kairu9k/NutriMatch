@@ -1,118 +1,133 @@
+<template>
+  <div class="nm-page">
+    <p v-if="error" class="nm-error">{{ error }}</p>
+
+    <div class="nm-grid">
+      <div class="nm-panel">
+        <div class="nm-panel-head">
+          <div>
+            <h2 class="nm-panel-title">Platform configuration</h2>
+            <p class="nm-panel-sub">Values used across NutriMatch. Every change is recorded in the audit log.</p>
+          </div>
+        </div>
+        <p v-if="loading" class="nm-muted">Loading settings…</p>
+        <div v-else-if="!settings.length" class="nm-empty"><p>No settings configured yet.</p></div>
+        <div v-for="s in settings" :key="s.key" class="setting">
+          <label class="nm-label" :for="`setting-${s.key}`">{{ META[s.key]?.label || s.key.replace(/_/g, ' ') }}</label>
+          <p v-if="META[s.key]?.help || s.description" class="nm-hint" style="margin: 0 0 8px">{{ META[s.key]?.help || s.description }}</p>
+          <div class="setting-row">
+            <input :id="`setting-${s.key}`" v-model="drafts[s.key]" class="nm-input" :type="META[s.key]?.type || 'text'"
+              v-bind="META[s.key]?.attrs || {}" />
+            <button class="nm-btn-dark" :disabled="savingKey === s.key || drafts[s.key] === s.value" @click="save(s)">
+              {{ savingKey === s.key ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+          <p v-if="errors[s.key]" class="nm-field-error">{{ errors[s.key] }}</p>
+          <p class="nm-hint">
+            Last changed {{ dateTime(s.updated_at) }}<template v-if="s.updated_by"> by {{ s.updated_by.first_name }} {{ s.updated_by.last_name }}</template>
+          </p>
+        </div>
+      </div>
+
+      <div class="nm-col">
+        <div class="nm-panel">
+          <h2 class="nm-panel-title">Signed in as</h2>
+          <div class="nm-row" style="margin-top: 14px">
+            <span class="nm-avatar">{{ userInitials(auth.user?.first_name, auth.user?.last_name) }}</span>
+            <div class="nm-row-main">
+              <p class="nm-row-title">{{ auth.user?.first_name }} {{ auth.user?.last_name }}</p>
+              <p class="nm-row-sub">{{ auth.user?.email }}</p>
+            </div>
+            <span class="nm-pill green">Admin</span>
+          </div>
+        </div>
+
+        <div class="nm-panel">
+          <h2 class="nm-panel-title">Privacy & compliance</h2>
+          <p class="nm-panel-sub">Republic Act No. 10173 — Data Privacy Act</p>
+          <div v-for="c in COMPLIANCE" :key="c.title" class="nm-row" style="margin-top: 6px">
+            <div class="nm-stat-icon" style="margin: 0"><component :is="c.icon" :size="16" /></div>
+            <div class="nm-row-main">
+              <p class="nm-row-title">{{ c.title }}</p>
+              <p class="nm-row-sub">{{ c.text }}</p>
+            </div>
+            <span class="nm-pill green">{{ c.state }}</span>
+          </div>
+          <p class="nm-hint" style="margin-top: 14px">
+            Formal NPC registration, end-to-end encryption, automated data-retention schedules and granular consent
+            revocation are out of scope for this capstone.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
+  </div>
+</template>
+
 <script setup>
+import { CheckCircle2, FileCheck2, Lock, ScrollText, ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get, patch } = useApi()
 const auth = useAuthStore()
 
-const isLoading = ref(true)
-const errorMessage = ref('')
+const META = {
+  platform_commission_pct: {
+    label: 'Platform commission (%)',
+    help: 'NutriMatch\'s share of each consultation fee, between 0% and 50%. Only applies to bookings confirmed after the change.',
+    type: 'number',
+    attrs: { min: 0, max: 50, step: 0.01 },
+  },
+  platform_name: { label: 'Platform name', help: 'Shown in emails and page titles.' },
+  support_email: { label: 'Support email', help: 'Where users are told to write for help.', type: 'email' },
+}
+const COMPLIANCE = [
+  { icon: Lock, title: 'Encryption in transit', text: 'HTTPS/TLS for every request', state: 'Active' },
+  { icon: ShieldCheck, title: 'Role-based access', text: 'Admin, RND and client permissions', state: 'Enforced' },
+  { icon: ScrollText, title: 'Audit logging', text: 'Append-only record of sensitive actions', state: 'Enabled' },
+  { icon: FileCheck2, title: 'Informed consent', text: 'Terms and data-privacy consent at sign-up', state: 'Required' },
+]
+
+const loading = ref(true)
+const error = ref('')
 const settings = ref([])
 const drafts = reactive({})
+const errors = reactive({})
 const savingKey = ref(null)
-const savedMsg = reactive({})
+const toast = ref('')
 
-async function loadSettings() {
-  isLoading.value = true
-  errorMessage.value = ''
+onMounted(async () => {
   try {
     settings.value = await get('/admin/settings/')
     for (const s of settings.value) drafts[s.key] = s.value
   } catch {
-    errorMessage.value = 'Could not load system settings. Please try again later.'
+    error.value = 'Could not load system settings. Please refresh the page.'
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
-}
-onMounted(loadSettings)
+})
 
-async function saveSetting(key) {
-  savingKey.value = key
-  savedMsg[key] = ''
+async function save(s) {
+  savingKey.value = s.key
+  errors[s.key] = ''
   try {
-    const updated = await patch(`/admin/settings/${key}/`, { value: drafts[key] })
-    const s = settings.value.find(s => s.key === key)
-    if (s) { s.value = updated.value; s.updated_at = updated.updated_at }
-    savedMsg[key] = 'Saved.'
-  } catch {
-    savedMsg[key] = 'Could not save.'
+    const updated = await patch(`/admin/settings/${s.key}/`, { value: String(drafts[s.key] ?? '') })
+    Object.assign(s, updated)
+    drafts[s.key] = updated.value
+    toast.value = `${META[s.key]?.label || s.key} saved.`
+    setTimeout(() => { toast.value = '' }, 2500)
+  } catch (e) {
+    errors[s.key] = apiError(e, 'Could not save. Please try again.')
   } finally {
     savingKey.value = null
-    setTimeout(() => { savedMsg[key] = '' }, 2500)
   }
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 </script>
 
-<template>
-  <div class="grid grid-cols-2 gap-6">
-    <div class="space-y-6">
-      <p v-if="errorMessage" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{{ errorMessage }}</p>
-
-      <div class="animate-in bg-white rounded-2xl p-6">
-        <h3 class="font-display text-lg text-forest-dark mb-1">Signed In As</h3>
-        <p class="text-xs text-forest/40 mb-4">Admin account changes are managed via profile settings, not here yet</p>
-        <div class="flex items-center gap-3 bg-cream-soft rounded-xl p-4">
-          <div class="w-10 h-10 rounded-full bg-gold text-forest-dark flex items-center justify-center font-bold">
-            {{ `${auth.user?.first_name?.[0] || ''}${auth.user?.last_name?.[0] || ''}`.toUpperCase() }}
-          </div>
-          <div class="flex-1">
-            <p class="font-semibold text-sm">{{ auth.user?.first_name }} {{ auth.user?.last_name }}</p>
-            <p class="text-xs text-forest/50">{{ auth.user?.email }} · System Admin</p>
-          </div>
-          <span class="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">Full Access</span>
-        </div>
-      </div>
-
-      <div class="animate-in stagger-1 bg-white rounded-2xl p-6">
-        <h3 class="font-display text-lg text-forest-dark mb-1">Platform Configuration</h3>
-        <p class="text-xs text-forest/40 mb-4">Values used across the platform (e.g. new-invoice commission on Billing & Commission)</p>
-
-        <div v-if="isLoading" class="text-sm text-forest/50 py-6 text-center">Loading…</div>
-        <div v-else-if="!settings.length" class="text-sm text-forest/50 py-6 text-center">No settings configured yet.</div>
-        <div v-else v-for="s in settings" :key="s.key" class="py-3 border-b border-forest/5 last:border-0">
-          <label class="text-xs text-forest/50 uppercase">{{ s.key.replace(/_/g, ' ') }}</label>
-          <p v-if="s.description" class="text-xs text-forest/40 mb-1.5">{{ s.description }}</p>
-          <div class="flex gap-2">
-            <input v-model="drafts[s.key]" type="text" class="flex-1 border border-forest/15 rounded-lg px-3 py-2 text-sm bg-cream-soft transition-shadow focus:outline-none focus:ring-2 focus:ring-forest/20" />
-            <button class="btn-press bg-forest text-white rounded-lg px-4 text-sm font-medium hover:bg-forest-light disabled:opacity-60" :disabled="savingKey === s.key" @click="saveSetting(s.key)">
-              {{ savingKey === s.key ? 'Saving…' : 'Save' }}
-            </button>
-          </div>
-          <p class="text-xs text-forest/35 mt-1">Last updated {{ fmtDate(s.updated_at) }}{{ s.updated_by ? ' by ' + s.updated_by.first_name + ' ' + s.updated_by.last_name : '' }}</p>
-          <Transition name="dropdown">
-            <p v-if="savedMsg[s.key]" class="text-xs text-emerald-700 mt-1">{{ savedMsg[s.key] }}</p>
-          </Transition>
-        </div>
-      </div>
-    </div>
-
-    <div class="space-y-6">
-      <div class="animate-in stagger-1 bg-white rounded-2xl p-6">
-        <h3 class="font-display text-lg text-forest-dark">Privacy & Compliance</h3>
-        <p class="text-xs text-forest/40 mb-4">Republic Act No. 10173</p>
-
-        <div class="card-hover bg-emerald-50 rounded-lg px-4 py-3 flex justify-between items-center mb-2">
-          <div><p class="text-sm font-medium">SSL/TLS Encryption</p><p class="text-xs text-forest/40">In transit, per platform requirement</p></div>
-          <span class="text-xs font-semibold bg-emerald-600 text-white px-2.5 py-1 rounded-full">Active</span>
-        </div>
-        <div class="card-hover bg-emerald-50 rounded-lg px-4 py-3 flex justify-between items-center mb-2">
-          <div><p class="text-sm font-medium">Role-Based Access Control</p><p class="text-xs text-forest/40">3 roles: Admin, RND, Client</p></div>
-          <span class="text-xs font-semibold bg-emerald-600 text-white px-2.5 py-1 rounded-full">Enforced</span>
-        </div>
-        <div class="card-hover bg-emerald-50 rounded-lg px-4 py-3 flex justify-between items-center mb-4">
-          <div><p class="text-sm font-medium">Audit Logging</p><p class="text-xs text-forest/40">Append-only, immutable by design</p></div>
-          <span class="text-xs font-semibold bg-emerald-600 text-white px-2.5 py-1 rounded-full">Enabled</span>
-        </div>
-
-        <p class="text-xs text-forest/40">
-          Formal NPC registration, end-to-end encryption, automated data-retention schedules, and granular consent
-          revocation are explicitly out of scope per the capstone proposal.
-        </p>
-      </div>
-    </div>
-  </div>
-</template>
+<style scoped>
+.setting { padding: 16px 0; border-top: 1px solid #f0f2f0; }
+.setting:first-of-type { border-top: none; padding-top: 0; }
+.setting-row { display: flex; gap: 8px; }
+.setting-row .nm-input { flex: 1; min-width: 0; }
+</style>

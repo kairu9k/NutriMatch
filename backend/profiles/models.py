@@ -10,6 +10,37 @@ def default_consultation_modes():
     return list(CONSULTATION_MODES)
 
 
+# Languages an RND can consult in (code, name). The codes are what the
+# client-side "Find an RND" language filter sends.
+LANGUAGES = [
+    ("en", "English"),
+    ("tl", "Filipino (Tagalog)"),
+    ("ceb", "Bisaya (Cebuano)"),
+    ("ilo", "Ilocano"),
+    ("hil", "Hiligaynon (Ilonggo)"),
+    ("war", "Waray"),
+    ("pam", "Kapampangan"),
+    ("bcl", "Bicolano"),
+]
+LANGUAGE_NAMES = dict(LANGUAGES)
+
+# The lowest consultation fee an RND can set (no free consultations — a
+# ₱0 invoice can't be charged, and pay-first would then cancel the booking).
+MIN_CONSULTATION_FEE = 100
+
+# RND specializations offered at registration (a dropdown). Each contains the
+# keyword the client-side "Find an RND" filter searches for (FindRnd.vue).
+RND_SPECIALIZATIONS = [
+    "Diabetes Management",
+    "Weight Management",
+    "Renal Nutrition",
+    "Hypertension & Cardiac Care",
+    "Pediatric Nutrition",
+    "Sports Nutrition",
+    "General / Clinical Nutrition",
+]
+
+
 class RndProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="rnd_profile"
@@ -22,6 +53,9 @@ class RndProfile(models.Model):
         help_text="Cloudinary public_id of an authenticated (non-public) upload",
     )
     prc_expiry_date = models.DateField(null=True, blank=True)
+    # Collected at registration (must be 21+). Null for RNDs who registered
+    # before it was asked for.
+    date_of_birth = models.DateField(null=True, blank=True)
     specialization = models.CharField(max_length=255, null=True, blank=True)
     language_codes = models.JSONField(null=True, blank=True, help_text="Array of language codes")
     bio = models.TextField(null=True, blank=True)
@@ -30,6 +64,18 @@ class RndProfile(models.Model):
     available_for_new_clients = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     verified_at = models.DateTimeField(null=True, blank=True)
+
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Not approved"
+
+    # The admin's decision on the RND's application. An RND can only sign in
+    # once approved (is_verified mirrors approved). A rejected applicant can
+    # register again with the same email, which replaces this application.
+    review_status = models.CharField(max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.PENDING)
+    rejection_reason = models.TextField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

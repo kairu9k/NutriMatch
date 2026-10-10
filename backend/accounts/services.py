@@ -1,9 +1,9 @@
 import secrets
 from datetime import timedelta
 
-from django.core.mail import send_mail
 from django.utils import timezone
 
+from .emails import send_code_email
 from .models import EmailVerificationCode, PasswordResetCode
 
 CODE_LENGTH = 6
@@ -21,17 +21,15 @@ def request_password_reset(user):
         code=code,
         expires_at=timezone.now() + timedelta(minutes=CODE_TTL_MINUTES),
     )
-    send_mail(
+    send_code_email(
+        user,
         subject="Your NutriMatch password reset code",
-        message=(
-            f"Hi {user.first_name},\n\n"
-            f"Your password reset code is: {code}\n\n"
-            f"This code expires in {CODE_TTL_MINUTES} minutes. "
-            "If you didn't request a password reset, you can ignore this email.\n\n"
-            "— NutriMatch"
-        ),
-        from_email=None,
-        recipient_list=[user.email],
+        heading="Reset your password",
+        intro="We received a request to reset the password for your NutriMatch account. Enter this code to choose a new password.",
+        code=code,
+        ttl_minutes=CODE_TTL_MINUTES,
+        after_code="For your security, the code works only once.",
+        safety_note="Didn't ask to reset your password? You can ignore this email — your password won't change. Never share this code with anyone, including NutriMatch staff.",
     )
     return reset
 
@@ -73,17 +71,15 @@ def send_verification_code(user):
         code=code,
         expires_at=timezone.now() + timedelta(minutes=CODE_TTL_MINUTES),
     )
-    send_mail(
+    send_code_email(
+        user,
         subject="Verify your NutriMatch email address",
-        message=(
-            f"Hi {user.first_name},\n\n"
-            f"Your email verification code is: {code}\n\n"
-            f"This code expires in {CODE_TTL_MINUTES} minutes. "
-            "Enter it to activate your account and sign in.\n\n"
-            "— NutriMatch"
-        ),
-        from_email=None,
-        recipient_list=[user.email],
+        heading="Confirm your email address",
+        intro="Welcome to NutriMatch! Enter this code on the sign-up page to confirm your email address and activate your account.",
+        code=code,
+        ttl_minutes=CODE_TTL_MINUTES,
+        after_code="Once it's confirmed, you can sign in and get started.",
+        safety_note="Didn't create a NutriMatch account? You can safely ignore this email. Never share this code with anyone.",
     )
     return verification
 

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from core.validators import NonNegativeNumbersMixin, validate_blood_pressure
@@ -16,8 +18,35 @@ class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.Mo
     has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
     # Optional Mifflin-St Jeor inputs; when omitted, ScreeningCreateView falls
     # back to the client's profile (date_of_birth / sex). Not stored here.
-    age = serializers.IntegerField(write_only=True, required=False, min_value=1, max_value=120)
+    # Only used when the profile has no date of birth — otherwise the age
+    # comes from the DOB (clients must be 18+, accounts.validators).
+    age = serializers.IntegerField(
+        write_only=True, required=False, min_value=18, max_value=120,
+        error_messages={"min_value": "Age must be between 18 and 120 years.", "max_value": "Age must be between 18 and 120 years."},
+    )
     sex = serializers.ChoiceField(write_only=True, required=False, choices=["male", "female"])
+    # Realistic adult ranges, so a typo like 1700 cm or 7 kg can't produce a
+    # nonsense BMI/BMR. Mirrored in PreConsultationScreening.vue.
+    height_cm = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("100"), max_value=Decimal("250"),
+        error_messages={
+            "min_value": "Height must be between 100 and 250 cm.",
+            "max_value": "Height must be between 100 and 250 cm.",
+            "max_digits": "Height must be between 100 and 250 cm.",
+            "max_decimal_places": "Use at most 2 decimal places.",
+            "invalid": "Enter a number.",
+        },
+    )
+    weight_kg = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("25"), max_value=Decimal("300"),
+        error_messages={
+            "min_value": "Weight must be between 25 and 300 kg.",
+            "max_value": "Weight must be between 25 and 300 kg.",
+            "max_digits": "Weight must be between 25 and 300 kg.",
+            "max_decimal_places": "Use at most 2 decimal places.",
+            "invalid": "Enter a number.",
+        },
+    )
 
     class Meta:
         model = PreConsultationScreening

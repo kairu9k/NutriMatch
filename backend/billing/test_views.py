@@ -1,3 +1,4 @@
+from datetime import timedelta
 import hashlib
 import hmac
 import json
@@ -13,6 +14,7 @@ from clinical.models import PreConsultationScreening
 from scheduling.models import Appointment, RndClientRelationship
 
 from .models import Invoice, PaymentTransaction
+from core.test_utils import approve_rnd
 
 TEST_PAYMONGO = {
     "SECRET_KEY": "sk_test_fake", "WEBHOOK_SECRET": "whsec_fake",
@@ -24,12 +26,12 @@ TEST_PAYMONGO = {
 class BillingAndVideoViewTests(TestCase):
     def setUp(self):
         self.client_api = APIClient()
-        self.rnd = User.objects.create_user(email="rnd@v.ph", password="x", role="rnd", first_name="R", last_name="D")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd@v.ph", password="x", role="rnd", first_name="R", last_name="D"))
         self.client_user = User.objects.create_user(email="client@v.ph", password="x", role="client", first_name="C", last_name="L")
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
         self.invoice = Invoice.objects.create(relationship=self.rel, amount=Decimal("800.00"))
         self.appointment = Appointment.objects.create(
-            relationship=self.rel, scheduled_at=timezone.now(), type="video", duration_minutes=30
+            relationship=self.rel, scheduled_at=timezone.now() + timedelta(days=1), type="video", duration_minutes=30
         )
 
     def _mock_resp(self, data, error=False):
@@ -185,3 +187,54 @@ class BillingAndVideoViewTests(TestCase):
         self.assertEqual(len(resp.data["consultation_sessions"]), 1)
         # host_url must never appear in the client-facing serialized session
         self.assertNotIn("host_url", resp.data["consultation_sessions"][0])
+
+
+class PaymentMethodRecordedTests(TestCase):
+    """A paid invoice records how the client paid (QR Ph, GCash, card…) —
+    from the webhook's payment, or by looking up the payment during the
+    status check (the link resource alone doesn't say)."""
+
+    setUp = BillingAndVideoViewTests.setUp
+    _mock_resp = BillingAndVideoViewTests._mock_resp
+    _paymongo_invoice = BillingAndVideoViewTests._paymongo_invoice
+
+    @patch("billing.services.httpx.Client")
+    def test_status_check_saves_method_from_the_payment(self, mock_client_cls):
+        self._paymongo_invoice()
+        mock_client = MagicMock()
+        mock_client.__enter__.return_value = mock_client
+        link = {"data": {"id": "link_1", "attributes": {"status": "paid", "payments": [{"id": "pay_1", "type": "payment"}]}}}
+        payment = {"data": {"id": "pay_1", "attributes": {"source": {"type": "qrph"}}}}
+        mock_client.get.side_effect = lambda url: self._mock_resp(payment if "/payments/" in url else link)
+        mock_client_cls.return_value = mock_client
+        self.client_api.force_authenticate(self.client_user)
+
+        self.client_api.post("/api/client/invoices/sync/")
+
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.status, "paid")
+        self.assertEqual(self.invoice.payment_method, "qrph")
+
+    @patch("billing.services.httpx.Client")
+    def test_failed_payment_lookup_still_records_the_payment(self, mock_client_cls):
+        self._paymongo_invoice()
+        mock_client = MagicMock()
+        mock_client.__enter__.return_value = mock_client
+        link = {"data": {"id": "link_1", "attributes": {"status": "paid", "payments": [{"id": "pay_1"}]}}}
+        mock_client.get.side_effect = lambda url: self._mock_resp({}, error=True) if "/payments/" in url else self._mock_resp(link)
+        mock_client_cls.return_value = mock_client
+        self.client_api.force_authenticate(self.client_user)
+
+        self.client_api.post("/api/client/invoices/sync/")
+
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.status, "paid")
+        self.assertIsNone(self.invoice.payment_method)
+
+    def test_source_types_map_to_methods(self):
+        from billing.services import payment_method_from_source
+
+        self.assertEqual(payment_method_from_source({"type": "gcash"}), "gcash")
+        self.assertEqual(payment_method_from_source({"type": "paymaya"}), "maya")
+        self.assertEqual(payment_method_from_source({"type": "grab_pay"}), "other")
+        self.assertIsNone(payment_method_from_source(None))

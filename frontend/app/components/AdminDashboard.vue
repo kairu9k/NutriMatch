@@ -1,155 +1,136 @@
-<script setup>
-const { get, patch } = useApi()
-const auth = useAuthStore()
-
-const isLoading = ref(true)
-const errorMessage = ref('')
-const stats = ref({ active_rnds: 0, clients: 0, pending_verif: 0, commissions: 0 })
-const pendingRnds = ref([])
-const busyId = ref(null)
-
-const AVATAR_COLORS = ['bg-emerald-800', 'bg-amber-400', 'bg-indigo-700', 'bg-red-600']
-function colorFor(id) {
-  return AVATAR_COLORS[id % AVATAR_COLORS.length]
-}
-function initialsFor(first, last) {
-  return `${(first || '?')[0] ?? ''}${(last || '')[0] ?? ''}`.toUpperCase()
-}
-
-async function loadData() {
-  isLoading.value = true
-  errorMessage.value = ''
-  try {
-    const [platformStats, rnds] = await Promise.all([
-      get('/admin/platform-stats/'),
-      get('/admin/rnds/'),
-    ])
-    stats.value = platformStats
-    pendingRnds.value = rnds.filter(r => !r.is_verified)
-  } catch {
-    errorMessage.value = 'Could not load dashboard data. Please try again later.'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-async function approve(id) {
-  busyId.value = id
-  try {
-    await patch(`/admin/users/${id}/verify-rnd/`)
-    pendingRnds.value = pendingRnds.value.filter(r => r.id !== id)
-    stats.value.pending_verif = Math.max(0, stats.value.pending_verif - 1)
-    stats.value.active_rnds++
-  } finally {
-    busyId.value = null
-  }
-}
-
-onMounted(loadData)
-
-const peso = (n) => `₱${Number(n).toLocaleString()}`
-</script>
-
 <template>
-  <div>
-    <p v-if="errorMessage" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">{{ errorMessage }}</p>
+  <div class="nm-page">
+    <p v-if="error" class="nm-error">{{ error }}</p>
 
-    <!-- Hero banner -->
-    <div class="animate-in relative overflow-hidden rounded-2xl bg-gradient-to-br from-forest to-forest-dark text-white p-6 mb-6">
-      <span class="hero-circle hero-circle-1"></span>
-      <span class="hero-circle hero-circle-2"></span>
-      <span class="hero-circle hero-circle-3"></span>
-
-      <span class="relative z-10 inline-flex items-center gap-1.5 text-[11px] font-semibold text-gold border border-gold/40 rounded-full px-2.5 py-1">
-        <span class="w-1.5 h-1.5 rounded-full bg-gold animate-pulse"></span>
-        {{ new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase() }}
-      </span>
-      <h2 class="font-display text-3xl mt-3 relative z-10">{{ auth.user?.first_name }} {{ auth.user?.last_name }}</h2>
-      <p class="text-cream/60 text-sm mb-6 relative z-10">NutriMatch Platform · Admin Control Center</p>
-
-      <div class="grid grid-cols-4 gap-4 relative z-10">
-        <div class="animate-in stagger-1 hero-stat bg-white/10 rounded-xl p-4">
-          <p class="text-3xl font-display animate-pop">{{ stats.active_rnds }}</p>
-          <p class="text-xs text-cream/60 mt-1">Active RNDs</p>
-        </div>
-        <div class="animate-in stagger-2 hero-stat bg-white/10 rounded-xl p-4">
-          <p class="text-3xl font-display animate-pop">{{ stats.clients }}</p>
-          <p class="text-xs text-cream/60 mt-1">Clients</p>
-        </div>
-        <div class="animate-in stagger-3 hero-stat bg-white/10 rounded-xl p-4">
-          <p class="text-3xl font-display animate-pop">{{ stats.pending_verif }}</p>
-          <p class="text-xs text-cream/60 mt-1">Pending Verif.</p>
-        </div>
-        <div class="animate-in stagger-4 hero-stat bg-white/10 rounded-xl p-4">
-          <p class="text-3xl font-display animate-pop">{{ peso(stats.commissions) }}</p>
-          <p class="text-xs text-cream/60 mt-1">Commissions (This Month)</p>
-        </div>
+    <div class="nm-banner">
+      <span class="nm-banner-badge">{{ today }}</span>
+      <h1 class="nm-banner-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
+      <p class="nm-banner-sub">
+        {{ todoCount ? `You have ${todoCount} thing${todoCount === 1 ? '' : 's'} to take care of.` : 'Everything is up to date — nothing needs your attention right now.' }}
+      </p>
+      <div class="nm-todo">
+        <NuxtLink to="/rnd-verification" class="nm-todo-item" :class="{ done: !stats.pending_verif }">
+          <strong>{{ stats.pending_verif }}</strong> RND application{{ stats.pending_verif === 1 ? '' : 's' }} to review
+        </NuxtLink>
+        <NuxtLink to="/billing-commission?tab=refunds" class="nm-todo-item" :class="{ done: !stats.refunds_pending }">
+          <strong>{{ stats.refunds_pending }}</strong> refund{{ stats.refunds_pending === 1 ? '' : 's' }} to send
+        </NuxtLink>
+        <NuxtLink to="/payouts" class="nm-todo-item" :class="{ done: !stats.payouts_due_count }">
+          <strong>{{ peso(stats.payouts_due_total) }}</strong> in payouts due {{ shortDate(stats.next_payout_date) }}
+        </NuxtLink>
       </div>
     </div>
 
-    <div class="flex justify-end mb-4">
-      <NuxtLink to="/platform-reports" class="text-sm text-forest hover:underline transition-colors flex items-center gap-1">
-        <NavIcon name="trending" class="w-3.5 h-3.5" /> View consultation volume, revenue &amp; RND performance →
-      </NuxtLink>
+    <div class="nm-stat-grid">
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><Stethoscope :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.active_rnds }}</p>
+        <p class="nm-stat-label">Active RNDs</p>
+        <p class="nm-stat-note">Verified and signed up</p>
+      </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><Users :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.clients }}</p>
+        <p class="nm-stat-label">Clients</p>
+        <p class="nm-stat-note" :class="{ good: stats.new_registrations }">{{ stats.new_registrations }} new sign-ups in 30 days</p>
+      </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><CalendarCheck :size="17" /></div>
+        <p class="nm-stat-value">{{ stats.total_consultations }}</p>
+        <p class="nm-stat-label">Consultations completed</p>
+        <p class="nm-stat-note">All time</p>
+      </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon gold"><Coins :size="17" /></div>
+        <p class="nm-stat-value">{{ peso(stats.commissions) }}</p>
+        <p class="nm-stat-label">Commission this month</p>
+        <p class="nm-stat-note">From {{ peso(stats.gross_revenue) }} in payments</p>
+      </div>
     </div>
 
-    <!-- Pending verifications -->
-    <div class="animate-in stagger-2 border border-forest/15 bg-white rounded-2xl p-6">
-      <div class="flex items-center justify-between mb-1">
-        <h3 class="font-display text-normal text-forest-dark">Pending RND Verifications</h3>
-        <NuxtLink to="/rnd-verification" class="text-sm text-forest hover:underline transition-colors">View all</NuxtLink>
-      </div>
-      <p class="text-xs text-forest/50 mb-4">Credential review required</p>
-
-      <div v-if="isLoading" class="text-sm text-forest/50 py-8 text-center">Loading…</div>
-      <div v-else-if="pendingRnds.length === 0" class="text-sm text-forest/50 py-8 text-center animate-in">
-        No pending verifications right now.
-      </div>
-      <TransitionGroup v-else name="list" tag="div" class="relative">
-        <div
-          v-for="rnd in pendingRnds"
-          :key="rnd.id"
-          class="flex items-center justify-between gap-4 bg-cream-soft rounded-xl px-4 py-3 mb-2"
-        >
-          <div class="flex items-center gap-3 min-w-0">
-            <div :class="['w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0', colorFor(rnd.id)]">
-              {{ initialsFor(rnd.first_name, rnd.last_name) }}
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-forest-dark truncate">{{ rnd.first_name }} {{ rnd.last_name }}</p>
-              <p class="text-xs text-forest/50 truncate"><template v-if="rnd.prc_license_number">PRC {{ rnd.prc_license_number }} · </template>Submitted {{ new Date(rnd.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</p>
-            </div>
+    <div class="nm-grid">
+      <div class="nm-panel">
+        <div class="nm-panel-head">
+          <div>
+            <h2 class="nm-panel-title">RND applications</h2>
+            <p class="nm-panel-sub">Check each PRC license before approving</p>
           </div>
-          <div class="flex gap-2 shrink-0">
-            <NuxtLink to="/rnd-verification" class="btn-press bg-forest text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-forest-light hover:scale-105">Review</NuxtLink>
+          <NuxtLink to="/rnd-verification" class="nm-panel-link">View all →</NuxtLink>
+        </div>
+        <p v-if="loading" class="nm-muted">Loading…</p>
+        <div v-else-if="!pendingRnds.length" class="nm-empty">
+          <ShieldCheck :size="28" />
+          <p>No applications waiting.</p>
+        </div>
+        <div v-for="r in pendingRnds.slice(0, 5)" :key="r.id" class="nm-row">
+          <img v-if="r.profile_photo" :src="r.profile_photo" class="nm-avatar" alt="" />
+          <span v-else class="nm-avatar">{{ userInitials(r.first_name, r.last_name) }}</span>
+          <div class="nm-row-main">
+            <p class="nm-row-title">{{ r.first_name }} {{ r.last_name }}</p>
+            <p class="nm-row-sub">{{ r.specialization }}<template v-if="r.prc_license_number"> · PRC {{ r.prc_license_number }}</template> · {{ shortDate(r.submitted_at) }}</p>
+          </div>
+          <div class="nm-row-end">
+            <span v-if="!r.email_verified_at" class="nm-pill muted">Email not verified</span>
+            <NuxtLink :to="`/rnd-verification?open=${r.id}`" class="nm-btn-dark nm-btn-sm">Review</NuxtLink>
           </div>
         </div>
-      </TransitionGroup>
+      </div>
+
+      <div class="nm-panel">
+        <div class="nm-panel-head">
+          <div>
+            <h2 class="nm-panel-title">Recent admin activity</h2>
+            <p class="nm-panel-sub">Approvals, account changes, refunds, payouts and settings</p>
+          </div>
+          <NuxtLink to="/audit-logs?scope=admin" class="nm-panel-link">Audit logs →</NuxtLink>
+        </div>
+        <p v-if="loading" class="nm-muted">Loading…</p>
+        <div v-else-if="!activity.length" class="nm-empty"><p>Nothing recorded yet.</p></div>
+        <div v-for="a in activity" :key="a.id" class="nm-row">
+          <div class="nm-row-main">
+            <p class="nm-row-title">{{ auditLabel(a.action) }}</p>
+            <p class="nm-row-sub">{{ a.user ? `${a.user.first_name} ${a.user.last_name}` : 'System' }} · {{ dateTime(a.created_at) }}</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
-<style scoped>
-.hero-stat {
-  transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-.hero-stat:hover {
-  background-color: rgba(255, 255, 255, 0.16);
-  border-color: rgba(212, 175, 55, 0.35);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-}
+<script setup>
+import { CalendarCheck, Coins, ShieldCheck, Stethoscope, Users } from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth'
 
-.hero-circle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  pointer-events: none;
-  z-index: 0;
-}
-.hero-circle-1 { width: 420px; height: 420px; top: -140px; right: -100px; }
-.hero-circle-2 { width: 300px; height: 300px; bottom: -160px; right: 12%; background: rgba(212, 175, 55, 0.08); }
-.hero-circle-3 { width: 220px; height: 220px; top: 40%; left: -80px; background: rgba(255, 255, 255, 0.04); }
-</style>
+const { get } = useApi()
+const auth = useAuthStore()
+
+const loading = ref(true)
+const error = ref('')
+const stats = ref({
+  active_rnds: 0, clients: 0, pending_verif: 0, commissions: 0, gross_revenue: 0, new_registrations: 0,
+  total_consultations: 0, refunds_pending: 0, payouts_due_count: 0, payouts_due_total: 0, next_payout_date: null,
+})
+const pendingRnds = ref([])
+const activity = ref([])
+
+const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
+const partOfDay = (() => {
+  const h = new Date().getHours()
+  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'
+})()
+const todoCount = computed(() => (stats.value.pending_verif || 0) + (stats.value.refunds_pending || 0) + (stats.value.payouts_due_count || 0))
+
+onMounted(async () => {
+  try {
+    const [s, rnds, logs] = await Promise.all([get('/admin/platform-stats/'), get('/admin/rnds/'), get('/admin/audit-logs/', { query: { scope: 'admin', page_size: 6 } })])
+    stats.value = s
+    pendingRnds.value = rnds.filter(r => r.is_active && r.review_status === 'pending')
+      .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
+    activity.value = (Array.isArray(logs) ? logs : logs?.results || []).slice(0, 6)
+  } catch {
+    error.value = 'Could not load the dashboard. Please refresh the page.'
+  } finally {
+    loading.value = false
+  }
+})
+</script>

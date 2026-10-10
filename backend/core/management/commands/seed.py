@@ -201,7 +201,7 @@ FOOD_EXCHANGE_ITEMS = {
 DEFAULT_SETTINGS = [
     {"key": "platform_commission_pct", "value": "10.00", "description": "Default platform commission percentage applied to new invoices."},
     {"key": "platform_name", "value": "NutriMatch", "description": "Display name used in emails and notifications."},
-    {"key": "support_email", "value": "support@nutrimatch.ph", "description": "Contact email shown to users for support inquiries."},
+    {"key": "support_email", "value": "nutrimatch36@gmail.com", "description": "Contact email shown to users for support inquiries."},
 ]
 
 

@@ -8,6 +8,7 @@ from accounts.models import User
 from scheduling.models import RndClientRelationship
 
 from .models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndProfile
+from core.test_utils import approve_rnd
 
 
 def _make_rnd(email="rnd@t.ph", fee="500.00"):
@@ -16,7 +17,7 @@ def _make_rnd(email="rnd@t.ph", fee="500.00"):
         user=user, prc_license_number=f"PRC-{email}", consultation_fee=Decimal(fee),
         is_verified=True, available_for_new_clients=True,
     )
-    return user
+    return approve_rnd(user)
 
 
 def _make_client(email="client@t.ph"):
@@ -198,7 +199,7 @@ class RndPrcReadOnlyTests(TestCase):
         self.client_api.force_authenticate(self.rnd)
         resp = self.client_api.patch("/api/rnd/profile/", {
             "prc_license_number": "CHANGED", "prc_expiry_date": "2099-01-01",
-            "prc_license_image": "prc-licenses/other", "is_verified": False, "bio": "Updated bio",
+            "prc_license_image": "prc-licenses/other", "is_verified": False, "bio": "Updated bio — helping clients manage diabetes with Filipino meals.",
         }, format="json")
 
         self.assertEqual(resp.status_code, 200, resp.data)
@@ -207,7 +208,7 @@ class RndPrcReadOnlyTests(TestCase):
         self.assertIsNone(profile.prc_expiry_date)
         self.assertEqual(profile.prc_license_image, "prc-licenses/abc123")
         self.assertTrue(profile.is_verified)
-        self.assertEqual(profile.bio, "Updated bio")  # the editable fields still save
+        self.assertEqual(profile.bio, "Updated bio — helping clients manage diabetes with Filipino meals.")  # the editable fields still save
 
     def test_own_profile_includes_signed_license_photo_link(self):
         from unittest.mock import patch

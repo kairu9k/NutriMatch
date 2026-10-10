@@ -11,6 +11,11 @@
 
       <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
+      <div v-if="patientFilterId" class="patient-filter-bar">
+        Showing appointments for <strong>{{ patientFilterName }}</strong>
+        <NuxtLink to="/appointments" class="patient-filter-clear">Show all</NuxtLink>
+      </div>
+
       <div v-if="appointments.length" class="filter-tabs">
         <button
           v-for="f in filters"
@@ -44,6 +49,10 @@
             <p class="appt-name">
               {{ appt.otherPartyName }}
               <span class="appt-status-pill" :class="statusPillClass(appt.status)">{{ statusLabel(appt.status) }}</span>
+              <!-- Pay before the consultation: the client pays the invoice issued on confirmation. -->
+              <span v-if="appt.status === 'confirmed' && appt.payment" class="pay-pill" :class="appt.awaitingPayment ? 'pay-due' : 'pay-ok'">
+                {{ appt.awaitingPayment ? 'Awaiting payment' : appt.payment.status === 'paid' ? 'Paid' : '' }}
+              </span>
             </p>
             <p class="appt-detail">{{ appt.detail }}</p>
           </div>
@@ -53,8 +62,14 @@
                  so the RND reviews the client's screening before deciding. -->
             <button v-if="appt.status === 'pending'" class="confirm-btn" @click="openScreening(appt)">View Screening</button>
             <button v-else-if="appt.status !== 'cancelled'" class="chart-btn" @click="openScreening(appt)">View Screening</button>
-            <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom" :to="`/consultation-room/${appt.id}`" class="join-btn">Join Call</NuxtLink>
-            <button v-if="appt.status === 'confirmed'" class="start-session-btn" :disabled="busyId === appt.id" @click="completeTarget = appt">Mark Completed</button>
+            <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom && appt.inJoinWindow" :to="`/consultation-room/${appt.id}`" class="join-btn">Join Call</NuxtLink>
+            <span v-else-if="appt.status === 'confirmed' && appt.hasVideoRoom && appt.joinOpensLater" class="join-later">Room opens {{ appt.joinOpensLabel }}</span>
+            <button
+              v-if="appt.status === 'confirmed'" class="start-session-btn"
+              :disabled="busyId === appt.id || appt.awaitingPayment"
+              :title="appt.awaitingPayment ? 'The client has to pay before the consultation can be completed.' : null"
+              @click="completeTarget = appt"
+            >{{ appt.awaitingPayment ? 'Awaiting Payment' : 'Mark Completed' }}</button>
             <button v-if="appt.status === 'confirmed'" class="decline-btn" :disabled="busyId === appt.id" @click="cancelAppointment(appt)">Cancel</button>
             <button v-if="appt.status === 'confirmed' || appt.status === 'completed'" class="chart-btn" @click="navigateTo(`/client-detail/${appt.relationshipId}`)">
               {{ appt.status === 'completed' ? 'View NCP Record' : 'View Chart' }}
@@ -81,7 +96,8 @@
           </div>
           <p class="scr-banner">
             <AlertTriangle :size="15" class="scr-banner-icon" />
-            This sends {{ completeTarget.otherPartyName }} an invoice for your consultation fee. It can't be undone.
+            <template v-if="completeTarget.payment?.status === 'paid'">This closes the consultation ({{ completeTarget.otherPartyName }} already paid ₱{{ Number(completeTarget.payment.amount).toFixed(2) }}). It can't be undone.</template>
+            <template v-else>This sends {{ completeTarget.otherPartyName }} an invoice for your consultation fee. It can't be undone.</template>
           </p>
           <p v-if="actionError[completeTarget.id]" class="form-error">{{ actionError[completeTarget.id] }}</p>
           <div class="scr-actions">
@@ -188,6 +204,10 @@
             </div>
 
             <p v-if="actionError[screeningTarget.id]" class="form-error">{{ actionError[screeningTarget.id] }}</p>
+            <p v-if="screeningTarget.status === 'pending' && screeningData.screening" class="scr-note">
+              Accepting sends the client an invoice for your consultation fee. They pay it before the consultation;
+              if it's still unpaid at the start time, the booking is cancelled and the slot opens again.
+            </p>
 
             <div v-if="screeningTarget.status === 'pending'" class="scr-actions">
               <button class="scr-decline-btn" :disabled="busyId === screeningTarget.id" @click="decideBooking('decline')">Decline</button>
@@ -208,108 +228,7 @@
     </template>
 
     <!-- ============ CLIENT VIEW ============ -->
-    <template v-else>
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">My Appointments</h1>
-          <p class="page-count">{{ filteredAppointments.length }} {{ filteredAppointments.length === 1 ? 'appointment' : 'appointments' }}</p>
-        </div>
-        <NuxtLink to="/find-rnd" class="primary-btn"><Plus :size="15" /> Book New Appointment</NuxtLink>
-      </div>
-
-      <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-
-      <div v-if="appointments.length" class="filter-tabs pill-tabs">
-        <button v-for="f in filters" :key="f.label" class="filter-tab" :class="{ active: activeFilter === f.label }" @click="activeFilter = f.label">
-          {{ f.shortLabel || f.label }}
-        </button>
-      </div>
-
-      <div v-if="isLoading" class="empty-state">
-        <p class="empty-title">Loading appointments…</p>
-      </div>
-
-      <div v-else class="appt-list">
-        <div v-if="!appointments.length" class="empty-state">
-          <CalendarX :size="28" class="empty-icon" />
-          <p class="empty-title">No appointments yet</p>
-          <p class="empty-sub">Once you book a session with an RND, it'll show up here.</p>
-          <NuxtLink to="/find-rnd" class="primary-btn" style="margin-top: 12px;">Book Appointment</NuxtLink>
-        </div>
-        <div v-else-if="!filteredAppointments.length" class="empty-state">
-          <CalendarX :size="28" class="empty-icon" />
-          <p class="empty-title">No {{ activeFilter === 'All' ? '' : activeFilter.toLowerCase() + ' ' }}appointments</p>
-        </div>
-
-        <div v-for="appt in filteredAppointments" :key="appt.id" class="appt-card" :class="[statusAccent(appt.status), { dimmed: appt.status === 'cancelled' }]">
-          <div class="appt-date-block" :class="dateBlockClass(appt.status)">
-            <span class="d-num">{{ appt.day }}</span>
-            <span class="d-mon">{{ appt.month }}</span>
-          </div>
-
-          <div class="appt-info">
-            <div class="appt-info-row">
-              <span class="appt-rnd">{{ appt.otherPartyName }}</span>
-              <span class="status-pill" :class="pillClass(appt.status)">{{ statusLabel(appt.status) }}</span>
-            </div>
-            <p class="appt-meta"><CalendarDays :size="13" /> {{ appt.dateLabel }} <span class="dot">·</span> <Clock :size="13" /> {{ appt.timeLabel }}</p>
-            <p v-if="actionError[appt.id]" class="appt-note">{{ actionError[appt.id] }}</p>
-          </div>
-
-          <div class="modality-icon" :class="dateBlockClass(appt.status)">
-            <component :is="appt.type === 'video' ? Video : MessageCircle" :size="16" />
-          </div>
-
-          <div class="appt-actions">
-            <NuxtLink v-if="appt.status === 'confirmed' && appt.hasVideoRoom" :to="`/consultation-room/${appt.id}`" class="primary-btn small"><Video :size="14" /> Join Video Call</NuxtLink>
-            <button v-if="appt.status === 'pending'" class="outline-btn small" disabled><Hourglass :size="13" /> Awaiting Confirmation</button>
-            <NuxtLink v-if="appt.status === 'completed'" to="/invoices-billing" class="outline-btn small"><Receipt :size="13" /> View Invoice</NuxtLink>
-            <button v-if="appt.status === 'completed' && !appt.hasReview" class="outline-btn small" :disabled="busyId === appt.id" @click="openReviewModal(appt)"><Star :size="13" /> Leave Review</button>
-            <NuxtLink v-if="appt.status === 'cancelled'" to="/find-rnd" class="outline-btn small"><RotateCcw :size="13" /> Book Again</NuxtLink>
-            <button v-if="appt.status === 'confirmed' || appt.status === 'pending'" class="ghost-btn small" :disabled="busyId === appt.id" @click="openCancelModal(appt)">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- CANCEL MODAL -->
-      <div v-if="cancelTarget" class="modal-overlay" @click.self="closeCancelModal">
-        <div class="modal-box">
-          <div class="modal-title-row">
-            <AlertTriangle :size="18" class="modal-warn-icon" />
-            <h3 class="modal-title">Cancel Appointment?</h3>
-          </div>
-          <label class="field-label">Reason for cancellation <span class="optional">(optional)</span></label>
-          <textarea v-model="cancelReason" rows="2" placeholder="Let your RND know why..."></textarea>
-          <p v-if="cancelError" class="form-error">{{ cancelError }}</p>
-          <div class="modal-actions">
-            <button class="ghost-btn" :disabled="isCancelling" @click="closeCancelModal">Keep Appointment</button>
-            <button class="danger-outline-btn" :disabled="isCancelling" @click="confirmCancel">{{ isCancelling ? 'Cancelling…' : 'Confirm Cancellation' }}</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- REVIEW MODAL -->
-      <div v-if="reviewTarget" class="modal-overlay" @click.self="closeReviewModal">
-        <div class="modal-box">
-          <h3 class="modal-title">Rate Your Consultation</h3>
-          <div class="star-row">
-            <Star
-              v-for="n in 5" :key="n" :size="26"
-              :fill="n <= reviewStars ? '#D4A017' : 'none'"
-              :stroke="n <= reviewStars ? '#D4A017' : '#c8c8c8'"
-              @click="reviewStars = n"
-              style="cursor: pointer;"
-            />
-          </div>
-          <textarea v-model="reviewText" rows="3" placeholder="Share your experience..."></textarea>
-          <p v-if="reviewError" class="form-error">{{ reviewError }}</p>
-          <div class="modal-actions">
-            <button class="ghost-btn" :disabled="isSubmittingReview" @click="closeReviewModal">Cancel</button>
-            <button class="primary-btn" :disabled="isSubmittingReview" @click="submitReview">{{ isSubmittingReview ? 'Submitting…' : 'Submit Review' }}</button>
-          </div>
-        </div>
-      </div>
-    </template>
+    <ClientAppointments v-else />
   </div>
 </template>
 
@@ -323,6 +242,7 @@ definePageMeta({ layout: 'dashboard', title: 'Appointments' })
 
 const auth = useAuthStore()
 const { get, patch, post } = useApi()
+const nowTick = useNow(30000) // join window ticks
 
 const isRnd = computed(() => auth.user?.role === 'rnd')
 
@@ -351,7 +271,6 @@ function initialsFor(user) {
 }
 
 const rawAppointments = ref([])
-const reviewedAppointmentIds = ref(new Set())
 
 const appointments = computed(() => rawAppointments.value.map((appt) => {
   const otherParty = isRnd.value ? appt.relationship.client : appt.relationship.rnd
@@ -373,17 +292,36 @@ const appointments = computed(() => rawAppointments.value.map((appt) => {
       : scheduled.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
     type: appt.type,
     hasVideoRoom: Boolean(appt.video_session_url),
-    hasReview: reviewedAppointmentIds.value.has(appt.id),
+    payment: appt.payment || null,
+    awaitingPayment: appt.status === 'confirmed' && appt.payment?.status === 'unpaid',
+    // Join window (same as the client's): 15 min before start → 15 min after end.
+    inJoinWindow: (() => {
+      const opens = appt.join_opens_at ? new Date(appt.join_opens_at).getTime() : 0
+      const closes = appt.join_closes_at ? new Date(appt.join_closes_at).getTime() : Infinity
+      return nowTick.value >= opens && nowTick.value <= closes
+    })(),
+    joinOpensLater: appt.join_opens_at ? nowTick.value < new Date(appt.join_opens_at).getTime() : false,
+    joinOpensLabel: appt.join_opens_at ? formatJoinTime(appt.join_opens_at, nowTick.value) : '',
   }
 }))
 
+// ?relationship=<id> (from a patient chart's "Manage Appointment") shows only
+// that patient's appointments, with a "Show all" link back.
+const route = useRoute()
+const patientFilterId = computed(() => (isRnd.value && route.query.relationship ? String(route.query.relationship) : null))
+const patientFilterName = computed(() =>
+  appointments.value.find(a => String(a.relationshipId) === patientFilterId.value)?.otherPartyName || 'this patient'
+)
 const filteredAppointments = computed(() => {
-  if (activeFilter.value === 'All') return appointments.value
+  const list = patientFilterId.value
+    ? appointments.value.filter(a => String(a.relationshipId) === patientFilterId.value)
+    : appointments.value
+  if (activeFilter.value === 'All') return list
   if (activeFilter.value === 'Pending Confirmation') {
-    return appointments.value.filter(a => a.status === 'pending')
+    return list.filter(a => a.status === 'pending')
   }
   const map = { Confirmed: 'confirmed', Completed: 'completed', Cancelled: 'cancelled' }
-  return appointments.value.filter(a => a.status === map[activeFilter.value])
+  return list.filter(a => a.status === map[activeFilter.value])
 })
 
 function statusLabel(status) {
@@ -408,10 +346,6 @@ async function loadAppointments() {
   try {
     const path = isRnd.value ? '/rnd/appointments/' : '/client/appointments/'
     rawAppointments.value = await get(path)
-    if (!isRnd.value) {
-      const myReviews = await get('/client/reviews/').catch(() => [])
-      reviewedAppointmentIds.value = new Set(myReviews.map(r => r.appointment))
-    }
   } catch {
     errorMessage.value = 'Could not load appointments. Please try again later.'
   } finally {
@@ -491,57 +425,8 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
 }
 
-/* ---------- CLIENT: CANCEL MODAL ---------- */
-const cancelTarget = ref(null)
-const cancelReason = ref('')
-const isCancelling = ref(false)
-const cancelError = ref('')
-function openCancelModal(appt) { cancelTarget.value = appt; cancelReason.value = ''; cancelError.value = '' }
-function closeCancelModal() { cancelTarget.value = null }
-async function confirmCancel() {
-  if (!cancelTarget.value) return
-  isCancelling.value = true
-  cancelError.value = ''
-  try {
-    await patch(`/client/appointments/${cancelTarget.value.id}/cancel/`, { reason: cancelReason.value || undefined })
-    closeCancelModal()
-    await loadAppointments()
-  } catch (error) {
-    cancelError.value = error?.data?.detail || 'Could not cancel this appointment. Please try again.'
-  } finally {
-    isCancelling.value = false
-  }
-}
-
-/* ---------- CLIENT: REVIEW MODAL ---------- */
-const reviewTarget = ref(null)
-const reviewStars = ref(5)
-const reviewText = ref('')
-const isSubmittingReview = ref(false)
-const reviewError = ref('')
-function openReviewModal(appt) { reviewTarget.value = appt; reviewStars.value = 5; reviewText.value = ''; reviewError.value = '' }
-function closeReviewModal() { reviewTarget.value = null }
-async function submitReview() {
-  if (!reviewTarget.value) return
-  isSubmittingReview.value = true
-  reviewError.value = ''
-  try {
-    await post('/client/reviews/', {
-      appointment: reviewTarget.value.id,
-      rnd: reviewTarget.value.rndId,
-      rating: reviewStars.value,
-      comment: reviewText.value || undefined,
-    })
-    closeReviewModal()
-    await loadAppointments()
-  } catch (error) {
-    reviewError.value = error?.data?.non_field_errors?.[0] || error?.data?.detail || 'Could not submit your review. Please try again.'
-  } finally {
-    isSubmittingReview.value = false
-  }
-}
-
-onMounted(loadAppointments)
+// Clients get their own page (ClientAppointments.vue), which loads its own data.
+onMounted(() => { if (isRnd.value) loadAppointments() })
 </script>
 
 <style scoped>
@@ -748,6 +633,11 @@ onMounted(loadAppointments)
   padding: 12px 16px; font-size: 0.82rem; margin: 0 0 20px;
 }
 .scr-banner-icon { color: #b8860b; flex-shrink: 0; }
+.scr-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; margin: 0 0 14px; }
+.join-later { font-size: 0.76rem; color: #8a9a8a; font-weight: 600; white-space: nowrap; align-self: center; }
+.pay-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 12px; margin-left: 6px; vertical-align: middle; }
+.pay-due { background: #fdf1d6; color: #b8860b; }
+.pay-ok { background: #e3f3ea; color: #1f8f5c; }
 .scr-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
 .scr-decline-btn {
   border: 1px solid #f0d6d6; background: #fff; color: #c0392b; border-radius: 8px;
@@ -767,4 +657,9 @@ onMounted(loadAppointments)
   .scr-results-grid { grid-template-columns: repeat(2, 1fr); }
   .scr-header { flex-direction: column; }
 }
+.patient-filter-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #eef5ee; color: #1a3a1a;
+  border-radius: 10px; padding: 10px 16px; font-size: 0.85rem; margin-bottom: 16px;
+}
+.patient-filter-clear { margin-left: auto; color: #1f8f5c; font-weight: 700; text-decoration: none; }
 </style>

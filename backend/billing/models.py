@@ -1,3 +1,4 @@
+from django.conf import settings
 from decimal import Decimal
 
 from django.db import models
@@ -10,6 +11,9 @@ class Invoice(models.Model):
         UNPAID = "unpaid", "Unpaid"
         PAID = "paid", "Paid"
         CANCELLED = "cancelled", "Cancelled"
+        # A paid appointment was cancelled; an admin refunds it in PayMongo
+        # and then marks it refunded (refunds aren't automated).
+        REFUND_PENDING = "refund_pending", "Refund pending"
         REFUNDED = "refunded", "Refunded"
 
     class PaymentGateway(models.TextChoices):
@@ -24,6 +28,7 @@ class Invoice(models.Model):
         CARD = "card", "Card"
         GCASH = "gcash", "GCash"
         MAYA = "maya", "Maya"
+        QRPH = "qrph", "QR Ph"
         BANK_TRANSFER = "bank_transfer", "Bank Transfer"
         CASH = "cash", "Cash"
         OTHER = "other", "Other"
@@ -31,6 +36,8 @@ class Invoice(models.Model):
     relationship = models.ForeignKey(
         RndClientRelationship, on_delete=models.CASCADE, related_name="invoices"
     )
+    # The monthly payout that paid the RND's share of this invoice (once).
+    payout = models.ForeignKey("Payout", on_delete=models.PROTECT, null=True, blank=True, related_name="invoices")
     appointment = models.ForeignKey(
         Appointment, on_delete=models.SET_NULL, null=True, blank=True, related_name="invoices"
     )
@@ -91,3 +98,51 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type} — {self.amount} ({self.status})"
+
+
+
+class RndPayoutAccount(models.Model):
+    """Where an RND gets paid (GCash or bank). Visible to admins, who send the
+    monthly payout outside the app and record its reference."""
+
+    class Method(models.TextChoices):
+        GCASH = "gcash", "GCash"
+        BANK = "bank", "Bank transfer"
+
+    rnd = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payout_account")
+    method = models.CharField(max_length=20, choices=Method.choices)
+    account_name = models.CharField(max_length=150)
+    account_number = models.CharField(max_length=50)
+    bank_name = models.CharField(max_length=100, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "rnd_payout_accounts"
+
+    def __str__(self):
+        return f"{self.rnd} — {self.get_method_display()} {self.account_number}"
+
+
+class Payout(models.Model):
+    """One monthly payout sent to an RND (Roblox-style: earnings go Pending →
+    Posted → Paid out; payout day is the 5th). The account details are
+    snapshotted so history stays accurate if the RND changes them later."""
+
+    rnd = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payouts")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payout_date = models.DateField(help_text="The payout day (the 5th) this payout belongs to")
+    method = models.CharField(max_length=20)
+    account_name = models.CharField(max_length=150)
+    account_number = models.CharField(max_length=50)
+    bank_name = models.CharField(max_length=100, null=True, blank=True)
+    reference = models.CharField(max_length=100)
+    notes = models.TextField(null=True, blank=True)
+    released_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+    released_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "payouts"
+        ordering = ["-released_at"]
+
+    def __str__(self):
+        return f"Payout {self.id} — {self.rnd} ₱{self.amount}"

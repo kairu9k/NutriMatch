@@ -4,6 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from core.test_utils import approve_rnd
 from scheduling.models import RndClientRelationship
 
 from .models import (
@@ -20,7 +21,7 @@ class MealPlanExchangeRecomputeTests(TestCase):
     items, not manually entered — see MealPlanMeal.recompute_exchanges."""
 
     def setUp(self):
-        rnd = User.objects.create_user(email="rnd@nt.ph", password="x", role="rnd", first_name="R", last_name="D")
+        rnd = approve_rnd(User.objects.create_user(email="rnd@nt.ph", password="x", role="rnd", first_name="R", last_name="D"))
         client = User.objects.create_user(email="client@nt.ph", password="x", role="client", first_name="C", last_name="L")
         rel = RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Test Plan")
@@ -92,7 +93,7 @@ class MealPlanFoodItemViewTests(TestCase):
 
     def setUp(self):
         self.client_api = APIClient()
-        self.rnd = User.objects.create_user(email="rnd2@nt.ph", password="x", role="rnd", first_name="R", last_name="D")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd2@nt.ph", password="x", role="rnd", first_name="R", last_name="D"))
         client = User.objects.create_user(email="client2@nt.ph", password="x", role="client", first_name="C", last_name="L")
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=client, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Test Plan")
@@ -142,7 +143,7 @@ class WeeklyMealPlanTests(TestCase):
 
     def setUp(self):
         self.client_api = APIClient()
-        self.rnd = User.objects.create_user(email="rnd3@nt.ph", password="x", role="rnd", first_name="R", last_name="D")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd3@nt.ph", password="x", role="rnd", first_name="R", last_name="D"))
         self.client_user = User.objects.create_user(email="client3@nt.ph", password="x", role="client", first_name="C", last_name="L")
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
         self.plan = MealPlan.objects.create(relationship=self.rel, name="Week Plan", target_kcal=Decimal("1800"))
@@ -211,7 +212,7 @@ class WeeklyMealPlanTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_other_rnd_cannot_save_week(self):
-        other = User.objects.create_user(email="rnd4@nt.ph", password="x", role="rnd", first_name="O", last_name="R")
+        other = approve_rnd(User.objects.create_user(email="rnd4@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
         self.client_api.force_authenticate(other)
         self.assertEqual(self._save(self._week([{"food_name": "Oatmeal"}])).status_code, 404)
 
@@ -323,7 +324,7 @@ class RndMealLogNotificationTests(TestCase):
 
     def setUp(self):
         self.client_api = APIClient()
-        self.rnd = User.objects.create_user(email="rnd9@nt.ph", password="x", role="rnd", first_name="Maria", last_name="S")
+        self.rnd = approve_rnd(User.objects.create_user(email="rnd9@nt.ph", password="x", role="rnd", first_name="Maria", last_name="S"))
         self.client_user = User.objects.create_user(email="client9@nt.ph", password="x", role="client", first_name="Ana", last_name="C")
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Plan", status="active")
@@ -354,7 +355,7 @@ class RndMealLogNotificationTests(TestCase):
         self.client_api.force_authenticate(self.rnd)
         self.assertEqual(self.client_api.get(f"/api/rnd/meal-logs/{self.log_id}/").status_code, 200)
 
-        other = User.objects.create_user(email="rnd10@nt.ph", password="x", role="rnd", first_name="O", last_name="R")
+        other = approve_rnd(User.objects.create_user(email="rnd10@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
         self.client_api.force_authenticate(other)
         self.assertEqual(self.client_api.get(f"/api/rnd/meal-logs/{self.log_id}/").status_code, 404)
 

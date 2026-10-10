@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ layout: 'admin', title: 'System Setting', subtitle: 'Platform configuration and compliance controls' })
+definePageMeta({ layout: 'dashboard', title: 'System Settings', subtitle: 'Platform configuration', admin: true })
 </script>
 
 <template>
