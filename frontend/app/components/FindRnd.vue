@@ -36,13 +36,6 @@
           </select>
         </label>
         <label class="filter-field">
-          <span>Fee per session</span>
-          <select v-model="maxFee" class="nm-select">
-            <option value="">Any fee</option>
-            <option v-for="f in FEES" :key="f" :value="f">Up to {{ peso0(f) }}</option>
-          </select>
-        </label>
-        <label class="filter-field">
           <span>Sort by</span>
           <select v-model="sortBy" class="nm-select">
             <option value="soonest">Soonest available</option>
@@ -138,7 +131,6 @@ import {
 const { get } = useApi()
 
 const PAGE_SIZE = 6
-const FEES = [500, 800, 1000, 1500, 2000]
 const MODE_ICONS = { video: Video, chat: MessageCircle, in_person: Users }
 const MODE_LABELS = { video: 'Video', chat: 'Chat', in_person: 'In-person' }
 
@@ -147,7 +139,6 @@ const search = ref('')
 const specialization = ref('')
 const language = ref('')
 const mode = ref('')
-const maxFee = ref('')
 const sortBy = ref('soonest')
 const showFilters = ref(false)
 const page = ref(1)
@@ -156,13 +147,12 @@ const rnds = ref([])
 const loading = ref(true)
 const error = ref('')
 
-const activeFilterCount = computed(() => [specialization.value, language.value, mode.value, maxFee.value].filter(Boolean).length)
+const activeFilterCount = computed(() => [specialization.value, language.value, mode.value].filter(Boolean).length)
 function clearFilters() {
   search.value = ''
   specialization.value = ''
   language.value = ''
   mode.value = ''
-  maxFee.value = ''
 }
 
 // RND specializations are free text for older accounts (e.g. "Diabetes &
@@ -180,7 +170,6 @@ async function load() {
   if (specialization.value) query.specialty = specialtyKeyword(specialization.value)
   if (language.value) query.language = language.value
   if (mode.value) query.mode = mode.value
-  if (maxFee.value) query.max_fee = maxFee.value
   try {
     const r = await get('/client/rnds/', { query })
     if (id === requestId) rnds.value = r
@@ -196,7 +185,7 @@ watch(search, () => {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(load, 350)
 })
-watch([specialization, language, mode, maxFee], load)
+watch([specialization, language, mode], load)
 watch(sortBy, () => { page.value = 1 })
 
 onMounted(async () => {
@@ -241,7 +230,7 @@ function slotText(iso) {
 .filter-top { display: flex; gap: 10px; }
 .name-search { max-width: none; flex: 1; }
 .filters-toggle { display: none; }
-.filter-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 14px; }
+.filter-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
 .filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .filter-field > span { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; }
 .filter-field .nm-select { width: 100%; }
@@ -282,7 +271,7 @@ function slotText(iso) {
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 @media (max-width: 1150px) {
-  .filter-grid { grid-template-columns: repeat(3, 1fr); }
+  .filter-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 860px) {
   .rnd-grid { grid-template-columns: minmax(0, 1fr); }
