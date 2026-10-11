@@ -3,8 +3,8 @@
     python manage.py seed_demo           # create the demo set (skips if already there)
     python manage.py seed_demo --reset   # delete every demo account + its activity, then re-create
 
-5 RNDs and 5 clients, each at a different point in the journey (see RNDS /
-CLIENTS below), plus a demo admin (admin@nutrimatch.test). All demo accounts use the @nutrimatch.test domain (can't
+5 RNDs and 7 clients, each at a different point in the journey (see RNDS /
+CLIENTS below; 7 clients), plus a demo admin (admin@nutrimatch.test). All demo accounts use the @nutrimatch.test domain (can't
 receive mail), are already email-verified, and share one password:
 DEMO_PASSWORD from .env (default below). Dev-only — refuses to run with
 DEBUG=False unless --force is passed.
@@ -121,6 +121,10 @@ CLIENTS = [
      "restrictions": ["Low sodium"]},
     {"key": "elena", "first_name": "Elena", "last_name": "Ramos", "dob": date(1995, 11, 5), "sex": "female",
      "conditions": ["Other"], "goals": ["Healthier family meals"]},
+    {"key": "felix", "first_name": "Felix", "last_name": "Navarro", "dob": date(1958, 7, 19), "sex": "male",
+     "conditions": ["Unintended weight loss"], "goals": ["Regain weight", "Eat more regularly"]},
+    {"key": "grace", "first_name": "Grace", "last_name": "Lim", "dob": date(1990, 2, 14), "sex": "female",
+     "conditions": ["Weight Management"], "goals": ["Lose weight"], "allergies": ["Peanuts"]},
 ]
 
 
@@ -216,6 +220,8 @@ class Command(BaseCommand):
             self._carla()
             self._daniel()
             self._elena()
+            self._felix()
+            self._grace()
 
         self._upload_pending_license()
         self._summary()
@@ -716,6 +722,63 @@ class Command(BaseCommand):
         notify(recipient=ramon, notifiable_type="appointment", notifiable_id=appt.id,
                subject="New booking", content="Elena Ramos booked an in-person consultation.")
 
+    def _felix(self):
+        """Maria's new patient at nutritional risk (underweight + chronic
+        illness → NRS-2002 ≥ 3). His first, paid video consultation ended
+        yesterday but Maria hasn't marked it complete or written an NCP
+        record yet — so he shows in Appointments → To complete, the NCP
+        Records "No record yet" list and the dashboard's attention flags."""
+        felix, maria = self.clients["felix"], self.rnds["maria"]
+        self._screening(felix, "170", "50", "sedentary", symptoms="Unintended weight loss, Poor appetite",
+                        chronic=True, days_ago=6)
+        rel = self._relationship(maria, felix, RndClientRelationship.Status.ACTIVE, started_days_ago=4)
+        day = shift_to_day(self.today - timedelta(days=1), maria.demo_days, -1)
+        visit = self._appointment(rel, at(day, time(10)), Appointment.Status.CONFIRMED,
+                                  notes="Lost about 6 kg in 3 months since my COPD flare-up. No appetite.")
+        self._invoice(visit, paid_method=Invoice.PaymentMethod.GCASH, issued_at=visit.scheduled_at - timedelta(days=3))
+
+    def _grace(self):
+        """Maria's former patient, discharged after reaching her goal weight:
+        two completed visits, an initial and a follow-up NCP record (goals
+        met), and the discharge reason — her chart is read-only."""
+        grace, maria = self.clients["grace"], self.rnds["maria"]
+        screening = self._screening(grace, "158", "68", "lightly_active", days_ago=62)
+        rel = self._relationship(maria, grace, RndClientRelationship.Status.ACTIVE, started_days_ago=60)
+        height = screening.height_cm
+        first_day = shift_to_day(self.today - timedelta(days=60), maria.demo_days, -1)
+        second_day = shift_to_day(self.today - timedelta(days=12), maria.demo_days, -1)
+        first = self._appointment(rel, at(first_day, time(15)), Appointment.Status.COMPLETED)
+        self._invoice(first, paid_method=Invoice.PaymentMethod.CARD)
+        second = self._appointment(rel, at(second_day, time(15)), Appointment.Status.COMPLETED)
+        self._invoice(second, paid_method=Invoice.PaymentMethod.CARD)
+        Review.objects.create(appointment=second, client=grace, rnd=maria, rating=5,
+                              comment="Reached my goal weight with meals I actually enjoy. Salamat, Ma'am Maria!")
+        common = dict(relationship=rel, status=NcpRecord.Status.COMPLETED, height_cm=height,
+                      pes_problem="Excessive energy intake",
+                      pes_etiology="large rice portions and frequent sweet snacks at work",
+                      diet_prescription="1400 kcal balanced Filipino diet; 1 cup rice per meal; fruit instead of sweets.",
+                      target_kcal=Decimal("1400"), target_protein_g=Decimal("70"), target_carb_g=Decimal("175"), target_fat_g=Decimal("47"))
+        NcpRecord.objects.create(**common, appointment=first, encounter_date=first_day,
+                                 weight_kg=Decimal("68"), bmi=calculate_bmi(Decimal("68"), height),
+                                 pes_signs="BMI 27.2, diet recall ~2,300 kcal/day")
+        NcpRecord.objects.create(**common, appointment=second, encounter_date=second_day,
+                                 weight_kg=Decimal("62.5"), bmi=calculate_bmi(Decimal("62.5"), height),
+                                 pes_signs="BMI 25.0 at follow-up, now within her goal range",
+                                 goal_status=NcpRecord.GoalStatus.MET,
+                                 monitoring_notes="Lost 5.5 kg in 7 weeks and keeping it off. Ready to continue on her own.")
+        ProgressRecord.objects.create(relationship=rel, record_date=second_day, weight_kg=Decimal("62.5"),
+                                      bmi=calculate_bmi(Decimal("62.5"), height), blood_pressure="112/74",
+                                      rnd_notes="Goal reached; discussed maintenance.")
+        # Discharged the way the Discharge button does it (without the email — .test can't receive mail).
+        ended = at(self.today - timedelta(days=5), time(16))
+        reason = "Reached her goal weight and is maintaining it well. Book again anytime you need a check-in."
+        RndClientRelationship.objects.filter(pk=rel.pk).update(status=RndClientRelationship.Status.DISCHARGED,
+                                                               ended_at=ended, discharge_reason=reason)
+        AuditLog.objects.create(user=maria, action="relationship.discharged", table_name="rnd_client_relationships",
+                                record_id=rel.id, old_values={"status": "active"}, new_values={"status": "discharged", "reason": reason})
+        notify(recipient=grace, notifiable_type="relationship", notifiable_id=rel.id, subject="Your care plan has ended",
+               content=f"{maria.full_name} has completed your care at NutriMatch. Reason: {reason}")
+
     # ------------------------------------------------------------ extras
     def _upload_pending_license(self):
         """Kristine is pending admin review, so she needs a license photo to
@@ -745,6 +808,8 @@ class Command(BaseCommand):
             "carla": "Maria's patient — full history, upcoming visit with payment due",
             "daniel": "Jose's patient — 1 paid visit, meal plan (Jose has no payout details yet)",
             "elena": "first booking with Ramon, waiting over 24 hours for confirmation",
+            "felix": "Maria's new patient at nutritional risk — paid visit ended yesterday, not completed, no NCP yet",
+            "grace": "Maria's former patient — discharged after reaching her goal (read-only chart)",
         }
         for p in CLIENTS:
             self.stdout.write(f"  Client  {demo_email(p['first_name'], p['last_name']):38} {notes[p['key']]}")

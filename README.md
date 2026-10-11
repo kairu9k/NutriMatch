@@ -110,7 +110,7 @@ Every demo account uses the password **`NutriMatchDemo1!`**.
 | Role | Email | What's set up |
 |---|---|---|
 | **Admin** | `admin@nutrimatch.test` | Sign in at **http://localhost:3000/admin/login** |
-| RND | `maria.santos@nutrimatch.test` | Carla's RND · GCash payout details · one payout already released, more ready for the next 5th |
+| RND | `maria.santos@nutrimatch.test` | Carla's, Felix's and (discharged) Grace's RND · GCash payout details · one payout already released, more ready for the next 5th |
 | RND | `jose.reyes@nutrimatch.test` | Daniel's RND · has earnings but **no payout details** (shows the reminder) |
 | RND | `angela.villanueva@nutrimatch.test` | Not accepting new clients |
 | RND | `ramon.delacruz@nutrimatch.test` | Has Elena's booking request waiting over 24 hours |
@@ -120,6 +120,8 @@ Every demo account uses the password **`NutriMatchDemo1!`**.
 | Client | `carla.mendoza@nutrimatch.test` | Full history with Maria · upcoming visit with **payment due** |
 | Client | `daniel.torres@nutrimatch.test` | One paid visit with Jose · meal plan |
 | Client | `elena.ramos@nutrimatch.test` | Booked Ramon, waiting for him to confirm |
+| Client | `felix.navarro@nutrimatch.test` | Maria's patient at nutritional risk · paid visit ended yesterday, **not marked complete, no NCP record yet** |
+| Client | `grace.lim@nutrimatch.test` | **Discharged** by Maria after reaching her goal (read-only chart) |
 
 Clients and RNDs sign in at **http://localhost:3000/login**.
 
