@@ -70,8 +70,11 @@
               <Field label="Lab notes">
                 <textarea v-model="a.lab_notes" class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
               </Field>
+              <NcpDietaryIntake :recall="a.recall" :ffq="a.ffq" :idds="a.idds" :values="ctx.exchange_values || []" :foods="ctx.fnri_foods || []"
+                                :diary="isReadOnly ? [] : (ctx.food_diary || [])" :tdee="ctx.screening?.tdee_kcal ?? null" :read-only="isReadOnly" />
+              <p v-if="errors.diet_recall" class="field-error" role="alert">{{ errors.diet_recall }}</p>
               <Field label="Assessment notes">
-                <textarea v-model="a.assessment_notes" class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Diet history, 24-hour recall, appetite, activity…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="a.assessment_notes" class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Appetite, eating pattern, activity, food access…" :disabled="isReadOnly"></textarea>
               </Field>
               <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine… — pick from the list or type your own." />
             </section>
@@ -113,7 +116,12 @@
               <div v-if="ctx.screening?.tdee_kcal" class="energy">
                 <div><span class="k">BMR (Mifflin-St Jeor)</span><strong>{{ whole(ctx.screening.bmr_kcal) }} kcal</strong></div>
                 <div><span class="k">TDEE · {{ ctx.screening.activity_level }}</span><strong>{{ whole(ctx.screening.tdee_kcal) }} kcal</strong></div>
-                <p class="c-sub">From their screening of {{ shortDate(ctx.screening.date) }}.</p>
+                <div v-if="intake.counted"><span class="k">Intake · 24-h recall</span><strong>{{ whole(intake.kcal) }} kcal</strong></div>
+                <p class="c-sub">BMR and TDEE from their screening of {{ shortDate(ctx.screening.date) }}<template v-if="intake.counted">; intake counted from the Assessment step's recall</template>.</p>
+              </div>
+              <div v-else-if="intake.counted" class="energy">
+                <div><span class="k">Intake · 24-h recall</span><strong>{{ whole(intake.kcal) }} kcal</strong></div>
+                <p class="c-sub">Counted from the Assessment step's recall.</p>
               </div>
               <div class="grid g4">
                 <Field label="Target kcal / day" required :error="errors.target_kcal">
@@ -175,6 +183,7 @@
               </div>
               <dl class="summary">
                 <div><dt>Measurements</dt><dd>{{ measureLine }}</dd></div>
+                <div><dt>Dietary intake</dt><dd>{{ intakeLine }}</dd></div>
                 <div><dt>Diagnosis</dt><dd>{{ d.pes_problem ? pesSentence : '—' }}</dd></div>
                 <div><dt>Prescription</dt><dd>{{ i.diet_prescription || '—' }}</dd></div>
                 <div><dt>Targets</dt><dd>{{ targetLine }}</dd></div>
@@ -276,7 +285,8 @@
 // fields mirror NcpRecord.finalize_missing() on the API.
 import { AlertTriangle, Check, CheckCircle2, Info, Lock, Save, Sparkles, X } from 'lucide-vue-next'
 import {
-  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, extraRowErrors, macroKcal, rangeError, suggestMacros,
+  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, extraRowErrors, iddsLevel, macroKcal,
+  rangeError, recallRowErrors, recallTotals, suggestMacros,
 } from '~/utils/ncp'
 
 const props = defineProps({
@@ -345,6 +355,9 @@ function hydrate(r = {}) {
     height_cm: r.height_cm ?? '', weight_kg: r.weight_kg ?? '', bp_systolic: sys || '', bp_diastolic: dia || '',
     blood_glucose: r.blood_glucose ?? '', hba1c: r.hba1c ?? '', lab_notes: r.lab_notes ?? '', assessment_notes: r.assessment_notes ?? '',
     extra: (r.assessment_extra || []).map(x => ({ ...x })),
+    recall: (r.diet_recall || []).map(x => ({ ...x, exchanges: x.exchanges ?? '' })),
+    ffq: { ...(r.diet_ffq || {}) },
+    idds: [...(r.idds_groups || [])],
   }
   d.value = { pes_problem: r.pes_problem ?? '', pes_etiology: r.pes_etiology ?? '', pes_signs: r.pes_signs ?? '' }
   i.value = {
@@ -459,12 +472,13 @@ const errors = computed(() => {
   }
   const rowsBad = rows => rows.some(row => Object.keys(extraRowErrors(row)).length)
   if (rowsBad(a.value.extra)) e.assessment_extra = 'Fix the other measurements.'
+  if (a.value.recall.some(r => Object.keys(recallRowErrors(r)).length)) e.diet_recall = 'Fix the highlighted foods in the 24-hour recall.'
   if (rowsBad(i.value.extra)) e.intervention_extra = 'Fix the other measurements.'
   return e
 })
 const errorCount = computed(() => Object.keys(errors.value).length)
 const ERROR_STEP = {
-  height_cm: 'assessment', weight_kg: 'assessment', blood_pressure: 'assessment', blood_glucose: 'assessment', hba1c: 'assessment', assessment_extra: 'assessment',
+  height_cm: 'assessment', weight_kg: 'assessment', diet_recall: 'assessment', blood_pressure: 'assessment', blood_glucose: 'assessment', hba1c: 'assessment', assessment_extra: 'assessment',
   target_kcal: 'intervention', target_carb_g: 'intervention', target_protein_g: 'intervention', target_fat_g: 'intervention', intervention_extra: 'intervention',
 }
 function stepHasError(index) {
@@ -498,10 +512,22 @@ const targetLine = computed(() => {
   return `${whole(t.target_kcal)} kcal/day${macros.length ? ` · ${macros.join(', ')}` : ''}`
 })
 
+const intake = computed(() => recallTotals(a.value.recall || [], ctx.value.exchange_values || []))
+const intakeLine = computed(() => {
+  const parts = []
+  if (intake.value.counted) parts.push(`24-h recall ≈ ${whole(intake.value.kcal)} kcal (${intake.value.carbs_g} g carbs, ${intake.value.protein_g} g protein, ${intake.value.fat_g} g fat)`)
+  else if (intake.value.foods) parts.push(`24-h recall: ${intake.value.foods} food${intake.value.foods === 1 ? '' : 's'}`)
+  if (a.value.idds?.length) parts.push(`IDDS ${a.value.idds.length}/9 (${iddsLevel(a.value.idds.length).label.toLowerCase()})`)
+  const ffq = Object.values(a.value.ffq || {}).filter(Boolean).length
+  if (ffq) parts.push(`food frequency: ${ffq} group${ffq === 1 ? '' : 's'} answered`)
+  return parts.join(' · ') || '—'
+})
+
 /* ---------- save / finalize ---------- */
-let savedSnapshot = ''
+// A ref, so saving (which changes only this) re-evaluates `dirty`.
+const savedSnapshot = ref('')
 const snapshot = () => JSON.stringify([a.value, d.value, i.value, m.value])
-const dirty = computed(() => !isReadOnly.value && snapshot() !== savedSnapshot)
+const dirty = computed(() => !isReadOnly.value && snapshot() !== savedSnapshot.value)
 const saveStateText = computed(() => (saving.value ? 'Saving…' : dirty.value ? 'Unsaved changes' : lastSavedAt.value ? `Saved ${lastSavedAt.value}` : record.value ? 'Draft' : 'Not saved yet'))
 const saveStateClass = computed(() => (dirty.value ? 'dirty' : lastSavedAt.value ? 'ok' : ''))
 
@@ -513,6 +539,12 @@ function payload() {
     weight_kg: num(a.value.weight_kg), height_cm: num(a.value.height_cm), blood_pressure: sys || dia ? `${sys}/${dia}` : null,
     blood_glucose: num(a.value.blood_glucose), hba1c: num(a.value.hba1c), lab_notes: a.value.lab_notes || null,
     assessment_notes: a.value.assessment_notes || null, assessment_extra: a.value.extra.filter(r => r.label.trim()),
+    diet_recall: a.value.recall.filter(r => String(r.food_name || '').trim()).map(r => ({
+      meal: r.meal, food_name: r.food_name.trim(), amount: String(r.amount || '').trim(), group: r.group || '',
+      exchanges: String(r.exchanges ?? '').trim() === '' ? null : Number(r.exchanges),
+    })),
+    diet_ffq: Object.fromEntries(Object.entries(a.value.ffq).filter(([, v]) => v)),
+    idds_groups: a.value.idds,
     pes_problem: d.value.pes_problem || null, pes_etiology: d.value.pes_etiology || null, pes_signs: d.value.pes_signs || null,
     target_kcal: num(i.value.target_kcal), target_carb_g: num(i.value.target_carb_g), target_protein_g: num(i.value.target_protein_g),
     target_fat_g: num(i.value.target_fat_g), diet_prescription: i.value.diet_prescription || null,
@@ -536,7 +568,7 @@ async function saveDraft() {
         ...payload(),
       })
     }
-    savedSnapshot = sent
+    savedSnapshot.value = sent
     lastSavedAt.value = new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
     emit('changed')
     return true
@@ -554,7 +586,7 @@ async function finalize() {
   saving.value = true
   try {
     record.value = await patch(`/rnd/ncp/${record.value.id}/finalize/`)
-    savedSnapshot = snapshot()
+    savedSnapshot.value = snapshot()
     confirmFinalize.value = false
     emit('changed')
   } catch (e) {
@@ -607,11 +639,11 @@ async function load() {
       prefillBlanks()
       // A new record starts "unsaved" only if the RND changes something; a
       // resumed draft that just got pre-filled values offers to save them.
-      savedSnapshot = record.value ? before : snapshot()
+      savedSnapshot.value = record.value ? before : snapshot()
       const first = missing.value[0]
       tab.value = first ? first.step : (record.value ? stepKeys.value.length - 1 : 0)
     }
-    if (props.mode === 'view') savedSnapshot = snapshot()
+    if (props.mode === 'view') savedSnapshot.value = snapshot()
   } catch {
     loadError.value = 'Could not load this NCP record. Please try again.'
   } finally {
@@ -695,7 +727,7 @@ function ncpError(e, fallback) {
 .combo-opt:hover, .combo-opt.on { background: #eef3ec; }
 .pes-preview, .prev-box, .energy { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; }
 .pes-preview p, .prev-box p { margin: 4px 0 0; font-size: 0.86rem; line-height: 1.5; }
-.energy { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.energy { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; }
 .energy div { display: flex; flex-direction: column; }
 .energy strong { font-size: 1rem; }
 .energy .c-sub { grid-column: 1 / -1; }

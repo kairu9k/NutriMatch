@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from core.test_utils import approve_rnd, onboard_client
 from scheduling.models import Appointment, RndClientRelationship
+from scheduling.patient_insights import ph_tz
 
 from .models import NcpRecord, PreConsultationScreening, ProgressRecord
 
@@ -50,7 +51,7 @@ class NcpFlowTests(TestCase):
         self.assertIn("appointment", resp.data)
 
     def test_context_prefill_and_previous(self):
-        ProgressRecord.objects.create(relationship=self.rel, record_date=timezone.now().date(), weight_kg=Decimal("68"), blood_pressure="120/80")
+        ProgressRecord.objects.create(relationship=self.rel, record_date=timezone.now().astimezone(ph_tz()).date(), weight_kg=Decimal("68"), blood_pressure="120/80")
         NcpRecord.objects.create(relationship=self.rel, encounter_date=timezone.now().date() - timedelta(days=30), status="completed",
                                  weight_kg=Decimal("70"), height_cm=Decimal("160"), pes_problem="Excessive energy intake", target_kcal=Decimal("1500"))
         appt = Appointment.objects.create(relationship=self.rel, type="video", status="confirmed", scheduled_at=timezone.now() + timedelta(minutes=5))

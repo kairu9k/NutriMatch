@@ -79,6 +79,13 @@ class NcpRecord(models.Model):
     # RND-added measurements beyond the fixed fields above, e.g.
     # [{"label": "Waist circumference", "value": "92", "unit": "cm"}].
     assessment_extra = models.JSONField(default=list, blank=True)
+    # Dietary intake (clinical/dietary.py): 24-hour recall rows
+    # [{"meal", "food_name", "amount", "group", "exchanges"}] — food name and
+    # portion only, kcal/macros are counted from the FNRI exchange values —
+    # food frequency answers {group: frequency}, and the IDDS food groups eaten.
+    diet_recall = models.JSONField(default=list, blank=True)
+    diet_ffq = models.JSONField(default=dict, blank=True)
+    idds_groups = models.JSONField(default=list, blank=True)
 
     # Phase 2 — Diagnosis (PES statement)
     pes_problem = models.CharField(max_length=500, null=True, blank=True)

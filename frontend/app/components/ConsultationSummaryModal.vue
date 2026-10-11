@@ -56,10 +56,11 @@
                 <p v-if="s.care_plan.advice" class="txt advice"><span class="k">Advice</span>{{ s.care_plan.advice }}</p>
                 <p v-if="s.care_plan.goal_status" class="txt"><span class="k">Goals from your last visit</span>{{ s.care_plan.goal_status }}</p>
               </section>
-              <section v-if="role === 'rnd' && (s.care_plan.assessment_notes || s.care_plan.lab_notes || s.care_plan.monitoring_notes)" class="private">
+              <section v-if="role === 'rnd' && (s.care_plan.assessment_notes || s.care_plan.lab_notes || s.care_plan.monitoring_notes || s.care_plan.dietary)" class="private">
                 <h3><Lock :size="12" /> Clinical notes (only you see these)</h3>
                 <p v-if="s.care_plan.assessment_notes" class="txt"><span class="k">Assessment</span>{{ s.care_plan.assessment_notes }}</p>
                 <p v-if="s.care_plan.lab_notes" class="txt"><span class="k">Labs</span>{{ s.care_plan.lab_notes }}</p>
+                <p v-if="s.care_plan.dietary" class="txt"><span class="k">Dietary intake</span>{{ dietaryLine(s.care_plan.dietary) }}</p>
                 <p v-if="s.care_plan.monitoring_notes" class="txt"><span class="k">Monitoring</span>{{ s.care_plan.monitoring_notes }}</p>
               </section>
             </template>
@@ -117,6 +118,14 @@ const fmt = v => Number(v).toFixed(1).replace(/\.0$/, '')
 const whole = v => Math.round(Number(v)).toLocaleString('en-PH')
 const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 
+function dietaryLine(dt) {
+  const parts = []
+  if (dt.recall?.counted) parts.push(`24-h recall ≈ ${dt.recall.kcal.toLocaleString('en-PH')} kcal (${dt.recall.carbs_g} g carbs, ${dt.recall.protein_g} g protein, ${dt.recall.fat_g} g fat)`)
+  else if (dt.recall) parts.push(`24-h recall: ${dt.recall.foods} foods`)
+  if (dt.idds_score != null) parts.push(`IDDS ${dt.idds_score}/9 (${dt.idds_level})`)
+  if (dt.ffq?.length) parts.push(dt.ffq.map(x => `${x.group}: ${x.frequency.toLowerCase()}`).join('; '))
+  return parts.join(' · ')
+}
 function print() {
   const x = s.value
   const m = x.measurements

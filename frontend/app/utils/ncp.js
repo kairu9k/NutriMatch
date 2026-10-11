@@ -118,3 +118,93 @@ export const MEASURE_TEMPLATES = {
     { group: 'Goals', items: [['Fiber goal', 'g/day'], ['Water intake', 'L/day'], ['Physical activity', 'min/day'], ['Steps per day', 'steps'], ['Meals per day', 'meals'], ['Target weight', 'kg']] },
   ],
 }
+
+/* ---------- dietary intake tools (mirrors backend clinical/dietary.py) ---------- */
+export const RECALL_MEALS = [
+  { value: 'breakfast', label: 'Breakfast' }, { value: 'am_snack', label: 'AM snack' }, { value: 'lunch', label: 'Lunch' },
+  { value: 'pm_snack', label: 'PM snack' }, { value: 'dinner', label: 'Dinner' }, { value: 'bedtime_snack', label: 'Late-night snack' },
+]
+export const RECALL_MAX_ROWS = 80
+export const FFQ_GROUPS = [
+  { value: 'rice_bread', label: 'Rice, bread, noodles, corn' },
+  { value: 'root_crops', label: 'Root crops (kamote, gabi, cassava)' },
+  { value: 'green_yellow_veg', label: 'Green leafy & yellow vegetables' },
+  { value: 'other_veg', label: 'Other vegetables' },
+  { value: 'fruits', label: 'Fruits' },
+  { value: 'fish', label: 'Fish & seafood' },
+  { value: 'meat_poultry', label: 'Meat & poultry' },
+  { value: 'processed_meat', label: 'Processed meat (hotdog, longganisa, tocino, canned)' },
+  { value: 'eggs', label: 'Eggs' },
+  { value: 'legumes', label: 'Legumes & nuts (monggo, peanuts, tokwa)' },
+  { value: 'milk', label: 'Milk & dairy' },
+  { value: 'sweet_drinks', label: 'Sweetened drinks (soft drinks, juice, 3-in-1 coffee)' },
+  { value: 'sweets', label: 'Sweets & desserts (kakanin, cakes, candy)' },
+  { value: 'fried', label: 'Fried & fast food' },
+  { value: 'salty_snacks', label: 'Instant noodles, chips & salty snacks' },
+  { value: 'alcohol', label: 'Alcoholic drinks' },
+]
+export const FFQ_FREQS = [
+  { value: 'never', label: 'Never' }, { value: 'monthly', label: '1–3× a month' }, { value: 'weekly', label: '1–2× a week' },
+  { value: 'often', label: '3–6× a week' }, { value: 'daily', label: 'Once a day' }, { value: 'multi', label: '2+ times a day' },
+]
+// FAO's 9-group Individual Dietary Diversity Score (FAO 2011).
+export const IDDS_GROUPS = [
+  { value: 'starchy', label: 'Starchy staples', eg: 'rice, bread, corn, kamote' },
+  { value: 'dark_green', label: 'Dark green leafy vegetables', eg: 'malunggay, kangkong, pechay' },
+  { value: 'vit_a', label: 'Other vitamin A-rich fruits & vegetables', eg: 'kalabasa, carrot, ripe mango, papaya' },
+  { value: 'other_fv', label: 'Other fruits & vegetables', eg: 'talong, sitaw, banana' },
+  { value: 'organ', label: 'Organ meat', eg: 'liver, gizzard, dinuguan' },
+  { value: 'meat_fish', label: 'Meat & fish', eg: 'chicken, pork, bangus, tilapia' },
+  { value: 'eggs', label: 'Eggs', eg: 'itlog, balut' },
+  { value: 'legumes', label: 'Legumes, nuts & seeds', eg: 'monggo, tokwa, peanuts' },
+  { value: 'milk', label: 'Milk & milk products', eg: 'milk, cheese, yogurt' },
+]
+// Commonly used cut-offs for the 9-group score.
+export function iddsLevel(score) {
+  if (score == null) return null
+  return score <= 3 ? { key: 'low', label: 'Low diversity' } : score <= 5 ? { key: 'medium', label: 'Medium diversity' } : { key: 'high', label: 'High diversity' }
+}
+// Calorie count of a 24-hour recall from the FNRI exchange values per group.
+export function recallTotals(rows, values = []) {
+  const by = Object.fromEntries(values.map(v => [v.code, v]))
+  const t = { kcal: 0, carbs_g: 0, protein_g: 0, fat_g: 0, counted: 0, foods: 0 }
+  for (const r of rows) {
+    if (!String(r.food_name || '').trim()) continue
+    t.foods++
+    const v = by[r.group]
+    const x = Number(r.exchanges)
+    if (!v || r.exchanges === '' || r.exchanges == null || !Number.isFinite(x)) continue
+    t.kcal += x * (v.kcal || 0); t.carbs_g += x * (v.carbs_g || 0); t.protein_g += x * (v.protein_g || 0); t.fat_g += x * (v.fat_g || 0)
+    t.counted++
+  }
+  for (const k of ['kcal', 'carbs_g', 'protein_g', 'fat_g']) t[k] = Math.round(t[k])
+  return t
+}
+export function recallRowErrors(row) {
+  const e = {}
+  const name = String(row.food_name || '').trim()
+  const x = String(row.exchanges ?? '').trim()
+  if (!name && (String(row.amount || '').trim() || x)) e.food_name = 'Add the food'
+  if (x && (!/^\d{1,2}(\.\d)?$/.test(x) || Number(x) > 20)) e.exchanges = '0–20, e.g. 1.5'
+  return e
+}
+// Suggest the IDDS groups a recall covers (the RND confirms them).
+const has = (s, words) => words.some(w => s.includes(w))
+export function iddsFromRecall(rows) {
+  const out = new Set()
+  for (const r of rows) {
+    const s = String(r.food_name || '').toLowerCase()
+    if (!s.trim()) continue
+    const g = r.group || ''
+    if (has(s, ['liver', 'atay', 'gizzard', 'balunbalunan', 'dinuguan', 'isaw', 'bopis', 'kidney'])) out.add('organ')
+    else if (has(s, ['egg', 'itlog', 'balut'])) out.add('eggs')
+    else if (has(s, ['tokwa', 'tofu', 'monggo', 'mongo', 'munggo', 'beans', 'peanut', 'mani', 'nuts', 'seeds', 'toge'])) out.add('legumes')
+    else if (g.startsWith('milk') || has(s, ['milk', 'gatas', 'cheese', 'keso', 'yogurt'])) out.add('milk')
+    else if (g.startsWith('rice') || has(s, ['rice', 'kanin', 'bread', 'pandesal', 'pan de sal', 'noodle', 'pancit', 'pasta', 'corn', 'mais', 'kamote', 'cassava', 'potato', 'gabi', 'oat'])) out.add('starchy')
+    else if (has(s, ['malunggay', 'kangkong', 'pechay', 'petsay', 'alugbati', 'saluyot', 'talbos', 'camote tops', 'spinach', 'mustasa', 'leaves', 'dahon'])) out.add('dark_green')
+    else if (has(s, ['kalabasa', 'squash', 'carrot', 'mango', 'mangga', 'papaya'])) out.add('vit_a')
+    else if (g === 'vegetable' || g === 'fruit') out.add('other_fv')
+    else if (g.startsWith('meat') || has(s, ['chicken', 'manok', 'pork', 'baboy', 'beef', 'baka', 'fish', 'isda', 'bangus', 'tilapia', 'tuna', 'galunggong', 'shrimp', 'hipon', 'squid', 'pusit', 'sardines', 'hotdog', 'longganisa', 'tocino'])) out.add('meat_fish')
+  }
+  return IDDS_GROUPS.map(x => x.value).filter(v => out.has(v))
+}

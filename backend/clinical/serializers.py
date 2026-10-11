@@ -121,6 +121,7 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
     assessment_extra = NcpExtraFieldSerializer(many=True, required=False)
     intervention_extra = NcpExtraFieldSerializer(many=True, required=False)
     is_follow_up = serializers.SerializerMethodField()
+    dietary = serializers.SerializerMethodField()
 
     class Meta:
         model = NcpRecord
@@ -129,6 +130,7 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
             # Phase 1 — Assessment
             "weight_kg", "height_cm", "bmi", "blood_pressure", "blood_glucose",
             "hba1c", "lab_notes", "assessment_notes", "assessment_extra",
+            "diet_recall", "diet_ffq", "idds_groups", "dietary",
             # Phase 2 — Diagnosis
             "pes_problem", "pes_etiology", "pes_signs",
             # Phase 3 — Intervention
@@ -160,6 +162,26 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
 
     def get_is_follow_up(self, obj):
         return obj.is_follow_up()
+
+    def get_dietary(self, obj):
+        from .dietary import dietary_summary
+
+        return dietary_summary(obj)
+
+    def validate_diet_recall(self, value):
+        from .dietary import clean_recall
+
+        return clean_recall(value)
+
+    def validate_diet_ffq(self, value):
+        from .dietary import clean_ffq
+
+        return clean_ffq(value)
+
+    def validate_idds_groups(self, value):
+        from .dietary import clean_idds
+
+        return clean_idds(value)
 
     def validate(self, attrs):
         # bmi is always derived server-side from weight/height (or the

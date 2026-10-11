@@ -95,7 +95,10 @@ def build_consultation_summary(appt, audience):
             "goal_status": ncp.get_goal_status_display() if ncp.goal_status else None,
         }
         if audience == "rnd":
-            care.update({"assessment_notes": ncp.assessment_notes, "lab_notes": ncp.lab_notes, "monitoring_notes": ncp.monitoring_notes})
+            from clinical.dietary import dietary_summary
+
+            care.update({"assessment_notes": ncp.assessment_notes, "lab_notes": ncp.lab_notes, "monitoring_notes": ncp.monitoring_notes,
+                         "dietary": dietary_summary(ncp)})
 
     plan = (MealPlan.objects.filter(relationship=rel, status=MealPlan.Status.ACTIVE).first()
             or (MealPlan.objects.filter(relationship=rel).exclude(status=MealPlan.Status.DRAFT).order_by("-sent_at").first()))

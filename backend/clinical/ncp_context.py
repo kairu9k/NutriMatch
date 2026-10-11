@@ -1,7 +1,9 @@
 """What the NCP form needs besides the record itself
 (GET /api/rnd/relationships/<id>/ncp/context/): pre-fill values with where
 each came from, the previous finalized record (carried into a follow-up and
-shown in Monitoring), and the patient strip beside the form."""
+shown in Monitoring), the patient strip beside the form, and for the dietary
+intake tools the FNRI foods + exchange values (24-hour recall calorie count)
+and the patient's food diary (their meal logs)."""
 
 from datetime import timedelta
 
@@ -19,8 +21,10 @@ def _num(v):
 
 
 def build_ncp_context(rel, now=None):
-    from nutrition.models import MealPlan
+    from nutrition.models import FoodExchangeCategory, FoodExchangeItem, MealPlan
     from scheduling.models import Appointment
+
+    from .dietary import food_diary
     from scheduling.patient_insights import CareData, ph_tz
 
     from .models import NcpRecord, PreConsultationScreening, ProgressRecord
@@ -102,6 +106,16 @@ def build_ncp_context(rel, now=None):
             "target_protein_g": _num(plan.target_protein_g), "target_fat_g": _num(plan.target_fat_g),
         } if plan else None,
         "appointment_id": window.id if window else None,
+        "exchange_values": [
+            {"code": cat.code, "name": cat.name, "kcal": _num(cat.kcal_per_exchange), "carbs_g": _num(cat.carbs_g),
+             "protein_g": _num(cat.protein_g), "fat_g": _num(cat.fat_g)}
+            for cat in FoodExchangeCategory.objects.order_by("sort_order", "id")
+        ],
+        "fnri_foods": [
+            {"name": f.name, "local_name": f.local_name, "group": f.category.code, "measure": f.household_measure}
+            for f in FoodExchangeItem.objects.select_related("category").order_by("category__sort_order", "name")
+        ],
+        "food_diary": food_diary(c, now=now),
     }
 
 

@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from core.test_utils import approve_rnd, onboard_client
 from scheduling.models import Appointment, RndClientRelationship
+from scheduling.patient_insights import ph_tz
 
 from .models import NcpRecord, PreConsultationScreening
 from .ncp_overview import build_ncp_overview
@@ -18,7 +19,7 @@ from .ncp_overview import build_ncp_overview
 class NcpOverviewTests(TestCase):
     def setUp(self):
         self.rnd = approve_rnd(User.objects.create_user(email="r@o.ph", password="x", role="rnd", first_name="M", last_name="S"))
-        self.today = timezone.now().date()
+        self.today = timezone.now().astimezone(ph_tz()).date()  # the app counts days in PH time
 
     def _patient(self, email, nrs=1):
         c = onboard_client(User.objects.create_user(email=email, password="x", role="client", first_name=email[:3], last_name="C"))
