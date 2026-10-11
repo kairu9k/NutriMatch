@@ -80,6 +80,10 @@
           <h3 class="chart-title red">Fasting Blood Glucose (mg/dL)</h3>
           <TrendLine :points="glucoseSeries" color="#c0392b" />
         </div>
+        <div v-if="hba1cSeries.length > 1" class="chart-card">
+          <h3 class="chart-title">HbA1c (%)</h3>
+          <TrendLine :points="hba1cSeries" color="#2f6fa8" />
+        </div>
       </div>
 
       <div class="surface">
@@ -166,6 +170,7 @@ function seriesFor(field) {
 const weightSeries = computed(() => seriesFor('weight_kg'))
 const bmiSeries = computed(() => seriesFor('bmi'))
 const glucoseSeries = computed(() => seriesFor('blood_glucose'))
+const hba1cSeries = computed(() => seriesFor('hba1c'))
 
 /* Blood pressure is stored as a single "120/80" string — split for the
    dual-line chart, display data only, not a clinical calculation. */

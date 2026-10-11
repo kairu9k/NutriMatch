@@ -350,34 +350,22 @@
         <div class="nm-panel">
           <div class="nm-panel-head">
             <div>
-              <h2 class="nm-panel-title">Weight trend</h2>
-              <p class="nm-panel-sub">Screening and every progress record with a weight.</p>
+              <h2 class="nm-panel-title">Trends</h2>
+              <p class="nm-panel-sub">From the screening, progress records and finalized NCP records.</p>
             </div>
-            <div v-if="weightPoints.length >= 2" class="chart-figure">
-              <span class="cf-value">{{ signed(weightPoints[weightPoints.length - 1].w - weightPoints[0].w) }} kg</span>
-              <span class="cf-sub">since {{ shortDate(weightPoints[0].date) }}</span>
-            </div>
-          </div>
-          <p v-if="weightPoints.length < 2" class="nm-muted">The trend shows once there are two weights (screening plus a progress record).</p>
-          <div v-else class="wchart" @mouseleave="whover = null">
-            <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="wsvg" role="img" :aria-label="`Weight from ${fmt1(weightPoints[0].w)} kg to ${fmt1(weightPoints[weightPoints.length - 1].w)} kg`">
-              <line v-for="g in wScale.ticks" :key="g" :x1="0" :x2="W" :y1="wy(g)" :y2="wy(g)" class="wgrid" />
-              <polyline :points="weightPoints.map(pt => `${wx(pt)},${wy(pt.w)}`).join(' ')" class="wline" />
-            </svg>
-            <span v-for="g in wScale.ticks" :key="`l${g}`" class="wtick" :style="{ top: `${(wy(g) / H) * 100}%` }">{{ g }}</span>
-            <button v-for="(pt, i) in weightPoints" :key="i" type="button" class="wdot" :class="{ last: i === weightPoints.length - 1, on: whover === i }"
-                    :style="{ left: `${(wx(pt) / W) * 100}%`, top: `${(wy(pt.w) / H) * 100}%` }"
-                    :aria-label="`${shortDate(pt.date)}: ${fmt1(pt.w)} kg${pt.screening ? ' (screening)' : ''}`"
-                    @mouseenter="whover = i" @focus="whover = i" @blur="whover = null" />
-            <div v-if="whover != null" class="wtip" :class="{ flip: whover > weightPoints.length / 2 }"
-                 :style="{ left: `${(wx(weightPoints[whover]) / W) * 100}%`, top: `${(wy(weightPoints[whover].w) / H) * 100}%` }">
-              <strong>{{ fmt1(weightPoints[whover].w) }} kg</strong>
-              <span class="tip-muted">{{ shortDate(weightPoints[whover].date) }}{{ weightPoints[whover].screening ? ' · screening' : '' }}</span>
+            <div v-if="trend && trend.change != null" class="chart-figure">
+              <span class="cf-value">{{ trend.change > 0 ? '+' : trend.change < 0 ? '−' : '' }}{{ Math.abs(trend.change).toFixed(trend.decimals) }} {{ trend.unit }}</span>
+              <span class="cf-sub">{{ trend.changeLabel }}</span>
             </div>
           </div>
-          <div v-if="weightPoints.length >= 2" class="wx">
-            <span>{{ shortDate(weightPoints[0].date) }}</span><span>{{ shortDate(weightPoints[weightPoints.length - 1].date) }}</span>
+          <div class="nm-tabs metric-tabs" role="tablist" aria-label="Measurement">
+            <button v-for="mt in METRICS" :key="mt.key" type="button" role="tab" class="nm-tab" :class="{ active: metric === mt.key }"
+                    :aria-selected="metric === mt.key" :disabled="!metricSeries[mt.key].some(x => x.points.length)" @click="metric = mt.key">
+              {{ mt.label }}
+            </button>
           </div>
+          <p v-if="!trend" class="nm-muted">The trend shows once there are two readings of {{ METRICS.find(x => x.key === metric).label.toLowerCase() }}.</p>
+          <TrendChart v-else :series="trend.series" :unit="trend.unit" :decimals="trend.decimals" :ref-lines="trend.refLines" :title="trend.title" />
         </div>
 
         <div class="nm-panel">
@@ -473,7 +461,6 @@ const ncpRecords = ref([])
 const loading = ref(true)
 const error = ref('')
 const hover = ref(null)
-const whover = ref(null)
 const p = computed(() => s.value?.patient)
 
 async function load() {
@@ -628,35 +615,77 @@ async function saveProgress() {
   }
 }
 
-/* ---------- weight trend (one series: no legend, text in ink colours) ---------- */
-const W = 600
-const H = 180
-const PAD = 14
-const weightPoints = computed(() => {
-  if (!s.value) return []
-  const pts = s.value.progress.filter(r => r.weight_kg != null).map(r => ({ date: r.record_date, w: r.weight_kg, screening: false }))
-  if (s.value.screening) pts.push({ date: s.value.screening.date.slice(0, 10), w: s.value.screening.weight_kg, screening: true })
-  return pts.sort((a, b) => a.date.localeCompare(b.date))
+/* ---------- trends: one chart, switch the measurement ---------- */
+// Points come from the screening (weight/BMI), progress records and finalized
+// NCP records (their assessment + lipid "other measurements"). One point per
+// date per line — a progress record wins over an NCP record on the same day.
+const METRICS = [
+  { key: 'weight', label: 'Weight', unit: 'kg', decimals: 1 },
+  { key: 'bmi', label: 'BMI', unit: '', decimals: 1, refLines: [{ value: 23, label: 'Normal < 23' }] },
+  { key: 'bp', label: 'Blood pressure', unit: 'mmHg', decimals: 0, refLines: [{ value: 130, label: '130' }] },
+  { key: 'glucose', label: 'Glucose', unit: 'mg/dL', decimals: 0, refLines: [{ value: 100, label: 'Fasting 100' }] },
+  { key: 'hba1c', label: 'HbA1c', unit: '%', decimals: 1, refLines: [{ value: 6.5, label: '6.5%' }] },
+  { key: 'lipids', label: 'Lipids', unit: 'mg/dL', decimals: 0 },
+]
+const LIPIDS = [['total', 'Total cholesterol', /total cholesterol|^cholesterol/i], ['ldl', 'LDL', /\bldl\b/i], ['hdl', 'HDL', /\bhdl\b/i], ['tg', 'Triglycerides', /triglyceride/i]]
+const metric = ref('weight')
+const metricSeries = computed(() => {
+  const out = { weight: [{ key: 'w', label: 'Weight', pts: {} }], bmi: [{ key: 'b', label: 'BMI', pts: {} }],
+    bp: [{ key: 'sys', label: 'Systolic', pts: {} }, { key: 'dia', label: 'Diastolic', pts: {} }],
+    glucose: [{ key: 'g', label: 'Fasting glucose', pts: {} }], hba1c: [{ key: 'a', label: 'HbA1c', pts: {} }],
+    lipids: LIPIDS.map(([key, label]) => ({ key, label, pts: {} })) }
+  const put = (m, i, date, v, note, override = true) => {
+    if (v == null || v === '' || Number.isNaN(Number(v))) return
+    if (!override && out[m][i].pts[date]) return
+    out[m][i].pts[date] = { date, value: Number(v), note }
+  }
+  const add = (r, date, note, override) => {
+    put('weight', 0, date, r.weight_kg, note, override)
+    put('bmi', 0, date, r.bmi, note, override)
+    if (r.blood_pressure) {
+      const [sys, dia] = String(r.blood_pressure).split('/')
+      put('bp', 0, date, sys, note, override)
+      put('bp', 1, date, dia, note, override)
+    }
+    put('glucose', 0, date, r.blood_glucose, note, override)
+    put('hba1c', 0, date, r.hba1c, note, override)
+  }
+  if (s.value?.screening) {
+    const sc = s.value.screening
+    add({ weight_kg: sc.weight_kg, bmi: sc.bmi }, sc.date.slice(0, 10), 'screening', false)
+  }
+  for (const r of ncpRecords.value.filter(r => r.status === 'completed')) {
+    add(r, r.encounter_date, 'NCP record', false)
+    for (const e of r.assessment_extra || []) {
+      const i = LIPIDS.findIndex(([, , re]) => re.test(e.label))
+      if (i >= 0) put('lipids', i, r.encounter_date, e.value, 'NCP record')
+    }
+  }
+  for (const r of s.value?.progress || []) add(r, r.record_date, 'progress record', true)
+  const result = {}
+  for (const [k, lines] of Object.entries(out)) {
+    result[k] = lines.map(l => ({ key: l.key, label: l.label, points: Object.values(l.pts).sort((a, b) => a.date.localeCompare(b.date)) }))
+  }
+  return result
 })
-const wScale = computed(() => {
-  const ws = weightPoints.value.map(x => x.w)
-  const lo = Math.floor(Math.min(...ws) - 1)
-  let hi = Math.ceil(Math.max(...ws) + 1)
-  if ((hi - lo) % 2) hi += 1 // even span so the middle tick is a whole number
-  const mid = (lo + hi) / 2
-  return { lo, hi, ticks: [...new Set([lo, mid, hi])] }
+const trend = computed(() => {
+  const def = METRICS.find(m => m.key === metric.value)
+  const series = metricSeries.value[metric.value].filter(l => l.points.length)
+  if (!series.length || !series.some(l => l.points.length >= 2)) return null
+  const main = series[0].points
+  const change = main.length >= 2 ? main[main.length - 1].value - main[0].value : null
+  return {
+    series, unit: def.unit, decimals: def.decimals, refLines: def.refLines || [], title: `${def.label} trend`,
+    change, changeLabel: `${series.length > 1 ? `${series[0].label.toLowerCase()} ` : ''}since ${shortDate(main[0].date)}`,
+  }
 })
-const tOf = d => new Date(`${d}T00:00:00`).getTime()
-function wx(pt) {
-  const pts = weightPoints.value
-  const t0 = tOf(pts[0].date)
-  const t1 = tOf(pts[pts.length - 1].date)
-  return PAD + (t1 === t0 ? 0.5 : (tOf(pt.date) - t0) / (t1 - t0)) * (W - PAD * 2)
-}
-function wy(w) {
-  const { lo, hi } = wScale.value
-  return PAD + (1 - (w - lo) / (hi - lo || 1)) * (H - PAD * 2)
-}
+// open on the first measurement that has a trend
+watch(metricSeries, (ms) => {
+  if (!ms[metric.value].some(l => l.points.length >= 2)) {
+    const first = METRICS.find(m => ms[m.key].some(l => l.points.length >= 2))
+    if (first) metric.value = first.key
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -751,17 +780,8 @@ function wy(w) {
 .cf-value { display: block; font-size: 1.4rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .cf-sub { font-size: 0.74rem; color: #8a9a8a; }
 .nm-panel-head > div:first-child { flex: 1 1 240px; min-width: 0; }
-.wchart { position: relative; height: 180px; margin-left: 34px; }
-.wsvg { width: 100%; height: 100%; display: block; overflow: visible; }
-.wgrid { stroke: #eef1ee; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.wline { fill: none; stroke: #1f8f5c; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
-.wtick { position: absolute; left: -34px; width: 28px; text-align: right; transform: translateY(-50%); font-size: 0.68rem; color: #9aaa9a; font-variant-numeric: tabular-nums; }
-.wdot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; border: 2px solid #1f8f5c; padding: 0; cursor: default; }
-.wdot::after { content: ''; position: absolute; inset: -8px; }
-.wdot.last, .wdot.on { background: #1f8f5c; box-shadow: 0 0 0 2px #fff; }
-.wtip { position: absolute; transform: translate(12px, -50%); background: #1a3a1a; color: #fff; border-radius: 8px; padding: 7px 10px; font-size: 0.74rem; white-space: nowrap; display: flex; flex-direction: column; gap: 2px; z-index: 5; pointer-events: none; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); }
-.wtip.flip { transform: translate(calc(-100% - 12px), -50%); }
-.wx { display: flex; justify-content: space-between; margin-left: 34px; border-top: 1px solid #dfe5df; padding-top: 6px; font-size: 0.7rem; color: #8a9a8a; }
+.metric-tabs { margin: 0 0 14px; }
+.metric-tabs .nm-tab:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* progress form */
 .progress-form { margin-top: 4px; }
