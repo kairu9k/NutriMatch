@@ -293,16 +293,7 @@ class NcpRecordFinalizeView(generics.UpdateAPIView):
         ensure_open(record.relationship)
         # The clinical minimum; the form itself requires every non-optional
         # field before it auto-finalizes (NcpRecordModal.vue).
-        missing = []
-        if not (record.weight_kg and record.height_cm):
-            missing.append("weight and height (Assessment)")
-        if not record.pes_problem:
-            missing.append("PES problem (Diagnosis)")
-        if not record.diet_prescription:
-            missing.append("diet prescription (Intervention)")
-        # Follow-up records also evaluate the previous record's goals.
-        if record.is_follow_up() and not record.goal_status:
-            missing.append("goal status (Monitoring)")
+        missing = record.finalize_missing()
         if missing:
             return Response(
                 {"detail": "Can't finalize yet — missing " + ", ".join(missing) + "."},

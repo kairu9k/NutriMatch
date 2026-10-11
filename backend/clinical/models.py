@@ -108,6 +108,26 @@ class NcpRecord(models.Model):
     class Meta:
         db_table = "ncp_records"
 
+    def finalize_missing(self):
+        """The clinical minimum to finalize (mirrored in NcpRecordModal.vue's
+        REQUIRED list) — everything else in the record is optional."""
+        blank = lambda v: v is None or str(v).strip() == ""  # noqa: E731
+        missing = []
+        if blank(self.weight_kg) or blank(self.height_cm):
+            missing.append("weight and height (Assessment)")
+        if blank(self.pes_problem):
+            missing.append("PES problem (Diagnosis)")
+        if blank(self.pes_etiology) or blank(self.pes_signs):
+            missing.append("PES etiology and signs (Diagnosis)")
+        if blank(self.diet_prescription):
+            missing.append("diet prescription (Intervention)")
+        if blank(self.target_kcal):
+            missing.append("target kcal (Intervention)")
+        # Follow-up records also evaluate the previous record's goals.
+        if self.is_follow_up() and blank(self.goal_status):
+            missing.append("goal status (Monitoring)")
+        return missing
+
     def __str__(self):
         return f"NCP Record #{self.id} — {self.encounter_date} ({self.status})"
 

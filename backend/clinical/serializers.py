@@ -152,6 +152,13 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
             raise serializers.ValidationError("You can only create NCP records for your own clients.")
         return value
 
+    def validate_appointment(self, value):
+        # the consultation this record was written in — must be with the same patient
+        rel = self.initial_data.get("relationship") or getattr(self.instance, "relationship_id", None)
+        if value is not None and str(value.relationship_id) != str(getattr(rel, "id", rel)):
+            raise serializers.ValidationError("That consultation belongs to a different patient.")
+        return value
+
     def validate_blood_pressure(self, value):
         return validate_blood_pressure(value)
 

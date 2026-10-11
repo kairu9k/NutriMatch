@@ -299,7 +299,8 @@ class NcpRecordLifecycleTests(TestCase):
         record = NcpRecord.objects.create(
             relationship=self.rel, encounter_date=timezone.now().date(),
             weight_kg=Decimal("70"), height_cm=Decimal("170"),
-            pes_problem="Inadequate intake", diet_prescription="1800 kcal exchange diet",
+            pes_problem="Inadequate intake", pes_etiology="skipped meals", pes_signs="weight loss of 3 kg",
+            diet_prescription="1800 kcal exchange diet", target_kcal=Decimal("1800"),
         )
         self.client_api.force_authenticate(self.rnd)
         resp = self.client_api.patch(f"/api/rnd/ncp/{record.id}/finalize/")
@@ -508,7 +509,8 @@ class NcpFollowUpRecordTests(TestCase):
         self.client_api.force_authenticate(self.rnd)
         self.complete = dict(
             weight_kg=Decimal("70"), height_cm=Decimal("165"),
-            pes_problem="Excessive carbohydrate intake", diet_prescription="1500 kcal low-GI diet",
+            pes_problem="Excessive carbohydrate intake", pes_etiology="large rice servings", pes_signs="FBS 148 mg/dL",
+            diet_prescription="1500 kcal low-GI diet", target_kcal=Decimal("1500"),
         )
 
     def _record(self, **extra):
