@@ -4,7 +4,7 @@ First drafted 2026-09-28, **updated 2026-10-11**. Covers automated backend tests
 end-to-end tests of the real user journeys, a manual checklist for things that can't be
 automated, and non-functional checks (RA 10173, security, performance). Work top to bottom.
 
-Test accounts: `vault/test-logins.txt` (local only, gitignored). Demo data:
+Test accounts: `vault/test-logins.txt` (shared with the team — demo accounts only; personal local accounts live in the gitignored `vault/local-logins.txt`). Demo data:
 `python manage.py seed_demo --reset` — rebuilds only the `@nutrimatch.test` accounts.
 
 ---
@@ -18,9 +18,9 @@ Test accounts: `vault/test-logins.txt` (local only, gitignored). Demo data:
 | Frontend tests | None. No test tooling in `frontend/`; pages are checked by hand in the browser after each change |
 | Demo data | **Done.** `seed_demo`: 5 RNDs + 7 clients + demo admin, each at a different stage (see the table below) |
 
-**Demo journey stages** (all `@nutrimatch.test`, password in `test-logins.txt`):
+**Demo journey stages** (all `@nutrimatch.test`):
 
-| Account | Use it to test |
+| Account (password in `vault/test-logins.txt`) | Use it to test |
 |---|---|
 | Maria (RND) | Dashboard, My Patients, Appointments (To complete / Upcoming), NCP Records worklist, Meal Planning, Earnings with a released payout |
 | Jose (RND) | Earnings without payout details (reminder card) |
@@ -114,7 +114,7 @@ Real external services or things that need human eyes:
   photo private; client-facing RND data public-only; RND private notes never reach the
   client; only `food_name` stored from external food lookups.
 - **Security:** auth rate limits; role checks on every endpoint; no secrets in the repo
-  (`.env`, `db.sqlite3`, `test-logins.txt` stay out of git); rotate the PayMongo webhook
+  (`.env`, `db.sqlite3`, `local-logins.txt` stay out of git); rotate the PayMongo webhook
   secret before deploying; CORS / allowed hosts.
 - **Performance:** dashboards and list pages compute in batches (no per-row queries) —
   spot-check with `seed_demo` data; 3-second page load target from the proposal.

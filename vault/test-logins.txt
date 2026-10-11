@@ -1,0 +1,25 @@
+NutriMatch — Demo logins for testing
+Shared with the team. These accounts are created on any machine by:
+
+    cd backend
+    python manage.py seed_demo          # first time
+    python manage.py seed_demo --reset  # rebuild (only touches @nutrimatch.test accounts)
+
+Sign in at http://localhost:3000/login (admin: http://localhost:3000/admin/login).
+Demo accounts only — never reuse these passwords for a real deployment.
+
+DEMO DATA (python manage.py seed_demo  /  --reset to rebuild)
+  password for all 13: NutriMatchDemo1!   (override with DEMO_PASSWORD in backend/.env)
+  Admin:   admin@nutrimatch.test              demo admin - sign in at /admin/login
+  RNDs:    maria.santos@nutrimatch.test       verified, main RND (Carla's) - GCash payout details, paid out P720 on the last 5th, P720 Posted for the next
+           jose.reyes@nutrimatch.test         verified, video only (Daniel's) - P900 Posted but NO payout details (shows the reminder)
+           angela.villanueva@nutrimatch.test  verified, NOT accepting new clients
+           ramon.delacruz@nutrimatch.test     verified, has Elena's pending booking (waiting 30 h - admin Appointments badge)
+           kristine.bautista@nutrimatch.test  pending admin review - CAN'T sign in until approved (Admin > RND Applications); PRC 0567890 + license photo
+  Clients: ana.cruz@nutrimatch.test           brand new - client onboarding on first sign-in (after seed_demo --reset)
+           benjamin.garcia@nutrimatch.test    screened, no RND
+           carla.mendoza@nutrimatch.test      full history, 1 unpaid invoice, upcoming visit
+           daniel.torres@nutrimatch.test      Jose's patient, 1 paid visit, meal plan
+           elena.ramos@nutrimatch.test        first booking with Ramon, pending
+           felix.navarro@nutrimatch.test      Maria's patient at nutritional risk - paid visit ended yesterday, not completed, no NCP yet
+           grace.lim@nutrimatch.test          Maria's former patient - discharged after reaching her goal

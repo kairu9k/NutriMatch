@@ -21,7 +21,7 @@ frontend/.env.*
 !frontend/.env.example
 
 # --- Local test data ---
-vault/test-logins.txt
+vault/local-logins.txt
 
 # --- Logs ---
 logs

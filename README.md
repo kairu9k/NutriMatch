@@ -105,7 +105,7 @@ Run it once; afterwards it starts automatically with Docker. If Messages says it
 
 ## Demo accounts
 
-Every demo account uses the password **`NutriMatchDemo1!`**.
+Every demo account uses the password **`NutriMatchDemo1!`** (also listed, with what each account is for, in [`vault/test-logins.txt`](vault/test-logins.txt) and [`vault/TESTING_PLAN.md`](vault/TESTING_PLAN.md)).
 
 | Role | Email | What's set up |
 |---|---|---|
