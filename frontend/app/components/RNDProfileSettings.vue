@@ -177,161 +177,6 @@
         </template>
 
         <!-- ============ EARNINGS ============ -->
-        <template v-else-if="activeTab === 'earnings'">
-          <div class="tab-panel-header">
-            <div>
-              <h3 class="tab-panel-title">Earnings</h3>
-              <p class="tab-panel-sub">Your share of each paid consultation, sent to you every 5th of the month.</p>
-            </div>
-          </div>
-
-          <p v-if="earningsError" class="form-error">{{ earningsError }}</p>
-          <p v-if="isLoadingEarnings" class="placeholder-text">Loading…</p>
-
-          <template v-else-if="earnings">
-          <p v-if="!earnings.has_payout_account" class="nm-note">
-            <strong>Add your payout details below</strong> so we can send your earnings. Your balance is kept safe until you do.
-          </p>
-
-          <div class="stat-grid-4">
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><Hourglass :size="17" /></div>
-              <p class="mini-stat-value">{{ peso(earnings.pending) }}</p>
-              <p class="mini-stat-label">Pending</p>
-              <p class="mini-stat-note">Paid consultations on a {{ earnings.hold_days }}-day hold</p>
-            </div>
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><Wallet :size="17" /></div>
-              <p class="mini-stat-value">{{ peso(earnings.posted) }}</p>
-              <p class="mini-stat-label">Posted</p>
-              <p class="mini-stat-note">Ready for your next payout</p>
-            </div>
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><Landmark :size="17" /></div>
-              <p class="mini-stat-value">{{ peso(earnings.paid_out) }}</p>
-              <p class="mini-stat-label">Paid out</p>
-              <p class="mini-stat-note">All time</p>
-            </div>
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><CalendarClock :size="17" /></div>
-              <p class="mini-stat-value">{{ shortDate(earnings.next_payout_date) }}</p>
-              <p class="mini-stat-label">Next payout</p>
-              <p class="mini-stat-note" :class="{ warn: !earnings.eligible }">{{ nextPayoutNote }}</p>
-            </div>
-          </div>
-
-          <p class="earnings-flow">
-            <span class="nm-pill gold">Pending</span> a consultation is paid and completed →
-            <span class="nm-pill green">Posted</span> after {{ earnings.hold_days }} days →
-            <span class="nm-pill blue">Paid out</span> on the 5th, once your posted balance is at least {{ peso(earnings.minimum_payout) }} (smaller balances carry over).
-          </p>
-
-          <!-- PAYOUT DETAILS -->
-          <div class="sub-panel">
-            <div class="sub-panel-head">
-              <h4 class="sub-panel-title" style="margin: 0">Payout details</h4>
-              <button v-if="payoutAccount && !editingPayout" class="btn-outline-sm" @click="startPayoutEdit"><Pencil :size="13" /> Edit</button>
-            </div>
-            <dl v-if="payoutAccount && !editingPayout" class="info-grid">
-              <div class="info-item"><dt>Method</dt><dd>{{ payoutAccount.method === 'gcash' ? 'GCash' : 'Bank transfer' }}</dd></div>
-              <div v-if="payoutAccount.method === 'bank'" class="info-item"><dt>Bank</dt><dd>{{ payoutAccount.bank_name }}</dd></div>
-              <div class="info-item"><dt>Account name</dt><dd>{{ payoutAccount.account_name }}</dd></div>
-              <div class="info-item"><dt>{{ payoutAccount.method === 'gcash' ? 'GCash number' : 'Account number' }}</dt><dd>{{ payoutAccount.account_number }}</dd></div>
-            </dl>
-            <div v-else class="form-grid" style="margin-bottom: 0">
-              <div class="field">
-                <label class="field-label">Send my payouts to</label>
-                <div class="mode-options">
-                  <label class="mode-option" :class="{ checked: payoutForm.method === 'gcash' }">
-                    <input v-model="payoutForm.method" type="radio" value="gcash" /> GCash
-                  </label>
-                  <label class="mode-option" :class="{ checked: payoutForm.method === 'bank' }">
-                    <input v-model="payoutForm.method" type="radio" value="bank" /> Bank transfer
-                  </label>
-                </div>
-              </div>
-              <div v-if="payoutForm.method === 'bank'" class="field">
-                <label class="field-label" for="po-bank">Bank</label>
-                <input id="po-bank" v-model="payoutForm.bank_name" class="field-input" :class="{ invalid: payoutErrors.bank_name }" maxlength="100" placeholder="e.g. BDO, BPI, Landbank" />
-                <p v-if="payoutErrors.bank_name" class="field-error">{{ payoutErrors.bank_name }}</p>
-              </div>
-              <div v-else class="field" />
-              <div class="field">
-                <label class="field-label" for="po-name">Account name</label>
-                <input id="po-name" v-model="payoutForm.account_name" class="field-input" :class="{ invalid: payoutErrors.account_name }" maxlength="150" placeholder="Name on the account" />
-                <p v-if="payoutErrors.account_name" class="field-error">{{ payoutErrors.account_name }}</p>
-              </div>
-              <div class="field">
-                <label class="field-label" for="po-number">{{ payoutForm.method === 'gcash' ? 'GCash number' : 'Account number' }}</label>
-                <input id="po-number" v-model="payoutForm.account_number" class="field-input" :class="{ invalid: payoutErrors.account_number }" inputmode="numeric" maxlength="30"
-                  :placeholder="payoutForm.method === 'gcash' ? '09XX XXX XXXX' : '6–20 digits'" />
-                <p v-if="payoutErrors.account_number" class="field-error">{{ payoutErrors.account_number }}</p>
-                <p v-else class="field-hint">Only the NutriMatch admin sees this, to send your payouts.</p>
-              </div>
-            </div>
-            <p v-if="payoutErrors.detail" class="profile-error">{{ payoutErrors.detail }}</p>
-            <div v-if="!payoutAccount || editingPayout" class="payout-actions">
-              <button v-if="payoutAccount" class="btn-outline-sm" @click="editingPayout = false">Cancel</button>
-              <button class="btn-dark" :disabled="savingPayout" @click="savePayoutAccount">{{ savingPayout ? 'Saving…' : 'Save payout details' }}</button>
-            </div>
-            <p v-if="payoutSaved" class="field-hint" style="color: #1f8f5c">Payout details saved.</p>
-          </div>
-
-          <div class="sub-panel">
-            <h4 class="sub-panel-title">Earnings trend (last 6 months)</h4>
-            <div class="chart-wrap">
-              <div class="chart-y-axis">
-                <span v-for="tick in yTicks" :key="tick">{{ tick.toLocaleString() }}</span>
-              </div>
-              <div class="chart-bars">
-                <div v-for="point in earningsTrend" :key="point.month" class="chart-col">
-                  <div class="chart-bar" :style="{ height: barHeight(point.amount) + '%' }"></div>
-                  <span class="chart-label">{{ point.month }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="sub-panel">
-            <h4 class="sub-panel-title">Consultations</h4>
-            <p v-if="!earnings.items.length" class="empty-note">No paid consultations yet.</p>
-            <div v-else class="nm-table-wrap">
-              <table class="nm-table stack">
-                <thead>
-                  <tr><th>Invoice</th><th>Patient</th><th>Consultation</th><th class="nm-num">Fee</th><th class="nm-num">Commission</th><th class="nm-num">Your share</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in earnings.items" :key="item.invoice_id">
-                    <td data-label="Invoice"><strong>INV-{{ String(item.invoice_id).padStart(4, '0') }}</strong></td>
-                    <td data-label="Patient">{{ item.client_name }}</td>
-                    <td data-label="Consultation">{{ shortDate(item.appointment_date) }}</td>
-                    <td data-label="Fee" class="nm-num">{{ peso(item.amount) }}</td>
-                    <td data-label="Commission" class="nm-num">{{ peso(item.commission) }}</td>
-                    <td data-label="Your share" class="nm-num"><strong>{{ peso(item.share) }}</strong></td>
-                    <td data-label="Status">
-                      <span class="nm-pill" :class="STATE_PILLS[item.state]">{{ STATE_LABELS[item.state] || item.state }}</span>
-                      <span v-if="item.state === 'pending'" class="state-note">{{ item.posts_on ? `Posts ${shortDate(item.posts_on)}` : 'After the consultation' }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="sub-panel">
-            <h4 class="sub-panel-title">Payout history</h4>
-            <p v-if="!earnings.payouts.length" class="empty-note">No payouts yet — your first one arrives on a payout day once your posted balance reaches {{ peso(earnings.minimum_payout) }}.</p>
-            <div v-for="p in earnings.payouts" :key="p.id" class="nm-row">
-              <div class="nm-row-main">
-                <p class="nm-row-title">{{ peso(p.amount) }} · {{ p.invoice_count }} consultation{{ p.invoice_count === 1 ? '' : 's' }}</p>
-                <p class="nm-row-sub">{{ dateTime(p.released_at) }} · {{ p.method === 'gcash' ? 'GCash' : (p.bank_name || 'Bank') }} {{ p.account_number }} · Ref {{ p.reference }}</p>
-              </div>
-              <span class="nm-pill blue">Paid out</span>
-            </div>
-          </div>
-          </template>
-        </template>
-
         <!-- ============ AVAILABILITY ============ -->
         <template v-else-if="activeTab === 'availability'">
           <div class="tab-panel-header">
@@ -451,7 +296,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Briefcase, BadgeCheck,
-  Landmark, Wallet, Hourglass,
   Star, CalendarClock, X, Languages,
   Video, MessageCircle, Users, Lock, FileImage, Pencil, Check, CheckCircle2
 } from 'lucide-vue-next'
@@ -463,7 +307,6 @@ definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
 const tabs = [
   { key: 'professional', label: 'Professional Profile', icon: Briefcase },
-  { key: 'earnings', label: 'Earnings', icon: Wallet },
   { key: 'availability', label: 'Availability', icon: CalendarClock },
   { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'reviews', label: 'Reviews', icon: Star },
@@ -472,6 +315,8 @@ const tabs = [
 const route = useRoute()
 const validTabKeys = tabs.map(t => t.key)
 
+// Earnings moved to its own page (sidebar → Earnings).
+if (route.query.tab === 'earnings') navigateTo('/earnings', { replace: true })
 const activeTab = ref(validTabKeys.includes(route.query.tab) ? route.query.tab : 'professional')
 const activeTabLabel = computed(() => tabs.find(t => t.key === activeTab.value)?.label)
 
@@ -662,116 +507,6 @@ async function saveChanges() {
   }
 }
 
-/* ---------- EARNINGS ---------- */
-// Pending (paid, on hold) → Posted → Paid out on the 5th (billing/payouts.py).
-const STATE_LABELS = { pending: 'Pending', posted: 'Posted', paid_out: 'Paid out' }
-const STATE_PILLS = { pending: 'gold', posted: 'green', paid_out: 'blue' }
-const earnings = ref(null)
-const rawInvoices = ref([])
-const isLoadingEarnings = ref(true)
-const earningsError = ref('')
-
-async function loadEarnings() {
-  isLoadingEarnings.value = true
-  earningsError.value = ''
-  try {
-    const [e, inv, account] = await Promise.all([
-      get('/rnd/earnings/'),
-      get('/rnd/invoices/'),
-      get('/rnd/payout-account/').catch(() => null),
-    ])
-    earnings.value = e
-    rawInvoices.value = inv
-    payoutAccount.value = account && account.method ? account : null
-  } catch {
-    earningsError.value = 'Could not load your earnings. Please try again later.'
-  } finally {
-    isLoadingEarnings.value = false
-  }
-}
-onMounted(loadEarnings)
-
-const nextPayoutNote = computed(() => {
-  const e = earnings.value
-  if (!e) return ''
-  if (!e.has_payout_account) return 'Add payout details first'
-  if (e.eligible) return `${peso(e.posted)} will be sent`
-  return `Needs ${peso(e.minimum_payout)} posted — carries over`
-})
-
-/* payout details (GCash / bank) */
-const payoutAccount = ref(null)
-const editingPayout = ref(false)
-const savingPayout = ref(false)
-const payoutSaved = ref(false)
-const payoutForm = reactive({ method: 'gcash', account_name: '', account_number: '', bank_name: '' })
-const payoutErrors = reactive({})
-
-function startPayoutEdit() {
-  Object.assign(payoutForm, { method: 'gcash', account_name: '', account_number: '', bank_name: '' }, payoutAccount.value || {})
-  for (const k of Object.keys(payoutErrors)) delete payoutErrors[k]
-  editingPayout.value = true
-}
-
-async function savePayoutAccount() {
-  for (const k of Object.keys(payoutErrors)) delete payoutErrors[k]
-  payoutSaved.value = false
-  if (!payoutForm.account_name.trim()) payoutErrors.account_name = 'Enter the name on the account.'
-  if (!payoutForm.account_number.trim()) payoutErrors.account_number = payoutForm.method === 'gcash' ? 'Enter your GCash number.' : 'Enter your account number.'
-  if (payoutForm.method === 'bank' && !payoutForm.bank_name.trim()) payoutErrors.bank_name = 'Enter your bank.'
-  if (Object.keys(payoutErrors).length) return
-  savingPayout.value = true
-  try {
-    payoutAccount.value = await put('/rnd/payout-account/', {
-      method: payoutForm.method,
-      account_name: payoutForm.account_name.trim(),
-      account_number: payoutForm.account_number.trim(),
-      bank_name: payoutForm.method === 'bank' ? payoutForm.bank_name.trim() : '',
-    })
-    editingPayout.value = false
-    payoutSaved.value = true
-    earnings.value = await get('/rnd/earnings/')
-    setTimeout(() => { payoutSaved.value = false }, 3000)
-  } catch (e) {
-    const data = e?.data || {}
-    for (const k of ['account_name', 'account_number', 'bank_name', 'method']) {
-      if (data[k]) payoutErrors[k] = Array.isArray(data[k]) ? data[k][0] : data[k]
-    }
-    if (!Object.keys(payoutErrors).length) payoutErrors.detail = data.detail || 'Could not save your payout details. Please try again.'
-  } finally {
-    savingPayout.value = false
-  }
-}
-
-const earningsTrend = computed(() => {
-  const now = new Date()
-  const months = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-US', { month: 'short' }) })
-  }
-  return months.map(m => {
-    const amount = rawInvoices.value
-      .filter(inv => {
-        if (inv.status !== 'paid') return false
-        const d = new Date(inv.paid_at || inv.created_at)
-        return d.getFullYear() === m.year && d.getMonth() === m.month
-      })
-      .reduce((sum, inv) => sum + Number(inv.net), 0)
-    return { month: m.label, amount }
-  })
-})
-
-const maxAmount = computed(() => Math.max(...earningsTrend.value.map(p => p.amount), 5000))
-const yTicks = computed(() => {
-  const step = Math.ceil(maxAmount.value / 5 / 1000) * 1000
-  return [0, step, step * 2, step * 3, step * 4, step * 5].reverse()
-})
-function barHeight(amount) {
-  const topTick = yTicks.value[0] || 5000
-  return Math.min(100, Math.round((amount / topTick) * 100))
-}
-
 /* ---------- REVIEWS ---------- */
 const reviewsSummary = ref(db.reviewsSummary)
 const ratingBreakdown = ref(db.ratingBreakdown)
@@ -924,53 +659,20 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
 .tab-panel-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 4px; }
 .tab-panel-sub { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
-.sub-panel { border-top: 1px solid #f0f2f0; padding-top: 20px; margin-top: 20px; }
-.sub-panel-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: #1a3a1a; margin: 0 0 16px; }
 .empty-note { font-size: 0.85rem; color: #9aaa9a; text-align: center; padding: 30px 0; }
 
-/* EARNINGS TAB */
-.period-select { position: relative; flex-shrink: 0; }
 .period-select select {
   appearance: none; border: 1px solid #dde3dd; background: #fff;
   padding: 9px 32px 9px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer;
 }
-.select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
 
-.stat-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.mini-stat-card { background: #fafbfa; border-radius: 10px; padding: 16px 18px; border: 1px solid #f0f2f0; }
 .mini-stat-icon {
   width: 30px; height: 30px; border-radius: 8px; background: #eef1ee;
   display: flex; align-items: center; justify-content: center; color: #4a5a4a; margin-bottom: 10px;
 }
-.mini-stat-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.mini-stat-label { font-size: 0.75rem; color: #8a9a8a; margin: 3px 0 0; }
 
-.chart-wrap { display: flex; gap: 12px; }
-.chart-y-axis { display: flex; flex-direction: column; justify-content: space-between; font-size: 0.7rem; color: #9aaa9a; padding-bottom: 24px; text-align: right; min-width: 44px; }
-.chart-bars { flex: 1; display: flex; align-items: flex-end; gap: 16px; height: 200px; border-left: 1px solid #eceeec; padding-left: 16px; }
-.chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
-.chart-bar { width: 60%; background: #163a1c; border-radius: 4px 4px 0 0; min-height: 2px; }
-.chart-label { font-size: 0.76rem; color: #8a9a8a; margin-top: 8px; }
 
-.invoice-table { width: 100%; border-collapse: collapse; }
-.invoice-table th { text-align: left; font-size: 0.66rem; letter-spacing: 0.05em; color: #9aaa9a; padding-bottom: 12px; }
-.invoice-table td { padding: 12px 10px 12px 0; border-top: 1px solid #f2f4f2; font-size: 0.83rem; color: #3a4a3a; }
-.invoice-id { font-weight: 700; color: #1a3a1a; }
-.invoice-date { color: #3b6fd6; }
-.invoice-commission { color: #9aaa9a; }
-.invoice-net { font-weight: 700; color: #1a3a1a; }
-.status-pill { font-size: 0.7rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
-.status-paid { background: #e6f4e6; color: #2e7d32; }
-.status-pending { background: #fdf1d6; color: #b8860b; }
 
-.mini-stat-note { font-size: 0.72rem; color: #9aaa9a; margin: 4px 0 0; line-height: 1.4; }
-.mini-stat-note.warn { color: #b8860b; font-weight: 600; }
-.earnings-flow { font-size: 0.8rem; color: #6a7a6a; line-height: 2; margin: 14px 0 0; }
-.sub-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.btn-outline-sm { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: #1a3a1a; border: 1px solid #d5dad5; border-radius: 8px; padding: 7px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-.btn-outline-sm:hover { background: #f7f9f7; }
-.payout-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
-.state-note { display: block; font-size: 0.7rem; color: #9aaa9a; margin-top: 3px; }
 
 /* REVIEWS TAB */
 .summary-row { display: grid; grid-template-columns: 220px 1fr; gap: 14px; margin-bottom: 20px; }
@@ -1025,7 +727,6 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .remove-block-btn:hover { color: #c0483a; }
 
 @media (max-width: 1100px) {
-  .stat-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .summary-row { grid-template-columns: 1fr; }
   .block-form { grid-template-columns: 1fr; }
 }
@@ -1038,13 +739,12 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
   .tab-card::-webkit-scrollbar { display: none; }
   .tab-item { flex-shrink: 0; padding: 10px 12px; white-space: nowrap; }
   .panel-card { min-width: 0; }
-  .sub-panel { overflow-x: auto; }
 }
 @media (max-width: 640px) {
   .page-header { flex-direction: column; gap: 10px; }
   .page-title { font-size: 1.4rem; }
   .panel-card { padding: 20px 16px; }
-  .form-grid, .stat-grid-4, .info-grid { grid-template-columns: 1fr; }
+  .form-grid, .info-grid { grid-template-columns: 1fr; }
   .info-grid .info-item:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 14px; }
   .tab-panel-header { flex-direction: column; }
   .language-add-row { flex-wrap: wrap; }

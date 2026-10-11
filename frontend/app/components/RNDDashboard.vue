@@ -50,7 +50,7 @@
           <template v-if="payoutReminder.balance > 0">You have {{ peso(payoutReminder.balance) }} waiting — it's kept safe until you add them.</template>
         </p>
       </div>
-      <NuxtLink to="/profile-settings?tab=earnings" class="setup-btn">Add payout details →</NuxtLink>
+      <NuxtLink to="/earnings#payout-details" class="setup-btn">Add payout details →</NuxtLink>
     </section>
 
     <!-- STAT CARDS -->
@@ -179,7 +179,7 @@
             <span class="earnings-label">This month (net)</span>
             <span class="earnings-amount">₱{{ earningsThisMonth.net.toLocaleString() }}</span>
           </div>
-          <NuxtLink to="/profile-settings?tab=earnings" class="view-earnings-btn">View Earnings Report</NuxtLink>
+          <NuxtLink to="/earnings" class="view-earnings-btn">View Earnings Report</NuxtLink>
         </div>
       </div>
     </section>

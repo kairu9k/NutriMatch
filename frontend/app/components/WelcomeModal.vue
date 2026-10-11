@@ -80,7 +80,7 @@ const COPY = {
       { icon: ClipboardCheck, title: 'I-review at i-accept', text: 'Tingnan muna ang health screening nila bago i-confirm ang booking.' },
       { icon: CreditCard, title: 'Bayad muna bago consult', text: 'Magbubukas ang consultation kapag bayad na — puwede kang mag-join 15 minutes before.' },
       { icon: HeartHandshake, title: 'Alagaan ang clients mo', text: 'Gawin ang NCP record at ang weekly meal plan nila, at sundan ang meal logs nila.' },
-      { icon: Wallet, title: 'Kumita', text: 'Ipinapadala ang kita mo tuwing ika-5 ng buwan sa GCash o bank mo — i-add ang payout details mo sa Profile Settings → Earnings.' },
+      { icon: Wallet, title: 'Kumita', text: 'Ipinapadala ang kita mo tuwing ika-5 ng buwan sa GCash o bank mo — i-add ang payout details mo sa Earnings page.' },
     ],
     closing: 'Excited na kaming makita ang impact mo! 💚',
     primary: { label: 'Pumunta sa dashboard ko', to: null },

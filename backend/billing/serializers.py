@@ -20,17 +20,70 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 
 class InvoiceListSerializer(serializers.ModelSerializer):
-    """Read-only, nests appointment (with RND/relationship) for client-facing
-    invoice list display — InvoiceSerializer stays flat-FK for the pay flow."""
+    """The client's Billing page: each invoice with the consultation it's
+    for, the pay-by deadline, a receipt summary once paid and refund dates.
+    No commission split — that's between the RND and NutriMatch."""
 
-    appointment = AppointmentSerializer(read_only=True)
+    consultation = serializers.SerializerMethodField()
+    pay_by = serializers.SerializerMethodField()
+    receipt = serializers.SerializerMethodField()
+    refund = serializers.SerializerMethodField()
+    payment_method_label = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
         fields = [
-            "id", "appointment", "amount", "status",
-            "payment_gateway", "payment_method", "payment_url", "paid_at", "created_at",
+            "id", "amount", "status", "payment_method", "payment_method_label", "paid_at", "created_at",
+            "consultation", "pay_by", "receipt", "refund",
         ]
+
+    def _txns(self, obj):
+        return list(obj.transactions.all())
+
+    def get_consultation(self, obj):
+        a = obj.appointment
+        rnd = obj.relationship.rnd
+        return {
+            "id": a.id if a else None, "scheduled_at": a.scheduled_at if a else None,
+            "type": a.type if a else None, "type_label": a.get_type_display() if a else None,
+            "status": a.status if a else None, "duration_minutes": a.duration_minutes if a else None,
+            "cancellation_reason": a.cancellation_reason if a else None,
+            "rnd": {"id": rnd.id, "name": rnd.full_name, "profile_photo": rnd.profile_photo},
+        }
+
+    def get_pay_by(self, obj):
+        a = obj.appointment
+        return a.scheduled_at if obj.status == Invoice.Status.UNPAID and a and a.status == "confirmed" else None
+
+    def get_payment_method_label(self, obj):
+        return obj.get_payment_method_display() if obj.payment_method else None
+
+    def get_receipt(self, obj):
+        from .services import payment_receipt
+
+        if obj.status not in (Invoice.Status.PAID, Invoice.Status.REFUND_PENDING, Invoice.Status.REFUNDED):
+            return None
+        pay = next((t for t in self._txns(obj) if t.transaction_type == "payment"), None)
+        details = payment_receipt(pay.gateway_payload) if pay and pay.gateway_payload else {}
+        return {
+            "number": f"INV-{obj.id:04d}",
+            "paid_at": obj.paid_at,
+            "method": self.get_payment_method_label(obj),
+            "card_brand": details.get("card_brand"),
+            "card_last4": details.get("card_last4"),
+            "reference": details.get("payment_id") or obj.gateway_reference_id,
+        }
+
+    def get_refund(self, obj):
+        if obj.status not in (Invoice.Status.REFUND_PENDING, Invoice.Status.REFUNDED):
+            return None
+        refund = next((t for t in self._txns(obj) if t.transaction_type == "refund"), None)
+        a = obj.appointment
+        return {
+            "status": obj.status,
+            "cancelled_at": a.updated_at if a and a.status == "cancelled" else None,
+            "refunded_at": refund.processed_at if refund else None,
+        }
 
 
 class RndInvoiceListSerializer(serializers.ModelSerializer):

@@ -41,6 +41,42 @@ def receipt_rows(invoice):
     return rows
 
 
+def send_client_receipt(invoice):
+    """The client's receipt (sent after paying, or again from Billing).
+    Raises if the email can't be sent."""
+    from accounts.emails import send_branded_email
+
+    from .models import Invoice
+
+    client = invoice.relationship.client
+    rows = receipt_rows(invoice)
+    refund = invoice.status in (Invoice.Status.REFUND_PENDING, Invoice.Status.REFUNDED)
+    total = _peso(invoice.amount)
+    ref = f"INV-{invoice.id:04d}"
+    client_note = (
+        "This consultation was cancelled, so this payment is being refunded (or already has been)."
+        if refund else
+        "Keep this email as your receipt. Join from My Appointments starting 15 minutes before the start. "
+        "If you cancel before the session starts, your payment is refunded."
+    )
+    lines = [f"Hi {client.first_name},", "", f"We received your payment of {total} for {ref}.", ""]
+    lines += [f"{r['label']}: {r['value']}" for r in rows] + ["", client_note, "", "Salamat,", "The NutriMatch Team"]
+    send_branded_email(
+        to=client.email,
+        subject=f"Your NutriMatch receipt — {ref} ({total})",
+        template="emails/receipt.html",
+        context={
+            "first_name": client.first_name,
+            "heading": "Payment received — salamat!",
+            "intro": f"We received your payment of {total}. Here's your receipt.",
+            "rows": rows, "total_label": "Total paid", "total": total, "note": client_note,
+            "button_label": "View my billing", "button_url": f"{settings.FRONTEND_URL}/invoices-billing",
+        },
+        text="\n".join(lines),
+        preheader=f"Receipt {ref} · {total} paid",
+    )
+
+
 def send_payment_receipts(invoice_id):
     from accounts.emails import send_branded_email
     from core.support import support_email
@@ -57,29 +93,8 @@ def send_payment_receipts(invoice_id):
     total = _peso(invoice.amount)
     ref = f"INV-{invoice.id:04d}"
 
-    client_note = (
-        "This appointment had already been cancelled when the payment arrived, so it will be refunded."
-        if refund else
-        "Keep this email as your receipt. Join from My Appointments starting 15 minutes before the start. "
-        "If you cancel before the session starts, your payment is refunded."
-    )
-    lines = [f"Hi {client.first_name},", "", f"We received your payment of {total} for {ref}.", ""]
-    lines += [f"{r['label']}: {r['value']}" for r in rows] + ["", client_note, "", "Salamat,", "The NutriMatch Team"]
     try:
-        send_branded_email(
-            to=client.email,
-            subject=f"Your NutriMatch receipt — {ref} ({total})",
-            template="emails/receipt.html",
-            context={
-                "first_name": client.first_name,
-                "heading": "Payment received — salamat!",
-                "intro": f"We received your payment of {total}. Here's your receipt.",
-                "rows": rows, "total_label": "Total paid", "total": total, "note": client_note,
-                "button_label": "View my appointments", "button_url": f"{settings.FRONTEND_URL}/appointments",
-            },
-            text="\n".join(lines),
-            preheader=f"Receipt {ref} · {total} paid",
-        )
+        send_client_receipt(invoice)
     except Exception:
         logger.exception("Could not email the receipt for invoice %s to the client", invoice_id)
 

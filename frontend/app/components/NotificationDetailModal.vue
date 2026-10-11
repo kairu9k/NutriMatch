@@ -138,8 +138,8 @@ const link = computed(() => {
   if (role.value === 'rnd') {
     return {
       appointment: { label: 'Open Appointments', to: '/appointments' },
-      invoice: { label: 'View earnings', to: { path: '/profile-settings', query: { tab: 'earnings' } } },
-      payout: { label: 'View earnings', to: { path: '/profile-settings', query: { tab: 'earnings' } } },
+      invoice: { label: 'View earnings', to: '/earnings' },
+      payout: { label: 'View earnings', to: '/earnings' },
       message: messages,
       meal_plan: { label: 'Open Meal Plans', to: '/meal-planning' },
     }[t] || null

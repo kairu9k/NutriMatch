@@ -155,19 +155,70 @@ def release_payout(rnd, *, reference, released_by, notes=""):
         content=f"Your ₱{amount:,.2f} payout was sent to your {method} account ({account.account_number}). Reference: {payout.reference}.",
     )
     try:
-        from accounts.emails import send_notice_email
-
-        send_notice_email(
-            rnd,
-            subject=f"Your NutriMatch payout of ₱{amount:,.2f} was sent",
-            heading="Your payout is on its way 💸",
-            paragraphs=[
-                f"We've sent your earnings for {len(posted)} consultation{'s' if len(posted) != 1 else ''} to your {method} account.",
-                "Salamat for caring for your clients on NutriMatch!",
-            ],
-            highlight=f"Amount: ₱{amount:,.2f} · {method} {account.account_number} · Reference: {payout.reference}",
-            preheader=f"₱{amount:,.2f} sent to your {method} account.",
-        )
+        send_payout_email(payout)
     except Exception:
         pass  # the payout is recorded either way; the in-app notification still goes out
     return payout
+
+
+def send_payout_email(payout):
+    """The "payout sent" email (also used by the RND's Resend button).
+    Uses the payout's own snapshot of the account it went to."""
+    from accounts.emails import send_notice_email
+
+    count = payout.invoices.count()
+    method = "GCash" if payout.method == "gcash" else (payout.bank_name or "Bank transfer")
+    send_notice_email(
+        payout.rnd,
+        subject=f"Your NutriMatch payout of ₱{payout.amount:,.2f} was sent",
+        heading="Your payout is on its way 💸",
+        paragraphs=[
+            f"We've sent your earnings for {count} consultation{'s' if count != 1 else ''} to your {method} account.",
+            "Salamat for caring for your clients on NutriMatch!",
+        ],
+        highlight=f"Amount: ₱{payout.amount:,.2f} · {method} {payout.account_number} · Reference: {payout.reference}",
+        button_label="View my earnings", button_url=f"{_frontend()}/earnings",
+        preheader=f"₱{payout.amount:,.2f} sent to your {method} account.",
+    )
+
+
+def _frontend():
+    from django.conf import settings
+
+    return settings.FRONTEND_URL
+
+
+# Every invoice for an RND's patients, for the Earnings page — not just the
+# ones that count toward a payout (those are rnd_earnings above).
+STATEMENT_STATES = {
+    "unpaid": "awaiting_payment", "refund_pending": "refund_pending", "refunded": "refunded", "cancelled": "voided",
+}
+
+
+def rnd_statement(rnd, now=None):
+    from .models import Invoice
+
+    now = now or timezone.now()
+    rows = []
+    invoices = (Invoice.objects.filter(relationship__rnd=rnd)
+                .select_related("appointment", "relationship__client", "payout").order_by("-created_at"))
+    for inv in invoices:
+        state = invoice_state(inv, now) or STATEMENT_STATES.get(inv.status, inv.status)
+        appt = inv.appointment
+        rows.append({
+            "invoice_id": inv.id,
+            "client_name": inv.relationship.client.full_name,
+            "consultation_at": appt.scheduled_at if appt else None,
+            "consultation_type": appt.get_type_display() if appt else None,
+            "amount": inv.amount,
+            "commission_pct": inv.commission_pct,
+            "commission": inv.commission_amt,
+            "share": rnd_share(inv),
+            "state": state,
+            "posts_on": posted_until(inv) if state == "pending" else None,
+            "paid_at": inv.paid_at,
+            "payment_method": inv.get_payment_method_display() if inv.payment_method else None,
+            "issued_at": inv.created_at,
+            "payout": {"id": inv.payout.id, "released_at": inv.payout.released_at, "reference": inv.payout.reference} if inv.payout_id else None,
+        })
+    return rows

@@ -217,6 +217,12 @@ const rndNavGroups = computed(() => [
       { icon: FileText, label: 'Resources', to: '/resource-upload' },
     ],
   },
+  {
+    label: 'MONEY',
+    items: [
+      { icon: Wallet, label: 'Earnings', to: '/earnings' },
+    ],
+  },
 ])
 
 // Client-facing pages are still being built out (Phase 6) — only pages already

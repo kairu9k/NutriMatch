@@ -1,211 +1,359 @@
 <template>
-  <div class="billing-page">
-    <div class="page-header">
-      <!-- <h1 class="page-title">Billing &amp; Invoices</h1> -->
-      <p class="page-sub">View and pay for your consultations.</p>
+  <div class="nm-page">
+    <p class="nm-page-sub intro">Pay for your consultations and keep your receipts. Each invoice appears when your RND confirms a booking.</p>
+    <p v-if="error" class="nm-error">{{ error }}</p>
+    <p v-if="paidNotice" class="nm-success"><CheckCircle2 :size="15" /> {{ paidNotice }}</p>
+
+    <div class="nm-stat-grid">
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon gold"><Clock :size="17" /></div>
+        <p class="nm-stat-value">{{ peso(dueTotal) }}</p>
+        <p class="nm-stat-label">Due now</p>
+        <p class="nm-stat-note" :class="{ warn: due.length }">{{ due.length ? `${due.length} invoice${due.length === 1 ? '' : 's'} to pay` : 'Nothing to pay' }}</p>
+      </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><CheckCircle2 :size="17" /></div>
+        <p class="nm-stat-value">{{ peso(paidThisYear) }}</p>
+        <p class="nm-stat-label">Paid in {{ thisYear }}</p>
+        <p class="nm-stat-note">{{ paidCount }} consultation{{ paidCount === 1 ? '' : 's' }}</p>
+      </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon gold"><RotateCcw :size="17" /></div>
+        <p class="nm-stat-value">{{ peso(refundTotal) }}</p>
+        <p class="nm-stat-label">Refunds in progress</p>
+        <p class="nm-stat-note">{{ refunding.length ? 'NutriMatch is processing it' : 'None' }}</p>
+      </div>
+      <div class="nm-stat-card">
+        <div class="nm-stat-icon"><CalendarClock :size="17" /></div>
+        <p class="nm-stat-value small">{{ nextDeadline ? shortDate(nextDeadline) : '—' }}</p>
+        <p class="nm-stat-label">Next payment deadline</p>
+        <p class="nm-stat-note">{{ nextDeadline ? phTime(nextDeadline) : 'No upcoming payments' }}</p>
+      </div>
     </div>
 
-    <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-    <p v-if="paidNotice" class="paid-notice"><CheckCircle2 :size="16" /> {{ paidNotice }}</p>
-
-    <div v-if="unpaidTotal > 0" class="unpaid-alert">
-      <AlertCircle :size="18" />
-      <span>You have <strong>{{ unpaidCount }} unpaid invoice{{ unpaidCount === 1 ? '' : 's' }}</strong> totaling ₱{{ unpaidTotal.toFixed(2) }}. Please settle {{ unpaidCount === 1 ? 'it' : 'them' }} to keep your upcoming appointments confirmed.</span>
+    <!-- due -->
+    <div v-if="due.length" class="nm-panel due-panel">
+      <h2 class="nm-panel-title">Pay before your consultation</h2>
+      <p class="nm-panel-sub">Unpaid consultations are cancelled automatically at their start time.</p>
+      <div v-for="inv in due" :key="inv.id" class="due-row">
+        <img v-if="inv.consultation.rnd.profile_photo" :src="inv.consultation.rnd.profile_photo" class="nm-avatar" alt="" />
+        <span v-else class="nm-avatar">{{ nameInitials(inv.consultation.rnd.name) }}</span>
+        <div class="due-main">
+          <p class="nm-row-title">{{ inv.consultation.type_label }} with RND {{ inv.consultation.rnd.name }}</p>
+          <p class="nm-row-sub">{{ invNo(inv) }} · {{ when(inv.consultation.scheduled_at) }}</p>
+          <p class="deadline"><AlarmClock :size="13" /> Pay by {{ when(inv.pay_by) }} <span class="left">({{ timeLeft(inv.pay_by) }})</span></p>
+        </div>
+        <div class="due-end">
+          <p class="due-amount">{{ peso(inv.amount) }}</p>
+          <button class="nm-btn-gold" :disabled="payingId === inv.id" @click="payInvoice(inv)">
+            <CreditCard :size="15" /> {{ payingId === inv.id ? 'Opening…' : 'Pay now' }}
+          </button>
+          <p class="methods">GCash · Maya · Card · QR Ph</p>
+        </div>
+      </div>
     </div>
 
-    <div v-if="isLoading" class="placeholder-text">Loading…</div>
+    <!-- history -->
+    <div class="nm-toolbar history-bar">
+      <div class="nm-tabs">
+        <button v-for="t in TABS" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" @click="tab = t.key">
+          {{ t.label }}<span v-if="countOf(t.key)" class="nm-count"> {{ countOf(t.key) }}</span>
+        </button>
+      </div>
+      <div class="nm-search">
+        <Search :size="15" />
+        <input v-model="search" type="search" placeholder="Search RND or invoice no." />
+      </div>
+    </div>
 
-    <template v-else-if="invoices.length">
-      <div class="table-wrap">
-        <table class="invoice-table">
+    <div class="nm-panel">
+      <p v-if="loading" class="nm-muted">Loading your invoices…</p>
+      <div v-else-if="!invoices.length" class="nm-empty">
+        <Receipt :size="28" />
+        <p>No invoices yet.</p>
+        <p class="nm-hint" style="margin-top: 4px">An invoice appears when your RND confirms a booking. Pay it before the consultation to join.</p>
+      </div>
+      <div v-else-if="!filtered.length" class="nm-empty"><p>No invoices match.</p></div>
+      <div v-else class="nm-table-wrap">
+        <table class="nm-table stack">
           <thead>
-            <tr>
-              <th>Invoice</th>
-              <th>RND</th>
-              <th>Date</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
+            <tr><th>Invoice</th><th>Consultation</th><th class="nm-num">Amount</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="inv in invoices" :key="inv.id">
-              <td class="invoice-id">INV-{{ String(inv.id).padStart(4, '0') }}</td>
-              <td>{{ inv.appointment ? `RND ${inv.appointment.relationship.rnd.first_name} ${inv.appointment.relationship.rnd.last_name}` : '—' }}</td>
-              <td>{{ formatDate(inv.created_at) }}</td>
-              <td class="amount">₱{{ Number(inv.amount).toFixed(2) }}</td>
-              <td><span class="status-pill" :class="statusClass(inv.status)">{{ statusLabel(inv.status) }}</span></td>
-              <td class="action-cell">
-                <button
-                  v-if="inv.status === 'unpaid'"
-                  class="pay-btn"
-                  type="button"
-                  :disabled="payingId === inv.id"
-                  @click="payInvoice(inv)"
-                >
-                  {{ payingId === inv.id ? 'Loading…' : 'Pay Now' }}
-                </button>
-                <span v-else-if="inv.status === 'paid'" class="paid-note">Paid {{ formatDate(inv.paid_at) }}{{ inv.payment_method ? ` · via ${PAYMENT_METHOD_LABELS[inv.payment_method] || inv.payment_method}` : '' }}</span>
-                <span v-else-if="inv.status === 'refund_pending'" class="muted-note">Appointment cancelled — refund being processed</span>
-                <span v-else-if="inv.status === 'refunded'" class="muted-note">Refunded</span>
-                <span v-else-if="inv.status === 'cancelled'" class="muted-note">Appointment cancelled — nothing to pay</span>
-                <span v-else class="muted-note">—</span>
+            <tr v-for="inv in filtered" :key="inv.id" class="clickable" @click="open(inv)">
+              <td data-label="Invoice"><strong>{{ invNo(inv) }}</strong><span class="nm-row-sub" style="display: block">Issued {{ shortDate(inv.created_at) }}</span></td>
+              <td data-label="Consultation">
+                {{ inv.consultation.type_label || 'Consultation' }} · RND {{ inv.consultation.rnd.name }}
+                <span v-if="inv.consultation.scheduled_at" class="nm-row-sub" style="display: block">{{ when(inv.consultation.scheduled_at) }}</span>
+              </td>
+              <td data-label="Amount" class="nm-num">{{ peso(inv.amount) }}</td>
+              <td data-label="Status">
+                <span class="nm-pill" :class="STATUS[inv.status]?.pill">{{ STATUS[inv.status]?.label || inv.status }}</span>
+                <span class="nm-row-sub" style="display: block">{{ statusDetail(inv) }}</span>
+              </td>
+              <td class="nm-num">
+                <button v-if="inv.status === 'unpaid' && inv.pay_by" class="nm-btn-gold nm-btn-sm" :disabled="payingId === inv.id" @click.stop="payInvoice(inv)">Pay</button>
+                <button v-else-if="inv.receipt" class="nm-btn-outline nm-btn-sm" @click.stop="open(inv)"><FileText :size="13" /> Receipt</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </template>
-
-    <div v-else class="empty-state">
-      <div class="empty-icon"><Receipt :size="28" /></div>
-      <p class="empty-title">No invoices yet</p>
-      <p class="empty-desc">An invoice appears here when your RND confirms a booking. Pay it before the consultation to start it.</p>
     </div>
+
+    <!-- receipt / details -->
+    <div v-if="current" class="nm-modal-overlay" @click.self="current = null">
+      <div class="nm-modal receipt-modal" role="dialog" aria-modal="true">
+        <div class="rm-head">
+          <div>
+            <p class="nm-section-title" style="margin: 0 0 4px">{{ current.receipt ? 'Receipt' : 'Invoice' }}</p>
+            <h3 class="nm-modal-title" style="margin: 0">{{ invNo(current) }}</h3>
+          </div>
+          <span class="nm-pill" :class="STATUS[current.status]?.pill">{{ STATUS[current.status]?.label }}</span>
+          <button class="close-btn" aria-label="Close" @click="current = null"><X :size="18" /></button>
+        </div>
+
+        <dl class="nm-dl rm-dl">
+          <div><dt>RND</dt><dd>{{ current.consultation.rnd.name }}</dd></div>
+          <div><dt>Consultation</dt><dd>{{ current.consultation.type_label || '—' }}<template v-if="current.consultation.duration_minutes"> · {{ current.consultation.duration_minutes }} min</template></dd></div>
+          <div><dt>Scheduled</dt><dd>{{ current.consultation.scheduled_at ? when(current.consultation.scheduled_at) : '—' }}</dd></div>
+          <div><dt>Issued</dt><dd>{{ when(current.created_at) }}</dd></div>
+          <template v-if="current.receipt">
+            <div><dt>Paid on</dt><dd>{{ when(current.receipt.paid_at) }}</dd></div>
+            <div><dt>Paid via</dt><dd>{{ paidVia(current) }}</dd></div>
+            <div v-if="current.receipt.reference" class="wide"><dt>Payment reference</dt><dd class="mono">{{ current.receipt.reference }}</dd></div>
+          </template>
+          <div v-else-if="current.pay_by" class="wide"><dt>Pay by</dt><dd>{{ when(current.pay_by) }}</dd></div>
+        </dl>
+
+        <!-- refund progress -->
+        <div v-if="current.refund" class="refund">
+          <p class="nm-section-title" style="margin: 0 0 10px">Refund</p>
+          <ol class="steps">
+            <li class="on"><span /> Paid · {{ shortDate(current.receipt?.paid_at) }}</li>
+            <li class="on"><span /> Consultation cancelled<template v-if="current.refund.cancelled_at"> · {{ shortDate(current.refund.cancelled_at) }}</template></li>
+            <li :class="{ on: true, now: current.refund.status === 'refund_pending' }"><span /> Refund in progress</li>
+            <li :class="{ on: current.refund.status === 'refunded' }"><span /> Refunded<template v-if="current.refund.refunded_at"> · {{ shortDate(current.refund.refunded_at) }}</template></li>
+          </ol>
+          <p v-if="current.refund.status === 'refund_pending'" class="nm-hint">NutriMatch sends the refund back to how you paid. Banks can take a few working days to show it.</p>
+        </div>
+        <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note" style="margin: 14px 0 0">{{ current.consultation.cancellation_reason }}</p>
+
+        <div class="rm-total"><span>{{ current.receipt ? 'Total paid' : 'Amount' }}</span><strong>{{ peso(current.amount) }}</strong></div>
+
+        <div class="nm-modal-actions">
+          <template v-if="current.receipt">
+            <button class="nm-btn-outline" :disabled="resending" @click="resend(current)"><Mail :size="14" /> {{ resending ? 'Sending…' : 'Resend receipt' }}</button>
+            <button class="nm-btn-dark" @click="printReceipt(current)"><Printer :size="14" /> Download / print</button>
+          </template>
+          <button v-else-if="current.status === 'unpaid' && current.pay_by" class="nm-btn-gold" :disabled="payingId === current.id" @click="payInvoice(current)"><CreditCard :size="14" /> Pay now</button>
+        </div>
+        <p v-if="current.receipt" class="nm-hint" style="text-align: right">The receipt was emailed to you when you paid — resend it if you can't find it.</p>
+      </div>
+    </div>
+
+    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
-import { AlertCircle, CheckCircle2, Receipt } from 'lucide-vue-next'
+import {
+  AlarmClock, CalendarClock, CheckCircle2, Clock, CreditCard, FileText, Mail, Printer, Receipt, RotateCcw, Search, X,
+} from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Billing' })
 
 const { get, post } = useApi()
-const PAYMENT_METHOD_LABELS = { card: 'Card', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', bank_transfer: 'Bank Transfer', cash: 'Cash', other: 'Other' }
+const { pay, payingId, payError } = usePayInvoice()
+const now = useNow()
 
-const isLoading = ref(true)
-const errorMessage = ref('')
+const STATUS = {
+  unpaid: { label: 'Awaiting payment', pill: 'gold' },
+  paid: { label: 'Paid', pill: 'green' },
+  refund_pending: { label: 'Refund in progress', pill: 'red' },
+  refunded: { label: 'Refunded', pill: 'blue' },
+  cancelled: { label: 'Voided', pill: 'muted' },
+}
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'refunds', label: 'Refunds' },
+  { key: 'voided', label: 'Voided' },
+]
+
 const invoices = ref([])
+const loading = ref(true)
+const error = ref('')
+const paidNotice = ref('')
+const tab = ref('all')
+const search = ref('')
+const current = ref(null)
+const resending = ref(false)
+const toast = ref('')
 
-const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid'))
-const unpaidCount = computed(() => unpaidInvoices.value.length)
-const unpaidTotal = computed(() => unpaidInvoices.value.reduce((sum, i) => sum + Number(i.amount), 0))
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-// cancelled = voided (its appointment was cancelled or not paid in time);
-// refund_pending = a paid appointment was cancelled and is being refunded.
-function statusLabel(status) {
-  return { unpaid: 'Unpaid', paid: 'Paid', cancelled: 'Voided', refund_pending: 'Refund pending', refunded: 'Refunded' }[status] || status
-}
-function statusClass(status) {
-  return { unpaid: 'warning', paid: 'success', cancelled: 'neutral', refund_pending: 'warning', refunded: 'neutral' }[status] || ''
-}
-
-// Checks unpaid PayMongo invoices directly with PayMongo first, so a payment
-// still shows as paid even if its webhook never reached us. Best-effort:
-// the invoice list still loads if the check fails.
-async function loadInvoices({ quiet = false } = {}) {
-  if (!quiet) isLoading.value = true
-  errorMessage.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) loading.value = true
+  error.value = ''
   try {
-    await post('/client/invoices/sync/').catch(() => null)
+    await post('/client/invoices/sync/').catch(() => null) // catches payments whose webhook was missed
     invoices.value = await get('/client/invoices/')
   } catch {
-    errorMessage.value = 'Could not load your invoices. Please try again later.'
+    error.value = 'Could not load your invoices. Please refresh the page.'
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
 }
-
-const paidNotice = ref('')
-
-// Returning to this tab after paying in the PayMongo checkout re-checks.
 function onVisible() {
-  if (document.visibilityState === 'visible' && unpaidCount.value) loadInvoices({ quiet: true })
+  if (document.visibilityState === 'visible' && due.value.length) load({ quiet: true })
 }
-
-const { pay, payingId, payError } = usePayInvoice()
-watch(payError, (msg) => { if (msg) errorMessage.value = msg })
-
-function payInvoice(invoice) {
-  errorMessage.value = ''
-  pay(invoice.id, {
-    onPaid(latest) {
-      invoices.value = latest
-      paidNotice.value = `Payment received — INV-${String(invoice.id).padStart(4, '0')} is now paid.`
-    },
-    onClosed() {
-      loadInvoices({ quiet: true })
-    },
-  })
-}
-
 onMounted(() => {
-  loadInvoices()
+  load()
   document.addEventListener('visibilitychange', onVisible)
 })
-onUnmounted(() => {
-  document.removeEventListener('visibilitychange', onVisible)
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
+watch(payError, (msg) => { if (msg) error.value = msg })
+
+const due = computed(() => invoices.value.filter(i => i.status === 'unpaid' && i.pay_by)
+  .sort((a, b) => new Date(a.pay_by) - new Date(b.pay_by)))
+const dueTotal = computed(() => due.value.reduce((n, i) => n + Number(i.amount), 0))
+const thisYear = new Date().getFullYear()
+const paidList = computed(() => invoices.value.filter(i => i.status === 'paid'))
+const paidCount = computed(() => paidList.value.filter(i => new Date(i.paid_at).getFullYear() === thisYear).length)
+const paidThisYear = computed(() => paidList.value.filter(i => new Date(i.paid_at).getFullYear() === thisYear).reduce((n, i) => n + Number(i.amount), 0))
+const refunding = computed(() => invoices.value.filter(i => i.status === 'refund_pending'))
+const refundTotal = computed(() => refunding.value.reduce((n, i) => n + Number(i.amount), 0))
+const nextDeadline = computed(() => due.value[0]?.pay_by || null)
+
+function inTab(i, key) {
+  if (key === 'paid') return i.status === 'paid'
+  if (key === 'refunds') return ['refund_pending', 'refunded'].includes(i.status)
+  if (key === 'voided') return i.status === 'cancelled'
+  return true
+}
+const countOf = key => invoices.value.filter(i => inTab(i, key)).length
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return invoices.value.filter(i => inTab(i, tab.value) && (!q || `${invNo(i)} ${i.consultation.rnd.name}`.toLowerCase().includes(q)))
 })
+
+function payInvoice(inv) {
+  error.value = ''
+  paidNotice.value = ''
+  pay(inv.id, {
+    onPaid(latest) {
+      invoices.value = latest
+      current.value = null
+      paidNotice.value = `Payment received — ${invNo(inv)} is paid. Your receipt is on its way to your email.`
+      load({ quiet: true })
+    },
+    onClosed() { load({ quiet: true }) },
+  })
+}
+function open(inv) {
+  current.value = inv
+}
+async function resend(inv) {
+  resending.value = true
+  try {
+    const r = await post(`/client/invoices/${inv.id}/resend-receipt/`)
+    flash(r.detail)
+  } catch (e) {
+    flash(apiError(e, 'Could not send the receipt. Please try again.'))
+  } finally {
+    resending.value = false
+  }
+}
+function flash(text) {
+  toast.value = text
+  setTimeout(() => { toast.value = '' }, 3500)
+}
+function printReceipt(inv) {
+  const ok = printDocument({
+    title: 'Official receipt',
+    number: invNo(inv),
+    rows: [
+      ['Billed to', `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim() || '—'],
+      ['RND', inv.consultation.rnd.name],
+      ['Consultation', `${inv.consultation.type_label || 'Consultation'}${inv.consultation.scheduled_at ? ' · ' + when(inv.consultation.scheduled_at) : ''}`],
+      ['Paid on', when(inv.receipt.paid_at)],
+      ['Paid via', paidVia(inv)],
+      ...(inv.receipt.reference ? [['Payment reference', inv.receipt.reference]] : []),
+      ['Status', STATUS[inv.status]?.label || inv.status],
+    ],
+    total: ['Total paid', peso(inv.amount)],
+    note: inv.refund ? 'This consultation was cancelled and the payment is being refunded (or has been).' : 'Thank you for choosing NutriMatch.',
+  })
+  if (!ok) flash('Allow pop-ups for this site to print the receipt.')
+}
+
+const auth = useAuthStore()
+const invNo = i => `INV-${String(i.id).padStart(4, '0')}`
+const PH = { timeZone: 'Asia/Manila' }
+function when(v) {
+  return v ? new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'
+}
+function phTime(v) {
+  return new Date(v).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' })
+}
+function timeLeft(v) {
+  const ms = new Date(v) - now.value
+  if (ms <= 0) return 'now'
+  const h = Math.floor(ms / 3600000)
+  if (h >= 48) return `${Math.floor(h / 24)} days left`
+  if (h >= 1) return `${h} hour${h === 1 ? '' : 's'} left`
+  return `${Math.max(1, Math.floor(ms / 60000))} minutes left`
+}
+function paidVia(inv) {
+  const r = inv.receipt || {}
+  if (r.card_last4) return `${(r.card_brand || 'Card').replace(/^./, c => c.toUpperCase())} •••• ${r.card_last4}`
+  return r.method || 'PayMongo'
+}
+function statusDetail(inv) {
+  if (inv.status === 'unpaid') return inv.pay_by ? `Pay by ${shortDate(inv.pay_by)}` : ''
+  if (inv.status === 'paid') return `${shortDate(inv.paid_at)}${inv.payment_method_label ? ' · ' + inv.payment_method_label : ''}`
+  if (inv.status === 'refunded') return inv.refund?.refunded_at ? `Refunded ${shortDate(inv.refund.refunded_at)}` : ''
+  if (inv.status === 'refund_pending') return 'Consultation cancelled'
+  if (inv.status === 'cancelled') return 'Nothing to pay'
+  return ''
+}
+function nameInitials(name) {
+  const parts = String(name || '').split(' ').filter(Boolean)
+  return userInitials(parts[0], parts[parts.length - 1])
+}
 </script>
 
 <style scoped>
-* { box-sizing: border-box; }
-
-.billing-page { font-family: 'Inter', sans-serif; }
-
-.page-header { margin-bottom: 20px; }
-.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
-.page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
-
-.paid-notice {
-  display: flex; align-items: center; gap: 8px;
-  background: #e3f3ea; border: 1px solid #b8dcc6; color: #1f8f5c;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; margin: 0 0 16px;
+.intro { margin: 0 0 16px; }
+.nm-success { display: flex; align-items: center; gap: 8px; }
+.nm-stat-value.small { font-size: 1.25rem; }
+.due-panel { margin-bottom: 20px; border-color: #f0dca8; background: #fffdf7; }
+.due-row { display: flex; gap: 14px; align-items: center; padding: 16px 0 0; margin-top: 14px; border-top: 1px solid #f3ecd8; flex-wrap: wrap; }
+.due-main { flex: 1; min-width: 220px; }
+.deadline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #a0700b; margin: 6px 0 0; }
+.left { font-weight: 500; color: #b8860b; }
+.due-end { text-align: right; }
+.due-amount { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
+.methods { font-size: 0.7rem; color: #9aaa9a; margin: 5px 0 0; }
+.history-bar { margin-top: 4px; }
+.receipt-modal { max-width: 520px; }
+.rm-head { display: flex; align-items: flex-start; gap: 12px; }
+.rm-head > div { flex: 1; }
+.close-btn { background: none; border: none; color: #8a9a8a; cursor: pointer; padding: 4px; }
+.rm-dl { margin-top: 16px; }
+.rm-dl .wide { grid-column: 1 / -1; }
+.mono { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.refund { margin-top: 16px; background: #fafbfa; border: 1px solid #eceeec; border-radius: 12px; padding: 14px 16px; }
+.steps { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.steps li { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: #9aaa9a; }
+.steps li span { width: 10px; height: 10px; border-radius: 50%; background: #d5dad5; flex-shrink: 0; }
+.steps li.on { color: #1a3a1a; }
+.steps li.on span { background: #1f8f5c; }
+.steps li.now span { background: #D4A017; box-shadow: 0 0 0 4px rgba(212, 160, 23, 0.2); }
+.rm-total { display: flex; justify-content: space-between; align-items: center; background: #f2f7f3; border-radius: 10px; padding: 12px 16px; margin-top: 16px; font-size: 0.88rem; }
+.rm-total strong { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #1a3a1a; }
+@media (max-width: 640px) {
+  .due-end { text-align: left; width: 100%; }
+  .due-end .nm-btn-gold { width: 100%; }
 }
-.form-error {
-  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
-}
-
-.unpaid-alert {
-  display: flex; align-items: flex-start; gap: 10px;
-  background: #faead0; color: #8a6a1a; border-radius: 10px; padding: 14px 16px;
-  font-size: 0.86rem; margin-bottom: 20px;
-}
-.unpaid-alert strong { color: #6a4a00; }
-
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
-
-.table-wrap { background: #fff; border-radius: 12px; border: 1px solid #eceeec; overflow: hidden; overflow-x: auto; }
-.invoice-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-.invoice-table th {
-  text-align: left; font-size: 0.72rem; letter-spacing: 0.04em; color: #8a9a8a;
-  padding: 14px 18px; border-bottom: 1px solid #eceeec; font-weight: 700;
-}
-.invoice-table td { padding: 14px 18px; border-bottom: 1px solid #f4f5f2; color: #4a5a4a; }
-.invoice-table tr:last-child td { border-bottom: none; }
-.invoice-id { font-weight: 700; color: #1a3a1a; }
-.amount { font-weight: 700; color: #1a3a1a; }
-
-.status-pill {
-  font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap;
-}
-.status-pill.warning { background: #faead0; color: #b8860b; }
-.status-pill.success { background: #e6efe0; color: #3a6b3a; }
-.status-pill.danger { background: #fdecec; color: #a12525; }
-.status-pill.neutral { background: #eceeec; color: #7a8a7a; }
-
-.action-cell { text-align: right; }
-.pay-btn {
-  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
-  padding: 8px 16px; font-weight: 700; font-size: 0.82rem; cursor: pointer; white-space: nowrap;
-}
-.pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.paid-note, .muted-note { font-size: 0.78rem; color: #9aaa9a; }
-
-.empty-state {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
-  padding: 60px 20px; text-align: center;
-}
-.empty-icon {
-  width: 56px; height: 56px; border-radius: 50%; background: #eef3ec; color: #1e4a26;
-  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
-}
-.empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 </style>

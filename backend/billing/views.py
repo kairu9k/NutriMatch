@@ -31,9 +31,9 @@ class ClientInvoiceListView(generics.ListAPIView):
     permission_classes = [IsClient]
 
     def get_queryset(self):
-        return Invoice.objects.filter(
-            relationship__client=self.request.user
-        ).select_related("appointment", "appointment__relationship__rnd").order_by("-created_at")
+        return (Invoice.objects.filter(relationship__client=self.request.user)
+                .select_related("appointment", "relationship__rnd").prefetch_related("transactions")
+                .order_by("-created_at"))
 
 
 class RndInvoiceListView(generics.ListAPIView):
@@ -280,9 +280,95 @@ class RndEarningsView(APIView):
         from .payouts import rnd_earnings
         from .serializers import PayoutSerializer
 
+        from django.utils import timezone
+
+        from .payouts import rnd_statement
+
         data = rnd_earnings(request.user)
-        data["payouts"] = PayoutSerializer(Payout.objects.filter(rnd=request.user), many=True).data
+        data["payouts"] = PayoutSerializer(Payout.objects.filter(rnd=request.user).order_by("-released_at"), many=True).data
+        data["statement"] = rnd_statement(request.user)
+        month = timezone.localdate()
+        data["this_month"] = {
+            "gross": sum((r["amount"] for r in data["statement"] if r["paid_at"] and timezone.localdate(r["paid_at"]).replace(day=1) == month.replace(day=1)
+                          and r["state"] in ("pending", "posted", "paid_out")), 0),
+            "share": sum((r["share"] for r in data["statement"] if r["paid_at"] and timezone.localdate(r["paid_at"]).replace(day=1) == month.replace(day=1)
+                          and r["state"] in ("pending", "posted", "paid_out")), 0),
+        }
+        account = getattr(request.user, "payout_account", None)
+        data["payout_account"] = {
+            "method": account.method, "method_label": account.get_method_display(), "bank_name": account.bank_name,
+            "account_name": account.account_name, "account_number_last4": account.account_number[-4:],
+        } if account else None
         return Response(data)
+
+
+def _resend_allowed(key, seconds=120):
+    """One resend every 2 minutes per item, so the button can't flood an inbox."""
+    from django.core.cache import cache
+
+    return cache.add(key, 1, seconds)
+
+
+class ClientResendReceiptView(APIView):
+    """Email the receipt again (the first one is sent automatically)."""
+
+    permission_classes = [IsClient]
+
+    def post(self, request, invoice_id):
+        from .receipts import send_client_receipt
+
+        invoice = get_object_or_404(
+            Invoice.objects.select_related("relationship__client", "relationship__rnd", "appointment"),
+            pk=invoice_id, relationship__client=request.user,
+            status__in=[Invoice.Status.PAID, Invoice.Status.REFUND_PENDING, Invoice.Status.REFUNDED],
+        )
+        if not _resend_allowed(f"resend-receipt:{invoice.id}"):
+            return Response({"detail": "We just sent it — check your inbox (and spam folder), or try again in a couple of minutes."},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        try:
+            send_client_receipt(invoice)
+        except Exception:
+            return Response({"detail": "Couldn't send the email right now. Please try again later."}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"detail": f"Receipt sent to {request.user.email}."})
+
+
+class RndPayoutDetailView(APIView):
+    """One payout with the consultations it covered (Earnings page)."""
+
+    permission_classes = [IsRnd]
+
+    def get(self, request, payout_id):
+        from .models import Payout
+        from .payouts import rnd_share
+        from .serializers import PayoutSerializer
+
+        payout = get_object_or_404(Payout, pk=payout_id, rnd=request.user)
+        data = PayoutSerializer(payout).data
+        data["invoices"] = [
+            {"invoice_id": inv.id, "client_name": inv.relationship.client.full_name,
+             "consultation_at": inv.appointment.scheduled_at if inv.appointment else None,
+             "amount": inv.amount, "commission": inv.commission_amt, "share": rnd_share(inv)}
+            for inv in payout.invoices.select_related("relationship__client", "appointment").order_by("appointment__scheduled_at")
+        ]
+        return Response(data)
+
+
+class RndResendPayoutEmailView(APIView):
+    permission_classes = [IsRnd]
+
+    def post(self, request, payout_id):
+        from .models import Payout
+        from .payouts import send_payout_email
+
+        payout = get_object_or_404(Payout, pk=payout_id, rnd=request.user)
+        if not _resend_allowed(f"resend-payout:{payout.id}"):
+            return Response({"detail": "We just sent it — check your inbox (and spam folder), or try again in a couple of minutes."},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        try:
+            send_payout_email(payout)
+        except Exception:
+            return Response({"detail": "Couldn't send the email right now. Please try again later."}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"detail": f"Payout email sent to {request.user.email}."})
 
 
 class AdminPayoutRunView(APIView):
