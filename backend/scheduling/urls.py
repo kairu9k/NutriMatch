@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .admin_views import AdminAppointmentCancelView, AdminAppointmentListView, AdminAppointmentSummaryView
+from .rnd_dashboard import RndDashboardView
 
 from .views import (
     ClientActiveRelationshipsView,
@@ -38,6 +39,7 @@ urlpatterns = [
     path("client/reviews/", ClientReviewListCreateView.as_view(), name="client_reviews"),
     path("rnd/reviews/", RndReviewListView.as_view(), name="rnd_reviews"),
 
+    path("rnd/dashboard/", RndDashboardView.as_view(), name="rnd_dashboard"),
     path("admin/appointments/", AdminAppointmentListView.as_view(), name="admin_appointments"),
     path("admin/appointments/summary/", AdminAppointmentSummaryView.as_view(), name="admin_appointment_summary"),
     path("admin/appointments/<int:pk>/cancel/", AdminAppointmentCancelView.as_view(), name="admin_appointment_cancel"),
