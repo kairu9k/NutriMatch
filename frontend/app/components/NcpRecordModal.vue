@@ -274,6 +274,7 @@
 // "Finalize record" (Review step, with a confirmation) locks it. Required
 // fields mirror NcpRecord.finalize_missing() on the API.
 import { AlertTriangle, Check, CheckCircle2, Info, Lock, Plus, Save, Sparkles, X } from 'lucide-vue-next'
+import { KCAL_PER_G, PES_TERMS, bmiClass, bmiOf, macroKcal, suggestMacros } from '~/utils/ncp'
 
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
@@ -371,14 +372,22 @@ function hydrate(r = {}) {
 }
 hydrate()
 
-/* ---------- pre-fill a new record ---------- */
-function prefillNew() {
+/* ---------- pre-fill (only fields that are still empty) ---------- */
+const prefilledFields = ref([])
+function prefillBlanks() {
   const pf = ctx.value.prefill || {}
-  for (const f of ['height_cm', 'weight_kg', 'blood_glucose', 'hba1c']) if (pf[f]) a.value[f] = pf[f].value
-  if (pf.blood_pressure) [a.value.bp_systolic, a.value.bp_diastolic] = String(pf.blood_pressure.value).split('/')
-  prefilled.value = Object.keys(pf).length > 0
+  const blank = v => String(v ?? '').trim() === ''
+  for (const f of ['height_cm', 'weight_kg', 'blood_glucose', 'hba1c']) {
+    if (pf[f] && blank(a.value[f])) { a.value[f] = pf[f].value; prefilledFields.value.push(f) }
+  }
+  if (pf.blood_pressure && blank(a.value.bp_systolic) && blank(a.value.bp_diastolic)) {
+    [a.value.bp_systolic, a.value.bp_diastolic] = String(pf.blood_pressure.value).split('/')
+    prefilledFields.value.push('blood_pressure')
+  }
+  prefilled.value = prefilledFields.value.length > 0
   const prev = ctx.value.previous
-  if (isFollowUp.value && prev) {
+  const blankPlan = blank(d.value.pes_problem) && blank(d.value.pes_etiology) && blank(i.value.target_kcal) && blank(i.value.diet_prescription)
+  if (isFollowUp.value && prev && blankPlan) {
     d.value = { pes_problem: prev.pes_problem || '', pes_etiology: prev.pes_etiology || '', pes_signs: prev.pes_signs || '' }
     Object.assign(i.value, {
       target_kcal: prev.target_kcal ?? '', target_carb_g: prev.target_carb_g ?? '', target_protein_g: prev.target_protein_g ?? '',
@@ -389,7 +398,7 @@ function prefillNew() {
 }
 function srcHint(f) {
   const s = ctx.value.prefill?.[f]
-  if (!s || isReadOnly.value || record.value) return ''
+  if (!s || isReadOnly.value || !prefilledFields.value.includes(f)) return ''
   return `From their ${s.source}, ${shortDate(s.date)}`
 }
 
@@ -410,8 +419,9 @@ function applySplit() {
   const s = suggestMacros(i.value.target_kcal)
   if (s) Object.assign(i.value, { target_carb_g: s.carb, target_protein_g: s.protein, target_fat_g: s.fat })
 }
-const pesSentence = computed(() =>
-  `${d.value.pes_problem || '…'}${d.value.pes_etiology ? ` related to ${d.value.pes_etiology}` : ''}${d.value.pes_signs ? `, as evidenced by ${d.value.pes_signs}` : ''}.`)
+const pesSentence = computed(() => !filled(d.value.pes_problem) && !filled(d.value.pes_etiology) && !filled(d.value.pes_signs)
+  ? 'Fill in the problem, etiology and signs to build the statement.'
+  : `${d.value.pes_problem || '…'}${d.value.pes_etiology ? ` related to ${d.value.pes_etiology}` : ''}${d.value.pes_signs ? `, as evidenced by ${d.value.pes_signs}` : ''}.`)
 
 /* ---------- PES picker ---------- */
 const pesOpen = ref(false)
@@ -580,13 +590,16 @@ async function load() {
       isFollowUp.value = record.value ? record.value.is_follow_up : !!context.is_follow_up
       if (record.value) {
         hydrate(record.value)
-        const first = missing.value[0]
-        tab.value = first ? first.step : stepKeys.value.length - 1
-      } else {
-        prefillNew()
       }
+      const before = snapshot()
+      prefillBlanks()
+      // A new record starts "unsaved" only if the RND changes something; a
+      // resumed draft that just got pre-filled values offers to save them.
+      savedSnapshot = record.value ? before : snapshot()
+      const first = missing.value[0]
+      tab.value = first ? first.step : (record.value ? stepKeys.value.length - 1 : 0)
     }
-    savedSnapshot = snapshot()
+    if (props.mode === 'view') savedSnapshot = snapshot()
   } catch {
     loadError.value = 'Could not load this NCP record. Please try again.'
   } finally {
