@@ -4,8 +4,6 @@
 
 Capstone project — STI College Davao, BSIT. Connects clients with licensed Registered Nutritionist-Dietitians (RNDs) in the Philippines for structured **Medical Nutrition Therapy (MNT)**, built around the clinical 4-phase **Nutrition Care Process (NCP)**.
 
-![NutriMatch landing page](vault/landing_page.png)
-
 - **Backend:** Django 6.1 + Django REST Framework (`backend/`)
 - **Frontend:** Nuxt 4 + Tailwind CSS (`frontend/`)
 - **Database:** SQLite for local development (a file, nothing to install)
