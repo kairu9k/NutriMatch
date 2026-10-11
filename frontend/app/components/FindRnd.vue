@@ -41,7 +41,6 @@
             <option value="soonest">Soonest available</option>
             <option value="rating">Highest rated</option>
             <option value="experience">Most consultations</option>
-            <option value="fee_low">Lowest fee</option>
           </select>
         </label>
       </div>
@@ -106,7 +105,6 @@
         </div>
 
         <div class="card-foot">
-          <p class="fee">{{ peso0(rnd.consultation_fee) }}<span>/session</span></p>
           <div class="card-actions">
             <NuxtLink :to="`/rnd-profile-view/${rnd.user.id}`" class="nm-btn-outline">View profile</NuxtLink>
             <NuxtLink v-if="rnd.next_open_slots.length" :to="`/rnd-profile-view/${rnd.user.id}?book=1`" class="nm-btn-dark">Book</NuxtLink>
@@ -202,15 +200,11 @@ const sorted = computed(() => {
   const firstSlot = r => (r.next_open_slots[0] ? new Date(r.next_open_slots[0]).getTime() : Infinity)
   if (sortBy.value === 'soonest') return list.sort((a, b) => firstSlot(a) - firstSlot(b))
   if (sortBy.value === 'rating') return list.sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0) || b.review_count - a.review_count)
-  if (sortBy.value === 'experience') return list.sort((a, b) => b.consultations_completed - a.consultations_completed)
-  return list.sort((a, b) => Number(a.consultation_fee) - Number(b.consultation_fee))
+  return list.sort((a, b) => b.consultations_completed - a.consultations_completed)
 })
 const pageCount = computed(() => Math.max(1, Math.ceil(sorted.value.length / PAGE_SIZE)))
 const paged = computed(() => sorted.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
-function peso0(v) {
-  return `₱${Number(v || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`
-}
 function slotText(iso) {
   const d = new Date(iso)
   const ph = { timeZone: 'Asia/Manila' }
@@ -256,9 +250,7 @@ function slotText(iso) {
 .where svg { flex-shrink: 0; margin-top: 2px; }
 .next { display: flex; align-items: center; gap: 8px; background: #eef6f0; color: #1f6f46; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; }
 .next.none { background: #f4f5f3; color: #8a9a8a; }
-.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
-.fee { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.fee span { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 500; color: #8a9a8a; margin-left: 2px; }
+.card-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
 .card-actions { display: flex; gap: 8px; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
 
