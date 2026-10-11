@@ -212,7 +212,7 @@ class NcpRecordLifecycleTests(TestCase):
             "relationship": self.rel.id, "encounter_date": str(timezone.now().date()),
             "assessment_extra": [
                 {"label": " Waist circumference ", "value": " 92 ", "unit": "cm"},
-                {"label": "   ", "value": "dropped: no label"},
+                {"label": "   ", "value": "", "unit": ""},  # an empty row is dropped
             ],
             "intervention_extra": [{"label": "Fluid restriction", "value": "1.5", "unit": "L/day"}],
         }, format="json")

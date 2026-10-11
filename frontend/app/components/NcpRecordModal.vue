@@ -19,7 +19,7 @@
       <template v-else>
         <!-- STEPS -->
         <nav class="steps" aria-label="NCP steps">
-          <button v-for="(st, i) in steps" :key="st" type="button" class="step" :class="[stepState(i), { active: tab === i }]" @click="tab = i">
+          <button v-for="(st, i) in steps" :key="st" type="button" class="step" :class="[stepState(i), { active: tab === i, err: stepHasError(i) }]" @click="tab = i">
             <span class="step-dot"><Check v-if="stepState(i) === 'done'" :size="12" /><template v-else>{{ i + 1 }}</template></span>
             <span class="step-name">{{ st }}</span>
           </button>
@@ -40,40 +40,40 @@
               <p class="phase">Phase 1 · Nutrition assessment</p>
               <p v-if="prefilled && !isReadOnly" class="hint-box"><Sparkles :size="14" /> Measurements are pre-filled from their latest records — check them with the patient and update what changed.</p>
               <div class="grid g3">
-                <Field label="Height (cm)" required :hint="srcHint('height_cm')">
-                  <input v-model="a.height_cm" type="number" min="100" max="250" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Height (cm)" required :hint="srcHint('height_cm')" :error="errors.height_cm">
+                  <input v-model="a.height_cm" type="number" :min="L.height_cm.min" :max="L.height_cm.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
-                <Field label="Weight (kg)" required :hint="srcHint('weight_kg')">
-                  <input v-model="a.weight_kg" type="number" min="25" max="300" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Weight (kg)" required :hint="srcHint('weight_kg')" :error="errors.weight_kg">
+                  <input v-model="a.weight_kg" type="number" :min="L.weight_kg.min" :max="L.weight_kg.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
                 <div class="computed">
                   <span class="k">BMI · WHO Asia-Pacific</span>
                   <strong>{{ liveBmi ?? '—' }}</strong>
-                  <span class="c-sub">{{ liveBmi ? bmiClass(liveBmi) : 'Enter height and weight' }}</span>
+                  <span class="c-sub">{{ liveBmi ? bmiClass(liveBmi) : (errors.weight_kg || errors.height_cm) ? 'Check height and weight' : 'Enter height and weight' }}</span>
                 </div>
               </div>
               <div class="grid g3">
-                <Field label="Blood pressure (mmHg)" group :hint="srcHint('blood_pressure')">
+                <Field label="Blood pressure (mmHg)" group :hint="srcHint('blood_pressure')" :error="errors.blood_pressure">
                   <div class="bp">
-                    <input v-model="a.bp_systolic" type="number" min="50" max="300" class="nm-input" placeholder="120" aria-label="Systolic" :disabled="isReadOnly" />
+                    <input v-model="a.bp_systolic" type="number" :min="L.bp_systolic.min" :max="L.bp_systolic.max" class="nm-input" placeholder="120" aria-label="Systolic" :disabled="isReadOnly" />
                     <span>/</span>
-                    <input v-model="a.bp_diastolic" type="number" min="30" max="200" class="nm-input" placeholder="80" aria-label="Diastolic" :disabled="isReadOnly" />
+                    <input v-model="a.bp_diastolic" type="number" :min="L.bp_diastolic.min" :max="L.bp_diastolic.max" class="nm-input" placeholder="80" aria-label="Diastolic" :disabled="isReadOnly" />
                   </div>
                 </Field>
-                <Field label="Fasting glucose (mg/dL)" :hint="srcHint('blood_glucose')">
-                  <input v-model="a.blood_glucose" type="number" min="20" max="600" step="1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Fasting glucose (mg/dL)" :hint="srcHint('blood_glucose')" :error="errors.blood_glucose">
+                  <input v-model="a.blood_glucose" type="number" :min="L.blood_glucose.min" :max="L.blood_glucose.max" step="1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
-                <Field label="HbA1c (%)" :hint="srcHint('hba1c')">
-                  <input v-model="a.hba1c" type="number" min="3" max="20" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="HbA1c (%)" :hint="srcHint('hba1c')" :error="errors.hba1c">
+                  <input v-model="a.hba1c" type="number" :min="L.hba1c.min" :max="L.hba1c.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
               </div>
               <Field label="Lab notes">
-                <textarea v-model="a.lab_notes" class="nm-input" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
+                <textarea v-model="a.lab_notes" class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
               </Field>
               <Field label="Assessment notes">
-                <textarea v-model="a.assessment_notes" class="nm-input" rows="3" placeholder="Diet history, 24-hour recall, appetite, activity…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="a.assessment_notes" class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Diet history, 24-hour recall, appetite, activity…" :disabled="isReadOnly"></textarea>
               </Field>
-              <ExtraRows v-model="a.extra" :read-only="isReadOnly" empty="e.g. waist circumference, cholesterol, creatinine" />
+              <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine… — pick from the list or type your own." />
             </section>
 
             <!-- DIAGNOSIS -->
@@ -82,7 +82,7 @@
               <p v-if="carried && !isReadOnly" class="hint-box"><Sparkles :size="14" /> Carried over from the {{ shortDate(ctx.previous.encounter_date) }} record — edit what changed.</p>
               <Field label="Problem (P)" required group hint="Pick a standard nutrition diagnosis, or type your own.">
                 <div class="combo" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter="pickActive" @keydown.esc="pesOpen = false">
-                  <input v-model="d.pes_problem" type="text" class="nm-input" maxlength="500" :disabled="isReadOnly" placeholder="Search, e.g. carbohydrate" aria-label="PES problem"
+                  <input v-model="d.pes_problem" type="text" class="nm-input" :maxlength="TMAX.pes_problem" :disabled="isReadOnly" placeholder="Search, e.g. carbohydrate" aria-label="PES problem"
                          role="combobox" :aria-expanded="pesOpen" aria-controls="pes-list" autocomplete="off"
                          @focus="pesOpen = true" @input="pesOpen = true; activeIdx = -1" @blur="closeSoon" />
                   <div v-if="pesOpen && !isReadOnly && pesMatches.length" id="pes-list" class="combo-list" role="listbox">
@@ -95,10 +95,10 @@
                 </div>
               </Field>
               <Field label="Etiology — related to (E)" required>
-                <textarea v-model="d.pes_etiology" class="nm-input" rows="2" placeholder="e.g. frequent large servings of white rice and sweetened drinks" :disabled="isReadOnly"></textarea>
+                <textarea v-model="d.pes_etiology" class="nm-input" :maxlength="TMAX.pes_etiology" rows="2" placeholder="e.g. frequent large servings of white rice and sweetened drinks" :disabled="isReadOnly"></textarea>
               </Field>
               <Field label="Signs & symptoms — as evidenced by (S)" required>
-                <textarea v-model="d.pes_signs" class="nm-input" rows="2" placeholder="e.g. FBS 148 mg/dL, HbA1c 7.9%, diet recall of 4 cups rice/day" :disabled="isReadOnly"></textarea>
+                <textarea v-model="d.pes_signs" class="nm-input" :maxlength="TMAX.pes_signs" rows="2" placeholder="e.g. FBS 148 mg/dL, HbA1c 7.9%, diet recall of 4 cups rice/day" :disabled="isReadOnly"></textarea>
               </Field>
               <div class="pes-preview">
                 <span class="k">PES statement</span>
@@ -116,17 +116,17 @@
                 <p class="c-sub">From their screening of {{ shortDate(ctx.screening.date) }}.</p>
               </div>
               <div class="grid g4">
-                <Field label="Target kcal / day" required>
-                  <input v-model="i.target_kcal" type="number" min="800" max="5000" step="10" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Target kcal / day" required :error="errors.target_kcal">
+                  <input v-model="i.target_kcal" type="number" :min="L.target_kcal.min" :max="L.target_kcal.max" step="10" class="nm-input" :disabled="isReadOnly" />
                 </Field>
-                <Field label="Carbs (g)" :hint="macroHint('carb')">
-                  <input v-model="i.target_carb_g" type="number" min="0" step="1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Carbs (g)" :hint="macroHint('carb')" :error="errors.target_carb_g">
+                  <input v-model="i.target_carb_g" type="number" :min="L.target_carb_g.min" :max="L.target_carb_g.max" step="1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
-                <Field label="Protein (g)" :hint="macroHint('protein')">
-                  <input v-model="i.target_protein_g" type="number" min="0" step="1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Protein (g)" :hint="macroHint('protein')" :error="errors.target_protein_g">
+                  <input v-model="i.target_protein_g" type="number" :min="L.target_protein_g.min" :max="L.target_protein_g.max" step="1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
-                <Field label="Fat (g)" :hint="macroHint('fat')">
-                  <input v-model="i.target_fat_g" type="number" min="0" step="1" class="nm-input" :disabled="isReadOnly" />
+                <Field label="Fat (g)" :hint="macroHint('fat')" :error="errors.target_fat_g">
+                  <input v-model="i.target_fat_g" type="number" :min="L.target_fat_g.min" :max="L.target_fat_g.max" step="1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
               </div>
               <div v-if="!isReadOnly || macroTotal" class="macro-line" :class="{ warn: macroOff }">
@@ -135,12 +135,12 @@
                 <button v-if="!isReadOnly && Number(i.target_kcal)" type="button" class="nm-panel-link" @click="applySplit">Suggest 50 / 20 / 30 split</button>
               </div>
               <Field label="Diet prescription" required>
-                <textarea v-model="i.diet_prescription" class="nm-input" rows="3" placeholder="e.g. 1500 kcal low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
+                <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="3" placeholder="e.g. 1500 kcal low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
               </Field>
               <Field label="Intervention notes">
-                <textarea v-model="i.intervention_notes" class="nm-input" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="i.intervention_notes" class="nm-input" :maxlength="TMAX.intervention_notes" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
               </Field>
-              <ExtraRows v-model="i.extra" :read-only="isReadOnly" empty="e.g. sodium limit, fluid limit, fiber goal, activity" />
+              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity… — pick from the list or type your own." />
             </section>
 
             <!-- MONITORING (follow-ups) -->
@@ -162,7 +162,7 @@
                 </div>
               </Field>
               <Field label="Monitoring notes">
-                <textarea v-model="m.monitoring_notes" class="nm-input" rows="3" placeholder="Response to the plan, barriers, what to change next…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="m.monitoring_notes" class="nm-input" :maxlength="TMAX.monitoring_notes" rows="3" placeholder="Response to the plan, barriers, what to change next…" :disabled="isReadOnly"></textarea>
               </Field>
             </section>
 
@@ -221,13 +221,14 @@
 
         <!-- FOOTER -->
         <footer class="ncp-foot">
+          <p v-if="!isReadOnly && errorCount" class="foot-err" role="status"><AlertTriangle :size="14" /> Fix {{ errorCount }} highlighted field{{ errorCount === 1 ? '' : 's' }} before saving.</p>
           <button type="button" class="nm-btn-outline" :disabled="tab === 0" @click="tab--">Back</button>
           <div class="foot-right">
-            <button v-if="!isReadOnly" type="button" class="nm-btn-outline" :disabled="saving || !dirty" @click="saveDraft">
+            <button v-if="!isReadOnly" type="button" class="nm-btn-outline" :disabled="saving || !dirty || errorCount > 0" @click="saveDraft">
               <Save :size="14" /> {{ saving ? 'Saving…' : 'Save draft' }}
             </button>
             <button v-if="tab < steps.length - 1" type="button" class="nm-btn-dark" @click="tab++">Next: {{ steps[tab + 1] }}</button>
-            <button v-else-if="!isReadOnly" type="button" class="nm-btn-gold" :disabled="saving || missing.length > 0" @click="confirmFinalize = true">Finalize record</button>
+            <button v-else-if="!isReadOnly" type="button" class="nm-btn-gold" :disabled="saving || missing.length > 0 || errorCount > 0" @click="confirmFinalize = true">Finalize record</button>
             <button v-else-if="isReadOnly && record?.status === 'draft' && canContinue" type="button" class="nm-btn-dark" @click="emit('continue')">Continue record</button>
             <button v-else-if="!inline" type="button" class="nm-btn-dark" @click="emit('close')">Close</button>
           </div>
@@ -273,8 +274,10 @@
 // Nothing saves on its own: "Save draft" saves whatever is filled, and
 // "Finalize record" (Review step, with a confirmation) locks it. Required
 // fields mirror NcpRecord.finalize_missing() on the API.
-import { AlertTriangle, Check, CheckCircle2, Info, Lock, Plus, Save, Sparkles, X } from 'lucide-vue-next'
-import { KCAL_PER_G, PES_TERMS, bmiClass, bmiOf, macroKcal, suggestMacros } from '~/utils/ncp'
+import { AlertTriangle, Check, CheckCircle2, Info, Lock, Save, Sparkles, X } from 'lucide-vue-next'
+import {
+  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, extraRowErrors, macroKcal, rangeError, suggestMacros,
+} from '~/utils/ncp'
 
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
@@ -293,34 +296,15 @@ const { get, post, patch } = useApi()
 const Field = defineComponent({
   // `group`: the field holds several controls (BP pair, picker, buttons), so it
   // isn't a <label> — clicking its text mustn't press the first button.
-  props: { label: String, required: Boolean, hint: String, group: Boolean },
+  props: { label: String, required: Boolean, hint: String, group: Boolean, error: String },
   setup(p, { slots }) {
-    return () => h(p.group ? 'div' : 'label', { class: 'field', role: p.group ? 'group' : undefined, 'aria-label': p.group ? p.label : undefined }, [
+    return () => h(p.group ? 'div' : 'label', { class: ['field', { invalid: !!p.error }], role: p.group ? 'group' : undefined, 'aria-label': p.group ? p.label : undefined }, [
       h('span', { class: 'field-label' }, [p.label, p.required ? h('span', { class: 'req', 'aria-hidden': 'true' }, ' *') : null]),
       slots.default?.(),
-      p.hint ? h('span', { class: 'field-hint' }, p.hint) : null,
+      p.error ? h('span', { class: 'field-error', role: 'alert' }, p.error) : p.hint ? h('span', { class: 'field-hint' }, p.hint) : null,
     ])
   },
 })
-const ExtraRows = defineComponent({
-  props: { modelValue: Array, readOnly: Boolean, empty: String },
-  setup(p) {
-    return () => h('div', { class: 'extra' }, [
-      h('div', { class: 'extra-head' }, [
-        h('span', { class: 'field-label' }, 'Other measurements'),
-        p.readOnly ? null : h('button', { type: 'button', class: 'nm-panel-link', onClick: () => p.modelValue.push({ label: '', value: '', unit: '' }) }, [h(Plus, { size: 13 }), ' Add']),
-      ]),
-      !p.modelValue.length ? h('p', { class: 'field-hint' }, p.readOnly ? 'None recorded.' : p.empty) : null,
-      ...p.modelValue.map((row, idx) => h('div', { class: 'extra-row', key: idx }, [
-        h('input', { class: 'nm-input', placeholder: 'What', maxlength: 100, value: row.label, disabled: p.readOnly, onInput: e => { row.label = e.target.value } }),
-        h('input', { class: 'nm-input', placeholder: 'Value', maxlength: 500, value: row.value, disabled: p.readOnly, onInput: e => { row.value = e.target.value } }),
-        h('input', { class: 'nm-input unit', placeholder: 'Unit', maxlength: 30, value: row.unit, disabled: p.readOnly, onInput: e => { row.unit = e.target.value } }),
-        p.readOnly ? null : h('button', { type: 'button', class: 'row-x', 'aria-label': 'Remove', onClick: () => p.modelValue.splice(idx, 1) }, [h(X, { size: 14 })]),
-      ])),
-    ])
-  },
-})
-
 /* ---------- state ---------- */
 const isLoading = ref(true)
 const loadError = ref('')
@@ -403,7 +387,8 @@ function srcHint(f) {
 }
 
 /* ---------- live clinical help ---------- */
-const liveBmi = computed(() => bmiOf(a.value.weight_kg, a.value.height_cm))
+// Only from in-range values — an impossible weight mustn't show a BMI.
+const liveBmi = computed(() => (rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
 const macroTotal = computed(() => macroKcal({ carb: i.value.target_carb_g, protein: i.value.target_protein_g, fat: i.value.target_fat_g }))
 const macroDiffPct = computed(() => {
   const t = Number(i.value.target_kcal)
@@ -460,6 +445,32 @@ const missing = computed(() => {
   if (showMonitoring.value && !filled(m.value.goal_status)) out.push({ label: 'Goal status', step: idx('monitoring') })
   return out
 })
+/* ---------- limits: shown live, block Save draft / Finalize ---------- */
+const errors = computed(() => {
+  const e = {}
+  for (const f of ['height_cm', 'weight_kg', 'blood_glucose', 'hba1c']) { const x = rangeError(f, a.value[f]); if (x) e[f] = x }
+  for (const f of ['target_kcal', 'target_carb_g', 'target_protein_g', 'target_fat_g']) { const x = rangeError(f, i.value[f]); if (x) e[f] = x }
+  const sys = String(a.value.bp_systolic ?? '').trim()
+  const dia = String(a.value.bp_diastolic ?? '').trim()
+  if (sys || dia) {
+    const bp = !sys || !dia ? 'Enter both numbers, e.g. 120 / 80.'
+      : rangeError('bp_systolic', sys) || rangeError('bp_diastolic', dia) || (Number(dia) >= Number(sys) ? 'The first number (systolic) must be higher.' : '')
+    if (bp) e.blood_pressure = bp
+  }
+  const rowsBad = rows => rows.some(row => Object.keys(extraRowErrors(row)).length)
+  if (rowsBad(a.value.extra)) e.assessment_extra = 'Fix the other measurements.'
+  if (rowsBad(i.value.extra)) e.intervention_extra = 'Fix the other measurements.'
+  return e
+})
+const errorCount = computed(() => Object.keys(errors.value).length)
+const ERROR_STEP = {
+  height_cm: 'assessment', weight_kg: 'assessment', blood_pressure: 'assessment', blood_glucose: 'assessment', hba1c: 'assessment', assessment_extra: 'assessment',
+  target_kcal: 'intervention', target_carb_g: 'intervention', target_protein_g: 'intervention', target_fat_g: 'intervention', intervention_extra: 'intervention',
+}
+function stepHasError(index) {
+  return Object.keys(errors.value).some(k => ERROR_STEP[k] === stepKeys.value[index])
+}
+
 function stepState(index) {
   if (isReadOnly.value) return 'done'
   const k = stepKeys.value[index]
@@ -558,6 +569,7 @@ function requestClose() {
   else emit('close')
 }
 async function saveAndClose() {
+  if (errorCount.value) { confirmLeave.value = false; return }
   if (await saveDraft()) { confirmLeave.value = false; emit('close') }
   else confirmLeave.value = false
 }
@@ -663,6 +675,10 @@ function ncpError(e, fallback) {
 :deep(.field-label) { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; }
 :deep(.req) { color: #c0392b; }
 :deep(.field-hint) { font-size: 0.72rem; color: #8a9a8a; }
+:deep(.field-error) { font-size: 0.72rem; color: #c0392b; font-weight: 600; }
+:deep(.field.invalid .nm-input) { border-color: #e0a3a3; background: #fffafa; }
+.step.err .step-dot { background: #fdecec; color: #a12525; }
+.foot-err { flex-basis: 100%; display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 0.78rem; font-weight: 600; color: #a12525; }
 .bp { display: flex; align-items: center; gap: 6px; }
 .bp span { color: #8a9a8a; }
 .computed { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px; }
@@ -689,11 +705,6 @@ function ncpError(e, fallback) {
 .goal { border: 1px solid #d5dad5; background: #fff; border-radius: 8px; padding: 9px 6px; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; cursor: pointer; }
 .goal.on { background: #14301a; border-color: #14301a; color: #fff; }
 
-:deep(.extra) { border-top: 1px dashed #e3e8e3; padding-top: 12px; margin-top: 4px; }
-:deep(.extra-head) { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-:deep(.extra-head .nm-panel-link) { display: inline-flex; align-items: center; gap: 3px; }
-:deep(.extra-row) { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 80px 28px; gap: 6px; margin-bottom: 6px; }
-:deep(.row-x) { border: none; background: none; color: #8a9a8a; cursor: pointer; }
 
 .missing { background: #fdf6e3; border: 1px solid #f0dca0; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #7a5a00; }
 .missing p { display: flex; gap: 6px; align-items: center; margin: 0 0 4px; font-weight: 600; }
@@ -736,6 +747,5 @@ function ncpError(e, fallback) {
   .ncp-foot { flex-direction: column-reverse; }
   .foot-right { width: 100%; }
   .foot-right > * { flex: 1; justify-content: center; }
-  :deep(.extra-row) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 </style>

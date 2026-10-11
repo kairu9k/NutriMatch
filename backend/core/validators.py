@@ -28,4 +28,9 @@ def validate_blood_pressure(value):
     value = value.replace(" ", "")
     if not _BLOOD_PRESSURE.match(value):
         raise serializers.ValidationError("Enter blood pressure as two numbers, e.g. 120/80.")
+    systolic, diastolic = (int(x) for x in value.split("/"))
+    if not (60 <= systolic <= 260 and 30 <= diastolic <= 160):
+        raise serializers.ValidationError("Blood pressure must be 60–260 over 30–160 mmHg.")
+    if diastolic >= systolic:
+        raise serializers.ValidationError("The first number (systolic) must be higher than the second.")
     return value

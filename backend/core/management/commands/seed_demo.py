@@ -544,8 +544,8 @@ class Command(BaseCommand):
             target_kcal=Decimal("1500"), target_protein_g=Decimal("75"), target_carb_g=Decimal("188"), target_fat_g=Decimal("50"),
             intervention_notes="Taught carb counting with the FNRI exchange lists.",
             intervention_extra=[
-                {"label": "Physical activity", "value": "30 brisk walking", "unit": "min/day"},
-                {"label": "Nutrition education topic", "value": "Carb counting with FNRI exchange lists", "unit": ""},
+                {"label": "Brisk walking", "value": "30", "unit": "min/day"},
+                {"label": "Rice per meal", "value": "1", "unit": "cups"},
             ],
             monitoring_notes="Baseline visit. Monitor FBS weekly and weight at next visit.",
             goal_status=NcpRecord.GoalStatus.ONGOING,

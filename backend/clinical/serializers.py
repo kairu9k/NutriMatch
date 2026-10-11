@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -84,14 +85,36 @@ class NcpDraftListSerializer(serializers.ModelSerializer):
         return f"{client.first_name} {client.last_name}"
 
 
-class NcpExtraFieldSerializer(serializers.Serializer):
-    """One RND-added row on the Assessment or Intervention form."""
+EXTRA_VALUE_RE = re.compile(r"^\d{1,6}(\.\d{1,3})?$")      # a measurement: 0–999999, up to 3 decimals
+EXTRA_UNIT_RE = re.compile(r"^[A-Za-zµ%/. ²³]*$")          # letters plus % / . (e.g. mg/dL, %, mmol/L)
 
-    # Blank labels are accepted here and dropped in NcpRecordSerializer.validate
-    # (an empty "+ Add Field" row the RND never filled in).
+
+class NcpExtraFieldSerializer(serializers.Serializer):
+    """One RND-added row ("Other measurements") on the Assessment or
+    Intervention form: a name, a number and a unit."""
+
+    # A row left completely blank is accepted here and dropped in
+    # NcpRecordSerializer.validate (an empty "+ Add" row never filled in).
     label = serializers.CharField(max_length=100, allow_blank=True)
-    value = serializers.CharField(max_length=500, allow_blank=True)
+    value = serializers.CharField(max_length=20, allow_blank=True)
     unit = serializers.CharField(max_length=30, allow_blank=True, required=False, default="")
+
+    def validate(self, attrs):
+        label, value, unit = attrs["label"].strip(), attrs["value"].strip(), (attrs.get("unit") or "").strip()
+        if not (label or value or unit):
+            return attrs
+        errors = {}
+        if not label:
+            errors["label"] = "Name the measurement."
+        if not value:
+            errors["value"] = "Enter the value."
+        elif not EXTRA_VALUE_RE.match(value):
+            errors["value"] = "Use a number only, e.g. 88 or 5.4."
+        if unit and not EXTRA_UNIT_RE.match(unit):
+            errors["unit"] = "Use letters only (% and / are fine), e.g. cm or mg/dL."
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
 
 
 class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
@@ -118,6 +141,22 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
         # status only changes through NcpRecordFinalizeView — never via a
         # plain PATCH, or a finalized record could be flipped back to draft.
         read_only_fields = ["bmi", "status"]
+        extra_kwargs = {f: {"max_length": n} for f, n in {
+            "lab_notes": 2000, "assessment_notes": 3000, "pes_problem": 200, "pes_etiology": 1000, "pes_signs": 1000,
+            "diet_prescription": 3000, "intervention_notes": 3000, "monitoring_notes": 3000,
+        }.items()}
+
+    # Adult clinical ranges (mirrored in frontend utils/ncp.js NCP_LIMITS).
+    RANGES = {
+        "height_cm": (Decimal("100"), Decimal("250"), "Height must be between 100 and 250 cm."),
+        "weight_kg": (Decimal("25"), Decimal("300"), "Weight must be between 25 and 300 kg."),
+        "blood_glucose": (Decimal("20"), Decimal("600"), "Fasting glucose must be between 20 and 600 mg/dL."),
+        "hba1c": (Decimal("3"), Decimal("20"), "HbA1c must be between 3 and 20%."),
+        "target_kcal": (Decimal("800"), Decimal("5000"), "Target kcal must be between 800 and 5000."),
+        "target_carb_g": (Decimal("0"), Decimal("1000"), "Carbs must be between 0 and 1000 g."),
+        "target_protein_g": (Decimal("0"), Decimal("500"), "Protein must be between 0 and 500 g."),
+        "target_fat_g": (Decimal("0"), Decimal("300"), "Fat must be between 0 and 300 g."),
+    }
 
     def get_is_follow_up(self, obj):
         return obj.is_follow_up()
@@ -128,6 +167,14 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
         # calculate_bmi/classify_bmi_asia_pacific used by the screening flow —
         # never trust a client-supplied BMI.
         from .services import calculate_bmi
+
+        errors = {}
+        for field, (low, high, msg) in self.RANGES.items():
+            v = attrs.get(field)
+            if v is not None and not low <= v <= high:
+                errors[field] = [msg]
+        if errors:
+            raise serializers.ValidationError(errors)
 
         # Extra rows: trim, drop rows with no label, cap how many can be added.
         for key in ("assessment_extra", "intervention_extra"):

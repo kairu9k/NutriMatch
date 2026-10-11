@@ -67,3 +67,40 @@ class NcpFlowTests(TestCase):
         other = approve_rnd(User.objects.create_user(email="x@n.ph", password="x", role="rnd", first_name="X", last_name="R"))
         self.api.force_authenticate(other)
         self.assertEqual(self.api.get(f"{self.url}context/").status_code, 404)
+
+
+class NcpLimitTests(TestCase):
+    def setUp(self):
+        self.rnd = approve_rnd(User.objects.create_user(email="r@l.ph", password="x", role="rnd", first_name="M", last_name="S"))
+        self.c = onboard_client(User.objects.create_user(email="c@l.ph", password="x", role="client", first_name="A", last_name="C"))
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.c, status="active")
+        self.api = APIClient()
+        self.api.force_authenticate(self.rnd)
+        self.url = f"/api/rnd/relationships/{self.rel.id}/ncp/"
+
+    def post(self, **fields):
+        return self.api.post(self.url, {"relationship": self.rel.id, "encounter_date": str(timezone.now().date()), **fields}, format="json")
+
+    def test_number_ranges(self):
+        for field, bad in [("height_cm", "40"), ("weight_kg", "650"), ("blood_glucose", "900"), ("hba1c", "25"), ("target_kcal", "200"), ("target_fat_g", "500")]:
+            resp = self.post(**{field: bad})
+            self.assertEqual(resp.status_code, 400, field)
+            self.assertIn(field, resp.data)
+
+    def test_blood_pressure_range_and_order(self):
+        self.assertIn("blood_pressure", self.post(blood_pressure="300/80").data)
+        self.assertIn("blood_pressure", self.post(blood_pressure="80/120").data)
+        self.assertEqual(self.post(blood_pressure="120/80").status_code, 201)
+
+    def test_text_limits(self):
+        self.assertIn("pes_etiology", self.post(pes_etiology="x" * 1001).data)
+
+    def test_other_measurements_number_and_unit(self):
+        bad_value = self.post(assessment_extra=[{"label": "Waist", "value": "eighty", "unit": "cm"}])
+        self.assertEqual(bad_value.status_code, 400)
+        bad_unit = self.post(assessment_extra=[{"label": "Waist", "value": "80", "unit": "cm2!"}])
+        self.assertEqual(bad_unit.status_code, 400)
+        no_name = self.post(assessment_extra=[{"label": "", "value": "80", "unit": "cm"}])
+        self.assertEqual(no_name.status_code, 400)
+        ok = self.post(assessment_extra=[{"label": "LDL", "value": "130.5", "unit": "mg/dL"}, {"label": "Body fat", "value": "32", "unit": "%"}])
+        self.assertEqual(ok.status_code, 201, ok.data)
