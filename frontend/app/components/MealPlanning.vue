@@ -1,7 +1,10 @@
 <template>
   <div class="meal-planning-page">
-    <!-- TOP CONTROLS -->
-    <div class="top-controls no-print">
+    <!-- TOP CONTROLS (once a patient is chosen) -->
+    <button v-if="selectedRelId && !isLoading" type="button" class="back-link no-print" @click="backToList">
+      <ChevronLeft :size="15" /> All patients
+    </button>
+    <div v-if="selectedRelId && !isLoading" class="top-controls no-print">
       <div class="mode-toggle">
         <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="mode = 'view'">
           <Eye :size="15" /> View Plans
@@ -28,6 +31,9 @@
       <p class="empty-title">No active patients yet</p>
       <p class="macro-note">Meal plans can be created once a client's first appointment is confirmed.</p>
     </div>
+
+    <!-- START: choose a patient (opening from the sidebar) -->
+    <MealPlanPatientList v-else-if="!selectedRelId" class="no-print" @pick="pickPatient" />
 
     <!-- ================= VIEW PLANS MODE ================= -->
     <div v-else-if="mode === 'view' && !selectedPlan" class="empty-state">
@@ -334,11 +340,12 @@
 
 <script setup>
 import {
-  Eye, Plus, ChevronDown, Printer, Pencil, Send, X, CheckCircle2,
+  Eye, Plus, ChevronDown, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
   Sun, Coffee, Utensils, Apple, Moon
 } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const { get, post, patch, put } = useApi()
 
 // Matches nutrition.MealPlan.Condition.
@@ -512,8 +519,10 @@ function discardChanges() {
 async function loadPatients() {
   const rels = await get('/rnd/relationships/active/')
   patients.value = rels.map(r => ({ id: r.id, name: `${r.client.first_name} ${r.client.last_name}` }))
+  // Only open a patient when the link names one (patient chart, dashboard);
+  // from the sidebar the page starts on the patient list.
   const requested = Number(route.query.relationship)
-  selectedRelId.value = patients.value.find(p => p.id === requested)?.id ?? patients.value[0]?.id ?? null
+  selectedRelId.value = patients.value.find(p => p.id === requested)?.id ?? null
 }
 
 async function loadPatientPlans() {
@@ -540,7 +549,22 @@ async function loadPatientPlans() {
   }
 }
 
+function pickPatient(id) {
+  router.push({ query: { ...route.query, relationship: id } })
+}
+function backToList() {
+  const { relationship, edit, ...rest } = route.query
+  router.push({ query: rest })
+}
+// The URL is the source of truth: ?relationship=<id> opens that patient,
+// no parameter shows the list (so Back works as expected).
+watch(() => route.query.relationship, (rel) => {
+  const id = patients.value.find(p => p.id === Number(rel))?.id ?? null
+  if (id !== selectedRelId.value) selectedRelId.value = id
+  if (!id) { selectedPlanId.value = null; mode.value = 'view' }
+})
 watch(selectedRelId, async (id, previous) => {
+  if (id && String(route.query.relationship) !== String(id)) router.replace({ query: { ...route.query, relationship: id } })
   if (!id || previous === undefined) return
   try {
     await loadPatientPlans()
@@ -788,6 +812,8 @@ function formatTime(t) {
 
 <style scoped>
 .top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; margin: 0 0 12px; font-family: inherit; font-size: 0.84rem; font-weight: 600; color: #1f6f46; cursor: pointer; }
+.back-link:hover { text-decoration: underline; }
 
 .mode-toggle { display: flex; gap: 10px; }
 .mode-btn {

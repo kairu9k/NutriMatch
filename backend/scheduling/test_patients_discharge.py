@@ -84,3 +84,25 @@ class PatientsAndDischargeTests(TestCase):
         self.rel.save()
         self.api.force_authenticate(self.rnd)
         self.assertEqual(self.api.post(f"/api/rnd/relationships/{self.rel.id}/discharge/", {"reason": "Not active yet here."}, format="json").status_code, 400)
+
+
+class MealPlanSummaryTests(TestCase):
+    def setUp(self):
+        self.rnd = approve_rnd(User.objects.create_user(email="r@m.ph", password="x", role="rnd", first_name="M", last_name="S"))
+        c = onboard_client(User.objects.create_user(email="c@m.ph", password="x", role="client", first_name="A", last_name="C"))
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=c, status="active")
+        self.api = APIClient()
+        self.api.force_authenticate(self.rnd)
+
+    def _mp(self):
+        return self.api.get("/api/rnd/patients/").data[0]["meal_plan"]
+
+    def test_ready_plan_and_outdated(self):
+        self.assertEqual(self._mp(), {"ready": False, "plan": None, "outdated": False})
+        today = timezone.now().date()
+        NcpRecord.objects.create(relationship=self.rel, status="completed", encounter_date=today - timedelta(days=20), diet_prescription="1500 kcal")
+        self.assertTrue(self._mp()["ready"])
+        MealPlan.objects.create(relationship=self.rel, name="P", status="active", sent_at=timezone.now() - timedelta(days=10))
+        self.assertEqual((self._mp()["plan"]["status"], self._mp()["outdated"]), ("active", False))
+        NcpRecord.objects.create(relationship=self.rel, status="completed", encounter_date=today, diet_prescription="1400 kcal")
+        self.assertTrue(self._mp()["outdated"])

@@ -14,6 +14,27 @@ from .models import Appointment, RndClientRelationship
 from .patient_insights import CareData, ph_tz
 
 
+def meal_plan_summary(care, rel):
+    """For the Meal Planning patient list: the current plan (active, else the
+    newest draft), whether a plan can be made yet (an NCP record has its
+    Intervention — same rule as Client Detail), and whether a newer finalized
+    NCP record means the plan's targets may be out of date."""
+    plans = care.plans.get(rel.id, [])
+    plan = care.active_plans.get(rel.id) or next((p for p in plans if p.status == "draft"), None)
+    recs = care.ncp.get(rel.id, [])
+    ready = any((r.diet_prescription or "").strip() or r.target_kcal for r in recs)
+    outdated = bool(plan and plan.status == "active" and plan.sent_at and any(
+        r.status == "completed" and r.encounter_date > plan.sent_at.astimezone(care.ph).date() for r in recs))
+    return {
+        "ready": ready,
+        "plan": {
+            "id": plan.id, "name": plan.name, "status": plan.status, "sent_at": plan.sent_at,
+            "updated_at": plan.updated_at, "target_kcal": float(plan.target_kcal) if plan.target_kcal is not None else None,
+        } if plan else None,
+        "outdated": outdated,
+    }
+
+
 def build_patient_rows(rnd, now=None, rel_id=None, care=None):
     """All the RND's patients, or just one (`rel_id`). Returns rows and the CareData used."""
     from billing.services import appointment_invoice
@@ -75,6 +96,7 @@ def build_patient_rows(rnd, now=None, rel_id=None, care=None):
             "unread_messages": unread.get(rel.id, 0),
             "alerts": [{"level": a["level"], "kind": a["kind"], "title": a["title"], "link": a["link"], "action": a["action"]}
                        for a in care.alerts(rel)],
+            "meal_plan": meal_plan_summary(care, rel),
         })
     return rows, care
 
