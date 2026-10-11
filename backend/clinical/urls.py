@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .ncp_context import NcpContextView
+from .ncp_overview import NcpOverviewView
 from .views import (
     ClientProgressRecordListView,
     LatestScreeningView,
@@ -24,6 +25,7 @@ urlpatterns = [
     path("rnd/relationships/<int:relationship_id>/ncp/", NcpRecordListCreateView.as_view(), name="ncp_list_create"),
     path("rnd/relationships/<int:relationship_id>/ncp/context/", NcpContextView.as_view(), name="ncp_context"),
     path("rnd/ncp/drafts/", RndNcpDraftListView.as_view(), name="rnd_ncp_drafts"),
+    path("rnd/ncp/overview/", NcpOverviewView.as_view(), name="rnd_ncp_overview"),
     path("rnd/ncp/<int:pk>/", NcpRecordDetailView.as_view(), name="ncp_detail"),
     path("rnd/ncp/<int:pk>/finalize/", NcpRecordFinalizeView.as_view(), name="ncp_finalize"),
 

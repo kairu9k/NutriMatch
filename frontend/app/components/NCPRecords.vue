@@ -1,259 +1,219 @@
 <template>
-  <div class="ncp-page">
-    <div v-if="loadError" class="form-error">{{ loadError }}</div>
+  <div class="nm-page">
+    <p class="nm-page-sub">Every NCP record across your patients. Records are written and edited on each patient's chart; this page is for reviewing and printing.</p>
+    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+    <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading NCP records…</p></div>
 
-    <div class="toolbar">
-      <div class="search-box-wide">
-        <Search :size="16" class="search-icon" />
-        <input v-model="search" type="text" placeholder="Search by patient name....." />
-      </div>
-      <select v-model="statusFilter" class="filter-select">
-        <option value="All Status">All Status</option>
-        <option>Finalized</option>
-        <option>In Progress</option>
-      </select>
-      <button class="new-record-btn" @click="openPatientPicker">
-        <Plus :size="15" /> New NCP Record
-      </button>
-    </div>
-
-    <div class="history-section">
-      <h3 class="history-title">NCP Records</h3>
-      <div class="table-wrap">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>PATIENT</th>
-              <th>RECORD</th>
-              <th>PHASE</th>
-              <th>CREATED</th>
-              <th>STATUS</th>
-              <th class="actions-col">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="h in filteredRecords" :key="h.id">
-              <td class="patient-cell">
-                <div class="history-avatar">{{ h.initials }}</div>
-                <p class="history-name">{{ h.client_name }}</p>
-              </td>
-              <td>{{ h.is_follow_up ? 'Follow-up' : 'Initial' }}</td>
-              <td>{{ h.phaseLabel }}</td>
-              <td>{{ formatDateTime(h.created_at) }}</td>
-              <td><span class="status-pill" :class="h.status === 'completed' ? 'pill-green' : 'pill-gold'">{{ h.displayStatus }}</span></td>
-              <td class="actions-col">
-                <NcpRowActions :record="h" :patient-name="h.client_name" @view="openRecord(h)" @edit="editRecord(h)" @deleted="onDeleted" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-if="isLoading" class="empty-note table-empty">Loading…</p>
-        <p v-else-if="!filteredRecords.length" class="empty-note table-empty">No NCP records match your filters yet.</p>
-      </div>
-    </div>
-
-    <!-- PATIENT PICKER for "New NCP Record" -->
-    <div v-if="showPicker" class="modal-overlay" @click.self="showPicker = false">
-      <div class="picker-box">
-        <h2 class="picker-title">New NCP Record</h2>
-        <p class="picker-sub">Choose the patient this record is for.</p>
-        <p v-if="!patients.length" class="empty-note">You have no active patients yet.</p>
-        <button v-for="p in patients" :key="p.id" class="picker-row" @click="startRecord(p)">
-          <span class="history-avatar">{{ initialsFor(p.name) }}</span>
-          <span class="picker-name">{{ p.name }}</span>
-          <span v-if="draftByRelationship[p.id]" class="status-pill pill-gold">Continue unfinished</span>
+    <template v-else-if="data">
+      <!-- SUMMARY (click to filter the worklist / list) -->
+      <div class="summary">
+        <button v-for="s in SUMMARY" :key="s.key" type="button" class="sum-item" :class="{ attn: s.attn && data.summary[s.key], on: focus === s.key }" @click="toggleFocus(s.key)">
+          <strong>{{ data.summary[s.key] }}</strong><span>{{ s.label }}</span>
         </button>
-        <button class="picker-cancel" @click="showPicker = false">Cancel</button>
       </div>
-    </div>
 
-    <!-- The record form (shared with Client Detail's NCP Records tab) -->
-    <NcpRecordModal
-      v-if="modal"
-      :key="`${modal.mode}-${modal.relationshipId}-${modal.recordId}`"
-      :relationship-id="modal.relationshipId"
-      :patient-name="modal.patientName"
-      :mode="modal.mode"
-      :record-id="modal.recordId"
-      @close="modal = null"
-      @changed="loadRecords"
-      @continue="modal = { ...modal, mode: 'edit', recordId: null }"
-    />
+      <!-- NEEDS YOUR ATTENTION -->
+      <section v-if="worklistCount" class="nm-panel">
+        <div class="nm-panel-head">
+          <div>
+            <h2 class="nm-panel-title">Needs your attention</h2>
+            <p class="nm-panel-sub">Patients at nutritional risk (NRS-2002 ≥ 3) are listed first. A follow-up is due {{ data.follow_up_days }} days after the last finalized record, or after a consultation with no record.</p>
+          </div>
+        </div>
+        <template v-for="grp in worklistGroups" :key="grp.key">
+          <div v-if="grp.items.length && (!focus || focus === grp.key || focus === 'finalized_this_month')" class="wl-group">
+            <p class="wl-label">{{ grp.label }} <span>{{ grp.items.length }}</span></p>
+            <div v-for="w in grp.items" :key="`${grp.key}-${w.relationship_id}`" class="wl-row">
+              <Avatar :p="w.patient" />
+              <div class="wl-main">
+                <p class="nm-row-title">
+                  {{ w.patient.name }}
+                  <span v-if="(w.nrs_score ?? 0) >= 3" class="nm-pill red">NRS-2002 {{ w.nrs_score }} · at risk</span>
+                </p>
+                <p class="nm-row-sub">{{ grp.detail(w) }}</p>
+              </div>
+              <NuxtLink :to="grp.link(w)" class="nm-btn-sm" :class="grp.key === 'drafts' ? 'nm-btn-dark' : 'nm-btn-outline'">{{ grp.action }}</NuxtLink>
+            </div>
+          </div>
+        </template>
+      </section>
+      <section v-else class="nm-panel all-clear"><CheckCircle2 :size="16" /> Every active patient's NCP is up to date.</section>
+
+      <!-- ALL RECORDS -->
+      <section class="nm-panel">
+        <div class="nm-panel-head">
+          <div>
+            <h2 class="nm-panel-title">All records</h2>
+            <p class="nm-panel-sub">{{ shown.length }} of {{ data.records.length }}</p>
+          </div>
+        </div>
+        <div class="nm-toolbar">
+          <label class="nm-search">
+            <Search :size="16" />
+            <input v-model="search" type="search" placeholder="Search patient or diagnosis" aria-label="Search records" />
+          </label>
+          <div class="filters">
+            <select v-model="status" class="nm-select" aria-label="Status">
+              <option value="">All statuses</option><option value="completed">Finalized</option><option value="draft">Drafts</option>
+            </select>
+            <select v-model="kind" class="nm-select" aria-label="Record type">
+              <option value="">Initial &amp; follow-up</option><option value="initial">Initial</option><option value="follow">Follow-up</option>
+            </select>
+            <select v-model="goal" class="nm-select" aria-label="Goal status">
+              <option value="">Any goal status</option>
+              <option v-for="(l, v) in GOALS" :key="v" :value="v">{{ l }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div v-if="!data.records.length" class="nm-empty"><ClipboardList :size="26" /><p>No NCP records yet. Start one from a patient's chart.</p></div>
+        <p v-else-if="!shown.length" class="nm-muted">No records match these filters.</p>
+        <div class="cards">
+          <button v-for="r in shown" :key="r.id" type="button" class="card" :class="r.status" @click="open = r">
+            <div class="card-top">
+              <Avatar :p="r.patient" />
+              <div class="card-who">
+                <p class="nm-row-title">{{ r.patient.name }}</p>
+                <p class="nm-row-sub">{{ r.is_follow_up ? `Follow-up #${r.follow_up_no}` : 'Initial record' }} · {{ shortDate(r.encounter_date) }}</p>
+              </div>
+              <span class="nm-pill" :class="r.status === 'completed' ? 'green' : 'gold'">{{ r.status === 'completed' ? 'Finalized' : 'Draft' }}</span>
+            </div>
+            <p class="dx" :class="{ empty: !r.pes_problem }">{{ r.pes_problem || 'No diagnosis yet' }}</p>
+            <div class="card-meta">
+              <span v-if="r.target_kcal"><Flame :size="13" /> {{ Math.round(r.target_kcal).toLocaleString('en-PH') }} kcal/day</span>
+              <span v-if="r.goal_status_label"><Target :size="13" /> Goals: {{ r.goal_status_label }}</span>
+              <span v-if="r.status === 'draft' && r.missing.length" class="miss">Missing {{ r.missing.length }}</span>
+            </div>
+          </button>
+        </div>
+      </section>
+    </template>
+
+    <NcpRecordSummary v-if="open" :row="open" :rnd="data?.rnd" @close="open = null" />
   </div>
 </template>
 
 <script setup>
-// NCP Records (sidebar): every NCP record across the RND's patients.
-// Each row has View / Edit / Delete (NcpRowActions — edit/delete only for
-// unfinished drafts); new records are started here (pick
-// a patient) or from that patient's Client Detail → NCP Records tab. The
-// per-patient view lives on Client Detail now — old ?relationship= links
-// are forwarded there.
-import { computed, onMounted, ref } from 'vue'
-import { Plus, Search } from 'lucide-vue-next'
-
-definePageMeta({ layout: 'dashboard', title: 'NCP Records' })
+// NCP Records (sidebar) — view only. A worklist of who needs an NCP record
+// (drafts, patients with none, follow-ups due) linking to the patient chart,
+// and every record as a card; clicking one opens a read-only summary that
+// can be printed. Writing/editing happens on Client Detail (and the room).
+// Old per-patient links (?relationship=) are forwarded to the chart.
+import { CheckCircle2, ClipboardList, Flame, Search, Target } from 'lucide-vue-next'
 
 const route = useRoute()
 const { get } = useApi()
 
-const records = ref([])
-const isLoading = ref(true)
-const loadError = ref('')
+const data = ref(null)
+const loading = ref(true)
+const error = ref('')
+const open = ref(null)
 const search = ref('')
-const statusFilter = ref('All Status')
-const modal = ref(null) // { relationshipId, recordId, patientName, mode }
+const status = ref('')
+const kind = ref('')
+const goal = ref('')
+const focus = ref(null)
 
-const PHASES = ['Assessment', 'Diagnosis', 'Intervention', 'Monitoring']
-function phaseLabelFor(r) {
-  if (r.status === 'completed') return r.is_follow_up ? 'Monitoring' : 'Intervention'
-  const done = [!!(r.weight_kg && r.height_cm), !!r.pes_problem, !!r.diet_prescription]
-  const next = done.findIndex(d => !d)
-  return next === -1 ? (r.is_follow_up ? 'Monitoring' : 'Intervention') : PHASES[next]
-}
-function initialsFor(name) {
-  return (name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-}
-function formatDateTime(iso) {
-  return iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
-}
-
-const filteredRecords = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  return records.value
-    .map(r => ({
-      ...r,
-      initials: initialsFor(r.client_name),
-      phaseLabel: phaseLabelFor(r),
-      displayStatus: r.status === 'completed' ? 'Finalized' : 'In Progress',
-    }))
-    .filter(r => (!q || r.client_name.toLowerCase().includes(q))
-      && (statusFilter.value === 'All Status' || r.displayStatus === statusFilter.value))
-})
-const draftByRelationship = computed(() =>
-  Object.fromEntries(records.value.filter(r => r.status === 'draft').map(r => [r.relationship_id, r]))
-)
-
-async function loadRecords() {
-  loadError.value = ''
+async function load() {
+  error.value = ''
   try {
-    records.value = await get('/rnd/ncp/drafts/?status=all')
+    data.value = await get('/rnd/ncp/overview/')
   } catch {
-    loadError.value = 'Could not load your NCP records. Please try again later.'
+    error.value = 'Could not load your NCP records.'
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
 }
-
-function openRecord(r) {
-  modal.value = { relationshipId: r.relationship_id, recordId: r.id, patientName: r.client_name, mode: 'view' }
-}
-// A patient has at most one draft, and edit mode opens that draft.
-function editRecord(r) {
-  modal.value = { relationshipId: r.relationship_id, recordId: null, patientName: r.client_name, mode: 'edit' }
-}
-function onDeleted(r) {
-  records.value = records.value.filter(x => x.id !== r.id)
-}
-
-/* ---------- New NCP Record: pick a patient ---------- */
-const showPicker = ref(false)
-const patients = ref([])
-async function openPatientPicker() {
-  showPicker.value = true
-  try {
-    const rels = await get('/rnd/relationships/active/')
-    patients.value = rels.map(r => ({ id: r.id, name: `${r.client.first_name} ${r.client.last_name}` }))
-  } catch {
-    patients.value = []
-  }
-}
-function startRecord(p) {
-  showPicker.value = false
-  modal.value = { relationshipId: p.id, recordId: null, patientName: p.name, mode: 'edit' }
-}
-
 onMounted(() => {
-  // Old per-patient links (/ncp-records?relationship=<id>) → Client Detail.
   if (route.query.relationship) {
     navigateTo(`/client-detail/${route.query.relationship}?tab=ncp`, { replace: true })
     return
   }
-  loadRecords()
+  load()
+})
+
+const SUMMARY = [
+  { key: 'drafts', label: 'drafts in progress', attn: true },
+  { key: 'no_record', label: 'need an initial record', attn: true },
+  { key: 'follow_up_due', label: 'follow-ups due', attn: true },
+  { key: 'finalized_this_month', label: 'finalized this month' },
+]
+function toggleFocus(k) {
+  focus.value = focus.value === k ? null : k
+  if (k === 'finalized_this_month') { status.value = focus.value ? 'completed' : '' }
+}
+const GOALS = { met: 'Met', partially_met: 'Partially met', not_met: 'Not met', ongoing: 'Ongoing' }
+const chart = (id, extra = '') => `/client-detail/${id}?tab=ncp${extra}`
+const worklistGroups = computed(() => {
+  const w = data.value.worklist
+  return [
+    { key: 'drafts', label: 'Drafts in progress', items: w.drafts, action: 'Continue in chart', link: x => chart(x.relationship_id, '&open=draft'),
+      detail: x => `${x.is_follow_up ? `Follow-up #${x.follow_up_no}` : 'Initial record'} · edited ${dateTime(x.updated_at)}${x.missing.length ? ` · missing ${x.missing.join(', ')}` : ' · ready to finalize'}` },
+    { key: 'no_record', label: 'No NCP record yet', items: w.no_record, action: 'Open chart', link: x => chart(x.relationship_id),
+      detail: x => `Screening ${x.screening_date ? shortDate(x.screening_date) : '—'}${x.nrs_risk ? ` · ${x.nrs_risk}` : ''}` },
+    { key: 'follow_up_due', label: 'Follow-up due', items: w.follow_up_due, action: 'Open chart', link: x => chart(x.relationship_id),
+      detail: x => `${x.reason} · last record ${shortDate(x.last_record_date)}` },
+  ]
+})
+const worklistCount = computed(() => worklistGroups.value.reduce((n, g) => n + g.items.length, 0))
+
+const shown = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return data.value.records.filter(r =>
+    (!status.value || r.status === status.value)
+    && (!kind.value || (kind.value === 'follow') === r.is_follow_up)
+    && (!goal.value || r.goal_status === goal.value)
+    && (!q || r.patient.name.toLowerCase().includes(q) || (r.pes_problem || '').toLowerCase().includes(q)))
+})
+
+const Avatar = defineComponent({
+  props: { p: Object },
+  setup(props) {
+    return () => props.p.profile_photo
+      ? h('img', { src: props.p.profile_photo, class: 'nm-avatar', alt: '' })
+      : h('span', { class: 'nm-avatar' }, (props.p.name || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase())
+  },
 })
 </script>
 
 <style scoped>
-* { box-sizing: border-box; }
+.nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0 0 16px; }
+.nm-page > .nm-panel { margin-bottom: 16px; }
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.sum-item { background: #fff; border: 1px solid #eceeec; border-radius: 12px; padding: 12px 14px; display: flex; align-items: baseline; gap: 8px; min-width: 0; cursor: pointer; font-family: inherit; text-align: left; }
+.sum-item strong { font-size: 1.35rem; color: #1a3a1a; font-variant-numeric: tabular-nums; }
+.sum-item span { font-size: 0.8rem; color: #6a7a6a; }
+.sum-item.attn { border-color: #f0dca0; background: #fffaf0; }
+.sum-item.attn strong { color: #8a6a00; }
+.sum-item.on { box-shadow: 0 0 0 2px #14301a; }
+.all-clear { display: flex; align-items: center; gap: 8px; color: #1f6f46; font-weight: 600; font-size: 0.88rem; }
 
-.ncp-page { font-family: 'Inter', sans-serif; }
+.wl-group + .wl-group { margin-top: 14px; }
+.wl-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 2px; }
+.wl-label span { color: #b0bab0; margin-left: 4px; }
+.wl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
+.wl-label + .wl-row { border-top: none; }
+.wl-main { flex: 1; min-width: 180px; }
+.wl-main .nm-row-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.form-error {
-  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
-}
-.empty-note { font-size: 0.85rem; color: #9aaa9a; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.card { text-align: left; font-family: inherit; background: #fff; border: 1px solid #eceeec; border-radius: 12px; padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: border-color 0.15s, box-shadow 0.15s; }
+.card:hover, .card:focus-visible { border-color: #c7d6ca; box-shadow: 0 4px 14px rgba(20, 48, 26, 0.06); outline: none; }
+.card.draft { border-left: 3px solid #D4A017; }
+.card.completed { border-left: 3px solid #1f8f5c; }
+.card-top { display: flex; align-items: center; gap: 10px; }
+.card-who { flex: 1; min-width: 0; }
+.dx { margin: 0; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; line-height: 1.4; }
+.dx.empty { color: #9aaa9a; font-weight: 500; font-style: italic; }
+.card-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.76rem; color: #6a7a6a; }
+.card-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.card-meta .miss { color: #9a6a00; font-weight: 600; }
 
-.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.search-box-wide {
-  flex: 1; min-width: 220px; display: flex; align-items: center; gap: 10px; background: #fff;
-  border: 1.0px solid #a8b3a8; border-radius: 10px; padding: 11px 16px;
-}
-.search-box-wide input { border: none; background: none; outline: none; font-size: 0.85rem; width: 100%; color: #4a5a4a; }
-.search-icon { color: #9aaa9a; flex-shrink: 0; }
-.filter-select { border: 1px solid #e5e8e5; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; color: #4a5a4a; background: #fff; cursor: pointer; }
-.new-record-btn {
-  display: flex; align-items: center; gap: 6px; background: #14301a; color: #fff; border: none;
-  border-radius: 8px; padding: 11px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
-}
-
-.history-section { margin-top: 8px; }
-.history-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 14px; }
-.table-wrap { background: #fff; border-radius: 14px; border: 1px solid #eceeec; overflow-x: auto; }
-.history-table { width: 100%; border-collapse: collapse; }
-.history-table th { text-align: left; font-size: 0.7rem; letter-spacing: 0.05em; color: #9aaa9a; font-weight: 700; padding: 14px 16px 10px; border-bottom: 1px solid #eceeec; }
-.history-table td { padding: 14px 16px; border-bottom: 1px solid #f2f4f2; font-size: 0.86rem; color: #2a2a2a; }
-.history-table tr:last-child td { border-bottom: none; }
-.history-table td { white-space: nowrap; }
-.actions-col { text-align: right; width: 1%; }
-
-@media (max-width: 640px) {
-  .table-wrap { padding: 0 16px; }
-  .history-table thead { display: none; }
-  .history-table, .history-table tbody { display: block; }
-  .history-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px 0; border-bottom: 1px solid #f2f4f2; }
-  .history-table tr:last-child { border-bottom: none; }
-  .history-table td { padding: 0; border: none; white-space: nowrap; font-size: 0.82rem; }
-  .history-table td.actions-col { width: 100%; margin-top: 6px; }
-  .history-table td.actions-col :deep(.ncp-actions) { justify-content: flex-start; }
-  .history-table td.patient-cell { width: 100%; }
-}
-.patient-cell { display: flex; align-items: center; gap: 10px; }
-.history-avatar {
-  width: 30px; height: 30px; border-radius: 50%; background: #eceeec; color: #4a5a4a; display: flex;
-  align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
-}
-.history-name { font-weight: 700; color: #1a3a1a; margin: 0; }
-.status-pill { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
-.pill-green { background: #e3f3ea; color: #1f8f5c; }
-.pill-gold { background: #fdf1d6; color: #b8860b; }
-.table-empty { padding: 40px 16px; text-align: center; margin: 0; }
-
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(20,30,20,0.5);
-  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
-}
-.picker-box { background: #fff; border-radius: 16px; width: 100%; max-width: 420px; max-height: 80vh; overflow-y: auto; padding: 24px; }
-.picker-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 4px; }
-.picker-sub { font-size: 0.82rem; color: #8a9a8a; margin: 0 0 16px; }
-.picker-row {
-  display: flex; align-items: center; gap: 10px; width: 100%; background: #fff; border: 1px solid #eceeec;
-  border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; text-align: left;
-}
-.picker-row:hover { background: #f7f9f7; border-color: #d5dad5; }
-.picker-name { flex: 1; font-weight: 600; color: #1a3a1a; font-size: 0.88rem; }
-.picker-cancel {
-  width: 100%; margin-top: 8px; border: 1px solid #d5dad5; background: #fff; color: #4a5a4a;
-  border-radius: 8px; padding: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+@media (max-width: 760px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filters, .filters select { width: 100%; }
+  .filters select { flex: 1; min-width: 0; }
+  .wl-row .nm-btn-sm { margin-left: 50px; }
 }
 </style>

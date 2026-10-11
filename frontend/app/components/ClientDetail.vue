@@ -490,7 +490,16 @@ async function load() {
   }
 }
 const refresh = load
-onMounted(load)
+onMounted(async () => {
+  await load()
+  // "Continue in chart" (NCP Records page) lands here with ?open=draft.
+  if (route.query.open === 'draft' && s.value?.patient.status === 'active') {
+    tab.value = 'ncp'
+    openNcpForm()
+    const { open, ...rest } = route.query
+    router.replace({ query: rest })
+  }
+})
 
 /* ---------- tabs (?tab= deep links from other pages) ---------- */
 const TAB_KEYS = ['overview', 'ncp', 'meal', 'progress', 'appointments', 'reminders']
