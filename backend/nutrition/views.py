@@ -196,9 +196,12 @@ class RndMealPlanWeekView(APIView):
                         food_item=item.get("food_item"),
                         food_name=item["food_name"].strip(),
                         source_type=(
-                            MealPlanFoodItem.SourceType.FEL if item.get("food_item")
+                            MealPlanFoodItem.SourceType.USDA if item.get("source_type") == "usda"
+                            else MealPlanFoodItem.SourceType.FEL if item.get("food_item")
                             else MealPlanFoodItem.SourceType.CUSTOM
                         ),
+                        external_food_id=item.get("external_food_id") or None,
+                        grams=item.get("grams"),
                         household_measure=item.get("household_measure") or None,
                         exchanges=item.get("exchanges") or Decimal("1.0"),
                         kcal=item.get("kcal"),

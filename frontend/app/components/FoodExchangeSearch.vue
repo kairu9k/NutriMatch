@@ -1,16 +1,46 @@
 <template>
   <div class="search-page">
     <div class="page-header">
-      <p class="page-sub">Search the FNRI Food Exchange List to build evidence-based meal plans.</p>
+      <p class="page-sub">{{ source === 'usda' ? 'Search USDA FoodData Central for foods the FNRI list doesn\'t have. Values are per 100 g.' : 'Search the FNRI Food Exchange List to build evidence-based meal plans.' }}</p>
+    </div>
+
+    <div class="source-tabs" role="tablist" aria-label="Food source">
+      <button type="button" role="tab" class="source-tab" :class="{ on: source === 'fnri' }" :aria-selected="source === 'fnri'" @click="source = 'fnri'">FNRI Food Exchange List</button>
+      <button type="button" role="tab" class="source-tab" :class="{ on: source === 'usda' }" :aria-selected="source === 'usda'" @click="source = 'usda'">USDA FoodData Central</button>
     </div>
 
     <div class="search-wrap">
       <Search :size="16" class="search-icon" />
-      <input v-model="search" type="text" class="search-input" placeholder="Search foods (e.g. banana, bangus)..." />
+      <input v-model="search" type="text" class="search-input" :placeholder="source === 'usda' ? 'Search USDA foods (e.g. oatmeal, salmon, quinoa)...' : 'Search foods (e.g. banana, bangus)...'" />
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
+    <!-- USDA -->
+    <template v-if="source === 'usda'">
+      <p v-if="usdaError" class="form-error">{{ usdaError }}</p>
+      <p v-else-if="usdaLoading" class="placeholder-text">Searching USDA…</p>
+      <p v-else-if="search.trim().length < 2" class="placeholder-text">Type at least 2 letters to search.</p>
+      <p v-else-if="!usdaResults.length" class="empty-text">No USDA foods match "{{ search.trim() }}".</p>
+      <div v-else class="item-grid">
+        <div v-for="f in usdaResults" :key="f.fdc_id" class="item-card">
+          <div class="item-top">
+            <span class="category-pill usda-pill">USDA · {{ f.data_type }}</span>
+          </div>
+          <h3 class="item-name">{{ f.name }}</h3>
+          <p class="item-measure">Per 100 g · FDC #{{ f.fdc_id }}</p>
+          <div class="macro-row">
+            <div><span>kcal</span><strong>{{ fmt(f.per_100g.kcal) }}</strong></div>
+            <div><span>Carbs</span><strong>{{ fmt(f.per_100g.carbs_g) }} g</strong></div>
+            <div><span>Protein</span><strong>{{ fmt(f.per_100g.protein_g) }} g</strong></div>
+            <div><span>Fat</span><strong>{{ fmt(f.per_100g.fat_g) }} g</strong></div>
+          </div>
+          <p class="item-notes">{{ minerals(f.per_100g) }}</p>
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
     <div v-if="categories.length" class="filter-row">
       <div class="category-select-wrap">
         <select v-model="categorySelectValue" class="nm-select category-select">
@@ -63,6 +93,7 @@
       <p class="empty-title">No food exchange data yet</p>
       <p class="empty-desc">Ask an admin to run the seed data command to load the FNRI Food Exchange List.</p>
     </div>
+    </template>
   </div>
 </template>
 
@@ -126,6 +157,41 @@ async function loadData() {
 }
 
 onMounted(loadData)
+
+/* ---------- USDA FoodData Central (GET /api/usda/foods/?q=) ---------- */
+const source = ref('fnri')
+const usdaResults = ref([])
+const usdaLoading = ref(false)
+const usdaError = ref('')
+let usdaTimer = null
+let usdaSeq = 0
+watch([search, source], () => {
+  clearTimeout(usdaTimer)
+  if (source.value !== 'usda') return
+  const term = search.value.trim()
+  usdaError.value = ''
+  if (term.length < 2) { usdaResults.value = []; return }
+  usdaTimer = setTimeout(async () => {
+    const mine = ++usdaSeq
+    usdaLoading.value = true
+    try {
+      const data = await get(`/usda/foods/?q=${encodeURIComponent(term)}`)
+      if (mine === usdaSeq) usdaResults.value = data.results
+    } catch (e) {
+      if (mine === usdaSeq) { usdaResults.value = []; usdaError.value = e?.data?.detail || 'USDA search is unavailable right now.' }
+    } finally {
+      if (mine === usdaSeq) usdaLoading.value = false
+    }
+  }, 400)
+})
+function fmt(v) { return v == null ? '—' : Math.round(v * 10) / 10 }
+function minerals(p) {
+  const parts = [
+    p.fiber_g != null && `Fiber ${fmt(p.fiber_g)} g`, p.sodium_mg != null && `Sodium ${fmt(p.sodium_mg)} mg`,
+    p.potassium_mg != null && `Potassium ${fmt(p.potassium_mg)} mg`, p.phosphorus_mg != null && `Phosphorus ${fmt(p.phosphorus_mg)} mg`,
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
 </script>
 
 <style scoped>
@@ -149,6 +215,14 @@ onMounted(loadData)
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+
+.source-tabs { display: inline-flex; gap: 4px; background: #eef1ee; border-radius: 10px; padding: 4px; margin-bottom: 16px; max-width: 100%; }
+.source-tab { border: none; background: none; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: #5a6a5a; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+.source-tab.on { background: #fff; color: #1a3a1a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+.usda-pill { background: #eef1f8; color: #34508a; }
+.macro-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: #f7f9f7; border-radius: 10px; padding: 8px 10px; }
+.macro-row span { display: block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a9a8a; }
+.macro-row strong { font-size: 0.86rem; color: #1a3a1a; }
 
 .filter-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .category-select-wrap { position: relative; }
@@ -208,5 +282,7 @@ onMounted(loadData)
   .filter-row { align-items: stretch; }
   .category-select-wrap, .category-select { width: 100%; min-width: 0; }
   .item-card { padding: 16px; }
+  .source-tabs { display: flex; }
+  .source-tab { flex: 1; padding: 8px 6px; }
 }
 </style>

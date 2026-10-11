@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from core.validators import NonNegativeNumbersMixin
@@ -42,9 +44,20 @@ class MealPlanFoodItemSerializer(NonNegativeNumbersMixin, serializers.ModelSeria
         fields = [
             "id", "meal_plan_meal", "food_item", "food_name", "source_type",
             "external_food_id", "exchanges", "household_measure", "notes",
-            "kcal", "carbs_g", "protein_g", "fat_g",
+            "kcal", "carbs_g", "protein_g", "fat_g", "grams",
         ]
         read_only_fields = ["meal_plan_meal"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # USDA foods: kcal/macros are computed live, never stored (RA 10173).
+        if instance.source_type == MealPlanFoodItem.SourceType.USDA:
+            from .usda import item_nutrients
+
+            per_100g, values = item_nutrients(instance)
+            data.update(values)
+            data["usda_per_100g"] = per_100g
+        return data
 
 
 class MealPlanMealSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
@@ -151,12 +164,31 @@ class MealPlanSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
 class WeekFoodItemSerializer(serializers.Serializer):
     food_item = serializers.PrimaryKeyRelatedField(queryset=FoodExchangeItem.objects.all(), required=False, allow_null=True)
     food_name = serializers.CharField(max_length=255)
+    # USDA foods: source_type "usda" + the FDC id + grams; kcal/macros sent
+    # for them are ignored (computed live, see nutrition/usda.py).
+    source_type = serializers.ChoiceField(choices=["fel", "custom", "usda"], required=False)
+    external_food_id = serializers.RegexField(r"^\d{1,12}$", required=False, allow_null=True, allow_blank=True)
+    grams = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True)
     household_measure = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
     exchanges = serializers.DecimalField(max_digits=4, decimal_places=1, required=False, min_value=0)
     kcal = serializers.DecimalField(max_digits=7, decimal_places=1, required=False, allow_null=True, min_value=0)
     carbs_g = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True, min_value=0)
     protein_g = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True, min_value=0)
     fat_g = serializers.DecimalField(max_digits=6, decimal_places=1, required=False, allow_null=True, min_value=0)
+
+    def validate(self, attrs):
+        if attrs.get("source_type") == "usda":
+            from .usda import MAX_GRAMS
+
+            if not attrs.get("external_food_id"):
+                raise serializers.ValidationError({"external_food_id": "A USDA food needs its FoodData Central id."})
+            grams = attrs.get("grams")
+            if grams is None or not Decimal("1") <= grams <= MAX_GRAMS:
+                raise serializers.ValidationError({"grams": f"Enter the portion in grams (1–{MAX_GRAMS:.0f})."})
+            attrs.update(food_item=None, kcal=None, carbs_g=None, protein_g=None, fat_g=None)
+        else:
+            attrs.update(external_food_id=None, grams=None)
+        return attrs
 
 
 class WeekMealSerializer(serializers.Serializer):

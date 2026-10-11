@@ -262,3 +262,8 @@ PAYMONGO = {
     'BASE_URL': config('PAYMONGO_BASE_URL', default='https://api.paymongo.com/v1'),
     'TIMEOUT': config('PAYMONGO_TIMEOUT', default=30, cast=int),
 }
+
+# USDA FoodData Central (nutrition/usda.py), the second food source beside
+# FNRI. Free key: https://fdc.nal.usda.gov/api-key-signup ; blank = the USDA
+# search answers "not set up" instead of calling the API.
+USDA_FDC_API_KEY = config('USDA_FDC_API_KEY', default='')

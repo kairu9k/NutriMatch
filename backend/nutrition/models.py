@@ -238,6 +238,9 @@ class MealPlanFoodItem(models.Model):
     carbs_g = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
     protein_g = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
     fat_g = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    # USDA foods: the portion in grams. Their kcal/macros above stay empty and
+    # are worked out live from USDA's per-100 g values (nutrition/usda.py).
+    grams = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
 
     class Meta:
         db_table = "meal_plan_food_items"

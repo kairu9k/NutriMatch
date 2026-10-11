@@ -236,30 +236,47 @@
                 <span>PROT(G)</span>
                 <span>FAT(G)</span>
               </div>
-              <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx">
+              <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx" :class="{ usda: item.source === 'usda' }">
                 <button class="remove-btn" title="Remove" @click="removeItem(meal, idx)"><X :size="12" /></button>
-                <input
-                  v-model="item.name"
-                  type="text"
-                  list="fnri-suggestions"
-                  placeholder="Search FNRI or type a food"
-                  @input="onFoodNameInput(item, $event.target.value)"
-                  @change="applyFnriMatch(item, $event.target.value)"
-                />
-                <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
-                <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
-                <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
-                <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
-                <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
+                <template v-if="item.source === 'usda'">
+                  <div class="usda-name" :title="`USDA FoodData Central #${item.fdcId}`"><span class="usda-tag">USDA</span>{{ item.name }}</div>
+                  <div class="grams-input">
+                    <input :value="item.grams" type="number" min="1" max="2000" step="1" aria-label="Grams" @input="setGrams(item, $event.target.value)" />
+                    <span>g</span>
+                  </div>
+                  <input :value="item.kcal ?? ''" type="number" disabled placeholder="—" title="From USDA, per the grams" />
+                  <input :value="item.carb ?? ''" type="number" disabled placeholder="—" />
+                  <input :value="item.prot ?? ''" type="number" disabled placeholder="—" />
+                  <input :value="item.fat ?? ''" type="number" disabled placeholder="—" />
+                </template>
+                <template v-else>
+                  <input
+                    v-model="item.name"
+                    type="text"
+                    list="fnri-suggestions"
+                    placeholder="Search FNRI or type a food"
+                    @input="onFoodNameInput(item, $event.target.value)"
+                    @change="applyFnriMatch(item, $event.target.value)"
+                  />
+                  <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
+                  <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
+                  <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
+                  <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
+                  <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
+                </template>
               </div>
             </div>
 
-            <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
+            <div class="add-food-row">
+              <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
+              <button class="btn-add-food usda-btn" @click="usdaMeal = meal"><Search :size="14" /> Add from USDA</button>
+            </div>
           </div>
 
           <datalist id="fnri-suggestions">
             <option v-for="f in fnriSuggestions" :key="f.id" :value="f.name">{{ f.category.name }} · {{ f.household_measure || '1 exchange' }}</option>
           </datalist>
+          <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay} · ${usdaMeal.type}`" @close="usdaMeal = null" @pick="addUsdaFood" />
 
           <div class="plan-actions create-actions">
             <button class="btn-secondary" @click="discardChanges">Cancel</button>
@@ -343,8 +360,9 @@
 <script setup>
 import {
   Eye, Plus, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
-  Sun, Coffee, Utensils, Apple, Moon
+  Sun, Coffee, Utensils, Apple, Moon, Search
 } from 'lucide-vue-next'
+import { usdaPortion } from '~/utils/usda'
 
 const route = useRoute()
 const router = useRouter()
@@ -477,6 +495,7 @@ function fillFromPlan(plan) {
         carb: num(i.carbs_g),
         prot: num(i.protein_g),
         fat: num(i.fat_g),
+        ...(i.source_type === 'usda' ? { source: 'usda', fdcId: i.external_food_id, grams: num(i.grams), per100: i.usda_per_100g } : {}),
       })),
     }
   }
@@ -611,7 +630,13 @@ function weekPayload() {
         scheduled_time: slot.time || null,
         items: slot.items
           .filter(i => i.name && i.name.trim())
-          .map(i => ({
+          .map(i => (i.source === 'usda' ? {
+            food_name: i.name.trim(),
+            source_type: 'usda',
+            external_food_id: String(i.fdcId),
+            grams: i.grams,
+            household_measure: `${i.grams} g`,
+          } : {
             food_item: i.foodItemId || null,
             food_name: i.name.trim(),
             household_measure: i.portion || null,
@@ -805,6 +830,21 @@ function pct(n) {
 function addItem(meal) {
   weeklyPlan[activeDay.value][meal.type].items.push({ foodItemId: null, name: '', portion: '', exchanges: 1, kcal: null, carb: null, prot: null, fat: null })
 }
+// USDA foods: name + FDC id + grams are saved; the numbers come from USDA's
+// per-100 g values (kept in memory only) — see nutrition/usda.py.
+const usdaMeal = ref(null)
+function addUsdaFood({ fdcId, name, grams, per100 }) {
+  const item = { source: 'usda', fdcId, name, grams, per100, foodItemId: null, portion: `${grams} g`, exchanges: 1 }
+  setGrams(item, grams)
+  weeklyPlan[activeDay.value][usdaMeal.value.type].items.push(item)
+  usdaMeal.value = null
+}
+function setGrams(item, value) {
+  item.grams = value === '' ? null : Number(value)
+  item.portion = item.grams ? `${item.grams} g` : ''
+  const v = usdaPortion(item.per100, item.grams)
+  Object.assign(item, { kcal: v.kcal, carb: v.carbs_g, prot: v.protein_g, fat: v.fat_g })
+}
 function removeItem(meal, idx) {
   weeklyPlan[activeDay.value][meal.type].items.splice(idx, 1)
 }
@@ -970,6 +1010,15 @@ function formatTime(t) {
 .food-table-row input {
   border: 1px solid #e0e5e0; border-radius: 6px; padding: 9px 10px; font-size: 0.82rem; font-family: inherit; width: 100%;
 }
+.food-table-row input:disabled { background: #f6f8f6; color: #4a5a4a; }
+.usda-name { font-size: 0.82rem; color: #1a3a1a; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+.usda-tag { display: inline-block; font-size: 0.6rem; font-weight: 700; background: #eef1f8; color: #34508a; border-radius: 5px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px; }
+.grams-input { display: flex; align-items: center; gap: 4px; }
+.grams-input span { font-size: 0.78rem; color: #6a7a6a; }
+.add-food-row { display: flex; gap: 10px; margin: 6px 24px 22px; }
+.add-food-row .btn-add-food { flex: 1; width: auto; margin: 0; }
+.usda-btn { color: #34508a; border-color: #cfd8ea; }
+.usda-btn:hover { background: #f4f6fb; }
 .remove-btn {
   width: 20px; height: 20px; border-radius: 5px; border: none;
   background: #fbe1de; color: #c0483a; display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -1078,6 +1127,8 @@ button.saved-plan-card.selected { border-color: #163a1c; }
   .food-table { overflow-x: auto; padding: 16px 16px 4px; }
   .food-table-head, .food-table-row { min-width: 480px; }
   .btn-add-food { width: calc(100% - 32px); margin: 6px 16px 18px; }
+  .add-food-row { margin: 6px 16px 18px; flex-direction: column; }
+  .add-food-row .btn-add-food { width: 100%; margin: 0; }
   .saved-plan-card { gap: 10px; }
 }
 </style>
