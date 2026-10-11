@@ -573,7 +573,7 @@ class PayBeforeConsultationTests(TestCase):
 
         invoice = self._confirm()
         self._pay(invoice)
-        resp = self.rnd_api.patch(f"/api/rnd/appointments/{self.appt.id}/cancel/", {"reason": "Sick"}, format="json")
+        resp = self.rnd_api.patch(f"/api/rnd/appointments/{self.appt.id}/cancel/", {"reason": "Sick today, sorry."}, format="json")
         self.assertEqual(resp.status_code, 200)
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, "refund_pending")

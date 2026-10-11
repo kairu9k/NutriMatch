@@ -4,6 +4,7 @@ from .admin_views import AdminAppointmentCancelView, AdminAppointmentListView, A
 from .discharge import RndDischargeView
 from .patient_list import RndPatientListView
 from .patient_summary import RndPatientSummaryView
+from .rnd_appointments import RndAppointmentBoardView
 from .rnd_dashboard import RndDashboardView
 
 from .views import (
@@ -35,6 +36,7 @@ urlpatterns = [
     path("client/appointments/<int:pk>/cancel/", ClientAppointmentCancelView.as_view(), name="client_appointment_cancel"),
 
     path("rnd/appointments/", RndAppointmentListView.as_view(), name="rnd_appointments"),
+    path("rnd/appointments/board/", RndAppointmentBoardView.as_view(), name="rnd_appointment_board"),
     path("rnd/appointments/<int:pk>/", RndAppointmentDetailView.as_view(), name="rnd_appointment_detail"),
     path("rnd/appointments/<int:pk>/confirm/", RndAppointmentConfirmView.as_view(), name="rnd_appointment_confirm"),
     path("rnd/appointments/<int:pk>/complete/", RndAppointmentCompleteView.as_view(), name="rnd_appointment_complete"),

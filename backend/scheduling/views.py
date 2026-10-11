@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -175,9 +175,12 @@ class _RndAppointmentTransitionView(APIView):
             )
         appointment.status = self.to_status
         if self.to_status == Appointment.Status.CANCELLED:
-            appointment.cancellation_reason = request.data.get("reason", "")
+            appointment.cancellation_reason = self.cancel_reason(request)
         appointment.save()
         return Response(AppointmentSerializer(appointment, context={"request": request}).data)
+
+    def cancel_reason(self, request):
+        return request.data.get("reason", "")
 
 
 class RndAppointmentConfirmView(_RndAppointmentTransitionView):
@@ -296,13 +299,22 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
 
 
 class RndAppointmentCancelView(_RndAppointmentTransitionView):
+    """Declining a request or cancelling a confirmed consultation — the RND
+    must say why (the client is told the reason)."""
+
     from_statuses = [Appointment.Status.PENDING, Appointment.Status.CONFIRMED]
     to_status = Appointment.Status.CANCELLED
+    MIN_REASON = 10
+
+    def cancel_reason(self, request):
+        return str(request.data.get("reason") or "").strip()[:500]
 
     def patch(self, request, pk):
         from billing.services import settle_cancelled_appointment
         from communication.services import notify
 
+        if len(self.cancel_reason(request)) < self.MIN_REASON:
+            raise ValidationError({"reason": f"Tell the client why, in at least {self.MIN_REASON} characters."})
         response = super().patch(request, pk)
         appointment = Appointment.objects.select_related("relationship__client", "relationship__rnd").get(pk=pk)
         settle_cancelled_appointment(appointment)
