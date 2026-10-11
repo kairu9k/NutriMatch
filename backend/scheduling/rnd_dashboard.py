@@ -1,57 +1,32 @@
 """Everything the RND dashboard shows, from real data, in one request
 (GET /api/rnd/dashboard/). Philippine time throughout."""
 
-from collections import defaultdict
 from datetime import datetime, time, timedelta
-from decimal import Decimal
 
-from django.db.models import Q
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsRnd
 
-# "Patients needing attention" rules — simple and explainable on purpose.
-NO_LOG_DAYS = 3          # no meal logged for this many days while on a plan
-LOW_ADHERENCE = 50       # % over the last 7 days (with at least MIN_PLANNED meals planned)
-MIN_PLANNED = 4
-HIGH_NRS = 3             # NRS-2002 ≥ 3 = at nutritional risk
-WEIGHT_JUMP_KG = Decimal("2")  # change between the last two progress records
-STALE_DRAFT_DAYS = 3
-ADHERENCE_GOAL = 80
+from .patient_insights import ADHERENCE_GOAL, CareData, person as _person, ph_tz
 
-LOG_SCORE = {"followed": 1.0, "partially_followed": 0.5, "not_followed": 0.0}
 BMI_RANK = {"Normal": 0, "Overweight (At Risk)": 1, "Underweight": 1, "Obese I": 2, "Obese II": 3}
-
-
-def _ph():
-    from .serializers import PH_TZ
-
-    return PH_TZ
-
-
-def _person(u):
-    return {"id": u.id, "name": u.full_name, "first_name": u.first_name, "profile_photo": u.profile_photo}
-
-
-def _dow(d):
-    return (d.weekday() + 1) % 7  # Sunday=0, like the app
 
 
 def build_dashboard(rnd, now=None):
     from billing.payouts import rnd_earnings
     from billing.services import appointment_invoice
-    from clinical.models import NcpRecord, PreConsultationScreening, ProgressRecord
+    from clinical.models import NcpRecord
     from clinical.services import classify_bmi_asia_pacific
     from communication.models import Message
-    from nutrition.models import MealLog, MealPlan, MealPlanMeal
+    from nutrition.models import MealPlan
 
     from .models import Appointment, Review, RndClientRelationship
     from .serializers import JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES
 
     now = now or timezone.now()
-    ph = _ph()
+    ph = ph_tz()
     today = now.astimezone(ph).date()
     day_start = datetime.combine(today, time.min, tzinfo=ph)
 
@@ -91,117 +66,28 @@ def build_dashboard(rnd, now=None):
     latest_ncp = {}
     for rec in NcpRecord.objects.filter(relationship_id__in=rel_ids).order_by("relationship_id", "-created_at"):
         latest_ncp.setdefault(rec.relationship_id, rec)
-    completed_ncp = set(NcpRecord.objects.filter(relationship_id__in=rel_ids, status="completed").values_list("relationship_id", flat=True))
     active_plans = {p.relationship_id: p for p in MealPlan.objects.filter(relationship_id__in=rel_ids, status="active")}
     need_plan = [by_rel[rid] for rid, rec in latest_ncp.items()
                  if (rec.diet_prescription or "").strip() and rid not in active_plans]
     unread = Message.objects.filter(relationship__rnd=rnd, is_read=False).exclude(sender=rnd).count()
 
-    # ---------------------------------------------------------------- adherence (meal logs)
-    meals = list(MealPlanMeal.objects.filter(meal_plan__in=active_plans.values()).select_related("meal_plan"))
-    first_day = today - timedelta(days=13)
-    logs = list(MealLog.objects.filter(meal_plan_meal__in=meals, log_date__gte=first_day, log_date__lte=today))
-    log_map = {(lg.meal_plan_meal_id, lg.log_date): lg for lg in logs}
-    last_log = {}
-    for lg in MealLog.objects.filter(meal_plan_meal__meal_plan__relationship_id__in=rel_ids).order_by("log_date"):
-        last_log[lg.meal_plan_meal.meal_plan.relationship_id] = lg.log_date
-
-    def day_stats(d, rel_id=None):
-        """(planned, logged, score) for one day — only meals whose time has passed count today."""
-        planned = logged = 0
-        score = 0.0
-        for m in meals:
-            plan = m.meal_plan
-            if rel_id is not None and plan.relationship_id != rel_id:
-                continue
-            if m.day_of_week is not None and m.day_of_week != _dow(d):
-                continue
-            sent = plan.sent_at.astimezone(ph).date() if plan.sent_at else plan.created_at.astimezone(ph).date()
-            if d < sent:
-                continue
-            if d == today and m.scheduled_time and datetime.combine(d, m.scheduled_time, tzinfo=ph) > now:
-                continue
-            planned += 1
-            lg = log_map.get((m.id, d))
-            if lg:
-                logged += 1
-                score += LOG_SCORE.get(lg.status, 0)
-        return planned, logged, score
-
-    def window(days_back_start, rel_id=None):
-        planned = logged = 0
-        score = 0.0
-        for i in range(days_back_start, days_back_start + 7):
-            p, lg, s = day_stats(today - timedelta(days=i), rel_id)
-            planned += p
-            logged += lg
-            score += s
-        return planned, logged, score
-
+    # ---------------------------------------------------------------- adherence + attention
+    care = CareData(rels, now)
+    screenings, progress = care.screenings, care.progress
     week = []
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
-        p, lg, s = day_stats(d)
+        p, lg, s = care.day_stats(d)
         week.append({"date": d, "planned": p, "logged": lg, "followed_pct": round(s / p * 100) if p else None})
-    p7, l7, s7 = window(0)
-    p14, _, s14 = window(7)
+    p7, l7, s7 = care.window(0)
+    p14, _, s14 = care.window(7)
     adherence = {
         "days": week,
         "pct": round(s7 / p7 * 100) if p7 else None,
         "previous_pct": round(s14 / p14 * 100) if p14 else None,
         "planned": p7, "logged": l7, "goal": ADHERENCE_GOAL,
     }
-
-    # ---------------------------------------------------------------- patients needing attention
-    alerts = []
-    screenings = {}
-    for s in PreConsultationScreening.objects.filter(client__in=[r.client for r in rels]).order_by("client_id", "-created_at"):
-        screenings.setdefault(s.client_id, s)
-    progress = defaultdict(list)
-    for pr in ProgressRecord.objects.filter(relationship_id__in=rel_ids).order_by("record_date"):
-        progress[pr.relationship_id].append(pr)
-
-    for rel in rels:
-        c = rel.client
-        plan = active_plans.get(rel.id)
-        if plan:
-            sent = (plan.sent_at or plan.created_at).astimezone(ph).date()
-            last = last_log.get(rel.id)
-            days_quiet = (today - max(last, sent)).days if last else (today - sent).days
-            if days_quiet >= NO_LOG_DAYS:
-                alerts.append({"level": "warning", "kind": "no_logs", "client": _person(c), "relationship_id": rel.id,
-                               "title": f"No meals logged in {days_quiet} days",
-                               "detail": "They're on a meal plan but haven't logged anything — a quick message can help.",
-                               "action": "Message", "link": f"/messages?relationship={rel.id}"})
-            else:
-                pp, _, ps = window(0, rel.id)
-                pct = round(ps / pp * 100) if pp else None
-                if pct is not None and pp >= MIN_PLANNED and pct < LOW_ADHERENCE:
-                    alerts.append({"level": "warning", "kind": "low_adherence", "client": _person(c), "relationship_id": rel.id,
-                                   "title": f"Meal-plan adherence {pct}% this week",
-                                   "detail": "Below 50% over the last 7 days. The plan may need adjusting.",
-                                   "action": "Open patient", "link": f"/client-detail/{rel.id}"})
-        s = screenings.get(c.id)
-        if s and s.nrs_score is not None and s.nrs_score >= HIGH_NRS and rel.id not in completed_ncp:
-            alerts.append({"level": "critical", "kind": "nrs", "client": _person(c), "relationship_id": rel.id,
-                           "title": f"At nutritional risk (NRS-2002 score {s.nrs_score})",
-                           "detail": "No completed NCP assessment yet.", "action": "Start NCP record",
-                           "link": f"/client-detail/{rel.id}?tab=ncp"})
-        recs = [p for p in progress.get(rel.id, []) if p.weight_kg is not None]
-        if len(recs) >= 2:
-            change = recs[-1].weight_kg - recs[-2].weight_kg
-            if abs(change) >= WEIGHT_JUMP_KG:
-                alerts.append({"level": "warning", "kind": "weight", "client": _person(c), "relationship_id": rel.id,
-                               "title": f"Weight {'up' if change > 0 else 'down'} {abs(change):.1f} kg since the last record",
-                               "detail": f"{recs[-2].weight_kg} → {recs[-1].weight_kg} kg.", "action": "Open patient",
-                               "link": f"/client-detail/{rel.id}"})
-    for d in drafts:
-        age = (now - d.updated_at).days
-        if age >= STALE_DRAFT_DAYS:
-            alerts.append({"level": "info", "kind": "stale_draft", "client": _person(d.relationship.client),
-                           "relationship_id": d.relationship_id, "title": f"NCP draft untouched for {age} days",
-                           "detail": "Finish it so it's finalized in the patient's record.", "action": "Continue",
-                           "link": f"/client-detail/{d.relationship_id}?tab=ncp"})
+    alerts = [a for rel in rels for a in care.alerts(rel)]
     order = {"critical": 0, "warning": 1, "info": 2}
     alerts.sort(key=lambda a: order[a["level"]])
 

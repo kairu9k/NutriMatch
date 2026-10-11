@@ -20,8 +20,17 @@
             </div>
           </div>
         </div>
-        <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="message-btn">Message</NuxtLink>
+        <div class="banner-actions">
+          <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="message-btn">{{ relationshipStatus === 'discharged' ? 'Message history' : 'Message' }}</NuxtLink>
+          <button v-if="relationshipStatus === 'active'" type="button" class="discharge-btn" @click="showDischarge = true">Discharge</button>
+        </div>
       </div>
+
+      <section v-if="relationshipStatus === 'discharged'" class="nm-note discharged-note">
+        <strong>Discharged{{ patientRow?.ended_at ? ` on ${shortDate(patientRow.ended_at)}` : '' }}.</strong>
+        This record is read-only.<template v-if="patientRow?.discharge_reason"> Reason: “{{ patientRow.discharge_reason }}”</template>
+        If {{ clientProfile.user?.first_name || 'they' }} books you again, it reopens when you confirm the booking.
+      </section>
 
       <nav class="detail-tabs">
         <button
@@ -169,6 +178,10 @@
       @changed="reloadNcp"
       @continue="ncpModal = { mode: 'edit', recordId: null }"
     />
+    <DischargeModal
+      v-if="showDischarge" :relationship-id="relationshipId" :patient-name="clientName"
+      @close="showDischarge = false" @discharged="onDischarged"
+    />
   </div>
 </template>
 
@@ -188,6 +201,12 @@ const progressRecords = ref([])
 const appointments = ref([])
 const mealPlans = ref([])
 const relationshipStatus = ref(null)
+const patientRow = ref(null)
+const showDischarge = ref(false)
+function onDischarged() {
+  showDischarge.value = false
+  loadData()
+}
 
 const hasMealPlan = computed(() => mealPlans.value.length > 0)
 // Any NCP record with the Intervention filled in — not just the newest one,
@@ -327,7 +346,8 @@ async function loadData() {
     progressRecords.value = progress
     appointments.value = appts
     mealPlans.value = plans
-    relationshipStatus.value = patients.find(p => String(p.id) === String(relationshipId))?.status ?? null
+    patientRow.value = patients.find(p => String(p.id) === String(relationshipId)) || null
+    relationshipStatus.value = patientRow.value?.status ?? null
   } catch {
     errorMessage.value = 'Could not load this patient. Please try again later.'
   } finally {
@@ -370,6 +390,13 @@ onMounted(loadData)
 .chip-success { background: #e6efe0; color: #3a6b3a; }
 .chip-warning { background: #faead0; color: #8a6a1a; }
 .chip-muted { background: #eceeec; color: #5a6a5a; }
+.banner-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.discharge-btn {
+  background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 8px;
+  padding: 9px 18px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
+}
+.discharge-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.discharged-note { margin-bottom: 20px; }
 .message-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
   padding: 9px 18px; font-weight: 700; font-size: 0.85rem; text-decoration: none; white-space: nowrap;

@@ -2,6 +2,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,6 +34,8 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         relationship = self.get_relationship()
+        if relationship.status == RndClientRelationship.Status.DISCHARGED:
+            raise PermissionDenied("This care plan has ended, so new messages can't be sent. Book a consultation to start again.")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         message = serializer.save(relationship=relationship, sender=request.user)

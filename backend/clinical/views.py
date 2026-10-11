@@ -4,6 +4,8 @@ from datetime import date
 
 from rest_framework import generics, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+
+from scheduling.discharge import ensure_open
 from rest_framework.response import Response
 
 from accounts.permissions import IsClient, IsRnd
@@ -185,6 +187,7 @@ class NcpRecordListCreateView(generics.ListCreateAPIView):
         # One open draft per client at a time: the form resumes it rather
         # than starting another (also guards against a double autosave POST).
         relationship = serializer.validated_data["relationship"]
+        ensure_open(relationship)
         if NcpRecord.objects.filter(relationship=relationship, status=NcpRecord.Status.DRAFT).exists():
             raise ValidationError("This client already has an unfinished NCP record — continue that one instead.")
         serializer.save()
@@ -221,6 +224,7 @@ class RndProgressRecordListCreateView(generics.ListCreateAPIView):
         ).order_by("-record_date")
 
     def perform_create(self, serializer):
+        ensure_open(serializer.validated_data["relationship"])
         record = serializer.save()
         weight_kg = record.weight_kg
         if weight_kg is not None:
@@ -259,6 +263,7 @@ class NcpRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
         # must refuse edits too.
         if serializer.instance.status == NcpRecord.Status.COMPLETED:
             raise PermissionDenied("This NCP record is finalized and can no longer be edited.")
+        ensure_open(serializer.instance.relationship)
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -284,6 +289,7 @@ class NcpRecordFinalizeView(generics.UpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         record = self.get_object()
+        ensure_open(record.relationship)
         # The clinical minimum; the form itself requires every non-optional
         # field before it auto-finalizes (NcpRecordModal.vue).
         missing = []

@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
+from scheduling.discharge import ensure_open
 from communication.services import CloudinaryResourceUploadService, ResourceUploadError, notify
 
 from .models import FoodExchangeCategory, FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
@@ -68,6 +69,7 @@ class RndMealPlanListCreateView(generics.ListCreateAPIView):
         ).prefetch_related("meals__food_items").order_by("-created_at")
 
     def perform_create(self, serializer):
+        ensure_open(serializer.validated_data["relationship"])
         serializer.save()
 
 
@@ -79,6 +81,10 @@ class RndMealPlanDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return MealPlan.objects.filter(relationship__rnd=self.request.user).prefetch_related("meals__food_items")
+
+    def perform_update(self, serializer):
+        ensure_open(serializer.instance.relationship)
+        serializer.save()
 
 
 class RndMealPlanMealCreateView(generics.CreateAPIView):
@@ -150,6 +156,7 @@ class RndMealPlanWeekView(APIView):
 
     def put(self, request, pk):
         plan = get_object_or_404(MealPlan.objects.filter(relationship__rnd=request.user), pk=pk)
+        ensure_open(plan.relationship)
         serializer = MealPlanWeekSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -225,6 +232,7 @@ class RndMealPlanSendView(APIView):
         plan = get_object_or_404(
             MealPlan.objects.select_related("relationship__client").filter(relationship__rnd=request.user), pk=pk,
         )
+        ensure_open(plan.relationship)
         if not plan.meals.filter(food_items__isnull=False).exists():
             raise serializers.ValidationError({"detail": "Add at least one food item before sending the plan."})
 

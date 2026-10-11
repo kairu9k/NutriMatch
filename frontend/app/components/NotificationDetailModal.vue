@@ -75,7 +75,7 @@
           </dl>
         </template>
 
-        <p v-else-if="note.notifiable_type && note.notifiable_type !== 'meal_log'" class="nm-hint">
+        <p v-else-if="note.notifiable_type && !['meal_log', 'relationship'].includes(note.notifiable_type)" class="nm-hint">
           The {{ (TYPE_LABELS[note.notifiable_type] || 'item').toLowerCase() }} this notification was about is no longer available.
         </p>
 
@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X } from 'lucide-vue-next'
+import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake } from 'lucide-vue-next'
 
 // Full detail of one notification + a button to the page it's about.
 // `notification` is the list row (shown right away); the related record is
@@ -106,8 +106,8 @@ const related = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder' }
-const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock }
+const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder', relationship: 'Care plan' }
+const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake }
 const TONES = { appointment: 'gold', invoice: 'warn', message: 'info', payout: 'good', reminder: 'gold' }
 const APPT_LABELS = { pending: 'Awaiting confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
 const APPT_PILLS = { pending: 'gold', confirmed: 'green', completed: 'blue', cancelled: 'muted' }
@@ -133,6 +133,7 @@ const link = computed(() => {
       payout: { label: 'Open Payouts', to: '/payouts' },
     }[t] || null
   }
+  if (t === 'relationship' && role.value === 'client') return { label: 'Find an RND', to: '/find-rnd' }
   if (!r) return null
   const messages = { label: 'Open conversation', to: { path: '/messages', query: r?.relationship_id ? { relationship: r.relationship_id } : {} } }
   if (role.value === 'rnd') {

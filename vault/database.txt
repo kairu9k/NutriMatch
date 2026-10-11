@@ -107,6 +107,7 @@ Table rnd_client_relationships {
   status "enum('pending','active','discharged')" [not null, default: 'pending']
   started_at timestamp [null]
   ended_at timestamp [null]
+  discharge_reason text [null, note: 'why the RND ended care; shown to the client']
   notes text [null]
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]

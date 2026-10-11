@@ -2,7 +2,6 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
-from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -11,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
-from clinical.models import NcpRecord, PreConsultationScreening
+from clinical.models import PreConsultationScreening
 
 from .models import Appointment, ConsultationSession, Review, RndClientRelationship
 from .serializers import (
@@ -20,7 +19,6 @@ from .serializers import (
     ClientReviewListSerializer,
     ReviewSerializer,
     RndClientRelationshipSerializer,
-    RndPatientListSerializer,
 )
 from .services import JitsiVideoService, VideoSessionError
 
@@ -45,24 +43,6 @@ class RndActiveRelationshipsView(generics.ListAPIView):
         return RndClientRelationship.objects.filter(
             rnd=self.request.user, status=RndClientRelationship.Status.ACTIVE
         ).select_related("rnd", "client")
-
-
-class RndPatientListView(generics.ListAPIView):
-    """RND's full patient list (all statuses) for the My Patients table.
-    Condition/last-visit/next-appointment/NCP-status are all computed from
-    prefetched querysets — one query each for relationships, appointments,
-    and NCP records, not N+1 per row."""
-
-    serializer_class = RndPatientListSerializer
-    permission_classes = [IsRnd]
-
-    def get_queryset(self):
-        return RndClientRelationship.objects.filter(
-            rnd=self.request.user
-        ).select_related("client", "client__health_profile").prefetch_related(
-            Prefetch("appointments", to_attr="_prefetched_appointments"),
-            Prefetch("ncp_records", queryset=NcpRecord.objects.only("id", "relationship_id", "status", "created_at"), to_attr="_prefetched_ncp_records"),
-        ).order_by("-created_at")
 
 
 class ClientActiveRelationshipsView(generics.ListAPIView):
@@ -239,7 +219,8 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             relationship.status = RndClientRelationship.Status.ACTIVE
             relationship.started_at = timezone.now()
             relationship.ended_at = None
-            relationship.save(update_fields=["status", "started_at", "ended_at", "updated_at"])
+            relationship.discharge_reason = None
+            relationship.save(update_fields=["status", "started_at", "ended_at", "discharge_reason", "updated_at"])
 
         if appointment.type == Appointment.Type.VIDEO:
             try:

@@ -17,6 +17,8 @@ class RndClientRelationship(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    # why the RND ended care (shown to the client); cleared if they're rebooked
+    discharge_reason = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
