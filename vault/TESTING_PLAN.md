@@ -4,7 +4,7 @@ First drafted 2026-09-28, **updated 2026-10-11**. Covers automated backend tests
 end-to-end tests of the real user journeys, a manual checklist for things that can't be
 automated, and non-functional checks (RA 10173, security, performance). Work top to bottom.
 
-Test accounts: `vault/test-logins.txt` (shared with the team — demo accounts only; personal local accounts live in the gitignored `vault/local-logins.txt`). Demo data:
+Test accounts: `vault/test-logins.txt` (shared with the team — the demo accounts plus the hand-made local test accounts). Demo data:
 `python manage.py seed_demo --reset` — rebuilds only the `@nutrimatch.test` accounts.
 
 ---
@@ -184,7 +184,7 @@ Real external services or things that need human eyes:
   photo private; client-facing RND data public-only; RND private notes never reach the
   client; only `food_name` stored from external food lookups.
 - **Security:** auth rate limits; role checks on every endpoint; no secrets in the repo
-  (`.env`, `db.sqlite3`, `local-logins.txt` stay out of git); rotate the PayMongo webhook
+  (`.env` and `db.sqlite3` stay out of git); rotate the PayMongo webhook
   secret before deploying; CORS / allowed hosts.
 - **Performance:** dashboards and list pages compute in batches (no per-row queries) —
   spot-check with `seed_demo` data; 3-second page load target from the proposal.

@@ -23,3 +23,24 @@ DEMO DATA (python manage.py seed_demo  /  --reset to rebuild)
            elena.ramos@nutrimatch.test        first booking with Ramon, pending
            felix.navarro@nutrimatch.test      Maria's patient at nutritional risk - paid visit ended yesterday, not completed, no NCP yet
            grace.lim@nutrimatch.test          Maria's former patient - discharged after reaching her goal
+
+TEST ACCOUNTS (main dev machine's local database)
+  These were created by hand on the main dev machine, so they only work there unless you
+  create the same accounts yourself (register them, or use the demo accounts above).
+
+Generated: 2026-09-06
+
+ADMIN
+  email:    admin@nutrimatch.ph
+  password: TestAdmin123!
+  note:     pre-existing account, password reset to the above for testing
+
+CLIENT
+  email:    client.test@nutrimatch.ph
+  password: TestClient123!
+
+RND
+  email:    rnd.test@nutrimatch.ph
+  password: TestRnd123!
+  note:     is_verified=True, available_for_new_clients=True, so it shows up
+            in client-facing RND search results
