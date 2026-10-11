@@ -9,6 +9,76 @@ Test accounts: `vault/test-logins.txt` (shared with the team — demo accounts o
 
 ---
 
+## Start here — first test run (about 30 minutes)
+
+**Before you start:** run the project (see `README.md`), then from `backend/`:
+`python manage.py migrate` and `python manage.py seed_demo --reset`.
+Sign in at **http://localhost:3000/login** (admin: **http://localhost:3000/admin/login**).
+Every demo account's password is **`NutriMatchDemo1!`**.
+
+| Role | Email |
+|---|---|
+| RND | `maria.santos@nutrimatch.test` |
+| Client | `carla.mendoza@nutrimatch.test` · `benjamin.garcia@nutrimatch.test` · `ana.cruz@nutrimatch.test` |
+| Admin | `admin@nutrimatch.test` |
+
+Use a normal window for one account and a private/incognito window for another, so you
+can be the RND and the client at the same time. Do the steps in order; each says what you
+should see. Note anything that doesn't match.
+
+### Step 1 — RND: Maria's day (`maria.santos@nutrimatch.test`)
+1. **Dashboard.** Expect: next consultation with Carla; to-dos "1 consultation to mark
+   complete" and "1 NCP draft to finish"; under *Patients needing attention*, Felix is at
+   nutritional risk (NRS-2002). The meal-plan adherence chart has real bars.
+2. **My Patients.** Expect Carla and Felix under *Active*, Grace under *Discharged*. Each row
+   shows care stage, adherence, progress and a next-step button.
+3. **Appointments → To complete.** Felix's consultation ended yesterday and is paid →
+   **Mark complete**. Expect shortcuts to *Record progress* and *NCP records*.
+4. **NCP Records.** Expect Felix under *No NCP record yet* and Carla's draft under *Drafts*.
+   Click a patient row to expand, then a record to open its summary (finalized ones have
+   **Print / PDF**).
+5. **Felix's chart → NCP Records → New NCP record.** Expect height and weight already filled
+   from his screening. Try the PES problem picker (type "weight"), then fill the required (\*)
+   fields, press **Save draft**, go to **Review** and **Finalize**. Try a weight of 650 —
+   it must be refused.
+6. **Meal Plans.** Expect a patient list, not someone's plan. Felix should now be under
+   *Needs a meal plan* → Create plan.
+7. **Grace's chart.** Expect a "Discharged" note with the reason, and no edit buttons.
+
+### Step 2 — Client: Carla (`carla.mendoza@nutrimatch.test`)
+1. **Dashboard** — upcoming visit with Maria and the *Coming up today* card.
+2. **Appointments** — the upcoming visit says **payment due**. (Paying needs PayMongo test
+   keys in `backend/.env`; without them you'll get a clear error — that's expected.)
+3. **My Meal Plan** → log a meal; **Progress Tracker** → her weight chart (no RND notes shown).
+4. **Billing & Invoice** → past receipts → open one → **Download / print**.
+5. **Resources** → View / Download a shared resource.
+
+### Step 3 — New client books an RND (`benjamin.garcia@nutrimatch.test`)
+1. **Find an RND** → filter by specialty or language → open Maria's profile.
+2. **Book** a time on a weekday between 9:00 and 17:00 (only her open slots are offered).
+3. As **Maria** (other window): **Appointments → Requests** → **Review & confirm** — the
+   screening shows before you confirm. Try **Decline** too: a reason is required.
+
+### Step 4 — Brand-new client (`ana.cruz@nutrimatch.test`)
+Sign in → you're sent to onboarding: about you → health background → screening → done.
+Check the BMI/BMR the screening shows look right for the numbers you typed.
+
+### Step 5 — Admin (`admin@nutrimatch.test`, at `/admin/login`)
+1. **RND Applications** → Kristine Bautista's application (PRC number + license photo) →
+   approve or reject with a reason.
+2. **Users** → open a client → overview (no passwords anywhere) → try *Deactivate* with a
+   reason, then sign in as that user to see the "deactivated" message → *Reactivate*.
+3. **Audit Logs**, **Appointments**, **Billing & Commission**, **Payouts**, **Platform Reports**.
+
+**Needs extra setup (skip if you don't have it):** live chat needs Redis; real emails need
+the Gmail settings in `.env` (demo `.test` addresses never receive mail anyway); paying needs
+PayMongo test keys; uploads need Cloudinary keys. Run `seed_demo --reset` again any time to
+start over.
+
+After this run, use the detailed flows in section 2 for deeper testing.
+
+---
+
 ## Where things stand (2026-10-11)
 
 | Area | Status |
