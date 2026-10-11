@@ -580,7 +580,7 @@ function discardAndClose() {
 function onBeforeUnload(e) { if (dirty.value) { e.preventDefault(); e.returnValue = '' } }
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
-defineExpose({ dirty, requestClose })
+defineExpose({ dirty, requestClose, saveDraft })
 
 /* ---------- load ---------- */
 async function load() {
@@ -637,6 +637,8 @@ function ncpError(e, fallback) {
 .ncp { position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 1080px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); overflow: hidden; }
 .ncp.is-inline { max-width: none; max-height: none; height: 100%; box-shadow: none; border: 1px solid #eceeec; }
 .ncp-inline { height: 100%; }
+.ncp.is-inline .steps { flex-wrap: wrap; overflow: visible; padding: 8px 14px; }
+.ncp.is-inline .ncp-head, .ncp.is-inline .ncp-form, .ncp.is-inline .ncp-foot { padding-left: 16px; padding-right: 16px; }
 .pad { padding: 20px 24px; }
 
 .ncp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 24px 12px; border-bottom: 1px solid #f0f2f0; }
