@@ -141,7 +141,7 @@ async function reactivate() {
     <div>
       <div class="animate-in bg-white rounded-2xl p-5 mb-4">
         <h3 class="font-display text-normal text-forest-dark mb-3">Account Actions</h3>
-        <select v-model="selectedClient" class="w-full border border-forest/25 rounded-lg px-3 py-2.5 text-sm mb-3 bg-white transition-shadow focus:outline-none focus:ring-2 focus:ring-forest/20">
+        <select v-model="selectedClient" class="nm-select block mb-3">
           <option value="">Select client...</option>
           <option v-for="c in clients" :key="c.id" :value="String(c.id)">{{ c.first_name }} {{ c.last_name }}</option>
         </select>

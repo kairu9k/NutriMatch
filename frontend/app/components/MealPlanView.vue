@@ -108,7 +108,7 @@
                 </div>
                 <div class="field">
                   <label>Meal Status</label>
-                  <select v-model="logForm.status">
+                  <select class="nm-select block" v-model="logForm.status">
                     <option value="">Select status</option>
                     <option v-for="s in mealStatusOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
                   </select>
@@ -407,9 +407,7 @@ onMounted(loadMealPlans)
 .dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
 .meal-log-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field label { display: block; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; color: #9aaa9a; margin-bottom: 7px; }
-.field select {
-  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; background: #fff;
-}
+.field select { width: 100%; }
 .time-input-wrap { position: relative; }
 .time-input-wrap input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 32px 11px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; }
 .time-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }

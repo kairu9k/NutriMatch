@@ -64,5 +64,6 @@ Three roles: **client**, **RND**, **admin**.
 ## Working conventions
 
 - When updating the migration plan, edit `vault/TODO.md` rather than creating new planning docs.
+- **Dropdowns are one style app-wide (user's rule, 2026-10-12):** every native `<select>` uses `class="nm-select"` (`assets/css/portal.css` — custom arrow, focus/disabled/`invalid` states; add `block` for full width in forms). Don't style selects per page (page CSS may only set layout like width), and prefer a native `nm-select` over a custom pop-up menu; a searchable picker (PES problem, measurements) should match its border, radius, padding and font.
 - `frontend/` is a teammate-owned repo — check `git status`/`git log` before assuming changes are safe to push; confirm with the user before any push or force operation.
 - Windows environment: use PowerShell for process management (`Stop-Process`, `Get-Process`) — Bash's process tools don't reliably see/kill native Windows processes (e.g. a stray `nuxt dev` server keeps running even after its spawning Bash task is reported stopped).

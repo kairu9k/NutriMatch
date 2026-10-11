@@ -148,7 +148,7 @@
                 </div>
                 <div class="field">
                   <label>Gender</label>
-                  <select v-model="form.gender" required>
+                  <select class="nm-select block" v-model="form.gender" required>
                     <option disabled value="">Select</option>
                     <option>Female</option>
                     <option>Male</option>
@@ -159,7 +159,7 @@
 
               <div class="field">
                 <label>Primary Health Concern</label>
-                <select v-model="form.healthConcern" required>
+                <select class="nm-select block" v-model="form.healthConcern" required>
                   <option disabled value="">Select</option>
                   <option>Hypertension</option>
                   <option>Type 2 Diabetes</option>
@@ -207,7 +207,7 @@
               </div>
               <div class="field">
                 <label>Specialization <span class="required-tag">Required</span></label>
-                <select v-model="form.specialization" required>
+                <select class="nm-select block" v-model="form.specialization" required>
                   <option disabled value="">Select</option>
                   <option v-for="sp in SPECIALIZATIONS" :key="sp" :value="sp">{{ sp }}</option>
                 </select>
@@ -322,11 +322,11 @@
                     <span v-else class="avail-on">Available</span>
                   </div>
                   <div v-for="block in dayBlocks(day.value)" :key="block.id" class="avail-block">
-                    <select v-model="block.start" :aria-label="`${day.label} start time`">
+                    <select class="nm-select block" v-model="block.start" :aria-label="`${day.label} start time`">
                       <option v-for="t in TIME_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
                     </select>
                     <span class="avail-to">to</span>
-                    <select v-model="block.end" :aria-label="`${day.label} end time`">
+                    <select class="nm-select block" v-model="block.end" :aria-label="`${day.label} end time`">
                       <option v-for="t in TIME_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
                     </select>
                     <button type="button" class="avail-remove" :aria-label="`Remove ${day.label} block`" @click="removeBlock(block.id)">✕</button>
@@ -1087,8 +1087,7 @@ async function resendCode() {
   color: #1a3a1a;
   text-transform: uppercase;
 }
-.field input,
-.field select {
+.field input {
   padding: 12px 14px;
   border: 1px solid #dde3dd;
   border-radius: 8px;
@@ -1097,8 +1096,8 @@ async function resendCode() {
   background: #fff;
   color: #1a3a1a;
 }
-.field input:focus,
-.field select:focus { outline: none; border-color: #1a3a1a; }
+.field input:focus { outline: none; border-color: #1a3a1a; }
+.field select { min-height: 46px; font-size: 0.95rem; }
 
 .license-upload {
   display: flex; align-items: center; justify-content: center; min-height: 120px;
@@ -1211,7 +1210,7 @@ async function resendCode() {
 .avail-add { background: none; border: none; color: #1f8f5c; font-weight: 700; font-size: 0.78rem; cursor: pointer; padding: 2px 0; font-family: inherit; }
 .avail-add.small { margin-top: 6px; }
 .avail-block { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.avail-block select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #d5dad5; border-radius: 8px; font-size: 0.82rem; font-family: inherit; background: #fff; }
+.avail-block select { flex: 1; min-width: 0; width: auto; }
 .avail-to { font-size: 0.78rem; color: #8a9a8a; }
 .avail-remove { background: none; border: none; color: #9aaa9a; cursor: pointer; font-size: 0.9rem; padding: 4px 6px; }
 .avail-remove:hover { color: #c0392b; }

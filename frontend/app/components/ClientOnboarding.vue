@@ -57,7 +57,7 @@
           </div>
           <div class="field">
             <label for="ob-sex">Sex <span class="req">Required</span></label>
-            <select id="ob-sex" v-model="about.sex" :class="{ invalid: aboutErrors.sex }">
+            <select class="nm-select block" id="ob-sex" v-model="about.sex" :class="{ invalid: aboutErrors.sex }">
               <option value="" disabled>Select</option>
               <option value="female">Female</option>
               <option value="male">Male</option>
@@ -67,7 +67,7 @@
           </div>
           <div class="field">
             <label for="ob-lang">Preferred language</label>
-            <select id="ob-lang" v-model="about.language">
+            <select class="nm-select block" id="ob-lang" v-model="about.language">
               <option value="">Select</option>
               <option v-for="l in LANGUAGE_OPTIONS" :key="l.code" :value="l.code">{{ l.label }}</option>
             </select>
@@ -92,7 +92,7 @@
 
         <div class="field">
           <label for="ob-condition">Primary health condition</label>
-          <select id="ob-condition" v-model="health.condition">
+          <select class="nm-select block" id="ob-condition" v-model="health.condition">
             <option value="">None / not sure</option>
             <option v-for="c in CONDITION_OPTIONS" :key="c" :value="c">{{ c }}</option>
             <option value="__other">Other</option>
@@ -133,7 +133,7 @@
         <div class="grid-2">
           <div class="field">
             <label for="ob-religion">Religion <span class="opt">Optional</span></label>
-            <select id="ob-religion" v-model="health.religion">
+            <select class="nm-select block" id="ob-religion" v-model="health.religion">
               <option value="">Prefer not to say</option>
               <option v-for="r in RELIGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
             </select>
@@ -425,8 +425,9 @@ onMounted(async () => {
 .field label, .field legend { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; padding: 0; margin-bottom: 2px; }
 .req { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #c0392b; background: #fbeaea; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
 .opt { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #6a7a6a; background: #eef1ee; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
-.field input, .field select { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 13px; font-size: 0.9rem; font-family: inherit; color: #1a3a1a; background: #fff; }
-.field input:focus, .field select:focus { outline: none; border-color: #1a3a1a; }
+.field select { width: 100%; min-height: 44px; font-size: 0.9rem; }
+.field input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 13px; font-size: 0.9rem; font-family: inherit; color: #1a3a1a; background: #fff; }
+.field input:focus { outline: none; border-color: #1a3a1a; }
 .field .invalid { border-color: #c0392b; }
 .mt-8 { margin-top: 8px; }
 .hint { font-size: 0.76rem; color: #8a9a8a; margin: 0; }

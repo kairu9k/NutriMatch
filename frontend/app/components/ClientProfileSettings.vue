@@ -91,7 +91,7 @@
               </div>
               <div class="field">
                 <label class="field-label" for="pi-sex">Sex</label>
-                <select id="pi-sex" v-model="form.sex" class="field-input">
+                <select id="pi-sex" v-model="form.sex" class="nm-select block">
                   <option value="">Prefer not to say</option>
                   <option value="female">Female</option>
                   <option value="male">Male</option>
@@ -99,14 +99,14 @@
               </div>
               <div class="field">
                 <label class="field-label" for="pi-lang">Preferred Language</label>
-                <select id="pi-lang" v-model="form.languageCode" class="field-input">
+                <select id="pi-lang" v-model="form.languageCode" class="nm-select block">
                   <option value="">Select</option>
                   <option v-for="l in languageOptions" :key="l.code" :value="l.code">{{ l.label }}</option>
                 </select>
               </div>
               <div class="field">
                 <label class="field-label" for="pi-condition">Primary Health Condition</label>
-                <select id="pi-condition" v-model="conditionChoice" class="field-input">
+                <select id="pi-condition" v-model="conditionChoice" class="nm-select block">
                   <option value="">None / not sure</option>
                   <option v-for="c in CONDITION_OPTIONS" :key="c" :value="c">{{ c }}</option>
                   <option value="__other">Other</option>
@@ -130,7 +130,7 @@
               </div>
               <div class="field">
                 <label class="field-label" for="pi-religion">Religion</label>
-                <select id="pi-religion" v-model="background.religion" class="field-input">
+                <select id="pi-religion" v-model="background.religion" class="nm-select block">
                   <option value="">Prefer not to say</option>
                   <option v-for="r in RELIGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
                 </select>

@@ -209,7 +209,7 @@
           <p v-else class="empty-note">No languages added yet.</p>
 
           <div class="language-add-row">
-            <select v-model="newLanguage" class="field-input language-select">
+            <select v-model="newLanguage" class="nm-select language-select">
               <option value="">Add a language...</option>
               <option v-for="opt in availableLanguageOptions" :key="opt.code" :value="opt.code">{{ opt.name }}</option>
             </select>

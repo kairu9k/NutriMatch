@@ -5,14 +5,9 @@
         <!-- <h1 class="page-title">Progress Tracker</h1> -->
         <p class="page-sub">Your health journey over time, as recorded by your RND.</p>
       </div>
-      <div v-if="records.length" class="range-dropdown" ref="rangeDropdownEl">
-        <button class="range-trigger" @click="rangeDropdownOpen = !rangeDropdownOpen">
-          {{ selectedRange }} <ChevronDown :size="14" :class="{ open: rangeDropdownOpen }" />
-        </button>
-        <div v-if="rangeDropdownOpen" class="range-menu">
-          <button v-for="r in ranges" :key="r.label" class="range-item" :class="{ active: selectedRange === r.label }" @click="selectedRange = r.label; rangeDropdownOpen = false">{{ r.label }}</button>
-        </div>
-      </div>
+      <select v-if="records.length" v-model="selectedRange" class="nm-select" aria-label="Date range">
+        <option v-for="r in ranges" :key="r.label" :value="r.label">{{ r.label }}</option>
+      </select>
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -118,7 +113,7 @@
 </template>
 
 <script setup>
-import { Gauge, Activity, HeartPulse, Droplet, LineChart, ChevronDown } from 'lucide-vue-next'
+import { Gauge, Activity, HeartPulse, Droplet, LineChart } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Progress Tracker' })
 
@@ -135,13 +130,6 @@ const ranges = [
   { label: 'Last Year', months: 12 },
 ]
 const selectedRange = ref('Last 6 Months')
-const rangeDropdownOpen = ref(false)
-const rangeDropdownEl = ref(null)
-function handleClickOutside(e) {
-  if (rangeDropdownEl.value && !rangeDropdownEl.value.contains(e.target)) rangeDropdownOpen.value = false
-}
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const filteredRecords = computed(() => {
   const months = ranges.find(r => r.label === selectedRange.value)?.months || 6
@@ -238,13 +226,6 @@ onMounted(loadRecords)
 .page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
-.range-dropdown { position: relative; }
-.range-trigger { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 9px 14px; font-size: 0.83rem; font-weight: 600; cursor: pointer; }
-.range-trigger svg.open { transform: rotate(180deg); }
-.range-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; min-width: 160px; background: #fff; border: 1px solid #eceeec; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 6px; }
-.range-item { display: block; width: 100%; text-align: left; border: none; background: none; padding: 9px 12px; border-radius: 8px; font-size: 0.83rem; font-weight: 600; color: #4a5a4a; cursor: pointer; }
-.range-item:hover { background: #f7f9f7; }
-.range-item.active { background: #eef3ee; color: #14301a; }
 
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;

@@ -114,7 +114,21 @@
 .nm-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9aaa9a; }
 .nm-search input { width: 100%; border: 1px solid #d5dad5; border-radius: 10px; padding: 10px 12px 10px 36px; font-size: 0.86rem; font-family: inherit; background: #fff; color: #1a3a1a; }
 .nm-search input:focus, .nm-input:focus, .nm-select:focus { outline: none; border-color: #1a3a1a; }
-.nm-select { border: 1px solid #d5dad5; border-radius: 10px; padding: 9px 12px; font-size: 0.84rem; font-family: inherit; background: #fff; color: #1a3a1a; }
+/* The one dropdown style for the whole app (native <select>). Custom pop-up
+   menus should match its border, radius, padding and font. */
+.nm-select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  border: 1px solid #d5dad5; border-radius: 10px; padding: 10px 38px 10px 12px; min-height: 42px;
+  font-size: 0.86rem; font-family: inherit; line-height: 1.3; color: #1a3a1a; cursor: pointer;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236a7a6a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 16px;
+  max-width: 100%;
+}
+.nm-select:hover:not(:disabled) { border-color: #b9c4b9; }
+.nm-select:focus { outline: none; border-color: #1a3a1a; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.14); }
+.nm-select:disabled { background-color: #f4f6f4; color: #8a9a8a; cursor: not-allowed; }
+.nm-select.invalid, .nm-select[aria-invalid="true"] { border-color: #e0a3a3; background-color: #fffafa; }
+.nm-select.block { width: 100%; }
+.nm-select option { color: #1a3a1a; }
 
 /* tables (become cards on phones) */
 .nm-table-wrap { overflow-x: auto; }

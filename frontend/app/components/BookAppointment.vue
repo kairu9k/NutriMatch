@@ -23,7 +23,7 @@
     <template v-else>
       <div class="surface mb-3">
         <label class="field-label">Select RND</label>
-        <select v-model="selectedRndId" class="field-input">
+        <select v-model="selectedRndId" class="nm-select block">
           <option v-for="rel in relationships" :key="rel.id" :value="rel.rnd.id">
             RND {{ rel.rnd.first_name }} {{ rel.rnd.last_name }}
           </option>
@@ -50,7 +50,7 @@
         <input v-model="scheduledAt" type="datetime-local" class="field-input" :min="minDateTime" />
 
         <div class="eyebrow">DURATION</div>
-        <select v-model.number="durationMinutes" class="field-input duration-select">
+        <select v-model.number="durationMinutes" class="nm-select block duration-select">
           <option :value="30">30 minutes</option>
           <option :value="60">60 minutes</option>
           <option :value="90">90 minutes</option>

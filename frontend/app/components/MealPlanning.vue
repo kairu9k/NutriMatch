@@ -15,10 +15,9 @@
       </div>
 
       <div v-if="patients.length" class="patient-select">
-        <select v-model="selectedRelId">
+        <select class="nm-select" v-model="selectedRelId">
           <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }}</option>
         </select>
-        <ChevronDown :size="15" class="select-caret" />
       </div>
     </div>
 
@@ -175,7 +174,7 @@
             </div>
             <div class="field">
               <label>Condition</label>
-              <select v-model="planMeta.condition">
+              <select class="nm-select" v-model="planMeta.condition">
                 <option v-for="c in CONDITIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
               </select>
             </div>
@@ -343,7 +342,7 @@
 
 <script setup>
 import {
-  Eye, Plus, ChevronDown, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
+  Eye, Plus, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
   Sun, Coffee, Utensils, Apple, Moon
 } from 'lucide-vue-next'
 
@@ -834,11 +833,6 @@ function formatTime(t) {
 .mode-btn.active { background: #163a1c; color: #fff; border-color: #163a1c; }
 
 .patient-select { position: relative; }
-.patient-select select {
-  appearance: none; border: 1px solid #dde3dd; background: #fff;
-  padding: 9px 32px 9px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer;
-}
-.select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
 
 .planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 
@@ -927,7 +921,7 @@ function formatTime(t) {
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
 .optional { font-weight: 400; text-transform: none; color: #9aaa9a; }
-.field input, .field select, .field textarea {
+.field input, .field textarea {
   border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
 }
 .field textarea { resize: vertical; }

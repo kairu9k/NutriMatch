@@ -60,7 +60,7 @@
             </span>
           </template>
           <template v-else>
-            <select id="scr-sex" v-model="form.sex">
+            <select class="nm-select block" id="scr-sex" v-model="form.sex">
               <option value="" disabled>Select sex</option>
               <option value="female">Female</option>
               <option value="male">Male</option>
@@ -70,7 +70,7 @@
         </div>
         <div class="field">
           <label>Activity Level</label>
-          <select v-model="form.activityLevel">
+          <select class="nm-select block" v-model="form.activityLevel">
             <option value="" disabled>Select activity level</option>
             <option v-for="level in activityLevels" :key="level.value" :value="level.value">{{ level.label }}</option>
           </select>
@@ -415,10 +415,11 @@ onMounted(async () => {
 .form-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 0.82rem; font-weight: 600; color: #6a7a6a; }
-.field input, .field select {
+.field select { min-height: 44px; font-size: 0.9rem; }
+.field input {
   border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 13px; font-size: 0.9rem; font-family: inherit; color: #1a3a1a; width: 100%; background: #fff;
 }
-.field input:focus, .field select:focus { outline: none; border-color: #14301a; }
+.field input:focus { outline: none; border-color: #14301a; }
 .field input.invalid { border-color: #c0392b; }
 .field input.readonly { background: #f3f5f3; color: #4a5a4a; cursor: default; }
 .field input.readonly:focus { border-color: #d5dad5; }

@@ -13,11 +13,10 @@
 
     <div v-if="categories.length" class="filter-row">
       <div class="category-select-wrap">
-        <select v-model="categorySelectValue" class="category-select">
+        <select v-model="categorySelectValue" class="nm-select category-select">
           <option value="all">All Categories</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
-        <ChevronDown :size="15" class="select-caret" />
       </div>
 
       <div class="safety-group">
@@ -69,7 +68,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Search, SearchX, ChevronDown } from 'lucide-vue-next'
+import { Search, SearchX } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Food Exchange Search' })
 
@@ -82,7 +81,7 @@ const items = ref([])
 const search = ref('')
 const activeCategory = ref(null)
 
-// <select> values are always strings — this bridges the "all"/numeric-id
+// <select class="nm-select"> values are always strings — this bridges the "all"/numeric-id
 // option values to activeCategory (null or a real category id) so
 // filteredItems keeps comparing against item.category.id correctly.
 const categorySelectValue = computed({
@@ -153,11 +152,7 @@ onMounted(loadData)
 
 .filter-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .category-select-wrap { position: relative; }
-.category-select {
-  appearance: none; border: 1px solid #dde3dd; background: #fff;
-  padding: 9px 34px 9px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer; min-width: 200px;
-}
-.select-caret { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
+.category-select { min-width: 200px; }
 
 .safety-group { display: flex; gap: 14px; flex-wrap: wrap; }
 .safety-toggle {
