@@ -661,11 +661,6 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .tab-panel-sub { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
 .empty-note { font-size: 0.85rem; color: #9aaa9a; text-align: center; padding: 30px 0; }
 
-.period-select select {
-  appearance: none; border: 1px solid #dde3dd; background: #fff;
-  padding: 9px 32px 9px 14px; border-radius: 8px; font-size: 0.85rem; color: #1a3a1a; cursor: pointer;
-}
-
 .mini-stat-icon {
   width: 30px; height: 30px; border-radius: 8px; background: #eef1ee;
   display: flex; align-items: center; justify-content: center; color: #4a5a4a; margin-bottom: 10px;

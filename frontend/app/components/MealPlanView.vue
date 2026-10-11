@@ -103,7 +103,6 @@
                   <label>Time Logged</label>
                   <div class="time-input-wrap">
                     <input v-model="logForm.timeLogged" type="time" />
-                    <Clock :size="14" class="time-icon" />
                   </div>
                 </div>
                 <div class="field">
@@ -153,7 +152,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, Clock, UploadCloud, Save, CheckCircle2 } from 'lucide-vue-next'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
 
@@ -409,8 +408,9 @@ onMounted(loadMealPlans)
 .field label { display: block; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; color: #9aaa9a; margin-bottom: 7px; }
 .field select { width: 100%; }
 .time-input-wrap { position: relative; }
-.time-input-wrap input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 32px 11px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; }
-.time-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9aaa9a; pointer-events: none; }
+/* sized like the nm-select beside it */
+.time-input-wrap input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #d5dad5; border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; font-family: inherit; color: #1a3a1a; background: #fff; }
+.time-input-wrap input:focus { outline: none; border-color: #1a3a1a; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.14); }
 
 .notes-field { margin-top: 14px; }
 .notes-field textarea {

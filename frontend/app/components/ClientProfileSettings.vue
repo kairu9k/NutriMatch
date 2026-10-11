@@ -782,6 +782,7 @@ onMounted(async () => {
 }
 .field-input:focus { outline: none; border-color: #D4A017; }
 .field-input:disabled { background: #f4f5f3; color: #8a9a8a; }
+.field select { min-height: 47px; font-size: 0.88rem; }
 .field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
 .section-hint { margin: -8px 0 16px; }
 .profile-error { font-size: 0.82rem; color: #a12525; margin: 0 0 12px; }
