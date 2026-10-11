@@ -33,6 +33,7 @@
         <div v-else-if="!appt" class="state-card"><VideoOff :size="28" /><p>Consultation not found.</p></div>
         <div v-else-if="appt.status === 'completed'" class="state-card">
           <CheckCircle2 :size="28" /><p>This consultation is complete.</p>
+          <button type="button" class="link" @click="summaryOpen = true">View the summary →</button>
           <button type="button" class="link" @click="exitRoom">Back →</button>
         </div>
         <div v-else-if="appt.status !== 'confirmed'" class="state-card">
@@ -195,6 +196,7 @@
             <li v-for="t in wrap.todo" :key="t.text"><NuxtLink :to="t.link" class="nm-panel-link">{{ t.text }} →</NuxtLink></li>
           </ul>
           <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-outline" @click="summaryOpen = true">View summary</button>
             <NuxtLink :to="`/client-detail/${appt.relationship.id}`" class="nm-btn-outline">Open patient chart</NuxtLink>
             <button type="button" class="nm-btn-dark" @click="leave">Done</button>
           </div>
@@ -214,6 +216,7 @@
         </div>
       </div>
     </div>
+    <ConsultationSummaryModal v-if="summaryOpen && appt" :appointment-id="appt.id" :role="isRnd ? 'rnd' : 'client'" @close="summaryOpen = false" />
   </div>
 </template>
 
@@ -357,6 +360,7 @@ async function saveProgress() {
 const progressSavedHere = ref(false)
 
 /* ---------- end & mark complete ---------- */
+const summaryOpen = ref(false)
 const endOpen = ref(false)
 const ending = ref(false)
 const endError = ref('')

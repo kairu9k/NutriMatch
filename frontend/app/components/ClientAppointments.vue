@@ -129,6 +129,7 @@
               </div>
             </div>
             <div class="history-actions">
+              <button v-if="appt.status === 'completed'" class="outline-btn small" type="button" @click="summaryId = appt.id"><FileText :size="13" /> View summary</button>
               <button v-if="appt.status === 'completed' && !appt.review" class="outline-btn small" type="button" @click="openReview(appt)"><Star :size="13" /> Leave a Review</button>
               <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}?book=1`" class="outline-btn small"><RotateCcw :size="13" /> Book Again</NuxtLink>
             </div>
@@ -188,6 +189,7 @@
     <Transition name="toast-fade">
       <div v-if="toast" class="toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
     </Transition>
+    <ConsultationSummaryModal v-if="summaryId" :appointment-id="summaryId" role="client" @close="summaryId = null" />
   </div>
 </template>
 
@@ -196,6 +198,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   CalendarPlus, CalendarDays, Clock, Video, MessageCircle, MessageSquare, MapPin, Star, RotateCcw,
   CheckCircle2, ClipboardList, CreditCard,
+  FileText,
 } from 'lucide-vue-next'
 
 const { get, patch, post } = useApi()
@@ -437,6 +440,7 @@ async function confirmCancel() {
 }
 
 /* ---------- Review ---------- */
+const summaryId = ref(null) // consultation summary pop-up
 const reviewTarget = ref(null)
 const reviewStars = ref(5)
 const reviewText = ref('')

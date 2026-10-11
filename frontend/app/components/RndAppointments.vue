@@ -136,6 +136,9 @@
               <p class="nm-row-sub">{{ timeRange(a) }} · {{ a.type_label }}{{ a.payment?.status === 'paid' ? ` · ${peso(a.payment.amount)}` : '' }}</p>
               <p v-if="a.status === 'cancelled' && a.cancellation_reason" class="nm-row-sub">Reason: {{ a.cancellation_reason }}</p>
             </div>
+            <div v-if="a.status === 'completed'" class="row-actions">
+              <button type="button" class="nm-btn-outline nm-btn-sm" @click="summaryId = a.id"><FileText :size="14" /> Summary</button>
+            </div>
           </article>
         </template>
       </div>
@@ -224,12 +227,13 @@
         </div>
       </div>
     </div>
+    <ConsultationSummaryModal v-if="summaryId" :appointment-id="summaryId" role="rnd" @close="summaryId = null" />
   </div>
 </template>
 
 <script setup>
 import {
-  AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, History, Inbox, MapPin, MessageSquare, OctagonAlert, Search, Users, Video,
+  AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, FileText, History, Inbox, MapPin, MessageSquare, OctagonAlert, Search, Users, Video,
 } from 'lucide-vue-next'
 
 const { get, patch } = useApi()
@@ -385,6 +389,7 @@ async function submitReason() {
 }
 
 /* ---------- mark complete ---------- */
+const summaryId = ref(null)
 const completeTarget = ref(null)
 const completeError = ref('')
 const justCompleted = ref(null)

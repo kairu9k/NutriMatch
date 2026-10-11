@@ -295,6 +295,16 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
                     subject="Invoice ready",
                     content=f"INV-{invoice.id:04d} for ₱{invoice.amount:.2f} is ready for payment.",
                 )
+        notify(
+            recipient=appointment.relationship.client,
+            notifiable_type="appointment",
+            notifiable_id=appointment.id,
+            subject="Your consultation summary is ready",
+            content=(
+                f"{request.user.full_name} marked your consultation on {format_ph_datetime(appointment.scheduled_at)} "
+                "as complete. Open it in My Appointments → History to see your summary."
+            ),
+        )
         return response
 
 

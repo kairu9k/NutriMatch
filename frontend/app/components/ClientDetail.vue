@@ -426,6 +426,7 @@
             <span class="nm-pill" :class="APPT_PILL[a.status]">{{ APPT_LABEL[a.status] }}</span>
             <span v-if="a.payment && a.status !== 'cancelled'" class="nm-pill" :class="a.payment === 'paid' ? 'green' : a.payment === 'unpaid' ? 'muted' : 'red'">{{ PAY_LABEL[a.payment] || a.payment }}</span>
             <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="13" /> Join</NuxtLink>
+            <button v-if="a.status === 'completed'" type="button" class="nm-btn-outline nm-btn-sm" @click="summaryId = a.id"><FileText :size="13" /> Summary</button>
           </div>
         </div>
       </div>
@@ -452,12 +453,13 @@
       v-if="showDischarge" :relationship-id="relationshipId" :patient-name="p?.client.name"
       @close="showDischarge = false" @discharged="onDischarged"
     />
+    <ConsultationSummaryModal v-if="summaryId" :appointment-id="summaryId" role="rnd" @close="summaryId = null" />
   </div>
 </template>
 
 <script setup>
 import {
-  Activity, AlertTriangle, Check, CheckCircle2, Info, Lock, MessageSquare, OctagonAlert, Plus, Scale, ShieldAlert, Utensils, Video,
+  Activity, AlertTriangle, Check, CheckCircle2, FileText, Info, Lock, MessageSquare, OctagonAlert, Plus, Scale, ShieldAlert, Utensils, Video,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -580,6 +582,7 @@ function ncpPhaseLabel(r) {
 }
 
 /* ---------- discharge ---------- */
+const summaryId = ref(null) // consultation summary pop-up
 const showDischarge = ref(false)
 function onDischarged() {
   showDischarge.value = false
