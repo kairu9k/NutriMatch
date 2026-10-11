@@ -15,6 +15,7 @@ from .serializers import (
     NcpDraftListSerializer,
     NcpRecordSerializer,
     PreConsultationScreeningSerializer,
+    ClientProgressRecordSerializer,
     ProgressRecordSerializer,
 )
 from .services import (
@@ -240,9 +241,9 @@ class RndProgressRecordListCreateView(generics.ListCreateAPIView):
 
 
 class ClientProgressRecordListView(generics.ListAPIView):
-    """Client's own progress history, across all relationships."""
+    """Client's own progress history, across all relationships (no RND notes)."""
 
-    serializer_class = ProgressRecordSerializer
+    serializer_class = ClientProgressRecordSerializer
     permission_classes = [IsClient]
 
     def get_queryset(self):

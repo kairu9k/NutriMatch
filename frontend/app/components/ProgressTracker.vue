@@ -87,7 +87,7 @@
         <div class="table-wrap">
           <table class="record-table">
             <thead>
-              <tr><th>Date</th><th>Weight</th><th>BMI</th><th>BP</th><th>Glucose</th><th>Adherence</th><th>Notes</th></tr>
+              <tr><th>Date</th><th>Weight</th><th>BMI</th><th>BP</th><th>Glucose</th><th>Adherence</th><th>HbA1c</th></tr>
             </thead>
             <tbody>
               <tr v-for="rec in filteredRecords" :key="rec.id">
@@ -97,7 +97,7 @@
                 <td>{{ rec.blood_pressure || '—' }}</td>
                 <td>{{ rec.blood_glucose ? `${rec.blood_glucose} mg/dL` : '—' }}</td>
                 <td>{{ rec.adherence_pct !== null ? `${rec.adherence_pct}%` : '—' }}</td>
-                <td class="notes-cell">{{ rec.rnd_notes || '—' }}</td>
+                <td>{{ rec.hba1c ? `${rec.hba1c}%` : "—" }}</td>
               </tr>
             </tbody>
           </table>
@@ -285,7 +285,6 @@ onMounted(loadRecords)
 }
 .record-table td { padding: 12px; border-bottom: 1px solid #f4f5f2; color: #4a5a4a; white-space: nowrap; }
 .record-table tr:last-child td { border-bottom: none; }
-.notes-cell { color: #8a9a8a; font-style: italic; }
 
 .empty-state {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec;

@@ -165,11 +165,52 @@ class ProgressRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSeriali
         ]
         read_only_fields = ["bmi"]
 
+    # Sensible adult ranges — catches typos (e.g. 650 kg) before they skew charts and alerts.
+    RANGES = {
+        "weight_kg": (Decimal("25"), Decimal("300"), "Weight must be between 25 and 300 kg."),
+        "blood_glucose": (Decimal("20"), Decimal("600"), "Fasting glucose must be between 20 and 600 mg/dL."),
+        "hba1c": (Decimal("3"), Decimal("20"), "HbA1c must be between 3 and 20%."),
+    }
+
     def validate_relationship(self, value):
         request = self.context["request"]
         if value.rnd_id != request.user.id:
             raise serializers.ValidationError("You can only log progress for your own clients.")
         return value
 
+    def validate_record_date(self, value):
+        from scheduling.serializers import PH_TZ
+        from django.utils import timezone
+
+        if value > timezone.now().astimezone(PH_TZ).date():
+            raise serializers.ValidationError("The date can't be in the future.")
+        return value
+
     def validate_blood_pressure(self, value):
         return validate_blood_pressure(value)
+
+    def validate_adherence_pct(self, value):
+        if value is not None and not 0 <= value <= 100:
+            raise serializers.ValidationError("Adherence must be between 0 and 100%.")
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        errors = {}
+        for field, (low, high, msg) in self.RANGES.items():
+            v = attrs.get(field)
+            if v is not None and not low <= v <= high:
+                errors[field] = msg
+        if errors:
+            raise serializers.ValidationError(errors)
+        if not any(attrs.get(f) not in (None, "") for f in ("weight_kg", "blood_pressure", "blood_glucose", "hba1c")):
+            raise serializers.ValidationError({"detail": "Enter at least one measurement."})
+        return attrs
+
+
+class ClientProgressRecordSerializer(serializers.ModelSerializer):
+    """What a client sees of their progress — the RND's private note is left out."""
+
+    class Meta:
+        model = ProgressRecord
+        fields = ["id", "record_date", "weight_kg", "bmi", "blood_pressure", "blood_glucose", "hba1c", "adherence_pct", "created_at"]

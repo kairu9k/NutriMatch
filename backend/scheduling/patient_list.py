@@ -14,19 +14,23 @@ from .models import Appointment, RndClientRelationship
 from .patient_insights import CareData, ph_tz
 
 
-def build_patient_rows(rnd, now=None):
+def build_patient_rows(rnd, now=None, rel_id=None, care=None):
+    """All the RND's patients, or just one (`rel_id`). Returns rows and the CareData used."""
     from billing.services import appointment_invoice
     from communication.models import Message
 
     now = now or timezone.now()
     today = now.astimezone(ph_tz()).date()
+    qs = RndClientRelationship.objects.filter(rnd=rnd)
+    if rel_id is not None:
+        qs = qs.filter(pk=rel_id)
     rels = list(
-        RndClientRelationship.objects.filter(rnd=rnd)
+        qs
         .select_related("client", "client__client_profile", "client__health_profile")
         .prefetch_related(Prefetch("appointments", queryset=Appointment.objects.prefetch_related("invoices").order_by("scheduled_at")))
         .order_by("-created_at")
     )
-    care = CareData(rels, now)
+    care = care or CareData(rels, now)
     unread = {}
     for rid in (Message.objects.filter(relationship__in=rels, is_read=False, deleted_at__isnull=True)
                 .exclude(sender=rnd).values_list("relationship_id", flat=True)):
@@ -72,7 +76,7 @@ def build_patient_rows(rnd, now=None):
             "alerts": [{"level": a["level"], "kind": a["kind"], "title": a["title"], "link": a["link"], "action": a["action"]}
                        for a in care.alerts(rel)],
         })
-    return rows
+    return rows, care
 
 
 class RndPatientListView(APIView):
@@ -82,4 +86,4 @@ class RndPatientListView(APIView):
         from billing.services import expire_unpaid_appointments
 
         expire_unpaid_appointments(relationship__rnd=request.user)
-        return Response(build_patient_rows(request.user))
+        return Response(build_patient_rows(request.user)[0])
