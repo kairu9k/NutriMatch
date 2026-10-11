@@ -19,6 +19,23 @@ class RndClientRelationshipSerializer(serializers.ModelSerializer):
         fields = ["id", "rnd", "client", "status", "started_at", "ended_at", "notes", "created_at"]
         read_only_fields = ["status", "started_at", "ended_at"]
 
+    # What anyone but the people involved may see of each other: the client
+    # only gets the RND's public details (same rule as profiles/public.py),
+    # the treating RND keeps the client's contact details.
+    PUBLIC_PERSON = ("id", "first_name", "last_name", "profile_photo", "role")
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        viewer = getattr(request, "user", None)
+        viewer_id = getattr(viewer, "id", None)
+        is_admin = getattr(viewer, "role", None) == "admin"
+        if not is_admin and viewer_id != instance.rnd_id:
+            data["rnd"] = {k: v for k, v in (data.get("rnd") or {}).items() if k in self.PUBLIC_PERSON}
+        if not is_admin and viewer_id not in (instance.rnd_id, instance.client_id):
+            data["client"] = {k: v for k, v in (data.get("client") or {}).items() if k in self.PUBLIC_PERSON}
+        return data
+
 
 class ConsultationSessionSerializer(serializers.ModelSerializer):
     class Meta:

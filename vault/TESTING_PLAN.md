@@ -124,8 +124,6 @@ Still to add:
 - [ ] One access-control sweep test: a client can't read another client's screening, meal
       plan, meal logs, progress, messages or invoices; an RND can't read another RND's
       patients (most endpoints are covered individually — this makes it one checklist).
-- [ ] Appointment payload sent to clients includes the RND's full user record (email,
-      phone) — decide and fix, then test that it's public-only (see "Open decisions").
 
 ---
 
@@ -142,7 +140,7 @@ core journey for the defense.
 | D | **RND confirms & client pays** | Appointments → Requests → Review & confirm (screening shown) → invoice issued → client pays (PayMongo test) → receipt email → room link appears only when paid and inside the join window |
 | E | **Consultation room** | Countdown; RND panel Patient / NCP / Progress; NCP draft saved from the room is linked to the consultation; **End & mark complete** → wrap-up list; Exit asks if the NCP form has unsaved changes; client panel shows only RND details, meal-plan targets, checklist |
 | F | **NCP record** | Pre-fill from screening/progress, PES picker, live BMI / energy / macro checks, limits block Save draft, unsaved-changes prompt, Review lists what's missing, Finalize confirmation, record becomes read-only; follow-up carries over PES/targets and shows previous goals in Monitoring |
-| G | **Meal plan** | Meal Planning starts on the patient list → create → send → client sees it and logs meals → adherence shows on the dashboard / My Patients / Client Detail |
+| G | **Meal plan** | Meal Plans starts on the patient list → new plan → **diet template** (diabetes / hypertension / renal / weight management, kcal pre-filled from the NCP) → draft week appears, allergy foods left out → adjust → send → client sees it and logs meals → adherence shows on the dashboard / My Patients / Client Detail |
 | H | **Progress** | Record progress (chart + RND-only private note) → client Progress page shows the numbers but not the note |
 | I | **Discharge** | Blocked while there's an upcoming consultation or NCP draft → reason → client notified + emailed → chart read-only → client rebooks → reopens on confirm |
 | J | **Billing & payouts** | Client Billing (pay-by deadline, receipt print/resend) · RND Earnings (pending → posted after 3 days → paid out on the 5th, statement print, resend payout email) · cancel a paid visit → refund pending → admin marks refunded |
@@ -206,9 +204,6 @@ Real external services or things that need human eyes:
 - **USDA FoodData Central:** cut on purpose (2026-09-04), but objective 3 in the proposal still
   mentions international nutrient databases — revise the objective with the adviser or add a
   small USDA fallback search (food name only).
-- **Diet templates** for diabetes, hypertension, renal and weight management (objective 3) —
-  not built yet.
-- **Appointment payload** shows the RND's email and phone to clients — make it public-only.
 - Screening: self-reported "unintended weight loss" on a first screening doesn't change the
   NRS-2002 score (weight loss is derived from screening history by design) — decide whether
   it should count when there's no earlier screening.

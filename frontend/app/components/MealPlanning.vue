@@ -159,6 +159,9 @@
     <!-- ================= CREATE / EDIT PLAN MODE ================= -->
     <div v-else class="planning-layout">
       <div class="create-column">
+        <!-- NEW PLAN: disease-specific diet template (diabetes, hypertension, renal, weight management) -->
+        <MealPlanTemplatePicker v-if="!selectedPlan" :relationship-id="selectedRelId" @created="onTemplateCreated" />
+
         <!-- STEP 1: PLAN DETAILS -->
         <div class="panel">
           <h4 v-if="!selectedPlan" class="no-plan-title">No meal plan yet for {{ selectedPatientName }}</h4>
@@ -623,6 +626,13 @@ function weekPayload() {
     }
   }
   return { meals }
+}
+
+// A draft built from a diet template: show its week so the RND can review it.
+function onTemplateCreated(plan, label) {
+  replacePlan(plan)
+  selectPlan(plan.id)
+  flash(`Draft built from the ${label} template — review each day and adjust, then send it to ${selectedPatientName.value}.`)
 }
 
 function replacePlan(updated) {

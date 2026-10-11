@@ -41,3 +41,20 @@ class ClientRoomInfoTests(TestCase):
         other = onboard_client(User.objects.create_user(email="o@room.ph", password="x", role="client", first_name="O", last_name="C"))
         self.api.force_authenticate(other)
         self.assertEqual(self.api.get(f"/api/client/appointments/{self.appt.id}/room-info/").status_code, 404)
+
+
+class RndContactPrivacyTests(TestCase):
+    def test_client_never_gets_rnd_email_or_phone(self):
+        rnd = approve_rnd(User.objects.create_user(email="rnd-private@x.ph", password="x", role="rnd", first_name="M", last_name="S", phone="09171234567"))
+        c = onboard_client(User.objects.create_user(email="client@x.ph", password="x", role="client", first_name="A", last_name="C", phone="09998887777"))
+        rel = RndClientRelationship.objects.create(rnd=rnd, client=c, status="active")
+        appt = Appointment.objects.create(relationship=rel, type="video", status="confirmed", scheduled_at=timezone.now() + timedelta(days=1))
+        api = APIClient()
+        api.force_authenticate(c)
+        for url in ("/api/client/appointments/", f"/api/client/appointments/{appt.id}/"):
+            body = str(api.get(url).content)
+            self.assertNotIn("rnd-private@x.ph", body)
+            self.assertNotIn("09171234567", body)
+        api.force_authenticate(rnd)
+        body = str(api.get(f"/api/rnd/appointments/{appt.id}/").content)
+        self.assertIn("client@x.ph", body)  # the treating RND keeps the client's contact details

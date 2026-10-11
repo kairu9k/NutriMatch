@@ -1,5 +1,7 @@
 from django.urls import path
 
+from .plan_templates import MealPlanFromTemplateView, MealPlanTemplateListView
+
 from .views import (
     ClientMealLogListView,
     ClientMealLogSaveView,
@@ -22,6 +24,8 @@ urlpatterns = [
     path("food-exchange/items/", FoodExchangeItemListView.as_view(), name="food_exchange_items"),
 
     path("rnd/relationships/<int:relationship_id>/meal-plans/", RndMealPlanListCreateView.as_view(), name="rnd_meal_plan_list_create"),
+    path("rnd/relationships/<int:relationship_id>/meal-plan-templates/", MealPlanTemplateListView.as_view(), name="rnd_meal_plan_templates"),
+    path("rnd/relationships/<int:relationship_id>/meal-plans/from-template/", MealPlanFromTemplateView.as_view(), name="rnd_meal_plan_from_template"),
     path("rnd/meal-plans/<int:pk>/", RndMealPlanDetailView.as_view(), name="rnd_meal_plan_detail"),
     path("rnd/meal-plans/<int:pk>/week/", RndMealPlanWeekView.as_view(), name="rnd_meal_plan_week"),
     path("rnd/meal-plans/<int:pk>/send/", RndMealPlanSendView.as_view(), name="rnd_meal_plan_send"),
