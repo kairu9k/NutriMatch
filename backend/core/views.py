@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from accounts.models import User
 from accounts.permissions import IsAdmin
 from billing.models import Invoice
+from communication.models import SupportTicket
 from profiles.models import RndProfile
 from scheduling.models import Appointment
 
@@ -45,6 +46,8 @@ class AdminPlatformStatsView(APIView):
         return Response({
             "active_rnds": active_rnds,
             "pending_verif": pending_verif,
+            # Support requests waiting for an admin (sidebar badge).
+            "support_open": SupportTicket.objects.filter(status=SupportTicket.Status.OPEN).count(),
             "clients": clients,
             "new_registrations": new_registrations,
             "total_consultations": total_consultations,

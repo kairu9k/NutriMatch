@@ -1,5 +1,19 @@
 from django.urls import path
 
+from .support import (
+    AdminSupportCloseView,
+    AdminSupportReopenView,
+    AdminSupportReplyView,
+    AdminSupportTicketDetailView,
+    AdminSupportTicketListView,
+    SupportLinksView,
+    SupportTicketCloseView,
+    SupportTicketDetailView,
+    SupportTicketListCreateView,
+    SupportTicketReplyView,
+    SupportUnreadView,
+)
+
 from .reminder_views import (
     ClientReminderListView,
     ClientReminderMuteView,
@@ -27,6 +41,17 @@ urlpatterns = [
     path("relationships/<int:relationship_id>/messages/<int:pk>/", MessageDeleteView.as_view(), name="message_delete"),
 
     path("notifications/", NotificationListView.as_view(), name="notification_list"),
+    path("support/tickets/", SupportTicketListCreateView.as_view(), name="support_tickets"),
+    path("support/tickets/<int:pk>/", SupportTicketDetailView.as_view(), name="support_ticket"),
+    path("support/tickets/<int:pk>/messages/", SupportTicketReplyView.as_view(), name="support_ticket_reply"),
+    path("support/tickets/<int:pk>/close/", SupportTicketCloseView.as_view(), name="support_ticket_close"),
+    path("support/links/", SupportLinksView.as_view(), name="support_links"),
+    path("support/unread/", SupportUnreadView.as_view(), name="support_unread"),
+    path("admin/support/tickets/", AdminSupportTicketListView.as_view(), name="admin_support_tickets"),
+    path("admin/support/tickets/<int:pk>/", AdminSupportTicketDetailView.as_view(), name="admin_support_ticket"),
+    path("admin/support/tickets/<int:pk>/messages/", AdminSupportReplyView.as_view(), name="admin_support_reply"),
+    path("admin/support/tickets/<int:pk>/close/", AdminSupportCloseView.as_view(), name="admin_support_close"),
+    path("admin/support/tickets/<int:pk>/reopen/", AdminSupportReopenView.as_view(), name="admin_support_reopen"),
     path("notifications/mark-all-read/", NotificationMarkAllReadView.as_view(), name="notification_mark_all_read"),
     path("notifications/<int:pk>/", NotificationDetailView.as_view(), name="notification_detail"),
     path("notifications/<int:pk>/read/", NotificationMarkReadView.as_view(), name="notification_mark_read"),

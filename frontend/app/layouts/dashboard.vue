@@ -110,6 +110,7 @@
       </main>
     </div>
 
+    <SupportWidget v-if="auth.user && auth.user.role !== 'admin'" />
     <WelcomeModal :open="welcomeOpen" :role="welcomeRole || 'client'" :first-name="auth.user?.first_name || ''" @close="closeWelcome" />
   </div>
 </template>
@@ -119,7 +120,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, FileText, MessageSquare,
   UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, Sparkles,
-  ShieldCheck, Wallet, ScrollText, BarChart3, Settings
+  ShieldCheck, Wallet, ScrollText, BarChart3, Settings, Headset
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -259,7 +260,7 @@ const clientNavGroups = computed(() => [
 ])
 
 // Admin menu — same layout and design as the client/RND portals.
-const adminCounts = ref({ pending: 0, payouts: 0, refunds: 0, staleRequests: 0 })
+const adminCounts = ref({ pending: 0, payouts: 0, refunds: 0, staleRequests: 0, support: 0 })
 async function loadAdminCounts() {
   if (auth.user?.role !== 'admin') return
   try {
@@ -269,6 +270,7 @@ async function loadAdminCounts() {
       payouts: stats.payouts_due_count || 0,
       refunds: stats.refunds_pending || 0,
       staleRequests: stats.appointments?.stale_requests || 0,
+      support: stats.support_open || 0,
     }
   } catch {
     // badges are optional
@@ -283,6 +285,7 @@ const adminNavGroups = computed(() => [
       { icon: ShieldCheck, label: 'RND Applications', to: '/rnd-verification', badge: adminCounts.value.pending || null },
       { icon: Users, label: 'Users', to: '/users' },
       { icon: CalendarCheck, label: 'Appointments', to: '/admin-appointments', badge: adminCounts.value.staleRequests || null },
+      { icon: Headset, label: 'Support', to: '/admin-support', badge: adminCounts.value.support || null },
     ],
   },
   {

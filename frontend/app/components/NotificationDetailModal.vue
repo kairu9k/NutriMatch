@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake } from 'lucide-vue-next'
+import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake, Headset } from 'lucide-vue-next'
 
 // Full detail of one notification + a button to the page it's about.
 // `notification` is the list row (shown right away); the related record is
@@ -99,6 +99,7 @@ const emit = defineEmits(['close'])
 
 const { get } = useApi()
 const auth = useAuthStore()
+const route = useRoute()
 
 const note = computed(() => props.notification)
 const type = computed(() => note.value.notifiable_type)
@@ -106,8 +107,8 @@ const related = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder', relationship: 'Care plan' }
-const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake }
+const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder', relationship: 'Care plan', support: 'Support request' }
+const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake, support: Headset }
 const TONES = { appointment: 'gold', invoice: 'warn', message: 'info', payout: 'good', reminder: 'gold' }
 const APPT_LABELS = { pending: 'Awaiting confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
 const APPT_PILLS = { pending: 'gold', confirmed: 'green', completed: 'blue', cancelled: 'muted' }
@@ -126,6 +127,13 @@ const withLabel = computed(() => (related.value?.with?.role === 'rnd' ? 'Dietiti
 const link = computed(() => {
   const r = related.value
   const t = type.value
+  // Support replies open the request: the Support page for admins, the
+  // help panel (?support=<id>, SupportWidget.vue) for clients and RNDs.
+  if (t === 'support' && r) {
+    return role.value === 'admin'
+      ? { label: 'Open request', to: { path: '/admin-support', query: { ticket: r.id } } }
+      : { label: 'Open my request', to: { path: route.path, query: { ...route.query, support: r.id } } }
+  }
   if (role.value === 'admin') {
     return {
       invoice: { label: 'Open Billing & Commission', to: '/billing-commission' },

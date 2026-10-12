@@ -235,6 +235,18 @@ class NotificationDetailSerializer(NotificationLogSerializer):
             "name": plan.name, "status": plan.status, "target_kcal": plan.target_kcal, "sent_at": plan.sent_at,
         }
 
+    def _related_support(self, pk, user):
+        from .models import SupportTicket
+
+        qs = SupportTicket.objects.filter(pk=pk)
+        if user.role != "admin":
+            qs = qs.filter(user=user)
+        t = qs.first()
+        if t is None:
+            return None
+        return {"id": t.id, "reference": f"SR-{t.id:04d}", "subject": t.subject, "status": t.status,
+                "status_label": t.get_status_display(), "category_label": t.get_category_display()}
+
     def _related_reminder(self, pk, user):
         from .models import Reminder
 

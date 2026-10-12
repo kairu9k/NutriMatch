@@ -190,3 +190,52 @@ class NotificationLog(models.Model):
 
     def __str__(self):
         return f"{self.channel} to {self.recipient.full_name} ({self.status})"
+
+
+class SupportTicket(models.Model):
+    """A Help & Support request from a client or RND to the NutriMatch admins
+    (message-and-reply, not live chat). Added after the proposal's schema."""
+
+    class Category(models.TextChoices):
+        PAYMENT = "payment", "Payment or refund"
+        APPOINTMENT = "appointment", "Appointment"
+        ACCOUNT = "account", "Account"
+        REPORT = "report", "Report a user"
+        TECHNICAL = "technical", "Technical problem"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"  # waiting for the admins
+        ANSWERED = "answered", "Answered"  # an admin replied, waiting for the user
+        CLOSED = "closed", "Closed"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="support_tickets")
+    category = models.CharField(max_length=20, choices=Category.choices)
+    subject = models.CharField(max_length=150)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    appointment = models.ForeignKey("scheduling.Appointment", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    invoice = models.ForeignKey("billing.Invoice", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    user_unread = models.BooleanField(default=False)  # an admin reply the user hasn't opened
+    admin_unread = models.BooleanField(default=True)  # a user message no admin has opened
+    last_activity_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "support_tickets"
+        ordering = ["-last_activity_at"]
+
+    def __str__(self):
+        return f"Support #{self.id}: {self.subject}"
+
+
+class SupportMessage(models.Model):
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+    is_admin = models.BooleanField(default=False)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "support_messages"
+        ordering = ["created_at"]
