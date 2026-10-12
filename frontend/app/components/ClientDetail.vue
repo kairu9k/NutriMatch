@@ -375,8 +375,8 @@
               <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>BP</th><th>Glucose</th><th>HbA1c</th><th>Private note</th></tr></thead>
               <tbody>
                 <tr v-for="r in s.progress" :key="r.id">
-                  <td>{{ shortDate(r.record_date) }}</td>
-                  <td>{{ r.weight_kg != null ? `${fmt1(r.weight_kg)} kg` : '—' }}</td>
+                  <td class="nowrap">{{ shortDate(r.record_date) }}</td>
+                  <td class="nowrap">{{ r.weight_kg != null ? `${fmt1(r.weight_kg)} kg` : '—' }}</td>
                   <td>{{ r.bmi != null ? fmt1(r.bmi) : '—' }}</td>
                   <td>{{ r.blood_pressure || '—' }}</td>
                   <td>{{ r.blood_glucose != null ? `${r.blood_glucose} mg/dL` : '—' }}</td>
@@ -815,4 +815,5 @@ watch(metricSeries, (ms) => {
   .mc-bar { width: 10px; }
   .mc-x span { font-size: 0.6rem; }
 }
+.nowrap { white-space: nowrap; }
 </style>

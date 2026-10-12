@@ -5,8 +5,8 @@
     </div>
 
     <div class="source-tabs" role="tablist" aria-label="Food source">
-      <button type="button" role="tab" class="source-tab" :class="{ on: source === 'fnri' }" :aria-selected="source === 'fnri'" @click="source = 'fnri'">FNRI Food Exchange List</button>
-      <button type="button" role="tab" class="source-tab" :class="{ on: source === 'usda' }" :aria-selected="source === 'usda'" @click="source = 'usda'">USDA FoodData Central</button>
+      <button type="button" role="tab" class="source-tab" :class="{ on: source === 'fnri' }" :aria-selected="source === 'fnri'" @click="source = 'fnri'"><span class="long">FNRI Food Exchange List</span><span class="short">FNRI</span></button>
+      <button type="button" role="tab" class="source-tab" :class="{ on: source === 'usda' }" :aria-selected="source === 'usda'" @click="source = 'usda'"><span class="long">USDA FoodData Central</span><span class="short">USDA</span></button>
     </div>
 
     <div class="search-wrap">
@@ -220,6 +220,7 @@ function minerals(p) {
 .source-tab { border: none; background: none; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: #5a6a5a; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
 .source-tab.on { background: #fff; color: #1a3a1a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
 .usda-pill { background: #eef1f8; color: #34508a; }
+.source-tab .short { display: none; }
 .macro-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: #f7f9f7; border-radius: 10px; padding: 8px 10px; }
 .macro-row span { display: block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a9a8a; }
 .macro-row strong { font-size: 0.86rem; color: #1a3a1a; }
@@ -284,5 +285,7 @@ function minerals(p) {
   .item-card { padding: 16px; }
   .source-tabs { display: flex; }
   .source-tab { flex: 1; padding: 8px 6px; }
+  .source-tab .long { display: none; }
+  .source-tab .short { display: inline; }
 }
 </style>
