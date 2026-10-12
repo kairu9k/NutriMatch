@@ -91,7 +91,7 @@
               <div class="row-actions">
                 <template v-if="inWindow(a)">
                   <NuxtLink v-if="a.type === 'video'" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="14" /> Join</NuxtLink>
-                  <NuxtLink v-else-if="a.type === 'chat'" :to="`/messages?relationship=${a.relationship_id}`" class="nm-btn-dark nm-btn-sm"><MessageSquare :size="14" /> Open chat</NuxtLink>
+                  <NuxtLink v-else-if="a.type === 'chat'" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><MessageSquare :size="14" /> Join chat</NuxtLink>
                 </template>
                 <span v-else-if="a.type !== 'in_person'" class="opens">Opens {{ clock(a.join_opens_at) }}</span>
                 <button type="button" class="nm-btn-outline nm-btn-sm" @click="openReason(a, 'cancel')">Cancel</button>

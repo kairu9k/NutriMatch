@@ -347,11 +347,12 @@ const nextStep = computed(() => {
   if (appt?.status === 'confirmed') {
     const when = `${formatLongDate(appt.scheduled_at)} at ${formatTime(appt.scheduled_at)}`
     // The API only sends the room link inside the join window (15 min early).
-    const canJoin = appt.type === 'video' && appt.video_session_url
+    const canJoin = (appt.type === 'video' && appt.video_session_url)
+      || (appt.type === 'chat' && appt.payment?.status === 'paid' && Date.now() >= new Date(appt.join_opens_at) && Date.now() <= new Date(appt.join_closes_at))
     return {
       eyebrow: 'UPCOMING CONSULTATION',
       text: `${APPT_TYPES[appt.type] || ''} consultation with ${rndName} on ${when}.`,
-      action: canJoin ? 'Join Video Call' : 'View Appointment',
+      action: canJoin ? (appt.type === 'chat' ? 'Join Chat' : 'Join Video Call') : 'View Appointment',
       to: canJoin ? `/consultation-room/${appt.id}` : '/appointments',
     }
   }

@@ -542,7 +542,7 @@ const mealPlanReady = computed(() => ncpRecords.value.some(r => r.diet_prescript
 /* ---------- appointments ---------- */
 const nextAppt = computed(() => [...(s.value?.appointments || [])].filter(a => a.upcoming).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))[0] || null)
 function canJoin(a) {
-  return a.status === 'confirmed' && a.type === 'video' && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
+  return a.status === 'confirmed' && ['video', 'chat'].includes(a.type) && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
 }
 const PH = { timeZone: 'Asia/Manila' }
 const longWhen = v => new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })

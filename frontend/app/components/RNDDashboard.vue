@@ -336,7 +336,7 @@ const deltaClass = computed(() => {
 const goalsTotal = computed(() => Object.values(d.value?.outcomes.goals || {}).reduce((n, x) => n + x, 0))
 
 function canJoin(a) {
-  return a.status === 'confirmed' && a.type === 'video' && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
+  return a.status === 'confirmed' && ['video', 'chat'].includes(a.type) && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
 }
 function clock(v) {
   return new Date(v).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' })

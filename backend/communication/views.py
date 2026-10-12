@@ -28,9 +28,15 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         relationship = self.get_relationship()
-        return Message.objects.filter(
+        qs = Message.objects.filter(
             relationship=relationship, deleted_at__isnull=True
         ).select_related("sender").order_by("created_at")
+        # ?after=<id>: only newer messages (the chat polls with this when the
+        # live connection isn't available, e.g. no Redis).
+        after = self.request.query_params.get("after")
+        if after and after.isdigit():
+            qs = qs.filter(id__gt=int(after))
+        return qs
 
     def create(self, request, *args, **kwargs):
         relationship = self.get_relationship()
@@ -49,7 +55,30 @@ class MessageListCreateView(generics.ListCreateAPIView):
             content=f"{request.user.full_name}: {message.message[:200]}",
         )
 
-        return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
+        data = MessageSerializer(message).data
+        _broadcast_later(relationship.id, data)
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+def _broadcast_later(relationship_id, message_data):
+    """Also push a message sent over the API to anyone connected live
+    (MessageConsumer). In a background thread: with Redis down the channel
+    layer takes seconds to fail, and the sender mustn't wait for that — the
+    other side picks the message up by polling instead."""
+    import threading
+
+    def send():
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+
+            layer = get_channel_layer()
+            if layer is not None:
+                async_to_sync(layer.group_send)(f"relationship_{relationship_id}", {"type": "chat.message", "message": message_data})
+        except Exception:  # noqa: BLE001 — no Redis / channel layer: polling covers it
+            pass
+
+    threading.Thread(target=send, daemon=True).start()
 
 
 class MessageDeleteView(generics.DestroyAPIView):

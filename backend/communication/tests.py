@@ -58,6 +58,14 @@ class MessageViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual([m["message"] for m in resp.data], ["first", "second"])
 
+    def test_after_returns_only_newer_messages(self):
+        # Used by the chat's polling when there's no live connection (no Redis).
+        old = Message.objects.create(relationship=self.rel, sender=self.client_user, message="old")
+        Message.objects.create(relationship=self.rel, sender=self.rnd, message="new")
+        self.client_api.force_authenticate(self.client_user)
+        resp = self.client_api.get(f"/api/relationships/{self.rel.id}/messages/", {"after": old.id})
+        self.assertEqual([m["message"] for m in resp.data], ["new"])
+
     def test_sender_can_soft_delete_own_message(self):
         msg = Message.objects.create(relationship=self.rel, sender=self.client_user, message="oops")
         self.client_api.force_authenticate(self.client_user)

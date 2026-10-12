@@ -62,7 +62,7 @@
             </div>
           </div>
           <div class="chat-header-right">
-            <span class="online-status" :class="{ 'status-offline': !isConnected }"><span class="status-dot" /> {{ isConnected ? 'Live' : 'Connecting…' }}</span>
+            <span class="online-status" :class="{ 'status-offline': !isConnected }"><span class="status-dot" /> {{ isConnected ? 'Live' : 'Auto-refreshing' }}</span>
           </div>
         </div>
 
@@ -115,7 +115,7 @@ import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Messages' })
 
-const { get } = useApi()
+const { get, post } = useApi()
 const authStore = useAuthStore()
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -296,18 +296,51 @@ async function scrollToBottom() {
   if (chatBodyEl.value) chatBodyEl.value.scrollTop = chatBodyEl.value.scrollHeight
 }
 
-function sendMessage() {
+// Append messages not already in the thread (socket echo, polling, own send).
+function appendMessages(relationshipId, list) {
+  const thread = messagesByRelationship.value[relationshipId] ?? []
+  const ids = new Set(thread.map(m => m.id))
+  const fresh = list.filter(m => !ids.has(m.id))
+  if (!fresh.length) return
+  thread.push(...fresh)
+  messagesByRelationship.value[relationshipId] = thread
+  lastMessageByRelationship.value[relationshipId] = thread[thread.length - 1]
+  if (activeConversationId.value === relationshipId) scrollToBottom()
+}
+
+async function sendMessage() {
   const text = draft.value.trim()
   if (!text || !activeConversationId.value) return
+  sendError.value = ''
 
-  if (!socket || socket.readyState !== WebSocket.OPEN) {
-    sendError.value = 'Not connected — reconnecting…'
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ message: text }))
+    draft.value = ''
     return
   }
+  // No live connection (e.g. Redis isn't running): send over the normal API;
+  // the other side picks it up by polling.
+  const id = activeConversationId.value
+  try {
+    draft.value = ''
+    appendMessages(id, [await post(`/relationships/${id}/messages/`, { message: text })])
+  } catch (e) {
+    draft.value = text
+    sendError.value = e?.data?.detail || 'Could not send your message. Please try again.'
+  }
+}
 
-  sendError.value = ''
-  socket.send(JSON.stringify({ message: text }))
-  draft.value = ''
+// While the live connection is down, check for new messages every few seconds.
+const POLL_MS = 4000
+let pollTimer = null
+async function pollNew() {
+  const id = activeConversationId.value
+  if (!id || (socket && socket.readyState === WebSocket.OPEN) || document.visibilityState !== 'visible') return
+  const thread = messagesByRelationship.value[id] ?? []
+  const lastId = thread.length ? thread[thread.length - 1].id : 0
+  try {
+    appendMessages(id, await get(`/relationships/${id}/messages/`, { query: { after: lastId } }))
+  } catch { /* try again next tick */ }
 }
 
 watch(activeConversationId, () => scrollToBottom())
@@ -329,9 +362,11 @@ function handleVisibilityChange() {
 onMounted(() => {
   loadConversations()
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  pollTimer = setInterval(pollNew, POLL_MS)
 })
 
 onUnmounted(() => {
+  clearInterval(pollTimer)
   disconnectSocket()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })

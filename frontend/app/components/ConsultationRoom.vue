@@ -25,7 +25,7 @@
       </div>
     </header>
 
-    <div class="body" :class="{ rnd: isRnd }">
+    <div class="body" :class="{ rnd: isRnd, chat: appt?.type === 'chat' }">
       <!-- VIDEO -->
       <main class="stage">
         <p v-if="error" class="state-card err">{{ error }}</p>
@@ -55,6 +55,9 @@
           <VideoOff :size="28" /><p>This consultation's room has closed.</p>
           <button v-if="isRnd" type="button" class="link" @click="openEnd">Mark it complete →</button>
         </div>
+        <!-- Chat consultations: same room, the conversation instead of video. -->
+        <ConsultationChat v-else-if="appt.type === 'chat'" :relationship-id="appt.relationship.id" :other-name="other.name" />
+        <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation — meet at the clinic. Use the panel to record notes.</p></div>
         <div v-else-if="!appt.video_session_url" class="state-card"><VideoOff :size="28" /><p>No video room has been set up for this consultation.</p></div>
         <iframe v-else :src="videoSrc" class="video" title="Video consultation" allow="camera; microphone; fullscreen; display-capture; autoplay" />
       </main>
@@ -159,10 +162,16 @@
             <p v-if="info.meal_plan.target_kcal" class="muted">{{ whole(info.meal_plan.target_kcal) }} kcal a day{{ info.meal_plan.target_carb_g ? ` · ${whole(info.meal_plan.target_carb_g)} g carbs · ${whole(info.meal_plan.target_protein_g)} g protein · ${whole(info.meal_plan.target_fat_g)} g fat` : '' }}</p>
           </section>
           <section class="block">
-            <h3>Before your call</h3>
+            <h3>{{ appt.type === 'chat' ? 'For your chat' : 'Before your call' }}</h3>
             <ul class="check">
-              <li>Allow your camera and microphone when the browser asks.</li>
-              <li>Find a quiet, well-lit spot.</li>
+              <template v-if="appt.type === 'chat'">
+                <li>Stay on this page — new messages appear on their own.</li>
+                <li>Answer your RND's questions as fully as you can.</li>
+              </template>
+              <template v-else>
+                <li>Allow your camera and microphone when the browser asks.</li>
+                <li>Find a quiet, well-lit spot.</li>
+              </template>
               <li>Have your recent meal logs and any lab results ready.</li>
               <li>Write down questions you want to ask.</li>
             </ul>
@@ -441,6 +450,11 @@ function leave() {
 .body { flex: 1; display: flex; min-height: 0; }
 .stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; }
 .video { width: 100%; height: 100%; border: none; }
+.stage > .cc { width: 100%; height: 100%; align-self: stretch; }
+/* Chat consultations: light stage, so the panel gets a square edge and a divider
+   (its rounded corner only suits the dark video background). */
+.body.chat .stage { background: #f4f6f4; }
+.body.chat .panel { border-radius: 0; border-left: 1px solid #e3e8e3; }
 .state-card { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 340px; text-align: center; color: #a9c2b0; font-size: 0.88rem; padding: 20px; }
 .state-card p { margin: 0; line-height: 1.5; }
 .state-card .big { font-size: 1.4rem; font-weight: 700; color: #fff; }
