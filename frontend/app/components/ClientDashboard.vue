@@ -142,9 +142,51 @@
             </div>
             <p v-else class="empty-note">No weight history yet — this fills in as your RND records your progress at each consultation.</p>
           </div>
+
+          <!-- LATEST SCREENING -->
+          <div class="panel">
+            <h3 class="panel-title">Latest Screening</h3>
+            <template v-if="screening">
+              <p class="screening-summary-text">
+                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
+              </p>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Update Screening</NuxtLink>
+            </template>
+            <template v-else>
+              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
+            </template>
+          </div>
         </div>
 
         <div class="dash-col">
+          <!-- YOUR RND (compact, top of the column) -->
+          <div class="panel rnd-compact">
+            <template v-if="careRnd">
+              <img v-if="careRnd.photo" :src="careRnd.photo" alt="" class="rnd-avatar rnd-avatar-img" />
+              <div v-else class="rnd-avatar">{{ careRnd.initials }}</div>
+              <div class="rnd-text">
+                <p class="rnd-eyebrow">Your RND</p>
+                <p class="rnd-name">RND {{ careRnd.name }}</p>
+                <p class="rnd-specialty">
+                  {{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}<template v-if="careRnd.reviewCount"> · ★ {{ careRnd.rating }}</template>
+                </p>
+                <p v-if="careRnd.pending" class="rnd-pending">Waiting to confirm your first booking</p>
+              </div>
+              <div class="rnd-actions">
+                <NuxtLink v-if="!careRnd.pending" to="/messages" class="icon-action" aria-label="Send a message" title="Send a message"><MessageSquare :size="16" /></NuxtLink>
+                <NuxtLink :to="`/rnd-profile-view/${careRnd.id}`" class="icon-action" aria-label="View profile" title="View profile"><UserRound :size="16" /></NuxtLink>
+              </div>
+            </template>
+            <template v-else>
+              <div class="rnd-text">
+                <p class="rnd-eyebrow">Your RND</p>
+                <p class="rnd-specialty">You're not connected with an RND yet.</p>
+              </div>
+              <NuxtLink to="/find-rnd" class="nm-btn-dark nm-btn-sm">Find an RND</NuxtLink>
+            </template>
+          </div>
+
           <!-- MY TASKS (today) — tasks from the RND or the client are checkboxes;
                meals tick themselves once logged; consultations link out. -->
           <div class="panel">
@@ -193,46 +235,6 @@
             <p v-if="todayLoaded && !todayItems.length" class="empty-note">No tasks for today. Tasks from your RND, meals to log and your own tasks show up here.</p>
           </div>
 
-          <!-- YOUR RND -->
-          <div class="panel">
-            <h3 class="panel-title">Your RND</h3>
-            <template v-if="careRnd">
-              <div class="rnd-row">
-                <img v-if="careRnd.photo" :src="careRnd.photo" alt="" class="rnd-avatar rnd-avatar-img" />
-                <div v-else class="rnd-avatar">{{ careRnd.initials }}</div>
-                <div class="rnd-text">
-                  <p class="rnd-name">RND {{ careRnd.name }}</p>
-                  <p class="rnd-specialty">{{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}</p>
-                  <p v-if="careRnd.reviewCount" class="rnd-rating">★ {{ careRnd.rating }} ({{ careRnd.reviewCount }} review{{ careRnd.reviewCount === 1 ? '' : 's' }})</p>
-                  <p v-if="careRnd.pending" class="rnd-pending">Waiting to confirm your first booking</p>
-                </div>
-              </div>
-              <div class="btn-row">
-                <NuxtLink v-if="!careRnd.pending" to="/messages" class="block-btn">Send a Message</NuxtLink>
-                <NuxtLink :to="`/rnd-profile-view/${careRnd.id}`" class="block-btn">View Profile</NuxtLink>
-              </div>
-            </template>
-            <template v-else>
-              <p class="empty-note spaced">You're not connected with an RND yet.</p>
-              <NuxtLink to="/find-rnd" class="block-btn">Find an RND</NuxtLink>
-            </template>
-          </div>
-
-          <!-- LATEST SCREENING -->
-          <div class="panel">
-            <h3 class="panel-title">Latest Screening</h3>
-            <template v-if="screening">
-              <p class="screening-summary-text">
-                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
-              </p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Update Screening</NuxtLink>
-            </template>
-            <template v-else>
-              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
-            </template>
-          </div>
-
           <!-- RECENT ACTIVITY (real notifications) -->
           <div class="panel">
             <div class="panel-header-row">
@@ -257,7 +259,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X,
+  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -774,6 +776,15 @@ function phClock(iso) {
 .rnd-specialty { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
 .rnd-rating { font-size: 0.78rem; color: #b8860b; font-weight: 600; margin: 2px 0 0; }
 .rnd-pending { font-size: 0.76rem; color: #b8860b; margin: 4px 0 0; }
+/* Compact "Your RND" card at the top of the right column. */
+.rnd-compact { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.rnd-compact .rnd-avatar { width: 44px; height: 44px; font-size: 0.85rem; }
+.rnd-compact .rnd-text { flex: 1; min-width: 0; }
+.rnd-compact .rnd-name { overflow-wrap: anywhere; }
+.rnd-eyebrow { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8860b; margin: 0 0 1px; }
+.rnd-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.icon-action { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #dde3dd; display: flex; align-items: center; justify-content: center; color: #1a3a1a; text-decoration: none; }
+.icon-action:hover { background: #f4f8f4; border-color: #b9d3be; }
 
 /* LATEST SCREENING */
 .screening-summary-text { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
