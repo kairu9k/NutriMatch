@@ -17,6 +17,7 @@ from .support import (
 from .reminder_views import (
     ClientReminderListView,
     ClientReminderMuteView,
+    ClientTaskCheckView,
     ClientReminderSettingsView,
     ClientTodayView,
     RndClientReminderListCreateView,
@@ -69,6 +70,7 @@ urlpatterns = [
     path("client/reminder-settings/", ClientReminderSettingsView.as_view(), name="client_reminder_settings"),
     path("client/reminders/", ClientReminderListView.as_view(), name="client_reminders"),
     path("client/reminders/<int:pk>/", ClientReminderMuteView.as_view(), name="client_reminder_mute"),
+    path("client/reminders/<int:pk>/check/", ClientTaskCheckView.as_view(), name="client_task_check"),
     path("client/today/", ClientTodayView.as_view(), name="client_today"),
     path("rnd/relationships/<int:relationship_id>/reminders/", RndClientReminderListCreateView.as_view(), name="rnd_client_reminders"),
     path("rnd/reminders/<int:pk>/", RndReminderDetailView.as_view(), name="rnd_reminder_detail"),

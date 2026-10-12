@@ -33,13 +33,17 @@ class ReminderSerializer(serializers.ModelSerializer):
     repeat_label = serializers.CharField(source="get_repeat_display", read_only=True)
     type_label = serializers.CharField(source="get_type_display", read_only=True)
     done = serializers.BooleanField(source="is_sent", read_only=True)
+    done_today = serializers.SerializerMethodField()  # ticked off in My tasks today
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
+
+    def get_done_today(self, obj):
+        return obj.done_on is not None and obj.done_on == timezone.now().astimezone(ph_tz()).date()
 
     class Meta:
         model = Reminder
         fields = [
             "id", "title", "message", "type", "type_label", "repeat", "repeat_label", "date", "time", "next_at",
-            "time_of_day", "is_active", "is_muted", "last_sent_at", "done", "created_by_name", "created_at",
+            "time_of_day", "is_active", "is_muted", "last_sent_at", "done", "done_today", "created_by_name", "created_at",
         ]
         read_only_fields = ["is_muted", "last_sent_at"]
 
@@ -97,18 +101,29 @@ class ClientReminderSettingsView(APIView):
 
 
 class ClientReminderListView(APIView):
-    """Reminders the client's RNDs set for them (not finished one-offs)."""
+    """Tasks for the client (not finished one-offs): set by their RNDs, or
+    their own (POST — "+ Add a task" in My tasks)."""
 
     permission_classes = [IsClient]
 
     def get(self, request):
-        qs = (Reminder.objects.filter(client=request.user, created_by__isnull=False, is_sent=False,
-                                      relationship__status=RndClientRelationship.Status.ACTIVE)
+        from django.db.models import Q
+
+        qs = (Reminder.objects.filter(client=request.user, created_by__isnull=False, is_sent=False)
+              .filter(Q(relationship__status=RndClientRelationship.Status.ACTIVE) | Q(relationship__isnull=True, created_by=request.user))
               .select_related("created_by").order_by("send_at"))
         return Response(ReminderSerializer(qs, many=True).data)
 
+    def post(self, request):
+        s = ReminderSerializer(data={**request.data, "type": Reminder.Type.GENERAL})
+        s.is_valid(raise_exception=True)
+        r = s.save(client=request.user, created_by=request.user, relationship=None)
+        return Response(ReminderSerializer(r).data, status=status.HTTP_201_CREATED)
+
 
 class ClientReminderMuteView(APIView):
+    """PATCH {is_muted} mutes a task; DELETE removes one of the client's own."""
+
     permission_classes = [IsClient]
 
     def patch(self, request, pk):
@@ -116,6 +131,23 @@ class ClientReminderMuteView(APIView):
         r.is_muted = bool(request.data.get("is_muted"))
         r.save(update_fields=["is_muted"])
         return Response(ReminderSerializer(r).data)
+
+    def delete(self, request, pk):
+        get_object_or_404(Reminder, pk=pk, client=request.user, created_by=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ClientTaskCheckView(APIView):
+    """POST {done: true|false} ticks a task off for today in My tasks."""
+
+    permission_classes = [IsClient]
+
+    def post(self, request, pk):
+        r = get_object_or_404(Reminder, pk=pk, client=request.user, created_by__isnull=False)
+        today = timezone.now().astimezone(ph_tz()).date()
+        r.done_on = today if request.data.get("done", True) else None
+        r.save(update_fields=["done_on"])
+        return Response({"id": r.id, "done": r.done_on == today})
 
 
 class ClientTodayView(APIView):

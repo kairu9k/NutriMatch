@@ -145,21 +145,52 @@
         </div>
 
         <div class="dash-col">
-          <!-- COMING UP TODAY (reminders) -->
+          <!-- MY TASKS (today) — tasks from the RND or the client are checkboxes;
+               meals tick themselves once logged; consultations link out. -->
           <div class="panel">
             <div class="panel-header-row">
-              <h3 class="panel-title flush">Coming up today</h3>
-              <NuxtLink to="/profile-settings?tab=notifications" class="panel-link">Reminders →</NuxtLink>
+              <div>
+                <h3 class="panel-title flush">My tasks</h3>
+                <p v-if="taskCount" class="panel-sub">{{ doneCount }} of {{ taskCount }} done today</p>
+              </div>
+              <button type="button" class="panel-link as-btn" @click="addOpen = !addOpen"><Plus :size="13" /> Add a task</button>
             </div>
-            <NuxtLink v-for="(item, i) in todayItems" :key="i" :to="item.link" class="today-row" :class="{ done: item.done }">
-              <span class="today-icon" :class="'k-' + item.kind"><component :is="TODAY_ICONS[item.kind]" :size="15" /></span>
-              <span class="today-main">
-                <span class="today-title">{{ item.title }}</span>
-                <span v-if="item.detail" class="today-detail">{{ item.detail }}</span>
-              </span>
-              <span class="today-time">{{ phClock(item.at) }}</span>
-            </NuxtLink>
-            <p v-if="todayLoaded && !todayItems.length" class="empty-note">Nothing scheduled for today. Reminders for consultations, meals and anything your RND sets will show up here.</p>
+
+            <form v-if="addOpen" class="add-task" @submit.prevent="addTask">
+              <input v-model="newTask.title" class="nm-input" maxlength="120" placeholder="e.g. Walk for 20 minutes" aria-label="Task" />
+              <div class="add-task-row">
+                <input v-model="newTask.time" type="time" class="nm-input" aria-label="Time" />
+                <select v-model="newTask.repeat" class="nm-select" aria-label="Repeat">
+                  <option value="once">Today only</option>
+                  <option value="daily">Every day</option>
+                  <option value="weekdays">Weekdays</option>
+                </select>
+                <button type="submit" class="nm-btn-dark nm-btn-sm" :disabled="adding || newTask.title.trim().length < 3">{{ adding ? 'Adding…' : 'Add' }}</button>
+              </div>
+              <p v-if="addError" class="add-error">{{ addError }}</p>
+            </form>
+
+            <template v-for="(item, i) in todayItems" :key="item.id ? `t${item.id}` : i">
+              <label v-if="item.kind === 'task'" class="today-row task" :class="{ done: item.done }">
+                <input type="checkbox" class="task-check" :checked="item.done" @change="toggleTask(item, $event.target.checked)" />
+                <span class="today-main">
+                  <span class="today-title">{{ item.title }}</span>
+                  <span class="today-detail">{{ item.detail }}</span>
+                </span>
+                <span class="today-time">{{ phClock(item.at) }}</span>
+                <button v-if="item.own" type="button" class="task-x" aria-label="Delete task" @click.prevent="removeTask(item)"><X :size="13" /></button>
+              </label>
+              <NuxtLink v-else :to="item.link" class="today-row" :class="{ done: item.done }">
+                <span v-if="item.kind === 'meal'" class="task-check meal" :class="{ on: item.done }" aria-hidden="true"><Check v-if="item.done" :size="12" /></span>
+                <span v-else class="today-icon" :class="'k-' + item.kind"><component :is="TODAY_ICONS[item.kind]" :size="15" /></span>
+                <span class="today-main">
+                  <span class="today-title">{{ item.title }}</span>
+                  <span v-if="item.detail" class="today-detail">{{ item.detail }}</span>
+                </span>
+                <span class="today-time">{{ phClock(item.at) }}</span>
+              </NuxtLink>
+            </template>
+            <p v-if="todayLoaded && !todayItems.length" class="empty-note">No tasks for today. Tasks from your RND, meals to log and your own tasks show up here.</p>
           </div>
 
           <!-- YOUR RND -->
@@ -224,15 +255,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck,
+  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
 
 const auth = useAuthStore()
-const { get } = useApi()
+const { get, post, del } = useApi()
 
 const isLoading = ref(true)
 const errorMessage = ref('')
@@ -532,7 +563,7 @@ onMounted(loadDashboard)
 const TODAY_ICONS = { appointment: CalendarCheck, meal: UtensilsCrossed, reminder: AlarmClock }
 const todayItems = ref([])
 const todayLoaded = ref(false)
-onMounted(async () => {
+async function loadToday() {
   try {
     todayItems.value = await get('/client/today/')
   } catch {
@@ -540,7 +571,51 @@ onMounted(async () => {
   } finally {
     todayLoaded.value = true
   }
-})
+}
+onMounted(loadToday)
+
+// My tasks: tick off tasks (POST /client/reminders/<id>/check/), add your own.
+const checkable = computed(() => todayItems.value.filter(i => i.kind === 'task' || i.kind === 'meal'))
+const taskCount = computed(() => checkable.value.length)
+const doneCount = computed(() => checkable.value.filter(i => i.done).length)
+async function toggleTask(item, done) {
+  item.done = done
+  try {
+    item.done = (await post(`/client/reminders/${item.id}/check/`, { done })).done
+  } catch {
+    item.done = !done
+  }
+}
+const addOpen = ref(false)
+const adding = ref(false)
+const addError = ref('')
+function defaultTime() {
+  const d = new Date(Date.now() + 30 * 60000)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+const newTask = reactive({ title: '', time: defaultTime(), repeat: 'once' })
+async function addTask() {
+  adding.value = true
+  addError.value = ''
+  try {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+    await post('/client/reminders/', { title: newTask.title.trim(), date: today, time: newTask.time, repeat: newTask.repeat })
+    Object.assign(newTask, { title: '', time: defaultTime(), repeat: 'once' })
+    addOpen.value = false
+    await loadToday()
+  } catch (e) {
+    const d = e?.data || {}
+    addError.value = d.time?.[0] || d.title?.[0] || d.detail || 'Could not add the task.'
+  } finally {
+    adding.value = false
+  }
+}
+async function removeTask(item) {
+  try {
+    await del(`/client/reminders/${item.id}/`)
+    todayItems.value = todayItems.value.filter(i => i !== item)
+  } catch { /* leave it */ }
+}
 function phClock(iso) {
   return new Date(iso).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
 }
@@ -628,6 +703,19 @@ function phClock(iso) {
 .today-title { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
 .today-detail { font-size: 0.72rem; color: #8a9a8a; }
 .today-time { font-size: 0.76rem; font-weight: 700; color: #4a5a4a; white-space: nowrap; }
+.today-row.task { cursor: pointer; }
+.task-check { width: 20px; height: 20px; margin: 0 5px; flex-shrink: 0; accent-color: #1f8f5c; cursor: pointer; }
+.task-check.meal { display: inline-flex; align-items: center; justify-content: center; border: 2px solid #b9c4b9; border-radius: 5px; color: #fff; box-sizing: border-box; }
+.task-check.meal.on { background: #1f8f5c; border-color: #1f8f5c; }
+.task-x { border: none; background: none; color: #9aaa9a; cursor: pointer; padding: 2px; display: flex; }
+.task-x:hover { color: #c0392b; }
+.as-btn { background: none; border: none; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 3px; padding: 0; }
+.add-task { display: flex; flex-direction: column; gap: 8px; background: #f7f9f7; border: 1px solid #eceeec; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.add-task .nm-input { min-height: 40px; }
+.add-task-row { display: flex; gap: 8px; }
+.add-task-row .nm-input { flex: 1; min-width: 0; }
+.add-task-row .nm-select { flex: 1; min-width: 0; }
+.add-error { font-size: 0.74rem; color: #a12525; margin: 0; }
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
 .panel-title.flush { margin: 0; }
 .panel-sub { font-size: 0.78rem; color: #8a9a8a; margin: 3px 0 0; }

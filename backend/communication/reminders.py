@@ -189,9 +189,10 @@ def run_due_reminders(now=None, client=None):
                      notifiable_id=meal.meal_plan_id, link="/meal-plan-view", link_label="Log my meal")
             sent += 1
 
-    # 4) reminders the RND set (medication cues, habit prompts)
-    due = (Reminder.objects.filter(created_by__isnull=False, is_active=True, is_sent=False, send_at__lte=now,
-                                   relationship__status=RndClientRelationship.Status.ACTIVE)
+    # 4) tasks the RND set (medication cues, habit prompts) and the client's own
+    #    (no relationship)
+    due = (Reminder.objects.filter(created_by__isnull=False, is_active=True, is_sent=False, send_at__lte=now)
+           .filter(Q(relationship__status=RndClientRelationship.Status.ACTIVE) | Q(relationship__isnull=True))
            .select_related("client", "created_by"))
     if client:
         due = due.filter(client=client)
@@ -202,10 +203,11 @@ def run_due_reminders(now=None, client=None):
                 continue  # another run got it first
             c = r.client
             fresh = now - r.send_at <= STALE_AFTER
-            if fresh and not r.is_muted and pref_for(c).rnd_reminders:
-                content = r.message or f"A reminder from RND {r.created_by.full_name}."
+            own = r.created_by_id == c.id
+            if fresh and not r.is_muted and (own or pref_for(c).rnd_reminders):
+                content = r.message or ("Your task for today." if own else f"A reminder from RND {r.created_by.full_name}.")
                 _deliver(c, pref_for(c), subject=r.title, content=content, notifiable_type="reminder",
-                         notifiable_id=r.id, link="/profile-settings?tab=notifications", link_label="See my reminders")
+                         notifiable_id=r.id, link="/client-dashboard", link_label="Open My tasks")
                 r.last_sent_at = now
                 sent += 1
             nxt = next_occurrence(r, now)
@@ -261,14 +263,22 @@ def today_items(client, now=None):
                       "title": f"Log your {m.get_meal_time_display().lower()}", "detail": "Logged" if m.id in logged else "",
                       "done": m.id in logged, "link": "/meal-plan-view"})
 
-    for r in Reminder.objects.filter(client=client, created_by__isnull=False, is_active=True, is_muted=False, is_sent=False,
-                                     send_at__gte=start, send_at__lt=end).select_related("created_by"):
-        items.append({"kind": "reminder", "at": r.send_at, "title": r.title, "detail": f"From RND {r.created_by.full_name}",
-                      "done": False, "link": "/profile-settings?tab=notifications"})
-    for r in Reminder.objects.filter(client=client, created_by__isnull=False, last_sent_at__gte=start, last_sent_at__lt=end):
-        # already sent earlier today (a repeating one has moved on to its next time)
-        items.append({"kind": "reminder", "at": r.last_sent_at, "title": r.title, "detail": "Sent", "done": True,
-                      "link": "/profile-settings?tab=notifications"})
+    # Tasks (RND-set or the client's own) due today — still to come, or already
+    # sent earlier today (a repeating one has moved on to its next time). Each
+    # is a checkbox: done = ticked off today (Reminder.done_on).
+    seen = set()
+    todays = (Reminder.objects.filter(client=client, created_by__isnull=False, is_active=True, is_muted=False)
+              .filter(Q(is_sent=False, send_at__gte=start, send_at__lt=end) | Q(last_sent_at__gte=start, last_sent_at__lt=end))
+              .select_related("created_by"))
+    for r in todays:
+        if r.id in seen:
+            continue
+        seen.add(r.id)
+        at = r.last_sent_at if r.last_sent_at and start <= r.last_sent_at < end else r.send_at
+        own = r.created_by_id == client.id
+        items.append({"kind": "task", "id": r.id, "at": at, "title": r.title,
+                      "detail": "Your task" if own else f"From RND {r.created_by.full_name}",
+                      "own": own, "done": r.done_on == today, "link": None})
 
     items.sort(key=lambda i: i["at"])
     return items

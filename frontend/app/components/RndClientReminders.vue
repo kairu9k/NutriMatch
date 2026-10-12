@@ -2,7 +2,7 @@
   <div>
     <div class="head">
       <div>
-        <h3 class="nm-panel-title">Reminders for {{ clientFirstName }}</h3>
+        <h3 class="nm-panel-title">Tasks & reminders for {{ clientFirstName }}</h3>
         <p class="nm-panel-sub">Medication cues and habit prompts. {{ clientFirstName }} gets each one as a notification (and by email if they turned that on). They can mute a reminder, but only you can change or delete it.</p>
       </div>
       <button v-if="canEdit" class="nm-btn-dark" type="button" @click="openForm()"><Plus :size="15" /> Add reminder</button>
@@ -31,6 +31,7 @@
             <span v-if="r.done" class="nm-pill muted">Finished</span>
             <span v-else-if="!r.is_active" class="nm-pill muted">Paused</span>
             <span v-if="r.is_muted" class="nm-pill red">Muted by {{ clientFirstName }}</span>
+            <span v-if="r.done_today" class="nm-pill green">✓ Done today</span>
             <span v-if="r.last_sent_at" class="nm-pill blue">Last sent {{ dayLabel(r.last_sent_at) }}</span>
           </div>
         </div>

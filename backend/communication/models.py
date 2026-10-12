@@ -122,6 +122,9 @@ class Reminder(models.Model):
         "scheduling.RndClientRelationship", on_delete=models.CASCADE, null=True, blank=True, related_name="reminders"
     )
     repeat = models.CharField(max_length=10, choices=Repeat.choices, default=Repeat.ONCE)
+    # The PH date the client last ticked this task off in "My tasks" (done for
+    # that day; a repeating task starts unticked again the next day).
+    done_on = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)  # the RND paused it
     is_muted = models.BooleanField(default=False)  # the client muted it
     last_sent_at = models.DateTimeField(null=True, blank=True)

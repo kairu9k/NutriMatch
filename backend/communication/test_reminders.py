@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from django.core import mail
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -145,4 +146,30 @@ class ReminderTests(TestCase):
         Reminder.objects.create(client=self.client_user, relationship=self.rel, created_by=self.rnd, title="Water",
                                 send_at=NOW + timedelta(hours=2))
         kinds = [i["kind"] for i in today_items(self.client_user, now=NOW)]
-        self.assertEqual(kinds, ["meal", "reminder", "appointment"])
+        self.assertEqual(kinds, ["meal", "task", "appointment"])
+
+    def test_my_tasks_checkbox_and_own_tasks(self):
+        from rest_framework.test import APIClient
+
+        rnd_task = Reminder.objects.create(client=self.client_user, relationship=self.rel, created_by=self.rnd, title="Water",
+                                           send_at=timezone.now() + timedelta(minutes=30), repeat="daily")
+        api = APIClient()
+        api.force_authenticate(self.client_user)
+        # The client adds their own task.
+        local = (timezone.now() + timedelta(minutes=20)).astimezone(ZoneInfo("Asia/Manila"))
+        own = api.post("/api/client/reminders/", {"title": "Walk 20 minutes", "date": local.date().isoformat(),
+                                                  "time": local.strftime("%H:%M"), "repeat": "daily"}, format="json")
+        self.assertEqual(own.status_code, 201, own.data)
+        tasks = [i for i in api.get("/api/client/today/").data if i["kind"] == "task"]
+        self.assertEqual({t["title"]: t["own"] for t in tasks}, {"Water": False, "Walk 20 minutes": True})
+        self.assertFalse(any(t["done"] for t in tasks))
+        # Tick the RND's task off; it shows as done today, also on the RND's side.
+        self.assertTrue(api.post(f"/api/client/reminders/{rnd_task.id}/check/", {"done": True}, format="json").data["done"])
+        tasks = {t["title"]: t["done"] for t in api.get("/api/client/today/").data if t["kind"] == "task"}
+        self.assertEqual(tasks, {"Water": True, "Walk 20 minutes": False})
+        rnd_api = APIClient()
+        rnd_api.force_authenticate(self.rnd)
+        self.assertTrue(rnd_api.get(f"/api/rnd/relationships/{self.rel.id}/reminders/").data[0]["done_today"])
+        # Clients can delete only their own tasks.
+        self.assertEqual(api.delete(f"/api/client/reminders/{rnd_task.id}/").status_code, 404)
+        self.assertEqual(api.delete(f"/api/client/reminders/{own.data['id']}/").status_code, 204)

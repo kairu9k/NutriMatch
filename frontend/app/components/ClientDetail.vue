@@ -503,7 +503,7 @@ const TABS = computed(() => [
   { key: 'meal', label: 'Meal Plan' },
   { key: 'progress', label: 'Progress', count: s.value?.progress.length || null },
   { key: 'appointments', label: 'Consultations', count: s.value?.appointments.length || null },
-  { key: 'reminders', label: 'Reminders' },
+  { key: 'reminders', label: 'Tasks & reminders' },
 ])
 
 /* ---------- labels ---------- */
