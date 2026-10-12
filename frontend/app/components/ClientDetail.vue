@@ -372,16 +372,16 @@
           <h2 class="nm-panel-title">All progress records</h2>
           <div v-if="s.progress.length" class="nm-table-wrap" style="margin-top: 10px">
             <table class="nm-table">
-              <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>BP</th><th>Glucose</th><th>HbA1c</th><th>Private note</th></tr></thead>
+              <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>BP</th><th>Glucose</th><th>HbA1c</th><th>Note</th></tr></thead>
               <tbody>
                 <tr v-for="r in s.progress" :key="r.id">
-                  <td class="nowrap">{{ shortDate(r.record_date) }}</td>
+                  <td class="nowrap">{{ shortDate(r.record_date) }}<span v-if="r.source === 'client'" class="nm-pill blue self-tag">Self-reported</span></td>
                   <td class="nowrap">{{ r.weight_kg != null ? `${fmt1(r.weight_kg)} kg` : '—' }}</td>
                   <td>{{ r.bmi != null ? fmt1(r.bmi) : '—' }}</td>
                   <td>{{ r.blood_pressure || '—' }}</td>
                   <td>{{ r.blood_glucose != null ? `${r.blood_glucose} mg/dL` : '—' }}</td>
                   <td>{{ r.hba1c != null ? `${r.hba1c}%` : '—' }}</td>
-                  <td class="note-cell">{{ r.rnd_notes || '—' }}</td>
+                  <td class="note-cell"><template v-if="r.source === 'client'">{{ r.client_notes ? `Patient: ${r.client_notes}` : '—' }}</template><template v-else>{{ r.rnd_notes || '—' }}</template></td>
                 </tr>
               </tbody>
             </table>
@@ -816,4 +816,5 @@ watch(metricSeries, (ms) => {
   .mc-x span { font-size: 0.6rem; }
 }
 .nowrap { white-space: nowrap; }
+.self-tag { margin-left: 6px; font-size: 0.62rem; }
 </style>

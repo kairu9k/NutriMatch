@@ -237,9 +237,9 @@ class ProgressRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSeriali
         model = ProgressRecord
         fields = [
             "id", "relationship", "record_date", "weight_kg", "bmi", "blood_pressure",
-            "blood_glucose", "hba1c", "adherence_pct", "client_notes", "rnd_notes", "created_at",
+            "blood_glucose", "hba1c", "adherence_pct", "client_notes", "rnd_notes", "source", "created_at",
         ]
-        read_only_fields = ["bmi"]
+        read_only_fields = ["bmi", "source", "client_notes"]
 
     # Sensible adult ranges — catches typos (e.g. 650 kg) before they skew charts and alerts.
     RANGES = {
@@ -289,4 +289,16 @@ class ClientProgressRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProgressRecord
-        fields = ["id", "record_date", "weight_kg", "bmi", "blood_pressure", "blood_glucose", "hba1c", "adherence_pct", "created_at"]
+        fields = ["id", "record_date", "weight_kg", "bmi", "blood_pressure", "blood_glucose", "hba1c", "adherence_pct",
+                  "client_notes", "source", "created_at"]
+
+
+class ClientSelfLogSerializer(ProgressRecordSerializer):
+    """A reading the client logs at home (source "client") — same ranges and
+    rules as the RND's, plus an optional note the RND can read."""
+
+    client_notes = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
+
+    class Meta(ProgressRecordSerializer.Meta):
+        fields = ["id", "record_date", "weight_kg", "bmi", "blood_pressure", "blood_glucose", "hba1c", "client_notes", "source", "created_at"]
+        read_only_fields = ["bmi", "source"]

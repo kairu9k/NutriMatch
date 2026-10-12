@@ -3,6 +3,8 @@ from django.urls import path
 from .ncp_context import NcpContextView
 from .ncp_overview import NcpOverviewView
 from .views import (
+    ClientAdherenceView,
+    ClientProgressRecordDetailView,
     ClientProgressRecordListView,
     LatestScreeningView,
     NcpRecordDetailView,
@@ -31,4 +33,6 @@ urlpatterns = [
 
     path("rnd/relationships/<int:relationship_id>/progress/", RndProgressRecordListCreateView.as_view(), name="rnd_progress_list_create"),
     path("client/progress/", ClientProgressRecordListView.as_view(), name="client_progress_list"),
+    path("client/progress/<int:pk>/", ClientProgressRecordDetailView.as_view(), name="client_progress_detail"),
+    path("client/adherence/", ClientAdherenceView.as_view(), name="client_adherence"),
 ]

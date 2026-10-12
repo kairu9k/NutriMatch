@@ -168,6 +168,9 @@ class ProgressRecord(models.Model):
     hba1c = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     adherence_pct = models.SmallIntegerField(null=True, blank=True)
     client_notes = models.TextField(null=True, blank=True)
+    # Who recorded it: the RND (clinic measurement) or the client (a home
+    # reading, "self-reported" — proposal: client self-monitoring between sessions).
+    source = models.CharField(max_length=10, choices=[("rnd", "RND"), ("client", "Self-reported")], default="rnd")
     rnd_notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

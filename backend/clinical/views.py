@@ -7,6 +7,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 
 from scheduling.discharge import ensure_open
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
 
@@ -16,6 +17,7 @@ from .serializers import (
     NcpRecordSerializer,
     PreConsultationScreeningSerializer,
     ClientProgressRecordSerializer,
+    ClientSelfLogSerializer,
     ProgressRecordSerializer,
 )
 from .services import (
@@ -226,30 +228,80 @@ class RndProgressRecordListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         ensure_open(serializer.validated_data["relationship"])
-        record = serializer.save()
-        weight_kg = record.weight_kg
-        if weight_kg is not None:
-            # Height isn't stored as a standalone client field — sourced from
-            # their most recent screening, same lookup ScreeningCreateView
-            # uses for the weight-loss-% baseline.
-            latest_screening = PreConsultationScreening.objects.filter(
-                client=record.relationship.client_id
-            ).order_by("-created_at").first()
-            if latest_screening and latest_screening.height_cm:
-                record.bmi = calculate_bmi(weight_kg, latest_screening.height_cm)
-                record.save(update_fields=["bmi"])
+        _set_bmi(serializer.save(source="rnd"))
 
 
-class ClientProgressRecordListView(generics.ListAPIView):
-    """Client's own progress history, across all relationships (no RND notes)."""
+def _set_bmi(record):
+    """BMI from the weight and the height in the client's latest screening
+    (height isn't stored on its own; same lookup ScreeningCreateView uses)."""
+    if record.weight_kg is None:
+        return
+    latest_screening = PreConsultationScreening.objects.filter(
+        client=record.relationship.client_id
+    ).order_by("-created_at").first()
+    if latest_screening and latest_screening.height_cm:
+        record.bmi = calculate_bmi(record.weight_kg, latest_screening.height_cm)
+        record.save(update_fields=["bmi"])
 
-    serializer_class = ClientProgressRecordSerializer
+
+class ClientProgressRecordListView(generics.ListCreateAPIView):
+    """Client's own progress history, across all relationships (no RND notes).
+    POST logs a home reading ("self-reported") on their current RND's record —
+    the proposal's client self-monitoring between sessions."""
+
     permission_classes = [IsClient]
+
+    def get_serializer_class(self):
+        return ClientSelfLogSerializer if self.request.method == "POST" else ClientProgressRecordSerializer
 
     def get_queryset(self):
         return ProgressRecord.objects.filter(
             relationship__client=self.request.user
-        ).order_by("-record_date")
+        ).order_by("-record_date", "-created_at")
+
+    def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+
+        from scheduling.models import RndClientRelationship
+
+        rel = RndClientRelationship.objects.filter(client=self.request.user, status=RndClientRelationship.Status.ACTIVE).first()
+        if rel is None:
+            raise ValidationError({"detail": "You can log readings once an RND is caring for you — they'll see them on your chart."})
+        _set_bmi(serializer.save(relationship=rel, source="client"))
+
+
+class ClientProgressRecordDetailView(generics.DestroyAPIView):
+    """A client deletes one of their own self-reported readings (never the RND's)."""
+
+    permission_classes = [IsClient]
+
+    def get_queryset(self):
+        return ProgressRecord.objects.filter(relationship__client=self.request.user, source="client")
+
+
+class ClientAdherenceView(APIView):
+    """Meal-plan adherence per week for the client's Progress Tracker
+    (same rules as the RND dashboard: followed 1, partly 0.5, unlogged 0)."""
+
+    permission_classes = [IsClient]
+
+    def get(self, request):
+        from datetime import timedelta
+
+        from scheduling.models import RndClientRelationship
+        from scheduling.patient_insights import CareData
+
+        rels = list(RndClientRelationship.objects.filter(client=request.user, status=RndClientRelationship.Status.ACTIVE))
+        if not rels:
+            return Response({"weeks": []})
+        care = CareData(rels)
+        weeks = []
+        for k in range(7, -1, -1):  # oldest first
+            planned, logged, score = care.window(7 * k)
+            end = care.today - timedelta(days=7 * k)
+            weeks.append({"start": end - timedelta(days=6), "end": end, "planned": planned, "logged": logged,
+                          "pct": round(score / planned * 100) if planned else None})
+        return Response({"weeks": weeks})
 
 
 class NcpRecordDetailView(generics.RetrieveUpdateDestroyAPIView):

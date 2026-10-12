@@ -90,7 +90,7 @@ def build_patient_summary(rnd, rel_id, now=None):
     progress = [
         {"id": p.id, "record_date": p.record_date, "weight_kg": _num(p.weight_kg), "bmi": _num(p.bmi),
          "blood_pressure": p.blood_pressure, "blood_glucose": _num(p.blood_glucose), "hba1c": _num(p.hba1c),
-         "rnd_notes": p.rnd_notes, "created_at": p.created_at}
+         "rnd_notes": p.rnd_notes, "client_notes": p.client_notes, "source": p.source, "created_at": p.created_at}
         for p in reversed(care.progress.get(rel.id, []))
     ]
 
