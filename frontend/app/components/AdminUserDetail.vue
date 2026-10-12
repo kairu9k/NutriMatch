@@ -22,6 +22,7 @@
           </div>
         </div>
         <div v-if="!isSelf" class="identity-actions">
+          <button class="nm-btn-outline" :disabled="busy" @click="openEdit"><Pencil :size="14" /> Edit details</button>
           <button class="nm-btn-outline" :disabled="busy" @click="sendReset"><KeyRound :size="14" /> Send password reset</button>
           <button v-if="account.is_active" class="nm-btn-danger" :disabled="busy" @click="openDeactivate"><Ban :size="14" /> Deactivate</button>
           <button v-else class="nm-btn-dark" :disabled="busy" @click="reactivate"><RotateCcw :size="14" /> Reactivate</button>
@@ -233,17 +234,58 @@
       </div>
     </div>
 
+    <!-- edit details -->
+    <div v-if="showEdit" class="nm-modal-overlay" @click.self="showEdit = false">
+      <form class="nm-modal edit-modal" @submit.prevent="saveEdit">
+        <h3 class="nm-modal-title">Edit {{ u.first_name }}'s details</h3>
+        <p class="nm-modal-text">For correcting mistakes. The change is saved in the audit log and the user is emailed what changed{{ editForm.email !== u.email ? ' (at both the old and new email)' : '' }}.</p>
+        <div class="edit-grid">
+          <label class="edit-field"><span class="nm-label">First name</span>
+            <input v-model="editForm.first_name" class="nm-input" maxlength="150" :class="{ invalid: editErrors.first_name }" />
+            <small v-if="editErrors.first_name" class="nm-field-error">{{ editErrors.first_name }}</small></label>
+          <label class="edit-field"><span class="nm-label">Last name</span>
+            <input v-model="editForm.last_name" class="nm-input" maxlength="150" :class="{ invalid: editErrors.last_name }" />
+            <small v-if="editErrors.last_name" class="nm-field-error">{{ editErrors.last_name }}</small></label>
+          <label class="edit-field"><span class="nm-label">Email</span>
+            <input v-model="editForm.email" type="email" class="nm-input" maxlength="254" :class="{ invalid: editErrors.email }" />
+            <small v-if="editErrors.email" class="nm-field-error">{{ editErrors.email }}</small></label>
+          <label class="edit-field"><span class="nm-label">Phone</span>
+            <input v-model="editForm.phone" type="tel" class="nm-input" maxlength="20" placeholder="0917 123 4567" :class="{ invalid: editErrors.phone }" />
+            <small v-if="editErrors.phone" class="nm-field-error">{{ editErrors.phone }}</small></label>
+          <template v-if="rnd">
+            <label class="edit-field"><span class="nm-label">PRC license no.</span>
+              <input v-model="editForm.prc_license_number" class="nm-input" inputmode="numeric" maxlength="7" placeholder="7 digits" :class="{ invalid: editErrors.prc_license_number }" />
+              <small v-if="editErrors.prc_license_number" class="nm-field-error">{{ editErrors.prc_license_number }}</small></label>
+            <label class="edit-field"><span class="nm-label">Specialization</span>
+              <select v-model="editForm.specialization" class="nm-select block" :class="{ invalid: editErrors.specialization }">
+                <option v-for="sp in specializations" :key="sp" :value="sp">{{ sp }}</option>
+              </select>
+              <small v-if="editErrors.specialization" class="nm-field-error">{{ editErrors.specialization }}</small></label>
+          </template>
+        </div>
+        <label class="nm-label" for="edit-reason">Reason for the change</label>
+        <textarea id="edit-reason" v-model="editForm.reason" class="nm-input" rows="2" maxlength="500" placeholder="e.g. User emailed support: their last name was misspelled at sign-up." />
+        <p v-if="editErrors.reason" class="nm-field-error">{{ editErrors.reason }}</p>
+        <p v-else class="nm-hint">At least 10 characters — saved in the audit log and included in the email.</p>
+        <p v-if="editErrors.detail" class="nm-error" style="margin-top: 10px">{{ editErrors.detail }}</p>
+        <div class="nm-modal-actions">
+          <button type="button" class="nm-btn-outline" @click="showEdit = false">Cancel</button>
+          <button type="submit" class="nm-btn-dark" :disabled="busy || !editChanged">{{ busy ? 'Saving…' : 'Save changes' }}</button>
+        </div>
+      </form>
+    </div>
+
     <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
-import { ArrowLeft, Ban, CheckCircle2, FileImage, KeyRound, RotateCcw } from 'lucide-vue-next'
+import { ArrowLeft, Ban, CheckCircle2, FileImage, KeyRound, Pencil, RotateCcw } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
 const auth = useAuthStore()
-const { get, post } = useApi()
+const { get, post, patch } = useApi()
 
 const data = ref(null)
 const loading = ref(true)
@@ -293,6 +335,51 @@ onMounted(load)
 function flash(msg) {
   toast.value = msg
   setTimeout(() => { toast.value = '' }, 3000)
+}
+
+/* ---------- edit details (PATCH /api/admin/users/<id>/edit/, accounts/admin_edit.py) ---------- */
+const EDIT_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'prc_license_number', 'specialization']
+const showEdit = ref(false)
+const editForm = reactive({ reason: '' })
+const editErrors = ref({})
+const specializations = ref([])
+const editBefore = computed(() => ({
+  first_name: u.value.first_name || '', last_name: u.value.last_name || '', email: u.value.email || '', phone: u.value.phone || '',
+  ...(rnd.value ? { prc_license_number: rnd.value.profile.prc_license_number || '', specialization: rnd.value.profile.specialization || '' } : {}),
+}))
+const editChanged = computed(() => Object.keys(editBefore.value).some(k => String(editForm[k] ?? '').trim() !== editBefore.value[k]))
+async function openEdit() {
+  Object.assign(editForm, editBefore.value, { reason: '' })
+  editErrors.value = {}
+  showEdit.value = true
+  if (rnd.value && !specializations.value.length) {
+    try { specializations.value = (await get('/client/rnds/options/')).specializations || [] } catch { /* keep the current value only */ }
+    if (editForm.specialization && !specializations.value.includes(editForm.specialization)) specializations.value.unshift(editForm.specialization)
+  }
+}
+async function saveEdit() {
+  editErrors.value = {}
+  if (editForm.reason.trim().length < 10) {
+    editErrors.value = { reason: 'Explain the change in at least 10 characters.' }
+    return
+  }
+  const body = { reason: editForm.reason.trim() }
+  for (const k of EDIT_FIELDS) {
+    if (k in editBefore.value && String(editForm[k] ?? '').trim() !== editBefore.value[k]) body[k] = String(editForm[k] ?? '').trim()
+  }
+  busy.value = true
+  try {
+    await patch(`/admin/users/${u.value.id}/edit/`, body)
+    showEdit.value = false
+    await load()
+    flash('Details updated — the user was emailed.')
+  } catch (e) {
+    const d = e?.data || {}
+    editErrors.value = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
+    if (!Object.keys(editErrors.value).length) editErrors.value = { detail: apiError(e) }
+  } finally {
+    busy.value = false
+  }
 }
 
 function openDeactivate() {
@@ -388,4 +475,11 @@ function countText(counts) {
   .identity-actions { width: 100%; }
   .identity-actions > * { flex: 1; }
 }
+.edit-modal { max-width: 560px; }
+.edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.edit-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.edit-field .nm-label { margin: 0; }
+.edit-field input.nm-input { min-height: 42px; }
+.edit-field .nm-input.invalid { border-color: #e0a3a3; background: #fffafa; }
+@media (max-width: 560px) { .edit-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>

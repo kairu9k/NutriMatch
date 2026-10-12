@@ -1,6 +1,8 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .admin_edit import AdminUserEditView
+
 from .views import (
     AdminClientListView,
     AdminRndListView,
@@ -48,6 +50,7 @@ urlpatterns = [
     path("admin/users/<int:pk>/verify-rnd/", AdminVerifyRndView.as_view(), name="admin_verify_rnd"),
     path("admin/users/<int:pk>/reject-rnd/", AdminRejectRndView.as_view(), name="admin_reject_rnd"),
     path("admin/users/<int:pk>/overview/", AdminUserOverviewView.as_view(), name="admin_user_overview"),
+    path("admin/users/<int:pk>/edit/", AdminUserEditView.as_view(), name="admin_user_edit"),
     path("admin/users/<int:pk>/deactivate/", AdminDeactivateUserView.as_view(), name="admin_user_deactivate"),
     path("admin/users/<int:pk>/reactivate/", AdminReactivateUserView.as_view(), name="admin_user_reactivate"),
     path("admin/users/<int:pk>/send-password-reset/", AdminSendPasswordResetView.as_view(), name="admin_user_password_reset"),
