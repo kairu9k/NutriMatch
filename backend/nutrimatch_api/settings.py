@@ -78,6 +78,14 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:3000,http://127.0.0.1:3000',
     cast=Csv(),
 )
+# Development only: any local port (Nuxt moves to 3001, 3002… when 3000 is
+# taken) and the home network (testing on a phone). Production uses only the
+# list above.
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+        r"^http://(192\.168|10)\.\d{1,3}\.\d{1,3}(\.\d{1,3})?(:\d+)?$",
+    ]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
