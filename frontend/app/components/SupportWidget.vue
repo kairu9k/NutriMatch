@@ -285,7 +285,7 @@ const covered = ref(false)
 let observer = null
 onMounted(() => {
   const check = () => {
-    covered.value = !!document.querySelector('.nm-modal-overlay, .ncp-overlay, [aria-modal="true"]:not(.sw-panel)')
+    covered.value = !!document.querySelector('.nm-modal-overlay, .modal-overlay, .welcome-overlay, .ml-overlay, .ncp-overlay, [aria-modal="true"]:not(.sw-panel)')
   }
   observer = new MutationObserver(check)
   observer.observe(document.body, { childList: true, subtree: true })
