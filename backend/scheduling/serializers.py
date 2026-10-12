@@ -183,6 +183,17 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
                 "Finish setting up your account (health background and screening) before booking."
             )
         profile = self._rnd_profile
+        # One RND at a time: a different RND only after the current one discharges them.
+        from .services import current_rnd_relationship
+
+        current = current_rnd_relationship(client, exclude_rnd_id=profile.user_id)
+        if current:
+            name = current.rnd.full_name
+            raise serializers.ValidationError(
+                f"You're under RND {name}'s care. You can book a different RND once RND {name} discharges you."
+                if current.status == RndClientRelationship.Status.ACTIVE else
+                f"You have a booking waiting for RND {name}. Cancel it first if you'd like a different RND."
+            )
         relationship = RndClientRelationship.objects.filter(rnd_id=profile.user_id, client=client).first()
         is_existing_client = relationship is not None and relationship.status == RndClientRelationship.Status.ACTIVE
         if not profile.available_for_new_clients and not is_existing_client:

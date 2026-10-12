@@ -126,6 +126,17 @@
             </template>
 
             <p class="book-fee">₱{{ formatFee(rnd.consultation_fee) }} <span>/ {{ SESSION_MINUTES }}-min session</span></p>
+            <!-- One RND at a time: booking someone else waits until the current RND discharges them. -->
+            <div v-if="rnd.booking_blocked_by" class="one-rnd">
+              <p v-if="rnd.booking_blocked_by.status === 'active'">
+                You're under <strong>RND {{ rnd.booking_blocked_by.name }}</strong>'s care. You can book a different RND once RND {{ rnd.booking_blocked_by.name }} discharges you.
+              </p>
+              <p v-else>
+                You have a booking waiting for <strong>RND {{ rnd.booking_blocked_by.name }}</strong>. Cancel it first if you'd like a different RND.
+              </p>
+              <NuxtLink :to="`/rnd-profile-view/${rnd.booking_blocked_by.rnd_id}`" class="nm-panel-link">Go to RND {{ rnd.booking_blocked_by.name }} →</NuxtLink>
+            </div>
+            <template v-else>
             <p class="nm-section-title" style="margin-top: 14px">Next open times</p>
             <div v-if="rnd.next_open_slots.length" class="slot-grid">
               <button v-for="slot in rnd.next_open_slots" :key="slot" type="button" class="slot" @click="bookSlot(slot)">
@@ -138,6 +149,7 @@
             <button class="nm-btn-dark book-btn" type="button" :disabled="!offeredFormats.length || !rnd.next_open_slots.length" @click="openBookingModal()">
               <CalendarPlus :size="15" /> {{ rnd.next_open_slots.length ? 'See all times & book' : 'No times available' }}
             </button>
+            </template>
 
             <ul class="policy">
               <li><CreditCard :size="13" /> Pay after {{ rnd.user.first_name }} confirms — before the session starts.</li>
@@ -370,7 +382,7 @@ onMounted(async () => {
   await loadProfile()
   // ?book=1 (e.g. the client dashboard's "Book a Consultation") opens the
   // booking modal straight away.
-  if (route.query.book === '1' && offeredFormats.value.length) openBookingModal()
+  if (route.query.book === '1' && offeredFormats.value.length && !rnd.value?.booking_blocked_by) openBookingModal()
 })
 
 /* ---------- BOOK APPOINTMENT MODAL ---------- */
@@ -710,6 +722,8 @@ async function confirmBooking() {
 .time-slot-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .time-slot-btn { border: 1px solid #d5dad5; background: #fff; color: #4a5a4a; border-radius: 8px; padding: 10px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .time-slot-btn.selected { background: #14301a; border-color: #14301a; color: #fff; }
+.one-rnd { background: #fff8e8; border: 1px solid #f1dca3; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 0.84rem; color: #5a4a1a; line-height: 1.5; }
+.one-rnd p { margin: 0 0 6px; }
 .time-slot-btn.taken { background: #f3f4f3; border-style: dashed; color: #9aaa9a; text-decoration: line-through; cursor: not-allowed; display: inline-flex; align-items: center; gap: 6px; }
 .taken-tag { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none; display: inline-block; background: #e6e9e6; color: #6a7a6a; border-radius: 6px; padding: 1px 5px; }
 .availability-warn { font-size: 0.8rem; color: #c0392b; background: #fbe5e2; border-radius: 8px; padding: 10px 12px; margin: 4px 0 0; width: 100%; }

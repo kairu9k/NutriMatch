@@ -50,3 +50,28 @@ class JitsiVideoService:
         # No API to call — meet.jit.si rooms are ephemeral and clean
         # themselves up once everyone leaves.
         return True
+
+
+def current_rnd_relationship(client, exclude_rnd_id=None):
+    """One RND at a time (user's rule, 2026-10-12): the client's care
+    relationship that blocks booking a *different* RND, or None.
+
+    Blocks: an active relationship (until that RND discharges them), or a
+    pending one that still has a booking waiting or coming up (a first
+    booking the RND hasn't confirmed yet). A pending relationship whose
+    booking was declined, cancelled or expired doesn't block."""
+    from django.utils import timezone
+
+    from .models import Appointment, RndClientRelationship
+
+    qs = RndClientRelationship.objects.filter(client=client).select_related("rnd")
+    if exclude_rnd_id is not None:
+        qs = qs.exclude(rnd_id=exclude_rnd_id)
+    active = qs.filter(status=RndClientRelationship.Status.ACTIVE).first()
+    if active:
+        return active
+    return qs.filter(
+        status=RndClientRelationship.Status.PENDING,
+        appointments__status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
+        appointments__scheduled_at__gte=timezone.now(),
+    ).distinct().first()

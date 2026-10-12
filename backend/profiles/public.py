@@ -78,13 +78,14 @@ class PublicRndProfileSerializer(serializers.ModelSerializer):
     next_open_slots = serializers.SerializerMethodField()
     clinic_address = serializers.SerializerMethodField()
     is_my_rnd = serializers.SerializerMethodField()
+    booking_blocked_by = serializers.SerializerMethodField()
 
     class Meta:
         model = RndProfile
         fields = [
             "id", "user", "prc_license_number", "specialization", "bio", "consultation_fee", "consultation_modes",
             "available_for_new_clients", "verified_at", "languages", "average_rating", "review_count",
-            "consultations_completed", "active_patients", "member_since", "next_open_slots", "clinic_address", "is_my_rnd",
+            "consultations_completed", "active_patients", "member_since", "next_open_slots", "clinic_address", "is_my_rnd", "booking_blocked_by",
         ]
 
     def get_user(self, obj):
@@ -119,6 +120,22 @@ class PublicRndProfileSerializer(serializers.ModelSerializer):
     def get_clinic_address(self, obj):
         # Only meaningful (and only shown) when they consult in person.
         return obj.clinic_address if "in_person" in (obj.consultation_modes or []) else None
+
+    def get_booking_blocked_by(self, obj):
+        """One RND at a time: {name, status} of the client's current RND when
+        it's someone else (they can't book this RND yet), else None."""
+        request = self.context.get("request")
+        if not request or request.user.role != "client":
+            return None
+        cache = self.context.setdefault("_current_rnd", {})
+        if "rel" not in cache:
+            from scheduling.services import current_rnd_relationship
+
+            cache["rel"] = current_rnd_relationship(request.user)
+        rel = cache["rel"]
+        if rel is None or rel.rnd_id == obj.user_id:
+            return None
+        return {"name": rel.rnd.full_name, "rnd_id": rel.rnd_id, "status": rel.status}
 
     def get_is_my_rnd(self, obj):
         request = self.context.get("request")

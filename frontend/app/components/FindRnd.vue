@@ -46,6 +46,11 @@
       </div>
     </div>
 
+    <!-- One RND at a time (until the current RND discharges the client). -->
+    <p v-if="blockedBy" class="one-rnd">
+      {{ blockedBy.status === 'active' ? `You're under RND ${blockedBy.name}'s care — you can book a different RND once they discharge you.` : `You have a booking waiting for RND ${blockedBy.name} — cancel it first to book someone else.` }}
+      <NuxtLink :to="`/rnd-profile-view/${blockedBy.rnd_id}`">Go to RND {{ blockedBy.name }} →</NuxtLink>
+    </p>
     <div class="results-row">
       <p class="nm-muted">
         <template v-if="loading">Finding RNDs…</template>
@@ -107,7 +112,7 @@
         <div class="card-foot">
           <div class="card-actions">
             <NuxtLink :to="`/rnd-profile-view/${rnd.user.id}`" class="nm-btn-outline">View profile</NuxtLink>
-            <NuxtLink v-if="rnd.next_open_slots.length" :to="`/rnd-profile-view/${rnd.user.id}?book=1`" class="nm-btn-dark">Book</NuxtLink>
+            <NuxtLink v-if="rnd.next_open_slots.length && !rnd.booking_blocked_by" :to="`/rnd-profile-view/${rnd.user.id}?book=1`" class="nm-btn-dark">Book</NuxtLink>
           </div>
         </div>
       </article>
@@ -142,6 +147,8 @@ const showFilters = ref(false)
 const page = ref(1)
 
 const rnds = ref([])
+// The client's current RND when it's someone else (same for every row).
+const blockedBy = computed(() => rnds.value.find(r => r.booking_blocked_by)?.booking_blocked_by || null)
 const loading = ref(true)
 const error = ref('')
 
@@ -275,4 +282,6 @@ function slotText(iso) {
   .card-foot { flex-direction: column; align-items: stretch; }
   .card-actions > * { flex: 1; }
 }
+.one-rnd { background: #fff8e8; border: 1px solid #f1dca3; border-radius: 10px; padding: 10px 14px; font-size: 0.84rem; color: #5a4a1a; line-height: 1.5; margin: 0 0 12px; }
+.one-rnd a { color: #1f6f46; font-weight: 600; margin-left: 4px; white-space: nowrap; }
 </style>
