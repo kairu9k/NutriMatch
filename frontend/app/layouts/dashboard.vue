@@ -103,7 +103,9 @@
           <span class="topbar-date">{{ todayLabel }}</span>
         </div>
 
-        <div class="topbar-actions">
+        <!-- Admins have no messages, and their to-dos live in the sidebar badges
+             and the dashboard's Needs attention list (user's call, 2026-10-12). -->
+        <div v-if="auth.user?.role !== 'admin'" class="topbar-actions">
           <button class="icon-btn" type="button" aria-label="Messages" @click="navigateTo('/messages')"><MessageSquare :size="17" /></button>
           <NotificationDropdown v-if="auth.hydrated" />
         </div>
