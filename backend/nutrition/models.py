@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 from scheduling.models import RndClientRelationship
 
@@ -94,7 +95,10 @@ class MealPlan(models.Model):
     notes = models.TextField(null=True, blank=True)
     allergies_restrictions = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
-    sent_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)  # last time it was sent (re-sending an edit updates it)
+    # When the patient first received this plan; adherence counts from here, so
+    # re-sending an edited plan keeps its history (sent_at moves, this doesn't).
+    first_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -153,6 +157,9 @@ class MealPlanMeal(models.Model):
     day_of_week = models.SmallIntegerField(choices=DayOfWeek.choices, null=True, blank=True)
     meal_time = models.CharField(max_length=20, choices=MealTime.choices)
     scheduled_time = models.TimeField(null=True, blank=True)
+    # A slot added to an already-sent plan only counts toward adherence from
+    # this day on. Null for meals that existed before this was tracked.
+    created_at = models.DateTimeField(null=True, blank=True, default=timezone.now)
     vegetable_exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     fruit_exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     milk_exchanges = models.DecimalField(max_digits=4, decimal_places=1, default=0)

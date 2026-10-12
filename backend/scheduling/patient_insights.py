@@ -88,7 +88,9 @@ class CareData:
                 continue
             if m.day_of_week is not None and m.day_of_week != _dow(d):
                 continue
-            if d < (plan.sent_at or plan.created_at).astimezone(self.ph).date():
+            # From when the patient first got the plan (re-sending an edit
+            # doesn't reset it), and a slot added later only from its own day.
+            if d < self.plan_start(plan) or (m.created_at and d < m.created_at.astimezone(self.ph).date()):
                 continue
             if d == self.today and m.scheduled_time and datetime.combine(d, m.scheduled_time, tzinfo=self.ph) > self.now:
                 continue
@@ -98,6 +100,9 @@ class CareData:
                 logged += 1
                 score += LOG_SCORE.get(lg.status, 0)
         return planned, logged, score
+
+    def plan_start(self, plan):
+        return (plan.first_sent_at or plan.sent_at or plan.created_at).astimezone(self.ph).date()
 
     def window(self, days_back_start, rel_id=None):
         planned = logged = 0
@@ -182,7 +187,7 @@ class CareData:
         c = rel.client
         plan = self.active_plans.get(rel.id)
         if plan:
-            sent = (plan.sent_at or plan.created_at).astimezone(self.ph).date()
+            sent = self.plan_start(plan)
             last = self.last_log.get(rel.id)
             days_quiet = (self.today - max(last, sent)).days if last else (self.today - sent).days
             if days_quiet >= NO_LOG_DAYS:

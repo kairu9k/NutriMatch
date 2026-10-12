@@ -430,18 +430,19 @@ class Command(BaseCommand):
         kcal/macros = the item's FNRI category values × exchanges, the same
         way the Meal Planning page fills them in."""
         kcal, protein, carb, fat = targets
+        sent = at(self.today - timedelta(days=sent_days_ago), time(16))
         plan = MealPlan.objects.create(
             relationship=rel, name=name, condition=condition,
             target_kcal=Decimal(kcal), target_protein_g=Decimal(protein),
             target_carb_g=Decimal(carb), target_fat_g=Decimal(fat),
             notes=notes, allergies_restrictions=restrictions,
-            status=MealPlan.Status.ACTIVE, sent_at=at(self.today - timedelta(days=sent_days_ago), time(16)),
+            status=MealPlan.Status.ACTIVE, sent_at=sent, first_sent_at=sent,
         )
         items = {i.name: i for i in FoodExchangeItem.objects.select_related("category")}
         for day in range(7):
             for slot, menus in week_menu.items():
                 meal = MealPlanMeal.objects.create(
-                    meal_plan=plan, day_of_week=day, meal_time=slot, scheduled_time=times[slot],
+                    meal_plan=plan, day_of_week=day, meal_time=slot, scheduled_time=times[slot], created_at=sent,
                 )
                 for food_name, exchanges in menus[day % len(menus)]:
                     item = items[food_name]

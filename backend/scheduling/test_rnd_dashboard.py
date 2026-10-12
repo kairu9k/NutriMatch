@@ -25,8 +25,9 @@ class RndDashboardTests(TestCase):
         self.c = onboard_client(User.objects.create_user(email="c@d.ph", password="x", role="client", first_name="Ana", last_name="C"))
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.c, status="active")
         self.now = datetime(2026, 10, 14, 20, 0, tzinfo=PH)  # Wednesday evening
-        plan = MealPlan.objects.create(relationship=self.rel, name="P", status="active", sent_at=self.now - timedelta(days=20))
-        self.meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=None, meal_time="breakfast", scheduled_time=time(7))
+        self.plan = MealPlan.objects.create(relationship=self.rel, name="P", status="active", sent_at=self.now - timedelta(days=20))
+        # created_at=None: the meal is part of the plan from its start.
+        self.meal = MealPlanMeal.objects.create(meal_plan=self.plan, day_of_week=None, meal_time="breakfast", scheduled_time=time(7), created_at=None)
 
     def _log(self, days_ago, status="followed"):
         MealLog.objects.create(meal_plan_meal=self.meal, client=self.c, log_date=(self.now - timedelta(days=days_ago)).date(), status=status)
@@ -40,6 +41,26 @@ class RndDashboardTests(TestCase):
         self.assertEqual((days[-1]["planned"], days[-1]["followed_pct"]), (1, 100))
         self.assertEqual(days[-2]["followed_pct"], 50)
         self.assertEqual(d["adherence"]["pct"], round(1.5 / 7 * 100))
+
+    def test_resending_an_edited_plan_keeps_adherence_history(self):
+        for i in range(7):
+            self._log(i)
+        self.plan.first_sent_at = self.now - timedelta(days=20)
+        self.plan.sent_at = self.now - timedelta(hours=1)  # re-sent today after an edit
+        self.plan.save()
+        d = build_dashboard(self.rnd, self.now)
+        self.assertEqual(d["adherence"]["pct"], 100)
+        self.assertEqual(sum(day["planned"] for day in d["adherence"]["days"]), 7)
+
+    def test_slot_added_later_counts_only_from_its_day(self):
+        for i in range(7):
+            self._log(i)
+        MealPlanMeal.objects.create(meal_plan=self.plan, day_of_week=None, meal_time="lunch", scheduled_time=time(12),
+                                    created_at=self.now - timedelta(days=1))
+        d = build_dashboard(self.rnd, self.now)
+        # 7 breakfasts + lunch only yesterday and today (both unlogged)
+        self.assertEqual(sum(day["planned"] for day in d["adherence"]["days"]), 9)
+        self.assertEqual(d["adherence"]["pct"], round(7 / 9 * 100))
 
     def test_no_logs_alert(self):
         self._log(5)

@@ -246,7 +246,8 @@ class RndMealPlanSendView(APIView):
             ).exclude(pk=plan.pk).update(status=MealPlan.Status.ARCHIVED)
             plan.status = MealPlan.Status.ACTIVE
             plan.sent_at = timezone.now()
-            plan.save(update_fields=["status", "sent_at", "updated_at"])
+            plan.first_sent_at = plan.first_sent_at or plan.sent_at  # adherence counts from here
+            plan.save(update_fields=["status", "sent_at", "first_sent_at", "updated_at"])
 
         notify(
             recipient=plan.relationship.client,
