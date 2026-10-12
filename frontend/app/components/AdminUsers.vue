@@ -1,6 +1,38 @@
 <template>
   <div class="nm-page">
-    <p class="nm-page-sub" style="margin-bottom: 16px">Every client, RND and admin account. Open one to see their full record.</p>
+    <div class="users-head">
+      <p class="nm-page-sub">Every client, RND and admin account. Open one to see their full record.</p>
+      <button type="button" class="nm-btn-dark nm-btn-sm" @click="openAddAdmin"><UserPlus :size="14" /> Add admin</button>
+    </div>
+
+    <!-- add admin (POST /api/admin/admins/, accounts/admin_accounts.py) -->
+    <div v-if="showAdd" class="nm-modal-overlay" @click.self="showAdd = false">
+      <form class="nm-modal" @submit.prevent="addAdmin">
+        <h3 class="nm-modal-title">Add an admin</h3>
+        <p class="nm-modal-text">They get full admin access. We email them an invite to set their own password with a 6-digit code — no password is sent by email.</p>
+        <div class="add-grid">
+          <label class="add-field"><span class="nm-label">First name</span>
+            <input v-model="addForm.first_name" class="nm-input" maxlength="150" required />
+            <small v-if="addErrors.first_name" class="nm-field-error">{{ addErrors.first_name }}</small></label>
+          <label class="add-field"><span class="nm-label">Last name</span>
+            <input v-model="addForm.last_name" class="nm-input" maxlength="150" required />
+            <small v-if="addErrors.last_name" class="nm-field-error">{{ addErrors.last_name }}</small></label>
+        </div>
+        <label class="add-field"><span class="nm-label">Email</span>
+          <input v-model="addForm.email" type="email" class="nm-input" maxlength="254" required />
+          <small v-if="addErrors.email" class="nm-field-error">{{ addErrors.email }}</small></label>
+        <label class="add-field"><span class="nm-label">Reason</span>
+          <textarea v-model="addForm.reason" class="nm-input" rows="2" maxlength="500" placeholder="e.g. Second admin to cover support on weekends." />
+          <small v-if="addErrors.reason" class="nm-field-error">{{ addErrors.reason }}</small>
+          <small v-else class="nm-hint">At least 10 characters — saved in the audit log.</small></label>
+        <p v-if="addErrors.detail" class="nm-error">{{ addErrors.detail }}</p>
+        <div class="nm-modal-actions">
+          <button type="button" class="nm-btn-outline" @click="showAdd = false">Cancel</button>
+          <button type="submit" class="nm-btn-dark" :disabled="adding">{{ adding ? 'Adding…' : 'Add admin & send invite' }}</button>
+        </div>
+      </form>
+    </div>
+    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
 
     <p v-if="error" class="nm-error">{{ error }}</p>
 
@@ -76,9 +108,43 @@
 </template>
 
 <script setup>
-import { Search, Users } from 'lucide-vue-next'
+import { CheckCircle2, Search, UserPlus, Users } from 'lucide-vue-next'
 
-const { get } = useApi()
+const { get, post } = useApi()
+
+/* ---------- add admin ---------- */
+const showAdd = ref(false)
+const adding = ref(false)
+const addForm = reactive({ first_name: '', last_name: '', email: '', reason: '' })
+const addErrors = ref({})
+const toast = ref('')
+function openAddAdmin() {
+  Object.assign(addForm, { first_name: '', last_name: '', email: '', reason: '' })
+  addErrors.value = {}
+  showAdd.value = true
+}
+async function addAdmin() {
+  addErrors.value = {}
+  if (addForm.reason.trim().length < 10) {
+    addErrors.value = { reason: 'Say why in at least 10 characters.' }
+    return
+  }
+  adding.value = true
+  try {
+    const created = await post('/admin/admins/', { ...addForm })
+    lists.admins.unshift(created)
+    showAdd.value = false
+    tab.value = 'admins'
+    toast.value = `Invite sent to ${created.email}.`
+    setTimeout(() => { toast.value = '' }, 3500)
+  } catch (e) {
+    const d = e?.data || {}
+    addErrors.value = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
+    if (!Object.keys(addErrors.value).length) addErrors.value = { detail: apiError(e) }
+  } finally {
+    adding.value = false
+  }
+}
 const route = useRoute()
 
 const tabs = [
@@ -140,3 +206,13 @@ function reviewPill(s) {
   return { pending: 'gold', approved: 'green', rejected: 'red' }[s] || 'muted'
 }
 </script>
+
+<style scoped>
+.users-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.users-head .nm-page-sub { margin: 0; }
+.add-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.add-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; min-width: 0; }
+.add-field .nm-label { margin: 0; }
+.add-field input.nm-input { min-height: 42px; }
+@media (max-width: 560px) { .add-grid { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+</style>

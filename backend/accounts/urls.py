@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .admin_accounts import AdminCreateView, ChangePasswordView
 from .admin_edit import AdminUserEditView
 
 from .views import (
@@ -34,6 +35,7 @@ urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/me/photo/", MePhotoView.as_view(), name="me_photo"),
+    path("auth/me/password/", ChangePasswordView.as_view(), name="me_password"),
     path("auth/me/onboarding/", OnboardingStatusView.as_view(), name="onboarding_status"),
     path("auth/me/onboarding/complete/", OnboardingCompleteView.as_view(), name="onboarding_complete"),
     path("auth/me/welcome-seen/", WelcomeSeenView.as_view(), name="welcome_seen"),
@@ -45,6 +47,7 @@ urlpatterns = [
     path("auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
 
     path("admin/users/", AdminUserListView.as_view(), name="admin_user_list"),
+    path("admin/admins/", AdminCreateView.as_view(), name="admin_create"),
     path("admin/users/<int:pk>/", AdminUserDetailView.as_view(), name="admin_user_detail"),
     path("admin/users/<int:pk>/toggle-active/", AdminUserToggleActiveView.as_view(), name="admin_user_toggle_active"),
     path("admin/users/<int:pk>/verify-rnd/", AdminVerifyRndView.as_view(), name="admin_verify_rnd"),

@@ -75,9 +75,14 @@
             <NuxtLink v-if="auth.user?.role !== 'admin'" to="/profile-settings" class="account-menu-item" @click="showAccountMenu = false">
               <UserCog :size="15" /> <span v-if="expanded">Profile Settings</span>
             </NuxtLink>
-            <NuxtLink v-else to="/system-settings" class="account-menu-item" @click="showAccountMenu = false">
-              <Settings :size="15" /> <span v-if="expanded">System Settings</span>
-            </NuxtLink>
+            <template v-else>
+              <NuxtLink to="/admin-profile" class="account-menu-item" @click="showAccountMenu = false">
+                <UserCog :size="15" /> <span v-if="expanded">My Profile</span>
+              </NuxtLink>
+              <NuxtLink to="/system-settings" class="account-menu-item" @click="showAccountMenu = false">
+                <Settings :size="15" /> <span v-if="expanded">System Settings</span>
+              </NuxtLink>
+            </template>
             <button v-if="welcomeRole" class="account-menu-item" type="button" @click="openWelcome">
               <Sparkles :size="15" /> <span v-if="expanded">How NutriMatch works</span>
             </button>
