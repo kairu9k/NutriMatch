@@ -211,10 +211,13 @@
               <button
                 v-for="slot in timeSlots" :key="slot.value"
                 type="button"
-                class="time-slot-btn" :class="{ selected: selectedTime === slot.value }"
+                class="time-slot-btn" :class="{ selected: selectedTime === slot.value, taken: slot.taken }"
+                :disabled="slot.taken"
+                :title="slot.taken ? 'Already booked by another client' : undefined"
                 @click="selectedTime = slot.value"
-              >{{ slot.label }}</button>
+              >{{ slot.label }}<span v-if="slot.taken" class="taken-tag">Booked</span></button>
               <p v-if="!timeSlots.length" class="availability-warn">No time slots available this day.</p>
+              <p v-else-if="timeSlots.every(s => s.taken)" class="availability-warn">Every time this day is already booked — pick another date.</p>
             </div>
           </div>
 
@@ -420,7 +423,7 @@ function scheduleForDate(date) {
 function isDayAvailable(date) {
   const iso = toISO(date)
   if (iso < todayISO) return false
-  return slotsForDate(iso).length > 0
+  return slotsForDate(iso).some(s => !s.taken)
 }
 const calendarCells = computed(() => {
   const year = viewMonth.value.getFullYear()
@@ -465,13 +468,13 @@ function slotsForDate(iso) {
     const end = toMinutes(s.end_time)
     for (let start = toMinutes(s.start_time); start + SESSION_MINUTES <= end; start += SESSION_MINUTES) {
       if (isToday && start <= nowMinutes) continue
-      if (isSlotTaken(iso, start)) continue
       const h = Math.floor(start / 60)
       const m = start % 60
       const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
       if (seen.has(value)) continue
       seen.add(value)
-      slots.push({ value, label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` })
+      // Times another client already booked stay visible but blocked.
+      slots.push({ value, label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`, taken: isSlotTaken(iso, start) })
     }
   }
   return slots.sort((a, b) => a.value.localeCompare(b.value))
@@ -483,7 +486,12 @@ const bookingHint = computed(() => {
   return ''
 })
 
-const canConfirmBooking = computed(() => selectedDateISO.value !== '' && selectedTime.value !== '')
+const canConfirmBooking = computed(() => selectedDateISO.value !== '' && selectedTime.value !== ''
+  && !timeSlots.value.find(s => s.value === selectedTime.value)?.taken)
+// A time picked (e.g. from "Next available") that turns out to be booked is cleared.
+watch(timeSlots, (slots) => {
+  if (selectedTime.value && slots.find(s => s.value === selectedTime.value)?.taken) selectedTime.value = ''
+})
 
 // Times this RND is already booked (start/end only), so taken slots aren't offered.
 const bookedSlots = ref([])
@@ -702,6 +710,8 @@ async function confirmBooking() {
 .time-slot-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .time-slot-btn { border: 1px solid #d5dad5; background: #fff; color: #4a5a4a; border-radius: 8px; padding: 10px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .time-slot-btn.selected { background: #14301a; border-color: #14301a; color: #fff; }
+.time-slot-btn.taken { background: #f3f4f3; border-style: dashed; color: #9aaa9a; text-decoration: line-through; cursor: not-allowed; display: inline-flex; align-items: center; gap: 6px; }
+.taken-tag { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none; display: inline-block; background: #e6e9e6; color: #6a7a6a; border-radius: 6px; padding: 1px 5px; }
 .availability-warn { font-size: 0.8rem; color: #c0392b; background: #fbe5e2; border-radius: 8px; padding: 10px 12px; margin: 4px 0 0; width: 100%; }
 
 .booking-section textarea {
