@@ -286,7 +286,7 @@ Decisions (user, 2026-10-10): admins can **see everything** — account details,
 - [x] Find an RND + RND profile page redesign (2026-10-11): public-only RND data (privacy fix), name/fee search, all 8 languages, instant filters, next open times, stats, rating breakdown, how-care-works + where-you'll-meet, clinic address for in-person, click an open time to pre-fill booking; fixed the booking pop-up's old "pay after your consultation" text.
 - [x] Edit user details (name, email, phone; RND PRC number/specialization), audit-logged with old → new values — BUILT 2026-10-12 (Edit details on the admin user page, reason required, user emailed).
 - [x] Admin accounts: add another admin; admin's own profile + change password page — BUILT 2026-10-12.
-- [ ] Dashboard upgrade: "Today" row (consultations today / this week, cancellations, unpaid starting soon), "Needs attention" (booking requests unconfirmed > 24 h, approved-but-not-bookable RNDs, RNDs with money but no payout details, failed sign-in bursts, new 1–2★ reviews), month-over-month comparisons.
+- [x] (BUILT 2026-10-12, minus failed sign-in bursts — not recorded yet) Dashboard upgrade: "Today" row (consultations today / this week, cancellations, unpaid starting soon), "Needs attention" (booking requests unconfirmed > 24 h, approved-but-not-bookable RNDs, RNDs with money but no payout details, failed sign-in bursts, new 1–2★ reviews), month-over-month comparisons.
 
 ## Phase 8 — Deployment
 - [ ] Django: Railway/Render/Fly.io (or your school's requirement) + Postgres addon
