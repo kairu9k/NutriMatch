@@ -56,7 +56,7 @@
           <button v-if="isRnd" type="button" class="link" @click="openEnd">Mark it complete →</button>
         </div>
         <div v-else-if="!appt.video_session_url" class="state-card"><VideoOff :size="28" /><p>No video room has been set up for this consultation.</p></div>
-        <iframe v-else :src="appt.video_session_url" class="video" title="Video consultation" allow="camera; microphone; fullscreen; display-capture; autoplay" />
+        <iframe v-else :src="videoSrc" class="video" title="Video consultation" allow="camera; microphone; fullscreen; display-capture; autoplay" />
       </main>
 
       <!-- RND WORK PANEL -->
@@ -237,6 +237,13 @@ const auth = useAuthStore()
 const { get, patch, post } = useApi()
 const now = useNow(15000)
 const isRnd = computed(() => auth.user?.role === 'rnd')
+// Jitsi otherwise shows whatever name was last typed in this browser; pass the
+// signed-in person's name ("RND" added for the dietitian) in its URL config.
+const videoSrc = computed(() => {
+  const u = auth.user
+  const name = u ? `${u.first_name} ${u.last_name}`.trim() + (isRnd.value ? ', RND' : '') : ''
+  return name ? `${appt.value.video_session_url}#userInfo.displayName=${encodeURIComponent(JSON.stringify(name))}` : appt.value.video_session_url
+})
 const apptId = route.params.id
 
 const appt = ref(null)
