@@ -367,9 +367,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 * { box-sizing: border-box; }
 
+/* One scrollbar: the page itself scrolls (like on phones); the sidebar and
+   top bar are sticky. An inner scrolling <main> let absolutely positioned
+   bits (e.g. charts' hidden tables) escape and stretch the page. */
 .dashboard-layout {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
   font-family: 'Inter', sans-serif;
   background: #f7f8f6;
 }
@@ -464,7 +467,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .account-menu-item.logout { color: #e08a8a; }
 
 /* MAIN COLUMN */
-.main-column { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.main-column { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .topbar {
   position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #a8d5b5;
@@ -479,7 +482,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   position: relative;
 }
 
-.content { flex: 1; overflow-y: auto; padding: 24px 40px 32px; }
+.content { flex: 1; padding: 24px 40px 32px; }
 
 /* MOBILE TOPBAR — hidden on desktop, shown only under the breakpoint below */
 .mobile-topbar { display: none; }

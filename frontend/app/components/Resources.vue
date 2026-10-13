@@ -592,7 +592,7 @@ const TOOLS = [
 
 /* LIST + PANEL (same layout as RND Applications) */
 .review-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
-.queue { padding: 10px; position: sticky; top: 16px; max-height: calc(100vh - 140px); overflow-y: auto; }
+.queue { padding: 10px; position: sticky; top: 84px; max-height: calc(100vh - 140px); overflow-y: auto; }
 .queue-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; color: inherit; }
 .queue-item + .queue-item { margin-top: 2px; }
 .queue-item:hover { background: #f7f9f7; }
