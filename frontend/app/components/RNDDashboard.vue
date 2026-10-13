@@ -416,7 +416,9 @@ function nameInitials(name) {
 .chart-x { display: flex; margin-left: 34px; border-top: 1px solid #dfe5df; padding-top: 6px; }
 .chart-x span { flex: 1; text-align: center; font-size: 0.72rem; color: #8a9a8a; }
 .chart-x span.today { color: #1a3a1a; font-weight: 700; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* display: block — a <table> ignores width/height, so without it the hidden
+   table keeps its full size and stretches the page below the layout. */
+.sr-only { position: absolute; display: block; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* attention */
 .alert { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }

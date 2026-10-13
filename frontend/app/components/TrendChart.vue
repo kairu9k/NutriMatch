@@ -110,5 +110,7 @@ const ariaLabel = computed(() => `${props.title}: ${props.series.map(s => `${s.l
 .tip span { color: #b9cdbf; }
 .tip.flip { transform: translate(calc(-100% - 12px), -50%); }
 .xaxis { display: flex; justify-content: space-between; margin-left: 38px; border-top: 1px solid #dfe5df; padding-top: 6px; font-size: 0.7rem; color: #8a9a8a; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* display: block — a <table> ignores width/height, so without it the hidden
+   table keeps its full size and stretches the page below the layout. */
+.sr-only { position: absolute; display: block; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
