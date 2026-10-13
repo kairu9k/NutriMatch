@@ -8,17 +8,41 @@
     <p v-else-if="isLoading" class="placeholder-text">Loading…</p>
 
     <template v-else>
-      <!-- NEXT-STEP BANNER -->
-      <section class="welcome-banner">
-        <div class="banner-blob banner-blob-1"></div>
-        <div class="banner-blob banner-blob-2"></div>
-        <div class="banner-content">
-          <span class="banner-badge"><span class="banner-badge-dot"></span> {{ nextStep.eyebrow }}</span>
-          <h2 class="banner-title">Hi {{ auth.user?.first_name }}, welcome back.</h2>
-          <p class="banner-sub">{{ nextStep.text }}</p>
-          <div class="banner-actions">
-            <NuxtLink :to="nextStep.to" class="banner-btn">{{ nextStep.action }}</NuxtLink>
-          </div>
+      <!-- BANNER (same design as the RND dashboard, nm-hero in portal.css):
+           greeting + the next step on the left; the next consultation, or the
+           next step when there isn't one, in the "Up next" card on the right. -->
+      <section class="nm-hero">
+        <div class="nm-hero-greet">
+          <p class="nm-hero-date">{{ longToday }}</p>
+          <h1 class="nm-hero-title">Hi {{ auth.user?.first_name }}, welcome back.</h1>
+          <p class="nm-hero-sub">{{ nextStep.text }}</p>
+        </div>
+        <div class="nm-upnext">
+          <template v-if="upNext">
+            <div class="nm-upnext-top">
+              <span class="nm-upnext-label">Up next · {{ upNext.when }}</span>
+              <span class="nm-upnext-pay" :class="{ unpaid: upNext.pill !== 'Paid' }">{{ upNext.pill }}</span>
+            </div>
+            <div class="nm-upnext-who">
+              <img v-if="upNext.photo" :src="upNext.photo" alt="" class="nm-upnext-avatar" />
+              <span v-else class="nm-upnext-avatar">{{ upNext.initials }}</span>
+              <div class="nm-upnext-name-wrap">
+                <p class="nm-upnext-name">RND {{ upNext.name }}</p>
+                <p class="nm-upnext-format">{{ upNext.format }}</p>
+              </div>
+            </div>
+            <div class="nm-upnext-actions">
+              <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
+                <Video v-if="/Join/.test(nextStep.action)" :size="16" />{{ nextStep.action }}
+              </NuxtLink>
+              <NuxtLink v-if="nextStep.to !== '/appointments'" to="/appointments" class="nm-hero-btn">View appointment</NuxtLink>
+            </div>
+          </template>
+          <template v-else>
+            <p class="nm-upnext-label">{{ nextStep.eyebrow }}</p>
+            <p class="nm-upnext-empty">{{ nextStep.short }}</p>
+            <div class="nm-upnext-actions"><NuxtLink :to="nextStep.to" class="nm-hero-btn primary">{{ nextStep.action }}</NuxtLink></div>
+          </template>
         </div>
       </section>
 
@@ -261,7 +285,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound,
+  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -360,6 +384,25 @@ const careRnd = computed(() => {
 const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid'))
 const unpaidTotal = computed(() => unpaidInvoices.value.reduce((sum, i) => sum + Number(i.amount), 0))
 
+/* ---------- Banner "Up next" card: the next consultation, if any ---------- */
+const longToday = new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric' })
+const upNext = computed(() => {
+  const a = nextAppointment.value
+  if (!a) return null
+  const rnd = a.relationship?.rnd || {}
+  const name = `${rnd.first_name || ''} ${rnd.last_name || ''}`.trim()
+  const sameDay = new Date(a.scheduled_at).toDateString() === new Date().toDateString()
+  const day = sameDay ? '' : `${new Date(a.scheduled_at).toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })}, `
+  return {
+    when: `${day}${formatTime(a.scheduled_at)}`,
+    pill: a.status === 'pending' ? 'Waiting to confirm' : a.payment?.status === 'paid' ? 'Paid' : 'Not paid yet',
+    name,
+    initials: `${rnd.first_name?.[0] || ''}${rnd.last_name?.[0] || ''}`.toUpperCase(),
+    photo: rnd.profile_photo || (careRnd.value?.id === rnd.id ? careRnd.value.photo : ''),
+    format: `${APPT_TYPES[a.type] || ''} consultation`.trim(),
+  }
+})
+
 /* ---------- Next step (banner) ---------- */
 const nextStep = computed(() => {
   const appt = nextAppointment.value
@@ -368,6 +411,7 @@ const nextStep = computed(() => {
     return {
       eyebrow: 'YOUR NEXT STEP',
       text: 'Complete your health screening. It takes about a minute and gives your RND your BMI, calorie needs and nutrition risk before you meet.',
+      short: 'Your health screening — about a minute.',
       action: 'Start Screening', to: '/pre-consultation-screening',
     }
   }
@@ -405,6 +449,7 @@ const nextStep = computed(() => {
     return {
       eyebrow: 'BOOKING NOT CONFIRMED',
       text: `Your ${formatLongDate(expiredRequest.value.scheduled_at)} booking request${rnd ? ` with RND ${rnd.first_name} ${rnd.last_name}` : ''} wasn't confirmed before its time passed. Pick a new time, or choose another RND.`,
+      short: 'Your last booking request expired. Pick a new time.',
       action: 'Book a New Time', to: rnd ? `/rnd-profile-view/${rnd.id}?book=1` : '/find-rnd',
     }
   }
@@ -414,12 +459,14 @@ const nextStep = computed(() => {
       text: activePlan.value
         ? `You don't have an upcoming consultation with ${rndName}. Keep logging your meals, and book a follow-up when you're ready.`
         : `You don't have an upcoming consultation with ${rndName}. Book one to continue your care.`,
+      short: `No consultation booked with ${rndName}.`,
       action: 'Book a Consultation', to: `/rnd-profile-view/${activeRelationship.value.rnd.id}?book=1`,
     }
   }
   return {
     eyebrow: 'YOUR NEXT STEP',
     text: 'Your screening is done. Find a licensed RND who fits your needs and book your first consultation.',
+    short: 'Find an RND and book your first consultation.',
     action: 'Find an RND', to: '/find-rnd',
   }
 })
@@ -648,34 +695,6 @@ function phClock(iso) {
 .empty-note { font-size: 0.85rem; color: #9aaa9a; margin: 0; line-height: 1.5; }
 .empty-note.spaced { margin-bottom: 16px; }
 
-/* WELCOME BANNER */
-.welcome-banner {
-  position: relative;
-  background: linear-gradient(135deg, #00382a 0%, #005a42 100%);
-  border-radius: 16px; padding: 32px 36px; overflow: hidden;
-  margin: 0 0 24px; color: #fff;
-  width: 100%;
-}
-.banner-blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.05); }
-.banner-blob-1 { width: 260px; height: 260px; top: -90px; right: 40px; }
-.banner-blob-2 { width: 160px; height: 160px; bottom: -70px; right: -20px; background: rgba(255,255,255,0.04); }
-.banner-content { position: relative; z-index: 1; }
-.banner-badge {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: rgba(0,0,0,0.2); color: #D4A017;
-  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-  padding: 5px 14px; border-radius: 20px; margin-bottom: 14px;
-}
-.banner-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: #D4A017; }
-.banner-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.7rem; margin: 0 0 8px; color: #fff; }
-.banner-sub { font-size: 0.85rem; color: #cfe0d5; margin: 0 0 20px; max-width: 620px; line-height: 1.5; }
-.banner-actions { display: flex; gap: 10px; }
-.banner-btn {
-  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
-  padding: 11px 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
-  text-decoration: none; display: inline-block;
-}
-
 /* UNPAID INVOICE ROW */
 .notice-row {
   display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #eceeec;
@@ -812,9 +831,6 @@ function phClock(iso) {
   .dash-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .welcome-banner { padding: 24px 20px; }
-  .banner-title { font-size: 1.35rem; }
-  .banner-btn { width: 100%; text-align: center; }
   .stat-grid { gap: 12px; }
   .stat-card { padding: 16px; }
   .stat-value { font-size: 1.35rem; }

@@ -201,3 +201,42 @@ textarea.nm-input { resize: vertical; line-height: 1.5; }
   .nm-table.stack td[data-label]::before { content: attr(data-label); display: inline-block; min-width: 108px; font-size: 0.7rem; font-weight: 700; color: #8a9a8a; text-transform: uppercase; letter-spacing: 0.04em; }
   .nm-table.stack .nm-num { text-align: left !important; }
 }
+
+/* ---------- dashboard banner (RND + client) ---------- */
+/* Banner: design A's layout (greeting + "Up next" card) on the app's own dark
+   green banner background (user's call, 2026-10-14). Used by the RND and
+   client dashboards. App fonts. */
+.nm-hero { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center;
+  background: linear-gradient(135deg, #00382a 0%, #005a42 100%); border-radius: 18px; padding: 28px 28px 28px 36px; margin: 0 0 20px; }
+.nm-hero::before, .nm-hero::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.05); pointer-events: none; }
+.nm-hero::before { width: 260px; height: 260px; top: -90px; left: 38%; }
+.nm-hero::after { width: 160px; height: 160px; bottom: -70px; left: -40px; background: rgba(255, 255, 255, 0.04); }
+.nm-hero > * { position: relative; z-index: 1; }
+.nm-hero-greet { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nm-hero-date { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #D4A017; margin: 0; }
+.nm-hero-title { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 700; line-height: 1.1; color: #fff; margin: 0; }
+.nm-hero-sub { font-size: 16px; color: #CFE0D5; margin: 0; line-height: 1.5; }
+.nm-upnext { background: #fff; border-radius: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.nm-upnext-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.nm-upnext-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #14684A; margin: 0; }
+.nm-upnext-pay { background: #EEF5F0; color: #14684A; font-size: 12px; font-weight: 600; border: 1px solid #CFE3D7; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.nm-upnext-pay.unpaid { background: #FDF6E3; color: #7A560F; border-color: #EAD9AE; }
+.nm-upnext-who { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.nm-upnext-avatar { width: 48px; height: 48px; border-radius: 50%; background: #0B4F38; color: #fff; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; object-fit: cover; }
+.nm-upnext-name-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nm-upnext-name { font-size: 18px; font-weight: 700; color: #1B2A24; margin: 0; overflow-wrap: anywhere; }
+.nm-upnext-format { font-size: 14px; color: #4F5E57; margin: 0; }
+.nm-upnext-empty { font-size: 16px; color: #4F5E57; margin: 0; }
+.nm-upnext-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.nm-hero-btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  text-decoration: none; background: #fff; border: 1px solid #BFD6C8; color: #0B3D2E; white-space: nowrap; }
+.nm-hero-btn:hover { border-color: #0B4F38; }
+.nm-hero-btn.primary { background: #0B4F38; border-color: #0B4F38; color: #fff; }
+.nm-hero-btn.primary:hover { background: #093f2d; }
+.nm-hero-btn.waiting { cursor: default; }
+@media (max-width: 900px) {
+  .nm-hero { grid-template-columns: 1fr; gap: 20px; padding: 22px 20px; }
+  .nm-hero-title { font-size: 30px; }
+  .nm-hero-btn { flex: 1; justify-content: center; }
+}
