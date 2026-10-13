@@ -89,12 +89,19 @@
         </div>
       </div>
 
-      <label class="symptoms-label">Current Symptoms (select all that apply)</label>
-      <div class="symptoms-grid">
-        <label v-for="s in symptomOptions" :key="s.key" class="checkbox-row">
-          <input v-model="form.symptoms[s.key]" type="checkbox" />
-          {{ s.label }}
-        </label>
+      <label class="symptoms-label">Current Symptoms{{ onFile ? '' : ' (select all that apply)' }}</label>
+      <p v-if="conditionNames.length" class="condition-line">
+        Based on your condition: <strong>{{ conditionNames.join(', ') }}</strong>
+        <template v-if="!onFile && !embedded"> · <NuxtLink to="/profile-settings">change it in Profile Settings</NuxtLink></template>
+      </p>
+      <div v-for="g in groups" :key="g.key" class="symptom-group">
+        <p class="group-title">{{ g.title }}</p>
+        <div class="symptoms-grid">
+          <label v-for="label in g.items" :key="label" class="checkbox-row">
+            <input v-model="form.symptoms[label]" type="checkbox" />
+            {{ label }}
+          </label>
+        </div>
       </div>
 
       </fieldset>
@@ -172,6 +179,7 @@
 
 <script setup>
 import { CheckCircle2, ArrowRight, Info, Lock, X } from 'lucide-vue-next'
+import { parseSymptoms, symptomGroups } from '~/utils/screening'
 
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
 // which shows its own "finish" step instead of the Find-an-RND banner.
@@ -189,12 +197,12 @@ const activityLevels = [
   { value: 'extra_active', label: 'Extra Active' },
 ]
 
-const symptomOptions = [
-  { key: 'weightLoss', label: 'Unintended weight loss' },
-  { key: 'poorAppetite', label: 'Poor appetite' },
-  { key: 'elevatedGlucose', label: 'Elevated blood glucose' },
-  { key: 'recentHospitalization', label: 'Recent hospitalization' },
-]
+// Symptom checkboxes follow the client's condition (utils/screening.js);
+// form.symptoms is keyed by the label, which is also what gets saved.
+const conditions = ref([])
+const savedSymptoms = ref([])
+const groups = computed(() => symptomGroups(conditions.value, savedSymptoms.value))
+const conditionNames = computed(() => (conditions.value || []).filter(Boolean))
 
 const form = reactive({
   height: null,
@@ -202,7 +210,7 @@ const form = reactive({
   age: null,
   sex: '',
   activityLevel: '',
-  symptoms: { weightLoss: false, poorAppetite: false, elevatedGlucose: false, recentHospitalization: false },
+  symptoms: {},
 })
 
 // Realistic adult ranges — same limits the API enforces
@@ -279,15 +287,16 @@ async function handleCompute() {
   isSubmitting.value = true
   errorMessage.value = ''
   try {
-    const checked = symptomOptions.filter(s => form.symptoms[s.key]).map(s => s.label)
+    const checked = groups.value.flatMap(g => g.items).filter(label => form.symptoms[label])
     result.value = await post('/client/screening/', {
       height_cm: form.height,
       weight_kg: form.weight,
       age: ageFromProfile.value ? undefined : form.age,
       sex: sexFromProfile.value ? undefined : form.sex,
       activity_level: form.activityLevel,
-      reduced_intake: form.symptoms.poorAppetite,
-      has_chronic_illness: form.symptoms.elevatedGlucose || form.symptoms.recentHospitalization,
+      // NRS-2002 inputs come only from the "For everyone" symptoms (unchanged scoring).
+      reduced_intake: !!form.symptoms['Poor appetite'],
+      has_chronic_illness: !!(form.symptoms['Elevated blood glucose'] || form.symptoms['Recent hospitalization']),
       symptoms: checked.length ? checked.join(', ') : undefined,
     })
     emit('completed', result.value)
@@ -403,6 +412,7 @@ onMounted(async () => {
     get('/client/screening/latest/').catch(() => null),
     get('/client/relationships/').catch(() => []),
   ])
+  conditions.value = profile?.health_profile?.medical_conditions || []
   if (profile?.date_of_birth) {
     form.age = ageFromDob(profile.date_of_birth)
     ageFromProfile.value = true
@@ -417,8 +427,8 @@ onMounted(async () => {
     form.activityLevel = latest.activity_level
     if (latest.age && !ageFromProfile.value) form.age = latest.age
     if (latest.sex && !form.sex) form.sex = latest.sex
-    const saved = (latest.symptoms || '').split(',').map(x => x.trim())
-    for (const o of symptomOptions) form.symptoms[o.key] = saved.includes(o.label)
+    savedSymptoms.value = parseSymptoms(latest.symptoms)
+    for (const label of savedSymptoms.value) form.symptoms[label] = true
     result.value = latest
     onFile.value = true
   }
@@ -458,7 +468,12 @@ onMounted(async () => {
 .field-hint a { color: #1a3a1a; font-weight: 600; }
 
 .symptoms-label { display: block; font-size: 0.82rem; font-weight: 600; color: #6a7a6a; margin-bottom: 12px; }
-.symptoms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+.symptoms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.symptom-group { margin-bottom: 18px; }
+.group-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #9aaa9a; margin: 0 0 8px; }
+.condition-line { font-size: 0.82rem; color: #6a7a6a; margin: -4px 0 14px; }
+.condition-line strong { color: #1a3a1a; }
+.condition-line a { color: #1f6f46; font-weight: 600; }
 .checkbox-row { display: flex; align-items: center; gap: 10px; background: #f7f9f7; border-radius: 8px; padding: 12px 14px; font-size: 0.87rem; color: #2a2a2a; cursor: pointer; }
 .checkbox-row input { width: 17px; height: 17px; accent-color: #14301a; cursor: pointer; }
 
