@@ -2,21 +2,40 @@
   <div class="nm-page">
     <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
 
-    <!-- BANNER: greeting + the next consultation -->
-    <section class="nm-banner">
-      <h1 class="nm-banner-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
-      <template v-if="d?.next_up">
-        <p class="nm-banner-sub">
-          Next: <strong>{{ d.next_up.client.name }}</strong> · {{ d.next_up.type_label }} · {{ dayWord(d.next_up.scheduled_at) }} at {{ clock(d.next_up.scheduled_at) }}
-          <span class="pay-chip" :class="d.next_up.payment === 'paid' ? 'paid' : 'unpaid'">{{ d.next_up.payment === 'paid' ? 'Paid' : 'Not paid yet' }}</span>
-        </p>
-        <div class="banner-actions">
-          <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="nm-btn-gold"><Video :size="15" /> Join now</NuxtLink>
-          <span v-else-if="d.next_up.type === 'video'" class="nm-todo-item done"><Clock :size="14" /> Join opens at {{ clock(d.next_up.join_opens_at) }}</span>
-          <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="nm-todo-item">Open patient</NuxtLink>
-        </div>
-      </template>
-      <p v-else-if="d" class="nm-banner-sub">No consultations coming up. Your schedule is clear.</p>
+    <!-- BANNER (design "A · Light card + Up next", pale green, 2026-10-14):
+         greeting + today's summary on the left, the next consultation on the right. -->
+    <section class="hero">
+      <div class="hero-greet">
+        <p class="hero-date">{{ longToday }}</p>
+        <h1 class="hero-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
+        <p v-if="d" class="hero-sub">{{ summaryLine }}</p>
+      </div>
+      <div v-if="d" class="upnext">
+        <template v-if="d.next_up">
+          <div class="upnext-top">
+            <span class="upnext-label">Up next · {{ dayWord(d.next_up.scheduled_at) === 'Today' ? '' : `${dayWord(d.next_up.scheduled_at)}, ` }}{{ clock(d.next_up.scheduled_at) }}</span>
+            <span class="upnext-pay" :class="{ unpaid: d.next_up.payment !== 'paid' }">{{ d.next_up.payment === 'paid' ? 'Paid' : 'Not paid yet' }}</span>
+          </div>
+          <div class="upnext-who">
+            <img v-if="d.next_up.client.profile_photo" :src="d.next_up.client.profile_photo" alt="" class="upnext-avatar" />
+            <span v-else class="upnext-avatar">{{ nameInitials(d.next_up.client.name) }}</span>
+            <div class="upnext-name-wrap">
+              <p class="upnext-name">{{ d.next_up.client.name }}</p>
+              <p class="upnext-format">{{ d.next_up.type_label }} consultation</p>
+            </div>
+          </div>
+          <div class="upnext-actions">
+            <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="hero-btn primary"><Video :size="16" /> Join now</NuxtLink>
+            <span v-else-if="d.next_up.type !== 'in_person'" class="hero-btn primary waiting"><Video :size="16" /> Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0]} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
+            <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="hero-btn">Open patient</NuxtLink>
+          </div>
+        </template>
+        <template v-else>
+          <p class="upnext-label">Up next</p>
+          <p class="upnext-empty">No consultations coming up.</p>
+          <div class="upnext-actions"><NuxtLink to="/appointments" class="hero-btn">View appointments</NuxtLink></div>
+        </template>
+      </div>
     </section>
 
     <!-- setup reminders (kept from before) -->
@@ -249,7 +268,7 @@
 
 <script setup>
 import {
-  AlertTriangle, CalendarCheck, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Clock, Info, MessageSquare,
+  AlertTriangle, CalendarCheck, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Info, MessageSquare,
   OctagonAlert, Target, Users, Utensils, Video, Wallet,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
@@ -312,6 +331,32 @@ const todoItems = computed(() => {
 })
 
 const todayCount = computed(() => (d.value?.schedule || []).filter(a => phDate(a.scheduled_at) === todayIso).length)
+
+/* ---------- banner ---------- */
+const longToday = new Date().toLocaleDateString('en-PH', { ...PH, weekday: 'long', month: 'long', day: 'numeric' })
+const todayConfirmed = computed(() => (d.value?.schedule || []).filter(a => a.status === 'confirmed' && phDate(a.scheduled_at) === todayIso))
+function untilText(v) {
+  const mins = Math.round((new Date(v) - now.value) / 60000)
+  if (mins <= 0) return 'now'
+  if (mins < 60) return `in ${mins} minute${mins === 1 ? '' : 's'}`
+  const h = Math.round(mins / 60)
+  return `in about ${h} hour${h === 1 ? '' : 's'}`
+}
+const summaryLine = computed(() => {
+  const next = d.value?.next_up
+  const n = todayConfirmed.value.length
+  if (n) {
+    const count = `You have ${n} consultation${n === 1 ? '' : 's'} today.`
+    if (next && phDate(next.scheduled_at) === todayIso) {
+      const started = new Date(next.scheduled_at) <= now.value
+      return started ? `${count} Your consultation with ${next.client.first_name} is happening now.`
+        : `${count} Your ${next.id === todayConfirmed.value[0]?.id ? 'first' : 'next'} one starts ${untilText(next.scheduled_at)}.`
+    }
+    return `${count} You're done with them for the day.`
+  }
+  if (next) return `No consultations today. Your next one is ${dayWord(next.scheduled_at, true)} at ${clock(next.scheduled_at)}.`
+  return 'No consultations coming up. Your schedule is clear.'
+})
 const scheduleByDay = computed(() => {
   const groups = []
   for (const a of d.value?.schedule || []) {
@@ -368,11 +413,38 @@ function nameInitials(name) {
 </script>
 
 <style scoped>
-.nm-banner-sub strong { color: #fff; }
-.pay-chip { display: inline-block; margin-left: 8px; font-size: 0.7rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; vertical-align: 1px; }
-.pay-chip.paid { background: rgba(255, 255, 255, 0.16); color: #d8f0e0; }
-.pay-chip.unpaid { background: #D4A017; color: #1a3a1a; }
-.banner-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+/* Banner: design A (light card + Up next), user's pale green version.
+   App fonts (Playfair Display / Inter); specs from the design hand-off. */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center;
+  background: #CFE3D7; border-radius: 18px; padding: 28px 28px 28px 36px; margin: 0 0 20px; }
+.hero-greet { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.hero-date { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #7A560F; margin: 0; }
+.hero-title { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 700; line-height: 1.1; color: #0B4F38; margin: 0; }
+.hero-sub { font-size: 16px; color: #4F5E57; margin: 0; line-height: 1.5; }
+.upnext { background: #EEF5F0; border-radius: 14px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.upnext-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.upnext-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #14684A; margin: 0; }
+.upnext-pay { background: #fff; color: #14684A; font-size: 12px; font-weight: 600; border: 1px solid #CFE3D7; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.upnext-pay.unpaid { color: #7A560F; border-color: #EAD9AE; }
+.upnext-who { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.upnext-avatar { width: 48px; height: 48px; border-radius: 50%; background: #0B4F38; color: #fff; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; object-fit: cover; }
+.upnext-name-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.upnext-name { font-size: 18px; font-weight: 700; color: #1B2A24; margin: 0; overflow-wrap: anywhere; }
+.upnext-format { font-size: 14px; color: #4F5E57; margin: 0; }
+.upnext-empty { font-size: 16px; color: #4F5E57; margin: 0; }
+.upnext-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  text-decoration: none; background: #fff; border: 1px solid #BFD6C8; color: #0B3D2E; white-space: nowrap; }
+.hero-btn:hover { border-color: #0B4F38; }
+.hero-btn.primary { background: #0B4F38; border-color: #0B4F38; color: #fff; }
+.hero-btn.primary:hover { background: #093f2d; }
+.hero-btn.waiting { cursor: default; }
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; gap: 20px; padding: 22px 20px; }
+  .hero-title { font-size: 30px; }
+  .hero-btn { flex: 1; justify-content: center; }
+}
 .setup { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 
 .todo { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
