@@ -1,5 +1,7 @@
 from django.urls import path
 
+from .time_off import RndTimeOffDetailView, RndTimeOffListCreateView
+
 from .views import (
     MyClientProfileView,
     MyRndProfileView,
@@ -22,6 +24,8 @@ urlpatterns = [
     path("rnd/profile/", MyRndProfileView.as_view(), name="my_rnd_profile"),
     path("rnd/availability/", RndAvailabilityListCreateView.as_view(), name="rnd_availability"),
     path("rnd/availability/<int:pk>/", RndAvailabilityDetailView.as_view(), name="rnd_availability_detail"),
+    path("rnd/time-off/", RndTimeOffListCreateView.as_view(), name="rnd_time_off"),
+    path("rnd/time-off/<int:pk>/", RndTimeOffDetailView.as_view(), name="rnd_time_off_detail"),
     path("client/profile/", MyClientProfileView.as_view(), name="my_client_profile"),
     path("rnd/relationships/<int:relationship_id>/client-profile/", RndClientProfileView.as_view(), name="rnd_client_profile"),
 ]

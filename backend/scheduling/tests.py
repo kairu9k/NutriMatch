@@ -11,7 +11,7 @@ from clinical.models import PreConsultationScreening
 from profiles.models import RndProfile
 
 from .models import Appointment, RndClientRelationship
-from core.test_utils import approve_rnd, onboard_client
+from core.test_utils import approve_rnd, booking_slot, onboard_client
 
 
 def _make_rnd(email="rnd@t.ph", fee="500.00", availability=True, **profile_fields):
@@ -32,7 +32,7 @@ def _make_client(email="client@t.ph"):
 def _booking(rnd, type_="chat"):
     return {
         "rnd_id": rnd.id,
-        "scheduled_at": (timezone.now() + timedelta(days=1)).isoformat(),
+        "scheduled_at": booking_slot(1).isoformat(),
         "type": type_, "duration_minutes": 30,
     }
 
@@ -56,7 +56,7 @@ class AppointmentBookingTests(TestCase):
 
     def test_repeat_booking_reuses_relationship(self):
         self.client_api.post("/api/client/appointments/", _booking(self.rnd))
-        later = {**_booking(self.rnd), "scheduled_at": (timezone.now() + timedelta(days=2)).isoformat()}
+        later = {**_booking(self.rnd), "scheduled_at": booking_slot(2).isoformat()}
         resp = self.client_api.post("/api/client/appointments/", later)
 
         self.assertEqual(resp.status_code, 201, resp.data)
@@ -464,7 +464,8 @@ class BookingRuleTests(TestCase):
         resp = self.api.get(f"/api/client/rnds/{self.rnd.id}/booked-slots/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 1)
-        self.assertEqual(set(resp.data[0]), {"start", "end"})
+        self.assertEqual(set(resp.data[0]), {"start", "end", "kind"})
+        self.assertEqual(resp.data[0]["kind"], "booked")
 
 
 class PayBeforeConsultationTests(TestCase):

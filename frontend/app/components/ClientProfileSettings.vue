@@ -148,7 +148,7 @@
               <h3 class="tab-panel-title">Health Profile</h3>
               <p class="tab-panel-sub">Your screening on file — the starting point your progress is measured from.</p>
             </div>
-            <button class="outline-btn" type="button" @click="navigateTo('/pre-consultation-screening')">View Screening</button>
+            <button class="outline-btn" type="button" @click="screeningOpen = true">View Screening</button>
           </div>
 
           <div v-if="screening" class="stat-grid-3">
@@ -337,6 +337,7 @@
         <CheckCircle2 :size="16" /> {{ toastMessage }}
       </div>
     </Transition>
+    <ScreeningModal v-if="screeningOpen" @close="screeningOpen = false" />
   </div>
 </template>
 
@@ -363,6 +364,7 @@ const tabs = [
 ]
 // ?tab=health etc. opens a tab directly, like the RND settings page.
 const route = useRoute()
+const screeningOpen = ref(false) // View Screening pop-up
 const activeTab = ref(tabs.some(t => t.key === route.query.tab) ? route.query.tab : 'personal')
 
 const languageOptions = [

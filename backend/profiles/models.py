@@ -130,6 +130,33 @@ class RndAvailabilitySchedule(models.Model):
         return f"{self.rnd.full_name} — {self.get_day_of_week_display()}"
 
 
+class RndTimeOff(models.Model):
+    """Time an RND blocks off on specific dates (holiday, leave, a seminar
+    afternoon) — on top of the weekly hours. Empty start/end time = the whole
+    day; a time range applies to every date from start_date to end_date.
+    Clients can't book anything that overlaps it. Added after the proposal
+    (2026-10-14, user's call)."""
+
+    rnd = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="time_off")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    reason = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "rnd_time_off"
+        ordering = ["start_date", "start_time"]
+
+    @property
+    def whole_day(self):
+        return self.start_time is None
+
+    def __str__(self):
+        return f"{self.rnd.full_name} off {self.start_date}–{self.end_date}"
+
+
 class ClientProfile(models.Model):
     class Sex(models.TextChoices):
         MALE = "male", "Male"

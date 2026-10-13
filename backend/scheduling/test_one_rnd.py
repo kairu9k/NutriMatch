@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from core.test_utils import approve_rnd, onboard_client
+from core.test_utils import approve_rnd, booking_slot, onboard_client
 
 from .models import Appointment, RndClientRelationship
 from .services import current_rnd_relationship
@@ -45,7 +45,7 @@ class OneRndAtATimeTests(TestCase):
         RndClientRelationship.objects.create(rnd=self.a, client=self.c, status="active")
         resp = self.api.post("/api/client/appointments/", {
             "rnd_id": self.b.id, "type": "video", "duration_minutes": 60,
-            "scheduled_at": (timezone.now() + timedelta(days=2)).isoformat(),
+            "scheduled_at": booking_slot(2).isoformat(),
         }, format="json")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("discharges you", str(resp.data))

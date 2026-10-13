@@ -140,7 +140,7 @@
                 </g>
               </svg>
             </div>
-            <p v-else class="empty-note">No weight history yet — this fills in as your RND records your progress at each consultation.</p>
+            <p v-else class="empty-note">No weight history yet — this starts from your screening and fills in as you or your RND record your progress.</p>
           </div>
 
           <!-- LATEST SCREENING -->
@@ -150,7 +150,7 @@
               <p class="screening-summary-text">
                 Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
               </p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">View Screening</NuxtLink>
+              <button type="button" class="block-btn" @click="screeningOpen = true">View Screening</button>
             </template>
             <template v-else>
               <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
@@ -253,6 +253,8 @@
         </div>
       </section>
     </template>
+
+    <ScreeningModal v-if="screeningOpen" @close="screeningOpen = false" />
   </div>
 </template>
 
@@ -268,6 +270,7 @@ const auth = useAuthStore()
 const { get, post, del } = useApi()
 
 const isLoading = ref(true)
+const screeningOpen = ref(false) // View Screening pop-up
 const errorMessage = ref('')
 const appointments = ref([])
 const relationships = ref([])
@@ -486,23 +489,27 @@ const weekAdherence = computed(() => {
   return { logged: logs.length, followed, followedPct: logs.length ? Math.round((followed / logs.length) * 100) : 0 }
 })
 
-/* ---------- Weight chart (RND-recorded progress, oldest → newest) ---------- */
+/* ---------- Weight chart (oldest → newest) ----------
+   Starts from the screening — the baseline the RND measures progress from —
+   then the latest progress readings, so the change matches the RND's view. */
 const weightHistory = ref([])
-function toWeightHistory(records) {
-  return records
+function toWeightHistory(records, baseline) {
+  const points = records
     .filter(r => r.weight_kg != null)
-    .slice(0, 8)
+    .slice(0, baseline ? 7 : 8)
     .reverse()
     .map(r => ({
       weight: Number(r.weight_kg),
       label: new Date(r.record_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     }))
+  if (baseline?.weight_kg != null) points.unshift({ weight: Number(baseline.weight_kg), label: 'Screening' })
+  return points
 }
 const weightDeltaLabel = computed(() => {
   if (weightHistory.value.length < 2) return ''
   const delta = weightHistory.value[weightHistory.value.length - 1].weight - weightHistory.value[0].weight
   if (Math.abs(delta) < 0.05) return 'No change'
-  return `${delta < 0 ? '↓' : '↑'} ${Math.abs(delta).toFixed(1)} kg overall`
+  return `${delta < 0 ? '↓' : '↑'} ${Math.abs(delta).toFixed(1)} kg ${weightHistory.value[0].label === 'Screening' ? 'since your screening' : 'overall'}`
 })
 const chartCoords = computed(() => {
   if (!weightHistory.value.length) return []
@@ -545,7 +552,7 @@ async function loadDashboard() {
     appointments.value = appts
     relationships.value = rels
     screening.value = latestScreening
-    weightHistory.value = toWeightHistory(progress)
+    weightHistory.value = toWeightHistory(progress, latestScreening)
     mealPlans.value = plans
     mealLogs.value = logs
     invoices.value = invs
@@ -738,7 +745,7 @@ function phClock(iso) {
 /* BUTTON — the RND dashboard's outlined block button */
 .block-btn {
   display: block; width: 100%; text-align: center; background: #fff; border: 1px solid #1a3a1a; color: #1a3a1a;
-  border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; text-decoration: none;
+  border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.85rem; font-family: inherit; cursor: pointer; text-decoration: none;
 }
 .block-btn:hover { background: #f7f9f7; }
 .btn-row { display: flex; gap: 10px; }

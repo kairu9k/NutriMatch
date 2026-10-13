@@ -100,6 +100,9 @@ MIN_SESSION_MINUTES = 15
 MAX_SESSION_MINUTES = 120
 # A booking must start at least this far ahead (mirrored in RndProfileView.vue).
 MIN_BOOKING_LEAD_MINUTES = 10
+# Start times are offered every hour from the start of the RND's hours
+# (2026-10-14, user's call; mirrored in RndProfileView.vue and profiles/public.py).
+SLOT_STEP_MINUTES = 60
 PH_TZ = ZoneInfo("Asia/Manila")
 ACTIVE_STATUSES = ("pending", "confirmed")
 
@@ -123,7 +126,9 @@ def overlapping_appointments(start, end, **scope):
 
 def fits_rnd_availability(rnd_id, start, end):
     """True when [start, end) sits inside one of the RND's weekly available
-    blocks (Philippine time). An RND with no schedule set isn't restricted."""
+    blocks (Philippine time) and starts on the hourly grid from that block's
+    start (8:00, 9:00… for hours from 8:00). An RND with no schedule set isn't
+    restricted."""
     from profiles.models import RndAvailabilitySchedule
 
     schedules = RndAvailabilitySchedule.objects.filter(rnd_id=rnd_id, is_available=True)
@@ -140,7 +145,9 @@ def fits_rnd_availability(rnd_id, start, end):
         if block.effective_to and block.effective_to < day:
             continue
         if block.start_time <= local_start.time() and local_end.time() <= block.end_time:
-            return True
+            offset = (local_start.hour * 60 + local_start.minute) - (block.start_time.hour * 60 + block.start_time.minute)
+            if offset % SLOT_STEP_MINUTES == 0 and local_start.second == 0:
+                return True
     return False
 
 
@@ -212,6 +219,12 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         if not fits_rnd_availability(profile.user_id, start, end):
             raise serializers.ValidationError(
                 {"scheduled_at": ["That time is outside the RND's available hours. Please pick one of the listed times."]}
+            )
+        from profiles.services import overlaps_time_off
+
+        if overlaps_time_off(profile.user_id, start, end):
+            raise serializers.ValidationError(
+                {"scheduled_at": [f"RND {profile.user.full_name} isn't available then. Please pick another time."]}
             )
         if overlapping_appointments(start, end, relationship__rnd_id=profile.user_id).exists():
             raise serializers.ValidationError({"scheduled_at": ["That time was just booked. Please pick another slot."]})

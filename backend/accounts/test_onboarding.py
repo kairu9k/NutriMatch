@@ -12,7 +12,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from core.test_utils import approve_rnd, onboard_client
+from core.test_utils import approve_rnd, booking_slot, onboard_client
 from profiles.models import ClientHealthProfile, ClientProfile, RndAvailabilitySchedule, RndLanguage, RndProfile
 
 from .models import User
@@ -175,7 +175,7 @@ class RndListingRuleTests(TestCase):
         RndAvailabilitySchedule.objects.filter(rnd=no_hours).delete()
         listed = {r["user"]["id"] for r in self.api.get("/api/client/rnds/").data}
         self.assertEqual(listed, {ready.id})
-        when = (timezone.now() + timedelta(days=1)).isoformat()
+        when = booking_slot(1).isoformat()
         for rnd in (cheap, no_bio, no_hours):
             resp = self.api.post("/api/client/appointments/", {"rnd_id": rnd.id, "scheduled_at": when, "type": "video"}, format="json")
             self.assertEqual(resp.status_code, 400)
@@ -186,7 +186,7 @@ class RndListingRuleTests(TestCase):
         newbie = User.objects.create_user(email="new@t.ph", password="x", role="client", first_name="N", last_name="C")
         api = APIClient()
         api.force_authenticate(newbie)
-        when = (timezone.now() + timedelta(days=1)).isoformat()
+        when = booking_slot(1).isoformat()
         resp = api.post("/api/client/appointments/", {"rnd_id": rnd.id, "scheduled_at": when, "type": "video"}, format="json")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("Finish setting up", str(resp.data))

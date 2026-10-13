@@ -14,9 +14,9 @@ from scheduling.models import Appointment, Review, RndClientRelationship
 
 from .models import LANGUAGES, RND_SPECIALIZATIONS, RndProfile
 
-# Same session length and slot step as the booking pop-up (RndProfileView.vue).
+# Same session length as the booking pop-up (RndProfileView.vue); the slot step
+# (SLOT_STEP_MINUTES, hourly) lives with the booking rules in scheduling/serializers.py.
 SESSION_MINUTES = 60
-SLOT_STEP_MINUTES = 15
 SLOT_LOOKAHEAD_DAYS = 28
 
 
@@ -27,10 +27,13 @@ def _ph():
 
 
 def next_open_slots(rnd_id, count=3, now=None):
-    """The next `count` bookable 60-minute starts (15-minute steps, at least
-    MIN_BOOKING_LEAD_MINUTES away; ISO, aware) inside the
-    RND's weekly hours that don't overlap their pending/confirmed bookings."""
-    from scheduling.serializers import MIN_BOOKING_LEAD_MINUTES
+    """The next `count` bookable 60-minute starts (hourly from the start of
+    each block, at least MIN_BOOKING_LEAD_MINUTES away; ISO, aware) inside the
+    RND's weekly hours that don't overlap their pending/confirmed bookings or
+    time they blocked off."""
+    from scheduling.serializers import MIN_BOOKING_LEAD_MINUTES, SLOT_STEP_MINUTES
+
+    from .services import time_off_intervals
 
     from .models import RndAvailabilitySchedule
 
@@ -47,6 +50,7 @@ def next_open_slots(rnd_id, count=3, now=None):
             scheduled_at__gte=now - timedelta(hours=3), scheduled_at__lt=horizon,
         )
     ]
+    booked += time_off_intervals(rnd_id, now, horizon)
     slots = []
     today = now.astimezone(ph).date()
     for offset in range(SLOT_LOOKAHEAD_DAYS):

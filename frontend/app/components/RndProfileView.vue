@@ -213,11 +213,14 @@
                 v-for="(cell, i) in calendarCells" :key="i"
                 type="button"
                 class="calendar-cell"
-                :class="{ 'out-month': !cell.inMonth, available: cell.available, selected: cell.iso === selectedDateISO, disabled: !cell.available }"
+                :class="{ 'out-month': !cell.inMonth, available: cell.available, selected: cell.iso === selectedDateISO, disabled: !cell.available, 'day-off': cell.dayOff }"
                 :disabled="!cell.available"
+                :title="cell.dayOff ? 'Day off' : undefined"
+                :aria-label="cell.dayOff ? `${cell.day}, day off` : undefined"
                 @click="selectDate(cell)"
               >{{ cell.day }}</button>
             </div>
+            <p v-if="calendarCells.some(c => c.dayOff)" class="day-off-key"><span class="day-off-swatch" /> Day off — {{ rnd.user.first_name }} isn't taking consultations that day.</p>
 
             <div v-if="selectedDateISO" class="time-slot-row">
               <button
@@ -225,11 +228,11 @@
                 type="button"
                 class="time-slot-btn" :class="{ selected: selectedTime === slot.value, taken: slot.taken }"
                 :disabled="slot.taken"
-                :title="slot.taken ? 'Already booked by another client' : undefined"
+                :title="slot.taken ? (slot.off ? `${rnd.user.first_name} isn't available at this time` : 'Already booked by another client') : undefined"
                 @click="selectedTime = slot.value"
-              >{{ slot.label }}<span v-if="slot.taken" class="taken-tag">Booked</span></button>
+              >{{ slot.label }}<span v-if="slot.taken" class="taken-tag">{{ slot.off ? 'Unavailable' : 'Booked' }}</span></button>
               <p v-if="!timeSlots.length" class="availability-warn">No time slots available this day.</p>
-              <p v-else-if="timeSlots.every(s => s.taken)" class="availability-warn">Every time this day is already booked — pick another date.</p>
+              <p v-else-if="timeSlots.every(s => s.taken)" class="availability-warn">No open times left this day — pick another date.</p>
             </div>
           </div>
 
@@ -451,6 +454,7 @@ const calendarCells = computed(() => {
       iso: toISO(d),
       inMonth: d.getMonth() === month,
       available: d.getMonth() === month && isDayAvailable(d),
+      dayOff: d.getMonth() === month && toISO(d) >= todayISO && isDayOff(d),
     })
   }
   return cells
@@ -462,12 +466,13 @@ function selectDate(cell) {
   selectedTime.value = ''
 }
 
-// Bookings are 60 minutes. Start times step every 15 minutes from the RND's
-// start time while a full session still fits before their end time (e.g.
-// 1:30 PM–7:00 PM → 1:30, 1:45 … 6:00 PM). Today, a time must be at least
-// MIN_LEAD_MINUTES away (same rule as the server).
+// Bookings are 60 minutes. Start times step every hour from the RND's start
+// time while a full session still fits before their end time (e.g.
+// 1:30 PM–7:00 PM → 1:30, 2:30 … 5:30 PM) — same grid the server enforces
+// (scheduling/serializers.py SLOT_STEP_MINUTES). Today, a time must be at
+// least MIN_LEAD_MINUTES away.
 const SESSION_MINUTES = 60
-const SLOT_STEP_MINUTES = 15
+const SLOT_STEP_MINUTES = 60
 const MIN_LEAD_MINUTES = 10
 const timeSlots = computed(() => (selectedDateISO.value ? slotsForDate(selectedDateISO.value) : []))
 
@@ -488,8 +493,9 @@ function slotsForDate(iso) {
       const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
       if (seen.has(value)) continue
       seen.add(value)
-      // Times another client already booked stay visible but blocked.
-      slots.push({ value, label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`, taken: isSlotTaken(iso, start) })
+      // Times already booked, or blocked off by the RND, stay visible but can't be picked.
+      const taken = isSlotTaken(iso, start)
+      slots.push({ value, label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`, taken: !!taken, off: taken === 'time_off' })
     }
   }
   return slots.sort((a, b) => a.value.localeCompare(b.value))
@@ -508,22 +514,41 @@ watch(timeSlots, (slots) => {
   if (selectedTime.value && slots.find(s => s.value === selectedTime.value)?.taken) selectedTime.value = ''
 })
 
-// Times this RND is already booked (start/end only), so taken slots aren't offered.
+// Times this RND is already booked or has blocked off (start/end/kind only), so they aren't offered.
 const bookedSlots = ref([])
 async function loadBookedSlots() {
   try {
     const rows = await get(`/client/rnds/${route.params.id}/booked-slots/`)
-    bookedSlots.value = rows.map(r => ({ start: new Date(r.start).getTime(), end: new Date(r.end).getTime() }))
+    bookedSlots.value = rows.map(r => ({ start: new Date(r.start).getTime(), end: new Date(r.end).getTime(), kind: r.kind || 'booked' }))
   } catch {
     bookedSlots.value = []
   }
 }
-function isSlotTaken(iso, minutes) {
+function slotHits(iso, minutes) {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   const start = new Date(`${iso}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`).getTime()
   const end = start + SESSION_MINUTES * 60000
-  return bookedSlots.value.some(b => b.start < end && start < b.end)
+  return bookedSlots.value.filter(b => b.start < end && start < b.end)
+}
+// 'booked' (another booking), 'time_off' (the RND blocked it) or null (open).
+function isSlotTaken(iso, minutes) {
+  const hits = slotHits(iso, minutes)
+  if (!hits.length) return null
+  return hits.some(b => b.kind === 'booked') ? 'booked' : 'time_off'
+}
+// A day the RND blocked off entirely: every start time falls in their time off
+// (whatever was already booked that day).
+function isDayOff(d) {
+  if (!bookedSlots.value.some(b => b.kind === 'time_off')) return false
+  const iso = toISO(d)
+  const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+  const starts = scheduleForDate(d).flatMap(s => {
+    const out = []
+    for (let t = toMinutes(s.start_time); t + SESSION_MINUTES <= toMinutes(s.end_time); t += SLOT_STEP_MINUTES) out.push(t)
+    return out
+  })
+  return starts.length > 0 && starts.every(t => slotHits(iso, t).some(b => b.kind === 'time_off'))
 }
 
 function openBookingModal(slotIso = null) {
@@ -721,6 +746,9 @@ async function confirmBooking() {
 .calendar-cell.available:hover { background: #c3e0cc; }
 .calendar-cell.selected { background: #14301a; color: #fff; }
 .calendar-cell.disabled:not(.out-month) { color: #d5dad5; }
+.calendar-cell.day-off { background: repeating-linear-gradient(135deg, #f1f3f1, #f1f3f1 4px, #e6e9e6 4px, #e6e9e6 8px); color: #9aaa9a; text-decoration: line-through; }
+.day-off-key { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #6a7a6a; margin: 8px 0 0; }
+.day-off-swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; background: repeating-linear-gradient(135deg, #f1f3f1, #f1f3f1 3px, #e6e9e6 3px, #e6e9e6 6px); border: 1px solid #dde3dd; }
 
 .time-slot-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .time-slot-btn { border: 1px solid #d5dad5; background: #fff; color: #4a5a4a; border-radius: 8px; padding: 10px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }

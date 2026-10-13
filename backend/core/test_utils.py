@@ -50,3 +50,15 @@ def onboard_client(user):
         user.onboarding_completed_at = timezone.now()
         user.save(update_fields=["onboarding_completed_at"])
     return user
+
+
+def booking_slot(days=1, hour=10):
+    """A bookable start for tests: `days` from today at hour:00 Philippine
+    time — on the hourly grid of approve_rnd()'s 00:00–23:59 schedule and far
+    from midnight, whatever time the tests run."""
+    from datetime import datetime, time, timedelta
+    from zoneinfo import ZoneInfo
+
+    ph = ZoneInfo("Asia/Manila")
+    day = timezone.now().astimezone(ph).date() + timedelta(days=days)
+    return datetime.combine(day, time(hour), tzinfo=ph)

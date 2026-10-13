@@ -143,3 +143,37 @@ def set_rnd_languages(user, codes):
     RndLanguage.objects.bulk_create([
         RndLanguage(rnd=user, language_code=code, language_name=LANGUAGE_NAMES[code]) for code in codes
     ])
+
+
+# ------------------------------------------------------------ time off
+
+def time_off_intervals(rnd_id, start, end):
+    """The RND's blocked time between two aware datetimes, as a list of
+    (start, end) aware datetimes in Philippine time — one per blocked date
+    (a whole day runs midnight to midnight)."""
+    from datetime import datetime, time, timedelta
+    from zoneinfo import ZoneInfo
+
+    from .models import RndTimeOff
+
+    ph = ZoneInfo("Asia/Manila")
+    first, last = start.astimezone(ph).date(), end.astimezone(ph).date()
+    out = []
+    for block in RndTimeOff.objects.filter(rnd_id=rnd_id, start_date__lte=last, end_date__gte=first):
+        day = max(block.start_date, first)
+        while day <= min(block.end_date, last):
+            if block.whole_day:
+                lo = datetime.combine(day, time(0), tzinfo=ph)
+                hi = lo + timedelta(days=1)
+            else:
+                lo = datetime.combine(day, block.start_time, tzinfo=ph)
+                hi = datetime.combine(day, block.end_time, tzinfo=ph)
+            if lo < end and hi > start:
+                out.append((lo, hi))
+            day += timedelta(days=1)
+    return sorted(out)
+
+
+def overlaps_time_off(rnd_id, start, end):
+    """True when [start, end) touches any time the RND blocked off."""
+    return bool(time_off_intervals(rnd_id, start, end))

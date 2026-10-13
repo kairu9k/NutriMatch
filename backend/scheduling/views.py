@@ -373,9 +373,9 @@ class RndReviewListView(generics.ListAPIView):
 
 
 class RndBookedSlotsView(APIView):
-    """Times an RND is already booked (pending/confirmed, upcoming), so the
-    client booking modal can hide taken slots. Only start/end are returned,
-    never who booked them."""
+    """Times an RND is already booked (pending/confirmed, upcoming) or has
+    blocked off, so the client booking modal can grey them out. Only
+    start/end/kind are returned, never who booked them or why."""
 
     permission_classes = [IsClient]
 
@@ -387,10 +387,19 @@ class RndBookedSlotsView(APIView):
             status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
             scheduled_at__gte=timezone.now() - timedelta(hours=3),
         ).order_by("scheduled_at")
-        return Response([
+        from profiles.services import time_off_intervals
+
+        now = timezone.now()
+        taken = [
             {
                 "start": a.scheduled_at,
                 "end": a.scheduled_at + timedelta(minutes=a.duration_minutes or DEFAULT_SESSION_MINUTES),
+                "kind": "booked",
             }
             for a in upcoming
-        ])
+        ]
+        # Time the RND blocked off (never the reason): the modal shows it as
+        # "Unavailable", and a fully blocked day as "Day off".
+        taken += [{"start": lo, "end": hi, "kind": "time_off"}
+                  for lo, hi in time_off_intervals(rnd_id, now, now + timedelta(days=60))]
+        return Response(taken)

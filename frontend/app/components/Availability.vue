@@ -47,41 +47,69 @@
 
     <p v-if="saveError" class="save-error">{{ saveError }}</p>
 
-    <!-- BLOCK A DAY OFF — mock/local only, no backend model for date-range
-         blocks yet (see RndAvailabilitySchedule in vault/database.txt). -->
+    <!-- BLOCK TIME OFF — whole days or part of a day on specific dates
+         (RndTimeOff, /api/rnd/time-off/). Clients can't book it. -->
     <div class="block-panel">
       <div class="block-header">
         <CalendarOff :size="18" class="block-icon" />
         <div>
-          <h3 class="block-title">Block a Day Off</h3>
-          <p class="block-desc">Quickly mark a specific date range as unavailable — useful for holidays, leave, or emergencies. Existing bookings within the range are not auto-cancelled.</p>
+          <h3 class="block-title">Block Time Off</h3>
+          <p class="block-desc">Block whole days or part of a day — holidays, leave, a seminar afternoon. Clients can't book that time. Consultations already booked in it aren't cancelled automatically.</p>
         </div>
       </div>
 
       <div class="block-form">
         <div class="field">
-          <label>From</label>
-          <input v-model="newBlock.from" type="date" />
+          <label for="off-from">From</label>
+          <input id="off-from" v-model="newBlock.from" type="date" :min="todayIso" />
         </div>
         <div class="field">
-          <label>To <span class="optional">(optional)</span></label>
-          <input v-model="newBlock.to" type="date" />
+          <label for="off-to">To <span class="optional">(optional)</span></label>
+          <input id="off-to" v-model="newBlock.to" type="date" :min="newBlock.from || todayIso" />
         </div>
+        <div class="field">
+          <span class="field-label">Time</span>
+          <div class="seg" role="radiogroup" aria-label="Block the whole day or part of it">
+            <button type="button" role="radio" :aria-checked="newBlock.wholeDay" :class="{ on: newBlock.wholeDay }" @click="newBlock.wholeDay = true">Whole day</button>
+            <button type="button" role="radio" :aria-checked="!newBlock.wholeDay" :class="{ on: !newBlock.wholeDay }" @click="newBlock.wholeDay = false">Part of the day</button>
+          </div>
+        </div>
+        <template v-if="!newBlock.wholeDay">
+          <div class="field">
+            <label for="off-start">From time</label>
+            <select id="off-start" v-model="newBlock.startTime" class="nm-select block">
+              <option v-for="h in HOURS.slice(0, -1)" :key="h.value" :value="h.value">{{ h.label }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="off-end">To time</label>
+            <select id="off-end" v-model="newBlock.endTime" class="nm-select block">
+              <option v-for="h in HOURS.slice(1)" :key="h.value" :value="h.value">{{ h.label }}</option>
+            </select>
+          </div>
+        </template>
         <div class="field field-wide">
-          <label>Reason <span class="optional">(optional)</span></label>
-          <input v-model="newBlock.reason" type="text" placeholder="e.g. Annual leave" />
+          <label for="off-reason">Reason <span class="optional">(optional, only you see it)</span></label>
+          <input id="off-reason" v-model="newBlock.reason" type="text" maxlength="200" placeholder="e.g. Annual leave" />
         </div>
-        <button class="block-btn" :disabled="!newBlock.from" @click="submitBlock">Block</button>
+        <button class="block-btn" :disabled="!newBlock.from || blockSaving" @click="submitBlock">{{ blockSaving ? 'Blocking…' : 'Block' }}</button>
+      </div>
+      <p v-if="blockError" class="save-error">{{ blockError }}</p>
+      <div v-if="conflicts.length" class="conflicts" role="status">
+        <p><strong>You already have {{ conflicts.length }} consultation{{ conflicts.length === 1 ? '' : 's' }} in this time.</strong> They weren't cancelled — cancel or reschedule them from Appointments.</p>
+        <ul><li v-for="c in conflicts" :key="c.id">{{ when(c.scheduled_at) }} · {{ c.client_name }} · {{ c.type_label }}</li></ul>
+        <NuxtLink to="/appointments" class="nm-panel-link">Go to Appointments →</NuxtLink>
       </div>
 
       <div v-if="blocks.length" class="blocked-list">
         <div v-for="b in blocks" :key="b.id" class="blocked-item">
-          <span class="blocked-dates">{{ formatBlockDate(b.from) }}<template v-if="b.to"> – {{ formatBlockDate(b.to) }}</template></span>
-          <span v-if="b.reason" class="blocked-reason">{{ b.reason }}</span>
-          <button class="remove-block-btn" @click="removeBlock(b)"><X :size="14" /></button>
+          <span class="blocked-dates">{{ formatBlockDate(b.start_date) }}<template v-if="b.end_date !== b.start_date"> – {{ formatBlockDate(b.end_date) }}</template></span>
+          <span class="blocked-time">{{ b.whole_day ? 'Whole day' : `${formatTime(b.start_time)} – ${formatTime(b.end_time)}` }}</span>
+          <span class="blocked-reason">{{ b.reason }}</span>
+          <button class="remove-block-btn" :aria-label="`Remove time off on ${formatBlockDate(b.start_date)}`" @click="removeBlock(b)"><X :size="14" /></button>
         </div>
       </div>
-      <p v-else class="empty-note">No blocked dates yet.</p>
+      <p v-else class="empty-note">No time blocked off.</p>
     </div>
   </div>
 </template>
@@ -110,7 +138,9 @@ const editForm = reactive({ start_time: '09:00', end_time: '17:00' })
 
 onMounted(async () => {
   try {
-    slots.value = await get('/rnd/availability/')
+    const [schedule, off] = await Promise.all([get('/rnd/availability/'), get('/rnd/time-off/').catch(() => [])])
+    slots.value = schedule
+    blocks.value = off
   } finally {
     loading.value = false
   }
@@ -207,23 +237,48 @@ async function removeSlot(slot) {
   }
 }
 
-/* ---------- BLOCK A DAY OFF — local-only state, no backend model yet ---------- */
-const blocks = reactive([])
-const newBlock = ref({ from: '', to: '', reason: '' })
+/* ---------- BLOCK TIME OFF (/api/rnd/time-off/) ---------- */
+const PH = { timeZone: 'Asia/Manila' }
+const todayIso = new Date().toLocaleDateString('en-CA', PH)
+const HOURS = [...Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`), '23:59']
+  .map(v => ({ value: v, label: formatTime(v) }))
+const blocks = ref([])
+const blankBlock = () => ({ from: '', to: '', wholeDay: true, startTime: '13:00', endTime: '17:00', reason: '' })
+const newBlock = ref(blankBlock())
+const blockSaving = ref(false)
+const blockError = ref('')
+const conflicts = ref([])
+const when = v => new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
-function submitBlock() {
-  if (!newBlock.value.from) return
-  blocks.push({
-    id: 'off-' + Date.now(),
-    from: newBlock.value.from,
-    to: newBlock.value.to,
-    reason: newBlock.value.reason,
-  })
-  newBlock.value = { from: '', to: '', reason: '' }
+async function submitBlock() {
+  const b = newBlock.value
+  if (!b.from) return
+  blockSaving.value = true
+  blockError.value = ''
+  conflicts.value = []
+  try {
+    const saved = await post('/rnd/time-off/', {
+      start_date: b.from, end_date: b.to || undefined, reason: b.reason.trim(),
+      ...(b.wholeDay ? {} : { start_time: b.startTime, end_time: b.endTime }),
+    })
+    const { conflicts: found, ...block } = saved
+    blocks.value = [...blocks.value, block].sort((x, y) => x.start_date.localeCompare(y.start_date) || String(x.start_time).localeCompare(String(y.start_time)))
+    conflicts.value = found || []
+    newBlock.value = blankBlock()
+  } catch (e) {
+    blockError.value = apiError(e, 'Could not block that time. Please try again.')
+  } finally {
+    blockSaving.value = false
+  }
 }
-function removeBlock(b) {
-  const idx = blocks.findIndex(x => x.id === b.id)
-  if (idx > -1) blocks.splice(idx, 1)
+async function removeBlock(b) {
+  blockError.value = ''
+  try {
+    await del(`/rnd/time-off/${b.id}/`)
+    blocks.value = blocks.value.filter(x => x.id !== b.id)
+  } catch (e) {
+    blockError.value = apiError(e, 'Could not remove that time off.')
+  }
 }
 function formatBlockDate(iso) {
   if (!iso) return ''
@@ -291,7 +346,16 @@ function formatBlockDate(iso) {
 .block-title { font-size: 0.98rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
 .block-desc { font-size: 0.82rem; color: #6a7a6a; line-height: 1.5; margin: 0; max-width: 640px; }
 
-.block-form { display: grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap: 14px; align-items: end; margin-bottom: 16px; }
+.block-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; align-items: end; margin-bottom: 16px; }
+.field-wide { grid-column: span 2; }
+.field-label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
+.seg { display: flex; border: 1px solid #dde3dd; border-radius: 8px; overflow: hidden; background: #fff; }
+.seg button { flex: 1; border: 0; background: none; padding: 10px 8px; font-family: inherit; font-size: 0.8rem; color: #4a5a4a; cursor: pointer; white-space: nowrap; }
+.seg button.on { background: #1a3a1a; color: #fff; font-weight: 600; }
+.conflicts { background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: #6a5a2a; margin: 0 0 14px; }
+.conflicts p { margin: 0 0 6px; }
+.conflicts ul { margin: 0 0 6px; padding-left: 18px; }
+.blocked-time { color: #1a3a1a; white-space: nowrap; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
 .optional { font-weight: 400; color: #9aaa9a; }
@@ -313,12 +377,14 @@ function formatBlockDate(iso) {
   background: #fff; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem;
 }
 .blocked-dates { font-weight: 700; color: #1a3a1a; }
-.blocked-reason { color: #7a8a7a; flex: 1; }
+.blocked-reason { color: #7a8a7a; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .remove-block-btn { background: none; border: none; color: #9aaa9a; cursor: pointer; display: flex; }
 .remove-block-btn:hover { color: #c0483a; }
 
 @media (max-width: 900px) {
   .day-row { flex-wrap: wrap; }
   .block-form { grid-template-columns: 1fr; }
+  .field-wide { grid-column: auto; }
+  .blocked-item { flex-wrap: wrap; }
 }
 </style>
