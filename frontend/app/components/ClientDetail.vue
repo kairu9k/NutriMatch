@@ -264,7 +264,7 @@
           <div class="nm-panel-head">
             <div>
               <h2 class="nm-panel-title">Adherence, last 14 days</h2>
-              <p class="nm-panel-sub">Share of planned meals followed each day (partly followed counts half; unlogged counts as missed).</p>
+              <p class="nm-panel-sub">Share of planned meals followed each day, from your ratings (partly followed counts half; unlogged counts as missed; logs you haven't rated yet aren't counted).</p>
             </div>
           </div>
           <p v-if="!s.adherence_days.some(d => d.planned)" class="nm-muted">No meals were planned in the last 14 days.</p>
@@ -280,8 +280,8 @@
                   <span v-else class="mc-bar" :class="{ today: i === s.adherence_days.length - 1 }" :style="{ height: `${Math.max(d.followed_pct, 1.5)}%` }" />
                   <div v-if="hover === i" class="tip" :class="{ left: i > 9, right: i < 3 }">
                     <strong>{{ dayName(d.date) }}</strong>
-                    <span v-if="d.followed_pct == null">No meals planned</span>
-                    <template v-else><span>{{ d.followed_pct }}% followed</span><span class="tip-muted">{{ d.logged }} of {{ d.planned }} meals logged</span></template>
+                    <span v-if="d.followed_pct == null">{{ d.waiting ? `${d.waiting} log${d.waiting === 1 ? '' : 's'} waiting for your rating` : 'No meals planned' }}</span>
+                    <template v-else><span>{{ d.followed_pct }}% followed</span><span class="tip-muted">{{ d.logged }} of {{ d.planned }} meals logged</span><span v-if="d.waiting" class="tip-muted">{{ d.waiting }} waiting for your rating</span></template>
                   </div>
                 </div>
               </div>
@@ -294,17 +294,22 @@
 
         <div class="nm-panel">
           <h2 class="nm-panel-title">Recent meal logs</h2>
-          <p class="nm-panel-sub">What {{ p.client.first_name }} reported against the plan.</p>
+          <p class="nm-panel-sub">What {{ p.client.first_name }} ate, with their photo and note. {{ p.status === 'active' ? 'Rate each one — it counts toward adherence once rated.' : '' }}
+            <strong v-if="toReview && p.status === 'active'" class="to-review">{{ toReview }} to review</strong></p>
           <div v-if="s.recent_logs.length" class="nm-table-wrap" style="margin-top: 10px">
             <table class="nm-table">
-              <thead><tr><th>Date</th><th>Meal</th><th>Status</th><th>Logged at</th><th>Their note</th></tr></thead>
+              <thead><tr><th>Date</th><th>Meal</th><th>Logged at</th><th>Their note</th><th>Your rating</th></tr></thead>
               <tbody>
-                <tr v-for="(l, i) in s.recent_logs" :key="i">
+                <tr v-for="l in s.recent_logs" :key="l.id">
                   <td>{{ shortDate(l.date) }}</td>
                   <td>{{ l.meal }}</td>
-                  <td><span class="nm-pill" :class="LOG_PILL[l.status]">{{ LOG_LABEL[l.status] }}</span></td>
                   <td>{{ l.time_logged ? clockOf(l.time_logged) : '—' }}</td>
-                  <td class="note-cell">{{ l.note || '—' }}</td>
+                  <td class="note-cell">{{ l.note || '—' }}<a v-if="l.photo_url" :href="l.photo_url" target="_blank" rel="noopener" class="nm-panel-link photo-link">Photo</a></td>
+                  <td>
+                    <MealLogRating v-if="p.status === 'active'" :log-id="l.id" :status="l.status" compact
+                                   :label="`${l.meal} on ${shortDate(l.date)}`" @rated="load" />
+                    <span v-else class="nm-pill" :class="LOG_PILL[l.status] || 'muted'">{{ l.status_label }}</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -512,7 +517,6 @@ const ALERT_ICONS = { critical: OctagonAlert, warning: AlertTriangle, info: Info
 const APPT_LABEL = { pending: 'To confirm', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
 const APPT_PILL = { pending: 'gold', confirmed: 'blue', completed: 'green', cancelled: 'muted' }
 const PAY_LABEL = { paid: 'Paid', unpaid: 'Not paid yet', refund_pending: 'Refund pending', refunded: 'Refunded', cancelled: 'Voided' }
-const LOG_LABEL = { followed: 'Followed', partially_followed: 'Partly followed', not_followed: 'Not followed' }
 const LOG_PILL = { followed: 'green', partially_followed: 'gold', not_followed: 'red' }
 const SEX = { male: 'Male', female: 'Female' }
 
@@ -537,6 +541,7 @@ const stageSteps = computed(() => {
       sub: st.follow_up ? 'Done' : (st.ncp === 'done' && st.ncp_draft) ? 'In progress' : 'Not yet' },
   ]
 })
+const toReview = computed(() => (s.value?.recent_logs || []).filter(l => !l.status).length)
 const mealPlanReady = computed(() => ncpRecords.value.some(r => r.diet_prescription || r.target_kcal))
 
 /* ---------- appointments ---------- */
@@ -754,6 +759,8 @@ watch(metricSeries, (ms) => {
 .pills { margin: 8px 0 10px; }
 .private-note { display: flex; gap: 6px; align-items: baseline; margin: 10px 0 0; font-size: 0.8rem; color: #5a6a5a; background: #fafbfa; border-radius: 8px; padding: 8px 10px; }
 .note-cell { max-width: 260px; color: #5a6a5a; overflow-wrap: anywhere; }
+.photo-link { margin-left: 8px; white-space: nowrap; }
+.to-review { color: #a07a10; margin-left: 4px; }
 
 /* mini adherence chart */
 .mini-chart { margin-top: 4px; }

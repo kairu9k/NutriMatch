@@ -95,14 +95,16 @@ class ScreeningViewTests(TestCase):
         self.assertEqual(resp.data["nrs_score"], 0)
         self.assertEqual(resp.data["nrs_risk"], "no_risk")
 
-    def test_weight_loss_is_derived_from_prior_screening_not_self_reported(self):
+    def test_screening_is_taken_once_then_read_only(self):
+        # It's the baseline for weight/BMI change; new readings go in the Progress Tracker.
         self.client_api.force_authenticate(self.client_user)
-        self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})
-        resp = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "60"})
+        first = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})
+        again = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "60"})
 
-        # 70 -> 60 is a ~14.3% drop, well over the 5% NRS-2002 threshold
-        self.assertEqual(resp.status_code, 201, resp.data)
-        self.assertGreaterEqual(resp.data["nrs_score"], 2)
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(again.status_code, 400)
+        self.assertIn("Progress Tracker", again.data["detail"])
+        self.assertEqual(PreConsultationScreening.objects.filter(client=self.client_user).count(), 1)
 
     def test_screening_without_dob_skips_bmr_tdee(self):
         bare_client = User.objects.create_user(email="bare@t.ph", password="x", role="client", first_name="B", last_name="C")
@@ -135,6 +137,7 @@ class ScreeningViewTests(TestCase):
     def test_profile_dob_wins_over_submitted_age(self):
         self.client_api.force_authenticate(self.client_user)
         from_dob = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70", "sex": "male"})
+        PreConsultationScreening.objects.filter(client=self.client_user).delete()  # one screening per client
         typed = self.client_api.post("/api/client/screening/", {
             "height_cm": "170", "weight_kg": "70", "age": 40, "sex": "male",
         })
@@ -150,6 +153,7 @@ class ScreeningViewTests(TestCase):
         on_file = profile.sex
         other = "female" if on_file == "male" else "male"
         from_profile = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})
+        PreConsultationScreening.objects.filter(client=self.client_user).delete()  # one screening per client
         typed = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70", "sex": other})
 
         self.assertEqual(typed.status_code, 201, typed.data)
@@ -186,8 +190,9 @@ class ScreeningViewTests(TestCase):
 
     def test_latest_screening_returns_most_recent(self):
         self.client_api.force_authenticate(self.client_user)
-        self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})
-        self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "68"})
+        # Accounts from before screenings became one-time can have several.
+        PreConsultationScreening.objects.create(client=self.client_user, height_cm=170, weight_kg=70)
+        PreConsultationScreening.objects.create(client=self.client_user, height_cm=170, weight_kg=68)
 
         resp = self.client_api.get("/api/client/screening/latest/")
         self.assertEqual(resp.status_code, 200)

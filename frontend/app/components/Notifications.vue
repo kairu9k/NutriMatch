@@ -175,6 +175,7 @@ onMounted(loadNotifications)
 .notif-log-status { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 12px; }
 .log-followed { background: #e3f3ea; color: #1f8f5c; }
 .log-partially_followed { background: #fdf1d6; color: #b8860b; }
+.log-null { background: #eceeec; color: #5a6a5a; }
 .log-not_followed { background: #fbe1de; color: #c0483a; }
 .notif-log-link { font-size: 0.76rem; font-weight: 700; color: #1f8f5c; }
 .notif-text { font-size: 0.88rem; color: #2a3a2a; margin: 0 0 4px; line-height: 1.5; }

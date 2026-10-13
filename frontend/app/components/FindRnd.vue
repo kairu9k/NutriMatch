@@ -35,14 +35,6 @@
             <option v-for="m in options.modes" :key="m.value" :value="m.value">{{ m.label }}</option>
           </select>
         </label>
-        <label class="filter-field">
-          <span>Sort by</span>
-          <select v-model="sortBy" class="nm-select">
-            <option value="soonest">Soonest available</option>
-            <option value="rating">Highest rated</option>
-            <option value="experience">Most consultations</option>
-          </select>
-        </label>
       </div>
     </div>
 
@@ -142,7 +134,6 @@ const search = ref('')
 const specialization = ref('')
 const language = ref('')
 const mode = ref('')
-const sortBy = ref('soonest')
 const showFilters = ref(false)
 const page = ref(1)
 
@@ -191,7 +182,6 @@ watch(search, () => {
   searchTimer = setTimeout(load, 350)
 })
 watch([specialization, language, mode], load)
-watch(sortBy, () => { page.value = 1 })
 
 onMounted(async () => {
   load()
@@ -202,12 +192,10 @@ onMounted(async () => {
   }
 })
 
+// Always soonest available first (no sort menu, user's call 2026-10-13).
 const sorted = computed(() => {
-  const list = [...rnds.value]
   const firstSlot = r => (r.next_open_slots[0] ? new Date(r.next_open_slots[0]).getTime() : Infinity)
-  if (sortBy.value === 'soonest') return list.sort((a, b) => firstSlot(a) - firstSlot(b))
-  if (sortBy.value === 'rating') return list.sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0) || b.review_count - a.review_count)
-  return list.sort((a, b) => b.consultations_completed - a.consultations_completed)
+  return [...rnds.value].sort((a, b) => firstSlot(a) - firstSlot(b))
 })
 const pageCount = computed(() => Math.max(1, Math.ceil(sorted.value.length / PAGE_SIZE)))
 const paged = computed(() => sorted.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
@@ -231,7 +219,7 @@ function slotText(iso) {
 .filter-top { display: flex; gap: 10px; }
 .name-search { max-width: none; flex: 1; }
 .filters-toggle { display: none; }
-.filter-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+.filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
 .filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .filter-field > span { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; }
 .filter-field .nm-select { width: 100%; }

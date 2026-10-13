@@ -7,6 +7,7 @@ from .views import (
     ClientMealLogListView,
     ClientMealLogSaveView,
     RndMealLogDetailView,
+    RndMealLogReviewView,
     ClientMealPlanListView,
     FoodExchangeCategoryListView,
     FoodExchangeItemListView,
@@ -39,5 +40,6 @@ urlpatterns = [
     path("client/meal-plans/", ClientMealPlanListView.as_view(), name="client_meal_plan_list"),
     path("client/meal-logs/", ClientMealLogListView.as_view(), name="client_meal_log_list"),
     path("rnd/meal-logs/<int:pk>/", RndMealLogDetailView.as_view(), name="rnd_meal_log_detail"),
+    path("rnd/meal-logs/<int:pk>/review/", RndMealLogReviewView.as_view(), name="rnd_meal_log_review"),
     path("client/meals/<int:meal_id>/log/", ClientMealLogSaveView.as_view(), name="client_meal_log_save"),
 ]

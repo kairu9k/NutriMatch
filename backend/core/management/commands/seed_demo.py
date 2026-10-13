@@ -593,6 +593,7 @@ class Command(BaseCommand):
         )
 
         # Meal logs for the last 4 days (not today, so there's something left to log in the demo).
+        # Yesterday's are still waiting for Maria to rate them (the RND rates logs).
         statuses = ["followed", "followed", "partially_followed", "followed", "not_followed", "followed", "followed"]
         n = 0
         for back in range(4, 0, -1):
@@ -601,7 +602,8 @@ class Command(BaseCommand):
                 status = statuses[n % len(statuses)]
                 n += 1
                 MealLog.objects.create(
-                    meal_plan_meal=meal, client=carla, log_date=day, status=status,
+                    meal_plan_meal=meal, client=carla, log_date=day, status=status if back > 1 else None,
+                    reviewed_by=maria if back > 1 else None,
                     time_logged=(datetime.combine(day, meal.scheduled_time) + timedelta(minutes=15)).time(),
                     reason_notes={"partially_followed": "Only had half a cup of rice left.",
                                   "not_followed": "Ate out at a family party."}.get(status),

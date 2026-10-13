@@ -42,6 +42,16 @@ class RndDashboardTests(TestCase):
         self.assertEqual(days[-2]["followed_pct"], 50)
         self.assertEqual(d["adherence"]["pct"], round(1.5 / 7 * 100))
 
+    def test_unrated_logs_wait_outside_adherence(self):
+        self._log(0, None)  # logged today, the RND hasn't rated it yet
+        self._log(1)
+        d = build_dashboard(self.rnd, self.now)
+        # 7 planned, 1 waiting: 1 followed out of the 6 that count
+        self.assertEqual(d["adherence"]["waiting"], 1)
+        self.assertEqual(d["adherence"]["pct"], round(1 / 6 * 100))
+        self.assertIsNone(d["adherence"]["days"][-1]["followed_pct"])
+        self.assertEqual((d["todo"]["meal_logs_to_review"], d["todo"]["meal_logs_to_review_first"]), (1, self.rel.id))
+
     def test_resending_an_edited_plan_keeps_adherence_history(self):
         for i in range(7):
             self._log(i)

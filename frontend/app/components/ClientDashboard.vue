@@ -110,7 +110,7 @@
                 <div class="adherence-item">
                   <p class="adherence-value">{{ weekAdherence.logged ? `${weekAdherence.followedPct}%` : '—' }}</p>
                   <p class="adherence-label">
-                    {{ weekAdherence.logged ? `followed in the last 7 days (${weekAdherence.followed} of ${weekAdherence.logged} logged meals)` : 'no meals logged in the last 7 days' }}
+                    {{ weekAdherence.logged ? `followed in the last 7 days (${weekAdherence.followed} of ${weekAdherence.logged} meals your RND rated)` : 'no rated meals in the last 7 days' }}
                   </p>
                 </div>
               </div>
@@ -145,12 +145,12 @@
 
           <!-- LATEST SCREENING -->
           <div class="panel">
-            <h3 class="panel-title">Latest Screening</h3>
+            <h3 class="panel-title">Your Screening</h3>
             <template v-if="screening">
               <p class="screening-summary-text">
                 Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
               </p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Update Screening</NuxtLink>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">View Screening</NuxtLink>
             </template>
             <template v-else>
               <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
@@ -466,10 +466,11 @@ const todaysLogsByMeal = computed(() => {
 })
 function logLabel(meal) {
   const log = todaysLogsByMeal.value[meal.id]
-  return log ? LOG_LABELS[log.status] || log.status : 'Not logged'
+  return log ? LOG_LABELS[log.status] || 'Waiting for your RND to rate it' : 'Not logged'
 }
 function logPillClass(meal) {
   const status = todaysLogsByMeal.value[meal.id]?.status
+  if (todaysLogsByMeal.value[meal.id] && !status) return 'pill-gold'
   return { followed: 'pill-green', partially_followed: 'pill-gold', not_followed: 'badge-danger' }[status] || 'pill-muted'
 }
 const todayLoggedCount = computed(() => todaysMeals.value.filter(m => todaysLogsByMeal.value[m.id]).length)
@@ -479,7 +480,8 @@ const weekAdherence = computed(() => {
   const start = new Date(now)
   start.setDate(start.getDate() - 6)
   const startIso = localIso(start)
-  const logs = mealLogs.value.filter(l => l.log_date >= startIso && l.log_date <= todayIso)
+  // Only meals the RND has rated count; the rest are waiting for their rating.
+  const logs = mealLogs.value.filter(l => l.log_date >= startIso && l.log_date <= todayIso && l.status)
   const followed = logs.filter(l => l.status === 'followed').length
   return { logged: logs.length, followed, followedPct: logs.length ? Math.round((followed / logs.length) * 100) : 0 }
 })

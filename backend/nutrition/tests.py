@@ -332,10 +332,13 @@ class RndMealLogNotificationTests(TestCase):
         MealPlanFoodItem.objects.create(meal_plan_meal=self.meal, food_name="Rice, boiled", household_measure="1/2 cup", kcal=Decimal("100"))
 
         self.client_api.force_authenticate(self.client_user)
+        # A status or time sent by the client is ignored: the RND rates it, the server stamps the time.
         resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {
-            "status": "partially_followed", "time_logged": "07:15", "reason_notes": "Only half the rice",
+            "status": "followed", "time_logged": "03:00", "reason_notes": "Only half the rice",
         }, format="json")
         self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertIsNone(resp.data["status"])
+        self.assertNotEqual(resp.data["time_logged"], "03:00:00")
         self.log_id = resp.data["id"]
 
     def test_rnd_notification_includes_the_meal_log(self):
@@ -346,7 +349,7 @@ class RndMealLogNotificationTests(TestCase):
         log = meal_note["meal_log"]
         self.assertEqual(log["id"], self.log_id)
         self.assertEqual(log["meal_label"], "Breakfast")
-        self.assertEqual(log["status_label"], "Partially Followed")
+        self.assertEqual(log["status_label"], "Waiting for review")
         self.assertEqual(log["reason_notes"], "Only half the rice")
         self.assertEqual(log["client_name"], "Ana C")
         self.assertEqual(log["planned_items"][0]["food_name"], "Rice, boiled")
@@ -366,3 +369,29 @@ class RndMealLogNotificationTests(TestCase):
         self.client_api.force_authenticate(self.client_user)
         for n in self.client_api.get("/api/notifications/").data:
             self.assertIsNone(n["meal_log"])
+
+    def test_a_log_needs_a_photo_or_note(self):
+        self.client_api.force_authenticate(self.client_user)
+        resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": "2026-09-01", "reason_notes": "  "}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_only_the_rnd_rates_and_resaving_sends_it_back(self):
+        from .models import MealLog
+
+        self.client_api.force_authenticate(self.rnd)
+        bad = self.client_api.patch(f"/api/rnd/meal-logs/{self.log_id}/review/", {"status": "great"}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        ok = self.client_api.patch(f"/api/rnd/meal-logs/{self.log_id}/review/", {"status": "partially_followed"}, format="json")
+        self.assertEqual(ok.status_code, 200, ok.data)
+        self.assertEqual(ok.data["status_label"], "Partially Followed")
+
+        other = approve_rnd(User.objects.create_user(email="rnd11@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
+        self.client_api.force_authenticate(other)
+        self.assertEqual(self.client_api.patch(f"/api/rnd/meal-logs/{self.log_id}/review/", {"status": "followed"}, format="json").status_code, 404)
+
+        # The client edits the log -> back to waiting for review.
+        self.client_api.force_authenticate(self.client_user)
+        log = MealLog.objects.get(pk=self.log_id)
+        self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": str(log.log_date), "reason_notes": "Actually all of it"}, format="json")
+        log.refresh_from_db()
+        self.assertIsNone(log.status)

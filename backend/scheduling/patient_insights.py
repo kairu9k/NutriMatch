@@ -19,6 +19,13 @@ STALE_DRAFT_DAYS = 3
 ADHERENCE_GOAL = 80
 
 LOG_SCORE = {"followed": 1.0, "partially_followed": 0.5, "not_followed": 0.0}
+
+
+def adherence_pct(planned, score, waiting=0):
+    """Score over the meals that count: a log the RND hasn't rated yet is
+    left out (neither 0 nor 100); an unlogged meal still counts as 0."""
+    counted = planned - waiting
+    return round(score / counted * 100) if counted > 0 else None
 LEVEL_ORDER = {"critical": 0, "warning": 1, "info": 2}
 
 
@@ -79,8 +86,9 @@ class CareData:
 
     # ------------------------------------------------------------ adherence
     def day_stats(self, d, rel_id=None):
-        """(planned, logged, score) for one day — only meals whose time has passed count today."""
-        planned = logged = 0
+        """(planned, logged, score, waiting) for one day — only meals whose time
+        has passed count today; `waiting` = logs the RND hasn't rated yet."""
+        planned = logged = waiting = 0
         score = 0.0
         for m in self.meals:
             plan = m.meal_plan
@@ -98,28 +106,32 @@ class CareData:
             lg = self.log_map.get((m.id, d))
             if lg:
                 logged += 1
-                score += LOG_SCORE.get(lg.status, 0)
-        return planned, logged, score
+                if lg.status:
+                    score += LOG_SCORE.get(lg.status, 0)
+                else:
+                    waiting += 1
+        return planned, logged, score, waiting
 
     def plan_start(self, plan):
         return (plan.first_sent_at or plan.sent_at or plan.created_at).astimezone(self.ph).date()
 
     def window(self, days_back_start, rel_id=None):
-        planned = logged = 0
+        planned = logged = waiting = 0
         score = 0.0
         for i in range(days_back_start, days_back_start + 7):
-            p, lg, s = self.day_stats(self.today - timedelta(days=i), rel_id)
+            p, lg, s, w = self.day_stats(self.today - timedelta(days=i), rel_id)
             planned += p
             logged += lg
             score += s
-        return planned, logged, score
+            waiting += w
+        return planned, logged, score, waiting
 
     def adherence(self, rel_id):
         """Last 7 days for one patient, or None when they have no active plan."""
         if rel_id not in self.active_plans:
             return None
-        p, lg, s = self.window(0, rel_id)
-        return {"pct": round(s / p * 100) if p else None, "planned": p, "logged": lg}
+        p, lg, s, w = self.window(0, rel_id)
+        return {"pct": adherence_pct(p, s, w), "planned": p, "logged": lg, "waiting": w}
 
     # ------------------------------------------------------------ progress
     def weights(self, rel_id):

@@ -290,6 +290,29 @@ class RndMealLogDetailView(generics.RetrieveAPIView):
         ).select_related("client", "meal_plan_meal__meal_plan").prefetch_related("meal_plan_meal__food_items")
 
 
+class RndMealLogReviewView(APIView):
+    """PATCH {status} — the RND rates a client's meal log as followed /
+    partially followed / not followed (only the patient's own RND, only
+    while care is active). It can be changed later."""
+
+    permission_classes = [IsRnd]
+
+    def patch(self, request, pk):
+        log = get_object_or_404(
+            MealLog.objects.select_related("meal_plan_meal__meal_plan__relationship", "client"),
+            pk=pk, meal_plan_meal__meal_plan__relationship__rnd=request.user,
+        )
+        ensure_open(log.meal_plan_meal.meal_plan.relationship)
+        value = request.data.get("status")
+        if value not in MealLog.MealStatus.values:
+            raise serializers.ValidationError({"status": ["Choose Followed, Partly followed or Not followed."]})
+        log.status = value
+        log.reviewed_by = request.user
+        log.reviewed_at = timezone.now()
+        log.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+        return Response(RndMealLogSerializer(log).data)
+
+
 class ClientMealLogListView(generics.ListAPIView):
     """Client's own adherence logs, optionally filtered to one date via
     ?date=YYYY-MM-DD (defaults to every log they've ever saved)."""
@@ -336,8 +359,17 @@ class ClientMealLogSaveView(APIView):
             except ResourceUploadError as exc:
                 raise serializers.ValidationError({"photo": [str(exc)]})
 
+        note = (serializer.validated_data.get("reason_notes", instance.reason_notes if instance else "") or "").strip()
+        if not photo_url and not note:
+            raise serializers.ValidationError({"detail": "Add a photo or a note about what you ate."})
+
+        from scheduling.patient_insights import ph_tz
+
+        # Saving (again) sends it back to the RND for review; the time is when it was saved.
         meal_log = serializer.save(
-            meal_plan_meal=meal, client=request.user, log_date=log_date, photo_url=photo_url
+            meal_plan_meal=meal, client=request.user, log_date=log_date, photo_url=photo_url,
+            time_logged=timezone.now().astimezone(ph_tz()).time().replace(microsecond=0),
+            status=None, reviewed_by=None, reviewed_at=None,
         )
 
         rnd = meal.meal_plan.relationship.rnd
@@ -345,10 +377,10 @@ class ClientMealLogSaveView(APIView):
             recipient=rnd,
             notifiable_type="meal_log",
             notifiable_id=meal_log.id,
-            subject="Meal log update",
+            subject="Meal log to review",
             content=(
-                f"{request.user.full_name} logged {meal.get_meal_time_display()} "
-                f"as \"{meal_log.get_status_display()}\" for {log_date}."
+                f"{request.user.full_name} logged {meal.get_meal_time_display()} for {log_date}. "
+                "Open it to rate how well it followed the plan."
             ),
         )
 

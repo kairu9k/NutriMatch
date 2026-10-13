@@ -146,9 +146,9 @@
           <div class="tab-panel-header">
             <div>
               <h3 class="tab-panel-title">Health Profile</h3>
-              <p class="tab-panel-sub">Your latest screening results on file.</p>
+              <p class="tab-panel-sub">Your screening on file — the starting point your progress is measured from.</p>
             </div>
-            <button class="outline-btn" type="button" @click="navigateTo('/pre-consultation-screening')">Update Screening</button>
+            <button class="outline-btn" type="button" @click="navigateTo('/pre-consultation-screening')">View Screening</button>
           </div>
 
           <div v-if="screening" class="stat-grid-3">
@@ -658,7 +658,7 @@ async function loadHistory() {
       ...mealLogs.map(l => ({
         key: `m${l.id}`, type: 'mealLog', at: l.updated_at, icon: UtensilsCrossed, iconClass: 'icon-green',
         title: `${MEAL_LABELS[mealTimeById[l.meal_plan_meal]] || 'Meal'} logged`,
-        detail: `${LOG_STATUS[l.status] || l.status} · ${l.log_date}${l.reason_notes ? ` · ${l.reason_notes}` : ''}`,
+        detail: `${LOG_STATUS[l.status] || 'Waiting for your RND to rate it'} · ${l.log_date}${l.reason_notes ? ` · ${l.reason_notes}` : ''}`,
       })),
     ].sort((x, y) => new Date(y.at) - new Date(x.at))
     historyLoaded = true

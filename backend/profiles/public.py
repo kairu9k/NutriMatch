@@ -163,10 +163,22 @@ class PublicRndDetailSerializer(PublicRndProfileSerializer):
         return {str(star): counts.get(star, 0) for star in (5, 4, 3, 2, 1)}
 
 
+MODE_LABELS = [("video", "Video call"), ("chat", "Chat"), ("in_person", "In-person")]
+
+
 def search_options():
-    """Filter choices for Find an RND — the same lists RNDs pick from."""
+    """Filter choices for Find an RND — only values some RND a client can
+    find actually has (user's rule, 2026-10-13), in the registration lists'
+    order. RND registration/Profile Settings keep the full lists."""
+    from .models import RndLanguage
+    from .services import bookable_rnd_profiles
+
+    profiles = list(bookable_rnd_profiles().filter(available_for_new_clients=True))
+    specs = {p.specialization for p in profiles if p.specialization}
+    codes = set(RndLanguage.objects.filter(rnd_id__in=[p.user_id for p in profiles]).values_list("language_code", flat=True))
+    modes = {m for p in profiles for m in (p.consultation_modes or [])}
     return {
-        "specializations": RND_SPECIALIZATIONS,
-        "languages": [{"code": code, "label": label} for code, label in LANGUAGES],
-        "modes": [{"value": "video", "label": "Video call"}, {"value": "chat", "label": "Chat"}, {"value": "in_person", "label": "In-person"}],
+        "specializations": [s for s in RND_SPECIALIZATIONS if s in specs] + sorted(specs - set(RND_SPECIALIZATIONS)),
+        "languages": [{"code": code, "label": label} for code, label in LANGUAGES if code in codes],
+        "modes": [{"value": v, "label": label} for v, label in MODE_LABELS if v in modes],
     }

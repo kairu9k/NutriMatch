@@ -42,6 +42,15 @@ class ScreeningCreateView(generics.ListCreateAPIView):
         return PreConsultationScreening.objects.filter(client=self.request.user).order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
+        # The screening is the baseline that weight/BMI change is measured
+        # against, so it's taken once and then read-only (user's rule,
+        # 2026-10-13); new readings go in the Progress Tracker.
+        if PreConsultationScreening.objects.filter(client=request.user).exists():
+            return Response(
+                {"detail": "Your screening is already on file and can't be changed. "
+                           "Log new readings in the Progress Tracker."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -289,7 +298,7 @@ class ClientAdherenceView(APIView):
         from datetime import timedelta
 
         from scheduling.models import RndClientRelationship
-        from scheduling.patient_insights import CareData
+        from scheduling.patient_insights import CareData, adherence_pct
 
         rels = list(RndClientRelationship.objects.filter(client=request.user, status=RndClientRelationship.Status.ACTIVE))
         if not rels:
@@ -297,10 +306,10 @@ class ClientAdherenceView(APIView):
         care = CareData(rels)
         weeks = []
         for k in range(7, -1, -1):  # oldest first
-            planned, logged, score = care.window(7 * k)
+            planned, logged, score, waiting = care.window(7 * k)
             end = care.today - timedelta(days=7 * k)
             weeks.append({"start": end - timedelta(days=6), "end": end, "planned": planned, "logged": logged,
-                          "pct": round(score / planned * 100) if planned else None})
+                          "waiting": waiting, "pct": adherence_pct(planned, score, waiting)})
         return Response({"weeks": weeks})
 
 

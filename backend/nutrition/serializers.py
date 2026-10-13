@@ -216,7 +216,8 @@ class RndMealLogSerializer(serializers.ModelSerializer):
     by GET /api/rnd/meal-logs/<id>/ and attached to "Meal log update"
     notifications so the RND sees the log right in the notification."""
 
-    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    status_label = serializers.CharField(read_only=True)
+    can_review = serializers.SerializerMethodField()
     client_name = serializers.CharField(source="client.full_name", read_only=True)
     relationship_id = serializers.IntegerField(source="meal_plan_meal.meal_plan.relationship_id", read_only=True)
     plan_name = serializers.CharField(source="meal_plan_meal.meal_plan.name", read_only=True)
@@ -227,11 +228,14 @@ class RndMealLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = MealLog
         fields = [
-            "id", "log_date", "status", "status_label", "time_logged", "reason_notes", "photo_url",
+            "id", "log_date", "status", "status_label", "reviewed_at", "can_review", "time_logged", "reason_notes", "photo_url",
             "client_name", "relationship_id", "plan_name", "meal_label", "scheduled_time", "planned_items",
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_can_review(self, obj):
+        return obj.meal_plan_meal.meal_plan.relationship.status == "active"
 
     def get_planned_items(self, obj):
         return [
@@ -244,7 +248,12 @@ class MealLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = MealLog
         fields = [
-            "id", "meal_plan_meal", "log_date", "status",
+            "id", "meal_plan_meal", "log_date", "status", "status_label", "reviewed_at",
             "time_logged", "reason_notes", "photo_url", "created_at", "updated_at",
         ]
-        read_only_fields = ["meal_plan_meal", "log_date", "photo_url"]
+        # The client only sends a note (+ photo); the RND rates it and the
+        # server stamps the time.
+        read_only_fields = ["meal_plan_meal", "log_date", "photo_url", "status", "reviewed_at", "time_logged"]
+        extra_kwargs = {"reason_notes": {"max_length": 1000, "allow_blank": True, "required": False}}
+
+    status_label = serializers.CharField(read_only=True)

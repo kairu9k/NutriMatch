@@ -160,9 +160,9 @@
         <p class="eyebrow">Step 4 of 4</p>
         <template v-if="screeningDone && !redoScreening">
           <h1 class="title">Your screening is on file</h1>
-          <p class="lead">Recorded {{ screeningDate }}. You can finish now, or take it again if something changed.</p>
+          <p class="lead">Recorded {{ screeningDate }}. It's your starting point and can't be changed. New readings go in the Progress Tracker.</p>
           <div class="actions">
-            <button class="outline-btn" type="button" @click="redoScreening = true">Take it again</button>
+            <button class="outline-btn" type="button" @click="redoScreening = true">View it</button>
             <button class="btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
           </div>
         </template>

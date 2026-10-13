@@ -17,7 +17,7 @@
 
         <template v-else-if="log">
           <div class="ml-status-row">
-            <span class="ml-status" :class="`ml-status-${log.status}`">{{ log.status_label }}</span>
+            <span class="ml-status" :class="`ml-status-${log.status || 'waiting'}`">{{ log.status_label }}</span>
             <span class="ml-meta">Logged at {{ formatTime(log.time_logged) || '—' }}{{ log.scheduled_time ? ` · scheduled ${formatTime(log.scheduled_time)}` : '' }}</span>
           </div>
 
@@ -41,6 +41,13 @@
           </ul>
           <p v-else class="ml-no-photo">No foods were planned for this meal.</p>
 
+          <template v-if="log.can_review !== false">
+            <span class="ml-eyebrow">YOUR RATING</span>
+            <p class="ml-rate-hint">How well did this meal follow the plan? It counts toward their adherence once rated.</p>
+            <MealLogRating :log-id="log.id" :status="log.status" :label="`${log.client_name}'s ${log.meal_label.toLowerCase()}`"
+                           class="ml-rate" @rated="onRated" />
+          </template>
+
           <div class="ml-actions">
             <button class="ml-secondary-btn" type="button" @click="emit('close')">Close</button>
             <button class="ml-primary-btn" type="button" @click="openChart">Open Patient Chart</button>
@@ -52,8 +59,9 @@
 </template>
 
 <script setup>
-// One client meal log, opened from an RND's "Meal log update" notification:
-// the photo and status the client logged next to what was planned. Shows the
+// One client meal log, opened from an RND's "Meal log to review" notification:
+// the photo and note the client logged next to what was planned, and the
+// RND's rating (Followed / Partly / Not followed). Shows the
 // copy that came with the notification right away, then refreshes it from
 // GET /api/rnd/meal-logs/<id>/ (the client may have edited the log since).
 import { onMounted, ref } from 'vue'
@@ -77,6 +85,9 @@ onMounted(async () => {
   }
 })
 
+function onRated(updated) {
+  log.value = { ...log.value, ...updated }
+}
 function openChart() {
   emit('close')
   navigateTo(`/client-detail/${log.value.relationship_id}`)
@@ -123,6 +134,9 @@ function formatTime(t) {
 .ml-status-followed { background: #e3f3ea; color: #1f8f5c; }
 .ml-status-partially_followed { background: #fdf1d6; color: #b8860b; }
 .ml-status-not_followed { background: #fbe1de; color: #c0483a; }
+.ml-status-waiting { background: #eceeec; color: #5a6a5a; }
+.ml-rate-hint { font-size: 0.8rem; color: #6a7a6a; margin: 0 0 10px; }
+.ml-rate { margin-bottom: 20px; }
 .ml-meta { font-size: 0.8rem; color: #6a7a6a; }
 
 .ml-eyebrow { display: block; font-size: 0.68rem; letter-spacing: 0.08em; color: #b8860b; font-weight: 700; margin: 4px 0 10px; }

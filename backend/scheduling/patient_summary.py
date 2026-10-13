@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsRnd
 
-from .patient_insights import ph_tz
+from .patient_insights import adherence_pct, ph_tz
 from .patient_list import build_patient_rows
 
 ADHERENCE_DAYS = 14
@@ -77,12 +77,12 @@ def build_patient_summary(rnd, rel_id, now=None):
     days = []
     for i in range(ADHERENCE_DAYS - 1, -1, -1):
         d = today - timedelta(days=i)
-        p, lg, sc = care.day_stats(d, rel.id)
-        days.append({"date": d, "planned": p, "logged": lg, "followed_pct": round(sc / p * 100) if p else None})
+        p, lg, sc, w = care.day_stats(d, rel.id)
+        days.append({"date": d, "planned": p, "logged": lg, "waiting": w, "followed_pct": adherence_pct(p, sc, w)})
     logs = [
-        {"date": lg.log_date, "meal": lg.meal_plan_meal.get_meal_time_display(), "status": lg.status,
-         "status_label": lg.get_status_display(), "time_logged": lg.time_logged, "note": lg.reason_notes,
-         "plan": lg.meal_plan_meal.meal_plan.name}
+        {"id": lg.id, "date": lg.log_date, "meal": lg.meal_plan_meal.get_meal_time_display(), "status": lg.status,
+         "status_label": lg.status_label, "time_logged": lg.time_logged, "note": lg.reason_notes,
+         "photo_url": lg.photo_url, "plan": lg.meal_plan_meal.meal_plan.name}
         for lg in MealLog.objects.filter(meal_plan_meal__meal_plan__relationship=rel)
         .select_related("meal_plan_meal__meal_plan").order_by("-log_date", "-created_at")[:RECENT_LOGS]
     ]

@@ -116,7 +116,7 @@
               </div>
               <div v-if="d.adherence.pct != null" class="chart-figure">
                 <span class="cf-value">{{ d.adherence.pct }}%</span>
-                <span class="cf-sub">{{ d.adherence.logged }} of {{ d.adherence.planned }} meals logged</span>
+                <span class="cf-sub">{{ d.adherence.logged }} of {{ d.adherence.planned }} meals logged<template v-if="d.adherence.waiting"> · {{ d.adherence.waiting }} waiting for your rating</template></span>
               </div>
             </div>
             <div v-if="!d.adherence.planned" class="nm-empty"><Utensils :size="26" /><p>No meal plans active yet — adherence shows up once patients have a plan.</p></div>
@@ -305,6 +305,8 @@ const todoItems = computed(() => {
     { key: 'ncp', count: t.ncp_drafts, label: `NCP draft${t.ncp_drafts === 1 ? '' : 's'} to finish`, to: '/ncp-records', icon: ClipboardList, tone: '' },
     { key: 'plan', count: t.need_meal_plan, label: `patient${t.need_meal_plan === 1 ? '' : 's'} ready for a meal plan`,
       to: t.need_meal_plan_first ? `/meal-planning?relationship=${t.need_meal_plan_first}` : '/meal-planning', icon: Target, tone: '' },
+    { key: 'logs', count: t.meal_logs_to_review, label: `meal log${t.meal_logs_to_review === 1 ? '' : 's'} to rate`,
+      to: t.meal_logs_to_review_first ? `/client-detail/${t.meal_logs_to_review_first}?tab=meal` : '/my-patients', icon: Utensils, tone: 'gold' },
     { key: 'msg', count: t.unread_messages, label: `unread message${t.unread_messages === 1 ? '' : 's'}`, to: '/messages', icon: MessageSquare, tone: '' },
   ].filter(i => i.count > 0)
 })

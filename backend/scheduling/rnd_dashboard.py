@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsRnd
 
-from .patient_insights import ADHERENCE_GOAL, CareData, person as _person, ph_tz
+from .patient_insights import ADHERENCE_GOAL, CareData, adherence_pct, person as _person, ph_tz
 
 BMI_RANK = {"Normal": 0, "Overweight (At Risk)": 1, "Underweight": 1, "Obese I": 2, "Obese II": 3}
 
@@ -77,16 +77,22 @@ def build_dashboard(rnd, now=None):
     week = []
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
-        p, lg, s = care.day_stats(d)
-        week.append({"date": d, "planned": p, "logged": lg, "followed_pct": round(s / p * 100) if p else None})
-    p7, l7, s7 = care.window(0)
-    p14, _, s14 = care.window(7)
+        p, lg, s, w = care.day_stats(d)
+        week.append({"date": d, "planned": p, "logged": lg, "waiting": w, "followed_pct": adherence_pct(p, s, w)})
+    p7, l7, s7, w7 = care.window(0)
+    p14, _, s14, w14 = care.window(7)
     adherence = {
         "days": week,
-        "pct": round(s7 / p7 * 100) if p7 else None,
-        "previous_pct": round(s14 / p14 * 100) if p14 else None,
-        "planned": p7, "logged": l7, "goal": ADHERENCE_GOAL,
+        "pct": adherence_pct(p7, s7, w7),
+        "previous_pct": adherence_pct(p14, s14, w14),
+        "planned": p7, "logged": l7, "waiting": w7, "goal": ADHERENCE_GOAL,
     }
+    # Meal logs the RND still has to rate (any date), and the patient with the most.
+    from nutrition.models import MealLog
+
+    to_review = list(MealLog.objects.filter(
+        status__isnull=True, meal_plan_meal__meal_plan__relationship__in=rels,
+    ).values_list("meal_plan_meal__meal_plan__relationship_id", flat=True))
     alerts = [a for rel in rels for a in care.alerts(rel)]
     order = {"critical": 0, "warning": 1, "info": 2}
     alerts.sort(key=lambda a: order[a["level"]])
@@ -127,6 +133,8 @@ def build_dashboard(rnd, now=None):
             "requests": len(requests), "to_complete": to_complete, "ncp_drafts": len(drafts),
             "need_meal_plan": len(need_plan), "unread_messages": unread,
             "need_meal_plan_first": need_plan[0].id if need_plan else None,
+            "meal_logs_to_review": len(to_review),
+            "meal_logs_to_review_first": max(set(to_review), key=to_review.count) if to_review else None,
         },
         "stats": {"active_patients": len(rels), "sessions_this_week": sessions_this_week},
         "schedule": upcoming,

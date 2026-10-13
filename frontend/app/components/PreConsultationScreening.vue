@@ -4,6 +4,18 @@
       <h1 class="screening-title">Pre-Consultation Nutritional Screening</h1>
       <p class="screening-sub">Your data auto-computes BMI, BMR, TDEE, and NRS-2002 risk score.</p>
 
+      <!-- Taken once, then read-only: it's the starting point weight/BMI change is measured from. -->
+      <div v-if="onFile" class="on-file">
+        <Lock :size="15" />
+        <p>
+          <strong>Your screening from {{ onFileDate }} is on file and can't be changed.</strong>
+          It's the starting point your RND measures your progress against.
+          To record a new weight or other readings, use the
+          <NuxtLink to="/progress-tracker">Progress Tracker</NuxtLink>.
+        </p>
+      </div>
+
+      <fieldset class="form-set" :disabled="onFile">
       <div class="form-row-3">
         <div class="field">
           <label for="scr-height">Height (cm)</label>
@@ -85,9 +97,11 @@
         </label>
       </div>
 
+      </fieldset>
+
       <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
-      <button class="compute-btn" :disabled="!canCompute || isSubmitting" @click="handleCompute">
+      <button v-if="!onFile" class="compute-btn" :disabled="!canCompute || isSubmitting" @click="handleCompute">
         {{ isSubmitting ? 'Computing…' : 'Compute My Health Metrics' }}
       </button>
 
@@ -138,7 +152,7 @@
           </Transition>
         </div>
 
-        <div v-if="!embedded" class="complete-banner">
+        <div v-if="!embedded && !onFile" class="complete-banner">
           <p class="complete-title"><CheckCircle2 :size="16" /> Screening Complete</p>
           <p class="complete-text">This summary has been shared with your RND, who will review it before your consultation.</p>
           <p class="complete-text">{{ hasActiveRnd ? 'You can head to Appointments to book your next consultation.' : 'You can now proceed to find your RND and book a consultation.' }}</p>
@@ -157,7 +171,7 @@
 </template>
 
 <script setup>
-import { CheckCircle2, ArrowRight, Info, X } from 'lucide-vue-next'
+import { CheckCircle2, ArrowRight, Info, Lock, X } from 'lucide-vue-next'
 
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
 // which shows its own "finish" step instead of the Find-an-RND banner.
@@ -239,6 +253,10 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const result = ref(null)
 const hasActiveRnd = ref(false)
+// A screening already on file is shown read-only (the API refuses a second one).
+const onFile = ref(false)
+const onFileDate = computed(() => (result.value?.created_at
+  ? new Date(result.value.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : ''))
 
 const toastVisible = ref(false)
 let toastTimer = null
@@ -379,8 +397,7 @@ const nrsRiskLabel = computed(() => ({ no_risk: 'No Risk', at_risk: 'At Risk', h
 const nrsTagClass = computed(() => ({ no_risk: 'tag-green', at_risk: 'tag-gold', high_risk: 'tag-red' }[result.value?.nrs_risk] || ''))
 
 onMounted(async () => {
-  // Pre-fill from the profile and the last screening so a repeat screening
-  // only needs the new weight.
+  // Pre-fill age/sex from the profile; a screening already on file is shown as-is, read-only.
   const [profile, latest, relationships] = await Promise.all([
     get('/client/profile/').catch(() => null),
     get('/client/screening/latest/').catch(() => null),
@@ -396,7 +413,14 @@ onMounted(async () => {
   }
   if (latest) {
     form.height = Number(latest.height_cm)
+    form.weight = Number(latest.weight_kg)
     form.activityLevel = latest.activity_level
+    if (latest.age && !ageFromProfile.value) form.age = latest.age
+    if (latest.sex && !form.sex) form.sex = latest.sex
+    const saved = (latest.symptoms || '').split(',').map(x => x.trim())
+    for (const o of symptomOptions) form.symptoms[o.key] = saved.includes(o.label)
+    result.value = latest
+    onFile.value = true
   }
   hasActiveRnd.value = relationships.length > 0
 })
@@ -410,6 +434,12 @@ onMounted(async () => {
 .panel { background: #fff; border-radius: 16px; border: 1px solid #eceeec; padding: 28px 30px; }
 .screening-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
 .screening-sub { font-size: 0.87rem; color: #9aaa9a; margin: 0 0 24px; }
+.on-file { display: flex; gap: 10px; align-items: flex-start; background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 12px 14px; margin: 0 0 20px; color: #6a5a2a; }
+.on-file p { margin: 0; font-size: 0.84rem; line-height: 1.55; }
+.on-file a { color: #1f6f46; font-weight: 600; }
+.on-file svg { flex-shrink: 0; margin-top: 2px; }
+.form-set { border: 0; padding: 0; margin: 0; min-width: 0; }
+.form-set:disabled input, .form-set:disabled select { background-color: #f4f6f4; color: #4a5a4a; cursor: not-allowed; }
 
 .form-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 .form-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }

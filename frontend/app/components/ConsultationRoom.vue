@@ -104,7 +104,7 @@
               <h3>Recent meal logs</h3>
               <div v-for="(l, i) in s.recent_logs.slice(0, 6)" :key="i" class="log">
                 <span class="log-dot" :class="l.status" aria-hidden="true" />
-                <span class="log-main">{{ shortDate(l.date) }} · {{ l.meal }} — {{ LOG[l.status] }}<small v-if="l.note">“{{ l.note }}”</small></span>
+                <span class="log-main">{{ shortDate(l.date) }} · {{ l.meal }} — {{ LOG[l.status] || 'not rated yet' }}<small v-if="l.note">“{{ l.note }}”</small></span>
               </div>
             </section>
             <NuxtLink :to="`/client-detail/${appt.relationship.id}`" target="_blank" class="link small">Open full chart in a new tab ↗</NuxtLink>

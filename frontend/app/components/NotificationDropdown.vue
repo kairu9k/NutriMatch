@@ -74,6 +74,7 @@ const STATUS_CLASS = {
   followed: 'bg-emerald-50 text-emerald-700',
   partially_followed: 'bg-amber-50 text-amber-700',
   not_followed: 'bg-red-50 text-red-600',
+  null: 'bg-gray-100 text-gray-600',
 }
 
 onMounted(loadNotifications)

@@ -75,10 +75,19 @@ class PublicRndTests(TestCase):
         self.assertEqual(names("?max_fee=1000"), ["Maria"])
         self.assertEqual(names(""), ["Jose", "Maria"])
 
-    def test_options(self):
+    def test_options_only_list_what_findable_rnds_have(self):
+        from profiles.models import RndLanguage
+
+        RndProfile.objects.filter(user=self.rnd).update(specialization="Diabetes Management")
+        RndLanguage.objects.create(rnd=self.rnd, language_code="ceb", language_name="Cebuano")
+        hidden = approve_rnd(User.objects.create_user(email="h@p.ph", password="x", role="rnd", first_name="H", last_name="D"))
+        RndProfile.objects.filter(user=hidden).update(specialization="Sports Nutrition", available_for_new_clients=False, consultation_modes=["chat"])
+        RndLanguage.objects.create(rnd=hidden, language_code="ilo", language_name="Ilocano")
+
         data = self.api.get("/api/client/rnds/options/").data
-        self.assertEqual(len(data["languages"]), 8)
-        self.assertIn("Diabetes Management", data["specializations"])
+        self.assertEqual(data["specializations"], ["Diabetes Management"])
+        self.assertEqual([lang["code"] for lang in data["languages"]], ["ceb"])
+        self.assertEqual([m["value"] for m in data["modes"]], ["video", "in_person"])
 
 
 class ClinicAddressTests(TestCase):

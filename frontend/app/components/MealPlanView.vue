@@ -53,7 +53,7 @@
           >
             <component :is="mealIcon(meal.meal_time)" :size="14" />
             {{ mealTimeLabel(meal.meal_time) }}
-            <span v-if="logFor(meal.id)" class="tab-status-dot" :class="logFor(meal.id).status === 'followed' ? 'dot-green' : 'dot-gold'"></span>
+            <span v-if="logFor(meal.id)" class="tab-status-dot" :class="logFor(meal.id).status === 'followed' ? 'dot-green' : 'dot-gold'" :title="logFor(meal.id).status_label"></span>
           </button>
         </div>
 
@@ -63,9 +63,13 @@
               <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
               <p v-if="activeMeal.scheduled_time" class="meal-scheduled">Scheduled Time: {{ formatClock(activeMeal.scheduled_time) }}</p>
             </div>
-            <span class="status-pill" :class="activeLog?.status === 'followed' ? 'pill-green' : 'pill-muted'">
-              {{ activeLog ? statusLabel(activeLog.status) : 'Not logged yet' }}
-            </span>
+            <!-- The client logs what they ate; the RND rates it. -->
+            <div class="status-col">
+              <span class="status-pill" :class="pillClass(activeLog)">
+                {{ !activeLog ? 'Not logged yet' : activeLog.status ? activeLog.status_label : 'Waiting for your RND to rate it' }}
+              </span>
+              <span v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status"> · rated by your RND</template></span>
+            </div>
           </div>
 
           <div class="meal-body">
@@ -98,30 +102,16 @@
                 </span>
               </label>
 
-              <div class="meal-log-row">
-                <div class="field">
-                  <label>Time Logged</label>
-                  <div class="time-input-wrap">
-                    <input v-model="logForm.timeLogged" type="time" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label>Meal Status</label>
-                  <select class="nm-select block" v-model="logForm.status">
-                    <option value="">Select status</option>
-                    <option v-for="s in mealStatusOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
-                  </select>
-                </div>
+              <div class="field notes-field">
+                <label for="meal-log-note">Note</label>
+                <textarea id="meal-log-note" v-model="logForm.reasonNotes" rows="3" maxlength="1000"
+                          placeholder="What did you eat? e.g. Had half the rice and added a banana."></textarea>
               </div>
-
-              <div v-if="logForm.status === 'partially_followed' || logForm.status === 'not_followed'" class="field notes-field">
-                <label>Reason / Notes</label>
-                <textarea v-model="logForm.reasonNotes" rows="2" placeholder="e.g. Ran out of time, ate something else instead..."></textarea>
-              </div>
+              <p class="log-hint">Add a photo, a note or both. The time is saved automatically, and your RND will rate how well it followed your plan.</p>
 
               <p v-if="logError" class="form-error inline">{{ logError }}</p>
 
-              <button v-if="logForm.status" class="save-log-btn" :disabled="isSavingLog" @click="saveMealLog">
+              <button v-if="canSaveLog" class="save-log-btn" :disabled="isSavingLog" @click="saveMealLog">
                 <Save :size="15" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
               </button>
             </div>
@@ -185,13 +175,9 @@ const MEAL_LABELS = {
 }
 const MEAL_ICONS = { breakfast: Sunrise, am_snack: Coffee, lunch: Sun, pm_snack: Coffee, dinner: Moon, bedtime_snack: Moon }
 
-const mealStatusOptions = [
-  { value: 'followed', label: 'Followed Plan' },
-  { value: 'partially_followed', label: 'Partially Followed' },
-  { value: 'not_followed', label: 'Did Not Follow' },
-]
-function statusLabel(value) {
-  return mealStatusOptions.find(s => s.value === value)?.label || value
+function pillClass(log) {
+  if (!log) return 'pill-muted'
+  return { followed: 'pill-green', partially_followed: 'pill-gold', not_followed: 'pill-red' }[log.status] || 'pill-gold'
 }
 
 function orderedMeals(meals) {
@@ -237,12 +223,13 @@ function logFor(mealId) {
 }
 const activeLog = computed(() => activeMeal.value ? logFor(activeMeal.value.id) : null)
 
-const logForm = reactive({ status: '', timeLogged: '', reasonNotes: '', photoFile: null, photoName: '' })
+const logForm = reactive({ reasonNotes: '', photoFile: null, photoName: '' })
+// Save shows once there's something new: a photo, or a note different from the saved one.
+const canSaveLog = computed(() => !!logForm.photoFile
+  || (logForm.reasonNotes.trim() && logForm.reasonNotes.trim() !== (activeLog.value?.reason_notes || '').trim()))
 
 function resetLogForm() {
   const existing = activeLog.value
-  logForm.status = existing?.status || ''
-  logForm.timeLogged = existing?.time_logged?.slice(0, 5) || ''
   logForm.reasonNotes = existing?.reason_notes || ''
   logForm.photoFile = null
   logForm.photoName = ''
@@ -279,15 +266,13 @@ function fireToast(msg) {
 }
 
 async function saveMealLog() {
-  if (!activeMeal.value || !logForm.status) return
+  if (!activeMeal.value || !canSaveLog.value) return
   isSavingLog.value = true
   logError.value = ''
   try {
     const form = new FormData()
     form.append('log_date', todayIso)
-    form.append('status', logForm.status)
-    if (logForm.timeLogged) form.append('time_logged', logForm.timeLogged)
-    if (logForm.reasonNotes) form.append('reason_notes', logForm.reasonNotes)
+    form.append('reason_notes', logForm.reasonNotes.trim())
     if (logForm.photoFile) form.append('photo', logForm.photoFile)
 
     const saved = await post(`/client/meals/${activeMeal.value.id}/log/`, form)
@@ -338,6 +323,11 @@ onMounted(loadMealPlans)
 .status-pill { font-size: 0.76rem; font-weight: 700; padding: 5px 14px; border-radius: 14px; white-space: nowrap; }
 .pill-green { background: #e3f3ea; color: #1f8f5c; }
 .pill-muted { background: #eceeec; color: #7a8a7a; }
+.pill-gold { background: #fbf3dc; color: #a07a10; }
+.pill-red { background: #fbe1de; color: #c0483a; }
+.status-col { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.logged-at { font-size: 0.74rem; color: #8a9a8a; }
+.log-hint { font-size: 0.76rem; color: #8a9a8a; margin: 8px 0 0; line-height: 1.5; }
 
 /* TARGETS CARD */
 .targets-card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 26px 28px; margin-bottom: 22px; }
@@ -404,13 +394,7 @@ onMounted(loadMealPlans)
 .dropzone-input { display: none; }
 .dropzone-icon { color: #1a5a2a; flex-shrink: 0; }
 .dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
-.meal-log-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field label { display: block; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; color: #9aaa9a; margin-bottom: 7px; }
-.field select { width: 100%; }
-.time-input-wrap { position: relative; }
-/* sized like the nm-select beside it */
-.time-input-wrap input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #d5dad5; border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; font-family: inherit; color: #1a3a1a; background: #fff; }
-.time-input-wrap input:focus { outline: none; border-color: #1a3a1a; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.14); }
 
 .notes-field { margin-top: 14px; }
 .notes-field textarea {

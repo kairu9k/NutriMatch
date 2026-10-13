@@ -280,7 +280,14 @@ class MealLog(models.Model):
         "accounts.User", on_delete=models.CASCADE, related_name="meal_logs"
     )
     log_date = models.DateField()
-    status = models.CharField(max_length=20, choices=MealStatus.choices)
+    # Rated by the RND (2026-10-13, user's rule): the client only sends a
+    # photo/note; empty = waiting for the RND's review, left out of adherence.
+    status = models.CharField(max_length=20, choices=MealStatus.choices, null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    # Set by the server (PH time) when the client saves — not typed in.
     time_logged = models.TimeField(null=True, blank=True)
     reason_notes = models.TextField(null=True, blank=True)
     photo_url = models.URLField(max_length=500, null=True, blank=True)
@@ -296,4 +303,8 @@ class MealLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.meal_plan_meal} — {self.log_date} ({self.status})"
+        return f"{self.meal_plan_meal} — {self.log_date} ({self.status or 'to review'})"
+
+    @property
+    def status_label(self):
+        return self.get_status_display() if self.status else "Waiting for review"
