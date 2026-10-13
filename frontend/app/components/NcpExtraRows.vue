@@ -11,7 +11,7 @@
         <div class="combo">
           <input :value="row.label" class="nm-input" :class="{ bad: errs[idx].label }" placeholder="Search or type" maxlength="100" :disabled="readOnly"
                  :aria-label="`Measurement ${idx + 1} name`" autocomplete="off" role="combobox" :aria-expanded="openIdx === idx"
-                 @focus="openIdx = idx" @blur="closeSoon" @input="row.label = $event.target.value; openIdx = idx"
+                 @focus="openIdx = idx" @blur="closeSoon" @input="onLabel(row, $event.target.value); openIdx = idx"
                  @keydown.esc="openIdx = null" />
           <div v-if="openIdx === idx && !readOnly && matches(row.label).length" class="combo-list" role="listbox">
             <template v-for="g in matches(row.label)" :key="g.group">
@@ -62,10 +62,30 @@ function matches(q) {
     .map(g => ({ group: g.group, items: g.items.filter(([n]) => !s || n.toLowerCase().includes(s)) }))
     .filter(g => g.items.length && !(g.items.length === 1 && g.items[0][0].toLowerCase() === s))
 }
+// The unit follows the measurement picked (Hemoglobin → g/dL), replacing a
+// unit that was filled in automatically; a unit the RND typed themselves
+// (not the usual unit of any listed measurement) is left alone.
+const knownUnits = computed(() => new Set(props.templates.flatMap(g => g.items.map(([, u]) => u)).filter(Boolean)))
+function applyUnit(row, unit) {
+  if (!row.unit || knownUnits.value.has(row.unit)) row.unit = unit || ''
+}
 function pick(row, name, unit) {
   row.label = name
-  if (!row.unit) row.unit = unit
+  applyUnit(row, unit)
   openIdx.value = null
+}
+// Typing a listed name in full (any capitalization) counts as picking it.
+function onLabel(row, value) {
+  row.label = value
+  const s = value.trim().toLowerCase()
+  for (const g of props.templates) {
+    const hit = g.items.find(([n]) => n.toLowerCase() === s)
+    if (hit) {
+      row.label = hit[0]
+      applyUnit(row, hit[1])
+      return
+    }
+  }
 }
 function closeSoon() { setTimeout(() => { openIdx.value = null }, 120) }
 // Keep only digits and one decimal point as they type (never change the number itself).
@@ -84,7 +104,7 @@ function onUnit(row, e) {
 </script>
 
 <style scoped>
-.extra { border-top: 1px dashed #e3e8e3; padding-top: 12px; margin-top: 4px; }
+.extra { border-top: 1px dashed #e3e8e3; padding-top: 12px; margin-top: 4px; margin-bottom: 14px; }
 .extra-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .field-label { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; }
 .field-hint { font-size: 0.72rem; color: #8a9a8a; margin: 0; }

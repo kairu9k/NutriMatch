@@ -134,13 +134,13 @@
                 <span v-else>Add carbs, protein and fat in grams, or use a standard split.</span>
                 <button v-if="!isReadOnly && Number(i.target_kcal)" type="button" class="nm-panel-link" @click="applySplit">Suggest 50 / 20 / 30 split</button>
               </div>
+              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity… — pick from the list or type your own." />
               <Field label="Diet prescription" required>
                 <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="3" placeholder="e.g. 1500 kcal low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
               </Field>
               <Field label="Intervention notes">
                 <textarea v-model="i.intervention_notes" class="nm-input" :maxlength="TMAX.intervention_notes" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
               </Field>
-              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity… — pick from the list or type your own." />
             </section>
 
             <!-- MONITORING (follow-ups) -->
