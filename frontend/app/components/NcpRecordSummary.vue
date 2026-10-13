@@ -26,7 +26,6 @@
               <div v-for="[k, v] in assessment" :key="k"><dt>{{ k }}</dt><dd>{{ v }}</dd></div>
             </dl>
             <p v-if="r.lab_notes" class="txt"><span class="k">Lab notes</span>{{ r.lab_notes }}</p>
-            <p v-if="recallText" class="txt"><span class="k">24-hour recall</span>{{ recallText }}</p>
             <p v-if="r.assessment_notes" class="txt"><span class="k">Assessment notes</span>{{ r.assessment_notes }}</p>
           </section>
 
@@ -72,7 +71,7 @@
 // Read-only summary of one NCP record (NCP Records page). Records are
 // written on the patient chart, never here; finalized ones can be printed.
 import { AlertTriangle, CalendarCheck, Printer, X } from 'lucide-vue-next'
-import { RECALL_MEALS, bmiClass, iddsLevel } from '~/utils/ncp'
+import { bmiClass } from '~/utils/ncp'
 
 const props = defineProps({
   row: { type: Object, required: true }, // a record row from /rnd/ncp/overview/
@@ -111,22 +110,7 @@ const assessment = computed(() => {
     ['Fasting glucose', num(x.blood_glucose, 'mg/dL', 0)], ['HbA1c', num(x.hba1c, '%')],
   ]
   for (const e of x.assessment_extra || []) rows.push([e.label, `${e.value}${e.unit ? ` ${e.unit}` : ''}`])
-  const dt = x.dietary
-  if (dt?.recall) {
-    const t = dt.recall
-    rows.push(['24-hour recall', t.counted ? `≈ ${t.kcal.toLocaleString('en-PH')} kcal · ${t.carbs_g} g carbs, ${t.protein_g} g protein, ${t.fat_g} g fat` : `${t.foods} food${t.foods === 1 ? '' : 's'} (not counted)`])
-  }
-  if (dt?.idds_score != null) rows.push(['Dietary diversity (IDDS)', `${dt.idds_score}/9 · ${iddsLevel(dt.idds_score).label.toLowerCase()}`])
-  for (const f of dt?.ffq || []) rows.push([f.group, f.frequency])
   return rows
-})
-// The recall itself, one line per meal (summary + printout).
-const recallText = computed(() => {
-  const rows = r.value?.diet_recall || []
-  return RECALL_MEALS.map((m) => {
-    const foods = rows.filter(x => x.meal === m.value).map(x => `${x.food_name}${x.amount ? ` (${x.amount})` : ''}`)
-    return foods.length ? `${m.label}: ${foods.join(', ')}` : null
-  }).filter(Boolean).join('\n')
 })
 const intervention = computed(() => {
   const x = r.value
@@ -146,7 +130,7 @@ const pes = computed(() => {
 function print() {
   const x = r.value
   const sections = [
-    { heading: '1 · Nutrition assessment', rows: assessment.value, text: [x.lab_notes && `Lab notes: ${x.lab_notes}`, recallText.value && `24-hour recall —\n${recallText.value}`, x.assessment_notes && `Notes: ${x.assessment_notes}`].filter(Boolean).join('\n') },
+    { heading: '1 · Nutrition assessment', rows: assessment.value, text: [x.lab_notes && `Lab notes: ${x.lab_notes}`, x.assessment_notes && `Notes: ${x.assessment_notes}`].filter(Boolean).join('\n') },
     { heading: '2 · Nutrition diagnosis (PES)', text: pes.value || '—' },
     { heading: '3 · Nutrition intervention', rows: intervention.value, text: [x.diet_prescription && `Diet prescription: ${x.diet_prescription}`, x.intervention_notes && `Notes: ${x.intervention_notes}`].filter(Boolean).join('\n') },
   ]
