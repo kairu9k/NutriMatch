@@ -64,7 +64,6 @@ class RndApplicationTests(TestCase):
         cases = {
             "consultation_fee": "99.00",
             "bio": "Too short.",
-            "availability": "[]",
             "languages": '["xx"]',
             "consultation_modes": "[]",
         }
@@ -76,6 +75,8 @@ class RndApplicationTests(TestCase):
         self.assertIn("availability", _apply(self.api, availability=overlapping).data)
         too_short = '[{"day_of_week": 2, "start_time": "09:00", "end_time": "09:30"}]'
         self.assertIn("availability", _apply(self.api, availability=too_short).data)
+        # Weekly hours are optional at sign-up (set in Profile Settings after approval).
+        self.assertEqual(_apply(self.api, availability="[]", email="nohours@x.ph", prc_license_number="7654321").status_code, 201)
 
     def test_pending_and_rejected_rnds_cannot_sign_in(self, _upload):
         _apply(self.api)

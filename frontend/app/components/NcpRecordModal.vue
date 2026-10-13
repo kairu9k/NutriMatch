@@ -640,8 +640,10 @@ async function load() {
       // A new record starts "unsaved" only if the RND changes something; a
       // resumed draft that just got pre-filled values offers to save them.
       savedSnapshot.value = record.value ? before : snapshot()
+      // A new record starts at Assessment (pre-filled height/weight would
+      // otherwise skip it); a resumed draft opens where something is missing.
       const first = missing.value[0]
-      tab.value = first ? first.step : (record.value ? stepKeys.value.length - 1 : 0)
+      tab.value = !record.value ? 0 : (first ? first.step : stepKeys.value.length - 1)
     }
     if (props.mode === 'view') savedSnapshot.value = snapshot()
   } catch {

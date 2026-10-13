@@ -98,6 +98,8 @@ JOIN_EARLY_MINUTES = 15
 JOIN_LATE_MINUTES = 15
 MIN_SESSION_MINUTES = 15
 MAX_SESSION_MINUTES = 120
+# A booking must start at least this far ahead (mirrored in RndProfileView.vue).
+MIN_BOOKING_LEAD_MINUTES = 10
 PH_TZ = ZoneInfo("Asia/Manila")
 ACTIVE_STATUSES = ("pending", "confirmed")
 
@@ -172,8 +174,8 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_scheduled_at(self, value):
-        if value <= timezone.now():
-            raise serializers.ValidationError("Pick a time in the future.")
+        if value < timezone.now() + timedelta(minutes=MIN_BOOKING_LEAD_MINUTES):
+            raise serializers.ValidationError(f"Pick a time at least {MIN_BOOKING_LEAD_MINUTES} minutes from now.")
         return value
 
     def validate(self, attrs):

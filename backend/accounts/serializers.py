@@ -328,7 +328,8 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     })
     consultation_modes = JsonListField()
     languages = JsonListField()
-    availability = JsonListField()
+    # Optional: RNDs set their weekly hours in Profile Settings after approval.
+    availability = JsonListField(required=False, default=list)
     profile_photo = serializers.FileField(write_only=True, required=False)
     # Required only when they offer in-person consultations.
     clinic_address = serializers.CharField(required=False, allow_blank=True, max_length=255, trim_whitespace=True)
@@ -363,12 +364,12 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         return list(dict.fromkeys(value))
 
     def validate_availability(self, value):
-        """[{day_of_week, start_time "HH:MM", end_time "HH:MM"}, ...] — at least
-        one block, each at least an hour (one session), no overlaps per day."""
+        """[{day_of_week, start_time "HH:MM", end_time "HH:MM"}, ...] — optional;
+        each block at least an hour (one session), no overlaps per day."""
         from datetime import datetime
 
         if not value:
-            raise serializers.ValidationError("Add at least one weekly availability block.")
+            return []
         if len(value) > 50:
             raise serializers.ValidationError("Too many availability blocks.")
         blocks = []
@@ -458,7 +459,7 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         today = timezone.now().date()
         RndAvailabilitySchedule.objects.bulk_create([
             RndAvailabilitySchedule(rnd=user, day_of_week=day, start_time=start, end_time=end, effective_from=today)
-            for day, start, end in validated_data["availability"]
+            for day, start, end in validated_data.get("availability", [])
         ])
         photo = validated_data.get("profile_photo")
         if photo is not None:

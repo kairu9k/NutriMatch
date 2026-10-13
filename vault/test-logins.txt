@@ -34,13 +34,3 @@ ADMIN
   email:    admin@nutrimatch.ph
   password: TestAdmin123!
   note:     pre-existing account, password reset to the above for testing
-
-CLIENT
-  email:    client.test@nutrimatch.ph
-  password: TestClient123!
-
-RND
-  email:    rnd.test@nutrimatch.ph
-  password: TestRnd123!
-  note:     is_verified=True, available_for_new_clients=True, so it shows up
-            in client-facing RND search results

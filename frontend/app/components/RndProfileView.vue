@@ -178,7 +178,7 @@
 
         <div class="booking-left">
           <h2 class="booking-title">Book Your <em>Consultation</em></h2>
-          <p class="booking-sub">Pick a session format and a time that works — {{ fullName }} will confirm within 24 hours.</p>
+          <p class="booking-sub">Pick a session format and a time that works — {{ fullName }} will confirm your booking.</p>
 
           <div class="booking-section">
             <h4 class="section-h">Session Format</h4>
@@ -462,10 +462,13 @@ function selectDate(cell) {
   selectedTime.value = ''
 }
 
-// Bookings are 60 minutes, so slots start at the RND's real start time and
-// step hourly while a full session still fits before their end time (e.g.
-// 1:30 PM–7:00 PM → 1:30 … 5:30 PM). Times already past today are skipped.
+// Bookings are 60 minutes. Start times step every 15 minutes from the RND's
+// start time while a full session still fits before their end time (e.g.
+// 1:30 PM–7:00 PM → 1:30, 1:45 … 6:00 PM). Today, a time must be at least
+// MIN_LEAD_MINUTES away (same rule as the server).
 const SESSION_MINUTES = 60
+const SLOT_STEP_MINUTES = 15
+const MIN_LEAD_MINUTES = 10
 const timeSlots = computed(() => (selectedDateISO.value ? slotsForDate(selectedDateISO.value) : []))
 
 function slotsForDate(iso) {
@@ -478,8 +481,8 @@ function slotsForDate(iso) {
   const slots = []
   for (const s of scheduleForDate(date)) {
     const end = toMinutes(s.end_time)
-    for (let start = toMinutes(s.start_time); start + SESSION_MINUTES <= end; start += SESSION_MINUTES) {
-      if (isToday && start <= nowMinutes) continue
+    for (let start = toMinutes(s.start_time); start + SESSION_MINUTES <= end; start += SLOT_STEP_MINUTES) {
+      if (isToday && start < nowMinutes + MIN_LEAD_MINUTES) continue
       const h = Math.floor(start / 60)
       const m = start % 60
       const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`

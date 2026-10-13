@@ -288,7 +288,7 @@ class AdminVerifyRndView(APIView):
             heading="You're approved! 🎉",
             paragraphs=[
                 "Good news — our team has reviewed your PRC license and profile, and your NutriMatch RND account is now active.",
-                "You can sign in now. Clients can find your profile, book consultations within your available hours, and pay before each session.",
+                "You can sign in now. Add your weekly hours in Profile Settings — then clients can find your profile, book consultations within those hours, and pay before each session.",
             ],
             button_label="Sign in to NutriMatch",
             button_url=f"{settings.FRONTEND_URL}/login",

@@ -29,6 +29,12 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      title: 'NutriMatch',
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/png', sizes: '192x192', href: '/icon-192.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ],
       style: [
         { children: 'html { scroll-behavior: smooth; }' }
       ]

@@ -59,9 +59,13 @@ class PublicRndTests(TestCase):
         Appointment.objects.create(relationship=rel, type="video", status="confirmed", duration_minutes=60,
                                    scheduled_at=datetime(2026, 10, 12, 10, 0, tzinfo=PH_TZ))
         slots = next_open_slots(self.rnd.id, count=3, now=now)
-        # 9:00 has passed, 10:00 is booked → 11:00 today, then next Monday 9:00 and 10:00
+        # 15-minute steps: 9:00–9:30 have passed, 9:45–10:45 overlap the 10:00
+        # booking → 11:00 today, then next Monday 9:00 and 9:15
         self.assertEqual([datetime.fromisoformat(s).astimezone(PH_TZ).strftime("%m-%d %H:%M") for s in slots],
-                         ["10-12 11:00", "10-19 09:00", "10-19 10:00"])
+                         ["10-12 11:00", "10-19 09:00", "10-19 09:15"])
+        # A start less than 10 minutes away isn't offered (8:55 → 9:00 skipped).
+        early = next_open_slots(self.rnd.id, count=1, now=datetime(2026, 10, 19, 8, 55, tzinfo=PH_TZ))
+        self.assertEqual(datetime.fromisoformat(early[0]).astimezone(PH_TZ).strftime("%H:%M"), "09:15")
 
     def test_search_by_name_and_max_fee(self):
         other = approve_rnd(User.objects.create_user(email="jose@p.ph", password="x", role="rnd", first_name="Jose", last_name="Reyes"))

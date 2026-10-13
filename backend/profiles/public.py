@@ -16,6 +16,7 @@ from .models import LANGUAGES, RND_SPECIALIZATIONS, RndProfile
 
 # Same session length and slot step as the booking pop-up (RndProfileView.vue).
 SESSION_MINUTES = 60
+SLOT_STEP_MINUTES = 15
 SLOT_LOOKAHEAD_DAYS = 28
 
 
@@ -26,8 +27,11 @@ def _ph():
 
 
 def next_open_slots(rnd_id, count=3, now=None):
-    """The next `count` bookable 60-minute starts (ISO, aware) inside the
+    """The next `count` bookable 60-minute starts (15-minute steps, at least
+    MIN_BOOKING_LEAD_MINUTES away; ISO, aware) inside the
     RND's weekly hours that don't overlap their pending/confirmed bookings."""
+    from scheduling.serializers import MIN_BOOKING_LEAD_MINUTES
+
     from .models import RndAvailabilitySchedule
 
     ph = _ph()
@@ -56,10 +60,10 @@ def next_open_slots(rnd_id, count=3, now=None):
             block_end = datetime.combine(day, b.end_time, tzinfo=ph)
             while start + timedelta(minutes=SESSION_MINUTES) <= block_end:
                 starts.add(start)
-                start += timedelta(minutes=SESSION_MINUTES)
+                start += timedelta(minutes=SLOT_STEP_MINUTES)
         for start in sorted(starts):
             end = start + timedelta(minutes=SESSION_MINUTES)
-            if start <= now or any(s < end and e > start for s, e in booked):
+            if start < now + timedelta(minutes=MIN_BOOKING_LEAD_MINUTES) or any(s < end and e > start for s, e in booked):
                 continue
             slots.append(start.isoformat())
             if len(slots) >= count:

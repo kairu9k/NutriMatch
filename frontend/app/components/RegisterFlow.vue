@@ -311,32 +311,6 @@
               <span v-else class="license-hint">Where clients go for in-person consultations — shown on your profile.</span>
             </div>
 
-            <div class="field">
-              <label>Weekly Availability <span class="required-tag">Required</span></label>
-              <span class="license-hint">Clients can only book within these hours. Each block must be at least 1 hour.</span>
-              <div class="avail-list">
-                <div v-for="day in DAYS" :key="day.value" class="avail-day" :class="{ off: !dayBlocks(day.value).length }">
-                  <div class="avail-day-head">
-                    <span class="avail-day-name">{{ day.label }}</span>
-                    <button v-if="!dayBlocks(day.value).length" type="button" class="avail-add" @click="addBlock(day.value)">+ Add hours</button>
-                    <span v-else class="avail-on">Available</span>
-                  </div>
-                  <div v-for="block in dayBlocks(day.value)" :key="block.id" class="avail-block">
-                    <select class="nm-select block" v-model="block.start" :aria-label="`${day.label} start time`">
-                      <option v-for="t in TIME_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
-                    </select>
-                    <span class="avail-to">to</span>
-                    <select class="nm-select block" v-model="block.end" :aria-label="`${day.label} end time`">
-                      <option v-for="t in TIME_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
-                    </select>
-                    <button type="button" class="avail-remove" :aria-label="`Remove ${day.label} block`" @click="removeBlock(block.id)">✕</button>
-                  </div>
-                  <button v-if="dayBlocks(day.value).length" type="button" class="avail-add small" @click="addBlock(day.value)">+ Add another block</button>
-                </div>
-              </div>
-              <span v-if="availabilityError && availability.length" class="field-error">{{ availabilityError }}</span>
-            </div>
-
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
             <div class="form-nav">
               <button type="button" class="btn-back" @click="currentStep = 5">← Back</button>
@@ -355,7 +329,7 @@
           <ol class="review-steps">
             <li><strong>We review your PRC license and profile</strong> — usually within 1–2 business days.</li>
             <li><strong>We email you at {{ form.email }}</strong> once your account is approved (or if we need anything fixed).</li>
-            <li><strong>Then you can sign in</strong> — clients will find your profile and book within your available hours.</li>
+            <li><strong>Then you can sign in</strong> — add your weekly hours in Profile Settings and clients can find and book you.</li>
           </ol>
           <p class="review-small">You won't be able to sign in until your application is approved.</p>
           <button type="button" class="btn-primary" @click="navigateTo('/')">Back to Homepage</button>
@@ -384,11 +358,6 @@
               <div class="confirm-row"><span>Consultation Fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
               <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
               <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic Address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
-              <div class="confirm-row confirm-block"><span>Weekly Availability</span>
-                <ul class="confirm-hours">
-                  <li v-for="line in availabilitySummary" :key="line">{{ line }}</li>
-                </ul>
-              </div>
               <div class="confirm-row confirm-block"><span>Bio</span><p class="confirm-bio">{{ form.bio.trim() }}</p></div>
               <div v-if="photoPreview" class="confirm-row"><span>Profile Photo</span><img :src="photoPreview" alt="Profile photo" class="confirm-photo" /></div>
             </template>
@@ -674,52 +643,6 @@ const LANGUAGES = [
 const languageName = (code) => LANGUAGES.find(l => l.code === code)?.name || code
 const MODE_LABELS = { video: 'Video call', chat: 'Chat', in_person: 'In-person' }
 const MIN_FEE = 100
-const DAYS = [
-  { value: 1, label: 'Monday' }, { value: 2, label: 'Tuesday' }, { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' }, { value: 5, label: 'Friday' }, { value: 6, label: 'Saturday' }, { value: 0, label: 'Sunday' },
-]
-// 6:00 AM – 10:00 PM in 30-minute steps.
-const TIME_OPTIONS = Array.from({ length: 33 }, (_, i) => {
-  const minutes = 6 * 60 + i * 30
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return { value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`, label: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` }
-})
-const timeLabel = (v) => TIME_OPTIONS.find(t => t.value === v)?.label || v
-
-const availability = ref([])
-let blockSeq = 0
-const dayBlocks = (day) => availability.value.filter(b => b.day === day)
-function addBlock(day) {
-  const existing = dayBlocks(day)
-  const start = existing.length ? existing[existing.length - 1].end : '09:00'
-  const startIdx = Math.max(0, TIME_OPTIONS.findIndex(t => t.value === start))
-  const end = TIME_OPTIONS[Math.min(startIdx + 6, TIME_OPTIONS.length - 1)].value
-  availability.value.push({ id: ++blockSeq, day, start, end })
-}
-function removeBlock(id) {
-  availability.value = availability.value.filter(b => b.id !== id)
-}
-const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-const availabilityError = computed(() => {
-  if (!availability.value.length) return 'Add at least one block of hours.'
-  for (const b of availability.value) {
-    if (toMin(b.end) - toMin(b.start) < 60) return `${DAYS.find(d => d.value === b.day).label}: each block must be at least 1 hour.`
-  }
-  for (const day of DAYS) {
-    const blocks = dayBlocks(day.value).slice().sort((a, b) => toMin(a.start) - toMin(b.start))
-    for (let i = 1; i < blocks.length; i++) {
-      if (toMin(blocks[i].start) < toMin(blocks[i - 1].end)) return `${day.label}: two blocks overlap.`
-    }
-  }
-  return ''
-})
-const availabilitySummary = computed(() =>
-  DAYS.filter(d => dayBlocks(d.value).length).map(d =>
-    `${d.label}: ${dayBlocks(d.value).slice().sort((a, b) => toMin(a.start) - toMin(b.start)).map(b => `${timeLabel(b.start)} – ${timeLabel(b.end)}`).join(', ')}`
-  )
-)
-
 const bioError = computed(() => {
   const len = form.bio.trim().length
   return len > 0 && len < 50 ? `Write at least 50 characters (${50 - len} more).` : ''
@@ -740,7 +663,7 @@ const clinicAddressError = computed(() => {
 })
 const clinicAddressOk = computed(() => !form.modes.includes('in_person') || (form.clinicAddress.trim().length >= 10))
 const consultationValid = computed(() =>
-  Number(form.fee) >= MIN_FEE && !feeError.value && form.modes.length > 0 && !availabilityError.value && clinicAddressOk.value
+  Number(form.fee) >= MIN_FEE && !feeError.value && form.modes.length > 0 && clinicAddressOk.value
 )
 function goToConsultation() {
   if (!profileValid.value) {
@@ -839,7 +762,6 @@ async function submitRegistration() {
         consultation_modes: JSON.stringify(form.modes),
         clinic_address: form.modes.includes('in_person') ? form.clinicAddress.trim() : undefined,
         languages: JSON.stringify(form.languages),
-        availability: JSON.stringify(availability.value.map(b => ({ day_of_week: b.day, start_time: b.start, end_time: b.end }))),
         profile_photo: form.profilePhoto || undefined,
         accept_terms: consent.terms,
         data_privacy_consent: consent.data,
@@ -865,13 +787,13 @@ async function submitRegistration() {
   } catch (error) {
     const data = error?.data
     const FIELDS = ['email', 'first_name', 'last_name', 'password', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
-      'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'availability', 'accept_terms', 'data_privacy_consent']
+      'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
     errorMessage.value = (failed && data[failed][0]) || data?.detail || 'Registration failed. Please check your details and try again.'
     // Send them back to the step that has the problem.
     if (selectedRole.value === 'rnd' && failed) {
       if (['bio', 'languages', 'profile_photo'].includes(failed)) currentStep.value = 5
-      else if (['consultation_fee', 'consultation_modes', 'clinic_address', 'availability'].includes(failed)) currentStep.value = 6
+      else if (['consultation_fee', 'consultation_modes', 'clinic_address'].includes(failed)) currentStep.value = 6
       else if (!['accept_terms', 'data_privacy_consent'].includes(failed)) currentStep.value = 2
     }
   } finally {
@@ -1201,21 +1123,7 @@ async function resendCode() {
 .fee-wrap input { flex: 1; min-width: 0; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
 .fee-suffix { font-size: 0.8rem; color: #8a9a8a; white-space: nowrap; }
-.avail-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
-.avail-day { border: 1px solid #e5e8e5; border-radius: 10px; padding: 10px 12px; background: #fff; }
-.avail-day.off { background: #fafbfa; }
-.avail-day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.avail-day-name { font-size: 0.85rem; font-weight: 700; color: #1a3a1a; }
-.avail-on { font-size: 0.7rem; font-weight: 700; color: #1f8f5c; }
-.avail-add { background: none; border: none; color: #1f8f5c; font-weight: 700; font-size: 0.78rem; cursor: pointer; padding: 2px 0; font-family: inherit; }
-.avail-add.small { margin-top: 6px; }
-.avail-block { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.avail-block select { flex: 1; min-width: 0; width: auto; }
-.avail-to { font-size: 0.78rem; color: #8a9a8a; }
-.avail-remove { background: none; border: none; color: #9aaa9a; cursor: pointer; font-size: 0.9rem; padding: 4px 6px; }
-.avail-remove:hover { color: #c0392b; }
 .confirm-block { flex-direction: column; align-items: flex-start !important; gap: 4px; }
-.confirm-hours { margin: 0; padding-left: 18px; font-size: 0.84rem; color: #1a3a1a; font-weight: 600; }
 .confirm-bio { margin: 0; font-size: 0.84rem; color: #1a3a1a; line-height: 1.5; white-space: pre-line; }
 .confirm-photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
 .review-note { font-size: 0.8rem; color: #6a5a2a; background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 10px 14px; margin: 14px 0 0; line-height: 1.5; }
