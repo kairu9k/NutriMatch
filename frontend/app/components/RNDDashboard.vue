@@ -16,18 +16,20 @@
             <span class="nm-upnext-label">Up next · {{ dayWord(d.next_up.scheduled_at) === 'Today' ? '' : `${dayWord(d.next_up.scheduled_at)}, ` }}{{ clock(d.next_up.scheduled_at) }}</span>
             <span class="nm-upnext-pay" :class="{ unpaid: d.next_up.payment !== 'paid' }">{{ d.next_up.payment === 'paid' ? 'Paid' : 'Not paid yet' }}</span>
           </div>
-          <div class="nm-upnext-who">
-            <img v-if="d.next_up.client.profile_photo" :src="d.next_up.client.profile_photo" alt="" class="nm-upnext-avatar" />
-            <span v-else class="nm-upnext-avatar">{{ nameInitials(d.next_up.client.name) }}</span>
-            <div class="nm-upnext-name-wrap">
-              <p class="nm-upnext-name">{{ d.next_up.client.name }}</p>
-              <p class="nm-upnext-format">{{ d.next_up.type_label }} consultation</p>
+          <div class="nm-upnext-row">
+            <div class="nm-upnext-who">
+              <img v-if="d.next_up.client.profile_photo" :src="d.next_up.client.profile_photo" alt="" class="nm-upnext-avatar" />
+              <span v-else class="nm-upnext-avatar">{{ nameInitials(d.next_up.client.name) }}</span>
+              <div class="nm-upnext-name-wrap">
+                <p class="nm-upnext-name">{{ d.next_up.client.name }}</p>
+                <p class="nm-upnext-format">{{ d.next_up.type_label }} consultation</p>
+              </div>
             </div>
-          </div>
-          <div class="nm-upnext-actions">
-            <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="nm-hero-btn primary"><Video :size="16" /> Join now</NuxtLink>
-            <span v-else-if="d.next_up.type !== 'in_person'" class="nm-hero-btn primary waiting"><Video :size="16" /> Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0]} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
-            <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="nm-hero-btn">Open patient</NuxtLink>
+            <div class="nm-upnext-actions">
+              <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="nm-hero-btn primary"><Video :size="16" /> Join now</NuxtLink>
+              <span v-else-if="d.next_up.type !== 'in_person'" class="nm-hero-btn primary waiting"><Video :size="16" /> Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0]} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
+              <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="nm-hero-btn">Open patient</NuxtLink>
+            </div>
           </div>
         </template>
         <template v-else>

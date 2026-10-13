@@ -23,19 +23,21 @@
               <span class="nm-upnext-label">Up next · {{ upNext.when }}</span>
               <span class="nm-upnext-pay" :class="{ unpaid: upNext.pill !== 'Paid' }">{{ upNext.pill }}</span>
             </div>
-            <div class="nm-upnext-who">
-              <img v-if="upNext.photo" :src="upNext.photo" alt="" class="nm-upnext-avatar" />
-              <span v-else class="nm-upnext-avatar">{{ upNext.initials }}</span>
-              <div class="nm-upnext-name-wrap">
-                <p class="nm-upnext-name">RND {{ upNext.name }}</p>
-                <p class="nm-upnext-format">{{ upNext.format }}</p>
+            <div class="nm-upnext-row">
+              <div class="nm-upnext-who">
+                <img v-if="upNext.photo" :src="upNext.photo" alt="" class="nm-upnext-avatar" />
+                <span v-else class="nm-upnext-avatar">{{ upNext.initials }}</span>
+                <div class="nm-upnext-name-wrap">
+                  <p class="nm-upnext-name">RND {{ upNext.name }}</p>
+                  <p class="nm-upnext-format">{{ upNext.format }}</p>
+                </div>
               </div>
-            </div>
-            <div class="nm-upnext-actions">
-              <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
-                <Video v-if="/Join/.test(nextStep.action)" :size="16" />{{ nextStep.action }}
-              </NuxtLink>
-              <NuxtLink v-if="nextStep.to !== '/appointments'" to="/appointments" class="nm-hero-btn">View appointment</NuxtLink>
+              <div class="nm-upnext-actions">
+                <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
+                  <Video v-if="/Join/.test(nextStep.action)" :size="16" />{{ nextStep.action }}
+                </NuxtLink>
+                <NuxtLink v-if="nextStep.to !== '/appointments'" to="/appointments" class="nm-hero-btn">View appointment</NuxtLink>
+              </div>
             </div>
           </template>
           <template v-else>
