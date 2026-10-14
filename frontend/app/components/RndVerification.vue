@@ -99,7 +99,7 @@
               <div>
                 <dt>Weekly hours</dt>
                 <dd>
-                  <span v-if="!hours.length" class="nm-muted">None set</span>
+                  <span v-if="!hours.length" class="nm-muted">Added after approval</span>
                   <span v-for="line in hours" :key="line" class="hours-line">{{ line }}</span>
                 </dd>
               </div>

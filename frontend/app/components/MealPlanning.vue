@@ -91,7 +91,7 @@
         <div class="plan-actions no-print">
           <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print Plan</button>
           <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit Plan</button>
-          <button class="btn-primary" :disabled="isSending" @click="sendToPatient">
+          <button class="btn-primary" :disabled="isSending" @click="requestSend(sendToPatient)">
             <Send :size="15" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to Patient' : 'Send to Patient' }}
           </button>
         </div>
@@ -216,7 +216,7 @@
               :class="{ active: activeDay === day }"
               @click="activeDay = day"
             >
-              {{ day }}
+              {{ day }}<span v-if="warningDays.has(day)" class="day-warn-dot" title="A food on this day may not suit the patient's condition" />
             </button>
           </div>
 
@@ -264,6 +264,9 @@
                   <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
                   <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
                 </template>
+                <p v-if="itemWarnings(item).length" class="food-warn" role="note">
+                  <AlertTriangle :size="13" /> {{ itemWarnings(item).join(' · ') }}
+                </p>
               </div>
             </div>
 
@@ -281,7 +284,7 @@
           <div class="plan-actions create-actions">
             <button class="btn-secondary" @click="discardChanges">Cancel</button>
             <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : 'Save Plan' }}</button>
-            <button class="btn-primary" :disabled="isSaving || isSending" @click="saveAndSend"><Send :size="15" /> Save &amp; Send to Patient</button>
+            <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; Send to Patient</button>
           </div>
         </template>
       </div>
@@ -354,15 +357,29 @@
         </div>
       </div>
     </div>
+    <div v-if="sendCheck" class="nm-modal-overlay no-print" @click.self="sendCheck = null">
+      <div class="nm-modal send-check" role="dialog" aria-modal="true" aria-labelledby="send-check-title">
+        <h3 id="send-check-title" class="nm-modal-title">Some foods may not suit {{ selectedPatientName || 'this patient' }}</h3>
+        <p class="nm-modal-text">Based on their <template v-if="patientAllergies.length">allergies ({{ patientAllergies.join(', ') }})<template v-if="conditionSummary"> and </template></template><template v-if="conditionSummary">condition ({{ conditionSummary }})</template>. Check these before sending:</p>
+        <ul class="send-check-list">
+          <li v-for="w in planWarnings" :key="w.key"><strong>{{ w.day }} · <span class="send-check-meal">{{ w.meal }}</span> — {{ w.food }}</strong><span>{{ w.reasons.join(' · ') }}</span></li>
+        </ul>
+        <div class="nm-modal-actions">
+          <button class="btn-secondary" type="button" @click="sendCheck = null">Go back and edit</button>
+          <button class="btn-primary" type="button" @click="confirmSend"><Send :size="15" /> Send anyway</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import {
   Eye, Plus, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
-  Sun, Coffee, Utensils, Apple, Moon, Search
+  Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle
 } from 'lucide-vue-next'
 import { usdaPortion } from '~/utils/usda'
+import { allergyWarnings, conditionKeys, foodWarnings } from '~/utils/foodWarnings'
 
 const route = useRoute()
 const router = useRouter()
@@ -554,6 +571,7 @@ async function loadPatientPlans() {
     get(`/rnd/relationships/${selectedRelId.value}/ncp/`).catch(() => []),
   ])
   plans.value = planList
+  loadPatientConditions(selectedRelId.value)
   const ncp = ncpList[0]
   ncpTargets.value = ncp && ncp.target_kcal
     ? { kcal: Math.round(num(ncp.target_kcal)), protein: num(ncp.target_protein_g), carb: num(ncp.target_carb_g), fat: num(ncp.target_fat_g) }
@@ -595,6 +613,7 @@ watch(selectedRelId, async (id, previous) => {
 })
 
 onMounted(async () => {
+  loadFnriItems()
   try {
     await loadPatients()
     await loadPatientPlans()
@@ -704,6 +723,72 @@ async function savePlan({ quiet = false } = {}) {
   } finally {
     isSaving.value = false
   }
+}
+
+/* ---------- Condition warnings (FNRI foods that may not suit the patient) ---------- */
+const fnriById = ref({})
+const patientConditions = ref([])
+const patientAllergies = ref([])
+async function loadFnriItems() {
+  try {
+    const items = await get('/food-exchange/items/')
+    fnriById.value = Object.fromEntries(items.map(f => [f.id, f]))
+  } catch {
+    fnriById.value = {}
+  }
+}
+async function loadPatientConditions(relId) {
+  patientConditions.value = []
+  patientAllergies.value = []
+  try {
+    const summary = await get(`/rnd/relationships/${relId}/summary/`)
+    if (relId === selectedRelId.value) {
+      patientConditions.value = summary.health?.conditions || []
+      patientAllergies.value = summary.health?.allergies || []
+    }
+  } catch {
+    // No conditions known — the plan's own condition still counts.
+  }
+}
+const warnKeys = computed(() => conditionKeys(patientConditions.value, planMeta.condition))
+// The patient's conditions, plus the plan's condition when it adds one.
+const conditionSummary = computed(() => {
+  const names = [...patientConditions.value]
+  const fromPatient = conditionKeys(names)
+  const fromPlan = [...conditionKeys(planMeta.condition)]
+  if (fromPlan.some(k => !fromPatient.has(k))) names.push(conditionLabel(planMeta.condition))
+  return names.join(', ')
+})
+// Allergies first (any food, by name), then condition notes (FNRI foods only).
+function itemWarnings(item) {
+  if (!item?.name) return []
+  const allergy = allergyWarnings(item.name, patientAllergies.value)
+  if (!item.foodItemId || item.source === 'usda') return allergy
+  return [...allergy, ...foodWarnings(fnriById.value[item.foodItemId], warnKeys.value)]
+}
+const planWarnings = computed(() => {
+  const out = []
+  for (const day of days) {
+    for (const type of mealOrder) {
+      weeklyPlan[day][type].items.forEach((item, idx) => {
+        const reasons = itemWarnings(item)
+        if (reasons.length) out.push({ key: `${day}-${type}-${idx}`, day, meal: type, food: item.name, reasons })
+      })
+    }
+  }
+  return out
+})
+const warningDays = computed(() => new Set(planWarnings.value.map(w => w.day)))
+// Sending a plan with flagged foods asks first; the RND can still send.
+const sendCheck = ref(null)
+function requestSend(action) {
+  if (planWarnings.value.length) sendCheck.value = action
+  else action()
+}
+function confirmSend() {
+  const action = sendCheck.value
+  sendCheck.value = null
+  action?.()
 }
 
 async function sendToPatient() {
@@ -1007,6 +1092,14 @@ function formatTime(t) {
 .food-table-head { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; padding-bottom: 10px; }
 .food-table-head span:first-child { visibility: hidden; }
 .food-table-row { margin-bottom: 12px; }
+.food-warn { grid-column: 2 / -1; display: flex; align-items: flex-start; gap: 6px; margin: -4px 0 0; font-size: 0.74rem; font-weight: 600; color: #9a5b00; background: #fff6e5; border: 1px solid #f3dcae; border-radius: 6px; padding: 6px 9px; line-height: 1.4; }
+.food-warn svg { flex-shrink: 0; margin-top: 1px; }
+.day-warn-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e0a100; margin-left: 6px; vertical-align: 2px; }
+.send-check { max-width: 520px; }
+.send-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; }
+.send-check-list li { background: #fff6e5; border: 1px solid #f3dcae; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; color: #5a4a2a; display: flex; flex-direction: column; gap: 2px; }
+.send-check-list strong { color: #1a3a1a; font-weight: 700; }
+.send-check-meal { text-transform: capitalize; }
 .food-table-row input {
   border: 1px solid #e0e5e0; border-radius: 6px; padding: 9px 10px; font-size: 0.82rem; font-family: inherit; width: 100%;
 }

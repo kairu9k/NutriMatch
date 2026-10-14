@@ -279,7 +279,7 @@
         <!-- RND STEP 4: CONSULTATION SETUP (stage 6) -->
         <div v-else-if="currentStep === 6">
           <h2>Consultation Setup</h2>
-          <p class="subtitle">Step 4 of {{ steps.length }} — Your fee, formats and weekly hours</p>
+          <p class="subtitle">Step 4 of {{ steps.length }} — Your fee and consultation formats</p>
 
           <form class="details-form" novalidate @submit.prevent="goToConfirm">
             <div class="field">

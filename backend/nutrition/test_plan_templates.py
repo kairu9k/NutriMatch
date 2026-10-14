@@ -55,6 +55,32 @@ class DietTemplateTests(TestCase):
         self.assertFalse(foods.filter(food_name__icontains="shrimp").exists())
         protein = sum(f.protein_g for f in foods.filter(meal_plan_meal__day_of_week=1))
         self.assertLess(protein, 50)  # protein-restricted
+        self.assertFalse(any(f.food_item.is_high_potassium or f.food_item.is_high_sodium for f in foods))
+
+    def test_onboarding_allergy_choices_cover_their_foods(self):
+        from .plan_templates import allergen_patterns
+
+        def hits(allergies, name):
+            return any(p.search(name.lower()) for p in allergen_patterns(allergies))
+
+        self.assertTrue(hits(["Shrimp / shellfish"], "Shrimp, giant tiger prawn"))
+        self.assertTrue(hits(["Eggs"], "Egg, whole, chicken"))
+        self.assertFalse(hits(["Eggs"], "Talong (Eggplant)"))
+        self.assertFalse(hits(["Milk"], "Bangus (Milkfish)"))
+        self.assertTrue(hits(["Fish"], "Bangus (Milkfish)"))
+        self.assertTrue(hits(["Wheat / gluten"], "Bread, pan de sal"))
+        # A generated plan leaves them out.
+        ClientHealthProfile.objects.filter(user=self.c).update(allergies=["Shrimp / shellfish", "Eggs"])
+        plan = MealPlan.objects.get(pk=self.api.post(self.url, {"template": "diabetes", "target_kcal": 1600}, format="json").data["id"])
+        names = list(MealPlanFoodItem.objects.filter(meal_plan_meal__meal_plan=plan).values_list("food_name", flat=True))
+        self.assertFalse([n for n in names if hits(["Shrimp / shellfish", "Eggs"], n)])
+
+    def test_templates_skip_foods_the_meal_planning_warnings_flag(self):
+        # DASH: no high-sodium foods (FNRI marks every food "ok for hypertension").
+        dash = MealPlan.objects.get(pk=self.api.post(self.url, {"template": "hypertension", "target_kcal": 1800}, format="json").data["id"])
+        foods = MealPlanFoodItem.objects.filter(meal_plan_meal__meal_plan=dash).select_related("food_item")
+        self.assertTrue(foods.exists())
+        self.assertFalse(any(f.food_item.is_high_sodium for f in foods))
 
     def test_kcal_suggestion(self):
         data = self.api.get(f"/api/rnd/relationships/{self.rel.id}/meal-plan-templates/").data

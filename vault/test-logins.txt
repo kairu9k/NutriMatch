@@ -11,7 +11,7 @@ Demo accounts only — never reuse these passwords for a real deployment.
 DEMO DATA (python manage.py seed_demo  /  --reset to rebuild)
   password for all 13: NutriMatchDemo1!   (override with DEMO_PASSWORD in backend/.env)
   Admin:   admin@nutrimatch.test              demo admin - sign in at /admin/login
-  RNDs:    maria.santos@nutrimatch.test       verified, main RND (Carla's) - GCash payout details, paid out P720 on the last 5th, P720 Posted for the next
+  RNDs:    maria.santos@nutrimatch.test       verified, main RND (Carla's), open every day 8 AM-9 PM (same-day booking demo) - GCash payout details, paid out P720 on the last 5th, P720 Posted for the next
            jose.reyes@nutrimatch.test         verified, video only (Daniel's) - P900 Posted but NO payout details (shows the reminder)
            angela.villanueva@nutrimatch.test  verified, NOT accepting new clients
            ramon.delacruz@nutrimatch.test     verified, has Elena's pending booking (waiting 30 h - admin Appointments badge)

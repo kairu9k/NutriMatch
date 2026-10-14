@@ -686,6 +686,12 @@ function ncpError(e, fallback) {
 .step.err .step-dot { background: #fdecec; color: #a12525; }
 .foot-err { flex-basis: 100%; display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 0.78rem; font-weight: 600; color: #a12525; }
 .bp { display: flex; align-items: center; gap: 6px; }
+.bp input { min-width: 0; padding-left: 8px; padding-right: 8px; }
+/* No up/down arrows on number boxes: in the narrow room panel they hid the
+   value (128 showed as "12") and a stray click set an empty box to its min. */
+input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .bp span { color: #8a9a8a; }
 .computed { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px; }
 .computed strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }

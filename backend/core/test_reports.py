@@ -48,11 +48,11 @@ class ReportTests(TestCase):
         r = build_report({"from": "2026-02-01", "to": "2026-02-28"})
         self.assertEqual((r["consultations"]["completed"], r["consultations"]["cancelled"]), (1, 1))
         self.assertEqual(r["consultations"]["by_format"], {"Video": 1})
-        self.assertEqual((r["money"]["payments"], r["money"]["gross"], r["money"]["commission"], r["money"]["rnd_share"]), (2, 1800.0, 180.0, 1620.0))
+        self.assertEqual((r["money"]["payments"], r["money"]["gross"], r["money"]["commission"], r["money"]["rnd_share"]), (2, 1800.0, 100.0, 900.0))  # the refund-pending 800 earns no commission or share
         self.assertEqual(r["money"]["refund_pending"], {"count": 1, "amount": 800.0})
-        self.assertEqual(r["monthly"], [{"month": "2026-02", "completed": 1, "cancelled": 1, "payments": 2, "gross": 1800.0, "commission": 180.0}])
+        self.assertEqual(r["monthly"], [{"month": "2026-02", "completed": 1, "cancelled": 1, "payments": 2, "gross": 1800.0, "commission": 100.0}])
         self.assertEqual(r["rnds"][0]["consultations"], 1)
-        self.assertEqual(r["rnds"][0]["rnd_share"], 1620.0)
+        self.assertEqual(r["rnds"][0]["rnd_share"], 900.0)
 
     def test_endpoint_admin_only(self):
         api = APIClient()

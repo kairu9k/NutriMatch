@@ -91,9 +91,13 @@ def build_report(params, today=None):
 
     paid = list(Invoice.objects.filter(paid_at__gte=lo, paid_at__lt=hi).select_related("relationship"))
     gross = sum((i.amount for i in paid), Decimal("0"))
-    commission = sum((i.commission_amt or Decimal("0") for i in paid), Decimal("0"))
     refunded = [i for i in paid if i.status == "refunded"]
     refund_pending = [i for i in paid if i.status == "refund_pending"]
+    # Commission and the RNDs' share only come from payments that were kept —
+    # money refunded (or waiting for a refund) goes back to the client.
+    kept = [i for i in paid if i.status not in ("refunded", "refund_pending")]
+    kept_gross = sum((i.amount for i in kept), Decimal("0"))
+    commission = sum((i.commission_amt or Decimal("0") for i in kept), Decimal("0"))
 
     monthly = defaultdict(lambda: {"completed": 0, "cancelled": 0, "payments": 0, "gross": Decimal("0"), "commission": Decimal("0")})
     for a, when in completed:
@@ -104,29 +108,32 @@ def build_report(params, today=None):
         m = monthly[month(i.paid_at)]
         m["payments"] += 1
         m["gross"] += i.amount
-        m["commission"] += i.commission_amt or Decimal("0")
+        if i in kept:
+            m["commission"] += i.commission_amt or Decimal("0")
 
     by_format = defaultdict(int)
     for a, _ in completed:
         by_format[a.get_type_display()] += 1
 
-    per_rnd = defaultdict(lambda: {"consultations": 0, "payments": 0, "gross": Decimal("0"), "commission": Decimal("0")})
+    per_rnd = defaultdict(lambda: {"consultations": 0, "payments": 0, "gross": Decimal("0"), "kept": Decimal("0"), "commission": Decimal("0")})
     for a, _ in completed:
         per_rnd[a.relationship.rnd_id]["consultations"] += 1
     for i in paid:
         r = per_rnd[i.relationship.rnd_id]
         r["payments"] += 1
         r["gross"] += i.amount
-        r["commission"] += i.commission_amt or Decimal("0")
+        if i in kept:
+            r["kept"] += i.amount
+            r["commission"] += i.commission_amt or Decimal("0")
     ratings = {row["rnd"]: row for row in Review.objects.values("rnd").annotate(avg=Avg("rating"), n=Count("id"))}
     rnds = []
     for p in RndProfile.objects.filter(is_verified=True).select_related("user"):
-        s = per_rnd.get(p.user_id, {"consultations": 0, "payments": 0, "gross": Decimal("0"), "commission": Decimal("0")})
+        s = per_rnd.get(p.user_id, {"consultations": 0, "payments": 0, "gross": Decimal("0"), "kept": Decimal("0"), "commission": Decimal("0")})
         rt = ratings.get(p.user_id)
         rnds.append({
             "id": p.user_id, "name": p.user.full_name, "specialization": p.specialization,
             "consultations": s["consultations"], "payments": s["payments"], "gross": _money(s["gross"]),
-            "commission": _money(s["commission"]), "rnd_share": _money(s["gross"] - s["commission"]),
+            "commission": _money(s["commission"]), "rnd_share": _money(s["kept"] - s["commission"]),
             "rating": round(float(rt["avg"]), 1) if rt and rt["avg"] else None, "reviews": rt["n"] if rt else 0,
         })
     rnds.sort(key=lambda r: (-r["consultations"], -r["gross"], r["name"]))
@@ -137,7 +144,7 @@ def build_report(params, today=None):
         "generated_at": timezone.now(),
         "consultations": {"completed": len(completed), "cancelled": len(cancelled), "by_format": dict(by_format)},
         "money": {
-            "payments": len(paid), "gross": _money(gross), "commission": _money(commission), "rnd_share": _money(gross - commission),
+            "payments": len(paid), "gross": _money(gross), "commission": _money(commission), "rnd_share": _money(kept_gross - commission),
             "refunded": {"count": len(refunded), "amount": _money(sum((i.amount for i in refunded), Decimal("0")))},
             "refund_pending": {"count": len(refund_pending), "amount": _money(sum((i.amount for i in refund_pending), Decimal("0")))},
         },

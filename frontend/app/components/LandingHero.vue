@@ -153,7 +153,10 @@ onUnmounted(() => {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden;
+  /* clip, not hidden: this global rule stays loaded after leaving the landing
+     page, and overflow-x: hidden would turn body into a scroll container and
+     break the dashboard's sticky sidebar and top bar. */
+  overflow-x: clip;
 }
 
 :global(#app) {

@@ -464,8 +464,10 @@ onUnmounted(() => {
 
 .chat-error { padding: 6px 22px 0; font-size: 0.78rem; color: #b3261e; background: #fff; margin: 0; }
 
+/* Right padding leaves room for the floating Help & Support button
+   (SupportWidget, bottom right), which otherwise covers Send. */
 .chat-input-row {
-  display: flex; align-items: center; gap: 10px; padding: 16px 22px;
+  display: flex; align-items: center; gap: 10px; padding: 16px 84px 16px 22px;
   background: #fff; border-top: 1px solid #eceeec;
 }
 .chat-input {
@@ -521,7 +523,7 @@ onUnmounted(() => {
   .msg-bubble { padding: 10px 13px; }
 
   .chat-error { padding: 6px 14px 0; }
-  .chat-input-row { padding: 10px 12px; gap: 8px; }
+  .chat-input-row { padding: 10px 76px 10px 12px; gap: 8px; }
   /* 16px stops iOS Safari from zooming in when the input is focused */
   .chat-input, .search-input { font-size: 16px; }
 }

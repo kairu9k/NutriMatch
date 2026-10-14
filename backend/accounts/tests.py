@@ -44,7 +44,7 @@ class RegisterViewTests(TestCase):
         self.assertEqual(user.role, "client")
         profile = ClientProfile.objects.get(user=user)
         self.assertEqual(str(profile.date_of_birth), "1995-05-01")
-        self.assertEqual(user.health_profile.health_goals, ["Weight management"])
+        self.assertIsNone(user.health_profile.health_goals)  # goals are picked in onboarding
         self.assertEqual(user.health_profile.medical_conditions, ["Weight management"])
         # registering sends a verification code and leaves the account
         # unverified — login should be refused until it's used

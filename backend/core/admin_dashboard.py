@@ -52,11 +52,13 @@ def _compare(now):
 
     def figures(lo, hi):
         paid = Invoice.objects.filter(paid_at__gte=lo, paid_at__lt=hi)
-        agg = paid.aggregate(g=Sum("amount"), c=Sum("commission_amt"))
+        agg = paid.aggregate(g=Sum("amount"))
+        # Refunded money earns no commission (same rule as core/reports.py).
+        kept = paid.exclude(status__in=["refunded", "refund_pending"]).aggregate(c=Sum("commission_amt"))
         return {
             "consultations": Appointment.objects.filter(status="completed", completed_at__gte=lo, completed_at__lt=hi).count(),
             "payments": float(agg["g"] or Decimal("0")),
-            "commission": float(agg["c"] or Decimal("0")),
+            "commission": float(kept["c"] or Decimal("0")),
             "new_clients": User.objects.filter(role=User.Role.CLIENT, created_at__gte=lo, created_at__lt=hi).count(),
         }
 

@@ -70,7 +70,8 @@ RNDS = [
         "bio": "Registered Nutritionist-Dietitian with 8 years of clinical experience helping Filipino adults manage type 2 diabetes and lose weight through practical, rice-aware meal plans.",
         "fee": Decimal("800"), "modes": ["video", "chat", "in_person"], "languages": ["en", "tl", "ceb"],
         "clinic": "Unit 204, Bajada Medical Arts Bldg, J.P. Laurel Ave, Bajada, Davao City",
-        "availability": [(d, time(9), time(17)) for d in (1, 2, 3, 4, 5)],
+        # Every day 8 AM–9 PM so a same-day booking can be demoed at almost any time.
+        "availability": [(d, time(8), time(21)) for d in range(7)],
         "verified": True, "accepting": True, "prc": "0123456",
     },
     {

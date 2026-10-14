@@ -435,7 +435,7 @@ onMounted(async () => {
 .form-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 12px 0 0; }
 
 .radio-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.radio-card { display: flex; align-items: center; gap: 10px; border: 1.5px solid #d5dad5; border-radius: 10px; padding: 12px 14px; font-size: 0.86rem; font-weight: 600; cursor: pointer; background: #fff; }
+.field .radio-card { display: flex; align-items: center; gap: 10px; border: 1.5px solid #d5dad5; border-radius: 10px; padding: 12px 14px; margin: 0; font-size: 0.86rem; font-weight: 600; cursor: pointer; background: #fff; }
 .radio-card input { width: auto; accent-color: #1a3a1a; margin: 0; }
 .radio-card.checked { border-color: #1a3a1a; background: #f0f5f0; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

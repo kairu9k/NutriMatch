@@ -144,12 +144,6 @@
             {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
           </button>
 
-          <div class="divider"><span>or</span></div>
-
-          <button type="button" class="btn-google" @click="handleGoogleLogin">
-            <span class="google-icon">G</span> Sign in with Google
-          </button>
-
         </form>
 
         <p class="signup-link">
@@ -220,11 +214,6 @@ async function handleLogin() {
   } finally {
     isSubmitting.value = false
   }
-}
-
-function handleGoogleLogin() {
-  // TODO: connect to your Google OAuth flow here
-  console.log('Google sign in clicked')
 }
 
 async function handleAdminLogin() {
@@ -412,43 +401,7 @@ async function handleAdminLogin() {
 }
 .btn-primary:hover { background: #14300f; }
 
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  color: #a8b4a8;
-  font-size: 0.8rem;
-  margin: 4px 0;
-}
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid #e0e5e0;
-}
-.divider span { padding: 0 14px; }
 
-.btn-google {
-  width: 100%;
-  background: #fff;
-  border: 1px solid #dde3dd;
-  color: #1a3a1a;
-  padding: 14px;
-  border-radius: 8px;
-  font-size: 0.92rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  transition: background 0.2s;
-}
-.btn-google:hover { background: #f7f8f7; }
-.google-icon {
-  font-weight: 700;
-  color: #4285F4;
-}
 
 .btn-admin {
   width: 100%;

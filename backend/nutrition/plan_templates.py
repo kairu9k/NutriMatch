@@ -9,7 +9,8 @@ food-exchange method:
      exchanges the remaining fat (FNRI Food Exchange Lists, 4th ed., 2020);
   3. the day's exchanges are spread over 5 meals and filled with FNRI foods
      allowed for the condition (ok_for_* flags, low-GI first for diabetes,
-     low-protein rice first for renal), varied by day, skipping foods that
+     only low-protein Rice A starches for renal; no high-sodium foods for DASH, no
+     high-K/P/Na foods for renal), varied by day, skipping foods that
      match the patient's recorded allergies.
 The result is a DRAFT plan — the RND reviews and edits it in Meal Planning
 before sending. Endpoints:
@@ -43,6 +44,7 @@ TEMPLATES = {
         "label": "Hypertension (DASH)", "condition": MealPlan.Condition.HYPERTENSION, "split": (55, 18, 27),
         "veg": 5, "fruit": 4, "milk": 2, "milk_code": "milk_lowfat", "sugar": 0,
         "rice_codes": ["rice_b", "rice_c"], "meat_codes": ["meat_low"], "flag": "ok_for_hypertension",
+        "avoid": ["is_high_sodium"],
         "description": "DASH-style: more vegetables, fruit and low-fat milk; lean protein; low sodium.",
         "guidance": "Sodium under 2,000 mg/day: no patis, toyo, bagoong, instant noodles or processed meats. Flavor with "
                     "calamansi, garlic, ginger and onion. Plenty of vegetables and fruit every day.",
@@ -50,7 +52,8 @@ TEMPLATES = {
     "renal": {
         "label": "Renal disease (CKD, not on dialysis)", "condition": MealPlan.Condition.RENAL, "split": (60, 10, 30),
         "veg": 3, "fruit": 2, "milk": 0, "milk_code": "milk_nonfat", "sugar": 1,
-        "rice_codes": ["rice_a", "rice_b"], "meat_codes": ["meat_low"], "flag": "ok_for_renal",
+        "rice_codes": ["rice_a"], "meat_codes": ["meat_low"], "flag": "ok_for_renal",
+        "avoid": ["is_high_potassium", "is_high_phosphorus", "is_high_sodium"],
         "description": "Protein-restricted with enough energy; low-potassium, low-phosphorus foods; no milk.",
         "guidance": "Limit protein to the plan; avoid high-potassium fruits/vegetables (banana, mango, malunggay), dairy and "
                     "processed foods (phosphorus). Leach vegetables (soak and boil) and follow any fluid limit from the doctor.",
@@ -109,13 +112,42 @@ def split_over_slots(total, group):
     return out
 
 
-def _allergens(health):
+# Food words each onboarding allergy choice covers (ClientOnboarding.vue
+# ALLERGY_OPTIONS; mirrored in frontend utils/foodWarnings.js). Matched as
+# whole words, so "egg" doesn't catch "Eggplant" nor "milk" "Milkfish".
+ALLERGEN_WORDS = {
+    "shrimp / shellfish": ["shrimp", "prawn", "crab", "lobster", "squid", "clam", "mussel", "oyster", "scallop",
+                           "shellfish", "hipon", "alimango", "talaba", "tahong", "pusit"],
+    "fish": ["fish", "milkfish", "bangus", "tilapia", "tuna", "sardine", "galunggong", "mackerel", "dilis", "tuyo"],
+    "peanuts": ["peanut"],
+    "tree nuts": ["cashew", "almond", "walnut", "pili", "pistachio", "hazelnut", "macadamia"],
+    "eggs": ["egg", "balut", "leche flan", "custard"],
+    "milk": ["milk", "cheese", "yogurt", "leche flan", "custard"],
+    "soy": ["soy", "tofu", "tokwa", "taho"],
+    "wheat / gluten": ["wheat", "gluten", "bread", "pan de sal", "pasta", "noodle", "flour", "bun"],
+}
+
+
+def allergen_patterns(allergies):
+    """Whole-word patterns for a client's allergies: the words a listed
+    choice covers, or a typed allergy split on "/" and "," (plural s optional)."""
+    import re
+
     words = []
-    for a in (getattr(health, "allergies", None) or []):
-        w = str(a).strip().lower()
-        if w:
-            words += [w, w[:-1]] if w.endswith("s") and len(w) > 3 else [w]
-    return words
+    for a in allergies or []:
+        text = str(a).strip().lower()
+        if not text:
+            continue
+        words += ALLERGEN_WORDS.get(text) or [w.strip() for w in re.split(r"[/,]", text) if w.strip()]
+    pats = []
+    for w in dict.fromkeys(words):
+        stem = w[:-1] if w.endswith("s") and len(w) > 3 else w
+        pats.append(re.compile(r"\b" + re.escape(stem) + r"(e?s)?\b"))
+    return pats
+
+
+def _allergens(health):
+    return allergen_patterns(getattr(health, "allergies", None))
 
 
 def candidates(tpl, codes, allergens):
@@ -129,13 +161,21 @@ def candidates(tpl, codes, allergens):
         items = lower if lower.exists() else items
     elif tpl["flag"]:
         items = items.filter(**{tpl["flag"]: True})
+    # The FNRI "ok for" flags don't cover everything (every food is "ok for
+    # hypertension", bananas are "ok for renal"), so also leave out the foods
+    # the Meal Planning warnings flag (utils/foodWarnings.js) — unless that
+    # would leave nothing to choose from.
+    for field in tpl.get("avoid", []):
+        kept = items.filter(**{field: False})
+        if kept.exists():
+            items = kept
     out = []
     for code in codes:  # keep the template's preference order between categories
         for it in items:
             if it.category.code != code:
                 continue
             name = f"{it.name} {it.local_name or ''}".lower()
-            if any(s in name for s in SKIP_NAMES) or any(a in name for a in allergens):
+            if any(s in name for s in SKIP_NAMES) or any(p.search(name) for p in allergens):
                 continue
             out.append(it)
     if tpl["condition"] == MealPlan.Condition.DIABETES:

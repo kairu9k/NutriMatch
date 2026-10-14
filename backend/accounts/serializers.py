@@ -302,7 +302,8 @@ class RegisterClientSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccoun
         ClientHealthProfile.objects.create(
             user=user,
             medical_conditions=[health_concern.strip()] if has_condition else None,
-            health_goals=[health_concern] if health_concern else None,
+            # Goals are the client's own picks in onboarding — the condition
+            # isn't a goal (copying it here showed "Goals: Type 2 Diabetes").
         )
         send_verification_code(user)
         return user
