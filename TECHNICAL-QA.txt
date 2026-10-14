@@ -1,0 +1,399 @@
+NUTRIMATCH - TECHNICAL Q&A CHEAT SHEET
+For answering panel / adviser questions. Short answer first, then the detail.
+(Updated Oct 14, 2026 - matches the code on main.)
+
+======================================================================
+1. PAYMENTS (PayMongo)
+======================================================================
+
+Q: How does a client pay?
+A: Through PayMongo, a licensed Philippine payment gateway. When the RND
+   confirms a booking, the system issues an invoice. The client presses
+   "Pay now", our backend creates a PayMongo Payment Link, and the client
+   pays on PayMongo's secure page (QR Ph / GCash / Maya / card).
+   We never see or store card numbers - PayMongo handles that.
+
+Q: When does the client pay?
+A: Before the consultation. The invoice is created when the RND confirms,
+   and the client can pay any time before the scheduled start.
+   - Until it's paid, the client gets NO video/chat link (the Join button
+     is hidden and the server doesn't send the room link).
+   - If it's still unpaid at the start time, the system automatically
+     cancels the appointment, voids the invoice, and notifies both sides.
+
+Q: How does the system know the client paid?
+A: Two ways, so a payment is never missed:
+   1. Webhook - PayMongo calls our endpoint (/api/webhooks/paymongo/) the
+      moment the payment succeeds. We verify PayMongo's HMAC signature
+      first, so fake "paid" messages are rejected.
+   2. Sync - the Billing page also asks PayMongo directly for the status
+      of unpaid invoices (on page load and when the tab is focused).
+   Both use the same function (record_successful_payment), so a payment is
+   recorded once, even if both arrive.
+
+Q: Is it real money?
+A: For the demo we use PayMongo's TEST mode. The flow is identical to live;
+   switching to live only needs the live API keys.
+
+Q: What happens after paying?
+A: The invoice becomes "Paid", a payment transaction is logged, an audit log
+   row is written, and a branded receipt is emailed to the client (copy to
+   the NutriMatch inbox). The client can also download/print the receipt or
+   press "Resend receipt".
+
+======================================================================
+2. CANCELLATIONS AND REFUNDS
+======================================================================
+
+Q: What if the client or RND cancels?
+A: - Not yet paid: the appointment is simply cancelled; nothing to refund.
+   - Already paid: the invoice becomes "Refund pending" (the client sees
+     "Refund in progress").
+   The client can cancel pending or confirmed appointments; the RND must
+   give a reason (at least 10 characters) when declining or cancelling, and
+   the client is notified with that reason.
+
+Q: How is the refund done?
+A: Refunds are processed by the admin, not automatically:
+   1. Admin dashboard shows "1 refund to send".
+   2. Admin refunds the payment in the PayMongo dashboard.
+   3. Admin presses "Mark as refunded" on Billing & Commission (can enter
+      the PayMongo refund reference).
+   4. The system records a REFUND transaction + audit log row and notifies
+      the client.
+   WHY manual: refunds move real money back, so a human (admin) confirms
+   each one. This is common for small platforms and keeps control.
+
+Q: Does the RND still get paid for a refunded consultation?
+A: No. Refunded or refund-pending invoices are never paid out to the RND,
+   earn no platform commission, and are excluded from the RND's share in
+   reports and earnings.
+
+Q: What if a payment arrives AFTER the appointment was cancelled?
+A: The system flags that invoice "Refund pending" automatically, so the
+   admin refunds it.
+
+======================================================================
+3. COMMISSION AND RND PAYOUTS
+======================================================================
+
+Q: How does NutriMatch earn money?
+A: A platform commission (currently 10%) of each consultation fee.
+   Example: fee P700 -> commission P70 -> RND share P630.
+
+Q: Can the commission change for old invoices if the rate changes?
+A: No. The commission amount is FROZEN on the invoice when it is created
+   (commission_amt). Changing the rate later only affects new invoices.
+   This follows the proposal's data design.
+
+Q: How and when are RNDs paid?
+A: Monthly, every 5th of the month:
+   - Pending: the consultation is paid but not yet completed, or completed
+     less than 3 days ago (a 3-day hold in case of disputes/refunds).
+   - Posted: 3 days after completion - ready to be paid out.
+   - On/after the 5th, the admin releases Posted balances of P500 or more
+     to the RND's GCash or bank account (set on the RND's Earnings page).
+     Smaller balances carry over to the next month.
+   - The transfer itself happens outside the app (GCash/bank); the admin
+     records the reference number. The system links each invoice to that
+     payout so nothing is paid twice, logs it, and emails the RND.
+
+Q: Can the RND see their earnings?
+A: Yes - Earnings page: each invoice with fee - commission = share and its
+   state (awaiting payment / pending / posted / paid out / refunded),
+   payout history, and a printable statement.
+
+======================================================================
+4. BOOKING RULES
+======================================================================
+
+Q: What rules does booking follow? (enforced by the SERVER, not just the UI)
+A: - At least 10 minutes in the future (no past times).
+   - Inside the RND's weekly hours; start times every hour from the start
+     of their hours; not during the RND's blocked time off.
+   - No overlap with the RND's or the client's other bookings
+     (taken times show greyed out as "Booked").
+   - The RND must offer that format (video / chat / in-person); in-person
+     needs a clinic address.
+   - Client must finish onboarding (health background + screening) first.
+   - One RND at a time: a client with an active RND can't book another
+     until that RND discharges them.
+
+Q: Flow of a consultation?
+A: Book -> RND reviews screening and confirms (or declines with reason) ->
+   invoice -> client pays -> room opens 15 min before start, closes 15 min
+   after the end -> RND writes the NCP record in the room -> "End & mark
+   complete" (only if paid) -> client gets a consultation summary.
+
+Q: How do video calls work?
+A: Jitsi Meet (free, no account needed). Each appointment gets a random,
+   unguessable room name, and the link is only given to the client after
+   payment and inside the join window. Chat consultations use our own
+   in-app chat in the same room page.
+
+======================================================================
+5. CLINICAL PART (NCP, calculations, meal plans)
+======================================================================
+
+Q: What clinical method does the system follow?
+A: The Nutrition Care Process (NCP) of the Academy of Nutrition and
+   Dietetics: Assessment -> Diagnosis (PES statement: Problem, Etiology,
+   Signs/Symptoms) -> Intervention -> Monitoring & Evaluation.
+   Stored as ONE longitudinal record per visit (not 4 tables).
+   Once finalized, a record is permanent (cannot be edited or deleted).
+
+Q: What formulas are used?
+A: - BMI with WHO ASIA-PACIFIC cut-offs (normal 18.5-22.9, overweight
+     23-24.9, obese I 25-29.9, obese II >= 30) - not the global WHO ones,
+     because they fit Filipino/Asian bodies.
+   - BMR: Mifflin-St Jeor equation.
+     Male:   10 x kg + 6.25 x cm - 5 x age + 5
+     Female: 10 x kg + 6.25 x cm - 5 x age - 161
+   - TDEE = BMR x activity factor (1.2 / 1.375 / 1.55 / 1.725 / 1.9).
+   - NRS-2002 nutritional risk score (score >= 3 = at risk).
+   Example from testing: 74 kg, 158 cm, 31 y/o female, lightly active
+   -> BMI 29.6 (Obese I), BMR 1,412 kcal, TDEE 1,941 kcal.
+
+Q: Where does food data come from?
+A: FNRI Food Exchange Lists (Philippine) as the main source; USDA
+   FoodData Central as a second source. For RA 10173 data minimization we
+   only store the FOOD NAME from outside sources, not their full data.
+
+Q: How are diet templates made?
+A: 4 templates: Diabetes, Hypertension (DASH), Renal (CKD), Weight
+   management. From the target kcal and the condition's macro split, the
+   system computes daily FNRI exchanges, then fills 5 meals x 7 days with
+   foods allowed for that condition. It skips:
+   - foods matching the client's allergies (e.g. "Shrimp / shellfish"
+     removes shrimp, prawn, crab, squid...),
+   - high-sodium foods for hypertension, high potassium/phosphorus/sodium
+     foods for renal.
+   The result is a DRAFT - the RND reviews and edits before sending.
+
+Q: What if the RND adds an unsuitable food by hand?
+A: The meal plan editor shows a warning under that food (allergy, or e.g.
+   "High in sodium - limit for hypertension"), marks the day, and asks
+   before sending. It's a warning only - the RND makes the final decision.
+
+Q: How is adherence measured?
+A: The client logs each meal (photo and/or note); the RND rates it
+   Followed (100%) / Partly (50%) / Not followed (0%). Unlogged planned
+   meals count as missed. Goal line is 80%.
+
+======================================================================
+6. SECURITY AND DATA PRIVACY (RA 10173)
+======================================================================
+
+Q: How do you comply with the Data Privacy Act (RA 10173)?
+A: - Informed consent at sign-up (two required checkboxes, time-stamped and
+     logged).
+   - Role-based access: client / RND / admin each see only what they need.
+     An RND sees only their own patients; clients never see RND-only notes
+     or other people's contact details.
+   - Audit logs: append-only records of sensitive actions (viewing health
+     records, edits, refunds, payouts, consent) - who, what, when.
+   - Data minimization (only food names from outside APIs).
+   - Passwords are hashed - nobody, not even admins, can see them; admins
+     can only send a password reset.
+   - Encryption in transit (HTTPS) when deployed.
+
+Q: How do users log in securely?
+A: Email + password with JWT tokens (expire after 1 hour, refresh tokens
+   rotate). Email must be verified with a 6-digit code first. Strong
+   passwords required (upper, lower, number, special). Login and sign-up are
+   rate-limited against brute force.
+
+Q: How are RNDs verified?
+A: They upload their PRC license photo + 7-digit license number at sign-up.
+   An admin checks it (against the PRC website) and approves or rejects
+   with a reason. Unapproved RNDs cannot sign in. License photos are stored
+   privately and shown to admins only through temporary signed links.
+
+======================================================================
+7. TECHNOLOGY
+======================================================================
+
+Q: What is the system built with? (short answer)
+A: Nuxt 4 (Vue 3) frontend + Django 6 / Django REST Framework backend,
+   talking through a REST API with JWT login. SQLite in development,
+   PostgreSQL for deployment. PayMongo for payments, Jitsi for video,
+   Cloudinary for files, Gmail SMTP for emails.
+
+Q: Architecture?
+A: Client-server, "decoupled":
+   Browser (Nuxt app)  --HTTPS + JSON (REST API, JWT token)-->  Django API
+   Django API  -->  Database (SQLite dev / PostgreSQL prod)
+   Django API  -->  outside services (PayMongo, Cloudinary, Gmail, USDA)
+   PayMongo    -->  Django webhook (payment confirmed)
+   The frontend never touches the database directly; every rule (booking,
+   payment, permissions) is checked again on the server.
+
+----------------------------------------------------------------------
+7a. FULL TECH STACK
+----------------------------------------------------------------------
+
+FRONTEND (folder: frontend/)
+  - Nuxt 4.4 (framework on top of Vue) - pages, routing, server rendering
+    of the public pages (landing, login, register)
+  - Vue 3.5 - the UI components (.vue files)
+  - Vue Router 5 - page navigation
+  - Pinia 4 - state store (the signed-in user)
+  - Tailwind CSS (@nuxtjs/tailwindcss 6.14) + our own portal.css styles
+  - Lucide icons (lucide-vue-next)
+  - Charts: our own SVG charts (TrendChart.vue), no chart library
+  - Print / PDF: the browser's print-to-PDF (utils/printDoc.js)
+  - Node.js 22 to run it (npm run dev on port 3000)
+
+BACKEND (folder: backend/)
+  - Python 3.13
+  - Django 6.1.1 - web framework, ORM (database models), migrations,
+    password hashing, email
+  - Django REST Framework 3.18 - the REST API (serializers = validation,
+    views, permissions)
+  - SimpleJWT 5.5 - login tokens (access token 1 hour, refresh token
+    7 days, rotated on refresh)
+  - django-cors-headers - lets the Nuxt site call the API
+  - django-filter - list filters
+  - Django Channels 4.3 + Daphne (ASGI server) + Redis - live chat over
+    WebSocket. If Redis isn't running, chat still works by auto-refreshing
+    every few seconds (REST polling).
+  - httpx - calls to PayMongo and USDA
+  - cloudinary (SDK) - uploads (PRC license photo, profile photos,
+    resources)
+  - python-decouple - reads secrets from the .env file (never committed)
+  - Runs with: python manage.py runserver (port 8000)
+
+DATABASE
+  - SQLite (development), PostgreSQL (planned for deployment)
+  - 37 tables, 8 Django apps that follow the proposal's data groups:
+      accounts      - users, email codes, consent
+      profiles      - RND profile, languages, weekly hours, time off,
+                      client profile and health profile
+      scheduling    - RND-client relationship, appointments, consultation
+                      sessions (video room), reviews
+      clinical      - pre-consultation screening, NCP records, progress
+                      records
+      nutrition     - FNRI food exchange categories/items, meal plans,
+                      meals, meal foods, meal logs
+      communication - messages, resources (+ sharing), reminders,
+                      notifications, support tickets
+      billing       - invoices, payment transactions, payouts, RND payout
+                      accounts
+      core          - system settings, API cache (USDA), audit logs
+
+OUTSIDE SERVICES (all have a free tier / test mode)
+  - PayMongo       - payments (QR Ph, GCash, Maya, cards), Payment Links,
+                     webhook; TEST mode for the demo
+  - Jitsi Meet     - video calls (meet.jit.si, no account/API key needed)
+  - Cloudinary     - file storage; PRC license photos are private
+                     ("authenticated") and shown via expiring signed links
+  - Gmail SMTP     - all emails (verification codes, receipts, notices),
+                     branded HTML templates with the logo embedded
+  - USDA FoodData Central API - second food database (cached 30 days)
+  - FNRI Food Exchange Lists - loaded into our own database (seed command)
+
+TOOLS
+  - Git + GitHub (repo kairu9k/NutriMatch), VS Code
+  - Automated tests: Django test runner, 400+ tests
+    (python manage.py test accounts billing core profiles scheduling
+     clinical nutrition communication)
+  - Demo data: python manage.py seed_demo  (--reset to rebuild)
+  - Reminders job: python manage.py send_reminders (also runs on its own
+    when users load the app, so no scheduler is required)
+
+----------------------------------------------------------------------
+7b. API REFERENCE (all under http://localhost:8000/api/)
+----------------------------------------------------------------------
+Format: JSON. Login gives a JWT; every other call sends it in the header
+"Authorization: Bearer <token>". Each group is locked to its role:
+/client/* = clients only, /rnd/* = approved RNDs only, /admin/* = admins
+only. A wrong role gets 403 Forbidden.
+
+AUTH / ACCOUNT  (/api/auth/)
+  POST register/client/ , register/rnd/   sign up (RND with license photo)
+  POST verify-email/ , verify-email/resend/   6-digit email code
+  POST login/ , refresh/                  get / renew JWT tokens
+  POST password-reset/request/ , password-reset/confirm/   forgot password
+  GET/PATCH me/                           my account
+  POST me/password/                       change password
+  POST/DELETE me/photo/                   profile photo
+  GET me/onboarding/ , POST me/onboarding/complete/   setup checklist
+  POST me/welcome-seen/
+
+CLIENT  (/api/client/)
+  rnds/ , rnds/<id>/ , rnds/options/      Find an RND, profile, filters
+  rnds/<id>/booked-slots/ , availability/ , reviews/
+  appointments/ (book + list) , appointments/<id>/cancel/
+  appointments/<id>/room-info/ , appointments/<id>/summary/
+  screening/ , screening/latest/          pre-consultation screening
+  invoices/ , invoices/<id>/pay/          billing, start PayMongo payment
+  invoices/sync/                          check PayMongo for payments
+  invoices/<id>/resend-receipt/
+  meal-plans/ , meals/<id>/log/ , meal-logs/   my plan, log a meal
+  progress/ , progress/<id>/ , adherence/      Progress Tracker
+  reminders/ , reminders/<id>/check/ , reminder-settings/ , today/
+  resources/ , reviews/ , profile/ , relationships/
+
+RND  (/api/rnd/)
+  dashboard/ , patients/ , earnings/ , invoices/
+  profile/ , availability/ , time-off/ , payout-account/
+  appointments/board/ , appointments/<id>/confirm/ , cancel/ , complete/
+  appointments/<id>/summary/ , appointments/<id>/screening/
+  relationships/<id>/summary/             patient chart (one call)
+  relationships/<id>/ncp/ , ncp/context/  NCP records + pre-fill data
+  ncp/<id>/ , ncp/<id>/finalize/ , ncp/overview/ , ncp/drafts/
+  relationships/<id>/progress/ , reminders/ , discharge/
+  relationships/<id>/meal-plans/ , meal-plan-templates/ ,
+    meal-plans/from-template/             diet templates
+  meal-plans/<id>/ , meal-plans/<id>/week/ (save the whole week) ,
+    meal-plans/<id>/send/
+  meal-logs/<id>/review/                  rate a meal log
+  resources/ , resources/<id>/share/      upload + share handouts
+  payouts/<id>/ , payouts/<id>/resend/ , reviews/
+
+ADMIN  (/api/admin/)
+  dashboard/ , platform-stats/ , reports/ (period, CSV via the page)
+  users/ , users/<id>/overview/ , edit/ , deactivate/ , reactivate/ ,
+    send-password-reset/ , verify-rnd/ (approve) , reject-rnd/
+  admins/ (add admin) , rnds/ , clients/
+  appointments/ , appointments/<id>/cancel/
+  invoices/ , invoices/<id>/ , invoices/<id>/mark-refunded/
+  payouts/ , payouts/run/ , payouts/release/<rnd_id>/
+  support/tickets/ (reply, close, reopen) , audit-logs/ (+ export) ,
+  settings/ (e.g. commission rate, support email)
+
+SHARED
+  /api/notifications/ (+ read, mark-all-read)
+  /api/relationships/<id>/messages/       chat between client and RND
+  /api/support/tickets/                   Help & Support requests
+  /api/food-exchange/categories/ , items/ FNRI food lists
+  /api/usda/foods/?q=                     USDA search (RND only)
+  /api/webhooks/paymongo/                 PayMongo calls this (no login;
+                                          protected by its signature)
+  WebSocket: ws://localhost:8000/ws/relationships/<id>/messages/  live chat
+
+Q: How do you protect the API?
+A: - JWT required on every endpoint except sign-up/login and the PayMongo
+     webhook (which is verified by PayMongo's signature instead).
+   - Role permissions per group (/client, /rnd, /admin) + ownership checks
+     (an RND can only open their own patients; a client only their own
+     records - others get 404).
+   - All input is validated on the server (ranges, dates, file types and
+     sizes), not just in the form.
+   - Rate limits on login, sign-up, email codes and password reset.
+
+Q: Why Django instead of Laravel (from the proposal)?
+A: Team decision during development - Django REST Framework gave us
+   built-in security (auth, permissions, validation), an admin-friendly ORM,
+   and easy testing (400+ automated tests). Same features and data design
+   as the proposal.
+
+Q: How do reminders work?
+A: Automatic notifications: 24 h and 1 h before a consultation, payment due,
+   meal logging after each planned meal, and RND-set reminders (medicine,
+   habits). The client sees them as tasks on the dashboard.
+
+Q: How was it tested?
+A: 400+ automated backend tests, plus full manual end-to-end tests:
+   sign-up -> approval -> booking -> real PayMongo test payment ->
+   consultation -> NCP -> meal plan -> refund -> admin reports.
