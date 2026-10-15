@@ -189,6 +189,30 @@ def run_due_reminders(now=None, client=None):
                      notifiable_id=meal.meal_plan_id, link="/meal-plan-view", link_label="Log my meal")
             sent += 1
 
+    # 3b) lab tests the RND requested, still not uploaded within 2 days of the
+    #     next consultation (clinical/labs.py) — once per request + consultation
+    from clinical.models import LabRequest
+
+    lab_requests = (LabRequest.objects.filter(status=LabRequest.Status.OPEN, relationship__status=RndClientRelationship.Status.ACTIVE)
+                    .select_related("relationship__client"))
+    if client:
+        lab_requests = lab_requests.filter(relationship__client=client)
+    for req in lab_requests:
+        appt = (req.relationship.appointments.filter(status__in=["pending", "confirmed"], scheduled_at__gt=now,
+                                                     scheduled_at__lte=now + timedelta(days=2))
+                .order_by("scheduled_at").first())
+        if appt is None:
+            continue
+        c = req.relationship.client
+        if not pref_for(c).rnd_reminders:
+            continue
+        content = f"Please upload the lab results your RND requested before your consultation on {_when(appt.scheduled_at)}."
+        if _claim(f"lab:{req.id}:{appt.id}", client=c, title="Upload your lab results", message=content,
+                  type=Reminder.Type.GENERAL, send_at=now):
+            _deliver(c, pref_for(c), subject="Upload your lab results", content=content, notifiable_type="lab_request",
+                     notifiable_id=req.id, link="/lab-results", link_label="Upload lab results")
+            sent += 1
+
     # 4) tasks the RND set (medication cues, habit prompts) and the client's own
     #    (no relationship)
     due = (Reminder.objects.filter(created_by__isnull=False, is_active=True, is_sent=False, send_at__lte=now)
@@ -279,6 +303,22 @@ def today_items(client, now=None):
         items.append({"kind": "task", "id": r.id, "at": at, "title": r.title,
                       "detail": "Your task" if own else f"From RND {r.created_by.full_name}",
                       "own": own, "done": r.done_on == today, "link": None})
+
+    # Lab tests the RND requested: open ones stay on the list until uploaded;
+    # one completed today shows ticked off. Listed last in the day.
+    from clinical.labs import next_consultation, test_names
+    from clinical.models import LabRequest
+
+    end_of_day = end - timedelta(minutes=1)
+    for req in (LabRequest.objects.filter(relationship__client=client)
+                .filter(Q(status=LabRequest.Status.OPEN) | Q(status=LabRequest.Status.COMPLETED, completed_at__gte=start, completed_at__lt=end))
+                .select_related("relationship")):
+        done = req.status == LabRequest.Status.COMPLETED
+        nxt = None if done else next_consultation(req.relationship, now)
+        due = f"needed before {nxt.scheduled_at.astimezone(ph):%b} {nxt.scheduled_at.astimezone(ph).day}" if nxt else "before your next consultation"
+        items.append({"kind": "lab", "id": req.id, "at": end_of_day, "title": "Upload lab results",
+                      "detail": "Uploaded" if done else f"{', '.join(test_names(req.tests, req.other_tests))} · {due}",
+                      "done": done, "link": "/lab-results"})
 
     items.sort(key=lambda i: i["at"])
     return items

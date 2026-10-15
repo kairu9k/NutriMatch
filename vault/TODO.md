@@ -288,6 +288,11 @@ Decisions (user, 2026-10-10): admins can **see everything** — account details,
 - [x] Admin accounts: add another admin; admin's own profile + change password page — BUILT 2026-10-12.
 - [x] (BUILT 2026-10-12, minus failed sign-in bursts — not recorded yet) Dashboard upgrade: "Today" row (consultations today / this week, cancellations, unpaid starting soon), "Needs attention" (booking requests unconfirmed > 24 h, approved-but-not-bookable RNDs, RNDs with money but no payout details, failed sign-in bursts, new 1–2★ reviews), month-over-month comparisons.
 
+## Lab results (BUILT 2026-10-16, user's design — added after the proposal)
+- [x] RND requests lab tests from the chart (header button + Lab results tab); "needed before" = the next booked consultation; client uploads (PDF/JPG/PNG ≤ 10 MB, ≤ 5 per upload) from the dashboard card (between My tasks and Recent Activity, browse only — no drag-and-drop) or the Lab Results page; RND sees it at once, opening it marks it reviewed. Private Cloudinary files streamed through the API, audit-logged, no admin access. Reminder 2 days before the consultation, My tasks item, RND dashboard to-do, My Patients tag, room Patient tab, NCP form link. Checked in the browser (client upload + RND review) on desktop width.
+- [ ] Phone-width check of the dashboard card, Lab Results page and the RND Lab results tab.
+- [ ] Mention it in the scope/features section (not in the proposal).
+
 ## Phase 8 — Deployment
 - [ ] Django: Railway/Render/Fly.io (or your school's requirement) + Postgres addon
 - [ ] Nuxt: Vercel/Netlify, or same host as backend

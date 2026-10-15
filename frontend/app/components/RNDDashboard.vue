@@ -270,7 +270,7 @@
 
 <script setup>
 import {
-  AlertTriangle, CalendarCheck, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Info, MessageSquare,
+  AlertTriangle, CalendarCheck, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, FlaskConical, Info, MessageSquare,
   OctagonAlert, Target, Users, Utensils, Video, Wallet,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
@@ -328,6 +328,8 @@ const todoItems = computed(() => {
       to: t.need_meal_plan_first ? `/meal-planning?relationship=${t.need_meal_plan_first}` : '/meal-planning', icon: Target, tone: '' },
     { key: 'logs', count: t.meal_logs_to_review, label: `meal log${t.meal_logs_to_review === 1 ? '' : 's'} to rate`,
       to: t.meal_logs_to_review_first ? `/client-detail/${t.meal_logs_to_review_first}?tab=meal` : '/my-patients', icon: Utensils, tone: 'gold' },
+    { key: 'labs', count: t.lab_results_to_review, label: `lab result${t.lab_results_to_review === 1 ? '' : 's'} to review`,
+      to: t.lab_results_to_review_first ? `/client-detail/${t.lab_results_to_review_first}?tab=labs` : '/my-patients', icon: FlaskConical, tone: 'gold' },
     { key: 'msg', count: t.unread_messages, label: `unread message${t.unread_messages === 1 ? '' : 's'}`, to: '/messages', icon: MessageSquare, tone: '' },
   ].filter(i => i.count > 0)
 })

@@ -179,3 +179,60 @@ class ProgressRecord(models.Model):
 
     def __str__(self):
         return f"Progress Record — {self.record_date}"
+
+
+class LabRequest(models.Model):
+    """Lab tests the RND asks the patient to get done (added after the
+    proposal, 2026-10-16 — the Assessment phase's biochemical data). There is
+    no due date column: "needed before" is always the patient's next booked
+    consultation, worked out live (clinical/labs.py)."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        COMPLETED = "completed", "Completed"  # every requested test has an upload
+        CANCELLED = "cancelled", "Cancelled"  # the RND withdrew it
+
+    relationship = models.ForeignKey(RndClientRelationship, on_delete=models.CASCADE, related_name="lab_requests")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+    tests = models.JSONField(default=list)  # codes from clinical.labs.LAB_TESTS
+    other_tests = models.CharField(max_length=200, blank=True, default="")  # when "other" is ticked
+    note = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "lab_requests"
+        ordering = ["-created_at"]
+
+
+class LabResult(models.Model):
+    """One uploaded lab result file. The file is a private (authenticated)
+    Cloudinary asset — only the patient and their treating RND can open it,
+    through the API (RA 10173); the RND reads it and types values into the
+    NCP form (nothing is extracted from the file)."""
+
+    class Fasted(models.TextChoices):
+        YES = "yes", "Fasted 8+ hours"
+        NO = "no", "Not fasting"
+        NA = "na", "Not applicable"
+
+    relationship = models.ForeignKey(RndClientRelationship, on_delete=models.CASCADE, related_name="lab_results")
+    request = models.ForeignKey(LabRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name="results")
+    tests = models.JSONField(default=list)
+    other_tests = models.CharField(max_length=200, blank=True, default="")
+    taken_on = models.DateField()
+    fasted = models.CharField(max_length=3, choices=Fasted.choices, default=Fasted.NA)
+    file_public_id = models.CharField(max_length=255)
+    file_format = models.CharField(max_length=10)
+    file_name = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(default=0)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)  # first opened by the RND; then permanent
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    class Meta:
+        db_table = "lab_results"
+        ordering = ["-taken_on", "-uploaded_at"]

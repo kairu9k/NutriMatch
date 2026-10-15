@@ -127,7 +127,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, LineChart, Target,
   Search as SearchIcon, FileText, MessageSquare,
   UserCog, LogOut, ChevronDown, ChevronUp, Menu, Receipt, TrendingUp, Sparkles,
-  ShieldCheck, Wallet, ScrollText, BarChart3, Settings, Headset
+  ShieldCheck, Wallet, ScrollText, BarChart3, Settings, Headset, FlaskConical
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -184,8 +184,18 @@ const userInitials = computed(() =>
 // Real pending-confirmation appointment count, loaded once on mount. New
 // clients book directly, so this also covers first-time bookings.
 const pendingAppointments = ref(0)
+// Client: lab tests their RND requested that are still waiting for an upload.
+const openLabRequests = ref(0)
 
 async function loadBadgeCounts() {
+  if (auth.user?.role === 'client') {
+    try {
+      openLabRequests.value = (await get('/client/labs/')).requests.filter(r => r.status === 'open').length
+    } catch {
+      openLabRequests.value = 0
+    }
+    return
+  }
   if (!isRnd.value) return
   try {
     const appointments = await get('/rnd/appointments/')
@@ -196,6 +206,8 @@ async function loadBadgeCounts() {
 }
 
 watch(() => auth.hydrated, (hydrated) => { if (hydrated) loadBadgeCounts() }, { immediate: true })
+// Uploading clears a request, so refresh the client's badge when they move between pages.
+watch(() => route.path, () => { if (auth.user?.role === 'client') loadBadgeCounts() })
 
 // Main nav split into MAIN / CLINICAL / RESOURCES groups. Availability/
 // Earnings/Reviews live as tabs inside Profile Settings rather than
@@ -249,6 +261,7 @@ const clientNavGroups = computed(() => [
       { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
       { icon: Target, label: 'My Meal Plan', to: '/meal-plan-view' },
       { icon: TrendingUp, label: 'Progress Tracker', to: '/progress-tracker' },
+      { icon: FlaskConical, label: 'Lab Results', to: '/lab-results', badge: openLabRequests.value || null },
     ],
   },
   {

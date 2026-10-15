@@ -56,6 +56,11 @@ def build_patient_rows(rnd, now=None, rel_id=None, care=None):
     for rid in (Message.objects.filter(relationship__in=rels, is_read=False, deleted_at__isnull=True)
                 .exclude(sender=rnd).values_list("relationship_id", flat=True)):
         unread[rid] = unread.get(rid, 0) + 1
+    from clinical.models import LabResult
+
+    new_labs = {}
+    for rid in LabResult.objects.filter(relationship__in=rels, reviewed_at__isnull=True).values_list("relationship_id", flat=True):
+        new_labs[rid] = new_labs.get(rid, 0) + 1
 
     rows = []
     for rel in rels:
@@ -94,6 +99,7 @@ def build_patient_rows(rnd, now=None, rel_id=None, care=None):
             } if nxt else None,
             "consultations": len(done),
             "unread_messages": unread.get(rel.id, 0),
+            "new_lab_results": new_labs.get(rel.id, 0),
             "alerts": [{"level": a["level"], "kind": a["kind"], "title": a["title"], "link": a["link"], "action": a["action"]}
                        for a in care.alerts(rel)],
             "meal_plan": meal_plan_summary(care, rel),

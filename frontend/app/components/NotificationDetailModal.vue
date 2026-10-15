@@ -45,6 +45,21 @@
               <div v-if="related.appointment"><dt>Consultation</dt><dd>{{ dateTime(related.appointment.scheduled_at) }}</dd></div>
             </template>
 
+            <template v-else-if="type === 'lab_request'">
+              <div><dt>Tests</dt><dd>{{ related.test_names.join(', ') }}</dd></div>
+              <div><dt>{{ withLabel }}</dt><dd>{{ related.with.name }}</dd></div>
+              <div v-if="related.status === 'open'"><dt>Needed before</dt><dd>{{ related.needed_before ? dateTime(related.needed_before) : 'Your next consultation' }}</dd></div>
+              <div><dt>Status</dt><dd>{{ { open: 'Waiting for upload', completed: 'Uploaded', cancelled: 'Cancelled' }[related.status] }}</dd></div>
+              <div v-if="related.note"><dt>Note</dt><dd>{{ related.note }}</dd></div>
+            </template>
+
+            <template v-else-if="type === 'lab_result'">
+              <div><dt>Tests</dt><dd>{{ related.test_names.join(', ') }}</dd></div>
+              <div><dt>{{ withLabel }}</dt><dd>{{ related.with.name }}</dd></div>
+              <div><dt>Taken</dt><dd>{{ new Date(`${related.taken_on}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) }}</dd></div>
+              <div><dt>Status</dt><dd>{{ related.reviewed_at ? 'Reviewed' : 'Not opened yet' }}</dd></div>
+            </template>
+
             <template v-else-if="type === 'meal_plan'">
               <div><dt>Plan</dt><dd>{{ related.name }}</dd></div>
               <div><dt>{{ withLabel }}</dt><dd>{{ related.with.name }}</dd></div>
@@ -89,7 +104,7 @@
 </template>
 
 <script setup>
-import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake, Headset } from 'lucide-vue-next'
+import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, FlaskConical, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake, Headset } from 'lucide-vue-next'
 
 // Full detail of one notification + a button to the page it's about.
 // `notification` is the list row (shown right away); the related record is
@@ -107,9 +122,9 @@ const related = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder', relationship: 'Care plan', support: 'Support request' }
-const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake, support: Headset }
-const TONES = { appointment: 'gold', invoice: 'warn', message: 'info', payout: 'good', reminder: 'gold' }
+const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder', relationship: 'Care plan', support: 'Support request', lab_request: 'Lab request', lab_result: 'Lab result' }
+const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake, support: Headset, lab_request: FlaskConical, lab_result: FlaskConical }
+const TONES = { appointment: 'gold', invoice: 'warn', message: 'info', payout: 'good', reminder: 'gold', lab_request: 'gold', lab_result: 'gold' }
 const APPT_LABELS = { pending: 'Awaiting confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
 const APPT_PILLS = { pending: 'gold', confirmed: 'green', completed: 'blue', cancelled: 'muted' }
 const INVOICE_LABELS = { unpaid: 'Awaiting payment', paid: 'Paid', refund_pending: 'Refund pending', refunded: 'Refunded', cancelled: 'Voided' }
@@ -151,6 +166,7 @@ const link = computed(() => {
       payout: { label: 'View earnings', to: '/earnings' },
       message: messages,
       meal_plan: { label: 'Open Meal Plans', to: '/meal-planning' },
+      lab_result: { label: 'Open lab results', to: `/client-detail/${r.relationship_id}?tab=labs` },
     }[t] || null
   }
   return {
@@ -159,6 +175,7 @@ const link = computed(() => {
     message: messages,
     meal_plan: { label: 'View my meal plan', to: '/meal-plan-view' },
     resource: { label: 'Open Resources', to: '/resource-library' },
+    lab_request: { label: r?.status === 'open' ? 'Upload lab results' : 'Open Lab Results', to: '/lab-results' },
     reminder: { label: 'My reminder settings', to: { path: '/profile-settings', query: { tab: 'notifications' } } },
   }[t] || null
 })

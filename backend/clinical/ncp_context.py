@@ -80,8 +80,11 @@ def build_ncp_context(rel, now=None):
     window = Appointment.objects.filter(relationship=rel, status=Appointment.Status.CONFIRMED,
                                         scheduled_at__gte=now - timedelta(hours=3), scheduled_at__lte=now + timedelta(hours=12)).order_by("scheduled_at").first()
 
+    from .labs import rnd_lab_counts
+
     return {
         "is_follow_up": bool(finalized),
+        "labs": rnd_lab_counts(rel),  # "Lab results uploaded: view" beside Lab notes
         "prefill": prefill,
         "previous": previous,
         "adherence": care.adherence(rel.id),
