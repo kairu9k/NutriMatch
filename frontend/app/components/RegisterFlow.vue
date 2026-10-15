@@ -441,8 +441,12 @@
 import { ClipboardCheck, Lock, Mail, User } from 'lucide-vue-next'
 const auth = useAuthStore()
 
-const currentStep = ref(1)
-const selectedRole = ref('')
+// Landing-page buttons link to /register?role=client|rnd: open that role's
+// form directly (Back still returns to the role choice).
+const ROLE_FROM_QUERY = { client: 'patient', patient: 'patient', rnd: 'rnd' }
+const presetRole = ROLE_FROM_QUERY[useRoute().query.role] || ''
+const currentStep = ref(presetRole ? 2 : 1)
+const selectedRole = ref(presetRole)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const errorMessage = ref('')

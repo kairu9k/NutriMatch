@@ -7,8 +7,8 @@
         <h2>Start Your<br /><em class="highlight">Nutrition Journey</em><br />Today.</h2>
         <p>Join Filipino patients and RNDs already using NutriMatch. Free to sign up. No commitment required.</p>
         <div class="cta-buttons">
-          <button class="btn-gold">I'm a Patient →</button>
-          <button class="btn-outline">I'm an RND →</button>
+          <button class="btn-gold" @click="navigateTo('/register?role=client')">I'm a Patient →</button>
+          <button class="btn-outline" @click="navigateTo('/register?role=rnd')">I'm an RND →</button>
         </div>
         <div class="cta-badges">
           Free to join · PRC-verified RNDs only · RA 10173 compliant
