@@ -2,14 +2,13 @@
   <div class="tracker-page">
     <div class="page-header">
       <div>
-        <p class="page-sub">Your health journey — readings from your RND and the ones you log at home.</p>
+        <p class="page-sub">Your health journey — the readings your RND records at each consultation.</p>
       </div>
       <div class="header-actions">
         <select v-if="records.length" v-model="selectedRange" class="nm-select" aria-label="Date range">
           <option v-for="r in ranges" :key="r.label" :value="r.label">{{ r.label }}</option>
         </select>
         <button v-if="records.length" type="button" class="nm-btn-outline nm-btn-sm" @click="printReport"><Printer :size="14" /> Print / PDF</button>
-        <button type="button" class="nm-btn-dark nm-btn-sm" @click="openLog"><Plus :size="14" /> Log a reading</button>
       </div>
     </div>
 
@@ -137,45 +136,18 @@
     <div v-else-if="!isLoading" class="empty-state">
       <div class="empty-icon"><LineChart :size="28" /></div>
       <p class="empty-title">No progress recorded yet</p>
-      <p class="empty-desc">Your RND records your weight, blood pressure and other vitals at each consultation. You can also log your own readings at home with "Log a reading".</p>
-    </div>
-
-    <!-- LOG A READING (self-reported, POST /api/client/progress/) -->
-    <div v-if="logOpen" class="nm-modal-overlay" @click.self="logOpen = false">
-      <form class="nm-modal log-modal" @submit.prevent="saveReading">
-        <h3 class="nm-modal-title">Log a reading</h3>
-        <p class="nm-modal-text">From your scale, BP monitor or glucometer at home. It's marked "self-reported", and your RND sees it on your chart.</p>
-        <div class="log-grid">
-          <label class="log-field"><span>Date</span><input v-model="log.record_date" type="date" class="nm-input" :max="todayIso" /></label>
-          <label class="log-field"><span>Weight (kg)</span><input v-model="log.weight_kg" type="number" step="0.1" min="25" max="300" class="nm-input" placeholder="e.g. 68.5" /></label>
-          <div class="log-field"><span>Blood pressure (mmHg)</span>
-            <div class="bp-pair">
-              <input v-model="log.sys" type="number" min="60" max="260" class="nm-input" placeholder="120" aria-label="Systolic" />
-              <span>/</span>
-              <input v-model="log.dia" type="number" min="30" max="160" class="nm-input" placeholder="80" aria-label="Diastolic" />
-            </div>
-          </div>
-          <label class="log-field"><span>Fasting glucose (mg/dL)</span><input v-model="log.blood_glucose" type="number" step="1" min="20" max="600" class="nm-input" placeholder="e.g. 110" /></label>
-          <label class="log-field"><span>HbA1c (%)</span><input v-model="log.hba1c" type="number" step="0.1" min="3" max="20" class="nm-input" placeholder="e.g. 6.8" /></label>
-          <label class="log-field wide"><span>Note <em>(optional)</em></span><input v-model="log.client_notes" data-allow-emoji class="nm-input" maxlength="500" placeholder="e.g. Morning, before breakfast" /></label>
-        </div>
-        <p v-if="logError" class="form-error" style="margin: 10px 0 0">{{ logError }}</p>
-        <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-outline" @click="logOpen = false">Cancel</button>
-          <button type="submit" class="nm-btn-dark" :disabled="logSaving">{{ logSaving ? 'Saving…' : 'Save reading' }}</button>
-        </div>
-      </form>
+      <p class="empty-desc">Your RND records your weight, blood pressure and other vitals at each consultation.</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { Gauge, Activity, HeartPulse, Droplet, LineChart, Plus, Printer, X } from 'lucide-vue-next'
+import { Gauge, Activity, HeartPulse, Droplet, LineChart, Printer, X } from 'lucide-vue-next'
 import { printDocument } from '~/utils/printDoc'
 
 definePageMeta({ layout: 'dashboard', title: 'Progress Tracker' })
 
-const { get, post, del } = useApi()
+const { get, del } = useApi()
 
 /* ---------- weekly meal-plan adherence (GET /api/client/adherence/) ---------- */
 const adherence = ref([])
@@ -195,38 +167,7 @@ const adhX = i => (400 / adherence.value.length) * i + (400 / adherence.value.le
 const shortDay = iso => new Date(`${iso}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
 const weekLabel = w => `${shortDay(w.start)} – ${shortDay(w.end)}`
 
-/* ---------- log a reading (self-reported) ---------- */
-const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
-const logOpen = ref(false)
-const logSaving = ref(false)
-const logError = ref('')
-const log = reactive({})
-function openLog() {
-  Object.assign(log, { record_date: todayIso, weight_kg: '', sys: '', dia: '', blood_glucose: '', hba1c: '', client_notes: '' })
-  logError.value = ''
-  logOpen.value = true
-}
-async function saveReading() {
-  logError.value = ''
-  const sys = String(log.sys ?? '').trim()
-  const dia = String(log.dia ?? '').trim()
-  if ((sys && !dia) || (!sys && dia)) { logError.value = 'Enter both blood pressure numbers, e.g. 120 / 80.'; return }
-  const body = { record_date: log.record_date, client_notes: log.client_notes.trim() || null }
-  for (const k of ['weight_kg', 'blood_glucose', 'hba1c']) if (String(log[k] ?? '').trim() !== '') body[k] = log[k]
-  if (sys) body.blood_pressure = `${sys}/${dia}`
-  logSaving.value = true
-  try {
-    await post('/client/progress/', body)
-    logOpen.value = false
-    await loadRecords()
-  } catch (e) {
-    const d = e?.data || {}
-    const first = Object.values(d).flat()[0]
-    logError.value = typeof first === 'string' ? first : 'Could not save this reading.'
-  } finally {
-    logSaving.value = false
-  }
-}
+/* ---------- older self-reported readings (logging was removed 2026-10-16) ---------- */
 async function removeReading(rec) {
   try {
     await del(`/client/progress/${rec.id}/`)
@@ -442,17 +383,7 @@ onMounted(() => { loadRecords(); loadAdherence() })
 .rec-x { border: none; background: none; color: #9aaa9a; cursor: pointer; padding: 2px; display: flex; }
 .rec-x:hover { color: #c0392b; }
 
-/* Log a reading */
-.log-modal { max-width: 520px; }
-.log-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.log-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; font-weight: 600; color: #1a3a1a; min-width: 0; }
-.log-field em { font-style: normal; font-weight: 400; color: #8a9a8a; }
-.log-field .nm-input { min-height: 42px; }
-.log-field.wide { grid-column: 1 / -1; }
-.bp-pair { display: flex; align-items: center; gap: 6px; }
-.bp-pair .nm-input { flex: 1; min-width: 0; }
 @media (max-width: 560px) {
-  .log-grid { grid-template-columns: minmax(0, 1fr); }
   .header-actions { width: 100%; }
   .header-actions > * { flex: 1; }
 }
