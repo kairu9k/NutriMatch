@@ -168,7 +168,24 @@
             </div>
             <p v-else class="empty-note">No weight history yet — this starts from your screening and fills in as you or your RND record your progress.</p>
           </div>
+
+          <!-- LATEST SCREENING -->
+          <div class="panel">
+            <h3 class="panel-title">Your Screening</h3>
+            <template v-if="screening">
+              <p class="screening-summary-text">
+                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
+              </p>
+              <button type="button" class="block-btn" @click="screeningOpen = true">View Screening</button>
+            </template>
+            <template v-else>
+              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
+            </template>
+          </div>
+
         </div>
+
 
         <div class="dash-col">
           <!-- YOUR RND (compact, top of the column) -->
@@ -262,20 +279,7 @@
             <p v-if="!recentActivity.length" class="empty-note">Nothing yet — updates about your bookings, meal plans and payments show up here.</p>
           </div>
 
-          <!-- LATEST SCREENING -->
-          <div class="panel">
-            <h3 class="panel-title">Your Screening</h3>
-            <template v-if="screening">
-              <p class="screening-summary-text">
-                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
-              </p>
-              <button type="button" class="block-btn" @click="screeningOpen = true">View Screening</button>
-            </template>
-            <template v-else>
-              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
-            </template>
-          </div>
+          
         </div>
       </section>
     </template>

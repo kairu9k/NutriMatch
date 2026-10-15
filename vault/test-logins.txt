@@ -34,3 +34,8 @@ ADMIN
   email:    admin@nutrimatch.ph
   password: TestAdmin123!
   note:     pre-existing account, password reset to the above for testing
+
+TEST ADMIN (created 2026-10-14 on this machine's local database)
+  email:    admin2@nutrimatch.test
+  password: Nm5nS5UJbT7!
+  sign in:  http://localhost:3000/admin/login  (also works for http://localhost:8000/admin/)
