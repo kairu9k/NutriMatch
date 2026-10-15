@@ -627,7 +627,7 @@ async function saveProgress() {
 const METRICS = [
   { key: 'weight', label: 'Weight', unit: 'kg', decimals: 1 },
   { key: 'bmi', label: 'BMI', unit: '', decimals: 1, refLines: [{ value: 23, label: 'Normal < 23' }] },
-  { key: 'bp', label: 'Blood pressure', unit: 'mmHg', decimals: 0, refLines: [{ value: 130, label: '130' }] },
+  { key: 'bp', label: 'Blood pressure', unit: 'mmHg', decimals: 0, refLines: [{ value: 140, label: '140' }] },
   { key: 'glucose', label: 'Glucose', unit: 'mg/dL', decimals: 0, refLines: [{ value: 100, label: 'Fasting 100' }] },
   { key: 'hba1c', label: 'HbA1c', unit: '%', decimals: 1, refLines: [{ value: 6.5, label: '6.5%' }] },
   { key: 'lipids', label: 'Lipids', unit: 'mg/dL', decimals: 0 },

@@ -59,12 +59,21 @@
                     <span>/</span>
                     <input v-model="a.bp_diastolic" type="number" :min="L.bp_diastolic.min" :max="L.bp_diastolic.max" class="nm-input" placeholder="80" aria-label="Diastolic" :disabled="isReadOnly" />
                   </div>
+                  <p v-if="liveBp" class="m-cat" :class="liveBp.level" role="status" title="WHO / ESH grading">
+                    <AlertTriangle v-if="liveBp.level !== 'ok'" :size="13" /> {{ liveBp.label }}
+                  </p>
                 </Field>
                 <Field label="Fasting glucose (mg/dL)" :hint="srcHint('blood_glucose')" :error="errors.blood_glucose">
                   <input v-model="a.blood_glucose" type="number" :min="L.blood_glucose.min" :max="L.blood_glucose.max" step="1" class="nm-input" :disabled="isReadOnly" />
+                  <p v-if="liveGlucose" class="m-cat" :class="liveGlucose.level" role="status">
+                    <AlertTriangle v-if="liveGlucose.level !== 'ok'" :size="13" /> {{ liveGlucose.label }}
+                  </p>
                 </Field>
                 <Field label="HbA1c (%)" :hint="srcHint('hba1c')" :error="errors.hba1c">
                   <input v-model="a.hba1c" type="number" :min="L.hba1c.min" :max="L.hba1c.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                  <p v-if="liveHba1c" class="m-cat" :class="liveHba1c.level" role="status">
+                    <AlertTriangle v-if="liveHba1c.level !== 'ok'" :size="13" /> {{ liveHba1c.label }}
+                  </p>
                 </Field>
               </div>
               <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine… — pick from the list or type your own." />
@@ -276,7 +285,7 @@
 // fields mirror NcpRecord.finalize_missing() on the API.
 import { AlertTriangle, Check, CheckCircle2, Info, Lock, Save, Sparkles, X } from 'lucide-vue-next'
 import {
-  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, extraRowErrors, macroKcal,
+  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, bpCategory, extraRowErrors, glucoseCategory, hba1cCategory, macroKcal,
   rangeError, suggestMacros,
 } from '~/utils/ncp'
 
@@ -389,7 +398,11 @@ function srcHint(f) {
 
 /* ---------- live clinical help ---------- */
 // Only from in-range values — an impossible weight mustn't show a BMI.
-const liveBmi = computed(() => (rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
+// Only categorise a reading that passes the form's own checks.
+const liveBp = computed(() => (errors.value.blood_pressure ? null : bpCategory(a.value.bp_systolic, a.value.bp_diastolic)))
+const liveGlucose = computed(() => (errors.value.blood_glucose ? null : glucoseCategory(a.value.blood_glucose)))
+const liveHba1c = computed(() => (errors.value.hba1c ? null : hba1cCategory(a.value.hba1c)))
+const liveBmi = computed(() =>(rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
 const macroTotal = computed(() => macroKcal({ carb: i.value.target_carb_g, protein: i.value.target_protein_g, fat: i.value.target_fat_g }))
 const macroDiffPct = computed(() => {
   const t = Number(i.value.target_kcal)
@@ -697,6 +710,10 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .computed strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .k { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; }
 .c-sub { font-size: 0.74rem; color: #8a9a8a; margin: 0; }
+.m-cat { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 0; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
+.m-cat.ok { background: #eaf5ee; color: #1f6b43; }
+.m-cat.warn { background: #fdf3dc; color: #8a5a00; }
+.m-cat.danger { background: #fdecea; color: #b42318; }
 
 .combo { position: relative; }
 .combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }

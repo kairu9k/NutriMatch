@@ -71,7 +71,9 @@
 // Read-only summary of one NCP record (NCP Records page). Records are
 // written on the patient chart, never here; finalized ones can be printed.
 import { AlertTriangle, CalendarCheck, Printer, X } from 'lucide-vue-next'
-import { bmiClass } from '~/utils/ncp'
+import { bmiClass, bpLabel, glucoseCategory, hba1cCategory } from '~/utils/ncp'
+
+const withCat = (text, cat) => (cat ? `${text} · ${cat.label}` : text)
 
 const props = defineProps({
   row: { type: Object, required: true }, // a record row from /rnd/ncp/overview/
@@ -106,8 +108,9 @@ const assessment = computed(() => {
   const rows = [
     ['Height', num(x.height_cm, 'cm')], ['Weight', num(x.weight_kg, 'kg')],
     ['BMI', x.bmi ? `${Number(x.bmi).toFixed(1)} · ${bmiClass(Number(x.bmi))}` : '—'],
-    ['Blood pressure', x.blood_pressure ? `${x.blood_pressure} mmHg` : '—'],
-    ['Fasting glucose', num(x.blood_glucose, 'mg/dL', 0)], ['HbA1c', num(x.hba1c, '%')],
+    ['Blood pressure', bpLabel(x.blood_pressure) || '—'],
+    ['Fasting glucose', withCat(num(x.blood_glucose, 'mg/dL', 0), glucoseCategory(x.blood_glucose))],
+    ['HbA1c', withCat(num(x.hba1c, '%'), hba1cCategory(x.hba1c))],
   ]
   for (const e of x.assessment_extra || []) rows.push([e.label, `${e.value}${e.unit ? ` ${e.unit}` : ''}`])
   return rows
