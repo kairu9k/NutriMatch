@@ -157,7 +157,7 @@
           </div>
           <label class="log-field"><span>Fasting glucose (mg/dL)</span><input v-model="log.blood_glucose" type="number" step="1" min="20" max="600" class="nm-input" placeholder="e.g. 110" /></label>
           <label class="log-field"><span>HbA1c (%)</span><input v-model="log.hba1c" type="number" step="0.1" min="3" max="20" class="nm-input" placeholder="e.g. 6.8" /></label>
-          <label class="log-field wide"><span>Note <em>(optional)</em></span><input v-model="log.client_notes" class="nm-input" maxlength="500" placeholder="e.g. Morning, before breakfast" /></label>
+          <label class="log-field wide"><span>Note <em>(optional)</em></span><input v-model="log.client_notes" data-allow-emoji class="nm-input" maxlength="500" placeholder="e.g. Morning, before breakfast" /></label>
         </div>
         <p v-if="logError" class="form-error" style="margin: 10px 0 0">{{ logError }}</p>
         <div class="nm-modal-actions">

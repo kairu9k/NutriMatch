@@ -57,7 +57,7 @@
         </select>
 
         <label class="field-label">Notes for your RND <span class="optional">(optional)</span></label>
-        <textarea v-model="notes" class="field-input" rows="3" placeholder="Anything you'd like your RND to know before the session..."></textarea>
+        <textarea v-model="notes" data-allow-emoji class="field-input" rows="3" placeholder="Anything you'd like your RND to know before the session..."></textarea>
       </div>
 
       <p v-if="submitError" class="form-error">{{ submitError }}</p>

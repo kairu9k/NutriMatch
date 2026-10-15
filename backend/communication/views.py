@@ -40,8 +40,12 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         relationship = self.get_relationship()
+        # Chat is open only while care is active — i.e. after the RND
+        # confirmed a booking (user's rule, 2026-10-15).
         if relationship.status == RndClientRelationship.Status.DISCHARGED:
             raise PermissionDenied("This care plan has ended, so new messages can't be sent. Book a consultation to start again.")
+        if relationship.status != RndClientRelationship.Status.ACTIVE:
+            raise PermissionDenied("You can message once the RND confirms the booking.")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         message = serializer.save(relationship=relationship, sender=request.user)

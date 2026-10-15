@@ -338,7 +338,7 @@
             </div>
             <label class="pf-note">
               <span class="nm-label"><Lock :size="12" /> Private note <span class="nm-muted">(only you see this)</span></span>
-              <textarea v-model="form.rnd_notes" class="nm-input" rows="2" maxlength="2000" placeholder="Observations for your own record"></textarea>
+              <textarea v-model="form.rnd_notes" data-allow-emoji class="nm-input" rows="2" maxlength="2000" placeholder="Observations for your own record"></textarea>
             </label>
             <p v-if="formError" class="nm-field-error">{{ formError }}</p>
             <div class="nm-modal-actions">

@@ -40,9 +40,25 @@ class RndActiveRelationshipsView(generics.ListAPIView):
     permission_classes = [IsRnd]
 
     def get_queryset(self):
-        return RndClientRelationship.objects.filter(
-            rnd=self.request.user, status=RndClientRelationship.Status.ACTIVE
-        ).select_related("rnd", "client")
+        # ?include=ended also lists discharged patients and care waiting for
+        # you to confirm a booking (Messages shows them read-only); pickers
+        # keep the default, active only.
+        qs = RndClientRelationship.objects.filter(rnd=self.request.user)
+        if self.request.query_params.get("include") == "ended":
+            return _with_ended(qs).select_related("rnd", "client")
+        return qs.filter(status=RndClientRelationship.Status.ACTIVE).select_related("rnd", "client")
+
+
+def _with_ended(qs):
+    """Active + discharged care, plus pending care that has a booking waiting
+    for the RND (a pending one whose booking was declined is left out)."""
+    from django.db.models import Exists, OuterRef, Q
+
+    waiting = Appointment.objects.filter(relationship=OuterRef("pk"), status=Appointment.Status.PENDING)
+    return qs.annotate(has_waiting=Exists(waiting)).filter(
+        Q(status__in=[RndClientRelationship.Status.ACTIVE, RndClientRelationship.Status.DISCHARGED])
+        | Q(status=RndClientRelationship.Status.PENDING, has_waiting=True)
+    )
 
 
 class ClientActiveRelationshipsView(generics.ListAPIView):
@@ -52,9 +68,12 @@ class ClientActiveRelationshipsView(generics.ListAPIView):
     permission_classes = [IsClient]
 
     def get_queryset(self):
-        return RndClientRelationship.objects.filter(
-            client=self.request.user, status=RndClientRelationship.Status.ACTIVE
-        ).select_related("rnd", "client")
+        # ?include=ended also lists discharged care and care waiting for the
+        # RND to confirm a booking (read-only chat history).
+        qs = RndClientRelationship.objects.filter(client=self.request.user)
+        if self.request.query_params.get("include") == "ended":
+            return _with_ended(qs).select_related("rnd", "client")
+        return qs.filter(status=RndClientRelationship.Status.ACTIVE).select_related("rnd", "client")
 
 
 class ClientAppointmentListCreateView(generics.ListCreateAPIView):
@@ -121,7 +140,10 @@ class ClientAppointmentCancelView(APIView):
 
         from billing.services import settle_cancelled_appointment
 
+        from .services import close_reopened_care_if_idle
+
         settle_cancelled_appointment(appointment)
+        close_reopened_care_if_idle(appointment.relationship)
 
         from communication.services import notify
 
@@ -328,6 +350,9 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
         response = super().patch(request, pk)
         appointment = Appointment.objects.select_related("relationship__client", "relationship__rnd").get(pk=pk)
         settle_cancelled_appointment(appointment)
+        from .services import close_reopened_care_if_idle
+
+        close_reopened_care_if_idle(appointment.relationship)
         reason = (appointment.cancellation_reason or "").strip()
         notify(
             recipient=appointment.relationship.client,

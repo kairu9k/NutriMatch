@@ -238,7 +238,7 @@
 
           <div class="booking-section">
             <h4 class="section-h">Notes for your RND <span class="optional">(optional)</span></h4>
-            <textarea v-model="bookingNotes" rows="3" placeholder="Anything you'd like your RND to know before the session..."></textarea>
+            <textarea v-model="bookingNotes" data-allow-emoji rows="3" placeholder="Anything you'd like your RND to know before the session..."></textarea>
           </div>
 
           <p v-if="bookingError" class="form-error">{{ bookingError }}</p>

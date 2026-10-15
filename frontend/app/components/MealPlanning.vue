@@ -89,6 +89,7 @@
         </div>
 
         <div class="plan-actions no-print">
+          <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
           <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print Plan</button>
           <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit Plan</button>
           <button class="btn-primary" :disabled="isSending" @click="requestSend(sendToPatient)">
@@ -281,8 +282,11 @@
           </datalist>
           <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay} · ${usdaMeal.type}`" @close="usdaMeal = null" @pick="addUsdaFood" />
 
+          <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client — this plan can't be deleted. Edit it and Resend, or send a new plan.</p>
           <div class="plan-actions create-actions">
-            <button class="btn-secondary" @click="discardChanges">Cancel</button>
+            <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
+            <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
+            <button class="btn-secondary" @click="discardChanges">Discard changes</button>
             <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : 'Save Plan' }}</button>
             <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; Send to Patient</button>
           </div>
@@ -352,8 +356,18 @@
           </div>
           <div class="field">
             <label>RND Notes for Patient</label>
-            <textarea v-model="instructions.notes" rows="3" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
+            <textarea v-model="instructions.notes" data-allow-emoji rows="3" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
           </div>
+        </div>
+      </div>
+    </div>
+    <div v-if="confirmDelete" class="nm-modal-overlay no-print" @click.self="confirmDelete = false">
+      <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
+        <h3 id="del-title" class="nm-modal-title">Delete this draft?</h3>
+        <p class="nm-modal-text">"{{ selectedPlan?.name }}" was never sent to {{ selectedPatientName || 'the patient' }}. Deleting it removes the whole week and can't be undone.</p>
+        <div class="nm-modal-actions">
+          <button class="btn-secondary" type="button" @click="confirmDelete = false">Keep it</button>
+          <button class="btn-danger solid" type="button" :disabled="isDeleting" @click="deleteDraft"><Trash2 :size="15" /> {{ isDeleting ? 'Deleting…' : 'Delete draft' }}</button>
         </div>
       </div>
     </div>
@@ -376,14 +390,14 @@
 <script setup>
 import {
   Eye, Plus, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
-  Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle
+  Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle, Trash2, Undo2, Lock
 } from 'lucide-vue-next'
 import { usdaPortion } from '~/utils/usda'
 import { allergyWarnings, conditionKeys, foodWarnings } from '~/utils/foodWarnings'
 
 const route = useRoute()
 const router = useRouter()
-const { get, post, patch, put } = useApi()
+const { get, post, patch, put, del } = useApi()
 
 // Matches nutrition.MealPlan.Condition.
 const CONDITIONS = [
@@ -516,6 +530,7 @@ function fillFromPlan(plan) {
       })),
     }
   }
+  resetUndo()
 }
 
 function resetForm() {
@@ -527,6 +542,80 @@ function resetForm() {
   if (ncpTargets.value) {
     planMeta.kcalPerDay = ncpTargets.value.kcal
     targetRows.value = defaultTargetRows(ncpTargets.value.protein, ncpTargets.value.carb, ncpTargets.value.fat)
+  }
+  resetUndo()
+}
+
+/* ---------- Undo (unsaved week edits only) ---------- */
+// The week is snapshotted half a second after each change (so typing a
+// portion is one step, not one per letter); Undo steps back through up to 20
+// snapshots. Loading or saving a plan clears it, so it can never reach
+// anything already saved or sent.
+const undoStack = ref([])
+const pendingEdit = ref(false)
+let lastSnapshot = null
+let snapTimer = null
+const snapshotWeek = () => JSON.stringify(weeklyPlan)
+function resetUndo() {
+  clearTimeout(snapTimer)
+  undoStack.value = []
+  pendingEdit.value = false
+  lastSnapshot = snapshotWeek()
+}
+watch(weeklyPlan, () => {
+  pendingEdit.value = snapshotWeek() !== lastSnapshot
+  clearTimeout(snapTimer)
+  snapTimer = setTimeout(() => {
+    const now = snapshotWeek()
+    if (lastSnapshot !== null && now !== lastSnapshot) {
+      undoStack.value.push(lastSnapshot)
+      if (undoStack.value.length > 20) undoStack.value.shift()
+    }
+    lastSnapshot = now
+    pendingEdit.value = false
+  }, 500)
+}, { deep: true })
+const canUndo = computed(() => pendingEdit.value || undoStack.value.length > 0)
+function undo() {
+  clearTimeout(snapTimer)
+  // An edit not yet snapshotted goes back to the last snapshot first.
+  const target = snapshotWeek() !== lastSnapshot ? lastSnapshot : undoStack.value.pop()
+  if (!target) return
+  Object.assign(weeklyPlan, JSON.parse(target))
+  lastSnapshot = target
+  pendingEdit.value = false
+}
+// Ctrl+Z / Cmd+Z in the week editor (text boxes keep their own undo).
+function onUndoKey(event) {
+  if (mode.value !== 'create' || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z' || event.shiftKey) return
+  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select')) return
+  event.preventDefault()
+  undo()
+}
+onMounted(() => window.addEventListener('keydown', onUndoKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onUndoKey))
+
+/* ---------- Delete a draft (never sent) ---------- */
+const confirmDelete = ref(false)
+const isDeleting = ref(false)
+async function deleteDraft() {
+  const plan = selectedPlan.value
+  if (!plan || plan.status !== 'draft') return
+  isDeleting.value = true
+  errorMessage.value = ''
+  try {
+    await del(`/rnd/meal-plans/${plan.id}/`)
+    plans.value = plans.value.filter(p => p.id !== plan.id)
+    confirmDelete.value = false
+    const next = plans.value.find(p => p.status === 'active') || plans.value[0]
+    if (next) selectPlan(next.id)
+    else { selectedPlanId.value = null; resetForm(); mode.value = 'view' }
+    flash('Draft deleted.')
+  } catch (error) {
+    confirmDelete.value = false
+    errorMessage.value = apiError(error, 'Could not delete the draft.')
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -1006,6 +1095,16 @@ function formatTime(t) {
   padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-danger {
+  display: flex; align-items: center; gap: 6px; margin-right: auto;
+  border: 1px solid #ecc5c0; background: #fff; color: #b3261e;
+  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.btn-danger:hover { background: #fdf1ef; }
+.btn-danger.solid { background: #b3261e; color: #fff; border-color: #b3261e; margin-right: 0; }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+.sent-lock { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; font-size: 0.78rem; color: #6a7a6a; }
 
 /* SIDE COLUMN (shared) */
 .side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }

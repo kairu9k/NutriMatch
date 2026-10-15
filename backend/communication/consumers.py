@@ -46,7 +46,9 @@ class MessageConsumer(AsyncWebsocketConsumer):
             return
 
         relationship = await self._get_relationship(user, self.relationship_id)
-        if relationship is None:
+        # Same rule as the REST send: chat only while care is active (the RND
+        # confirmed a booking) — not while waiting, not after a discharge.
+        if relationship is None or relationship.status != "active":
             return
 
         message_data = await self._create_message(relationship, user, text)

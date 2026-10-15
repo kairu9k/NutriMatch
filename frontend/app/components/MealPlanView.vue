@@ -104,7 +104,7 @@
 
               <div class="field notes-field">
                 <label for="meal-log-note">Note</label>
-                <textarea id="meal-log-note" v-model="logForm.reasonNotes" rows="3" maxlength="1000"
+                <textarea id="meal-log-note" data-allow-emoji v-model="logForm.reasonNotes" rows="3" maxlength="1000"
                           placeholder="What did you eat? e.g. Had half the rice and added a banana."></textarea>
               </div>
               <p class="log-hint">Add a photo, a note or both. The time is saved automatically, and your RND will rate how well it followed your plan.</p>

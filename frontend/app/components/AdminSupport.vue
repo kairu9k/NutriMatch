@@ -71,7 +71,7 @@
           </div>
 
           <form class="reply" @submit.prevent="sendReply">
-            <textarea v-model="reply" class="nm-input" rows="3" maxlength="3000" placeholder="Write a reply — the user is notified and emailed. They see it from &quot;NutriMatch Support&quot;." aria-label="Reply"></textarea>
+            <textarea v-model="reply" data-allow-emoji class="nm-input" rows="3" maxlength="3000" placeholder="Write a reply — the user is notified and emailed. They see it from &quot;NutriMatch Support&quot;." aria-label="Reply"></textarea>
             <div class="reply-actions">
               <button v-if="ticket.status !== 'closed'" type="button" class="nm-btn-outline nm-btn-sm" :disabled="busy" @click="act('close')">Close request</button>
               <button v-else type="button" class="nm-btn-outline nm-btn-sm" :disabled="busy" @click="act('reopen')">Reopen</button>

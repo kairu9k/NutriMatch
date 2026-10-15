@@ -70,7 +70,7 @@
             </label>
             <label class="sw-field">
               <span>Message</span>
-              <textarea v-model="form.message" class="nm-input" rows="5" maxlength="3000" placeholder="Tell us what happened, with dates or reference numbers if you have them." required></textarea>
+              <textarea v-model="form.message" data-allow-emoji class="nm-input" rows="5" maxlength="3000" placeholder="Tell us what happened, with dates or reference numbers if you have them." required></textarea>
               <small class="sw-count-text">{{ form.message.length }} / 3000</small>
             </label>
             <p v-if="formError" class="nm-error">{{ formError }}</p>
@@ -121,7 +121,7 @@
               </div>
               <p v-if="ticket.status === 'closed'" class="nm-hint">This request is closed. Replying reopens it.</p>
               <form class="reply" @submit.prevent="sendReply">
-                <textarea v-model="reply" class="nm-input" rows="2" maxlength="3000" :placeholder="ticket.status === 'closed' ? 'Reply to reopen…' : 'Write a reply…'" aria-label="Reply"></textarea>
+                <textarea v-model="reply" data-allow-emoji class="nm-input" rows="2" maxlength="3000" :placeholder="ticket.status === 'closed' ? 'Reply to reopen…' : 'Write a reply…'" aria-label="Reply"></textarea>
                 <button type="submit" class="nm-btn-dark" :disabled="sending || reply.trim().length < 2" aria-label="Send reply"><Send :size="15" /></button>
               </form>
               <p v-if="formError" class="nm-error">{{ formError }}</p>

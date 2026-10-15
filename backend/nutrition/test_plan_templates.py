@@ -111,3 +111,36 @@ class DietTemplateTests(TestCase):
         d = daily_exchanges(TEMPLATES["diabetes"], 1500)
         self.assertEqual((d["veg"], d["fruit"], d["milk"], d["sugar"]), (4, 3, 1, 0))
         self.assertTrue(all(v % Decimal("0.5") == 0 for v in d.values()))
+
+
+class DeleteDraftTests(TestCase):
+    """Only a draft (never sent) can be deleted; sent plans keep the client's logs."""
+
+    def setUp(self):
+        self.rnd = approve_rnd(User.objects.create_user(email="r@d.ph", password="x", role="rnd", first_name="M", last_name="S"))
+        c = onboard_client(User.objects.create_user(email="c@d.ph", password="x", role="client", first_name="A", last_name="C"))
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=c, status="active")
+        self.api = APIClient()
+        self.api.force_authenticate(self.rnd)
+
+    def test_delete_draft_only(self):
+        from django.utils import timezone
+
+        from core.models import AuditLog
+
+        draft = MealPlan.objects.create(relationship=self.rel, name="Draft", status="draft")
+        self.assertEqual(self.api.delete(f"/api/rnd/meal-plans/{draft.id}/").status_code, 204)
+        self.assertFalse(MealPlan.objects.filter(pk=draft.id).exists())
+        self.assertTrue(AuditLog.objects.filter(action="meal_plan.deleted", record_id=draft.id).exists())
+
+        sent = MealPlan.objects.create(relationship=self.rel, name="Sent", status="active", first_sent_at=timezone.now())
+        archived = MealPlan.objects.create(relationship=self.rel, name="Old", status="archived", first_sent_at=timezone.now())
+        for plan in (sent, archived):
+            self.assertEqual(self.api.delete(f"/api/rnd/meal-plans/{plan.id}/").status_code, 403)
+            self.assertTrue(MealPlan.objects.filter(pk=plan.id).exists())
+
+        # Another RND can't touch it.
+        other = APIClient()
+        other.force_authenticate(approve_rnd(User.objects.create_user(email="o@d.ph", password="x", role="rnd", first_name="O", last_name="R")))
+        mine = MealPlan.objects.create(relationship=self.rel, name="Mine", status="draft")
+        self.assertEqual(other.delete(f"/api/rnd/meal-plans/{mine.id}/").status_code, 404)

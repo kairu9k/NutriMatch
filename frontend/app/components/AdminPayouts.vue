@@ -125,7 +125,7 @@
         <label class="nm-label" for="payout-ref" style="margin-top: 16px">GCash / bank reference no.</label>
         <input id="payout-ref" v-model="reference" class="nm-input" maxlength="100" placeholder="e.g. 1234 567 890123" />
         <label class="nm-label" for="payout-notes" style="margin-top: 12px">Notes <span class="nm-muted">(optional)</span></label>
-        <textarea id="payout-notes" v-model="notes" class="nm-input" rows="2" maxlength="500" />
+        <textarea id="payout-notes" data-allow-emoji v-model="notes" class="nm-input" rows="2" maxlength="500" />
         <p v-if="releaseError" class="nm-field-error">{{ releaseError }}</p>
         <div class="nm-modal-actions">
           <button class="nm-btn-outline" @click="releasing = null">Cancel</button>

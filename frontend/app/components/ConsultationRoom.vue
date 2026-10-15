@@ -126,7 +126,7 @@
                 <label><span>Fasting glucose (mg/dL)</span><input v-model="pf.blood_glucose" type="number" class="nm-input" :class="{ bad: pfErr.blood_glucose }" /><em v-if="pfErr.blood_glucose">{{ pfErr.blood_glucose }}</em></label>
                 <label><span>HbA1c (%)</span><input v-model="pf.hba1c" type="number" step="0.1" class="nm-input" :class="{ bad: pfErr.hba1c }" /><em v-if="pfErr.hba1c">{{ pfErr.hba1c }}</em></label>
               </div>
-              <label class="full"><span><Lock :size="12" /> Private note (only you see this)</span><textarea v-model="pf.rnd_notes" rows="2" maxlength="2000" class="nm-input" /></label>
+              <label class="full"><span><Lock :size="12" /> Private note (only you see this)</span><textarea v-model="pf.rnd_notes" data-allow-emoji rows="2" maxlength="2000" class="nm-input" /></label>
               <p v-if="pfError" class="nm-field-error">{{ pfError }}</p>
               <p v-if="pfSaved" class="ok"><CheckCircle2 :size="14" /> Saved — {{ p.client.first_name }} can see it on their Progress page.</p>
               <button type="submit" class="nm-btn-dark" :disabled="pfSaving || Object.keys(pfErr).length > 0">{{ pfSaving ? 'Saving…' : 'Save progress' }}</button>

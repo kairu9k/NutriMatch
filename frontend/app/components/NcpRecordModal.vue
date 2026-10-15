@@ -69,10 +69,10 @@
               </div>
               <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine… — pick from the list or type your own." />
               <Field label="Lab notes">
-                <textarea v-model="a.lab_notes" class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
+                <textarea v-model="a.lab_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
               </Field>
               <Field label="Assessment notes">
-                <textarea v-model="a.assessment_notes" class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Appetite, eating pattern, activity, food access…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="a.assessment_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Appetite, eating pattern, activity, food access…" :disabled="isReadOnly"></textarea>
               </Field>
             </section>
 
@@ -139,7 +139,7 @@
                 <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="3" placeholder="e.g. 1500 kcal low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
               </Field>
               <Field label="Intervention notes">
-                <textarea v-model="i.intervention_notes" class="nm-input" :maxlength="TMAX.intervention_notes" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="i.intervention_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.intervention_notes" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
               </Field>
             </section>
 
@@ -162,7 +162,7 @@
                 </div>
               </Field>
               <Field label="Monitoring notes">
-                <textarea v-model="m.monitoring_notes" class="nm-input" :maxlength="TMAX.monitoring_notes" rows="3" placeholder="Response to the plan, barriers, what to change next…" :disabled="isReadOnly"></textarea>
+                <textarea v-model="m.monitoring_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.monitoring_notes" rows="3" placeholder="Response to the plan, barriers, what to change next…" :disabled="isReadOnly"></textarea>
               </Field>
             </section>
 

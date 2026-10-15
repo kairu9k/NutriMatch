@@ -73,8 +73,11 @@ class RndMealPlanListCreateView(generics.ListCreateAPIView):
         serializer.save()
 
 
-class RndMealPlanDetailView(generics.RetrieveUpdateAPIView):
-    """RND editing one of their own meal plans (name/condition/targets/notes/status)."""
+class RndMealPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """RND editing one of their own meal plans (name/condition/targets/notes/status).
+    DELETE discards a draft only (user's rule, 2026-10-15): once a plan was
+    sent the client's meal logs hang off its meals, so it can't be deleted —
+    it's edited and resent, or archived by sending a new plan."""
 
     serializer_class = MealPlanSerializer
     permission_classes = [IsRnd]
@@ -85,6 +88,20 @@ class RndMealPlanDetailView(generics.RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         ensure_open(serializer.instance.relationship)
         serializer.save()
+
+    def perform_destroy(self, instance):
+        from rest_framework.exceptions import PermissionDenied
+
+        from core.models import AuditLog
+
+        if instance.status != MealPlan.Status.DRAFT or instance.first_sent_at or \
+                MealLog.objects.filter(meal_plan_meal__meal_plan=instance).exists():
+            raise PermissionDenied("This plan was sent to the client, so it can't be deleted. Edit it and resend, or send a new plan.")
+        AuditLog.objects.create(
+            user=self.request.user, action="meal_plan.deleted", table_name="meal_plans", record_id=instance.id,
+            old_values={"name": instance.name, "status": instance.status, "relationship_id": instance.relationship_id},
+        )
+        instance.delete()
 
 
 class RndMealPlanMealCreateView(generics.CreateAPIView):

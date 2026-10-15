@@ -31,7 +31,7 @@
           </div>
           <div class="conv-body">
             <div class="conv-top">
-              <span class="conv-name">{{ conv.name }}</span>
+              <span class="conv-name">{{ conv.name }}<span v-if="conv.ended" class="conv-ended">Ended</span><span v-else-if="conv.waiting" class="conv-ended">Waiting</span></span>
               <span class="conv-time">{{ conv.lastMessageAt }}</span>
             </div>
             <p class="conv-preview">{{ conv.lastMessage }}</p>
@@ -85,11 +85,13 @@
         </div>
 
         <p v-if="sendError" class="chat-error">{{ sendError }}</p>
-        <div class="chat-input-row">
+        <p v-if="activeConversation.ended" class="chat-ended">This care has ended, so the conversation is read-only. Book a new consultation to message again.</p>
+        <p v-else-if="activeConversation.waiting" class="chat-ended">{{ authStore.user?.role === 'rnd' ? `You can message ${activeConversation.firstName} once you confirm their booking.` : `You can message ${activeConversation.firstName} once they confirm your booking.` }}</p>
+        <div v-else class="chat-input-row">
           <input
             v-model="draft"
             type="text"
-            class="chat-input"
+            class="chat-input" data-allow-emoji
             placeholder="Type a message..."
             @keyup.enter="sendMessage"
           />
@@ -152,6 +154,9 @@ const conversations = computed(() => {
     return {
       id: rel.id,
       name: `${other.first_name} ${other.last_name}`,
+      ended: rel.status === 'discharged',
+      waiting: rel.status === 'pending',
+      firstName: other.first_name,
       initials: initialsFor(other.first_name, other.last_name),
       avatarColor: colorFor(other.id),
       lastMessage: preview ? preview.message : 'No messages yet',
@@ -193,7 +198,8 @@ async function loadConversations() {
   try {
     const isRnd = authStore.user?.role === 'rnd'
     const path = isRnd ? '/rnd/relationships/active/' : '/client/relationships/'
-    relationships.value = await get(path)
+    // Discharged care stays readable here (sending is closed).
+    relationships.value = await get(path, { query: { include: 'ended' } })
     if (!activeConversationId.value && relationships.value.length) {
       // ?relationship=<id> (e.g. from a patient's chart) opens that
       // conversation; otherwise fall back to the first one.
@@ -416,6 +422,8 @@ onUnmounted(() => {
 .conv-body { flex: 1; min-width: 0; }
 .conv-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .conv-name { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
+.conv-ended { margin-left: 6px; font-size: 0.62rem; font-weight: 700; color: #7a6a4a; background: #f3eee2; border-radius: 6px; padding: 1px 6px; vertical-align: 1px; }
+.chat-ended { margin: 0; padding: 14px 84px 14px 22px; background: #fafbfa; border-top: 1px solid #eceeec; font-size: 0.8rem; color: #6a7a6a; }
 .conv-time { font-size: 0.72rem; color: #9aaa9a; flex-shrink: 0; }
 .conv-preview {
   font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0;

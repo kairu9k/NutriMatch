@@ -75,3 +75,23 @@ def current_rnd_relationship(client, exclude_rnd_id=None):
         appointments__status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
         appointments__scheduled_at__gte=timezone.now(),
     ).distinct().first()
+
+
+def close_reopened_care_if_idle(relationship):
+    """A discharged client who books again reopens the care as *pending*. If
+    that booking is then declined or cancelled and nothing else is waiting,
+    the care goes back to discharged — so chat stays closed (2026-10-15)."""
+    from django.utils import timezone
+
+    from .models import Appointment, RndClientRelationship
+
+    relationship.refresh_from_db()
+    if relationship.status != RndClientRelationship.Status.PENDING or not relationship.discharge_reason:
+        return
+    waiting = relationship.appointments.filter(
+        status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
+    ).exists()
+    if not waiting:
+        relationship.status = RndClientRelationship.Status.DISCHARGED
+        relationship.ended_at = timezone.now()
+        relationship.save(update_fields=["status", "ended_at", "updated_at"])

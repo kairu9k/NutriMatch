@@ -15,7 +15,7 @@
     </div>
     <p v-if="error" class="cc-error">{{ error }}</p>
     <form class="cc-form" @submit.prevent="send">
-      <textarea v-model="draft" rows="2" maxlength="5000" :placeholder="`Message ${otherName}…`" aria-label="Message"
+      <textarea v-model="draft" data-allow-emoji rows="2" maxlength="5000" :placeholder="`Message ${otherName}…`" aria-label="Message"
                 @keydown.enter.exact.prevent="send" />
       <button type="submit" :disabled="sending || !draft.trim()" aria-label="Send"><Send :size="17" /></button>
     </form>
