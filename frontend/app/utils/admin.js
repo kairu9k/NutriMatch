@@ -56,7 +56,7 @@ export function auditLabel(action) {
 }
 
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-export const MODE_LABELS = { video: 'Video call', chat: 'Chat', in_person: 'In-person' }
+export const MODE_LABELS = { video: 'Video call', in_person: 'In-person' }
 
 export function clock12(t) {
   const [h, m] = String(t).split(':').map(Number)

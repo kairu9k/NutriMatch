@@ -251,21 +251,37 @@
                   <input :value="item.fat ?? ''" type="number" disabled placeholder="—" />
                 </template>
                 <template v-else>
-                  <input
-                    v-model="item.name"
-                    type="text"
-                    list="fnri-suggestions"
-                    placeholder="Search FNRI or type a food"
-                    @input="onFoodNameInput(item, $event.target.value)"
-                    @change="applyFnriMatch(item, $event.target.value)"
-                  />
+                  <div class="combo" @keydown.down.prevent="moveFood(1)" @keydown.up.prevent="moveFood(-1)" @keydown.enter="pickActiveFood(item, $event)" @keydown.esc="foodPick.key = null">
+                    <input
+                      v-model="item.name"
+                      type="text"
+                      placeholder="Search FNRI or type a food"
+                      role="combobox" autocomplete="off" aria-label="Food item"
+                      :aria-expanded="foodPick.key === `${activeDay}-${meal.type}-${idx}`"
+                      @focus="openFoodPick(`${activeDay}-${meal.type}-${idx}`, item.name)"
+                      @input="onFoodNameInput(item, $event.target.value, `${activeDay}-${meal.type}-${idx}`)"
+                      @change="applyFnriMatch(item, $event.target.value)"
+                      @blur="closeFoodPickSoon"
+                    />
+                    <div v-if="foodPick.key === `${activeDay}-${meal.type}-${idx}` && flatFoodMatches.length" class="combo-list" role="listbox">
+                      <template v-for="g in foodMatches" :key="g.group">
+                        <p class="combo-group">{{ g.group }}</p>
+                        <button v-for="f in g.foods" :key="f.id" type="button" role="option" class="combo-opt"
+                                :class="{ on: flatFoodMatches[foodPick.active]?.id === f.id }" :aria-selected="flatFoodMatches[foodPick.active]?.id === f.id"
+                                @mousedown.prevent="pickFood(item, f)">
+                          <span class="combo-name">{{ f.name }}<span v-if="allergyWarnings(f.name, patientAllergies).length" class="combo-allergy">Allergy</span></span>
+                          <span class="combo-meta">{{ f.household_measure || '1 exchange' }}</span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
                   <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
                   <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
                   <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
                   <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
                   <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
                 </template>
-                <p v-if="itemWarnings(item).length" class="food-warn" role="note">
+                <p v-if="itemWarnings(item).length" class="food-warn" :class="{ allergy: itemAllergyWarnings(item).length }" role="note">
                   <AlertTriangle :size="13" /> {{ itemWarnings(item).join(' · ') }}
                 </p>
               </div>
@@ -277,12 +293,10 @@
             </div>
           </div>
 
-          <datalist id="fnri-suggestions">
-            <option v-for="f in fnriSuggestions" :key="f.id" :value="f.name">{{ f.category.name }} · {{ f.household_measure || '1 exchange' }}</option>
-          </datalist>
           <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay} · ${usdaMeal.type}`" @close="usdaMeal = null" @pick="addUsdaFood" />
 
           <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client — this plan can't be deleted. Edit it and Resend, or send a new plan.</p>
+          <p v-else class="sent-lock"><Lock :size="13" /> Draft — only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
           <div class="plan-actions create-actions">
             <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
             <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
@@ -364,23 +378,45 @@
     <div v-if="confirmDelete" class="nm-modal-overlay no-print" @click.self="confirmDelete = false">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
         <h3 id="del-title" class="nm-modal-title">Delete this draft?</h3>
-        <p class="nm-modal-text">"{{ selectedPlan?.name }}" was never sent to {{ selectedPatientName || 'the patient' }}. Deleting it removes the whole week and can't be undone.</p>
+        <p class="nm-modal-text">"{{ selectedPlan?.name }}" was never sent to {{ selectedPatientName || 'the patient' }}. Deleting it removes the whole 7-day week — every meal and food in it. This can't be undone.</p>
         <div class="nm-modal-actions">
           <button class="btn-secondary" type="button" @click="confirmDelete = false">Keep it</button>
-          <button class="btn-danger solid" type="button" :disabled="isDeleting" @click="deleteDraft"><Trash2 :size="15" /> {{ isDeleting ? 'Deleting…' : 'Delete draft' }}</button>
+          <button class="btn-danger solid" type="button" :disabled="isDeleting || deleteWait > 0" @click="deleteDraft"><Trash2 :size="15" /> {{ isDeleting ? 'Deleting…' : deleteWait > 0 ? `Delete draft (${deleteWait})` : 'Delete draft' }}</button>
         </div>
       </div>
     </div>
     <div v-if="sendCheck" class="nm-modal-overlay no-print" @click.self="sendCheck = null">
       <div class="nm-modal send-check" role="dialog" aria-modal="true" aria-labelledby="send-check-title">
-        <h3 id="send-check-title" class="nm-modal-title">Some foods may not suit {{ selectedPatientName || 'this patient' }}</h3>
-        <p class="nm-modal-text">Based on their <template v-if="patientAllergies.length">allergies ({{ patientAllergies.join(', ') }})<template v-if="conditionSummary"> and </template></template><template v-if="conditionSummary">condition ({{ conditionSummary }})</template>. Check these before sending:</p>
-        <ul class="send-check-list">
-          <li v-for="w in planWarnings" :key="w.key"><strong>{{ w.day }} · <span class="send-check-meal">{{ w.meal }}</span> — {{ w.food }}</strong><span>{{ w.reasons.join(' · ') }}</span></li>
-        </ul>
+        <h3 id="send-check-title" class="nm-modal-title">{{ isResend ? 'Send the updated plan' : 'Send this plan' }} to {{ selectedPatientName || 'the patient' }}?</h3>
+        <p class="send-consequence">
+          <Lock :size="14" />
+          <span v-if="isResend">{{ patientFirstName }} sees the changes right away. Their past meal logs are kept.</span>
+          <span v-else><strong>Once sent, this plan can't be deleted.</strong> {{ patientFirstName }} sees it right away and starts logging meals against it. After that you can only edit and resend it, or replace it by sending a new plan.</span>
+        </p>
+
+        <template v-if="allergyHits.length">
+          <p class="send-section allergy"><AlertTriangle :size="15" /> Allergy alert — contains foods {{ patientFirstName }} is allergic to ({{ patientAllergies.join(', ') }})</p>
+          <ul class="send-check-list allergy">
+            <li v-for="w in allergyHits" :key="w.key"><strong>{{ w.day }} · <span class="send-check-meal">{{ w.meal }}</span> — {{ w.food }}</strong><span>{{ w.allergy.join(' · ') }}</span></li>
+          </ul>
+          <label class="allergy-ack">
+            <input v-model="allergyAck" type="checkbox" />
+            I've checked these foods against {{ patientFirstName }}'s allergies and confirm they are safe for them.
+          </label>
+        </template>
+
+        <template v-if="conditionHits.length">
+          <p class="send-section">May not suit {{ patientFirstName }}'s condition ({{ conditionSummary }})</p>
+          <ul class="send-check-list">
+            <li v-for="w in conditionHits" :key="w.key"><strong>{{ w.day }} · <span class="send-check-meal">{{ w.meal }}</span> — {{ w.food }}</strong><span>{{ w.condition.join(' · ') }}</span></li>
+          </ul>
+        </template>
+
         <div class="nm-modal-actions">
           <button class="btn-secondary" type="button" @click="sendCheck = null">Go back and edit</button>
-          <button class="btn-primary" type="button" @click="confirmSend"><Send :size="15" /> Send anyway</button>
+          <button class="btn-primary" type="button" :disabled="sendWait > 0 || (allergyHits.length > 0 && !allergyAck)" @click="confirmSend">
+            <Send :size="15" /> {{ planWarnings.length ? 'Send anyway' : isResend ? 'Resend to patient' : 'Send to patient' }}<template v-if="sendWait > 0"> ({{ sendWait }})</template>
+          </button>
         </div>
       </div>
     </div>
@@ -598,9 +634,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onUndoKey))
 /* ---------- Delete a draft (never sent) ---------- */
 const confirmDelete = ref(false)
 const isDeleting = ref(false)
+// The Delete button stays locked for 3 seconds each time the pop-up opens, so
+// the RND reads the warning first (user's call, 2026-10-15). Keep it works
+// right away.
+const deleteWait = ref(0)
+let deleteTimer = null
+watch(confirmDelete, (open) => {
+  clearInterval(deleteTimer)
+  deleteWait.value = open ? 3 : 0
+  if (open) {
+    deleteTimer = setInterval(() => {
+      deleteWait.value -= 1
+      if (deleteWait.value <= 0) clearInterval(deleteTimer)
+    }, 1000)
+  }
+})
+onBeforeUnmount(() => clearInterval(deleteTimer))
 async function deleteDraft() {
   const plan = selectedPlan.value
-  if (!plan || plan.status !== 'draft') return
+  if (!plan || plan.status !== 'draft' || deleteWait.value > 0) return
   isDeleting.value = true
   errorMessage.value = ''
   try {
@@ -849,32 +901,63 @@ const conditionSummary = computed(() => {
   return names.join(', ')
 })
 // Allergies first (any food, by name), then condition notes (FNRI foods only).
+function itemAllergyWarnings(item) {
+  return item?.name ? allergyWarnings(item.name, patientAllergies.value) : []
+}
+function itemConditionWarnings(item) {
+  if (!item?.name || !item.foodItemId || item.source === 'usda') return []
+  return foodWarnings(fnriById.value[item.foodItemId], warnKeys.value)
+}
 function itemWarnings(item) {
-  if (!item?.name) return []
-  const allergy = allergyWarnings(item.name, patientAllergies.value)
-  if (!item.foodItemId || item.source === 'usda') return allergy
-  return [...allergy, ...foodWarnings(fnriById.value[item.foodItemId], warnKeys.value)]
+  return [...itemAllergyWarnings(item), ...itemConditionWarnings(item)]
 }
 const planWarnings = computed(() => {
   const out = []
   for (const day of days) {
     for (const type of mealOrder) {
       weeklyPlan[day][type].items.forEach((item, idx) => {
-        const reasons = itemWarnings(item)
-        if (reasons.length) out.push({ key: `${day}-${type}-${idx}`, day, meal: type, food: item.name, reasons })
+        const allergy = itemAllergyWarnings(item)
+        const condition = itemConditionWarnings(item)
+        if (allergy.length || condition.length) {
+          out.push({ key: `${day}-${type}-${idx}`, day, meal: type, food: item.name, allergy, condition, reasons: [...allergy, ...condition] })
+        }
       })
     }
   }
   return out
 })
+// Allergies can be life-threatening: listed apart, in red, and the RND must
+// tick that they checked them before Send unlocks (user's rule, 2026-10-15).
+const allergyHits = computed(() => planWarnings.value.filter(w => w.allergy.length))
+const conditionHits = computed(() => planWarnings.value.filter(w => w.condition.length))
+const allergyAck = ref(false)
+const isResend = computed(() => selectedPlan.value?.status === 'active')
+const patientFirstName = computed(() => (selectedPatientName.value || 'the patient').split(' ')[0])
 const warningDays = computed(() => new Set(planWarnings.value.map(w => w.day)))
-// Sending a plan with flagged foods asks first; the RND can still send.
+// Every send asks first: what sending means (a sent plan can't be deleted),
+// plus any allergy / condition warnings.
 const sendCheck = ref(null)
 function requestSend(action) {
-  if (planWarnings.value.length) sendCheck.value = action
-  else action()
+  allergyAck.value = false
+  sendCheck.value = action
 }
+// Send stays locked for 3 seconds each time the confirmation opens, like
+// Delete draft, so the RND reads it first (user's call, 2026-10-15).
+const sendWait = ref(0)
+let sendTimer = null
+watch(sendCheck, (open) => {
+  clearInterval(sendTimer)
+  sendWait.value = open ? 3 : 0
+  if (open) {
+    sendTimer = setInterval(() => {
+      sendWait.value -= 1
+      if (sendWait.value <= 0) clearInterval(sendTimer)
+    }, 1000)
+  }
+})
+onBeforeUnmount(() => clearInterval(sendTimer))
 function confirmSend() {
+  if (sendWait.value > 0) return
   const action = sendCheck.value
   sendCheck.value = null
   action?.()
@@ -906,42 +989,68 @@ function printPlan() {
   window.print()
 }
 
-/* ---------- FNRI food suggestions ---------- */
-const fnriSuggestions = ref([])
-let searchTimer = null
-// The value comes from the event: this handler can run before v-model has
-// copied the new text into item.name.
-function onFoodNameInput(item, value) {
-  // Typing clears any previous FNRI link until a suggestion is picked again.
-  item.foodItemId = null
-  const term = (value || '').trim()
-  clearTimeout(searchTimer)
-  if (term.length < 2) return
-  searchTimer = setTimeout(async () => {
-    try {
-      fnriSuggestions.value = (await get(`/food-exchange/items/?search=${encodeURIComponent(term)}`)).slice(0, 12)
-    } catch {
-      fnriSuggestions.value = []
-    }
-  }, 250)
-}
-// Picking an FNRI item fills 1 exchange's household measure and macros from
-// its FNRI category — the RND can still adjust the numbers.
-async function applyFnriMatch(item, value) {
-  const term = (value || '').trim()
-  let match = fnriSuggestions.value.find(f => f.name.toLowerCase() === term.toLowerCase())
-  // A name typed in full and tabbed out of can beat the debounced search —
-  // look it up directly instead of silently leaving the row unfilled.
-  if (!match && term.length >= 2) {
-    clearTimeout(searchTimer)
-    try {
-      const results = await get(`/food-exchange/items/?search=${encodeURIComponent(term)}`)
-      match = results.find(f => f.name.toLowerCase() === term.toLowerCase())
-    } catch {
-      return
-    }
+/* ---------- FNRI food picker ---------- */
+// Same searchable picker style as the NCP form (one dropdown look app-wide):
+// FNRI foods grouped by exchange group, filtered from the list already loaded
+// for the warnings, with the patient's allergens tagged in red.
+const foodPick = reactive({ key: null, term: '', active: -1 })
+const foodMatches = computed(() => {
+  if (!foodPick.key) return []
+  const term = foodPick.term.trim().toLowerCase()
+  const foods = Object.values(fnriById.value)
+    .filter(f => !term || `${f.name} ${f.local_name || ''}`.toLowerCase().includes(term))
+    .sort((a, b) => (a.category?.sort_order ?? 0) - (b.category?.sort_order ?? 0) || a.name.localeCompare(b.name))
+  const groups = new Map()
+  for (const f of foods) {
+    const name = f.category?.name || 'Other'
+    if (!groups.has(name)) groups.set(name, [])
+    groups.get(name).push(f)
   }
-  if (!match) return
+  return [...groups].map(([group, list]) => ({ group, foods: list }))
+})
+const flatFoodMatches = computed(() => foodMatches.value.flatMap(g => g.foods))
+function openFoodPick(key, value) {
+  foodPick.key = key
+  foodPick.term = value || ''
+  foodPick.active = -1
+}
+function closeFoodPickSoon() {
+  setTimeout(() => { foodPick.key = null }, 120)
+}
+function moveFood(step) {
+  const n = flatFoodMatches.value.length
+  if (!foodPick.key || !n) return
+  foodPick.active = (foodPick.active + step + n) % n
+}
+function pickFood(item, food) {
+  applyFnriItem(item, food)
+  foodPick.key = null
+}
+function pickActiveFood(item, event) {
+  const food = flatFoodMatches.value[foodPick.active]
+  if (foodPick.key && food) {
+    event.preventDefault()
+    pickFood(item, food)
+  }
+}
+// Typing clears any previous FNRI link until a food is picked again. The
+// value comes from the event: this can run before v-model updates item.name.
+function onFoodNameInput(item, value, key) {
+  item.foodItemId = null
+  foodPick.key = key
+  foodPick.term = value || ''
+  foodPick.active = -1
+}
+// A name typed in full (and tabbed out of) still links to its FNRI food.
+function applyFnriMatch(item, value) {
+  const term = (value || '').trim().toLowerCase()
+  if (item.foodItemId || term.length < 2) return
+  const match = Object.values(fnriById.value).find(f => f.name.toLowerCase() === term)
+  if (match) applyFnriItem(item, match)
+}
+// Picking an FNRI food fills 1 exchange's household measure and macros from
+// its FNRI category — the RND can still adjust the numbers.
+function applyFnriItem(item, match) {
   const cat = match.category
   item.name = match.name
   item.foodItemId = match.id
@@ -1176,10 +1285,10 @@ function formatTime(t) {
 .target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
 .target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
 
-.meal-edit-panel { padding: 0; overflow: hidden; margin-bottom: 18px; }
+.meal-edit-panel { padding: 0; margin-bottom: 18px; } /* no overflow:hidden — the food picker list must show past the card */
 .meal-edit-header {
   display: flex; justify-content: space-between; align-items: center;
-  background: #eef5ee; padding: 16px 24px;
+  background: #eef5ee; padding: 16px 24px; border-radius: 12px 12px 0 0;
 }
 .meal-edit-label { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #1a3a1a; letter-spacing: 0.03em; }
 .meal-edit-time { font-size: 0.75rem; color: #7a8a7a; }
@@ -1191,10 +1300,25 @@ function formatTime(t) {
 .food-table-head { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; padding-bottom: 10px; }
 .food-table-head span:first-child { visibility: hidden; }
 .food-table-row { margin-bottom: 12px; }
+.combo { position: relative; min-width: 0; }
+.combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: max(100%, 320px); max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }
+.combo-group { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 6px 8px 2px; }
+.combo-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
+.combo-opt:hover, .combo-opt.on { background: #eef3ec; }
+.combo-meta { font-size: 0.72rem; color: #8a9a8a; white-space: nowrap; }
+.combo-allergy { margin-left: 6px; font-size: 0.62rem; font-weight: 700; color: #b3261e; background: #fdecea; border: 1px solid #f2b8b5; border-radius: 5px; padding: 0 5px; vertical-align: 1px; }
 .food-warn { grid-column: 2 / -1; display: flex; align-items: flex-start; gap: 6px; margin: -4px 0 0; font-size: 0.74rem; font-weight: 600; color: #9a5b00; background: #fff6e5; border: 1px solid #f3dcae; border-radius: 6px; padding: 6px 9px; line-height: 1.4; }
 .food-warn svg { flex-shrink: 0; margin-top: 1px; }
+.food-warn.allergy { color: #b3261e; background: #fdecea; border-color: #f2b8b5; }
 .day-warn-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e0a100; margin-left: 6px; vertical-align: 2px; }
-.send-check { max-width: 520px; }
+.send-check { max-width: 540px; }
+.send-consequence { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 10px 12px; background: #f3f6f3; border-radius: 8px; font-size: 0.82rem; color: #3a4a3a; line-height: 1.5; }
+.send-consequence svg { flex-shrink: 0; margin-top: 2px; }
+.send-section { display: flex; align-items: center; gap: 6px; margin: 12px 0 8px; font-size: 0.8rem; font-weight: 700; color: #7a5a1a; }
+.send-section.allergy { color: #b3261e; }
+.send-check-list.allergy li { background: #fdecea; border-color: #f2b8b5; color: #8c1d18; }
+.allergy-ack { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 0.8rem; font-weight: 600; color: #8c1d18; cursor: pointer; }
+.allergy-ack input { margin-top: 2px; accent-color: #b3261e; }
 .send-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; }
 .send-check-list li { background: #fff6e5; border: 1px solid #f3dcae; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; color: #5a4a2a; display: flex; flex-direction: column; gap: 2px; }
 .send-check-list strong { color: #1a3a1a; font-weight: 700; }
@@ -1317,6 +1441,10 @@ button.saved-plan-card.selected { border-color: #163a1c; }
   .meal-edit-header { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   /* the food editor keeps its columns and scrolls sideways inside the card */
   .food-table { overflow-x: auto; padding: 16px 16px 4px; }
+  .combo-list { position: static; width: 100%; margin-top: 4px; box-shadow: none; }
+  .combo-list { overflow-x: hidden; }
+  .combo-opt { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .combo-meta { white-space: normal; }
   .food-table-head, .food-table-row { min-width: 480px; }
   .btn-add-food { width: calc(100% - 32px); margin: 6px 16px 18px; }
   .add-food-row { margin: 6px 16px 18px; flex-direction: column; }

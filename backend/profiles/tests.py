@@ -78,7 +78,7 @@ class RndConsultationModeTests(TestCase):
         self.client_user = _make_client()
 
     def test_new_rnd_offers_all_modes_by_default(self):
-        self.assertEqual(RndProfile.objects.get(user=self.rnd).consultation_modes, ["video", "chat", "in_person"])
+        self.assertEqual(RndProfile.objects.get(user=self.rnd).consultation_modes, ["video", "in_person"])
 
     def test_search_filters_by_mode(self):
         video_only = _make_rnd(email="video@t.ph")
@@ -93,10 +93,23 @@ class RndConsultationModeTests(TestCase):
     def test_rnd_can_update_own_modes(self):
         self.client_api.force_authenticate(self.rnd)
 
-        resp = self.client_api.patch("/api/rnd/profile/", {"consultation_modes": ["chat", "video", "chat"]}, format="json")
+        resp = self.client_api.patch("/api/rnd/profile/", {"consultation_modes": ["video", "video"]}, format="json")
 
         self.assertEqual(resp.status_code, 200, resp.data)
-        self.assertEqual(resp.data["consultation_modes"], ["video", "chat"])
+        self.assertEqual(resp.data["consultation_modes"], ["video"])
+
+    def test_chat_consultations_are_gone(self):
+        # Removed 2026-10-15: an RND can't offer chat and a client can't book it.
+        from core.test_utils import booking_slot
+
+        self.client_api.force_authenticate(self.rnd)
+        self.assertEqual(self.client_api.patch("/api/rnd/profile/", {"consultation_modes": ["chat"]}, format="json").status_code, 400)
+        self.client_api.force_authenticate(self.client_user)
+        resp = self.client_api.post("/api/client/appointments/", {"rnd_id": self.rnd.id, "type": "chat", "duration_minutes": 60,
+                                                                  "scheduled_at": booking_slot(2).isoformat()}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("aren't offered", str(resp.data))
+        self.assertNotIn("chat", [m["value"] for m in self.client_api.get("/api/client/rnds/options/").data["modes"]])
 
     def test_rnd_can_update_consultation_fee(self):
         self.client_api.force_authenticate(self.rnd)

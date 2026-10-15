@@ -30,7 +30,7 @@ const faqs = [
   { q: 'How are RNDs verified on the platform?', a: 'All RNDs upload a photo of their PRC license during registration, which our admin team verifies against PRC records before their profile goes live.' },
   { q: 'Is my health data kept private?', a: 'Absolutely. NutriMatch is fully RA 10173 (Data Privacy Act) compliant. Your health data is encrypted and never shared without your consent.' },
   { q: 'Which conditions does NutriMatch support?', a: 'NutriMatch supports diabetes, hypertension, renal disease, obesity, malnutrition, and other conditions requiring Medical Nutrition Therapy.' },
-  { q: 'What consultation types are available?', a: 'You can choose from video call, chat-based, or in-person consultations depending on your RND\'s availability and your preference.' },
+  { q: 'What consultation types are available?', a: 'You can choose a video call or an in-person consultation depending on your RND\'s availability and your preference.' },
 ]
 </script>
 

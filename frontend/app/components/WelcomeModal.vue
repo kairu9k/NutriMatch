@@ -63,7 +63,7 @@ const COPY = {
     steps: [
       { icon: Search, title: 'Hanapin ang RND mo', text: 'Pumili ng licensed Registered Nutritionist-Dietitian na kabisado ang pagkaing Pinoy at ang health needs mo.' },
       { icon: CalendarCheck, title: 'Mag-book at magbayad in advance', text: 'Pumili ng oras na swak sa schedule mo, then bayaran ito bago ang session.' },
-      { icon: Video, title: 'Makipag-consult', text: 'Sa video call, chat, o in person — kung saan ka komportable.' },
+      { icon: Video, title: 'Makipag-consult', text: 'Sa video call o in person — kung saan ka komportable.' },
       { icon: UtensilsCrossed, title: 'Sundan ang meal plan mo', text: "Ginawa para sa'yo, meal by meal, gamit ang mga pagkaing gusto mo na." },
       { icon: TrendingUp, title: 'Bantayan ang progress mo', text: 'I-log ang meals mo para makita mo kung gaano ka na kalayo.' },
     ],

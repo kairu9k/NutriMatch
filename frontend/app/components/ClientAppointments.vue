@@ -64,12 +64,11 @@
                 <CreditCard :size="14" /> {{ payingId === appt.payment.invoice_id ? 'Opening checkout…' : `Pay ₱${money(appt.payment.amount)}` }}
               </button>
               <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="btn-dark"><Video :size="14" /> Join Video Call</NuxtLink>
-              <NuxtLink v-if="appt.canOpenChat" :to="`/consultation-room/${appt.id}`" class="btn-dark"><MessageCircle :size="14" /> Join Chat</NuxtLink>
               <!-- Join window: opens 15 min before the start (see join_opens_at). -->
               <button v-if="appt.opensLater" class="btn-dark" type="button" disabled :title="`Opens ${appt.opensLabel}`">
-                <component :is="appt.type === 'chat' ? MessageCircle : Video" :size="14" /> {{ appt.type === 'chat' ? 'Chat' : 'Join' }} opens {{ appt.opensLabel }}
+                <Video :size="14" /> Join opens {{ appt.opensLabel }}
               </button>
-              <NuxtLink v-if="appt.canMessage && !appt.canOpenChat" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" /> Message RND</NuxtLink>
+              <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" /> Message RND</NuxtLink>
               <button class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
                 {{ appt.status === 'pending' ? 'Cancel Request' : 'Cancel' }}
               </button>
@@ -271,8 +270,6 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
   else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} before ${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(start)} to start your consultation. If it isn't paid by then, the booking is cancelled and the slot is released.`
   else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)} — 15 minutes before the start.`
   else if (phase === 'confirmed' && a.type === 'video') hint = a.video_session_url ? 'Your video room is open. You can join now.' : 'Your RND is setting up the video room.'
-  else if (phase === 'confirmed' && a.type === 'chat' && nowMs < opensAt) hint = `Your chat consultation starts at ${clock(start)}. Join Chat appears 15 minutes before.`
-  else if (phase === 'confirmed' && a.type === 'chat') hint = 'Your consultation is happening in Messages now.'
   else if (phase === 'confirmed' && a.type === 'in_person') hint = 'Message your RND if you need the clinic address or directions.'
   else if (phase === 'expired') hint = 'The time passed before your RND confirmed this request.'
   else if (phase === 'ended') hint = 'Your RND will mark this consultation complete.'
@@ -305,8 +302,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     statusClass,
     hint,
     canJoinVideo: phase === 'confirmed' && a.type === 'video' && Boolean(a.video_session_url) && inWindow,
-    canOpenChat: phase === 'confirmed' && a.type === 'chat' && relActive && inWindow,
-    opensLater: phase === 'confirmed' && ['video', 'chat'].includes(a.type) && nowMs < opensAt,
+    opensLater: phase === 'confirmed' && a.type === 'video' && nowMs < opensAt,
     opensLabel: formatJoinTime(opensAt, nowMs),
     needsRoomRefresh: phase === 'confirmed' && a.type === 'video' && inWindow && !a.video_session_url,
     canMessage: relActive,

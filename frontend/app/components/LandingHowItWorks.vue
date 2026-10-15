@@ -53,7 +53,7 @@ const steps = [
   {
     number: '02',
     title: 'Match Your Dietitian',
-    desc: 'Browse verified RNDs by specialty, language, and consultation modality — video, chat, or in-person.',
+    desc: 'Browse verified RNDs by specialty, language, and consultation modality — video call or in-person.',
   },
   {
     number: '03',

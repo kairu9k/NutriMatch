@@ -29,7 +29,7 @@ def _make_client(email="client@t.ph"):
     return onboard_client(User.objects.create_user(email=email, password="x", role="client", first_name="C", last_name="L"))
 
 
-def _booking(rnd, type_="chat"):
+def _booking(rnd, type_="video"):
     return {
         "rnd_id": rnd.id,
         "scheduled_at": booking_slot(1).isoformat(),
@@ -398,7 +398,7 @@ class BookingRuleTests(TestCase):
     def setUp(self):
         from profiles.models import RndAvailabilitySchedule
 
-        self.rnd = _make_rnd(consultation_modes=["video", "chat"], availability=False)
+        self.rnd = _make_rnd(consultation_modes=["video"], availability=False)
         self.client_user = _make_client()
         self.api = APIClient()
         self.api.force_authenticate(self.client_user)
@@ -445,7 +445,7 @@ class BookingRuleTests(TestCase):
         other_api = APIClient()
         other_api.force_authenticate(other)
         for when in (self._at(1), self._at(1, 30)):
-            resp = self._book(when, type_="chat", api=other_api)
+            resp = self._book(when, type_="video", api=other_api)
             self.assertEqual(resp.status_code, 400, when)
         # back-to-back is fine
         self.assertEqual(self._book(self._at(2), api=other_api).status_code, 201)
@@ -472,7 +472,7 @@ class PayBeforeConsultationTests(TestCase):
     """Invoice on confirm -> client pays before the start -> consultation opens."""
 
     def setUp(self):
-        self.rnd = _make_rnd(fee="800.00", consultation_modes=["video", "chat"])
+        self.rnd = _make_rnd(fee="800.00", consultation_modes=["video"])
         self.client_user = _make_client()
         PreConsultationScreening.objects.create(client=self.client_user, height_cm=Decimal("160"), weight_kg=Decimal("60"))
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")

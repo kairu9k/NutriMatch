@@ -94,7 +94,7 @@ class ChatOnlyAfterConfirmTests(TestCase):
             return rel.id in [x["id"] for x in api.get(url, {"include": "ended"}).data]
 
         def book(hour):
-            resp = c.post("/api/client/appointments/", {"rnd_id": rnd.id, "type": "chat", "duration_minutes": 60,
+            resp = c.post("/api/client/appointments/", {"rnd_id": rnd.id, "type": "video", "duration_minutes": 60,
                                                         "scheduled_at": booking_slot(2, hour).isoformat()}, format="json")
             self.assertEqual(resp.status_code, 201, resp.data)
             return resp.data["id"]

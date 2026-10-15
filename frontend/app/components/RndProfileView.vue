@@ -257,7 +257,7 @@
 <script setup>
 import {
   BadgeCheck, CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Info, Languages,
-  MapPin, MessageSquare, RotateCcw, ShieldCheck, Star, Users, Video, X,
+  MapPin, RotateCcw, ShieldCheck, Star, Users, Video, X,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -392,7 +392,6 @@ onMounted(async () => {
 const bookingModalOpen = ref(false)
 const formats = [
   { key: 'video', label: 'Video call', short: 'Video', icon: Video, how: 'Right in your browser — no app to install. The Join button appears in My Appointments 15 minutes before the start, once you\'ve paid.' },
-  { key: 'chat', label: 'Chat consultation', short: 'Chat', icon: MessageSquare, how: 'A live text session in NutriMatch Messages at your booked time.' },
   { key: 'in_person', label: 'In-person', short: 'In-person', icon: MapPin, how: 'Visit the clinic at your booked time.' },
 ]
 // In-person needs a clinic address on file (the API refuses it otherwise).

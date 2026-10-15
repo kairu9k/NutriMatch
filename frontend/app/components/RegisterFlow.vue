@@ -641,7 +641,7 @@ const LANGUAGES = [
   { code: 'bcl', name: 'Bicolano' },
 ]
 const languageName = (code) => LANGUAGES.find(l => l.code === code)?.name || code
-const MODE_LABELS = { video: 'Video call', chat: 'Chat', in_person: 'In-person' }
+const MODE_LABELS = { video: 'Video call', in_person: 'In-person' }
 const MIN_FEE = 100
 const bioError = computed(() => {
   const len = form.bio.trim().length

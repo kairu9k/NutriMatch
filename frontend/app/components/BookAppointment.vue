@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-import { Video, MessageSquare, MapPin } from 'lucide-vue-next'
+import { Video, MapPin } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 const route = useRoute()
@@ -91,7 +91,6 @@ const submitError = ref('')
 
 const typeOptions = [
   { value: 'video', label: 'Video', icon: Video },
-  { value: 'chat', label: 'Chat', icon: MessageSquare },
   { value: 'in_person', label: 'In-Person', icon: MapPin },
 ]
 

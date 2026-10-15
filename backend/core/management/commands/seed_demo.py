@@ -68,7 +68,7 @@ RNDS = [
         "key": "maria", "dob": date(1988, 6, 14), "first_name": "Maria", "last_name": "Santos",
         "specialization": "Diabetes & Weight Management",
         "bio": "Registered Nutritionist-Dietitian with 8 years of clinical experience helping Filipino adults manage type 2 diabetes and lose weight through practical, rice-aware meal plans.",
-        "fee": Decimal("800"), "modes": ["video", "chat", "in_person"], "languages": ["en", "tl", "ceb"],
+        "fee": Decimal("800"), "modes": ["video", "in_person"], "languages": ["en", "tl", "ceb"],
         "clinic": "Unit 204, Bajada Medical Arts Bldg, J.P. Laurel Ave, Bajada, Davao City",
         # Every day 8 AM–9 PM so a same-day booking can be demoed at almost any time.
         "availability": [(d, time(8), time(21)) for d in range(7)],
@@ -86,7 +86,7 @@ RNDS = [
         "key": "angela", "dob": date(1993, 8, 21), "first_name": "Angela", "last_name": "Villanueva",
         "specialization": "Sports Nutrition",
         "bio": "Works with athletes and active adults on performance nutrition, body composition and recovery. Currently at full capacity.",
-        "fee": Decimal("600"), "modes": ["video", "chat"], "languages": ["en", "tl"],
+        "fee": Decimal("600"), "modes": ["video"], "languages": ["en", "tl"],
         "availability": [(d, time(8), time(12)) for d in (1, 3, 5)],
         "verified": True, "accepting": False, "prc": "0345678",
     },
@@ -103,7 +103,7 @@ RNDS = [
         "key": "kristine", "dob": date(1999, 5, 27), "first_name": "Kristine", "last_name": "Bautista",
         "specialization": "Cardiovascular Nutrition",
         "bio": "Newly registered RND focused on heart-healthy eating and cholesterol management.",
-        "fee": Decimal("750"), "modes": ["video", "chat"], "languages": ["en", "tl"],
+        "fee": Decimal("750"), "modes": ["video"], "languages": ["en", "tl"],
         "availability": [(d, time(9), time(15)) for d in (1, 3, 5)],
         "verified": False, "accepting": True, "prc": "0567890",  # pending admin review (+ a license photo)
     },

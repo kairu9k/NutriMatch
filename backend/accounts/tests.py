@@ -19,7 +19,7 @@ from .models import EmailVerificationCode, PasswordResetCode, User
 RND_APPLICATION = {
     "bio": "Registered Nutritionist-Dietitian helping adults manage diabetes with practical Filipino meals.",
     "consultation_fee": "800.00",
-    "consultation_modes": '["video", "chat"]',
+    "consultation_modes": '["video"]',
     "languages": '["en", "tl"]',
     "availability": '[{"day_of_week": 1, "start_time": "09:00", "end_time": "12:00"}]',
 }

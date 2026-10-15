@@ -33,7 +33,7 @@ const features = [
   },
   {
     title: 'Client-RND Matching',
-    desc: 'Filter by specialty, language (Tagalog, Cebuano, Ilocano), and consultation mode — video, chat, in-person.',
+    desc: 'Filter by specialty, language (Tagalog, Cebuano, Ilocano), and consultation mode — video call or in-person.',
     img: 'https://images.unsplash.com/photo-1543362906-acfc16c67564?w=400&q=80',
   },
   {

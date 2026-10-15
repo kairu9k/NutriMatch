@@ -120,14 +120,14 @@
 
 <script setup>
 import {
-  BadgeCheck, CalendarClock, ChevronLeft, ChevronRight, MapPin, MessageCircle, Search, SearchX, SlidersHorizontal, Users, Video,
+  BadgeCheck, CalendarClock, ChevronLeft, ChevronRight, MapPin, Search, SearchX, SlidersHorizontal, Users, Video,
 } from 'lucide-vue-next'
 
 const { get } = useApi()
 
 const PAGE_SIZE = 6
-const MODE_ICONS = { video: Video, chat: MessageCircle, in_person: Users }
-const MODE_LABELS = { video: 'Video', chat: 'Chat', in_person: 'In-person' }
+const MODE_ICONS = { video: Video, in_person: Users }
+const MODE_LABELS = { video: 'Video', in_person: 'In-person' }
 
 const options = ref({ specializations: [], languages: [], modes: [] })
 const search = ref('')

@@ -180,6 +180,13 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_type(self, value):
+        # Chat consultations were removed (adviser's call, 2026-10-15) — the
+        # type stays only so past chat consultations still display.
+        if value == Appointment.Type.CHAT:
+            raise serializers.ValidationError("Chat consultations aren't offered. Choose a video call or in-person visit.")
+        return value
+
     def validate_scheduled_at(self, value):
         if value < timezone.now() + timedelta(minutes=MIN_BOOKING_LEAD_MINUTES):
             raise serializers.ValidationError(f"Pick a time at least {MIN_BOOKING_LEAD_MINUTES} minutes from now.")

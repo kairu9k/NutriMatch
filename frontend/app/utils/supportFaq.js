@@ -13,7 +13,7 @@ export const SUPPORT_FAQ = {
   client: [
     {
       q: 'How do I book a consultation?',
-      a: 'Open Find an RND, pick a dietitian and press Book. Choose an open time and the format (video, chat or in person). Your RND confirms the booking, and then you can pay.',
+      a: 'Open Find an RND, pick a dietitian and press Book. Choose an open time and the format (video call or in person). Your RND confirms the booking, and then you can pay.',
       link: { label: 'Find an RND', to: '/find-rnd' },
     },
     {

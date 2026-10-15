@@ -34,7 +34,7 @@
         <ol class="journey">
           <li><span class="j-num">1</span><div><strong>Kilalanin ka namin</strong><p>Ang basic details at health background mo — kasama ang food allergies, kung meron.</p></div></li>
           <li><span class="j-num">2</span><div><strong>Mabilis na health screening</strong><p>Height, weight, at activity mo, para ma-estimate ang BMI at daily calorie needs mo.</p></div></li>
-          <li><span class="j-num">3</span><div><strong>Hanapin ang RND mo at mag-book</strong><p>Pumili ng licensed Registered Nutritionist-Dietitian, magbayad bago ang session, then mag-consult sa video, chat, o in person.</p></div></li>
+          <li><span class="j-num">3</span><div><strong>Hanapin ang RND mo at mag-book</strong><p>Pumili ng licensed Registered Nutritionist-Dietitian, magbayad bago ang session, then mag-consult sa video call o in person.</p></div></li>
         </ol>
         <p class="privacy">
           <ShieldCheck :size="15" /> Safe ang health information mo — sa RND mo lang ito ise-share, ayon sa Data Privacy Act of 2012 (RA 10173).

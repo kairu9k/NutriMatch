@@ -297,7 +297,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Briefcase, BadgeCheck,
   Star, CalendarClock, X, Languages,
-  Video, MessageCircle, Users, Lock, FileImage, Pencil, Check, CheckCircle2
+  Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2
 } from 'lucide-vue-next'
 import { db } from '~/mock/mockDatabase'
 
@@ -325,7 +325,6 @@ const auth = useAuthStore()
 
 const MODE_OPTIONS = [
   { value: 'video', label: 'Video', icon: Video },
-  { value: 'chat', label: 'Chat', icon: MessageCircle },
   { value: 'in_person', label: 'In-Person', icon: Users },
 ]
 

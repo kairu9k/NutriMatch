@@ -2,8 +2,11 @@ from django.conf import settings
 from django.db import models
 
 
-# Mirrors scheduling.Appointment.Type values.
-CONSULTATION_MODES = ["video", "chat", "in_person"]
+# Formats an RND can offer — video or in-person. Chat consultations were
+# removed (adviser's call, 2026-10-15); Appointment.Type keeps "chat" only so
+# past chat consultations still display. Messages between a client and their
+# RND are separate and stay.
+CONSULTATION_MODES = ["video", "in_person"]
 
 
 def default_consultation_modes():

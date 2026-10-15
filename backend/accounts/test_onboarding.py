@@ -53,7 +53,7 @@ class RndApplicationTests(TestCase):
         self.assertEqual(profile.review_status, "pending")
         self.assertFalse(profile.is_verified)
         self.assertEqual(profile.consultation_fee, Decimal("800.00"))
-        self.assertEqual(profile.consultation_modes, ["video", "chat"])
+        self.assertEqual(profile.consultation_modes, ["video"])
         self.assertIn("diabetes", profile.bio)
         self.assertEqual(sorted(RndLanguage.objects.filter(rnd=user).values_list("language_code", flat=True)), ["en", "tl"])
         block = RndAvailabilitySchedule.objects.get(rnd=user)

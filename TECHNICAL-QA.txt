@@ -16,7 +16,7 @@ A: Through PayMongo, a licensed Philippine payment gateway. When the RND
 Q: When does the client pay?
 A: Before the consultation. The invoice is created when the RND confirms,
    and the client can pay any time before the scheduled start.
-   - Until it's paid, the client gets NO video/chat link (the Join button
+   - Until it's paid, the client gets NO video link (the Join button
      is hidden and the server doesn't send the room link).
    - If it's still unpaid at the start time, the system automatically
      cancels the appointment, voids the invoice, and notifies both sides.
@@ -113,7 +113,7 @@ A: - At least 10 minutes in the future (no past times).
      of their hours; not during the RND's blocked time off.
    - No overlap with the RND's or the client's other bookings
      (taken times show greyed out as "Booked").
-   - The RND must offer that format (video / chat / in-person); in-person
+   - The RND must offer that format (video call or in-person); in-person
      needs a clinic address.
    - Client must finish onboarding (health background + screening) first.
    - One RND at a time: a client with an active RND can't book another
@@ -128,8 +128,9 @@ A: Book -> RND reviews screening and confirms (or declines with reason) ->
 Q: How do video calls work?
 A: Jitsi Meet (free, no account needed). Each appointment gets a random,
    unguessable room name, and the link is only given to the client after
-   payment and inside the join window. Chat consultations use our own
-   in-app chat in the same room page.
+   payment and inside the join window. Consultations are video call or
+   in-person only (chat consultations were removed on our adviser's advice);
+   the in-app Messages chat is for questions between consultations.
 
 ======================================================================
 5. CLINICAL PART (NCP, calculations, meal plans)

@@ -167,7 +167,7 @@ class PublicRndDetailSerializer(PublicRndProfileSerializer):
         return {str(star): counts.get(star, 0) for star in (5, 4, 3, 2, 1)}
 
 
-MODE_LABELS = [("video", "Video call"), ("chat", "Chat"), ("in_person", "In-person")]
+MODE_LABELS = [("video", "Video call"), ("in_person", "In-person")]
 
 
 def search_options():
