@@ -397,9 +397,9 @@ onMounted(async () => {
 .link-btn { background: none; border: none; color: #cfe0d5; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
 .link-btn:hover { color: #fff; text-decoration: underline; }
 
-.onb-main { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
-.onb-steps { list-style: none; padding: 0; margin: 0 0 20px; display: flex; gap: 8px; }
-.onb-step { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #8a9a8a; font-weight: 600; min-width: 0; }
+.onb-main { max-width: 720px; margin: 0 auto; padding: 35px 16px 60px; }
+.onb-steps { list-style: none; padding: 0; margin: 0 0 20px; display: flex; gap: 15px; }
+.onb-step { flex: 1; display: flex; align-items: center; gap: 15px; font-size: 0.78rem; color: #8a9a8a; font-weight: 600; min-width: 0; }
 .onb-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #d5dad5; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; background: #fff; }
 .onb-step.active { color: #1a3a1a; }
 .onb-step.active .onb-dot { border-color: #1a3a1a; background: #1a3a1a; color: #fff; }
@@ -407,17 +407,17 @@ onMounted(async () => {
 .onb-step-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 28px; }
-.eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8860b; margin: 0 0 6px; }
-.title { font-family: 'Playfair Display', serif; font-size: 1.6rem; margin: 0 0 8px; line-height: 1.25; }
-.lead { font-size: 0.92rem; color: #4a5a4a; margin: 0 0 22px; line-height: 1.55; }
+.eyebrow { font-size: 1.0rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8860b; margin: 0 0 6px; }
+.title { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 0 0 8px; line-height: 1.25; }
+.lead { font-size: 1.25rem; color: #4a5a4a; margin: 0 0 22px; line-height: 1.55; }
 .muted { color: #8a9a8a; font-size: 0.88rem; margin: 0; }
 
 .journey { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-direction: column; gap: 14px; }
 .journey li { display: flex; gap: 14px; align-items: flex-start; }
-.journey strong { font-size: 0.92rem; }
+.journey strong { font-size: 1.1rem; }
 .journey p { margin: 3px 0 0; font-size: 0.84rem; color: #6a7a6a; line-height: 1.5; }
 .j-num { width: 30px; height: 30px; border-radius: 50%; background: #eef3ec; color: #1e4a26; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.privacy { display: flex; gap: 8px; align-items: flex-start; font-size: 0.8rem; color: #3a6b4a; background: #f0f9f4; border-radius: 10px; padding: 10px 14px; margin: 0 0 4px; line-height: 1.5; }
+.privacy { display: flex; gap: 8px; align-items: flex-start; font-size: 0.95rem; color: #3a6b4a; background: #f0f9f4; border-radius: 10px; padding: 10px 14px; margin: 0 0 4px; line-height: 1.5; }
 .privacy svg { flex-shrink: 0; margin-top: 2px; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }

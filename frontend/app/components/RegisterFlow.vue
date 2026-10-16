@@ -367,24 +367,16 @@
             You'll be able to sign in once it's approved.
           </p>
 
-          <!-- Informed consent (RA 10173) — both required; recorded on the
-               account and in the audit log by the API. -->
+          <!-- Informed consent (RA 10173) — one checkbox; it stays locked until
+               both the Terms and the Privacy Policy links were opened, then
+               ticks itself. Recorded on the account and in the audit log by the API. -->
           <div class="consent-box">
-            <label class="consent-item">
-              <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting" />
+            <label class="consent-item" :class="{ 'is-locked': !termsViewed }">
+              <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting || !termsViewed" />
               <span>
                 I have read and agree to the
-                <a href="/terms" target="_blank" rel="noopener">Terms and Conditions</a> and
-                <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
-              </span>
-            </label>
-            <label class="consent-item">
-              <input v-model="consent.data" type="checkbox" :disabled="isSubmitting" />
-              <span>
-                I consent to NutriMatch collecting and processing my personal and health information
-                {{ selectedRole === 'rnd' ? '(including my PRC license photo, for verification)' : '(including my screening and nutrition records)' }}
-                to provide nutrition care services, as described in the Privacy Policy, in accordance with
-                Republic Act No. 10173 (Data Privacy Act of 2012).
+                <a href="/terms" target="_blank" rel="noopener" @click="viewed.terms = true">Terms and Conditions</a> and
+                <a href="/privacy-policy" target="_blank" rel="noopener" @click="viewed.privacy = true">Privacy Policy</a>.
               </span>
             </label>
           </div>
@@ -472,8 +464,15 @@ const form = reactive({
   clinicAddress: '',
 })
 
-// Both consent checkboxes on the Confirm step must be ticked to register.
+// The Confirm step has one checkbox (terms + privacy). consent.data mirrors it
+// so the API still receives data_privacy_consent.
 const consent = reactive({ terms: false, data: false })
+// The checkbox stays locked until both the Terms and the Privacy Policy links
+// were clicked; once they both were, it ticks itself.
+const viewed = reactive({ terms: false, privacy: false })
+const termsViewed = computed(() => viewed.terms && viewed.privacy)
+watch(termsViewed, v => { if (v) consent.terms = true })
+watch(() => consent.terms, v => { consent.data = v })
 const consentGiven = computed(() => consent.terms && consent.data)
 
 const MAX_LICENSE_BYTES = 5 * 1024 * 1024
@@ -1136,6 +1135,8 @@ async function resendCode() {
 .consent-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; color: #4a5a4a; line-height: 1.5; cursor: pointer; text-transform: none; letter-spacing: normal; font-weight: 400; }
 .consent-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #1a3a1a; flex-shrink: 0; cursor: pointer; }
 .consent-item a { color: #1a3a1a; font-weight: 700; text-decoration: underline; }
+.consent-item.is-locked { cursor: default; }
+.consent-item input:disabled { opacity: 0.5; cursor: not-allowed; }
 .field-error { display: block; font-size: 0.74rem; color: #c0392b; margin-top: 5px; }
 input.invalid, select.invalid { border-color: #e2a39b !important; background: #fff8f7; }
 .pw-rules { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
