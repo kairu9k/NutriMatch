@@ -429,11 +429,12 @@ const nextStep = computed(() => {
   if (appt?.status === 'confirmed') {
     const when = `${formatLongDate(appt.scheduled_at)} at ${formatTime(appt.scheduled_at)}`
     // The API only sends the room link inside the join window (15 min early).
-    const canJoin = appt.type === 'video' && appt.video_session_url
+    const canJoin = (appt.type === 'video' && appt.video_session_url)
+      || (appt.type === 'chat' && appt.payment?.status === 'paid' && Date.now() >= new Date(appt.join_opens_at) && Date.now() <= new Date(appt.join_closes_at))
     return {
       eyebrow: 'UPCOMING CONSULTATION',
       text: `${APPT_TYPES[appt.type] || ''} consultation with ${rndName} on ${when}.`,
-      action: canJoin ? 'Join Video Call' : 'View Appointment',
+      action: canJoin ? (appt.type === 'chat' ? 'Join Chat' : 'Join Video Call') : 'View Appointment',
       to: canJoin ? `/consultation-room/${appt.id}` : '/appointments',
     }
   }
@@ -838,5 +839,45 @@ function phClock(iso) {
   .panel { padding: 18px 16px; }
   .adherence-row { grid-template-columns: 1fr; gap: 8px; }
   .macro-source { margin-left: 0; width: 100%; }
+}
+
+/* ===== BANNER "UP NEXT" CARD — frosted glass instead of white, gold primary button ===== */
+.nm-upnext {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+}
+
+/* "YOUR NEXT STEP" / "Up next · time" label */
+.nm-upnext-label { color: #f0c15b; }
+
+/* Text inside the card (empty state + booked-consultation state) */
+.nm-upnext-empty,
+.nm-upnext-name { color: #fff; }
+.nm-upnext-format { color: rgba(255, 255, 255, 0.7); }
+
+/* RND avatar + payment pill (only shows when a consultation is booked) */
+.nm-upnext-avatar { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.nm-upnext-pay { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.nm-upnext-pay.unpaid { background: rgba(240, 193, 91, 0.2); color: #f0c15b; }
+
+/* Buttons */
+.nm-upnext .nm-hero-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+.nm-upnext .nm-hero-btn:hover { background: rgba(255, 255, 255, 0.12); }
+
+.nm-upnext .nm-hero-btn.primary {
+  background: #f2b61f;
+  border-color: #f2b61f;
+  color: #0a4a37;
+}
+.nm-upnext .nm-hero-btn.primary:hover {
+  background: #e0a410;
+  border-color: #e0a410;
 }
 </style>

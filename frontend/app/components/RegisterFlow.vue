@@ -367,26 +367,37 @@
             You'll be able to sign in once it's approved.
           </p>
 
-          <!-- Informed consent (RA 10173) — both required; recorded on the
-               account and in the audit log by the API. -->
+          <!-- Informed consent (RA 10173) — one checkbox; it stays locked until
+               both the Terms and the Privacy Policy links were opened, then
+               ticks itself. Recorded on the account and in the audit log by the API. -->
           <div class="consent-box">
-            <label class="consent-item">
-              <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting" />
+            <label class="consent-item" :class="{ 'is-locked': !termsViewed }">
+              <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting || !termsViewed" />
               <span>
                 I have read and agree to the
-                <a href="/terms" target="_blank" rel="noopener">Terms and Conditions</a> and
-                <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
+                <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and
+                <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a>.
               </span>
             </label>
-            <label class="consent-item">
-              <input v-model="consent.data" type="checkbox" :disabled="isSubmitting" />
-              <span>
-                I consent to NutriMatch collecting and processing my personal and health information
-                {{ selectedRole === 'rnd' ? '(including my PRC license photo, for verification)' : '(including my screening and nutrition records)' }}
-                to provide nutrition care services, as described in the Privacy Policy, in accordance with
-                Republic Act No. 10173 (Data Privacy Act of 2012).
-              </span>
-            </label>
+          </div>
+
+          <!-- Terms / Privacy pop-up: opens by itself on this step and when a link
+               is clicked. Showing both tabs unlocks and ticks the checkbox. -->
+          <div v-if="legalOpen" class="legal-overlay" @click.self="legalOpen = false">
+            <div class="legal-modal" role="dialog" aria-modal="true" aria-label="Terms and Conditions and Privacy Policy">
+              <div class="legal-head">
+                <div class="legal-tabs">
+                  <button type="button" class="legal-tab" :class="{ active: legalTab === 'terms' }" @click="openLegal('terms')">Terms and Conditions</button>
+                  <button type="button" class="legal-tab" :class="{ active: legalTab === 'privacy' }" @click="openLegal('privacy')">Privacy Policy</button>
+                </div>
+                <button type="button" class="legal-close" aria-label="Close" @click="legalOpen = false">✕</button>
+              </div>
+              <iframe class="legal-frame" :class="{ ready: legalReady }" :src="legalTab === 'terms' ? '/terms' : '/privacy-policy'" :title="legalTab === 'terms' ? 'Terms and Conditions' : 'Privacy Policy'" @load="trimLegalFrame"></iframe>
+              <div class="legal-foot">
+                <p class="legal-hint">{{ termsViewed ? 'Thanks! The checkbox is now ticked.' : 'Open both tabs to continue.' }}</p>
+                <button type="button" class="btn-primary legal-done" @click="legalOpen = false">{{ termsViewed ? 'Done' : 'Close' }}</button>
+              </div>
+            </div>
           </div>
 
           <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -472,8 +483,45 @@ const form = reactive({
   clinicAddress: '',
 })
 
-// Both consent checkboxes on the Confirm step must be ticked to register.
+// The Confirm step has one checkbox (terms + privacy). consent.data mirrors it
+// so the API still receives data_privacy_consent.
 const consent = reactive({ terms: false, data: false })
+// The checkbox stays locked until both the Terms and the Privacy Policy links
+// were clicked; once they both were, it ticks itself.
+const viewed = reactive({ terms: false, privacy: false })
+const termsViewed = computed(() => viewed.terms && viewed.privacy)
+watch(termsViewed, v => { if (v) consent.terms = true })
+watch(() => consent.terms, v => { consent.data = v })
+// Terms / Privacy pop-up: opens on its own when the Confirm step shows, and
+// when either link is clicked. Opening a tab counts as viewing it.
+const legalOpen = ref(false)
+const legalTab = ref('terms')
+// The page stays hidden until the site navbar/footer inside it were removed,
+// so Login / Get started never flash on screen.
+const legalReady = ref(false)
+function openLegal(tab) {
+  if (!legalOpen.value || legalTab.value !== tab) legalReady.value = false
+  legalTab.value = tab
+  viewed[tab] = true
+  legalOpen.value = true
+}
+watch(currentStep, v => { if (v === 3 && !consent.terms) openLegal('terms') })
+// The /terms and /privacy-policy pages come with the site navbar (Login / Get
+// started) and footer; hide them so the pop-up only shows the document.
+function trimLegalFrame(e) {
+  try {
+    const doc = e.target.contentDocument
+    if (!doc?.head) return
+    const style = doc.createElement('style')
+    style.textContent = 'nav, footer, header:has(nav), [class*="navbar" i] { display: none !important; } html, body { margin-top: 0 !important; }'
+    doc.head.appendChild(style)
+    // Give the page a moment to render its navbar so the rule above hides it
+    // before the pop-up shows anything.
+    setTimeout(() => { legalReady.value = true }, 250)
+  } catch {
+    legalReady.value = true // not readable: show the page as it is
+  }
+}
 const consentGiven = computed(() => consent.terms && consent.data)
 
 const MAX_LICENSE_BYTES = 5 * 1024 * 1024
@@ -1136,6 +1184,20 @@ async function resendCode() {
 .consent-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; color: #4a5a4a; line-height: 1.5; cursor: pointer; text-transform: none; letter-spacing: normal; font-weight: 400; }
 .consent-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #1a3a1a; flex-shrink: 0; cursor: pointer; }
 .consent-item a { color: #1a3a1a; font-weight: 700; text-decoration: underline; }
+.consent-item.is-locked { cursor: default; }
+.consent-item input:disabled { opacity: 0.5; cursor: not-allowed; }
+.legal-overlay { position: fixed; inset: 0; background: rgba(10, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+.legal-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 1100px; height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+.legal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e5e8e5; }
+.legal-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.legal-tab { border: 1px solid #dde3dd; background: #fff; color: #4a5a4a; border-radius: 999px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; font-family: inherit; cursor: pointer; }
+.legal-tab.active { background: #1a3a1a; border-color: #1a3a1a; color: #fff; }
+.legal-close { border: none; background: none; font-size: 1rem; color: #6a7a6a; cursor: pointer; padding: 4px 8px; }
+.legal-frame { flex: 1; width: 100%; border: none; background: #fff; opacity: 0; transition: opacity 0.15s ease; }
+.legal-frame.ready { opacity: 1; }
+.legal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid #e5e8e5; }
+.legal-hint { margin: 0; font-size: 0.78rem; color: #6a7a6a; }
+.btn-primary.legal-done { width: auto; margin-top: 0; padding: 11px 26px; }
 .field-error { display: block; font-size: 0.74rem; color: #c0392b; margin-top: 5px; }
 input.invalid, select.invalid { border-color: #e2a39b !important; background: #fff8f7; }
 .pw-rules { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }

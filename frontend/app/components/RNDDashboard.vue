@@ -492,4 +492,54 @@ function nameInitials(name) {
   .sched-end { width: 100%; padding-left: 78px; }
   .chart-figure { text-align: left; }
 }
+
+/* ===== BANNER "UP NEXT" CARD — frosted glass instead of white, gold primary button ===== */
+.nm-upnext {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+}
+
+/* "UP NEXT · MON, OCT 19, 3:00 PM" label */
+.nm-upnext-label { color: #f0c15b; }
+
+/* Text inside the card */
+.nm-upnext-empty,
+.nm-upnext-name { color: #fff; }
+.nm-upnext-format { color: rgba(255, 255, 255, 0.7); }
+
+/* Patient avatar + payment pill */
+.nm-upnext-avatar { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.nm-upnext-pay { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.nm-upnext-pay.unpaid { background: rgba(240, 193, 91, 0.2); color: #f0c15b; }
+
+/* Buttons ("Open patient", "View appointments") */
+.nm-upnext .nm-hero-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+.nm-upnext .nm-hero-btn:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* "Join now" — solid gold */
+.nm-upnext .nm-hero-btn.primary {
+  background: #f2b61f;
+  border-color: #f2b61f;
+  color: #0a4a37;
+}
+.nm-upnext .nm-hero-btn.primary:hover {
+  background: #e0a410;
+  border-color: #e0a410;
+}
+
+/* "Join opens Mon 2:45 PM" — not clickable yet, so softer gold outline */
+.nm-upnext .nm-hero-btn.primary.waiting,
+.nm-upnext .nm-hero-btn.primary.waiting:hover {
+  background: rgba(242, 182, 31, 0.16);
+  border-color: rgba(242, 182, 31, 0.5);
+  color: #f0c15b;
+  cursor: default;
+}
 </style>
