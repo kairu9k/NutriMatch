@@ -168,7 +168,24 @@
             </div>
             <p v-else class="empty-note">No weight history yet — this starts from your screening and fills in as you or your RND record your progress.</p>
           </div>
+
+          <!-- LATEST SCREENING -->
+          <div class="panel">
+            <h3 class="panel-title">Your Screening</h3>
+            <template v-if="screening">
+              <p class="screening-summary-text">
+                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
+              </p>
+              <button type="button" class="block-btn" @click="screeningOpen = true">View Screening</button>
+            </template>
+            <template v-else>
+              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
+            </template>
+          </div>
+
         </div>
+
 
         <div class="dash-col">
           <!-- YOUR RND (compact, top of the column) -->
@@ -223,7 +240,7 @@
               <p v-if="addError" class="add-error">{{ addError }}</p>
             </form>
 
-            <template v-for="(item, i) in todayItems" :key="item.id ? `t${item.id}` : i">
+            <template v-for="(item, i) in todayItems" :key="item.id ? `${item.kind}${item.id}` : i">
               <label v-if="item.kind === 'task'" class="today-row task" :class="{ done: item.done }">
                 <input type="checkbox" class="task-check" :checked="item.done" @change="toggleTask(item, $event.target.checked)" />
                 <span class="today-main">
@@ -234,17 +251,20 @@
                 <button v-if="item.own" type="button" class="task-x" aria-label="Delete task" @click.prevent="removeTask(item)"><X :size="13" /></button>
               </label>
               <NuxtLink v-else :to="item.link" class="today-row" :class="{ done: item.done }">
-                <span v-if="item.kind === 'meal'" class="task-check meal" :class="{ on: item.done }" aria-hidden="true"><Check v-if="item.done" :size="12" /></span>
+                <span v-if="item.kind === 'meal' || item.kind === 'lab'" class="task-check meal" :class="{ on: item.done }" aria-hidden="true"><Check v-if="item.done" :size="12" /></span>
                 <span v-else class="today-icon" :class="'k-' + item.kind"><component :is="TODAY_ICONS[item.kind]" :size="15" /></span>
                 <span class="today-main">
                   <span class="today-title">{{ item.title }}</span>
                   <span v-if="item.detail" class="today-detail">{{ item.detail }}</span>
                 </span>
-                <span class="today-time">{{ phClock(item.at) }}</span>
+                <span v-if="item.kind !== 'lab'" class="today-time">{{ phClock(item.at) }}</span>
               </NuxtLink>
             </template>
             <p v-if="todayLoaded && !todayItems.length" class="empty-note">No tasks for today. Tasks from your RND, meals to log and your own tasks show up here.</p>
           </div>
+
+          <!-- UPLOAD LAB RESULTS (only once the client has an RND) -->
+          <LabResultsCard @uploaded="loadToday" />
 
           <!-- RECENT ACTIVITY (real notifications) -->
           <div class="panel">
@@ -262,20 +282,7 @@
             <p v-if="!recentActivity.length" class="empty-note">Nothing yet — updates about your bookings, meal plans and payments show up here.</p>
           </div>
 
-          <!-- LATEST SCREENING -->
-          <div class="panel">
-            <h3 class="panel-title">Your Screening</h3>
-            <template v-if="screening">
-              <p class="screening-summary-text">
-                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
-              </p>
-              <button type="button" class="block-btn" @click="screeningOpen = true">View Screening</button>
-            </template>
-            <template v-else>
-              <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
-            </template>
-          </div>
+          
         </div>
       </section>
     </template>
@@ -635,7 +642,7 @@ async function loadToday() {
 onMounted(loadToday)
 
 // My tasks: tick off tasks (POST /client/reminders/<id>/check/), add your own.
-const checkable = computed(() => todayItems.value.filter(i => i.kind === 'task' || i.kind === 'meal'))
+const checkable = computed(() => todayItems.value.filter(i => ['task', 'meal', 'lab'].includes(i.kind)))
 const taskCount = computed(() => checkable.value.length)
 const doneCount = computed(() => checkable.value.filter(i => i.done).length)
 async function toggleTask(item, done) {

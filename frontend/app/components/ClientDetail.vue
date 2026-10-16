@@ -26,6 +26,7 @@
             <MessageSquare :size="15" /> {{ p.status === 'discharged' ? 'Message history' : 'Message' }}
             <span v-if="p.unread_messages" class="pb-badge">{{ p.unread_messages }}</span>
           </NuxtLink>
+          <button v-if="p.status === 'active'" type="button" class="pb-btn" @click="requestLabs"><FlaskConical :size="15" /> Request lab tests</button>
           <button v-if="p.status === 'active'" type="button" class="pb-btn" @click="showDischarge = true">Discharge</button>
         </div>
       </section>
@@ -198,9 +199,27 @@
               </template>
               <p v-else class="nm-muted">No progress recorded yet.</p>
             </div>
+
+            <!-- lab results -->
+            <div class="nm-panel">
+              <div class="nm-panel-head">
+                <h2 class="nm-panel-title">Lab results</h2>
+                <button type="button" class="nm-panel-link" @click="setTab('labs')">{{ s.labs.total_results ? 'View →' : (p.status === 'active' ? 'Request →' : 'Open →') }}</button>
+              </div>
+              <p v-if="s.labs.new_results" class="labs-new"><FlaskConical :size="14" /> {{ s.labs.new_results }} new lab result{{ s.labs.new_results === 1 ? '' : 's' }} to review</p>
+              <p v-for="r in s.labs.open" :key="r.id" class="nm-row-sub">Requested: {{ r.test_names.join(', ') }} — waiting for the patient</p>
+              <p v-if="!s.labs.total_results && !s.labs.open.length" class="nm-muted">No lab results yet.</p>
+              <p v-else-if="s.labs.total_results && !s.labs.new_results" class="nm-muted">{{ s.labs.total_results }} result{{ s.labs.total_results === 1 ? '' : 's' }}, all reviewed.</p>
+            </div>
           </div>
         </div>
       </template>
+
+      <!-- ===================== LAB RESULTS ===================== -->
+      <RndLabsTab
+        v-else-if="tab === 'labs'" ref="labsTab" :relationship-id="relationshipId" :patient-first-name="p.client.first_name"
+        :can-edit="p.status === 'active'" :open-request="labsAutoOpen" @changed="refresh" @auto-opened="labsAutoOpen = false"
+      />
 
       <!-- ===================== NCP RECORDS ===================== -->
       <div v-else-if="tab === 'ncp'" class="nm-panel">
@@ -452,7 +471,7 @@
 
 <script setup>
 import {
-  Activity, AlertTriangle, Check, CheckCircle2, FileText, Info, Lock, MessageSquare, OctagonAlert, Plus, Scale, ShieldAlert, Utensils, Video,
+  Activity, AlertTriangle, Check, CheckCircle2, FileText, FlaskConical, Info, Lock, MessageSquare, OctagonAlert, Plus, Scale, ShieldAlert, Utensils, Video,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -496,7 +515,7 @@ onMounted(async () => {
 })
 
 /* ---------- tabs (?tab= deep links from other pages) ---------- */
-const TAB_KEYS = ['overview', 'ncp', 'meal', 'progress', 'appointments', 'reminders']
+const TAB_KEYS = ['overview', 'ncp', 'meal', 'progress', 'labs', 'appointments', 'reminders']
 const tab = ref(TAB_KEYS.includes(route.query.tab) ? route.query.tab : 'overview')
 function setTab(k) {
   tab.value = k
@@ -507,9 +526,19 @@ const TABS = computed(() => [
   { key: 'ncp', label: 'NCP Records', count: ncpRecords.value.length || null },
   { key: 'meal', label: 'Meal Plan' },
   { key: 'progress', label: 'Progress', count: s.value?.progress.length || null },
+  { key: 'labs', label: 'Lab results', count: s.value?.labs.new_results || null },
   { key: 'appointments', label: 'Consultations', count: s.value?.appointments.length || null },
   { key: 'reminders', label: 'Tasks & reminders' },
 ])
+
+/* ---------- lab tests: the header button opens the request pop-up on the Lab results tab ---------- */
+const labsTab = ref(null)
+const labsAutoOpen = ref(false)
+function requestLabs() {
+  if (tab.value === 'labs' && labsTab.value) return labsTab.value.openRequestForm()
+  labsAutoOpen.value = true
+  setTab('labs')
+}
 
 /* ---------- labels ---------- */
 const STATUS_LABEL = { active: 'Active patient', pending: 'New booking', discharged: 'Discharged' }
@@ -627,7 +656,7 @@ async function saveProgress() {
 const METRICS = [
   { key: 'weight', label: 'Weight', unit: 'kg', decimals: 1 },
   { key: 'bmi', label: 'BMI', unit: '', decimals: 1, refLines: [{ value: 23, label: 'Normal < 23' }] },
-  { key: 'bp', label: 'Blood pressure', unit: 'mmHg', decimals: 0, refLines: [{ value: 130, label: '130' }] },
+  { key: 'bp', label: 'Blood pressure', unit: 'mmHg', decimals: 0, refLines: [{ value: 140, label: '140' }] },
   { key: 'glucose', label: 'Glucose', unit: 'mg/dL', decimals: 0, refLines: [{ value: 100, label: 'Fasting 100' }] },
   { key: 'hba1c', label: 'HbA1c', unit: '%', decimals: 1, refLines: [{ value: 6.5, label: '6.5%' }] },
   { key: 'lipids', label: 'Lipids', unit: 'mg/dL', decimals: 0 },
@@ -757,6 +786,7 @@ watch(metricSeries, (ms) => {
 .symptoms { margin: 12px 0 0; font-size: 0.84rem; color: #3a4a3a; line-height: 1.5; }
 .big-when { font-size: 0.96rem; font-weight: 700; color: #1a3a1a; margin: 6px 0 2px; }
 .pills { margin: 8px 0 10px; }
+.labs-new { display: flex; align-items: center; gap: 6px; font-size: 0.84rem; font-weight: 700; color: #8a5a00; margin: 0 0 6px; }
 .private-note { display: flex; gap: 6px; align-items: baseline; margin: 10px 0 0; font-size: 0.8rem; color: #5a6a5a; background: #fafbfa; border-radius: 8px; padding: 8px 10px; }
 .note-cell { max-width: 260px; color: #5a6a5a; overflow-wrap: anywhere; }
 .photo-link { margin-left: 8px; white-space: nowrap; }

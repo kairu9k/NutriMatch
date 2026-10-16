@@ -5,16 +5,16 @@
     <div class="admin-page-circle admin-circle-2"></div>
     <div class="admin-page-circle admin-circle-3"></div>
 
-    <div class="admin-page-brand">
+    <NuxtLink to="/" class="admin-page-brand home-link" aria-label="NutriMatch home">
       <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="admin-page-logo-icon" />
       <span class="admin-page-logo-text">Nutri<span class="logo-match">Match</span></span>
-    </div>
+    </NuxtLink>
 
     <div class="admin-card">
-      <div class="admin-brand">
+      <NuxtLink to="/" class="admin-brand home-link" aria-label="NutriMatch home">
         <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="admin-logo-icon" />
         <span class="admin-logo-text">Nutri<span class="logo-match">Match</span></span>
-      </div>
+      </NuxtLink>
       <p class="admin-tagline">CLINICAL NUTRITION SYSTEM</p>
 
       <h1>Admin Portal Login</h1>
@@ -69,10 +69,10 @@
       <div class="circle circle-4"></div>
       <div class="circle circle-5"></div>
 
-      <div class="brand">
+      <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
         <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-icon" />
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
-      </div>
+      </NuxtLink>
 
       <div class="left-content">
         <span class="eyebrow">WELCOME BACK !</span>
@@ -272,6 +272,8 @@ async function handleAdminLogin() {
 .circle-5 { width: 180px; height: 180px; top: 40%; right: 12%; }
 
 .brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 700; position: relative; z-index: 1; font-family: 'Playfair Display', serif; }
+.home-link { color: inherit; text-decoration: none; width: fit-content; }
+.admin-brand.home-link { margin-left: auto; margin-right: auto; }
 .logo-icon { width: 50px; height: 50px; object-fit: contain; }
 .logo-match { color: #D4A017; }
 

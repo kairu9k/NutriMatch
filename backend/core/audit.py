@@ -109,4 +109,9 @@ AUDIT_LABELS = {
     "client.record_viewed": "Client health record viewed",
     "audit_log.exported": "Audit log exported",
     "appointment.cancelled": "Appointment cancelled by admin",
+    "lab_request.created": "Lab tests requested",
+    "lab_request.cancelled": "Lab request cancelled",
+    "lab_result.uploaded": "Lab result uploaded",
+    "lab_result.viewed": "Lab result viewed by RND",
+    "lab_result.deleted": "Lab result deleted",
 }

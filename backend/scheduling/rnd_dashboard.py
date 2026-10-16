@@ -93,7 +93,12 @@ def build_dashboard(rnd, now=None):
     to_review = list(MealLog.objects.filter(
         status__isnull=True, meal_plan_meal__meal_plan__relationship__in=rels,
     ).values_list("meal_plan_meal__meal_plan__relationship_id", flat=True))
-    alerts = [a for rel in rels for a in care.alerts(rel)]
+    # Lab results uploaded but not opened yet (any patient, even discharged).
+    from clinical.models import LabResult
+
+    labs_to_review = list(LabResult.objects.filter(relationship__rnd=rnd, reviewed_at__isnull=True)
+                          .values_list("relationship_id", flat=True))
+    alerts =[a for rel in rels for a in care.alerts(rel)]
     order = {"critical": 0, "warning": 1, "info": 2}
     alerts.sort(key=lambda a: order[a["level"]])
 
@@ -135,6 +140,8 @@ def build_dashboard(rnd, now=None):
             "need_meal_plan_first": need_plan[0].id if need_plan else None,
             "meal_logs_to_review": len(to_review),
             "meal_logs_to_review_first": max(set(to_review), key=to_review.count) if to_review else None,
+            "lab_results_to_review": len(labs_to_review),
+            "lab_results_to_review_first": max(set(labs_to_review), key=labs_to_review.count) if labs_to_review else None,
         },
         "stats": {"active_patients": len(rels), "sessions_this_week": sessions_this_week},
         "schedule": upcoming,

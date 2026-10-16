@@ -278,6 +278,24 @@ class NotificationDetailSerializer(NotificationLogSerializer):
             "with": {"name": resource.uploaded_by.full_name, "role": resource.uploaded_by.role},
         }
 
+    def _related_lab_request(self, pk, user):
+        from clinical.labs import request_payload
+        from clinical.models import LabRequest
+
+        req = LabRequest.objects.filter(_party_q(user), pk=pk).select_related("relationship__client", "relationship__rnd").first()
+        if req is None:
+            return None
+        return {**request_payload(req), "with": self._other_party(req.relationship, user)}
+
+    def _related_lab_result(self, pk, user):
+        from clinical.labs import result_payload
+        from clinical.models import LabResult
+
+        res = LabResult.objects.filter(_party_q(user), pk=pk).select_related("relationship__client", "relationship__rnd").first()
+        if res is None:
+            return None
+        return {**result_payload(res), "with": self._other_party(res.relationship, user)}
+
     def _related_payout(self, pk, user):
         from billing.models import Payout
 

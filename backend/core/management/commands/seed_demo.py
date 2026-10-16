@@ -652,6 +652,13 @@ class Command(BaseCommand):
             Reminder.objects.create(client=carla, relationship=rel, created_by=maria, title=title, message=message,
                                     type=kind, repeat=repeat, send_at=start)
 
+        # Lab tests Maria asked for before the next visit (no file is seeded —
+        # uploads are real private Cloudinary files; try the upload as Carla).
+        from clinical.models import LabRequest
+
+        LabRequest.objects.create(relationship=rel, requested_by=maria, tests=["fbs", "hba1c", "lipid"],
+                                  note="Fast for 8–10 hours before the blood test (water is okay).")
+
         self._messages(rel, [
             (False, "Good morning po! Is it okay to eat pan de sal instead of rice for breakfast?"),
             (True, "Good morning Carla! Yes, 1½ pieces of pan de sal is one rice exchange, so you can swap them."),

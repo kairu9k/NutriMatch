@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { AlertTriangle, Info, MessageSquare, OctagonAlert, Search, Users } from 'lucide-vue-next'
+import { AlertTriangle, FlaskConical, Info, MessageSquare, OctagonAlert, Search, Users } from 'lucide-vue-next'
 
 const { get } = useApi()
 
@@ -297,6 +297,11 @@ const RowActions = defineComponent({
           ? h(NuxtLink, { to: `/messages?relationship=${p.id}`, class: 'icon-btn', 'aria-label': `Message ${p.client.name}`, title: 'Message' }, () => [
             h(MessageSquare, { size: 15 }),
             p.unread_messages ? h('span', { class: 'badge' }, p.unread_messages) : null,
+          ]) : null,
+        p.new_lab_results
+          ? h(NuxtLink, { to: `/client-detail/${p.id}?tab=labs`, class: 'icon-btn', 'aria-label': `${p.new_lab_results} new lab results`, title: 'New lab results' }, () => [
+            h(FlaskConical, { size: 15 }),
+            h('span', { class: 'badge' }, p.new_lab_results),
           ]) : null,
       ])
     }

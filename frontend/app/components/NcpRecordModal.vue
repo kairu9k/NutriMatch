@@ -59,17 +59,30 @@
                     <span>/</span>
                     <input v-model="a.bp_diastolic" type="number" :min="L.bp_diastolic.min" :max="L.bp_diastolic.max" class="nm-input" placeholder="80" aria-label="Diastolic" :disabled="isReadOnly" />
                   </div>
+                  <p v-if="liveBp" class="m-cat" :class="liveBp.level" role="status" title="WHO / ESH grading">
+                    <AlertTriangle v-if="liveBp.level !== 'ok'" :size="13" /> {{ liveBp.label }}
+                  </p>
                 </Field>
                 <Field label="Fasting glucose (mg/dL)" :hint="srcHint('blood_glucose')" :error="errors.blood_glucose">
                   <input v-model="a.blood_glucose" type="number" :min="L.blood_glucose.min" :max="L.blood_glucose.max" step="1" class="nm-input" :disabled="isReadOnly" />
+                  <p v-if="liveGlucose" class="m-cat" :class="liveGlucose.level" role="status">
+                    <AlertTriangle v-if="liveGlucose.level !== 'ok'" :size="13" /> {{ liveGlucose.label }}
+                  </p>
                 </Field>
                 <Field label="HbA1c (%)" :hint="srcHint('hba1c')" :error="errors.hba1c">
                   <input v-model="a.hba1c" type="number" :min="L.hba1c.min" :max="L.hba1c.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                  <p v-if="liveHba1c" class="m-cat" :class="liveHba1c.level" role="status">
+                    <AlertTriangle v-if="liveHba1c.level !== 'ok'" :size="13" /> {{ liveHba1c.label }}
+                  </p>
                 </Field>
               </div>
               <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine… — pick from the list or type your own." />
               <Field label="Lab notes">
                 <textarea v-model="a.lab_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
+                <p v-if="ctx.labs?.total_results && !isReadOnly" class="lab-link">
+                  <FlaskConical :size="13" /> {{ ctx.labs.total_results }} lab result{{ ctx.labs.total_results === 1 ? '' : 's' }} uploaded<template v-if="ctx.labs.new_results"> ({{ ctx.labs.new_results }} new)</template> ·
+                  <NuxtLink :to="`/client-detail/${relationshipId}?tab=labs`" target="_blank">View ↗</NuxtLink>
+                </p>
               </Field>
               <Field label="Assessment notes">
                 <textarea v-model="a.assessment_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Appetite, eating pattern, activity, food access…" :disabled="isReadOnly"></textarea>
@@ -274,9 +287,9 @@
 // Nothing saves on its own: "Save draft" saves whatever is filled, and
 // "Finalize record" (Review step, with a confirmation) locks it. Required
 // fields mirror NcpRecord.finalize_missing() on the API.
-import { AlertTriangle, Check, CheckCircle2, Info, Lock, Save, Sparkles, X } from 'lucide-vue-next'
+import { AlertTriangle, Check, CheckCircle2, FlaskConical, Info, Lock, Save, Sparkles, X } from 'lucide-vue-next'
 import {
-  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, extraRowErrors, macroKcal,
+  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, bpCategory, extraRowErrors, glucoseCategory, hba1cCategory, macroKcal,
   rangeError, suggestMacros,
 } from '~/utils/ncp'
 
@@ -389,7 +402,11 @@ function srcHint(f) {
 
 /* ---------- live clinical help ---------- */
 // Only from in-range values — an impossible weight mustn't show a BMI.
-const liveBmi = computed(() => (rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
+// Only categorise a reading that passes the form's own checks.
+const liveBp = computed(() => (errors.value.blood_pressure ? null : bpCategory(a.value.bp_systolic, a.value.bp_diastolic)))
+const liveGlucose = computed(() => (errors.value.blood_glucose ? null : glucoseCategory(a.value.blood_glucose)))
+const liveHba1c = computed(() => (errors.value.hba1c ? null : hba1cCategory(a.value.hba1c)))
+const liveBmi = computed(() =>(rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
 const macroTotal = computed(() => macroKcal({ carb: i.value.target_carb_g, protein: i.value.target_protein_g, fat: i.value.target_fat_g }))
 const macroDiffPct = computed(() => {
   const t = Number(i.value.target_kcal)
@@ -693,6 +710,13 @@ input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
 input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .bp span { color: #8a9a8a; }
+.lab-link { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; font-size: 0.76rem; color: #5a6a5a; }
+.lab-link a { color: #a37a0b; font-weight: 700; text-decoration: none; }
+.lab-link a:hover { text-decoration: underline; }
+.m-cat { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 0; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
+.m-cat.ok { background: #eaf5ee; color: #1f6b43; }
+.m-cat.warn { background: #fdf3dc; color: #8a5a00; }
+.m-cat.danger { background: #fdecea; color: #b42318; }
 .computed { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px; }
 .computed strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .k { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; }

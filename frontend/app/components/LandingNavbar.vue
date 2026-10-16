@@ -1,13 +1,13 @@
 <template>
   <nav class="navbar">
-    <div class="nav-logo">
+    <NuxtLink to="/" class="nav-logo" aria-label="NutriMatch home" @click="goHome">
       <div class="nav-logo">
         <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-img" />
       </div>
       <span class="logo-text">
         <span class="logo-nutri" style="font-family: 'DM Serif Display', serif; font-weight: 700;font-size:medium;">Nutri</span><span class="logo-match" style="font-family: 'DM Serif Display', serif; font-weight: 700; font-size: medium;">Match</span>
       </span>
-    </div>
+    </NuxtLink>
 
     <ul class="nav-links">
       <li v-for="link in links" :key="link.id">
@@ -42,6 +42,15 @@ const activeSection = ref(links[0].id)
 let observer = null
 let manualOverrideTimeout = null
 let isManualClick = false
+
+// The logo links to the landing page; already there, it scrolls back to the top.
+function goHome(event) {
+  if (useRoute().path !== '/') return
+  event.preventDefault()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  history.pushState(null, '', '/')
+  activeSection.value = links[0].id
+}
 
 function handleClick(id, event) {
   event.preventDefault()
@@ -119,7 +128,7 @@ onBeforeUnmount(() => {
   font-size: 0.75rem; font-weight: 100; color: #c8d8c8;
 }
 
-.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
 .logo-text { font-size: 1.2rem; font-weight: 500; }
 .logo-nutri { color: #ffffff; }
 .logo-match { color: #D4A017; }

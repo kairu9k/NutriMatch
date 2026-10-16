@@ -2,10 +2,10 @@
   <footer class="footer">
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="footer-logo-row">
+        <NuxtLink to="/" class="footer-logo-row" aria-label="NutriMatch home" @click="goHome">
           <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-img" />
           <div class="footer-logo"><span class="logo-nutri">Nutri</span><span class="logo-match">Match</span></div>
-        </div>
+        </NuxtLink>
         <p>A web-based clinical nutrition consultation management system for Filipino RNDs and patients. Built for Philippine healthcare.</p>
         <span class="ra-badge">RA 10173 COMPLIANT</span>
       </div>
@@ -44,6 +44,16 @@
   </footer>
 </template>
 
+<script setup>
+// The logo links to the landing page; already there, it scrolls back to the top.
+function goHome(event) {
+  if (useRoute().path !== '/') return
+  event.preventDefault()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  history.pushState(null, '', '/')
+}
+</script>
+
 <style scoped>
 .footer {
   background: #0D1F18;
@@ -58,7 +68,7 @@
   margin-bottom: 55px;
 }
 
-.footer-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.footer-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; width: fit-content; text-decoration: none; }
 .logo-img { width: 36px; height: 36px; object-fit: contain; }
 .footer-logo { font-size: 1.2rem; font-weight: 700; font-family: 'Playfair Display', serif; letter-spacing: 0.02em; }
 .logo-nutri { color: #004635; }

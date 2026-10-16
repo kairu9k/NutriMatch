@@ -50,6 +50,49 @@ export function bmiClass(bmi) {
   return 'Obese II'
 }
 
+// Blood pressure category, WHO / ESH-style grading (user's call, 2026-10-16 —
+// common in the Philippines) plus a Low band (< 90/60). When the two numbers
+// fall in different grades the higher grade wins (135/92 → Grade 1); Low only
+// applies when neither number is high (150/55 is Grade 1). A warning only —
+// `level` is ok / warn / danger for colouring. Returns null for an incomplete
+// reading. Accepts (systolic, diastolic) or a "120/80" string.
+const BP_GRADES = [
+  { sys: 180, dia: 110, label: 'Grade 3 hypertension', level: 'danger' },
+  { sys: 160, dia: 100, label: 'Grade 2 hypertension', level: 'danger' },
+  { sys: 140, dia: 90, label: 'Grade 1 hypertension', level: 'warn' },
+  { sys: 130, dia: 85, label: 'High-normal blood pressure', level: 'warn' },
+  { sys: 120, dia: 80, label: 'Normal', level: 'ok' },
+]
+export function bpCategory(systolic, diastolic) {
+  if (diastolic === undefined && typeof systolic === 'string') [systolic, diastolic] = systolic.split('/')
+  const s = Number(systolic), d = Number(diastolic)
+  if (!String(systolic ?? '').trim() || !String(diastolic ?? '').trim() || !s || !d) return null
+  const grade = BP_GRADES.find(g => s >= g.sys || d >= g.dia)
+  if (grade) return { label: grade.label, level: grade.level }
+  if (s < 90 || d < 60) return { label: 'Low blood pressure', level: 'warn' }
+  return { label: 'Optimal', level: 'ok' }
+}
+export const bpLabel = bp => (bp ? `${bp} mmHg${bpCategory(bp) ? ` · ${bpCategory(bp).label}` : ''}` : '')
+
+// Fasting blood glucose (mg/dL) and HbA1c (%) categories (ADA cutoffs,
+// user's call 2026-10-16). Warnings only, same { label, level } shape.
+const filledNum = v => (v == null || String(v).trim() === '' ? null : Number(v))
+export function glucoseCategory(mgdl) {
+  const g = filledNum(mgdl)
+  if (g == null || Number.isNaN(g)) return null
+  if (g < 70) return { label: 'Low (hypoglycemia)', level: 'warn' }
+  if (g < 100) return { label: 'Normal', level: 'ok' }
+  if (g < 126) return { label: 'Prediabetes', level: 'warn' }
+  return { label: 'Diabetes', level: 'danger' }
+}
+export function hba1cCategory(pct) {
+  const h = filledNum(pct)
+  if (h == null || Number.isNaN(h)) return null
+  if (h < 5.7) return { label: 'Normal', level: 'ok' }
+  if (h < 6.5) return { label: 'Prediabetes', level: 'warn' }
+  return { label: 'Diabetes', level: 'danger' }
+}
+
 // Macros → kcal (4 / 4 / 9 kcal per gram).
 export const KCAL_PER_G = { carb: 4, protein: 4, fat: 9 }
 export function macroKcal({ carb, protein, fat }) {

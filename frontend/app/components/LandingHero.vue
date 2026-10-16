@@ -20,8 +20,8 @@
         </p>
 
         <div class="hero-cta">
-          <button class="btn-primary">Find an RND →</button>
-          <button class="btn-secondary">Join as Dietitian</button>
+          <button class="btn-primary" @click="navigateTo('/register?role=client')">Find an RND →</button>
+          <button class="btn-secondary" @click="navigateTo('/register?role=rnd')">Join as Dietitian</button>
         </div>
 
         <div class="hero-tags">

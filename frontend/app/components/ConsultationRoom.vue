@@ -105,6 +105,17 @@
                 <span class="log-main">{{ shortDate(l.date) }} · {{ l.meal }} — {{ LOG[l.status] || 'not rated yet' }}<small v-if="l.note">“{{ l.note }}”</small></span>
               </div>
             </section>
+            <section v-if="s.labs && (s.labs.total_results || s.labs.open.length)" class="block">
+              <h3>Lab results</h3>
+              <div v-for="r in s.labs.recent" :key="r.id" class="lab-row">
+                <span class="lab-main">
+                  {{ r.test_names.join(', ') }} · taken {{ shortDate(r.taken_on) }}<template v-if="r.fasted === 'no'"> · not fasting</template>
+                  <small v-if="!r.reviewed_at" class="lab-new">New</small>
+                </span>
+                <button type="button" class="link small" @click="viewLab(r)">View</button>
+              </div>
+              <p v-for="r in s.labs.open" :key="`q${r.id}`" class="muted">Requested: {{ r.test_names.join(', ') }} — not uploaded yet</p>
+            </section>
             <NuxtLink :to="`/client-detail/${appt.relationship.id}`" target="_blank" class="link small">Open full chart in a new tab ↗</NuxtLink>
           </template>
 
@@ -231,6 +242,7 @@ import {
   AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, LineChart, Lock, PhoneOff, User, VideoOff,
 } from 'lucide-vue-next'
 import { rangeError } from '~/utils/ncp'
+import { openLabFile } from '~/utils/labs'
 
 const route = useRoute()
 const router = useRouter()
@@ -260,6 +272,10 @@ async function loadAppointment() {
 async function refreshSummary() {
   if (!isRnd.value || !appt.value) return
   s.value = await get(`/rnd/relationships/${appt.value.relationship.id}/summary/`).catch(() => s.value)
+}
+// Opening a lab file marks it reviewed, so refresh the "New" tags after.
+async function viewLab(r) {
+  if ((await openLabFile(get, `/rnd/lab-results/${r.id}/file/`)) && !r.reviewed_at) refreshSummary()
 }
 onMounted(async () => {
   try {
@@ -449,6 +465,10 @@ function leave() {
 .link { background: none; border: none; padding: 0; font-family: inherit; color: #D4A017; font-weight: 700; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
 .panel .link { color: #1f6f46; }
 .link.small { font-size: 0.78rem; display: inline-block; margin-top: 12px; }
+.lab-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; font-size: 0.78rem; }
+.lab-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lab-row .link.small { margin-top: 0; }
+.lab-new { margin-left: 6px; font-size: 0.66rem; font-weight: 700; color: #a37a0b; background: #fdf1d6; border-radius: 8px; padding: 1px 6px; }
 
 .panel { width: 340px; background: #f9faf8; display: flex; flex-direction: column; flex-shrink: 0; min-height: 0; border-radius: 14px 0 0 0; overflow: hidden; }
 .body.rnd .panel { width: 460px; }

@@ -6,10 +6,10 @@
       <div class="circle circle-2"></div>
       <div class="circle circle-3"></div>
 
-      <div class="brand">
+      <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
         <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-icon" />
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
-      </div>
+      </NuxtLink>
 
       <div class="left-content">
         <span class="eyebrow">ACCOUNT RECOVERY</span>
@@ -185,6 +185,7 @@ async function handleConfirm() {
 .circle-3 { width: 480px; height: 480px; bottom: -190px; left: -130px; }
 
 .brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: 700; position: relative; z-index: 1; font-family: 'Playfair Display', serif; }
+.home-link { color: inherit; text-decoration: none; width: fit-content; }
 .logo-icon { width: 50px; height: 50px; object-fit: contain; }
 .logo-match { color: #D4A017; }
 

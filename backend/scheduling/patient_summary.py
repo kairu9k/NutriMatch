@@ -125,6 +125,18 @@ def build_patient_summary(rnd, rel_id, now=None):
         "recent_logs": logs,
         "progress": progress,
         "appointments": appointments,
+        "labs": _labs(rel, now),
+    }
+
+
+def _labs(rel, now):
+    """Lab requests/results for the chart's Overview and the consultation room."""
+    from clinical.labs import request_payload, result_payload, rnd_lab_counts
+
+    return {
+        **rnd_lab_counts(rel),
+        "open": [request_payload(r, now) for r in rel.lab_requests.filter(status="open").prefetch_related("results")],
+        "recent": [result_payload(r, now) for r in rel.lab_results.all()[:5]],
     }
 
 

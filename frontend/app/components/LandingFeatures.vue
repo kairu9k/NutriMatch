@@ -19,7 +19,7 @@
     </div>
 
     <div class="features-cta">
-      <button class="btn-gold">Start Your Nutrition Journey →</button>
+      <button class="btn-gold" @click="navigateTo('/register')">Start Your Nutrition Journey →</button>
     </div>
   </section>
 </template>

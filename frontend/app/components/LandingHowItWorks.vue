@@ -35,10 +35,6 @@
           </div>
         </div>
       </div>
-
-      <div class="hiw-cta">
-        <button class="btn-gold">Create Your Free Account →</button>
-      </div>
     </section>
   </div>
 </template>
@@ -172,7 +168,6 @@ const steps = [
 .step h3 { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
 .step p { font-size: 0.85rem; color: #8aaa8a; line-height: 1.65; }
 
-.hiw-cta { text-align: center; }
 .btn-gold {
   background: #EFBF04; border: none; color: #1a3a1a;
   padding: 16px 36px; border-radius: 32px; font-size: 0.95rem; font-weight: 700; cursor: pointer;
