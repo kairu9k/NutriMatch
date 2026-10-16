@@ -92,15 +92,34 @@
             <div class="meal-col">
               <span class="col-eyebrow">Actual Food Intake</span>
 
-              <label class="dropzone-inline">
-                <input type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
+              <input ref="photoInput" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
+              <!-- The chosen photo (not uploaded until Save) or the one already
+                   saved today, shown as a picture; tap it to see it full size. -->
+              <div v-if="photoPreview" class="photo-preview">
+                <button type="button" class="photo-thumb" aria-label="View the photo full size" @click="viewerOpen = true">
+                  <img :src="photoPreview" :alt="logForm.photoFile ? 'Selected photo of what you ate' : 'Photo you logged for this meal'" />
+                </button>
+                <div class="photo-meta">
+                  <span class="photo-name">{{ logForm.photoFile ? logForm.photoName : 'Saved photo' }}</span>
+                  <span v-if="logForm.photoFile" class="photo-sub">Not saved yet — press Save to send it</span>
+                  <div class="photo-actions">
+                    <button type="button" class="photo-btn" @click="photoInput?.click()">Change photo</button>
+                    <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" /> Remove</button>
+                  </div>
+                </div>
+              </div>
+              <button v-else type="button" class="dropzone-inline" @click="photoInput?.click()">
                 <UploadCloud :size="20" class="dropzone-icon" />
-                <span class="dropzone-text">
-                  <template v-if="logForm.photoName">{{ logForm.photoName }}</template>
-                  <template v-else-if="activeLog?.photo_url">Photo already logged for today — choose a file to replace it</template>
-                  <template v-else>Upload a photo of what you ate</template>
-                </span>
-              </label>
+                <span class="dropzone-text">Upload a photo of what you ate</span>
+              </button>
+              <p v-if="photoError" class="form-error inline">{{ photoError }}</p>
+
+              <Teleport to="body">
+                <div v-if="viewerOpen && photoPreview" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Photo of what you ate" @click.self="viewerOpen = false">
+                  <button type="button" class="viewer-close" aria-label="Close" @click="viewerOpen = false"><X :size="20" /></button>
+                  <img :src="photoPreview" alt="Photo of what you ate, full size" />
+                </div>
+              </Teleport>
 
               <div class="field notes-field">
                 <label for="meal-log-note">Note</label>
@@ -141,8 +160,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2 } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
 
@@ -231,19 +250,47 @@ const canSaveLog = computed(() => !!logForm.photoFile
 function resetLogForm() {
   const existing = activeLog.value
   logForm.reasonNotes = existing?.reason_notes || ''
-  logForm.photoFile = null
-  logForm.photoName = ''
+  removePhoto()
+  viewerOpen.value = false
 }
 watch(activeMealIndex, resetLogForm)
 watch(todaysLogs, resetLogForm)
 
+// Photo preview: a temporary in-browser link to the chosen file (released
+// when it's changed, removed, saved or the meal changes), else today's saved photo.
+const photoInput = ref(null)
+const selectedUrl = ref('')
+const photoError = ref('')
+const viewerOpen = ref(false)
+const photoPreview = computed(() => selectedUrl.value || activeLog.value?.photo_url || '')
+
 function onPhotoSelected(e) {
   const file = e.target.files?.[0]
-  if (file) {
-    logForm.photoFile = file
-    logForm.photoName = file.name
+  e.target.value = '' // so picking the same file again still counts as a change
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    photoError.value = 'Please choose a photo (JPG, PNG or WEBP).'
+    return
   }
+  photoError.value = ''
+  if (selectedUrl.value) URL.revokeObjectURL(selectedUrl.value)
+  selectedUrl.value = URL.createObjectURL(file)
+  logForm.photoFile = file
+  logForm.photoName = file.name
 }
+function removePhoto() {
+  if (selectedUrl.value) URL.revokeObjectURL(selectedUrl.value)
+  selectedUrl.value = ''
+  photoError.value = ''
+  logForm.photoFile = null
+  logForm.photoName = ''
+}
+function onViewerKey(e) { if (e.key === 'Escape') viewerOpen.value = false }
+onMounted(() => document.addEventListener('keydown', onViewerKey))
+onUnmounted(() => {
+  document.removeEventListener('keydown', onViewerKey)
+  if (selectedUrl.value) URL.revokeObjectURL(selectedUrl.value)
+})
 
 const completionPct = computed(() => {
   const meals = todaysMeals.value
@@ -390,8 +437,45 @@ onMounted(loadMealPlans)
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   background: #f7f9f7; border: 1.5px dashed #b8c8b8; border-radius: 10px;
   min-height: 76px; padding: 16px; cursor: pointer; margin-bottom: 14px; text-align: center;
+  width: 100%; font-family: inherit;
 }
+.dropzone-inline:hover { border-color: #1a5a2a; }
+.dropzone-inline:focus-visible { outline: 2px solid #D4A017; outline-offset: 2px; }
 .dropzone-input { display: none; }
+
+.photo-preview {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+  background: #f7f9f7; border: 1px solid #dfe7df; border-radius: 10px; padding: 10px;
+}
+.photo-thumb {
+  flex-shrink: 0; width: 112px; height: 112px; padding: 0; border: none; border-radius: 8px;
+  overflow: hidden; cursor: zoom-in; background: #e8ede8;
+}
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-thumb:focus-visible { outline: 2px solid #D4A017; outline-offset: 2px; }
+.photo-meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.photo-name { font-size: 0.85rem; font-weight: 600; color: #1a3a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.photo-sub { font-size: 0.76rem; color: #8a6d10; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.photo-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 7px;
+  border: 1px solid #c9d6c9; background: #fff; color: #1a3a1a; font-size: 0.78rem; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+}
+.photo-btn:hover { border-color: #1a5a2a; }
+.photo-btn.remove { color: #b03a2e; }
+.photo-btn.remove:hover { border-color: #b03a2e; }
+
+.photo-viewer {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(10, 20, 12, 0.82);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.photo-viewer img { max-width: min(92vw, 1000px); max-height: 86vh; border-radius: 10px; object-fit: contain; background: #fff; }
+.viewer-close {
+  position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%;
+  border: none; background: rgba(255, 255, 255, 0.92); color: #1a3a1a; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
 .dropzone-icon { color: #1a5a2a; flex-shrink: 0; }
 .dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
 .field label { display: block; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; color: #9aaa9a; margin-bottom: 7px; }

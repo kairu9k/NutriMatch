@@ -34,7 +34,10 @@
               <span class="conv-name">{{ conv.name }}<span v-if="conv.ended" class="conv-ended">Ended</span><span v-else-if="conv.waiting" class="conv-ended">Waiting</span></span>
               <span class="conv-time">{{ conv.lastMessageAt }}</span>
             </div>
-            <p class="conv-preview">{{ conv.lastMessage }}</p>
+            <div class="conv-bottom">
+              <p class="conv-preview" :class="{ unread: unreadFor(conv.id) }">{{ conv.lastMessage }}</p>
+              <span v-if="unreadFor(conv.id)" class="conv-unread w-3 h-3 rounded-full bg-gold animate-pop" role="img" :aria-label="`${unreadFor(conv.id)} unread`"></span>
+            </div>
           </div>
         </button>
       </div>
@@ -150,7 +153,8 @@ const conversations = computed(() => {
   const isRnd = authStore.user?.role === 'rnd'
   return relationships.value.map((rel) => {
     const other = isRnd ? rel.client : rel.rnd
-    const preview = lastMessageByRelationship.value[rel.id]
+    // The loaded thread once opened; before that, the latest from /messages/unread/.
+    const preview = lastMessageByRelationship.value[rel.id] || unread.value.latest?.[rel.id]
     return {
       id: rel.id,
       name: `${other.first_name} ${other.last_name}`,
@@ -179,6 +183,15 @@ const activeConversation = computed(() =>
 const activeMessages = computed(() =>
   activeConversationId.value ? (messagesByRelationship.value[activeConversationId.value] ?? []) : []
 )
+
+// Unread counts per conversation; whatever is open (and on screen) is read.
+const { unread, refresh: refreshUnread, markRead } = useUnreadMessages()
+const unreadFor = id => (id === activeConversationId.value ? 0 : unread.value.byRelationship[id] || 0)
+function markActiveRead() {
+  const id = activeConversationId.value
+  if (id && document.visibilityState === 'visible') markRead(id)
+}
+const isFromOther = m => m?.sender?.id !== authStore.user?.id
 
 function formatTime(iso) {
   if (!iso) return ''
@@ -220,7 +233,10 @@ async function loadMessageHistory(relationshipId, { silent = false } = {}) {
     if (data.length) {
       lastMessageByRelationship.value[relationshipId] = data[data.length - 1]
     }
-    if (activeConversationId.value === relationshipId) await scrollToBottom()
+    if (activeConversationId.value === relationshipId) {
+      markActiveRead()
+      await scrollToBottom()
+    }
   } finally {
     if (!silent) loadingMessages.value = false
   }
@@ -260,7 +276,10 @@ function connectSocket(relationshipId, { isReconnect = false } = {}) {
     thread.push(message)
     messagesByRelationship.value[relationshipId] = thread
     lastMessageByRelationship.value[relationshipId] = message
-    if (activeConversationId.value === relationshipId) scrollToBottom()
+    if (activeConversationId.value === relationshipId) {
+      if (isFromOther(message)) markActiveRead()
+      scrollToBottom()
+    }
   }
 
   socket.onclose = (event) => {
@@ -311,7 +330,10 @@ function appendMessages(relationshipId, list) {
   thread.push(...fresh)
   messagesByRelationship.value[relationshipId] = thread
   lastMessageByRelationship.value[relationshipId] = thread[thread.length - 1]
-  if (activeConversationId.value === relationshipId) scrollToBottom()
+  if (activeConversationId.value === relationshipId) {
+    if (fresh.some(isFromOther)) markActiveRead()
+    scrollToBottom()
+  }
 }
 
 async function sendMessage() {
@@ -367,6 +389,7 @@ function handleVisibilityChange() {
 
 onMounted(() => {
   loadConversations()
+  refreshUnread()
   document.addEventListener('visibilitychange', handleVisibilityChange)
   pollTimer = setInterval(pollNew, POLL_MS)
 })
@@ -384,12 +407,16 @@ onUnmounted(() => {
 .messages-page {
   font-family: 'Inter', sans-serif;
   display: grid; grid-template-columns: 320px 1fr;
+  /* One row that fills the box, and panes that may shrink into it — without
+     these a long chat or patient list grows past the box and gets clipped,
+     so neither the messages nor the list can scroll. */
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100vh - 140px); min-height: 560px;
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; overflow: hidden;
 }
 
 /* CONVERSATION LIST */
-.conv-pane { border-right: 1px solid #eceeec; display: flex; flex-direction: column; min-width: 0; }
+.conv-pane { border-right: 1px solid #eceeec; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 .conv-pane-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 14px; }
 .conv-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
@@ -407,7 +434,7 @@ onUnmounted(() => {
 }
 .search-input:focus { outline: none; border-color: #D4A017; }
 
-.conv-list { flex: 1; overflow-y: auto; }
+.conv-list { flex: 1; min-height: 0; overflow-y: auto; }
 .conv-item {
   width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
   padding: 14px 16px; border: none; border-bottom: 1px solid #f3f4f0; background: #fff; cursor: pointer;
@@ -429,11 +456,15 @@ onUnmounted(() => {
   font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.conv-bottom { display: flex; align-items: center; gap: 8px; }
+.conv-bottom .conv-preview { flex: 1; min-width: 0; }
+.conv-preview.unread { color: #1a3a1a; font-weight: 600; }
+.conv-unread { flex-shrink: 0; margin-top: 3px; }
 
 .conv-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
 
 /* CHAT PANEL */
-.chat-pane { display: flex; flex-direction: column; background: #fff; min-width: 0; }
+.chat-pane { display: flex; flex-direction: column; background: #fff; min-width: 0; min-height: 0; }
 
 .chat-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -454,7 +485,7 @@ onUnmounted(() => {
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #2e9e52; }
 .status-offline .status-dot { background: #d5dad5; }
 
-.chat-body { flex: 1; overflow-y: auto; padding: 24px 28px; background: #fff; }
+.chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px; background: #fff; }
 .date-divider { text-align: center; margin-bottom: 20px; }
 .date-divider span {
   font-size: 0.72rem; letter-spacing: 0.06em; color: #9aaa9a; text-transform: uppercase;

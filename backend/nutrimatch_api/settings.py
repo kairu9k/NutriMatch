@@ -104,6 +104,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'login': config('THROTTLE_LOGIN_RATE', default='10/min'),
         'register': config('THROTTLE_REGISTER_RATE', default='5/min'),
+        'register_email_check': config('THROTTLE_REGISTER_EMAIL_CHECK_RATE', default='20/min'),
         'verify_email': config('THROTTLE_VERIFY_EMAIL_RATE', default='10/min'),
         'resend_verification': config('THROTTLE_RESEND_VERIFICATION_RATE', default='5/min'),
         'password_reset_request': config('THROTTLE_PASSWORD_RESET_REQUEST_RATE', default='5/min'),
@@ -119,20 +120,32 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
 }
 
-# Real-time messaging (Django Channels). REDIS_URL defaults to a local
-# Redis reachable at localhost:6379 (docker run -d -p 6379:6379 redis) —
-# override for a different host/port/prod Redis instance.
+# Real-time (Django Channels): live chat + the per-user notifications socket
+# (communication/live.py). REDIS_URL set → Redis (production, several
+# workers). Not set → Redis on localhost:6379 if one is running, otherwise
+# Channels' in-memory layer — fine for the single `runserver` process in
+# dev, so live updates work without installing Redis.
 ASGI_APPLICATION = 'nutrimatch_api.asgi.application'
 
-REDIS_URL = config('REDIS_URL', default='redis://localhost:6379')
+
+def _local_redis_running():
+    import socket
+
+    try:
+        with socket.create_connection(('127.0.0.1', 6379), timeout=0.2):
+            return True
+    except OSError:
+        return False
+
+
+REDIS_URL = config('REDIS_URL', default='') or ('redis://localhost:6379' if _local_redis_running() else '')
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [REDIS_URL],
-        },
-    },
+    'default': (
+        {'BACKEND': 'channels_redis.core.RedisChannelLayer', 'CONFIG': {'hosts': [REDIS_URL]}}
+        if REDIS_URL else
+        {'BACKEND': 'channels.layers.InMemoryChannelLayer'}
+    ),
 }
 
 ROOT_URLCONF = 'nutrimatch_api.urls'

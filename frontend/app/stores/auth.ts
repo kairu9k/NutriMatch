@@ -151,6 +151,12 @@ export const useAuthStore = defineStore('auth', {
       return await post<NutriMatchUser>('/auth/register/rnd/', body, { skipAuth: true })
     },
 
+    // Asked on the details step so a taken email stops the form there.
+    async checkRegistrationEmail(email: string) {
+      const { post } = useApi()
+      return await post<{ available: boolean, detail?: string }>('/auth/register/check-email/', { email }, { skipAuth: true })
+    },
+
     async verifyEmail(email: string, code: string) {
       const { post } = useApi()
       return await post<{ detail: string }>('/auth/verify-email/', { email, code }, { skipAuth: true })

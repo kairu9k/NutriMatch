@@ -7,12 +7,12 @@ const isLoading = ref(true)
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
 
-async function loadNotifications() {
-  isLoading.value = true
+async function loadNotifications({ quiet = false } = {}) {
+  if (!quiet) isLoading.value = true
   try {
     notifications.value = await get('/notifications/')
   } catch {
-    notifications.value = []
+    if (!quiet) notifications.value = []
   } finally {
     isLoading.value = false
   }
@@ -78,6 +78,21 @@ const STATUS_CLASS = {
 }
 
 onMounted(loadNotifications)
+
+// New notifications arrive live (ws/notifications/); a reconnect re-syncs,
+// and only while the live connection is down does the list refresh itself.
+const live = useLiveUpdates()
+live.onLive('notification', ({ notification }) => {
+  if (!notifications.value.some(n => n.id === notification.id)) notifications.value = [notification, ...notifications.value]
+})
+live.onLive('reconnect', loadNotifications)
+let fallbackTimer = null
+onMounted(() => {
+  fallbackTimer = setInterval(() => {
+    if (!live.connected.value && document.visibilityState === 'visible') loadNotifications({ quiet: true })
+  }, 30000)
+})
+onUnmounted(() => clearInterval(fallbackTimer))
 </script>
 
 <template>

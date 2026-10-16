@@ -80,6 +80,22 @@ class RegistrationConsentMixin(serializers.Serializer):
         )
 
 
+EMAIL_TAKEN_MESSAGE = "An account with this email already exists."
+
+
+def email_blocks_registration(existing):
+    """True when `existing` (the account already using an email) means a new
+    registration with that email must be refused — a verified account, or an
+    admin. An unfinished signup or a rejected RND application doesn't block."""
+    if existing is None:
+        return False
+    rejected_rnd = (
+        existing.role == User.Role.RND
+        and getattr(getattr(existing, "rnd_profile", None), "review_status", None) == "rejected"
+    )
+    return (existing.email_verified_at is not None and not rejected_rnd) or existing.role == User.Role.ADMIN
+
+
 class ReplaceUnverifiedAccountMixin(serializers.Serializer):
     """An email that belongs to a *verified* account can't register again.
     One whose earlier signup was never verified can: that unfinished account
@@ -90,12 +106,8 @@ class ReplaceUnverifiedAccountMixin(serializers.Serializer):
         existing = User.objects.filter(email__iexact=value).first()
         if existing is None:
             return value
-        rejected_rnd = (
-            existing.role == User.Role.RND
-            and getattr(getattr(existing, "rnd_profile", None), "review_status", None) == "rejected"
-        )
-        if (existing.email_verified_at is not None and not rejected_rnd) or existing.role == User.Role.ADMIN:
-            raise serializers.ValidationError("An account with this email already exists.")
+        if email_blocks_registration(existing):
+            raise serializers.ValidationError(EMAIL_TAKEN_MESSAGE)
         # An unfinished (unverified) signup, or an RND application that wasn't
         # approved, is replaced by this new registration.
         self._unverified_to_replace = existing

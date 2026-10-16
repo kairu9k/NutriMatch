@@ -128,6 +128,13 @@ async function markAllRead() {
 }
 
 onMounted(loadNotifications)
+
+// New ones appear live at the top (ws/notifications/); a reconnect re-syncs.
+const live = useLiveUpdates()
+live.onLive('notification', ({ notification }) => {
+  if (!notifications.value.some(n => n.id === notification.id)) notifications.value = [notification, ...notifications.value]
+})
+live.onLive('reconnect', loadNotifications)
 </script>
 
 <style scoped>

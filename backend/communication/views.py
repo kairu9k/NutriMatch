@@ -1,4 +1,4 @@
-from django.db.models import Count, Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, status
@@ -12,6 +12,7 @@ from scheduling.models import RndClientRelationship
 
 from .models import Message, NotificationLog, Resource, ResourceShare
 from .serializers import MessageSerializer, NotificationDetailSerializer, NotificationLogSerializer, ResourceSerializer
+from .live import group_send, push_new_message
 from .services import CloudinaryResourceUploadService, ResourceUploadError, notify
 
 
@@ -49,40 +50,66 @@ class MessageListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         message = serializer.save(relationship=relationship, sender=request.user)
-
-        recipient = relationship.client if request.user.id == relationship.rnd_id else relationship.rnd
-        notify(
-            recipient=recipient,
-            notifiable_type="message",
-            notifiable_id=message.id,
-            subject="New message",
-            content=f"{request.user.full_name}: {message.message[:200]}",
-        )
+        # No bell notification: unread chat shows on the Messages icon instead
+        # (MessageUnreadView), so the bell keeps bookings, payments, plans…
 
         data = MessageSerializer(message).data
         _broadcast_later(relationship.id, data)
+        recipient_id = relationship.client_id if request.user.id == relationship.rnd_id else relationship.rnd_id
+        push_new_message(recipient_id, data)
         return Response(data, status=status.HTTP_201_CREATED)
 
 
 def _broadcast_later(relationship_id, message_data):
-    """Also push a message sent over the API to anyone connected live
-    (MessageConsumer). In a background thread: with Redis down the channel
-    layer takes seconds to fail, and the sender mustn't wait for that — the
-    other side picks the message up by polling instead."""
-    import threading
+    """Also push a message sent over the API to anyone connected live to that
+    chat (MessageConsumer); without a connection the page polls instead."""
+    group_send(f"relationship_{relationship_id}", {"type": "chat.message", "message": message_data})
 
-    def send():
-        try:
-            from asgiref.sync import async_to_sync
-            from channels.layers import get_channel_layer
 
-            layer = get_channel_layer()
-            if layer is not None:
-                async_to_sync(layer.group_send)(f"relationship_{relationship_id}", {"type": "chat.message", "message": message_data})
-        except Exception:  # noqa: BLE001 — no Redis / channel layer: polling covers it
-            pass
+def _my_relationships(user):
+    return RndClientRelationship.objects.filter(Q(rnd=user) | Q(client=user))
 
-    threading.Thread(target=send, daemon=True).start()
+
+def _unread_from_others(user):
+    return Message.objects.filter(
+        relationship__in=_my_relationships(user), is_read=False, deleted_at__isnull=True,
+    ).exclude(sender=user)
+
+
+class MessageUnreadView(APIView):
+    """GET → {total, by_relationship: {<id>: n}, latest: {<id>: {message,
+    created_at, sender_id}}} — chat messages from the other person not read
+    yet (the dot on the top-bar Messages icon and on each conversation), plus
+    every chat's latest message for the Messages page's list previews."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        rows = _unread_from_others(request.user).values("relationship_id").annotate(n=Count("id"))
+        by_rel = {str(r["relationship_id"]): r["n"] for r in rows}
+        last_id = (Message.objects.filter(relationship=OuterRef("pk"), deleted_at__isnull=True)
+                   .order_by("-created_at", "-id").values("id")[:1])
+        ids = (_my_relationships(request.user).annotate(last_id=Subquery(last_id))
+               .exclude(last_id=None).values_list("last_id", flat=True))
+        latest = {
+            str(m.relationship_id): {"message": m.message[:200], "created_at": m.created_at, "sender_id": m.sender_id}
+            for m in Message.objects.filter(id__in=list(ids))
+        }
+        return Response({"total": sum(by_rel.values()), "by_relationship": by_rel, "latest": latest})
+
+
+class MessageMarkReadView(APIView):
+    """POST → marks the other person's messages in this chat as read (the
+    Messages page calls it when a conversation is open)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, relationship_id):
+        relationship = get_object_or_404(_my_relationships(request.user), id=relationship_id)
+        marked = _unread_from_others(request.user).filter(relationship=relationship).update(
+            is_read=True, read_at=timezone.now()
+        )
+        return Response({"marked": marked})
 
 
 class MessageDeleteView(generics.DestroyAPIView):
@@ -107,9 +134,11 @@ class NotificationListView(generics.ListAPIView):
             from .reminders import run_for_client_throttled
 
             run_for_client_throttled(self.request.user)
+        # Chat isn't in the bell (it's on the Messages icon) — this also hides
+        # "New message" notifications stored before that change.
         return NotificationLog.objects.filter(
             recipient=self.request.user, channel=NotificationLog.Channel.IN_APP
-        ).order_by("-created_at")
+        ).exclude(notifiable_type="message").order_by("-created_at")
 
 
 class NotificationDetailView(generics.RetrieveAPIView):

@@ -2,9 +2,10 @@ import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.serializers.json import DjangoJSONEncoder
 
+from .live import user_group
 from .serializers import MessageSerializer
-from .services import notify
 
 
 class MessageConsumer(AsyncWebsocketConsumer):
@@ -52,7 +53,11 @@ class MessageConsumer(AsyncWebsocketConsumer):
             return
 
         message_data = await self._create_message(relationship, user, text)
-        await self._notify_other_party(relationship, user, text, message_data["id"])
+        recipient_id = relationship.client_id if user.id == relationship.rnd_id else relationship.rnd_id
+        await self.channel_layer.group_send(user_group(recipient_id), {
+            "type": "live.event",
+            "data": {"kind": "message", "relationship_id": relationship.id, "message": json.loads(json.dumps(message_data, cls=DjangoJSONEncoder))},
+        })
 
         await self.channel_layer.group_send(
             self.group_name, {"type": "chat.message", "message": message_data}
@@ -78,13 +83,27 @@ class MessageConsumer(AsyncWebsocketConsumer):
         message = Message.objects.create(relationship=relationship, sender=user, message=text)
         return MessageSerializer(message).data
 
-    @database_sync_to_async
-    def _notify_other_party(self, relationship, sender, text, message_id):
-        recipient = relationship.client if sender.id == relationship.rnd_id else relationship.rnd
-        notify(
-            recipient=recipient,
-            notifiable_type="message",
-            notifiable_id=message_id,
-            subject="New message",
-            content=f"{sender.full_name}: {text[:200]}",
-        )
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    """ws/notifications/ — one per signed-in page. Joins only the user's own
+    group, so it receives only their events (communication/live.py): new
+    bell notifications and "someone messaged you"."""
+
+    async def connect(self):
+        user = self.scope["user"]
+        if not user.is_authenticated:
+            await self.close(code=4001)
+            return
+        self.group_name = user_group(user.id)
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        pass  # push only
+
+    async def live_event(self, event):
+        await self.send(text_data=json.dumps(event["data"], cls=DjangoJSONEncoder))

@@ -124,7 +124,6 @@
               :aria-selected="openMetric === box.key" :aria-controls="`explain-${box.key}`"
               @click="toggleMetric(box.key)"
             >
-              <span class="result-info"><Info :size="13" /></span>
               <p class="result-label">{{ box.label }}</p>
               <p class="result-value">{{ box.value }}</p>
               <p v-if="box.tag" class="result-tag" :class="box.tagClass">{{ box.tag }}</p>
@@ -497,8 +496,6 @@ onMounted(async () => {
 .result-box:hover { border-color: #b9dcc7; }
 .result-box:focus-visible { outline: none; border-color: #1f8f5c; }
 .result-box.selected { border-color: #1f8f5c; box-shadow: 0 4px 14px rgba(31, 143, 92, 0.15); }
-.result-info { position: absolute; top: 8px; right: 8px; color: #9fc4ae; display: flex; }
-.result-box.selected .result-info { color: #1f8f5c; }
 
 .explain-card { background: #fff; border-radius: 10px; padding: 16px 18px; margin-top: 12px; border: 1px solid #cfe8da; }
 .explain-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }

@@ -92,9 +92,9 @@
           <label for="off-reason">Reason <span class="optional">(optional, only you see it)</span></label>
           <input id="off-reason" v-model="newBlock.reason" type="text" maxlength="200" placeholder="e.g. Annual leave" />
         </div>
-        <button class="block-btn" :disabled="!newBlock.from || blockSaving" @click="submitBlock">{{ blockSaving ? 'Blocking…' : 'Block' }}</button>
+        <button class="block-btn" :disabled="!newBlock.from || !!blockRuleError || blockSaving" @click="submitBlock">{{ blockSaving ? 'Blocking…' : 'Block' }}</button>
       </div>
-      <p v-if="blockError" class="save-error">{{ blockError }}</p>
+      <p v-if="blockRuleError || blockError" class="save-error" role="alert">{{ blockRuleError || blockError }}</p>
       <div v-if="conflicts.length" class="conflicts" role="status">
         <p><strong>You already have {{ conflicts.length }} consultation{{ conflicts.length === 1 ? '' : 's' }} in this time.</strong> They weren't cancelled — cancel or reschedule them from Appointments.</p>
         <ul><li v-for="c in conflicts" :key="c.id">{{ when(c.scheduled_at) }} · {{ c.client_name }} · {{ c.type_label }}</li></ul>
@@ -250,9 +250,48 @@ const blockError = ref('')
 const conflicts = ref([])
 const when = v => new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
+// A block must cover some of the weekly hours on at least one of its dates —
+// a whole day needs a working day, a part-day block must overlap that day's
+// hours (partly is fine). Same rule as the API (profiles/time_off.py
+// outside_working_hours); Block stays disabled while this has a message.
+function hoursOn(iso) {
+  const dow = new Date(iso + 'T00:00:00').getDay() // Sunday = 0, like day_of_week
+  return slots.value
+    .filter(s => s.is_available !== false && s.day_of_week === dow
+      && (!s.effective_from || s.effective_from <= iso) && (!s.effective_to || s.effective_to >= iso))
+    .sort((a, b) => a.start_time.localeCompare(b.start_time))
+}
+const blockRuleError = computed(() => {
+  const b = newBlock.value
+  if (!b.from || loading.value) return ''
+  if (!slots.value.length) return 'Add your weekly availability first — there are no hours to block yet.'
+  const to = b.to && b.to > b.from ? b.to : b.from
+  const covers = iso => {
+    const hours = hoursOn(iso)
+    return hours.length && (b.wholeDay || hours.some(s => s.start_time.slice(0, 5) < b.endTime && s.end_time.slice(0, 5) > b.startTime))
+  }
+  const d = new Date(b.from + 'T00:00:00')
+  for (let i = 0; i < 90; i++) {
+    const iso = d.toLocaleDateString('en-CA')
+    if (iso > to) break
+    if (covers(iso)) return ''
+    d.setDate(d.getDate() + 1)
+  }
+  if (to === b.from) {
+    const name = DAY_NAMES[new Date(b.from + 'T00:00:00').getDay()]
+    const hours = hoursOn(b.from)
+    if (!hours.length) return `You have no hours on ${name}s, so there's nothing to block.`
+    const list = hours.map(s => `${formatTime(s.start_time)} – ${formatTime(s.end_time)}`).join(', ')
+    return `That time is outside your ${name} hours (${list}). Pick a time within them.`
+  }
+  return b.wholeDay
+    ? "None of these dates fall on your working days, so there's nothing to block."
+    : 'That time is outside your working hours on every date in this range.'
+})
+
 async function submitBlock() {
   const b = newBlock.value
-  if (!b.from) return
+  if (!b.from || blockRuleError.value) return
   blockSaving.value = true
   blockError.value = ''
   conflicts.value = []

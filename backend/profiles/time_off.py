@@ -61,7 +61,59 @@ class RndTimeOffSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"end_time": ["The end time must be after the start time."]})
             if (datetime.combine(start, t2) - datetime.combine(start, t1)) < timedelta(hours=1):
                 raise serializers.ValidationError({"end_time": ["Block at least 1 hour."]})
+        rnd = self.context.get("rnd")
+        if rnd is not None:
+            problem = outside_working_hours(rnd.id, start, end, t1, t2)
+            if problem:
+                raise serializers.ValidationError({"non_field_errors": [problem]})
         return attrs
+
+
+DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+
+def _clock(t):
+    return t.strftime("%I:%M %p").lstrip("0")
+
+
+def outside_working_hours(rnd_id, start, end, t1=None, t2=None):
+    """Why a block can't be saved, or None. A block must cover some of the
+    RND's weekly hours on at least one of its dates — a whole day needs a
+    working day, a part-day block must overlap that day's hours (partly is
+    fine: blocking 8–10 AM still blocks 9–10). A range like a week of leave
+    only needs one working day in it. Mirrored in Availability.vue."""
+    from .models import RndAvailabilitySchedule
+
+    schedules = list(RndAvailabilitySchedule.objects.filter(rnd_id=rnd_id, is_available=True))
+    if not schedules:
+        return "Add your weekly availability first — there are no hours to block yet."
+
+    def hours_on(day):
+        dow = (day.weekday() + 1) % 7  # Python Monday=0 -> model Sunday=0
+        return sorted(
+            (b for b in schedules
+             if b.day_of_week == dow and (not b.effective_from or b.effective_from <= day)
+             and (not b.effective_to or b.effective_to >= day)),
+            key=lambda b: b.start_time,
+        )
+
+    day = start
+    while day <= end:
+        blocks = hours_on(day)
+        if blocks and (t1 is None or any(b.start_time < t2 and b.end_time > t1 for b in blocks)):
+            return None
+        day += timedelta(days=1)
+
+    if start == end:
+        blocks = hours_on(start)
+        name = DAY_NAMES[(start.weekday() + 1) % 7]
+        if not blocks:
+            return f"You have no hours on {name}s, so there's nothing to block."
+        hours = ", ".join(f"{_clock(b.start_time)} – {_clock(b.end_time)}" for b in blocks)
+        return f"That time is outside your {name} hours ({hours}). Pick a time within them."
+    if t1 is None:
+        return "None of these dates fall on your working days, so there's nothing to block."
+    return "That time is outside your working hours on every date in this range."
 
 
 def block_window(block):
@@ -105,7 +157,7 @@ class RndTimeOffListCreateView(APIView):
         return Response(RndTimeOffSerializer(blocks, many=True).data)
 
     def post(self, request):
-        data = RndTimeOffSerializer(data=request.data)
+        data = RndTimeOffSerializer(data=request.data, context={"rnd": request.user})
         data.is_valid(raise_exception=True)
         block = data.save(rnd=request.user)
         return Response({**RndTimeOffSerializer(block).data, "conflicts": conflicting_appointments(block)},

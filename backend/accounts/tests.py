@@ -586,6 +586,22 @@ class RegistrationEmailAndRndFieldTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("already exists", str(resp.data["email"]))
 
+    def test_check_email_before_confirm_step(self):
+        url = "/api/auth/register/check-email/"
+        self.assertEqual(self.client_api.post(url, {"email": "redo@t.ph"}).data, {"available": True})
+
+        # An unfinished signup doesn't block — registering again replaces it.
+        self.assertEqual(self._client().status_code, 201)
+        self.assertTrue(self.client_api.post(url, {"email": "redo@t.ph"}).data["available"])
+
+        User.objects.filter(email="redo@t.ph").update(email_verified_at=timezone.now())
+        resp = self.client_api.post(url, {"email": "REDO@t.ph"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data["available"])
+        self.assertEqual(resp.data["detail"], "An account with this email already exists.")
+
+        self.assertEqual(self.client_api.post(url, {"email": ""}).status_code, 400)
+
     @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/x")
     def test_rnd_prc_number_and_specialization(self, mock_upload):
         for bad in ["12345", "12345678", "01234ab", ""]:

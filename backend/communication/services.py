@@ -45,7 +45,7 @@ class CloudinaryResourceUploadService:
 def notify(recipient, notifiable_type, notifiable_id, subject, content):
     """Creates an in-app notification. IN_APP notifications are considered
     delivered immediately — there's no external delivery step to track."""
-    return NotificationLog.objects.create(
+    notification = NotificationLog.objects.create(
         recipient=recipient,
         notifiable_type=notifiable_type,
         notifiable_id=notifiable_id,
@@ -54,3 +54,8 @@ def notify(recipient, notifiable_type, notifiable_id, subject, content):
         content=content,
         status=NotificationLog.Status.DELIVERED,
     )
+    # Shows in the recipient's bell right away (communication/live.py).
+    from .live import push_notification
+
+    push_notification(notification)
+    return notification

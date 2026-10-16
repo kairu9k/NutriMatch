@@ -85,3 +85,33 @@ class TimeOffTests(TestCase):
                                                effective_from=self.day - timedelta(days=7))
         self.assertEqual(self._book(self._at(9)).status_code, 400)   # not on the 8:30 grid
         self.assertEqual(self._book(self._at(9, 30)).status_code, 201)
+
+    def test_block_must_cover_working_hours(self):
+        # Mondays and Thursdays 9:00 AM - 5:00 PM only.
+        RndAvailabilitySchedule.objects.filter(rnd=self.rnd).delete()
+        start = booking_slot(0).date()
+        for dow in (1, 4):
+            RndAvailabilitySchedule.objects.create(rnd=self.rnd, day_of_week=dow, start_time=time(9), end_time=time(17),
+                                                   effective_from=start - timedelta(days=7))
+        upcoming = lambda py_weekday: next(start + timedelta(days=i) for i in range(1, 8)
+                                           if (start + timedelta(days=i)).weekday() == py_weekday)
+        tue, thu = upcoming(1), upcoming(3)
+        post = lambda body: self.rnd_api.post("/api/rnd/time-off/", body, format="json")
+
+        resp = post({"start_date": str(tue)})  # whole day with no hours set
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("no hours on Tuesdays", str(resp.data))
+        resp = post({"start_date": str(thu), "start_time": "03:00", "end_time": "04:00"})  # outside 9-5
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("outside your Thursday hours (9:00 AM – 5:00 PM)", str(resp.data))
+        self.assertEqual(post({"start_date": str(thu), "start_time": "17:00", "end_time": "18:00"}).status_code, 400)  # touches only
+
+        self.assertEqual(post({"start_date": str(thu), "start_time": "08:00", "end_time": "10:00"}).status_code, 201)  # partly inside
+        self.assertEqual(post({"start_date": str(thu), "start_time": "13:00", "end_time": "15:00"}).status_code, 201)
+        self.assertEqual(post({"start_date": str(tue), "end_date": str(tue + timedelta(days=6))}).status_code, 201)  # a week of leave
+        self.assertEqual(RndTimeOff.objects.count(), 3)
+
+        RndAvailabilitySchedule.objects.filter(rnd=self.rnd).delete()
+        resp = post({"start_date": str(thu)})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Add your weekly availability first", str(resp.data))

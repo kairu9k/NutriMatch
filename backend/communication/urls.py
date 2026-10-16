@@ -24,6 +24,8 @@ from .reminder_views import (
     RndReminderDetailView,
 )
 from .views import (
+    MessageMarkReadView,
+    MessageUnreadView,
     ClientResourceListView,
     MessageDeleteView,
     MessageListCreateView,
@@ -40,6 +42,8 @@ from .views import (
 urlpatterns = [
     path("relationships/<int:relationship_id>/messages/", MessageListCreateView.as_view(), name="messages"),
     path("relationships/<int:relationship_id>/messages/<int:pk>/", MessageDeleteView.as_view(), name="message_delete"),
+    path("relationships/<int:relationship_id>/messages/read/", MessageMarkReadView.as_view(), name="messages_mark_read"),
+    path("messages/unread/", MessageUnreadView.as_view(), name="messages_unread"),
 
     path("notifications/", NotificationListView.as_view(), name="notification_list"),
     path("support/tickets/", SupportTicketListCreateView.as_view(), name="support_tickets"),

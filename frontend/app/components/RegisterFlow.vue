@@ -218,7 +218,7 @@
 
             <div class="form-nav">
               <button type="button" class="btn-back" @click="currentStep = 1">← Back</button>
-              <button type="submit" class="btn-primary" :disabled="!detailsValid">Continue →</button>
+              <button type="submit" class="btn-primary" :disabled="!detailsValid || checkingEmail">{{ checkingEmail ? 'Checking…' : 'Continue →' }}</button>
             </div>
           </form>
         </div>
@@ -604,9 +604,17 @@ watch(() => form.lastName, v => { const c = capitalizeWords(v); if (c !== v) for
 // Shown under the field as soon as something's typed, like "Passwords do
 // not match" — instead of the browser's own "Please include an '@'" popup.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-const emailError = computed(() =>
-  form.email && !EMAIL_RE.test(form.email) ? 'Enter a valid email address (e.g. juan@example.com).' : ''
-)
+// Set by the "already exists" check on Continue; editing the email clears it.
+const takenEmail = ref('')
+const emailError = computed(() => {
+  if (form.email && !EMAIL_RE.test(form.email)) return 'Enter a valid email address (e.g. juan@example.com).'
+  if (takenEmail.value && form.email.toLowerCase() === takenEmail.value) return 'An account with this email already exists.'
+  return ''
+})
+const checkingEmail = ref(false)
+watch(() => form.email, v => {
+  if (takenEmail.value && v.toLowerCase() !== takenEmail.value && errorMessage.value.includes('already exists')) errorMessage.value = ''
+})
 
 const passwordRules = computed(() => [
   { label: 'At least 8 characters', ok: form.password.length >= 8 },
@@ -657,10 +665,27 @@ const detailsValid = computed(() => {
   return false
 })
 
-function goToConfirm() {
+async function goToConfirm() {
   if (!detailsValid.value) {
     errorMessage.value = 'Please fix the highlighted fields first.'
     return
+  }
+  // Same rule the API applies at submit (a verified account owns the email),
+  // checked here so the form doesn't move on to Confirm with a taken email.
+  if (currentStep.value === 2) {
+    checkingEmail.value = true
+    try {
+      const res = await auth.checkRegistrationEmail(form.email)
+      if (!res.available) {
+        takenEmail.value = form.email.toLowerCase()
+        errorMessage.value = res.detail || 'An account with this email already exists.'
+        return
+      }
+    } catch {
+      // Can't reach the check — carry on; registration itself still refuses a taken email.
+    } finally {
+      checkingEmail.value = false
+    }
   }
   if (selectedRole.value === 'rnd' && !form.prcLicenseImage) {
     errorMessage.value = 'Please upload a photo of your PRC license.'

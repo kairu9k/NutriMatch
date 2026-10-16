@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from scheduling.models import RndClientRelationship
 
-from .consumers import MessageConsumer
+from .consumers import MessageConsumer, NotificationConsumer
 from .models import Message, NotificationLog
 
 
@@ -26,15 +26,45 @@ class MessageViewTests(TestCase):
         self.client_user = _make_client()
         self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
 
-    def test_client_can_send_message_and_it_notifies_the_rnd(self):
+    def test_client_can_send_message_and_it_shows_as_unread_not_in_the_bell(self):
         self.client_api.force_authenticate(self.client_user)
         resp = self.client_api.post(f"/api/relationships/{self.rel.id}/messages/", {"message": "Hi doc!"})
 
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(resp.data["sender"]["id"], self.client_user.id)
-        self.assertTrue(
-            NotificationLog.objects.filter(recipient=self.rnd, notifiable_type="message").exists()
-        )
+        self.assertFalse(NotificationLog.objects.filter(notifiable_type="message").exists())
+
+        self.assertEqual(self.client_api.get("/api/messages/unread/").data["total"], 0)  # own message
+        rnd_api = APIClient()
+        rnd_api.force_authenticate(self.rnd)
+        data = rnd_api.get("/api/messages/unread/").data
+        self.assertEqual((data["total"], data["by_relationship"]), (1, {str(self.rel.id): 1}))
+        self.assertEqual(data["latest"][str(self.rel.id)]["message"], "Hi doc!")
+
+    def test_opening_the_chat_marks_the_other_persons_messages_read(self):
+        Message.objects.create(relationship=self.rel, sender=self.client_user, message="one")
+        Message.objects.create(relationship=self.rel, sender=self.client_user, message="two")
+        mine = Message.objects.create(relationship=self.rel, sender=self.rnd, message="reply")
+        self.client_api.force_authenticate(self.rnd)
+
+        resp = self.client_api.post(f"/api/relationships/{self.rel.id}/messages/read/")
+        self.assertEqual(resp.data["marked"], 2)
+        self.assertEqual(self.client_api.get("/api/messages/unread/").data["total"], 0)
+        mine.refresh_from_db()
+        self.assertFalse(mine.is_read)  # only the reader's incoming messages
+        self.assertTrue(Message.objects.filter(sender=self.client_user, read_at__isnull=False).count() == 2)
+
+        outsider = _make_client(email="outsider2@t.ph")
+        self.client_api.force_authenticate(outsider)
+        self.assertEqual(self.client_api.post(f"/api/relationships/{self.rel.id}/messages/read/").status_code, 404)
+
+    def test_old_message_notifications_are_hidden_from_the_bell(self):
+        from .services import notify
+
+        notify(self.rnd, "message", 1, "New message", "C L: hi")
+        notify(self.rnd, "appointment", 1, "Booked", "A booking")
+        self.client_api.force_authenticate(self.rnd)
+        self.assertEqual([n["notifiable_type"] for n in self.client_api.get("/api/notifications/").data], ["appointment"])
 
     def test_rnd_can_reply(self):
         self.client_api.force_authenticate(self.rnd)
@@ -97,9 +127,9 @@ class MessageViewTests(TestCase):
 
 
 class MessageConsumerTests(TransactionTestCase):
-    """Real-time delivery over the actual WebSocket consumer — needs a real
-    Redis channel layer (see CHANNEL_LAYERS in settings), same as the app
-    itself in dev (docker run -d -p 6379:6379 redis). TransactionTestCase
+    """Real-time delivery over the actual WebSocket consumer — uses Redis when
+    REDIS_URL is set or one is running locally, else Channels' in-memory
+    layer (see CHANNEL_LAYERS in settings). TransactionTestCase
     because the consumer's DB access happens in a different async context
     than TestCase's wrapping transaction would allow."""
 
@@ -485,3 +515,60 @@ class ResourceSharingTests(TestCase):
         note = NotificationLog.objects.get(recipient=self.client_user, notifiable_type="resource")
         detail = self.api.get(f"/api/notifications/{note.id}/").data
         self.assertEqual(detail["related"]["title"], "Plate")
+
+
+class NotificationConsumerTests(TransactionTestCase):
+    """ws/notifications/: each user gets their own new bell notifications and
+    "someone messaged you" events, live."""
+
+    def setUp(self):
+        self.rnd = _make_rnd()
+        self.client_user = _make_client()
+        self.rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
+
+    def _socket(self, user):
+        communicator = WebsocketCommunicator(NotificationConsumer.as_asgi(), "/ws/notifications/")
+        communicator.scope["user"] = user
+        return communicator
+
+    async def test_anonymous_is_refused(self):
+        from django.contrib.auth.models import AnonymousUser
+
+        communicator = self._socket(AnonymousUser())
+        connected, _ = await communicator.connect()
+        self.assertFalse(connected)
+
+    async def test_new_notification_is_pushed_only_to_its_recipient(self):
+        from channels.db import database_sync_to_async
+
+        from .services import notify
+
+        rnd_socket, client_socket = self._socket(self.rnd), self._socket(self.client_user)
+        self.assertTrue((await rnd_socket.connect())[0])
+        self.assertTrue((await client_socket.connect())[0])
+
+        await database_sync_to_async(notify)(self.rnd, "appointment", 7, "New booking", "C L booked a consultation.")
+
+        event = await rnd_socket.receive_json_from(timeout=2)
+        self.assertEqual(event["kind"], "notification")
+        self.assertEqual(event["notification"]["subject"], "New booking")
+        self.assertFalse(event["notification"]["is_read"])
+        self.assertTrue(await client_socket.receive_nothing(timeout=0.3))
+        await rnd_socket.disconnect()
+        await client_socket.disconnect()
+
+    async def test_chat_message_pings_the_other_person(self):
+        from channels.db import database_sync_to_async
+
+        rnd_socket = self._socket(self.rnd)
+        await rnd_socket.connect()
+
+        def send():
+            api = APIClient()
+            api.force_authenticate(self.client_user)
+            return api.post(f"/api/relationships/{self.rel.id}/messages/", {"message": "Hi doc!"}).status_code
+
+        self.assertEqual(await database_sync_to_async(send)(), 201)
+        event = await rnd_socket.receive_json_from(timeout=2)
+        self.assertEqual((event["kind"], event["relationship_id"], event["message"]["message"]), ("message", self.rel.id, "Hi doc!"))
+        await rnd_socket.disconnect()

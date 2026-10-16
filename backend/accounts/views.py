@@ -12,6 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
 from .permissions import IsAdmin, IsClient
 from .serializers import (
+    EMAIL_TAKEN_MESSAGE,
     AdminClientListSerializer,
     AdminRndListSerializer,
     MeUpdateSerializer,
@@ -23,6 +24,7 @@ from .serializers import (
     ResendVerificationSerializer,
     UserSerializer,
     VerifyEmailSerializer,
+    email_blocks_registration,
 )
 from .services import (
     InvalidResetCodeError,
@@ -51,6 +53,26 @@ class RegisterClientView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class RegisterEmailCheckView(APIView):
+    """POST {email} → {available}. Lets the sign-up form stop on the details
+    step ("An account with this email already exists.") instead of only
+    finding out at the final submit. Same rule as registration itself, so an
+    unfinished signup or a rejected RND application still counts as free."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register_email_check"
+
+    def post(self, request):
+        email = str(request.data.get("email") or "").strip()
+        if not email:
+            return Response({"email": ["Enter an email address."]}, status=status.HTTP_400_BAD_REQUEST)
+        existing = User.objects.filter(email__iexact=email).first()
+        if email_blocks_registration(existing):
+            return Response({"available": False, "detail": EMAIL_TAKEN_MESSAGE})
+        return Response({"available": True})
 
 
 class RegisterRndView(generics.CreateAPIView):

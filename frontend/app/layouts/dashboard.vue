@@ -5,10 +5,10 @@
       <button class="menu-btn" type="button" aria-label="Toggle menu" @click="isSidebarOpen = !isSidebarOpen">
         <Menu :size="22" />
       </button>
-      <div class="mobile-brand">
-        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch" class="logo-mark" />
+      <NuxtLink :to="dashboardPath" class="mobile-brand home-link" aria-label="NutriMatch — go to dashboard" @click="goHome">
+        <img src="/resources/nutrimatchlogo.png" alt="" class="logo-mark" />
         <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
-      </div>
+      </NuxtLink>
     </div>
 
     <!-- MOBILE OVERLAY -->
@@ -24,10 +24,10 @@
       @mouseleave="collapseSidebar"
     >
       <div class="sidebar-top">
-        <div class="sidebar-brand">
-          <img src="/resources/nutrimatchlogo.png" alt="NutriMatch" class="logo-mark" />
+        <NuxtLink :to="dashboardPath" class="sidebar-brand home-link" aria-label="NutriMatch — go to dashboard" @click="goHome">
+          <img src="/resources/nutrimatchlogo.png" alt="" class="logo-mark" />
           <span v-if="expanded" class="logo-text">Nutri<span class="logo-match">Match</span></span>
-        </div>
+        </NuxtLink>
         <span v-if="expanded" class="brand-tagline">Clinical Nutrition System</span>
         <div v-if="expanded" class="portal-badge"><span class="portal-dot"></span>{{ portalLabel }}</div>
         <div v-if="expanded" class="sidebar-divider"></div>
@@ -106,7 +106,11 @@
         <!-- Admins have no messages, and their to-dos live in the sidebar badges
              and the dashboard's Needs attention list (user's call, 2026-10-12). -->
         <div v-if="auth.user?.role !== 'admin'" class="topbar-actions">
-          <button class="icon-btn" type="button" aria-label="Messages" @click="navigateTo('/messages')"><MessageSquare :size="17" /></button>
+          <button class="icon-btn" type="button" :aria-label="unreadMessages.total ? `Messages, ${unreadMessages.total} unread` : 'Messages'" @click="navigateTo('/messages')">
+            <MessageSquare :size="17" />
+            <!-- Same yellow dot as the bell (NotificationDropdown.vue). -->
+            <span v-if="unreadMessages.total" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gold border-2 border-cream animate-pop"></span>
+          </button>
           <NotificationDropdown v-if="auth.hydrated" />
         </div>
       </header>
@@ -156,6 +160,14 @@ watch(() => route.path, () => { isSidebarOpen.value = false })
 const pageTitle = computed(() => route.meta.title || 'Dashboard')
 
 const isRnd = computed(() => auth.user?.role === 'rnd')
+
+// The logo (sidebar + phone top bar) goes to the user's own dashboard — same
+// rule as the sign-in redirect (middleware/auth.global.ts).
+const dashboardPath = computed(() => ({ rnd: '/rnd-dashboard', admin: '/admin-dashboard' })[auth.user?.role] || '/client-dashboard')
+function goHome() {
+  isSidebarOpen.value = false
+  if (route.path === dashboardPath.value) window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 const roleLabel = computed(() => (auth.user?.role === 'client' ? 'Client' : 'Admin'))
 const portalLabel = computed(() => (isRnd.value ? 'RND Portal' : roleLabel.value + ' Portal'))
 
@@ -206,6 +218,33 @@ async function loadBadgeCounts() {
 }
 
 watch(() => auth.hydrated, (hydrated) => { if (hydrated) loadBadgeCounts() }, { immediate: true })
+
+// Unread chat on the Messages icon (chat isn't in the bell): on load, on
+// every page change, when the tab comes back, live when someone messages
+// (ws/notifications/), and every 30 s only while the live connection is down.
+const { unread: unreadMessages, refresh: refreshUnreadMessages } = useUnreadMessages()
+const hasChat = () => auth.user && auth.user.role !== 'admin'
+watch(() => [auth.hydrated, route.path], ([hydrated]) => { if (hydrated && hasChat()) refreshUnreadMessages() }, { immediate: true })
+
+// Live updates for clients and RNDs (admins have no bell or Messages icon).
+const live = useLiveUpdates()
+watch(() => [auth.hydrated, auth.user?.id, auth.user?.role], ([hydrated]) => {
+  if (hydrated && hasChat()) live.start()
+  else live.stop()
+}, { immediate: true })
+live.onLive('message', () => refreshUnreadMessages())
+live.onLive('reconnect', () => { if (hasChat()) refreshUnreadMessages() })
+
+let unreadTimer = null
+function refreshWhenVisible() { if (hasChat() && document.visibilityState === 'visible') refreshUnreadMessages() }
+onMounted(() => {
+  unreadTimer = setInterval(() => { if (!live.connected.value) refreshWhenVisible() }, 30000)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+})
+onUnmounted(() => {
+  clearInterval(unreadTimer)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
+})
 // Uploading clears a request, so refresh the client's badge when they move between pages.
 watch(() => route.path, () => { if (auth.user?.role === 'client') loadBadgeCounts() })
 
@@ -405,6 +444,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 .sidebar-top { margin-bottom: 18px; flex-shrink: 0; position: relative; }
 .sidebar-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.home-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; }
+.home-link:focus-visible { outline: 2px solid #D4A017; outline-offset: 3px; }
 .sidebar.collapsed .sidebar-brand { justify-content: center; margin-bottom: 16px; }
 .logo-mark { width: 40px; height: 40px; flex-shrink: 0; object-fit: contain; }
 .sidebar.collapsed .logo-mark { width: 32px; height: 32px; }
