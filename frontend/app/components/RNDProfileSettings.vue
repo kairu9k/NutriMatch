@@ -52,7 +52,7 @@
               <div class="info-item"><dt>First Name</dt><dd>{{ personalInfo.firstName || '—' }}</dd></div>
               <div class="info-item"><dt>Last Name</dt><dd>{{ personalInfo.lastName || '—' }}</dd></div>
               <div class="info-item"><dt>Email Address</dt><dd>{{ personalInfo.email || '—' }}</dd></div>
-              <div class="info-item"><dt>Phone Number</dt><dd :class="{ muted: !personalInfo.phone }">{{ personalInfo.phone || 'Not provided' }}</dd></div>
+              <div class="info-item"><dt>Mobile Number</dt><dd :class="{ muted: !personalInfo.phone }">{{ formatPhone(personalInfo.phone) || 'Not provided' }}</dd></div>
             </dl>
           </template>
 
@@ -74,8 +74,8 @@
               <p class="field-hint">Email can't be changed here.</p>
             </div>
             <div class="field">
-              <label class="field-label" for="rp-phone">Phone Number</label>
-              <input id="rp-phone" v-model="personalInfo.phone" type="tel" inputmode="tel" class="field-input" maxlength="20" placeholder="e.g. 0917 123 4567" />
+              <label class="field-label" for="rp-phone">Mobile Number</label>
+              <PhoneInput id="rp-phone" v-model="personalInfo.phone" label="mobile number" :error="fieldErrors.phone" />
             </div>
           </div>
 
@@ -300,6 +300,7 @@ import {
   Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2
 } from 'lucide-vue-next'
 import { db } from '~/mock/mockDatabase'
+import { formatPhone, phoneError } from '~/utils/phone'
 
 const { get, patch, put } = useApi()
 
@@ -339,7 +340,7 @@ const isEditing = ref(false)
 const profileLoaded = ref(false)
 // Last loaded profile — Cancel restores the form from it.
 const lastLoaded = ref(null)
-const fieldErrors = reactive({ firstName: '', lastName: '', clinicAddress: '' })
+const fieldErrors = reactive({ firstName: '', lastName: '', phone: '', clinicAddress: '' })
 
 const identityName = computed(() => `RND ${personalInfo.value.firstName} ${personalInfo.value.lastName}`.trim())
 const identitySubtitle = computed(() => {
@@ -450,14 +451,15 @@ const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑ�
 
 async function saveChanges() {
   profileError.value = ''
-  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.clinicAddress = ''
+  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.phone = fieldErrors.clinicAddress = ''
   personalInfo.value.firstName = personalInfo.value.firstName.trim()
   personalInfo.value.lastName = personalInfo.value.lastName.trim()
   if (!personalInfo.value.firstName) fieldErrors.firstName = 'Enter your first name.'
   else if (!NAME_RE.test(personalInfo.value.firstName)) fieldErrors.firstName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
   if (!personalInfo.value.lastName) fieldErrors.lastName = 'Enter your last name.'
   else if (!NAME_RE.test(personalInfo.value.lastName)) fieldErrors.lastName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
-  if (fieldErrors.firstName || fieldErrors.lastName) return
+  fieldErrors.phone = phoneError(personalInfo.value.phone)
+  if (fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone) return
   if (!personalInfo.value.consultationModes.length) {
     profileError.value = 'Offer at least one consultation format.'
     return
@@ -479,7 +481,7 @@ async function saveChanges() {
       patch('/auth/me/', {
         first_name: personalInfo.value.firstName,
         last_name: personalInfo.value.lastName,
-        phone: (personalInfo.value.phone || '').trim() || null,
+        phone: personalInfo.value.phone || null,
       }),
       patch('/rnd/profile/', {
         bio: personalInfo.value.bio,
@@ -497,8 +499,9 @@ async function saveChanges() {
     const first = (v) => (Array.isArray(v) ? v[0] : v) || ''
     fieldErrors.firstName = first(data.first_name)
     fieldErrors.lastName = first(data.last_name)
+    fieldErrors.phone = first(data.phone)
     fieldErrors.clinicAddress = first(data.clinic_address)
-    profileError.value = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.clinicAddress
+    profileError.value = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone || fieldErrors.clinicAddress
       ? ''
       : data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
   } finally {

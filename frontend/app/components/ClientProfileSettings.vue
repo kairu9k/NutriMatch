@@ -52,7 +52,7 @@
             <div class="info-item"><dt>First Name</dt><dd>{{ form.firstName || '—' }}</dd></div>
             <div class="info-item"><dt>Last Name</dt><dd>{{ form.lastName || '—' }}</dd></div>
             <div class="info-item"><dt>Email Address</dt><dd>{{ auth.user?.email || '—' }}</dd></div>
-            <div class="info-item"><dt>Phone Number</dt><dd :class="{ muted: !form.phone }">{{ form.phone || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Mobile Number</dt><dd :class="{ muted: !form.phone }">{{ formatPhone(form.phone) || 'Not provided' }}</dd></div>
             <div class="info-item"><dt>Date of Birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div>
             <div class="info-item"><dt>Sex</dt><dd :class="{ muted: !form.sex }">{{ sexLabel || 'Not provided' }}</dd></div>
             <div class="info-item"><dt>Preferred Language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div>
@@ -81,8 +81,8 @@
                 <p class="field-hint">Email can't be changed here.</p>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-phone">Phone Number</label>
-                <input id="pi-phone" v-model="form.phone" type="tel" inputmode="tel" class="field-input" maxlength="20" placeholder="e.g. 0917 123 4567" />
+                <label class="field-label" for="pi-phone">Mobile Number</label>
+                <PhoneInput id="pi-phone" v-model="form.phone" label="mobile number" :error="fieldErrors.phone" />
               </div>
               <div class="field">
                 <label class="field-label" for="pi-dob">Date of Birth</label>
@@ -349,6 +349,7 @@ import {
   Stethoscope, Scale, Flame, Activity, Pencil, Check, AlarmClock, Pill,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
+import { formatPhone, phoneError } from '~/utils/phone'
 
 const auth = useAuthStore()
 const { get, patch, put } = useApi()
@@ -392,7 +393,7 @@ const isEditing = ref(false)
 const profileLoaded = ref(false)
 // Last profile from the API — Cancel restores the form from it.
 const lastProfile = ref(null)
-const fieldErrors = reactive({ firstName: '', lastName: '', dateOfBirth: '', condition: '' })
+const fieldErrors = reactive({ firstName: '', lastName: '', phone: '', dateOfBirth: '', condition: '' })
 
 // Same rules the API enforces (accounts/validators.py): clients are 18+.
 const MIN_CLIENT_AGE = 18
@@ -452,6 +453,7 @@ function validatePersonal() {
   else if (!NAME_RE.test(form.firstName)) fieldErrors.firstName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
   if (!form.lastName) fieldErrors.lastName = 'Enter your last name.'
   else if (!NAME_RE.test(form.lastName)) fieldErrors.lastName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
+  fieldErrors.phone = phoneError(form.phone)
   if (!form.dateOfBirth) fieldErrors.dateOfBirth = 'Enter your date of birth.'
   else if (form.dateOfBirth > latestBirthDate.value) fieldErrors.dateOfBirth = `You must be at least ${MIN_CLIENT_AGE} years old.`
   else if (form.dateOfBirth < '1900-01-01') fieldErrors.dateOfBirth = 'Enter a valid date of birth.'
@@ -467,7 +469,7 @@ async function saveProfile() {
   const primary = conditionChoice.value === '__other' ? conditionOther.value.trim() : conditionChoice.value
   try {
     const [, profile] = await Promise.all([
-      patch('/auth/me/', { first_name: form.firstName, last_name: form.lastName, phone: form.phone.trim() || null }),
+      patch('/auth/me/', { first_name: form.firstName, last_name: form.lastName, phone: form.phone || null }),
       patch('/client/profile/', {
         date_of_birth: form.dateOfBirth || null,
         sex: form.sex || null,
@@ -493,8 +495,9 @@ async function saveProfile() {
     const first = (v) => (Array.isArray(v) ? v[0] : v) || ''
     fieldErrors.firstName = first(data.first_name)
     fieldErrors.lastName = first(data.last_name)
+    fieldErrors.phone = first(data.phone)
     fieldErrors.dateOfBirth = first(data.date_of_birth)
-    const shown = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.dateOfBirth
+    const shown = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone || fieldErrors.dateOfBirth
     saveError.value = shown ? '' : data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
   } finally {
     isSaving.value = false

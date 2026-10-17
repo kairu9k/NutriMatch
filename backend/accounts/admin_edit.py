@@ -15,11 +15,12 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.validators import validate_phone
+
 from .models import User
 from .permissions import IsAdmin
 from .validators import validate_person_name
 
-PHONE_RE = re.compile(r"^\+?[\d\s-]{7,20}$")
 LABELS = {
     "first_name": "First name", "last_name": "Last name", "email": "Email", "phone": "Phone",
     "prc_license_number": "PRC license number", "specialization": "Specialization",
@@ -50,10 +51,7 @@ class AdminUserEditSerializer(serializers.Serializer):
         return value
 
     def validate_phone(self, value):
-        value = " ".join((value or "").split())
-        if value and not PHONE_RE.match(value):
-            raise serializers.ValidationError("Use numbers only, e.g. 0917 123 4567 or +63 917 123 4567.")
-        return value or None
+        return validate_phone(value)
 
     def validate_prc_license_number(self, value):
         from profiles.models import RndProfile

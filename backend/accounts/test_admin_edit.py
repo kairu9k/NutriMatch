@@ -26,7 +26,7 @@ class AdminUserEditTests(TestCase):
             resp = self.edit(self.client_user, first_name="ana marie", email="Ana.New@E.ph", phone="0917 123 4567")
         self.assertEqual(resp.status_code, 200, resp.data)
         u = User.objects.get(pk=self.client_user.pk)
-        self.assertEqual((u.first_name, u.email, u.phone), ("Ana Marie", "ana.new@e.ph", "0917 123 4567"))
+        self.assertEqual((u.first_name, u.email, u.phone), ("Ana Marie", "ana.new@e.ph", "+639171234567"))
         log = AuditLog.objects.get(action="user.updated", record_id=u.pk)
         self.assertEqual(log.old_values["email"], "c@e.ph")
         self.assertEqual(log.new_values["email"], "ana.new@e.ph")

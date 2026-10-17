@@ -3,7 +3,7 @@
 // of one fixed list. Saved as plain text, comma-separated, in
 // PreConsultationScreening.symptoms — so labels must not contain commas.
 //
-// Only the "For everyone" group feeds the NRS-2002 score (poor appetite →
+// Only the "General" group feeds the NRS-2002 score (poor appetite →
 // reduced intake; elevated blood glucose or recent hospitalization → disease
 // severity, clinical/services.py). The condition symptoms are recorded for the
 // RND and don't change the score.
@@ -37,7 +37,7 @@ const OTHER_GROUP = { key: 'other', title: '', items: ['Always tired', 'Bloating
 
 /** The groups of symptom checkboxes for a client: one per known condition (a
  *  symptom already shown in an earlier group isn't repeated), or a general
- *  list when the condition isn't one we know, then "For everyone". Symptoms in
+ *  list when the condition isn't one we know, then "General". Symptoms in
  *  `saved` that no group lists (older screenings) get their own group so a
  *  read-only view still shows them. */
 export function symptomGroups(conditions = [], saved = []) {
@@ -51,7 +51,7 @@ export function symptomGroups(conditions = [], saved = []) {
   const matched = CONDITION_GROUPS.filter(g => (conditions || []).some(c => g.match.test(String(c))))
   if (matched.length) matched.forEach(g => add(`Symptoms related to ${g.title}`, g.items, g.key))
   else add('Common symptoms', OTHER_GROUP.items, OTHER_GROUP.key)
-  add('For everyone', GENERAL_SYMPTOMS, 'general')
+  add('General', GENERAL_SYMPTOMS, 'general')
   const extra = (saved || []).filter(s => s && !seen.has(s))
   if (extra.length) groups.push({ key: 'saved', title: 'Other symptoms you reported', items: extra })
   return groups

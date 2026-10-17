@@ -74,7 +74,7 @@
           </div>
           <div class="field">
             <label for="ob-phone">Mobile number <span class="opt">Optional</span></label>
-            <input id="ob-phone" v-model="about.phone" type="tel" inputmode="tel" maxlength="20" placeholder="e.g. 0917 123 4567" />
+            <PhoneInput id="ob-phone" v-model="about.phone" label="mobile number" :error="aboutErrors.phone" />
           </div>
         </div>
         <p v-if="saveError" class="form-error">{{ saveError }}</p>
@@ -196,6 +196,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ArrowRight, ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
+import { phoneError } from '~/utils/phone'
 
 const auth = useAuthStore()
 const { get, patch, post } = useApi()
@@ -233,7 +234,7 @@ const isSaving = ref(false)
 const saveError = ref('')
 
 const about = reactive({ dob: '', sex: '', language: '', phone: '' })
-const aboutErrors = reactive({ dob: '', sex: '' })
+const aboutErrors = reactive({ dob: '', sex: '', phone: '' })
 const health = reactive({ condition: '', conditionOther: '', hasAllergies: null, allergies: [], diet: [], religion: '', goals: [] })
 const healthErrors = reactive({ allergies: '' })
 const newAllergy = ref('')
@@ -282,17 +283,19 @@ async function saveAbout() {
   saveError.value = ''
   aboutErrors.dob = !about.dob ? 'Enter your date of birth.' : about.dob > latestBirthDate.value ? 'You must be at least 18 years old.' : ''
   aboutErrors.sex = about.sex ? '' : 'Choose one — it changes how your calories are calculated.'
-  if (aboutErrors.dob || aboutErrors.sex) return
+  aboutErrors.phone = phoneError(about.phone)
+  if (aboutErrors.dob || aboutErrors.sex || aboutErrors.phone) return
   isSaving.value = true
   try {
     await patch('/client/profile/', { date_of_birth: about.dob, sex: about.sex, language_code: about.language || null })
-    if (about.phone.trim() !== (auth.user?.phone || '')) {
-      await patch('/auth/me/', { phone: about.phone.trim() || null })
+    if (about.phone !== (auth.user?.phone || '')) {
+      await patch('/auth/me/', { phone: about.phone || null })
     }
     go('health')
   } catch (error) {
     aboutErrors.dob = firstError(error?.data, 'date_of_birth')
-    saveError.value = aboutErrors.dob ? '' : firstError(error?.data, 'detail', 'sex', 'phone') || 'Could not save. Please try again.'
+    aboutErrors.phone = firstError(error?.data, 'phone')
+    saveError.value = aboutErrors.dob || aboutErrors.phone ? '' : firstError(error?.data, 'detail', 'sex') || 'Could not save. Please try again.'
   } finally {
     isSaving.value = false
   }

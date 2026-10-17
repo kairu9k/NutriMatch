@@ -16,9 +16,8 @@
           <small v-if="detailErrors.last_name" class="nm-field-error">{{ detailErrors.last_name }}</small></label>
         <label class="field"><span class="nm-label">Email</span>
           <input :value="auth.user?.email" class="nm-input" disabled /></label>
-        <label class="field"><span class="nm-label">Phone</span>
-          <input v-model="details.phone" type="tel" class="nm-input" maxlength="20" placeholder="0917 123 4567" />
-          <small v-if="detailErrors.phone" class="nm-field-error">{{ detailErrors.phone }}</small></label>
+        <div class="field"><label for="ap-phone" class="nm-label">Mobile number</label>
+          <PhoneInput id="ap-phone" v-model="details.phone" label="mobile number" :error="detailErrors.phone" /></div>
         <div class="actions">
           <p v-if="detailErrors.detail" class="nm-error">{{ detailErrors.detail }}</p>
           <button type="submit" class="nm-btn-dark" :disabled="savingDetails || !detailsChanged">{{ savingDetails ? 'Saving…' : 'Save details' }}</button>
@@ -84,9 +83,11 @@ watch(original, o => Object.assign(details, o), { immediate: true })
 const detailsChanged = computed(() => Object.keys(original.value).some(k => (details[k] || '').trim() !== original.value[k]))
 async function saveDetails() {
   detailErrors.value = {}
+  const phoneMsg = phoneError(details.phone)
+  if (phoneMsg) { detailErrors.value = { phone: phoneMsg }; return }
   savingDetails.value = true
   try {
-    await patch('/auth/me/', { first_name: details.first_name.trim(), last_name: details.last_name.trim(), phone: details.phone.trim() || null })
+    await patch('/auth/me/', { first_name: details.first_name.trim(), last_name: details.last_name.trim(), phone: details.phone || null })
     await auth.fetchMe()
     flash('Details saved.')
   } catch (e) {

@@ -293,7 +293,7 @@ async function handleCompute() {
       age: ageFromProfile.value ? undefined : form.age,
       sex: sexFromProfile.value ? undefined : form.sex,
       activity_level: form.activityLevel,
-      // NRS-2002 inputs come only from the "For everyone" symptoms (unchanged scoring).
+      // NRS-2002 inputs come only from the "GENERAL" symptoms (unchanged scoring).
       reduced_intake: !!form.symptoms['Poor appetite'],
       has_chronic_illness: !!(form.symptoms['Elevated blood glucose'] || form.symptoms['Recent hospitalization']),
       symptoms: checked.length ? checked.join(', ') : undefined,

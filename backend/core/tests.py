@@ -1,9 +1,11 @@
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from accounts.models import User
 
 from .models import AuditLog, SystemSetting
+from .validators import validate_phone
 
 
 def _make_admin(email="admin@t.ph"):
@@ -141,3 +143,33 @@ class AdminSystemSettingViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.setting.refresh_from_db()
         self.assertEqual(self.setting.key, "platform_commission_pct")
+
+
+class ValidatePhoneTests(SimpleTestCase):
+    """Mobile numbers from any country, by each country's own rules, saved
+    in E.164. No + means a Philippine number."""
+
+    def test_valid_mobiles_are_saved_in_e164(self):
+        for typed, saved in [
+            ("09171234567", "+639171234567"),
+            ("0917-123-4567", "+639171234567"),
+            ("+63 917 123 4567", "+639171234567"),
+            ("+65 9123 4567", "+6591234567"),
+            ("+44 7400 123456", "+447400123456"),
+            ("+1 201 555 0123", "+12015550123"),  # US numbers can't be told apart from landlines
+        ]:
+            self.assertEqual(validate_phone(typed), saved, typed)
+
+    def test_blank_means_not_given(self):
+        self.assertIsNone(validate_phone(""))
+        self.assertIsNone(validate_phone(None))
+
+    def test_wrong_length_landline_or_junk_is_refused(self):
+        for bad in ["0917123456", "091712345678", "(082) 123 4567", "+65 6123 4567", "+44 20 7946 0958", "abc"]:
+            with self.assertRaises(ValidationError, msg=bad):
+                validate_phone(bad)
+
+    def test_error_names_the_country_and_an_example(self):
+        with self.assertRaises(ValidationError) as ctx:
+            validate_phone("0917123456")
+        self.assertIn("Philippines mobile number, e.g. +63", str(ctx.exception.detail[0]))

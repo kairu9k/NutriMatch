@@ -13,7 +13,7 @@
           <span v-else class="nm-avatar lg">{{ userInitials(u.first_name, u.last_name) }}</span>
           <div style="min-width: 0">
             <h1 class="nm-page-title" style="margin: 0">{{ u.first_name }} {{ u.last_name }}</h1>
-            <p class="nm-page-sub">{{ u.email }}<span v-if="u.phone"> · {{ u.phone }}</span></p>
+            <p class="nm-page-sub">{{ u.email }}<span v-if="u.phone"> · {{ formatPhone(u.phone) }}</span></p>
             <div class="pill-row">
               <span class="nm-pill blue">{{ roleLabel }}</span>
               <span class="nm-pill" :class="account.is_active ? 'green' : 'red'">{{ account.is_active ? 'Active' : 'Deactivated' }}</span>
@@ -249,9 +249,8 @@
           <label class="edit-field"><span class="nm-label">Email</span>
             <input v-model="editForm.email" type="email" class="nm-input" maxlength="254" :class="{ invalid: editErrors.email }" />
             <small v-if="editErrors.email" class="nm-field-error">{{ editErrors.email }}</small></label>
-          <label class="edit-field"><span class="nm-label">Phone</span>
-            <input v-model="editForm.phone" type="tel" class="nm-input" maxlength="20" placeholder="0917 123 4567" :class="{ invalid: editErrors.phone }" />
-            <small v-if="editErrors.phone" class="nm-field-error">{{ editErrors.phone }}</small></label>
+          <div class="edit-field"><label for="edit-phone" class="nm-label">Mobile number</label>
+            <PhoneInput id="edit-phone" v-model="editForm.phone" label="mobile number" :error="editErrors.phone" /></div>
           <template v-if="rnd">
             <label class="edit-field"><span class="nm-label">PRC license no.</span>
               <input v-model="editForm.prc_license_number" class="nm-input" inputmode="numeric" maxlength="7" placeholder="7 digits" :class="{ invalid: editErrors.prc_license_number }" />
@@ -361,6 +360,11 @@ async function saveEdit() {
   editErrors.value = {}
   if (editForm.reason.trim().length < 10) {
     editErrors.value = { reason: 'Explain the change in at least 10 characters.' }
+    return
+  }
+  const phoneMsg = phoneError(editForm.phone)
+  if (phoneMsg) {
+    editErrors.value = { phone: phoneMsg }
     return
   }
   const body = { reason: editForm.reason.trim() }

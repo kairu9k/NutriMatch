@@ -266,7 +266,7 @@ class Command(BaseCommand):
             role=role,
             first_name=profile["first_name"],
             last_name=profile["last_name"],
-            phone="09" + "".join(secrets.choice("0123456789") for _ in range(9)),
+            phone="+63917" + "".join(secrets.choice("0123456789") for _ in range(7)),  # PH mobile, E.164
             email_verified_at=now,
             # Registration requires informed consent (RA 10173) — same record it writes.
             terms_accepted_at=now,

@@ -494,6 +494,27 @@ class RegistrationValidationTests(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.first_name, "Ana")
 
+    def test_profile_phone_is_saved_as_e164_mobile(self):
+        user = User.objects.create_user(email="phone@t.ph", password="x", role="client", first_name="Ana", last_name="Reyes")
+        self.client_api.force_authenticate(user)
+
+        for typed, saved in [("0917 123 4567", "+639171234567"), ("+65 9123 4567", "+6591234567"), ("", None)]:
+            resp = self.client_api.patch("/api/auth/me/", {"phone": typed}, format="json")
+            self.assertEqual(resp.status_code, 200, typed)
+            user.refresh_from_db()
+            self.assertEqual(user.phone, saved, typed)
+
+    def test_profile_phone_refuses_wrong_length_and_landlines(self):
+        user = User.objects.create_user(email="phone2@t.ph", password="x", role="client", first_name="Ana", last_name="Reyes", phone="+639171234567")
+        self.client_api.force_authenticate(user)
+
+        for bad in ["0917 123 456", "0917 123 45678", "(082) 123 4567", "call me"]:
+            resp = self.client_api.patch("/api/auth/me/", {"phone": bad}, format="json")
+            self.assertEqual(resp.status_code, 400, bad)
+            self.assertIn("phone", resp.data)
+        user.refresh_from_db()
+        self.assertEqual(user.phone, "+639171234567")
+
 
 class RegistrationConsentTests(TestCase):
     """RA 10173 informed consent: registration needs both checkboxes, and

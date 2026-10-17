@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from core.validators import validate_phone
 from profiles.models import MIN_CONSULTATION_FEE, RND_SPECIALIZATIONS, ClientHealthProfile, ClientProfile, RndProfile
 from profiles.services import (
     ALLOWED_LICENSE_IMAGE_TYPES,
@@ -166,6 +167,9 @@ class MeUpdateSerializer(PersonNameFieldsMixin, serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["first_name", "last_name", "phone"]
+
+    def validate_phone(self, value):
+        return validate_phone(value)
 
 
 class AdminClientListSerializer(serializers.ModelSerializer):
