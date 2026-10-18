@@ -128,6 +128,7 @@ export const useAuthStore = defineStore('auth', {
       password: string
       prc_license_number: string
       prc_license_image: File
+      phone: string
       date_of_birth: string
       specialization: string
       // The rest of the application, reviewed by an admin before sign-in.

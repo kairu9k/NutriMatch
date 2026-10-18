@@ -172,6 +172,11 @@
 
             <template v-else-if="selectedRole === 'rnd'">
               <div class="field">
+                <label for="reg-phone">Mobile Number <span class="required-tag">Required</span></label>
+                <PhoneInput id="reg-phone" v-model="form.phone" label="mobile number" rnd />
+                <span class="license-hint">A Philippine mobile number, so our admin team can reach you. Not shown to clients.</span>
+              </div>
+              <div class="field">
                 <label>Date of Birth</label>
                 <input v-model="form.dob" type="date" :max="latestBirthDate" min="1900-01-01" :class="{ invalid: dobError }" required />
                 <span v-if="dobError" class="field-error">{{ dobError }}</span>
@@ -351,6 +356,7 @@
             </template>
             <template v-else-if="selectedRole === 'rnd'">
               <div class="confirm-row"><span>Date of Birth</span><strong>{{ form.dob }}</strong></div>
+              <div class="confirm-row"><span>Mobile Number</span><strong>{{ formatPhone(form.phone) }}</strong></div>
               <div class="confirm-row"><span>PRC License Number</span><strong>{{ form.prcNumber }}</strong></div>
               <div class="confirm-row"><span>PRC License Photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
               <div class="confirm-row"><span>Specialization</span><strong>{{ form.specialization || '—' }}</strong></div>
@@ -493,6 +499,7 @@ const form = reactive({
   healthConcern: '',
   prcLicenseImage: null,
   prcNumber: '',
+  phone: '',
   specialization: '',
   // RND application (onboarding): reviewed by the admin before sign-in.
   profilePhoto: null,
@@ -673,7 +680,7 @@ const detailsValid = computed(() => {
   if (selectedRole.value === 'patient') return !!(form.dob && !dobError.value && form.gender && form.healthConcern)
   if (selectedRole.value === 'rnd') {
     return !!(form.prcLicenseImage && form.dob && !dobError.value
-      && /^\d{7}$/.test(form.prcNumber) && form.specialization)
+      && /^\d{7}$/.test(form.prcNumber) && form.specialization && !rndPhoneError(form.phone))
   }
   return false
 })
@@ -844,6 +851,7 @@ async function submitRegistration() {
         password: form.password,
         prc_license_number: form.prcNumber,
         prc_license_image: form.prcLicenseImage,
+        phone: form.phone,
         date_of_birth: form.dob,
         specialization: form.specialization,
         bio: form.bio.trim(),
@@ -876,7 +884,7 @@ async function submitRegistration() {
     currentStep.value = 4
   } catch (error) {
     const data = error?.data
-    const FIELDS = ['email', 'first_name', 'last_name', 'password', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
+    const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
       'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
     errorMessage.value = (failed && data[failed][0]) || data?.detail || 'Registration failed. Please check your details and try again.'

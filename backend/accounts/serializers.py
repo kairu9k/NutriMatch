@@ -334,6 +334,8 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     password = serializers.CharField(write_only=True, validators=[validate_password])
     prc_license_number = serializers.CharField(max_length=20)
     prc_license_image = serializers.FileField(write_only=True)
+    # Required, Philippine mobile only (user's rule, 2026-10-19).
+    phone = serializers.CharField(max_length=30, allow_blank=True)
     date_of_birth = serializers.DateField(validators=[validate_rnd_birth_date])
     specialization = serializers.ChoiceField(choices=RND_SPECIALIZATIONS)
     # The rest of the application (reviewed by the admin before the RND can
@@ -421,6 +423,9 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             raise serializers.ValidationError("The profile photo must be 2 MB or smaller.")
         return value
 
+    def validate_phone(self, value):
+        return validate_rnd_phone(value)
+
     def validate_prc_license_number(self, value):
         value = value.strip()
         if not re.fullmatch(r"\d{7}", value):
@@ -455,6 +460,7 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             role=User.Role.RND,
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
+            phone=validated_data["phone"],
         )
         self.record_consent(user)
         RndProfile.objects.create(

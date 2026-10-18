@@ -22,6 +22,7 @@ RND_APPLICATION = {
     "consultation_modes": '["video"]',
     "languages": '["en", "tl"]',
     "availability": '[{"day_of_week": 1, "start_time": "09:00", "end_time": "12:00"}]',
+    "phone": "0917 123 4567",
 }
 
 
@@ -88,6 +89,19 @@ class RegisterViewTests(TestCase):
         self.assertFalse(profile.is_verified)
         self.assertEqual(profile.prc_license_image, "prc-licenses/abc123")
         self.assertEqual(profile.prc_license_number, "0123456")
+        self.assertEqual(profile.user.phone, "+639171234567")
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/abc123")
+    def test_register_rnd_needs_a_philippine_mobile(self, mock_upload):
+        for phone in (None, "", "12345", "+65 9123 4567"):
+            payload = self._rnd_payload()
+            if phone is None:
+                del payload["phone"]
+            else:
+                payload["phone"] = phone
+            resp = self.client_api.post("/api/auth/register/rnd/", payload, format="multipart")
+            self.assertEqual(resp.status_code, 400, phone)
+            self.assertIn("phone", resp.data)
 
     @patch("accounts.serializers.upload_prc_license_image")
     def test_register_rnd_requires_license_photo(self, mock_upload):

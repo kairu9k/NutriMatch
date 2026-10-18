@@ -133,6 +133,15 @@ function onInput(event) {
       emit('update:modelValue', lastEmitted)
       return
     }
+    if (props.rnd && code !== '63') {
+      // RNDs: the country stays the Philippines. Keep the foreign number as
+      // typed so the "Use a Philippine mobile number" error explains why.
+      pending.value = `+${raw.replace(/\D/g, '')}`
+      el.value = pending.value
+      lastEmitted = pending.value
+      emit('update:modelValue', lastEmitted)
+      return
+    }
     country.value = typed.getCountry() || (dial.value === code ? country.value : countryForCode(code))
     next = typed.getNationalNumber() || ''
     caretDigits = next.length
