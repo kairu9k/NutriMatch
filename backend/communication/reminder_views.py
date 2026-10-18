@@ -16,10 +16,28 @@ from .reminders import first_occurrence, ph_tz, run_for_client_throttled, today_
 
 
 class ReminderPreferenceSerializer(serializers.ModelSerializer):
+    # The number SMS reminders go to (masked), from the client's profile phone.
+    sms_number = serializers.SerializerMethodField()
+
     class Meta:
         model = ReminderPreference
-        fields = ["appointments", "payments", "meal_logging", "rnd_reminders", "email", "updated_at"]
+        fields = ["appointments", "payments", "meal_logging", "rnd_reminders", "email", "sms", "sms_number", "updated_at"]
         read_only_fields = ["updated_at"]
+
+    def get_sms_number(self, obj):
+        from .sms import mask_mobile, normalize_ph_mobile
+
+        return mask_mobile(normalize_ph_mobile(obj.user.phone))
+
+    def validate_sms(self, value):
+        from .sms import normalize_ph_mobile
+
+        phone = self.instance.user.phone if self.instance else None
+        if value and not normalize_ph_mobile(phone):
+            if phone:
+                raise serializers.ValidationError("SMS reminders are only available for Philippine mobile numbers (+63).")
+            raise serializers.ValidationError("Add your mobile number (e.g. 0917 123 4567) in Personal Info first.")
+        return value
 
 
 class ReminderSerializer(serializers.ModelSerializer):

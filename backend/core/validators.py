@@ -67,3 +67,18 @@ def validate_phone(value):
         hint = f", e.g. {phonenumbers.format_number(example, phonenumbers.PhoneNumberFormat.INTERNATIONAL)}" if example else ""
         raise serializers.ValidationError(f"Enter a valid {_country_name(region)} mobile number{hint}.")
     return phonenumbers.format_number(number, phonenumbers.PhoneNumberFormat.E164)
+
+
+RND_PHONE_MESSAGE = "Use a Philippine mobile number, e.g. +63 917 123 4567."
+
+
+def validate_rnd_phone(value):
+    """RNDs (user's rule, 2026-10-19): a mobile number is required and must
+    be Philippine — they're PRC-licensed and practise in the PH, and the
+    admin team needs to reach them. Same checks as validate_phone otherwise."""
+    if not (value or "").strip():
+        raise serializers.ValidationError("Add your mobile number — RNDs need one so the NutriMatch team can reach you.")
+    e164 = validate_phone(value)
+    if phonenumbers.region_code_for_number(phonenumbers.parse(e164)) != "PH":
+        raise serializers.ValidationError(RND_PHONE_MESSAGE)
+    return e164

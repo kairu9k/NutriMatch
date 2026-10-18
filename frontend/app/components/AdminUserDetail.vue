@@ -250,7 +250,7 @@
             <input v-model="editForm.email" type="email" class="nm-input" maxlength="254" :class="{ invalid: editErrors.email }" />
             <small v-if="editErrors.email" class="nm-field-error">{{ editErrors.email }}</small></label>
           <div class="edit-field"><label for="edit-phone" class="nm-label">Mobile number</label>
-            <PhoneInput id="edit-phone" v-model="editForm.phone" label="mobile number" :error="editErrors.phone" /></div>
+            <PhoneInput id="edit-phone" v-model="editForm.phone" label="mobile number" :rnd="!!rnd" :error="editErrors.phone" /></div>
           <template v-if="rnd">
             <label class="edit-field"><span class="nm-label">PRC license no.</span>
               <input v-model="editForm.prc_license_number" class="nm-input" inputmode="numeric" maxlength="7" placeholder="7 digits" :class="{ invalid: editErrors.prc_license_number }" />
@@ -362,7 +362,7 @@ async function saveEdit() {
     editErrors.value = { reason: 'Explain the change in at least 10 characters.' }
     return
   }
-  const phoneMsg = phoneError(editForm.phone)
+  const phoneMsg = editForm.phone === editBefore.value.phone ? '' : (rnd.value ? rndPhoneError : phoneError)(editForm.phone)
   if (phoneMsg) {
     editErrors.value = { phone: phoneMsg }
     return

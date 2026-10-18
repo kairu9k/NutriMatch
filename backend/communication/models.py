@@ -148,6 +148,9 @@ class ReminderPreference(models.Model):
     meal_logging = models.BooleanField(default=True)
     rnd_reminders = models.BooleanField(default=True)
     email = models.BooleanField(default=False)
+    # SMS to the client's mobile number (Semaphore) — opt-in like email; only
+    # consultation, payment and RND-set reminders (not meal logging).
+    sms = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

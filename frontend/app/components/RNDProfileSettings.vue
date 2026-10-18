@@ -75,7 +75,8 @@
             </div>
             <div class="field">
               <label class="field-label" for="rp-phone">Mobile Number</label>
-              <PhoneInput id="rp-phone" v-model="personalInfo.phone" label="mobile number" :error="fieldErrors.phone" />
+              <PhoneInput id="rp-phone" v-model="personalInfo.phone" label="mobile number" rnd :error="fieldErrors.phone" />
+              <p v-if="!fieldErrors.phone" class="field-hint">Required — a Philippine mobile number. Not shown to clients.</p>
             </div>
           </div>
 
@@ -300,7 +301,7 @@ import {
   Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2
 } from 'lucide-vue-next'
 import { db } from '~/mock/mockDatabase'
-import { formatPhone, phoneError } from '~/utils/phone'
+import { formatPhone, rndPhoneError } from '~/utils/phone'
 
 const { get, patch, put } = useApi()
 
@@ -458,7 +459,7 @@ async function saveChanges() {
   else if (!NAME_RE.test(personalInfo.value.firstName)) fieldErrors.firstName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
   if (!personalInfo.value.lastName) fieldErrors.lastName = 'Enter your last name.'
   else if (!NAME_RE.test(personalInfo.value.lastName)) fieldErrors.lastName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
-  fieldErrors.phone = phoneError(personalInfo.value.phone)
+  fieldErrors.phone = rndPhoneError(personalInfo.value.phone)
   if (fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone) return
   if (!personalInfo.value.consultationModes.length) {
     profileError.value = 'Offer at least one consultation format.'

@@ -90,6 +90,15 @@ export function phoneError(value) {
   return `Enter a valid ${countryName(country)} mobile number${example ? `, e.g. ${example}` : ''}.`
 }
 
+// RNDs (user's rule, 2026-10-19): required, and a Philippine mobile only.
+// Mirrors core.validators.validate_rnd_phone.
+export function rndPhoneError(value) {
+  if (!value) return 'Add your mobile number — RNDs need one so the NutriMatch team can reach you.'
+  const general = phoneError(value)
+  if (general) return general
+  return parsePhoneNumberFromString(value, DEFAULT_PHONE_COUNTRY)?.country === 'PH' ? '' : 'Use a Philippine mobile number, e.g. +63 917 123 4567.'
+}
+
 // For showing a saved number: +63 917 123 4567.
 export function formatPhone(value) {
   if (!value) return ''

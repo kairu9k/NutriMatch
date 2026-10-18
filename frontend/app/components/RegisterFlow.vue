@@ -367,16 +367,32 @@
             You'll be able to sign in once it's approved.
           </p>
 
-          <!-- Informed consent (RA 10173) — one checkbox; it stays locked until
-               both the Terms and the Privacy Policy links were opened, then
-               ticks itself. Recorded on the account and in the audit log by the API. -->
+          <!-- Informed consent (RA 10173) — two boxes the person ticks
+               themselves (consent must be their own act, never pre-ticked), and
+               the health-data consent stays separate from the Terms because
+               health information is sensitive personal information. Both stay
+               locked until the Terms and the Privacy Policy were opened.
+               Recorded on the account and in the audit log by the API. -->
           <div class="consent-box">
+            <p v-if="!termsViewed" class="consent-lock-note">
+              Open the <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and the
+              <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a> first to tick these boxes.
+            </p>
             <label class="consent-item" :class="{ 'is-locked': !termsViewed }">
               <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting || !termsViewed" />
               <span>
                 I have read and agree to the
                 <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and
                 <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a>.
+              </span>
+            </label>
+            <label class="consent-item" :class="{ 'is-locked': !termsViewed }">
+              <input v-model="consent.data" type="checkbox" :disabled="isSubmitting || !termsViewed" />
+              <span>
+                I consent to NutriMatch collecting and processing my personal and health information
+                {{ selectedRole === 'rnd' ? '(including my PRC license photo, for verification)' : '(including my screening and nutrition records)' }}
+                to provide nutrition care services, as described in the Privacy Policy, in accordance with
+                Republic Act No. 10173 (Data Privacy Act of 2012).
               </span>
             </label>
           </div>
@@ -394,7 +410,7 @@
               </div>
               <iframe class="legal-frame" :class="{ ready: legalReady }" :src="legalTab === 'terms' ? '/terms' : '/privacy-policy'" :title="legalTab === 'terms' ? 'Terms and Conditions' : 'Privacy Policy'" @load="trimLegalFrame"></iframe>
               <div class="legal-foot">
-                <p class="legal-hint">{{ termsViewed ? 'Thanks! The checkbox is now ticked.' : 'Open both tabs to continue.' }}</p>
+                <p class="legal-hint">{{ termsViewed ? 'You can now tick the consent boxes.' : 'Open both tabs to continue.' }}</p>
                 <button type="button" class="btn-primary legal-done" @click="legalOpen = false">{{ termsViewed ? 'Done' : 'Close' }}</button>
               </div>
             </div>
@@ -487,15 +503,12 @@ const form = reactive({
   clinicAddress: '',
 })
 
-// The Confirm step has one checkbox (terms + privacy). consent.data mirrors it
-// so the API still receives data_privacy_consent.
+// Both consent boxes on the Confirm step must be ticked by the person (RA
+// 10173: consent is their own act — never ticked for them). They stay locked
+// until both the Terms and the Privacy Policy were opened.
 const consent = reactive({ terms: false, data: false })
-// The checkbox stays locked until both the Terms and the Privacy Policy links
-// were clicked; once they both were, it ticks itself.
 const viewed = reactive({ terms: false, privacy: false })
 const termsViewed = computed(() => viewed.terms && viewed.privacy)
-watch(termsViewed, v => { if (v) consent.terms = true })
-watch(() => consent.terms, v => { consent.data = v })
 // Terms / Privacy pop-up: opens on its own when the Confirm step shows, and
 // when either link is clicked. Opening a tab counts as viewing it.
 const legalOpen = ref(false)
@@ -1215,6 +1228,8 @@ async function resendCode() {
 .consent-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #1a3a1a; flex-shrink: 0; cursor: pointer; }
 .consent-item a { color: #1a3a1a; font-weight: 700; text-decoration: underline; }
 .consent-item.is-locked { cursor: default; }
+.consent-lock-note { margin: 0; font-size: 0.78rem; color: #8a6a10; }
+.consent-lock-note a { color: #1a3a1a; font-weight: 700; text-decoration: underline; }
 .consent-item input:disabled { opacity: 0.5; cursor: not-allowed; }
 .legal-overlay { position: fixed; inset: 0; background: rgba(10, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
 .legal-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 1100px; height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }

@@ -389,6 +389,15 @@ A: Team decision during development - Django REST Framework gave us
    and easy testing (400+ automated tests). Same features and data design
    as the proposal.
 
+Q: Do you send SMS?
+A: Yes, through Semaphore, a Philippine SMS gateway (all networks). Clients
+   turn it on in Notification settings (off by default, needs a mobile
+   number). Only consultation, payment and task reminders are texted, as one
+   short SMS with no health details (Data Privacy Act); meal-logging nudges
+   stay in-app/email to keep costs down. Texts come from our registered
+   sender name, cost about P0.56 each, and a failed text never stops the
+   in-app or email reminder.
+
 Q: How do reminders work?
 A: Automatic notifications: 24 h and 1 h before a consultation, payment due,
    meal logging after each planned meal, and RND-set reminders (medicine,

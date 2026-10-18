@@ -15,7 +15,7 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.validators import validate_phone
+from core.validators import validate_phone, validate_rnd_phone
 
 from .models import User
 from .permissions import IsAdmin
@@ -51,6 +51,8 @@ class AdminUserEditSerializer(serializers.Serializer):
         return value
 
     def validate_phone(self, value):
+        if self.context["user"].role == User.Role.RND:
+            return validate_rnd_phone(value)
         return validate_phone(value)
 
     def validate_prc_license_number(self, value):

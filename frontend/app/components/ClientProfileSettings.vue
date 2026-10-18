@@ -261,6 +261,18 @@
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
             </div>
+            <div class="setting-row">
+              <div>
+                <p class="setting-label">Also send reminders by text (SMS)</p>
+                <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Consultation, payment and task reminders only — short texts with no health details.</p>
+                <p v-else-if="auth.user?.phone" class="setting-detail">SMS reminders are only available for Philippine mobile numbers (+63). Yours is {{ formatPhone(auth.user.phone) }}.</p>
+                <p v-else class="setting-detail">Add your mobile number (e.g. 0917 123 4567) in Personal Info first.</p>
+              </div>
+              <label class="toggle">
+                <input :checked="reminderPrefs.sms" :disabled="!reminderPrefs.sms_number && !reminderPrefs.sms" type="checkbox" @change="savePref('sms', $event.target.checked)" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
 
             <div class="rnd-reminders">
               <p class="setting-label" style="margin-bottom: 4px">Set by your RND</p>
@@ -483,6 +495,7 @@ async function saveProfile() {
       }),
     ])
     await auth.fetchMe()
+    loadReminders() // the SMS setting shows the (new) number
     // The API capitalizes names; show exactly what was saved.
     const saved = await get('/client/profile/').catch(() => profile)
     lastProfile.value = saved
@@ -588,9 +601,9 @@ async function savePref(key, value) {
   try {
     reminderPrefs.value = await put('/client/reminder-settings/', { [key]: value })
     fireReminderToast(value ? 'Turned on.' : 'Turned off.')
-  } catch {
+  } catch (error) {
     reminderPrefs.value[key] = before
-    reminderError.value = 'Could not save. Please try again.'
+    reminderError.value = error?.data?.[key]?.[0] || 'Could not save. Please try again.'
   }
 }
 async function setMuted(r, muted) {

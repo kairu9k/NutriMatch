@@ -288,3 +288,9 @@ PAYMONGO = {
 # FNRI. Free key: https://fdc.nal.usda.gov/api-key-signup ; blank = the USDA
 # search answers "not set up" instead of calling the API.
 USDA_FDC_API_KEY = config('USDA_FDC_API_KEY', default='')
+
+# SMS reminders through Semaphore (communication/sms.py). Blank key = no SMS
+# is sent (the text is only logged). The sender name must be one registered
+# in the Semaphore dashboard; blank uses the account's default sender name.
+SEMAPHORE_API_KEY = config('SEMAPHORE_API_KEY', default='')
+SEMAPHORE_SENDER_NAME = config('SEMAPHORE_SENDER_NAME', default='')

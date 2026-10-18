@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 
 from .models import AuditLog, SystemSetting
-from .validators import validate_phone
+from .validators import validate_phone, validate_rnd_phone
 
 
 def _make_admin(email="admin@t.ph"):
@@ -173,3 +173,36 @@ class ValidatePhoneTests(SimpleTestCase):
         with self.assertRaises(ValidationError) as ctx:
             validate_phone("0917123456")
         self.assertIn("Philippines mobile number, e.g. +63", str(ctx.exception.detail[0]))
+
+    def test_rnd_needs_a_philippine_mobile(self):
+        self.assertEqual(validate_rnd_phone("0917 123 4567"), "+639171234567")
+        for bad in ["", None, "+65 9123 4567", "abc"]:
+            with self.assertRaises(ValidationError, msg=bad):
+                validate_rnd_phone(bad)
+
+
+class RndPhoneRuleApiTests(TestCase):
+    """RNDs keep a required Philippine number (Profile Settings and admin
+    Edit details); clients stay optional, any country."""
+
+    def test_rnd_profile_and_admin_edit(self):
+        from core.test_utils import approve_rnd, onboard_client
+
+        rnd = approve_rnd(User.objects.create_user(email="r@ph.test", password="x", role="rnd", phone="+639171234567"))
+        client = onboard_client(User.objects.create_user(email="c@ph.test", password="x", role="client"))
+        admin = User.objects.create_user(email="a@ph.test", password="x", role="admin")
+        api = APIClient()
+
+        api.force_authenticate(rnd)
+        for bad in ("", "+65 9123 4567"):
+            self.assertEqual(api.patch("/api/auth/me/", {"phone": bad}, format="json").status_code, 400, bad)
+        self.assertEqual(api.patch("/api/auth/me/", {"phone": "0918 765 4321"}, format="json").status_code, 200)
+
+        api.force_authenticate(client)
+        self.assertEqual(api.patch("/api/auth/me/", {"phone": "+65 9123 4567"}, format="json").status_code, 200)
+        self.assertEqual(api.patch("/api/auth/me/", {"phone": ""}, format="json").status_code, 200)
+
+        api.force_authenticate(admin)
+        reason = "Correcting the number by phone request"
+        self.assertEqual(api.patch(f"/api/admin/users/{rnd.id}/edit/", {"phone": "+65 9123 4567", "reason": reason}, format="json").status_code, 400)
+        self.assertEqual(api.patch(f"/api/admin/users/{client.id}/edit/", {"phone": "+65 9123 4567", "reason": reason}, format="json").status_code, 200)

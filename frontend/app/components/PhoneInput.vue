@@ -10,7 +10,7 @@
         <select
           v-model="country"
           class="phone-country-select"
-          :disabled="disabled"
+          :disabled="disabled || rnd"
           :aria-label="`Country for ${label}`"
           @change="onCountry"
         >
@@ -53,7 +53,7 @@ import { ChevronsUpDown } from 'lucide-vue-next'
 import { AsYouType, getCountryCallingCode } from 'libphonenumber-js/max'
 import 'flag-icons/css/flag-icons.min.css'
 import {
-  PHONE_COUNTRIES, countryForCode, countryName, exampleLocal, formatLocal, maxMobileDigits, nationalPrefix, phoneError, splitPhone, toE164,
+  PHONE_COUNTRIES, countryForCode, countryName, exampleLocal, formatLocal, maxMobileDigits, nationalPrefix, phoneError, rndPhoneError, splitPhone, toE164,
 } from '~/utils/phone'
 
 const props = defineProps({
@@ -62,6 +62,8 @@ const props = defineProps({
   label: { type: String, default: 'phone number' },
   error: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
+  // RNDs: Philippine numbers only and required (the country is fixed to PH).
+  rnd: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -96,7 +98,7 @@ const shown = computed(() => pending.value || formatLocal(digits.value, country.
 const placeholder = computed(() => exampleLocal(country.value))
 const shownError = computed(() => {
   if (props.error && props.modelValue === errorFor.value) return props.error
-  return touched.value ? phoneError(props.modelValue) : ''
+  return touched.value ? (props.rnd ? rndPhoneError : phoneError)(props.modelValue) : ''
 })
 
 function send() {

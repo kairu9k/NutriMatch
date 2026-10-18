@@ -76,7 +76,7 @@ def first_occurrence(repeat, start):
 
 
 # ------------------------------------------------------------- delivery
-def _deliver(client, pref, *, subject, content, notifiable_type, notifiable_id, link, link_label):
+def _deliver(client, pref, *, subject, content, notifiable_type, notifiable_id, link, link_label, sms_text=None):
     from .services import notify
 
     notify(recipient=client, notifiable_type=notifiable_type, notifiable_id=notifiable_id, subject=subject, content=content)
@@ -91,6 +91,13 @@ def _deliver(client, pref, *, subject, content, notifiable_type, notifiable_id, 
             )
         except Exception:
             logger.exception("Could not email reminder %r to %s", subject, client.pk)
+    # SMS (opt-in): only reminders that pass an sms_text — consultations,
+    # payments and tasks; meal logging (up to 5 a day) stays in-app / email.
+    # The SMS wording never carries health details (RA 10173).
+    if sms_text and getattr(pref, "sms", False):
+        from .sms import send_sms
+
+        send_sms(client.phone, sms_text)
 
 
 def _claim(key, **fields):
@@ -144,7 +151,8 @@ def run_due_reminders(now=None, client=None):
         subject = "Your consultation starts soon" if soon else f"Consultation {day_word}"
         if _claim(key, client=c, title=subject, message=content, type=Reminder.Type.APPOINTMENT, send_at=now):
             _deliver(c, pref_for(c), subject=subject, content=content, notifiable_type="appointment",
-                     notifiable_id=appt.id, link="/appointments", link_label="Open My Appointments")
+                     notifiable_id=appt.id, link="/appointments", link_label="Open My Appointments",
+                     sms_text=f"Your {kind} consultation with RND {rnd.full_name} is {day_word} at {_clock(appt.scheduled_at)}. Join from the app.")
             sent += 1
 
     # 2) payment still due within 24 hours of the start
@@ -160,7 +168,8 @@ def run_due_reminders(now=None, client=None):
                    "Unpaid consultations are cancelled automatically at the start time.")
         if _claim(f"pay:{inv.id}", client=c, title="Payment due", message=content, type=Reminder.Type.PAYMENT, send_at=now):
             _deliver(c, pref_for(c), subject="Payment due before your consultation", content=content,
-                     notifiable_type="invoice", notifiable_id=inv.id, link="/invoices-billing", link_label="Pay now")
+                     notifiable_type="invoice", notifiable_id=inv.id, link="/invoices-billing", link_label="Pay now",
+                     sms_text=f"Please pay P{inv.amount:,.2f} before {_when(inv.appointment.scheduled_at)} or your consultation is cancelled. Pay in the app.")
             sent += 1
 
     # 3) meal logging: during the 2 hours after each planned meal time, if not logged
@@ -231,7 +240,10 @@ def run_due_reminders(now=None, client=None):
             if fresh and not r.is_muted and (own or pref_for(c).rnd_reminders):
                 content = r.message or ("Your task for today." if own else f"A reminder from RND {r.created_by.full_name}.")
                 _deliver(c, pref_for(c), subject=r.title, content=content, notifiable_type="reminder",
-                         notifiable_id=r.id, link="/client-dashboard", link_label="Open My tasks")
+                         notifiable_id=r.id, link="/client-dashboard", link_label="Open My tasks",
+                         # generic on purpose: task titles can name a medicine
+                         sms_text="You have a task reminder. Open My tasks in the app." if own
+                         else "You have a reminder from your RND. Open My tasks in the app.")
                 r.last_sent_at = now
                 sent += 1
             nxt = next_occurrence(r, now)
