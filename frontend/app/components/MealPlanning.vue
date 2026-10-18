@@ -186,19 +186,34 @@
           </div>
 
           <!-- Targets beyond calories, as Measured Variable / Value / Unit rows
-               (same pattern as the NCP form's "+ Add Field"). Protein,
-               Carbohydrate and Fat in grams also drive the Macro Tracker. -->
+               (same pattern as the NCP form's "+ Add Field"), in two groups:
+               the macronutrients (the only ones that give calories; in grams
+               they drive the Macro Tracker) and other targets (sodium, fiber…),
+               which are not part of the calorie target. -->
           <div class="targets-section">
             <div class="targets-header">
-              <span class="targets-title">Nutrient Targets <span class="optional">(optional)</span></span>
+              <span class="targets-title">Macronutrient Targets <span class="optional">(optional)</span></span>
+            </div>
+            <p class="targets-hint">Protein, carbohydrate and fat are the only nutrients that give calories (4 / 4 / 9 kcal per gram), so they make up the calorie target.</p>
+            <!-- Fixed rows: only the value is edited (the Macro Tracker reads them by name, in grams). -->
+            <div v-for="row in macroRows" :key="row.label" class="targets-row locked">
+              <input :value="row.label" type="text" readonly tabindex="-1" :aria-label="`${row.label} target`" />
+              <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" :aria-label="`${row.label} value`" />
+              <input :value="row.unit" type="text" readonly tabindex="-1" aria-label="Unit" />
+              <span class="targets-remove-btn spacer" aria-hidden="true"><X :size="14" /></span>
+            </div>
+          </div>
+          <div class="targets-section">
+            <div class="targets-header">
+              <span class="targets-title">Other Targets <span class="optional">(optional)</span></span>
               <button type="button" class="targets-add-btn" @click="addTargetRow"><Plus :size="14" /> Add Field</button>
             </div>
-            <p v-if="!targetRows.length" class="targets-empty">Add a measured variable, e.g. protein, carbohydrate, fat, fiber, sodium.</p>
-            <div v-for="(row, idx) in targetRows" :key="idx" class="targets-row">
-              <input v-model="row.label" type="text" placeholder="Measured Variable" maxlength="100" />
-              <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" />
-              <input v-model="row.unit" type="text" placeholder="Unit" maxlength="30" />
-              <button type="button" class="targets-remove-btn" title="Remove" @click="targetRows.splice(idx, 1)"><X :size="14" /></button>
+            <p class="targets-hint">Not counted in the calorie target, e.g. sodium, fiber, potassium, vitamins. Pick from the list or type your own.</p>
+            <div v-for="(row, idx) in otherRows" :key="idx" class="targets-row">
+              <MeasureNameCombo :row="row" :templates="MEASURE_TEMPLATES.intervention" :aria-label="`Target ${idx + 1} name`" />
+              <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" :aria-label="`Target ${idx + 1} value`" />
+              <input v-model="row.unit" type="text" placeholder="Unit" maxlength="30" :aria-label="`Target ${idx + 1} unit`" />
+              <button type="button" class="targets-remove-btn" title="Remove" @click="otherRows.splice(idx, 1)"><X :size="14" /></button>
             </div>
           </div>
 
@@ -328,8 +343,14 @@
               </div>
             </div>
 
-            <div v-if="filledTargetRows.length" class="target-list">
-              <div v-for="row in filledTargetRows" :key="row.label" class="target-row">
+            <div v-if="filledRows(macroRows).length" class="target-list">
+              <div v-for="row in filledRows(macroRows)" :key="row.label" class="target-row">
+                <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
+              </div>
+            </div>
+            <div v-if="filledRows(otherRows).length" class="target-list">
+              <p class="target-list-title">Other targets <span>· not in the kcal target</span></p>
+              <div v-for="row in filledRows(otherRows)" :key="row.label" class="target-row">
                 <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
               </div>
             </div>
@@ -429,6 +450,7 @@ import {
   Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle, Trash2, Undo2, Lock
 } from 'lucide-vue-next'
 import { usdaPortion } from '~/utils/usda'
+import { MEASURE_TEMPLATES } from '~/utils/ncp'
 import { allergyWarnings, conditionKeys, foodWarnings } from '~/utils/foodWarnings'
 
 const route = useRoute()
@@ -493,14 +515,32 @@ const selectedPlan = computed(() => plans.value.find(p => p.id === selectedPlanI
 const ncpTargets = ref(null)
 
 const planMeta = reactive({ name: '', condition: 'general', kcalPerDay: null })
-// Nutrient targets as Measured Variable / Value / Unit rows. The Macro
+// Nutrient targets as Measured Variable / Value / Unit rows, shown in two
+// groups but saved as one `nutrient_targets` list (macros first). The Macro
 // Tracker reads protein / carbohydrate / fat from rows in grams — the same
 // matching the API uses to fill the plan's macro columns.
-const targetRows = ref([])
+const macroRows = ref([])
+const otherRows = ref([])
+const targetRows = computed(() => [...macroRows.value, ...otherRows.value])
 const MACRO_LABELS = {
   protein: ['protein', 'proteins'],
   carb: ['carb', 'carbs', 'carbohydrate', 'carbohydrates'],
   fat: ['fat', 'fats', 'total fat'],
+}
+const isMacroLabel = label => Object.values(MACRO_LABELS).some(l => l.includes(String(label || '').trim().toLowerCase()))
+// Saved plans keep one list. The macro group is always the three fixed rows,
+// filled from the plan's first gram row for each; anything else (another
+// macro row from an older plan included) goes to Other Targets.
+function splitTargetRows(rows) {
+  const clean = (rows || []).map(r => ({ label: r.label, value: r.value, unit: r.unit || '' }))
+  const used = new Set()
+  const take = key => {
+    const row = clean.find(r => !used.has(r) && MACRO_LABELS[key].includes(r.label.trim().toLowerCase()) && GRAM_UNITS.includes(r.unit.trim().toLowerCase()))
+    if (row) used.add(row)
+    return row ? row.value : null
+  }
+  macroRows.value = defaultTargetRows(take('protein'), take('carb'), take('fat'))
+  otherRows.value = clean.filter(r => !used.has(r))
 }
 const GRAM_UNITS = ['g', 'g/day', 'gram', 'grams', 'g per day', 'grams/day']
 const targets = computed(() => {
@@ -512,9 +552,9 @@ const targets = computed(() => {
   }
   return out
 })
-const filledTargetRows = computed(() => targetRows.value.filter(r => r.label.trim() && String(r.value).trim()))
+const filledRows = rows => rows.filter(r => r.label.trim() && String(r.value).trim())
 function addTargetRow() {
-  targetRows.value.push({ label: '', value: '', unit: '' })
+  otherRows.value.push({ label: '', value: '', unit: '' })
 }
 function defaultTargetRows(protein = null, carb = null, fat = null) {
   const value = v => (v === null || v === undefined ? '' : String(v))
@@ -543,7 +583,7 @@ function fillFromPlan(plan) {
   planMeta.name = plan.name
   planMeta.condition = plan.condition
   planMeta.kcalPerDay = num(plan.target_kcal) === null ? null : Math.round(num(plan.target_kcal))
-  targetRows.value = (plan.nutrient_targets || []).map(r => ({ label: r.label, value: r.value, unit: r.unit || '' }))
+  splitTargetRows(plan.nutrient_targets)
   instructions.allergies = plan.allergies_restrictions || ''
   instructions.notes = plan.notes || ''
   Object.assign(weeklyPlan, emptyWeek())
@@ -571,13 +611,15 @@ function fillFromPlan(plan) {
 
 function resetForm() {
   Object.assign(planMeta, { name: '', condition: 'general', kcalPerDay: null })
-  targetRows.value = defaultTargetRows()
+  macroRows.value = defaultTargetRows()
+  otherRows.value = []
   Object.assign(instructions, { allergies: '', notes: '' })
   Object.assign(weeklyPlan, emptyWeek())
   // Pre-fill targets from the NCP Intervention phase when available.
   if (ncpTargets.value) {
     planMeta.kcalPerDay = ncpTargets.value.kcal
-    targetRows.value = defaultTargetRows(ncpTargets.value.protein, ncpTargets.value.carb, ncpTargets.value.fat)
+    macroRows.value = defaultTargetRows(ncpTargets.value.protein, ncpTargets.value.carb, ncpTargets.value.fat)
+    otherRows.value = ncpTargets.value.other.map(r => ({ ...r }))
   }
   resetUndo()
 }
@@ -715,7 +757,14 @@ async function loadPatientPlans() {
   loadPatientConditions(selectedRelId.value)
   const ncp = ncpList[0]
   ncpTargets.value = ncp && ncp.target_kcal
-    ? { kcal: Math.round(num(ncp.target_kcal)), protein: num(ncp.target_protein_g), carb: num(ncp.target_carb_g), fat: num(ncp.target_fat_g) }
+    ? {
+        kcal: Math.round(num(ncp.target_kcal)), protein: num(ncp.target_protein_g), carb: num(ncp.target_carb_g), fat: num(ncp.target_fat_g),
+        // The Intervention's "Other measurements" rows (sodium, fiber…); the
+        // Assessment's rows are lab results, not diet targets, so they stay out.
+        other: (ncp.intervention_extra || [])
+          .filter(r => r.label?.trim() && String(r.value ?? '').trim() && !isMacroLabel(r.label))
+          .map(r => ({ label: r.label.trim(), value: String(r.value).trim(), unit: (r.unit || '').trim() })),
+      }
     : null
 
   const preferred = planList.find(p => p.status === 'active') || planList.find(p => p.status === 'draft') || planList[0]
@@ -1268,9 +1317,11 @@ function formatTime(t) {
   background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
 }
 .targets-add-btn:hover { background: #e3f3ea; }
-.targets-empty { font-size: 0.78rem; color: #9aaa9a; margin: 0; }
+.targets-hint { font-size: 0.75rem; color: #8a9a8a; margin: -4px 0 10px; line-height: 1.45; }
 .targets-row { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr auto; gap: 10px; align-items: center; margin-bottom: 8px; }
-.targets-row input {
+.targets-row.locked input[readonly] { background: #f6f8f6; color: #4a5a4a; cursor: default; }
+.targets-remove-btn.spacer { visibility: hidden; }
+.targets-row input, .targets-row :deep(.combo input) {
   border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; width: 100%;
 }
 .targets-remove-btn {
@@ -1284,6 +1335,8 @@ function formatTime(t) {
 .preview-summary-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
 .target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
 .target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
+.target-list-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #4a5a4a; margin: 0; }
+.target-list-title span { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9aaa9a; }
 
 .meal-edit-panel { padding: 0; margin-bottom: 18px; } /* no overflow:hidden — the food picker list must show past the card */
 .meal-edit-header {

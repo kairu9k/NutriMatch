@@ -143,6 +143,13 @@
                 <button type="button" class="explain-close" aria-label="Close explanation" @click="openMetric = ''"><X :size="16" /></button>
               </div>
               <p class="explain-text">{{ explanation.what }}</p>
+              <div class="explain-formula">
+                <p class="formula-title">How it's calculated</p>
+                <p v-for="line in explanation.formula" :key="line.main" class="formula-line">
+                  <span class="formula-main">{{ line.main }}</span>
+                  <span v-if="line.sub" class="formula-sub">{{ line.sub }}</span>
+                </p>
+              </div>
               <p class="explain-yours"><strong>Your result:</strong> {{ explanation.yours }}</p>
 
               <ul v-if="explanation.scale" class="explain-scale">
@@ -325,6 +332,8 @@ function toggleMetric(key) {
 watch(result, () => { openMetric.value = '' })
 
 const ACTIVITY_LABELS = Object.fromEntries(activityLevels.map(l => [l.value, l.label]))
+// Same factors as clinical/services.py ACTIVITY_FACTORS (shown in the TDEE formula).
+const ACTIVITY_FACTORS = { sedentary: 1.2, lightly_active: 1.375, moderately_active: 1.55, very_active: 1.725, extra_active: 1.9 }
 const kcal = (v) => Math.round(Number(v)).toLocaleString()
 
 const resultBoxes = computed(() => {
@@ -361,6 +370,7 @@ const explanation = computed(() => {
     return {
       title: 'BMI', fullName: 'Body Mass Index',
       what: 'A quick check of whether your weight is in a healthy range for your height. It is your weight (kg) divided by your height (m) squared.',
+      formula: [{ main: 'BMI = weight (kg) ÷ height (m)²' }],
       yours: `${Number(r.bmi).toFixed(1)} — ${r.bmi_category}.`,
       scale: BMI_SCALE.map(row => ({ ...row, current: row.label === r.bmi_category })),
       note: 'NutriMatch uses the WHO Asia-Pacific ranges, which are set lower than the global ones because health risks start at a lower BMI for Asian adults. BMI doesn\'t tell muscle from fat, so your RND looks at it together with your other results.',
@@ -370,6 +380,10 @@ const explanation = computed(() => {
     return {
       title: 'BMR', fullName: 'Basal Metabolic Rate',
       what: 'The calories your body burns at complete rest just to stay alive — breathing, keeping your heart beating, and keeping you warm. It is worked out from your weight, height, age and sex (Mifflin-St Jeor equation).',
+      formula: [
+        { main: 'Male: BMR = (10 × weight in kg) + (6.25 × height in cm) − (5 × age in years) + 5' },
+        { main: 'Female: BMR = (10 × weight in kg) + (6.25 × height in cm) − (5 × age in years) − 161' },
+      ],
       yours: r.bmr_kcal
         ? `about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
         : 'not computed — it needs your age and sex.',
@@ -380,6 +394,11 @@ const explanation = computed(() => {
     return {
       title: 'TDEE', fullName: 'Total Daily Energy Expenditure',
       what: 'The total calories you burn in a day, including your daily activity. It is your BMR multiplied by an activity factor (Sedentary ×1.2 up to Extra Active ×1.9).',
+      formula: [{
+        main: 'TDEE = BMR × activity factor',
+        // Non-breaking spaces keep each "Extra Active ×1.9" on one line.
+        sub: activityLevels.map(l => `${l.label} ×${ACTIVITY_FACTORS[l.value]}`.replace(/ /g, ' ')).join(' · '),
+      }],
       yours: r.tdee_kcal
         ? `about ${kcal(r.tdee_kcal)} kcal a day at ${activity}. Eating around this amount keeps your weight about the same.`
         : 'not computed — it needs your age and sex.',
@@ -389,6 +408,11 @@ const explanation = computed(() => {
   return {
     title: 'NRS-2002', fullName: 'Nutritional Risk Screening 2002',
     what: 'A standard hospital screening that checks your risk of malnutrition. It looks at your BMI, any weight lost since your last screening, a poor appetite, and health conditions like high blood sugar or a recent hospital stay.',
+    formula: [
+      { main: 'NRS-2002 score = nutritional status points + disease severity points' },
+      { main: 'Nutritional status (highest that applies):', sub: 'BMI below 18.5 = 3 · weight loss of 5% or more = 2 · poor appetite = 1' },
+      { main: 'Disease severity:', sub: 'elevated blood glucose or recent hospitalization = 1' },
+    ],
     yours: `a score of ${r.nrs_score ?? '—'} — ${nrsRiskLabel.value || 'not scored'}.`,
     scale: NRS_SCALE.map(row => ({ label: row.label, range: row.range, current: row.key === r.nrs_risk })),
     note: 'This is a screening, not a diagnosis. Your RND reviews it before your consultation and will talk you through anything that needs attention.',
@@ -504,6 +528,12 @@ onMounted(async () => {
 .explain-close { background: none; border: none; color: #8a9a8a; cursor: pointer; padding: 2px; display: flex; }
 .explain-close:hover { color: #1a3a1a; }
 .explain-text { font-size: 0.86rem; color: #3a4a3a; line-height: 1.55; margin: 0 0 8px; }
+.explain-formula { border: 1px solid #e3e8e3; border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; background: #fafbfa; }
+.formula-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 4px; }
+.formula-line { margin: 0 0 4px; line-height: 1.5; }
+.formula-line:last-child { margin-bottom: 0; }
+.formula-main { display: block; font-size: 0.84rem; font-weight: 600; color: #00382a; }
+.formula-sub { display: block; font-size: 0.78rem; color: #5a6a5a; }
 .explain-yours { font-size: 0.86rem; color: #1a3a1a; line-height: 1.55; margin: 0 0 10px; background: #f0f9f4; border-radius: 8px; padding: 8px 12px; }
 .explain-scale { list-style: none; padding: 0; margin: 0 0 10px; border: 1px solid #eceeec; border-radius: 8px; overflow: hidden; }
 .explain-scale li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 0.82rem; border-top: 1px solid #f0f2f0; }

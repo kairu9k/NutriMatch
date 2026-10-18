@@ -156,9 +156,14 @@ export const MEASURE_TEMPLATES = {
     { group: 'Body', items: [['Waist circumference', 'cm'], ['Hip circumference', 'cm'], ['Waist-to-hip ratio', ''], ['Mid-upper arm circumference', 'cm'], ['Body fat', '%'], ['Triceps skinfold', 'mm'], ['Calf circumference', 'cm']] },
     { group: 'Labs', items: [['Total cholesterol', 'mg/dL'], ['LDL cholesterol', 'mg/dL'], ['HDL cholesterol', 'mg/dL'], ['Triglycerides', 'mg/dL'], ['Postprandial glucose', 'mg/dL'], ['Creatinine', 'mg/dL'], ['eGFR', 'mL/min'], ['Uric acid', 'mg/dL'], ['Hemoglobin', 'g/dL'], ['Albumin', 'g/dL'], ['Sodium', 'mmol/L'], ['Potassium', 'mmol/L']] },
   ],
+  // Daily targets, named and united as in the Philippine Dietary Reference
+  // Intakes (PDRI 2015). Protein / carbohydrate / fat have their own fields.
+  // Also the Meal Planning page's "Other Targets" list.
   intervention: [
-    { group: 'Limits', items: [['Sodium limit', 'mg/day'], ['Fluid limit', 'mL/day'], ['Added sugar limit', 'g/day'], ['Saturated fat limit', 'g/day'], ['Rice per meal', 'cups']] },
-    { group: 'Goals', items: [['Fiber goal', 'g/day'], ['Water intake', 'L/day'], ['Physical activity', 'min/day'], ['Steps per day', 'steps'], ['Meals per day', 'meals'], ['Target weight', 'kg']] },
+    { group: 'Nutrients', items: [['Sodium', 'mg/day'], ['Fiber', 'g/day'], ['Saturated fat', 'g/day'], ['Trans fat', 'g/day'], ['Omega-3', 'g/day'], ['Added sugar', 'g/day'], ['Cholesterol', 'mg/day']] },
+    { group: 'Minerals', items: [['Potassium', 'mg/day'], ['Phosphorus', 'mg/day'], ['Calcium', 'mg/day'], ['Magnesium', 'mg/day'], ['Iron', 'mg/day'], ['Zinc', 'mg/day'], ['Copper', 'mg/day'], ['Manganese', 'mg/day'], ['Chloride', 'mg/day'], ['Fluoride', 'mg/day'], ['Iodine', 'mcg/day'], ['Selenium', 'mcg/day']] },
+    { group: 'Vitamins', items: [['Vitamin A', 'mcg/day'], ['Vitamin D', 'mcg/day'], ['Vitamin E', 'mg/day'], ['Vitamin K', 'mcg/day'], ['Vitamin C', 'mg/day'], ['Thiamin (B1)', 'mg/day'], ['Riboflavin (B2)', 'mg/day'], ['Niacin (B3)', 'mg/day'], ['Pantothenic acid (B5)', 'mg/day'], ['Vitamin B6', 'mg/day'], ['Biotin (B7)', 'mcg/day'], ['Folate (B9)', 'mcg/day'], ['Vitamin B12', 'mcg/day'], ['Choline', 'mg/day']] },
+    { group: 'Goals', items: [['Water intake', 'L/day'], ['Fluid limit', 'mL/day'], ['Rice per meal', 'cups'], ['Physical activity', 'min/day'], ['Steps per day', 'steps'], ['Meals per day', 'meals'], ['Target weight', 'kg']] },
   ],
 }
 

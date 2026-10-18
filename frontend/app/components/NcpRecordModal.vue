@@ -63,13 +63,13 @@
                     <AlertTriangle v-if="liveBp.level !== 'ok'" :size="13" /> {{ liveBp.label }}
                   </p>
                 </Field>
-                <Field label="Fasting glucose (mg/dL)" :hint="srcHint('blood_glucose')" :error="errors.blood_glucose">
+                <Field label="Fasting glucose (mg/dL)" info="Blood sugar after at least 8 hours without food." :hint="srcHint('blood_glucose')" :error="errors.blood_glucose">
                   <input v-model="a.blood_glucose" type="number" :min="L.blood_glucose.min" :max="L.blood_glucose.max" step="1" class="nm-input" :disabled="isReadOnly" />
                   <p v-if="liveGlucose" class="m-cat" :class="liveGlucose.level" role="status">
                     <AlertTriangle v-if="liveGlucose.level !== 'ok'" :size="13" /> {{ liveGlucose.label }}
                   </p>
                 </Field>
-                <Field label="HbA1c (%)" :hint="srcHint('hba1c')" :error="errors.hba1c">
+                <Field label="HbA1c (%)" :info="'Average blood sugar over the past 2⁠–⁠3 months.' /* word joiners keep 2–3 on one line */" :hint="srcHint('hba1c')" :error="errors.hba1c">
                   <input v-model="a.hba1c" type="number" :min="L.hba1c.min" :max="L.hba1c.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
                   <p v-if="liveHba1c" class="m-cat" :class="liveHba1c.level" role="status">
                     <AlertTriangle v-if="liveHba1c.level !== 'ok'" :size="13" /> {{ liveHba1c.label }}
@@ -188,9 +188,11 @@
               </div>
               <dl class="summary">
                 <div><dt>Measurements</dt><dd>{{ measureLine }}</dd></div>
+                <div v-if="assessExtraLine"><dt>Other measurements</dt><dd>{{ assessExtraLine }}</dd></div>
                 <div><dt>Diagnosis</dt><dd>{{ d.pes_problem ? pesSentence : '—' }}</dd></div>
                 <div><dt>Prescription</dt><dd>{{ i.diet_prescription || '—' }}</dd></div>
                 <div><dt>Targets</dt><dd>{{ targetLine }}</dd></div>
+                <div v-if="interventionExtraLine"><dt>Other targets</dt><dd>{{ interventionExtraLine }}</dd></div>
                 <div v-if="showMonitoring"><dt>Goal status</dt><dd>{{ GOALS.find(g => g.value === m.goal_status)?.label || '—' }}</dd></div>
               </dl>
               <template v-if="isFinalized">
@@ -310,10 +312,16 @@ const { get, post, patch } = useApi()
 const Field = defineComponent({
   // `group`: the field holds several controls (BP pair, picker, buttons), so it
   // isn't a <label> — clicking its text mustn't press the first button.
-  props: { label: String, required: Boolean, hint: String, group: Boolean, error: String },
+  // `info`: a short explanation behind an ⓘ beside the label (hover, focus or tap).
+  props: { label: String, required: Boolean, hint: String, group: Boolean, error: String, info: String },
   setup(p, { slots }) {
+    // preventDefault: clicking the ⓘ inside a <label> mustn't focus the input.
+    const infoTip = () => h('span', { class: 'info-tip', tabindex: 0, 'aria-label': `About ${p.label}: ${p.info}`, onClick: e => e.preventDefault() }, [
+      h(Info, { size: 13, 'aria-hidden': 'true' }),
+      h('span', { class: 'info-bubble', role: 'tooltip', 'aria-hidden': 'true' }, p.info),
+    ])
     return () => h(p.group ? 'div' : 'label', { class: ['field', { invalid: !!p.error }], role: p.group ? 'group' : undefined, 'aria-label': p.group ? p.label : undefined }, [
-      h('span', { class: 'field-label' }, [p.label, p.required ? h('span', { class: 'req', 'aria-hidden': 'true' }, ' *') : null]),
+      h('span', { class: 'field-label' }, [p.label, p.required ? h('span', { class: 'req', 'aria-hidden': 'true' }, ' *') : null, p.info ? infoTip() : null]),
       slots.default?.(),
       p.error ? h('span', { class: 'field-error', role: 'alert' }, p.error) : p.hint ? h('span', { class: 'field-hint' }, p.hint) : null,
     ])
@@ -515,6 +523,13 @@ const targetLine = computed(() => {
   const macros = [filled(t.target_carb_g) ? `${t.target_carb_g} g carbs` : null, filled(t.target_protein_g) ? `${t.target_protein_g} g protein` : null, filled(t.target_fat_g) ? `${t.target_fat_g} g fat` : null].filter(Boolean)
   return `${whole(t.target_kcal)} kcal/day${macros.length ? ` · ${macros.join(', ')}` : ''}`
 })
+// "+ Add Field" rows, e.g. "Sodium 1500 mg"; half-filled rows are left out.
+const extraLine = rows => rows
+  .filter(r => r.label?.trim() && filled(r.value))
+  .map(r => `${r.label.trim()} ${r.value}${r.unit?.trim() ? ` ${r.unit.trim()}` : ''}`)
+  .join(' · ')
+const assessExtraLine = computed(() => extraLine(a.value.extra))
+const interventionExtraLine = computed(() => extraLine(i.value.extra))
 
 /* ---------- save / finalize ---------- */
 // A ref, so saving (which changes only this) re-evaluates `dirty`.
@@ -695,7 +710,18 @@ function ncpError(e, fallback) {
 .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 :deep(.field) { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; min-width: 0; }
-:deep(.field-label) { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; }
+:deep(.field-label) { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; position: relative; }
+/* ⓘ beside a label; the bubble stays within the field's width so it never runs off the modal. */
+:deep(.info-tip) { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: #8a9a8a; cursor: help; border-radius: 50%; }
+:deep(.info-tip:hover), :deep(.info-tip:focus-visible) { color: #00382a; outline: none; }
+:deep(.info-tip:focus-visible) { box-shadow: 0 0 0 2px rgba(0, 56, 42, 0.25); }
+:deep(.info-bubble) {
+  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30; width: max-content; max-width: 100%;
+  background: #00382a; color: #fff; font-size: 0.74rem; font-weight: 500; line-height: 1.4;
+  padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  opacity: 0; visibility: hidden; transition: opacity 0.12s; pointer-events: none;
+}
+:deep(.info-tip:hover .info-bubble), :deep(.info-tip:focus .info-bubble) { opacity: 1; visibility: visible; }
 :deep(.req) { color: #c0392b; }
 :deep(.field-hint) { font-size: 0.72rem; color: #8a9a8a; }
 :deep(.field-error) { font-size: 0.72rem; color: #c0392b; font-weight: 600; }
