@@ -279,24 +279,27 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000').rstrip('/
 # Fallback for the `support_email` system setting (core/support.py).
 SUPPORT_EMAIL = config('SUPPORT_EMAIL', default='nutrimatch36@gmail.com')
 
-MAILERS = {
-    'default': (
-        {
-            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
-            'OPTIONS': {
-                'host': 'smtp.gmail.com',
-                'port': 587,
-                'username': GMAIL_HOST_USER,
-                'password': GMAIL_HOST_PASSWORD,
-                'use_tls': True,
-            },
-        }
-        if GMAIL_HOST_USER and GMAIL_HOST_PASSWORD
-        else {
-            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-        }
-    ),
-}
+# Production (Render free) blocks SMTP ports, so it sends through Brevo's
+# HTTPS API (core/brevo_email.py) when BREVO_API_KEY is set. Locally: Gmail
+# SMTP, or the console when no keys are set.
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+if BREVO_API_KEY:
+    _MAILER = {'BACKEND': 'core.brevo_email.BrevoEmailBackend', 'OPTIONS': {'api_key': BREVO_API_KEY}}
+elif GMAIL_HOST_USER and GMAIL_HOST_PASSWORD:
+    _MAILER = {
+        'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+        'OPTIONS': {
+            'host': 'smtp.gmail.com',
+            'port': 587,
+            'username': GMAIL_HOST_USER,
+            'password': GMAIL_HOST_PASSWORD,
+            'use_tls': True,
+            'timeout': 20,  # never let a blocked connection hang a request
+        },
+    }
+else:
+    _MAILER = {'BACKEND': 'django.core.mail.backends.console.EmailBackend'}
+MAILERS = {'default': _MAILER}
 
 
 # External services

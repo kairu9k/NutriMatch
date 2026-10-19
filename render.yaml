@@ -40,6 +40,10 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      # Email goes through Brevo's HTTPS API: Render's free plan blocks SMTP,
+      # so Gmail SMTP can't connect from here.
+      - key: BREVO_API_KEY
+        sync: false
       - key: GMAIL_HOST_USER
         sync: false
       - key: GMAIL_HOST_PASSWORD
