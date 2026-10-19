@@ -1,6 +1,6 @@
 <template>
   <div class="reviews-page">
-    <div class="page-header">
+    <div v-if="!embedded" class="page-header">
       <h1 class="page-title">Patient Reviews</h1>
       <p class="page-sub">See what your patients are saying about their care.</p>
     </div>
@@ -19,7 +19,7 @@
             :stroke-width="1.5"
           />
         </div>
-        <p class="score-caption">Based on {{ summary.total }} reviews</p>
+        <p class="score-caption">Based on {{ summary.total }} review{{ summary.total === 1 ? '' : 's' }}</p>
       </div>
 
       <div class="breakdown-card">
@@ -76,6 +76,9 @@ import { computed, onMounted, ref } from 'vue'
 import { Star } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Reviews' })
+
+// embedded: shown inside Profile Settings' Reviews tab, which has its own heading.
+defineProps({ embedded: { type: Boolean, default: false } })
 
 const { get } = useApi()
 

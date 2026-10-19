@@ -274,6 +274,17 @@
           </form>
         </template>
 
+        <!-- ============ REVIEWS (GET /api/rnd/reviews/, same as the Reviews page) ============ -->
+        <template v-else-if="activeTab === 'reviews'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Patient Reviews</h3>
+              <p class="tab-panel-sub">What your patients say after their consultations.</p>
+            </div>
+          </div>
+          <Reviews embedded />
+        </template>
+
         <!-- ============ HISTORY (GET /api/rnd/activity/, scheduling/rnd_activity.py) ============ -->
         <template v-else-if="activeTab === 'history'">
           <div class="tab-panel-header">
@@ -341,6 +352,7 @@ const tabs = [
   { key: 'availability', label: 'Availability', icon: CalendarClock },
   { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'security', label: 'Security', icon: Shield },
+  { key: 'reviews', label: 'Reviews', icon: Star },
   { key: 'history', label: 'History', icon: History },
 ]
 
@@ -349,8 +361,6 @@ const validTabKeys = tabs.map(t => t.key)
 
 // Earnings moved to its own page (sidebar → Earnings).
 if (route.query.tab === 'earnings') navigateTo('/earnings', { replace: true })
-// Reviews live on their own page (sidebar → Reviews, real data).
-if (route.query.tab === 'reviews') navigateTo('/reviews', { replace: true })
 const activeTab = ref(validTabKeys.includes(route.query.tab) ? route.query.tab : 'professional')
 const activeTabLabel = computed(() => tabs.find(t => t.key === activeTab.value)?.label)
 
