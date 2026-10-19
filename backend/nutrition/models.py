@@ -290,9 +290,19 @@ class MealLog(models.Model):
     # Set by the server (PH time) when the client saves — not typed in.
     time_logged = models.TimeField(null=True, blank=True)
     reason_notes = models.TextField(null=True, blank=True)
+    # Legacy public address — only photos uploaded before 2026-10-19 that
+    # haven't been moved by `make_meal_photos_private` yet.
     photo_url = models.URLField(max_length=500, null=True, blank=True)
+    # A private (authenticated) Cloudinary photo, shown through a link that
+    # expires (nutrition/photos.py).
+    photo_public_id = models.CharField(max_length=255, null=True, blank=True)
+    photo_format = models.CharField(max_length=10, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def has_photo(self):
+        return bool(self.photo_public_id or self.photo_url)
 
     class Meta:
         db_table = "meal_logs"

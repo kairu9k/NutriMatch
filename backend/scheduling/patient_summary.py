@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsRnd
+from nutrition.photos import meal_photo_link
 
 from .patient_insights import adherence_pct, ph_tz
 from .patient_list import build_patient_rows
@@ -82,7 +83,7 @@ def build_patient_summary(rnd, rel_id, now=None):
     logs = [
         {"id": lg.id, "date": lg.log_date, "meal": lg.meal_plan_meal.get_meal_time_display(), "status": lg.status,
          "status_label": lg.status_label, "time_logged": lg.time_logged, "note": lg.reason_notes,
-         "photo_url": lg.photo_url, "plan": lg.meal_plan_meal.meal_plan.name}
+         "photo_url": meal_photo_link(lg), "plan": lg.meal_plan_meal.meal_plan.name}
         for lg in MealLog.objects.filter(meal_plan_meal__meal_plan__relationship=rel)
         .select_related("meal_plan_meal__meal_plan").order_by("-log_date", "-created_at")[:RECENT_LOGS]
     ]

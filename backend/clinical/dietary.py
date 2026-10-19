@@ -205,5 +205,5 @@ def food_diary(client, days=7, now=None):
         "status": log.status,
         "status_label": log.get_status_display(),
         "notes": log.reason_notes or "",
-        "has_photo": bool(log.photo_url),
+        "has_photo": log.has_photo,
     } for log in logs]

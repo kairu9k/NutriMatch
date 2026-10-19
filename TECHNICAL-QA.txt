@@ -205,6 +205,14 @@ A: The client logs each meal (photo and/or note); the RND rates it
    Followed (100%) / Partly (50%) / Not followed (0%). Unlogged planned
    meals count as missed. Goal line is 80%.
 
+Q: Who can see a client's meal photos?
+A: Only the client and their own RND. Meal photos are health data (RA
+   10173), so they're stored privately on Cloudinary: the photo's normal
+   address doesn't work (Cloudinary answers 401). When the client or their
+   RND opens a meal log, NutriMatch makes a download link that expires
+   after 10 minutes - a copied or forwarded link stops working. Admins and
+   other RNDs get no link at all.
+
 ======================================================================
 6. SECURITY AND DATA PRIVACY (RA 10173)
 ======================================================================
@@ -310,8 +318,9 @@ OUTSIDE SERVICES (all have a free tier / test mode)
   - PayMongo       - payments (QR Ph, GCash, Maya, cards), Payment Links,
                      webhook; TEST mode for the demo
   - Jitsi Meet     - video calls (meet.jit.si, no account/API key needed)
-  - Cloudinary     - file storage; PRC license photos are private
-                     ("authenticated") and shown via expiring signed links
+  - Cloudinary     - file storage; PRC license photos, lab results and
+                     meal-log photos are private ("authenticated") and only
+                     shown through signed links (meal photos: 10 minutes)
   - Gmail SMTP     - all emails (verification codes, receipts, notices),
                      branded HTML templates with the logo embedded
   - USDA FoodData Central API - second food database (cached 30 days)

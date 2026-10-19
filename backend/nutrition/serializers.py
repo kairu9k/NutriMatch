@@ -224,6 +224,8 @@ class RndMealLogSerializer(serializers.ModelSerializer):
     meal_label = serializers.CharField(source="meal_plan_meal.get_meal_time_display", read_only=True)
     scheduled_time = serializers.TimeField(source="meal_plan_meal.scheduled_time", read_only=True)
     planned_items = serializers.SerializerMethodField()
+    # A link that expires (private photo) — see nutrition/photos.py.
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = MealLog
@@ -237,6 +239,11 @@ class RndMealLogSerializer(serializers.ModelSerializer):
     def get_can_review(self, obj):
         return obj.meal_plan_meal.meal_plan.relationship.status == "active"
 
+    def get_photo_url(self, obj):
+        from .photos import meal_photo_link
+
+        return meal_photo_link(obj)
+
     def get_planned_items(self, obj):
         return [
             {"food_name": i.food_name, "household_measure": i.household_measure, "kcal": i.kcal}
@@ -245,6 +252,14 @@ class RndMealLogSerializer(serializers.ModelSerializer):
 
 
 class MealLogSerializer(serializers.ModelSerializer):
+    # A link that expires (private photo) — see nutrition/photos.py.
+    photo_url = serializers.SerializerMethodField()
+
+    def get_photo_url(self, obj):
+        from .photos import meal_photo_link
+
+        return meal_photo_link(obj)
+
     class Meta:
         model = MealLog
         fields = [

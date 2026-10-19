@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
 from scheduling.discharge import ensure_open
-from communication.services import CloudinaryResourceUploadService, ResourceUploadError, notify
+from communication.services import notify
 
 from .models import FoodExchangeCategory, FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
 from .serializers import (
@@ -368,26 +368,40 @@ class ClientMealLogSaveView(APIView):
         serializer = MealLogSerializer(instance, data=request.data, partial=instance is not None)
         serializer.is_valid(raise_exception=True)
 
+        # Private photos (RA 10173): stored as authenticated Cloudinary assets
+        # and shown through expiring links (nutrition/photos.py).
+        from .photos import MealPhotoError, destroy_meal_photo, upload_meal_photo
+
         photo = request.data.get("photo")
-        photo_url = instance.photo_url if instance else None
+        photo_fields = {}
+        old_photo = (instance.photo_public_id, instance.photo_url) if instance else (None, None)
         if photo is not None:
             try:
-                photo_url = CloudinaryResourceUploadService().upload(photo, folder="meal-logs")
-            except ResourceUploadError as exc:
+                public_id, fmt = upload_meal_photo(photo)
+            except MealPhotoError as exc:
                 raise serializers.ValidationError({"photo": [str(exc)]})
+            photo_fields = {"photo_public_id": public_id, "photo_format": fmt, "photo_url": None}
+        has_photo = bool(photo_fields) or bool(instance and instance.has_photo)
 
         note = (serializer.validated_data.get("reason_notes", instance.reason_notes if instance else "") or "").strip()
-        if not photo_url and not note:
+        if not has_photo and not note:
             raise serializers.ValidationError({"detail": "Add a photo or a note about what you ate."})
 
         from scheduling.patient_insights import ph_tz
 
         # Saving (again) sends it back to the RND for review; the time is when it was saved.
         meal_log = serializer.save(
-            meal_plan_meal=meal, client=request.user, log_date=log_date, photo_url=photo_url,
+            meal_plan_meal=meal, client=request.user, log_date=log_date, **photo_fields,
             time_logged=timezone.now().astimezone(ph_tz()).time().replace(microsecond=0),
             status=None, reviewed_by=None, reviewed_at=None,
         )
+
+        if photo_fields and old_photo[0]:
+            # The replaced private photo is deleted (a legacy public one is
+            # left to make_meal_photos_private).
+            from django.db import transaction
+
+            transaction.on_commit(lambda pid=old_photo[0]: destroy_meal_photo(pid))
 
         rnd = meal.meal_plan.relationship.rnd
         notify(
