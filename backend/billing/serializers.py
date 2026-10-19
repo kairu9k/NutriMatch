@@ -196,7 +196,7 @@ class AdminInvoiceDetailSerializer(AdminInvoiceListSerializer):
             rows.append({
                 "id": t.id, "transaction_type": t.transaction_type, "amount": t.amount, "status": t.status,
                 "processed_at": t.processed_at, "created_at": t.created_at,
-                # Where it was recorded from: webhook / status check / admin / seed_demo.
+                # Where it was recorded from: webhook / status check / admin.
                 "source": payload.get("source") or ("paymongo" if payload else None),
                 "reference": payload.get("reference"),
                 "receipt": payment_receipt(payload) if t.transaction_type == "payment" else {},

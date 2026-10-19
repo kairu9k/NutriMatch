@@ -331,7 +331,9 @@ TOOLS
   - Automated tests: Django test runner, 400+ tests
     (python manage.py test accounts billing core profiles scheduling
      clinical nutrition communication)
-  - Demo data: python manage.py seed_demo  (--reset to rebuild)
+  - Reference data: python manage.py seed  (FNRI food exchange list +
+    system settings; there is no demo-data seeder - real accounts are
+    registered through the app)
   - Reminders job: python manage.py send_reminders (also runs on its own
     when users load the app, so no scheduler is required)
 

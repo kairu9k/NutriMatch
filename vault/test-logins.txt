@@ -1,41 +1,19 @@
-NutriMatch — Demo logins for testing
-Shared with the team. These accounts are created on any machine by:
+NutriMatch — logins
 
-    cd backend
-    python manage.py seed_demo          # first time
-    python manage.py seed_demo --reset  # rebuild (only touches @nutrimatch.test accounts)
-
-Sign in at http://localhost:3000/login (admin: http://localhost:3000/admin/login).
-Demo accounts only — never reuse these passwords for a real deployment.
-
-DEMO DATA (python manage.py seed_demo  /  --reset to rebuild)
-  password for all 13: NutriMatchDemo1!   (override with DEMO_PASSWORD in backend/.env)
-  Admin:   admin@nutrimatch.test              demo admin - sign in at /admin/login
-  RNDs:    maria.santos@nutrimatch.test       verified, main RND (Carla's), open every day 8 AM-9 PM (same-day booking demo) - GCash payout details, paid out P720 on the last 5th, P720 Posted for the next
-           jose.reyes@nutrimatch.test         verified, video only (Daniel's) - P900 Posted but NO payout details (shows the reminder)
-           angela.villanueva@nutrimatch.test  verified, NOT accepting new clients
-           ramon.delacruz@nutrimatch.test     verified, has Elena's pending booking (waiting 30 h - admin Appointments badge)
-           kristine.bautista@nutrimatch.test  pending admin review - CAN'T sign in until approved (Admin > RND Applications); PRC 0567890 + license photo
-  Clients: ana.cruz@nutrimatch.test           brand new - client onboarding on first sign-in (after seed_demo --reset)
-           benjamin.garcia@nutrimatch.test    screened, no RND
-           carla.mendoza@nutrimatch.test      full history, 1 unpaid invoice, upcoming visit
-           daniel.torres@nutrimatch.test      Jose's patient, 1 paid visit, meal plan
-           elena.ramos@nutrimatch.test        first booking with Ramon, pending
-           felix.navarro@nutrimatch.test      Maria's patient at nutritional risk - paid visit ended yesterday, not completed, no NCP yet
-           grace.lim@nutrimatch.test          Maria's former patient - discharged after reaching her goal
-
-TEST ACCOUNTS (main dev machine's local database)
-  These were created by hand on the main dev machine, so they only work there unless you
-  create the same accounts yourself (register them, or use the demo accounts above).
-
-Generated: 2026-09-06
+The demo data and its seeder were removed on 2026-10-19 (adviser's request): the
+database starts with one admin account and real accounts are registered through
+the app (Register for clients and RNDs; admins via Users -> Add admin).
 
 ADMIN
   email:    admin@nutrimatch.ph
-  password: TestAdmin123!
-  note:     pre-existing account, password reset to the above for testing
+  password: ask the team lead (not written here — this file is on GitHub)
+  sign in:  http://localhost:3000/admin/login
 
-TEST ADMIN (created 2026-10-14 on this machine's local database)
-  email:    admin2@nutrimatch.test
-  password: Nm5nS5UJbT7!
-  sign in:  http://localhost:3000/admin/login  (also works for http://localhost:8000/admin/)
+Forgot it? Admin sign-in -> Forgot password (a code is emailed), or on the
+backend machine: python manage.py changepassword admin@nutrimatch.ph
+
+New database on another machine:
+  cd backend
+  python manage.py migrate
+  python manage.py seed              # FNRI food exchange list + system settings (reference data, not demo data)
+  python manage.py createsuperuser   # the first admin

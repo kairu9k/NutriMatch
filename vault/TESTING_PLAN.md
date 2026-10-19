@@ -5,14 +5,14 @@ end-to-end tests of the real user journeys, a manual checklist for things that c
 automated, and non-functional checks (RA 10173, security, performance). Work top to bottom.
 
 Test accounts: `vault/test-logins.txt` (shared with the team — the demo accounts plus the hand-made local test accounts). Demo data:
-`python manage.py seed_demo --reset` — rebuilds only the `@nutrimatch.test` accounts.
+There is no demo seeder any more (removed 2026-10-19, adviser's request) — register real test accounts through the app.
 
 ---
 
 ## Start here — first test run (about 30 minutes)
 
 **Before you start:** run the project (see `README.md`), then from `backend/`:
-`python manage.py migrate` and `python manage.py seed_demo --reset`.
+`python manage.py migrate` and `python manage.py seed` (FNRI foods).
 Sign in at **http://localhost:3000/login** (admin: **http://localhost:3000/admin/login**).
 Every demo account's password is **`NutriMatchDemo1!`**.
 
@@ -72,7 +72,7 @@ Check the BMI/BMR the screening shows look right for the numbers you typed.
 
 **Needs extra setup (skip if you don't have it):** live chat needs Redis; real emails need
 the Gmail settings in `.env` (demo `.test` addresses never receive mail anyway); paying needs
-PayMongo test keys; uploads need Cloudinary keys. Run `seed_demo --reset` again any time to
+PayMongo test keys; uploads need Cloudinary keys. Register fresh accounts any time to
 start over.
 
 After this run, use the detailed flows in section 2 for deeper testing.
@@ -86,7 +86,7 @@ After this run, use the detailed flows in section 2 for deeper testing.
 | Backend unit/API tests | **351 tests** across 8 apps (`manage.py test accounts billing core profiles scheduling clinical nutrition communication`): scheduling 77, accounts 74, clinical 57, billing 40, communication 37, nutrition 26, profiles 26, core 14 |
 | Known failing | Only the 3 WebSocket tests in `communication.tests.MessageConsumerTests` — they need Redis running (`REDIS_URL`); not installed on the dev machine |
 | Frontend tests | None. No test tooling in `frontend/`; pages are checked by hand in the browser after each change |
-| Demo data | **Done.** `seed_demo`: 5 RNDs + 7 clients + demo admin, each at a different stage (see the table below) |
+| Demo data | **Removed 2026-10-19** (adviser's request) — test with accounts registered through the app |
 
 **Demo journey stages** (all `@nutrimatch.test`):
 
@@ -129,7 +129,7 @@ Still to add:
 
 ## 2. End-to-end browser flows
 
-Run against the real backend + `seed_demo` data. Each row lists what to check; A–F are the
+Run against the real backend with accounts registered through the app. Each row lists what to check; A–F are the
 core journey for the defense.
 
 | # | Flow | What to check |
@@ -186,14 +186,14 @@ Real external services or things that need human eyes:
   (`.env` and `db.sqlite3` stay out of git); rotate the PayMongo webhook
   secret before deploying; CORS / allowed hosts.
 - **Performance:** dashboards and list pages compute in batches (no per-row queries) —
-  spot-check with `seed_demo` data; 3-second page load target from the proposal.
+  spot-check with registered test accounts; 3-second page load target from the proposal.
 - **Console hygiene:** no errors or hydration warnings on the main pages.
 
 ---
 
 ## Suggested order before the defense
 
-1. `seed_demo --reset`
+1. Register a client and an RND (approve the RND as admin)
 2. Backend gaps (section 1)
 3. Flows A–F, then G–L and the edge cases
 4. Manual checklist + non-functional checks

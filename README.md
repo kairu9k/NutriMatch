@@ -40,7 +40,8 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 copy .env.example .env
 .\.venv\Scripts\python.exe manage.py migrate
-.\.venv\Scripts\python.exe manage.py seed_demo
+.\.venv\Scripts\python.exe manage.py seed
+.\.venv\Scripts\python.exe manage.py createsuperuser
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
@@ -52,14 +53,16 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 cp .env.example .env
 .venv/bin/python manage.py migrate
-.venv/bin/python manage.py seed_demo
+.venv/bin/python manage.py seed
+.venv/bin/python manage.py createsuperuser
 .venv/bin/python manage.py runserver
 ```
 
 > Always run Python through `.venv` like above (not plain `python manage.py …`), so it uses the project's packages.
 
 - `migrate` creates the database (`backend/db.sqlite3`).
-- `seed_demo` fills it with demo accounts, appointments, meal plans, invoices and payouts — see [Demo accounts](#demo-accounts).
+- `seed` loads the **FNRI food exchange list** and default settings (reference data the meal planner needs — not demo data).
+- `createsuperuser` makes the first **admin** (asks for an email and a password). There is no demo data: create clients and RNDs by registering in the app — see [Accounts](#accounts).
 - Leave this terminal open. It should say `Watching for file changes…` with no red error — the backend is now at `http://localhost:8000`. Each request your browser makes shows up here as a line.
 
 ### 4. Start the frontend (terminal #2)
@@ -101,34 +104,15 @@ Run it once; afterwards it starts automatically with Docker. If Messages says it
 
 ---
 
-## Demo accounts
+## Accounts
 
-Every demo account uses the password **`NutriMatchDemo1!`** (also listed, with what each account is for, in [`vault/test-logins.txt`](vault/test-logins.txt) and [`vault/TESTING_PLAN.md`](vault/TESTING_PLAN.md)).
+There is **no demo data** (removed 2026-10-19 at the adviser's request). Use real accounts:
 
-| Role | Email | What's set up |
-|---|---|---|
-| **Admin** | `admin@nutrimatch.test` | Sign in at **http://localhost:3000/admin/login** |
-| RND | `maria.santos@nutrimatch.test` | Carla's, Felix's and (discharged) Grace's RND · GCash payout details · one payout already released, more ready for the next 5th |
-| RND | `jose.reyes@nutrimatch.test` | Daniel's RND · has earnings but **no payout details** (shows the reminder) |
-| RND | `angela.villanueva@nutrimatch.test` | Not accepting new clients |
-| RND | `ramon.delacruz@nutrimatch.test` | Has Elena's booking request waiting over 24 hours |
-| RND | `kristine.bautista@nutrimatch.test` | **Application under review** — can't sign in until the admin approves her |
-| Client | `ana.cruz@nutrimatch.test` | Brand new — goes through client onboarding |
-| Client | `benjamin.garcia@nutrimatch.test` | Screened, hasn't booked an RND yet |
-| Client | `carla.mendoza@nutrimatch.test` | Full history with Maria · upcoming visit with **payment due** |
-| Client | `daniel.torres@nutrimatch.test` | One paid visit with Jose · meal plan |
-| Client | `elena.ramos@nutrimatch.test` | Booked Ramon, waiting for him to confirm |
-| Client | `felix.navarro@nutrimatch.test` | Maria's patient at nutritional risk · paid visit ended yesterday, **not marked complete, no NCP record yet** |
-| Client | `grace.lim@nutrimatch.test` | **Discharged** by Maria after reaching her goal (read-only chart) |
+- **Admin** — the one from `createsuperuser`, signing in at **http://localhost:3000/admin/login**. More admins: Users → **Add admin**.
+- **Client** — Register at http://localhost:3000/register as a patient, verify the 6-digit code, go through onboarding.
+- **RND** — Register as an RND (needs Cloudinary keys for the PRC photo), verify the code, then **approve the application as the admin** (RND Applications) — only then can the RND sign in.
 
-Clients and RNDs sign in at **http://localhost:3000/login**.
-
-**Reset the demo data** any time (deletes only the `@nutrimatch.test` accounts and rebuilds them; accounts you registered yourself are kept):
-
-```bash
-.\.venv\Scripts\python.exe manage.py seed_demo --reset     # Windows
-.venv/bin/python manage.py seed_demo --reset               # macOS / Linux
-```
+Clients and RNDs sign in at **http://localhost:3000/login**. Never write real passwords in the repo.
 
 ---
 
@@ -139,8 +123,8 @@ You don't need any passwords or API keys to test most of the app. The `.env` you
 | Feature | Without keys | To make it fully work |
 |---|---|---|
 | Sign-up emails (verification code, password reset) | Nothing is sent — **the email, including the 6-digit code, is printed in the backend terminal (#1)**. Copy the code from there. | Gmail App Password in `GMAIL_HOST_USER` / `GMAIL_HOST_PASSWORD` |
-| Registering a **new RND** (PRC license photo) and **profile photos** | Shows "Cloudinary is not configured". Use the demo RNDs instead. | Cloudinary keys in `CLOUDINARY_*` (ask the team lead — never commit them) |
-| **Paying** an invoice (PayMongo) | Paying shows "PAYMONGO_SECRET_KEY is not configured." Demo data already has paid invoices. | PayMongo **test** keys in `PAYMONGO_SECRET_KEY` |
+| Registering a **new RND** (PRC license photo) and **profile photos** | Shows "Cloudinary is not configured". | Cloudinary keys in `CLOUDINARY_*` (ask the team lead — never commit them) |
+| **Paying** an invoice (PayMongo) | Paying shows "PAYMONGO_SECRET_KEY is not configured." | PayMongo **test** keys in `PAYMONGO_SECRET_KEY` |
 | Messages (real-time chat) | Can't send | Redis — [step 6](#6-optional-real-time-messages--redis) |
 | Video consultation | Works (free Jitsi, no key) | — |
 
@@ -150,11 +134,11 @@ Registering a new **client** works without any keys — grab the verification co
 
 ## Things to try
 
-**As a client** (`carla.mendoza@…`): Dashboard → My Appointments (pay the upcoming one if PayMongo keys are set) → My Meal Plan → log a meal → Progress Tracker. Or register a brand-new client and go through onboarding + the pre-consultation screening.
+**As a client** (register one): onboarding + pre-consultation screening → Find an RND → book → pay (PayMongo test keys) → My Meal Plan → log a meal → Progress Tracker.
 
-**As an RND** (`maria.santos@…`): Dashboard → Appointments → My Patients → Carla → NCP Records → Meal Planning → Profile Settings → **Earnings** (Pending / Posted / Paid out, payout details).
+**As an RND** (register one, approve it as admin): Dashboard → Appointments (confirm the booking) → My Patients → NCP Records → Meal Planning → Profile Settings → **Earnings**.
 
-**As the admin** (`admin@nutrimatch.test` at `/admin/login`): Dashboard to-do → **RND Applications** (review and approve Kristine) → Users (open a client's record) → Appointments → Billing & Commission → Payouts → Audit Logs (filters, Export CSV). System Settings is in the account menu (bottom of the sidebar).
+**As the admin** (at `/admin/login`): Dashboard to-do → **RND Applications** → Users → Appointments → Billing & Commission → Payouts → Audit Logs (filters, Export CSV). System Settings is in the account menu (bottom of the sidebar).
 
 Found a bug? Note the account you used, the page, and what you clicked, and send a screenshot.
 
@@ -190,15 +174,13 @@ cd ../frontend
 npm install
 ```
 
-If the demo data looks off after a big update, run `seed_demo --reset`.
-
 ---
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| "Incorrect email or password" with a demo account | Run `seed_demo` (or `seed_demo --reset`) — the demo accounts are only in your database after seeding. |
+| "Incorrect email or password" | Use **Forgot password** (the code is emailed, or printed in terminal #1 without Gmail keys). For an admin you can also run `manage.py changepassword <email>`. |
 | Pages load but say "Could not load…" | The backend (terminal #1) isn't running, or stopped with an error — check that terminal. |
 | `Error: That port is already in use` | Another backend is still running. Close it, or on Windows: `Get-Process python \| Stop-Process` in PowerShell. |
 | Frontend not on port 3000 (e.g. 3001) | Another `npm run dev` is still running, and the backend only accepts port 3000. Close the other one and start again. |

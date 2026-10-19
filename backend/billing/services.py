@@ -321,7 +321,7 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
             new_values={"status": "paid", "gateway_reference_id": reference_id, "source": source},
         )
         # Receipt to the client + a copy to the NutriMatch inbox, once the
-        # payment is saved. Looked up at call time so seed_demo can skip it.
+        # payment is saved. Looked up at call time (tests patch it).
         from . import receipts
 
         invoice_id = invoice.pk

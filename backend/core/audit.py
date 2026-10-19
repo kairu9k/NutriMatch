@@ -108,6 +108,7 @@ AUDIT_LABELS = {
     "user.removed": "Account removed",
     "client.record_viewed": "Client health record viewed",
     "audit_log.exported": "Audit log exported",
+    "audit_log.reset": "Audit log reset (test data removed)",
     "appointment.cancelled": "Appointment cancelled by admin",
     "lab_request.created": "Lab tests requested",
     "lab_request.cancelled": "Lab request cancelled",
