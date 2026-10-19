@@ -274,6 +274,39 @@
           </form>
         </template>
 
+        <!-- ============ HISTORY (GET /api/rnd/activity/, scheduling/rnd_activity.py) ============ -->
+        <template v-else-if="activeTab === 'history'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Your Activity</h3>
+              <p class="tab-panel-sub">Your consultations, NCP records, meal plans, patients, reviews and payouts.</p>
+            </div>
+            <button class="outline-btn print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
+          </div>
+
+          <div class="filter-tabs">
+            <button v-for="f in HISTORY_FILTERS" :key="f.key" class="filter-tab" :class="{ active: historyFilter === f.key }" type="button" @click="historyFilter = f.key">{{ f.label }}</button>
+          </div>
+
+          <p v-if="historyError" class="profile-error">{{ historyError }}</p>
+          <p v-if="isLoadingHistory" class="placeholder-text">Loading…</p>
+          <div v-else-if="!filteredHistory.length" class="empty-state">
+            <ClipboardList :size="26" class="empty-icon" />
+            <p>Nothing here yet.</p>
+            <p class="empty-sub">Your consultations, records and meal plans show up here as you work with patients.</p>
+          </div>
+          <template v-else>
+            <NuxtLink v-for="entry in filteredHistory" :key="entry.key" :to="entry.link" class="entry-row">
+              <div class="entry-icon" :class="HISTORY_KINDS[entry.type]?.cls"><component :is="HISTORY_KINDS[entry.type]?.icon || ClipboardList" :size="16" /></div>
+              <div class="entry-info">
+                <p class="entry-title">{{ entry.title }}</p>
+                <p v-if="entry.detail" class="entry-detail">{{ entry.detail }}</p>
+              </div>
+              <span class="entry-time">{{ formatTimestamp(entry.at) }}</span>
+            </NuxtLink>
+          </template>
+        </template>
+
         <!-- ============ OTHER TABS (still placeholder) ============ -->
         <template v-else>
           <p class="placeholder-text">{{ activeTabLabel }} settings go here.</p>
@@ -293,7 +326,8 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   Briefcase, BadgeCheck,
-  CalendarClock, X, Languages, Shield,
+  CalendarClock, X, Languages, Shield, History, Printer, ClipboardList,
+  CalendarCheck, FileText, UtensilsCrossed, UserRound, Star, Wallet,
   Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2
 } from 'lucide-vue-next'
 import { formatPhone, rndPhoneError } from '~/utils/phone'
@@ -307,6 +341,7 @@ const tabs = [
   { key: 'availability', label: 'Availability', icon: CalendarClock },
   { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'security', label: 'Security', icon: Shield },
+  { key: 'history', label: 'History', icon: History },
 ]
 
 const route = useRoute()
@@ -508,6 +543,51 @@ async function saveChanges() {
   } finally {
     isSavingProfile.value = false
   }
+}
+
+/* ---------- HISTORY ---------- */
+const HISTORY_KINDS = {
+  consultation: { icon: CalendarCheck, cls: 'icon-gold' },
+  ncp: { icon: FileText, cls: 'icon-blue' },
+  meal_plan: { icon: UtensilsCrossed, cls: 'icon-green' },
+  patient: { icon: UserRound, cls: 'icon-blue' },
+  review: { icon: Star, cls: 'icon-gold' },
+  payout: { icon: Wallet, cls: 'icon-green' },
+}
+const HISTORY_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'consultation', label: 'Consultations' },
+  { key: 'ncp', label: 'NCP Records' },
+  { key: 'meal_plan', label: 'Meal Plans' },
+  { key: 'patient', label: 'Patients' },
+  { key: 'review', label: 'Reviews' },
+  { key: 'payout', label: 'Payouts' },
+]
+const historyEntries = ref([])
+const historyFilter = ref('all')
+const isLoadingHistory = ref(false)
+const historyError = ref('')
+let historyLoaded = false
+const filteredHistory = computed(() =>
+  historyFilter.value === 'all' ? historyEntries.value : historyEntries.value.filter(e => e.type === historyFilter.value))
+async function loadHistory() {
+  isLoadingHistory.value = true
+  historyError.value = ''
+  try {
+    historyEntries.value = await get('/rnd/activity/')
+    historyLoaded = true
+  } catch {
+    historyError.value = 'Could not load your activity. Please try again.'
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+watch(activeTab, (tab) => { if (tab === 'history' && !historyLoaded) loadHistory() }, { immediate: true })
+function formatTimestamp(iso) {
+  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+function printHistory() {
+  window.print()
 }
 
 /* ---------- TAKING NEW CLIENTS (saves straight away) ---------- */
@@ -805,4 +885,32 @@ onMounted(showActiveTab)
 .pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .pw-forgot { font-size: 0.82rem; color: #1a3a1a; font-weight: 600; text-decoration: underline; }
 @media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
+
+/* History — mirrors ClientProfileSettings.vue */
+.filter-tabs { display: inline-flex; gap: 4px; background: #f4f5f3; border-radius: 999px; padding: 3px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; cursor: pointer; font-family: inherit; }
+.filter-tab.active { background: #14301a; color: #fff; }
+.entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #f0f2f0; text-decoration: none; color: inherit; }
+.entry-row:hover .entry-title { text-decoration: underline; }
+.entry-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-blue { background: #e3ecf7; color: #2a5a8a; }
+.icon-gold { background: #fdf1d6; color: #b8860b; }
+.icon-green { background: #e3f3ea; color: #1f8f5c; }
+.entry-info { flex: 1; min-width: 0; }
+.entry-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
+.entry-detail { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; overflow-wrap: anywhere; }
+.entry-time { font-size: 0.74rem; color: #9aaa9a; white-space: nowrap; }
+.empty-state { padding: 30px; text-align: center; color: #9aaa9a; font-size: 0.85rem; }
+.empty-state p { margin: 0; }
+.empty-icon { color: #d5dad5; margin-bottom: 8px; }
+.empty-sub { font-size: 0.78rem; margin-top: 4px !important; }
+.print-btn { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 640px) {
+  .entry-row { flex-wrap: wrap; }
+  .entry-time { width: 100%; padding-left: 48px; }
+}
+@media print {
+  .page-header, .tab-card, .print-btn, .filter-tabs { display: none !important; }
+  .profile-layout { grid-template-columns: 1fr; }
+}
 </style>
