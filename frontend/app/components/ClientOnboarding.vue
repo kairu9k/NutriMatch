@@ -353,7 +353,7 @@ async function finish() {
   try {
     await post('/auth/me/onboarding/complete/')
     await auth.fetchMe()
-    await navigateTo('/find-rnd')
+    await navigateTo('/client-dashboard')  // the welcome pop-up opens there
   } catch (error) {
     finishError.value = error?.data?.detail || 'Could not finish setup. Please try again.'
   } finally {

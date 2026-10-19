@@ -388,9 +388,9 @@ class OnboardingCompleteView(APIView):
         if pending:
             return Response({"detail": "Finish these first: " + "; ".join(pending) + "."}, status=status.HTTP_400_BAD_REQUEST)
         if request.user.onboarding_completed_at is None:
+            # The welcome pop-up still shows next, on the dashboard (user's call, 2026-10-20).
             request.user.onboarding_completed_at = timezone.now()
-            request.user.welcome_seen_at = request.user.welcome_seen_at or timezone.now()
-            request.user.save(update_fields=["onboarding_completed_at", "welcome_seen_at"])
+            request.user.save(update_fields=["onboarding_completed_at"])
         return Response(onboarding_status(request.user))
 
 
