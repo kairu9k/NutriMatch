@@ -73,6 +73,10 @@ class BrevoEmailBackend(BaseEmailBackend):
             try:
                 resp = httpx.post(API_URL, json=self._payload(message), timeout=self.timeout,
                                   headers={"api-key": self.api_key, "accept": "application/json"})
+                if resp.status_code >= 400:
+                    # Brevo explains itself in the body, e.g. "unrecognised IP
+                    # address" (Security -> Authorised IPs) or an unverified sender.
+                    logger.error("Brevo refused the email %r: HTTP %s %s", message.subject, resp.status_code, resp.text[:300])
                 resp.raise_for_status()
                 sent += 1
             except Exception:
