@@ -13,7 +13,7 @@ Three roles: **client**, **RND**, **admin**.
 - **Frontend:** Nuxt 4 + Tailwind CSS + Lucide icons. Lives in `frontend/`.
 - **Backend:** **Django 6.1.1 + DRF + SimpleJWT**, lives in `backend/`. The Laravel implementation was fully deleted (not kept as reference) — `vault/C1-NUTRIMATCH-FINALv5.pdf` is the authoritative reference for domain logic, and the Django models (`backend/*/models.py`) are the schema (the old DBML `vault/database.txt` was retired 2026-10-11 once everything was implemented — it's in git history). This is a deliberate stack change from the originally-proposed Laravel+MySQL — approved by the user, don't second-guess it or suggest reverting.
 - Original proposal's documented stack was Laravel 11 + Nuxt.js 3.10 + MySQL 8 — no longer applicable, superseded.
-- DB: SQLite for dev (`backend/db.sqlite3`), Postgres planned before deployment (not yet installed on the dev machine as of 2026-09-04).
+- DB: SQLite for dev (`backend/db.sqlite3`); production reads `DATABASE_URL` (`dj-database-url`, `psycopg`) — **Neon Postgres**. **Deployment (2026-10-20, user's call — free, no card):** backend on **Render** free web service via `render.yaml` (daphne, `rootDir: backend`, Singapore, migrates on start since the free plan has no pre-deploy/shell; `RENDER_EXTERNAL_HOSTNAME` is added to `ALLOWED_HOSTS` automatically), static files via WhiteNoise (`STATIC_ROOT=staticfiles`), HTTPS settings (proxy SSL header, SSL redirect, secure cookies, HSTS 30 days) only when `DEBUG=False`, `CSRF_TRUSTED_ORIGINS` from env; frontend on **Vercel**. No Redis needed (one process → in-memory channel layer). Free Render sleeps after 15 min idle (~1 min to wake). `seed`/`createsuperuser`/data copies are run locally against Neon's `DATABASE_URL`.
 
 ## Folder map
 

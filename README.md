@@ -103,6 +103,16 @@ cd backend
 .\.venv\Scripts\python.exe manage.py test
 ```
 
+## Deploy
+
+| Part | Service |
+|---|---|
+| Backend | **Render** (free) — `render.yaml` at the repo root: New → Blueprint |
+| Database | **Neon** Postgres (free) — its connection string goes in `DATABASE_URL` |
+| Frontend | **Vercel** (free) — root directory `frontend`, set `NUXT_PUBLIC_API_BASE=https://<backend>.onrender.com/api` |
+
+The backend migrates on every start. Run `seed` and `createsuperuser` once from your own computer with `DATABASE_URL` pointing at Neon.
+
 ## Contributing
 
 - `main` is protected: branch off it (`feature/<name>`) and open a pull request.
