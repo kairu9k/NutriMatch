@@ -36,7 +36,8 @@ class AdminPlatformStatsView(APIView):
         # Applications still awaiting a decision (not rejected / deactivated).
         pending_verif = RndProfile.objects.filter(review_status="pending", user__is_active=True).count()
         clients = User.objects.filter(role=User.Role.CLIENT, is_active=True).count()
-        new_registrations = User.objects.filter(created_at__gte=thirty_days_ago).count()
+        # Shown under the Clients card, so clients only (RNDs have their own card).
+        new_registrations = User.objects.filter(role=User.Role.CLIENT, created_at__gte=thirty_days_ago).count()
         total_consultations = Appointment.objects.filter(status=Appointment.Status.COMPLETED).count()
 
         paid_this_month = Invoice.objects.filter(status=Invoice.Status.PAID, paid_at__gte=month_start)
