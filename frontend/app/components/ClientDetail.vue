@@ -39,7 +39,7 @@
           — {{ s.discharge_request.reason_label }}.<template v-if="s.discharge_request.note"> “{{ s.discharge_request.note }}”</template>
           Discharge them with a closing note by <strong>{{ shortDate(s.discharge_request.ends_at) }}</strong>; after that it ends automatically.
         </div>
-        <button type="button" class="pb-btn" @click="showDischarge = true">Discharge now</button>
+        <button type="button" class="nm-btn-dark" @click="showDischarge = true">Discharge now</button>
       </section>
 
       <section v-if="p.status === 'discharged'" class="nm-note">

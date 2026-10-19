@@ -777,7 +777,7 @@ async function loadHistory() {
       ...mealLogs.map(l => ({
         key: `m${l.id}`, type: 'mealLog', at: l.updated_at, icon: UtensilsCrossed, iconClass: 'icon-green',
         title: `${MEAL_LABELS[mealTimeById[l.meal_plan_meal]] || 'Meal'} logged`,
-        detail: `${LOG_STATUS[l.status] || 'Waiting for your RND to rate it'} · ${l.log_date}${l.reason_notes ? ` · ${l.reason_notes}` : ''}`,
+        detail: `${LOG_STATUS[l.status] || 'Waiting for your RND to rate it'} · ${drDate(`${l.log_date}T00:00:00`)}${l.reason_notes ? ` · ${l.reason_notes}` : ''}`,
       })),
     ].sort((x, y) => new Date(y.at) - new Date(x.at))
     historyLoaded = true

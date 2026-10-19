@@ -203,7 +203,7 @@ class RndClientReminderListCreateView(APIView):
         when = r.send_at.astimezone(ph_tz())
         notify(recipient=rel.client, notifiable_type="reminder", notifiable_id=r.id, subject="New reminder from your RND",
                content=f"RND {request.user.full_name} set a reminder for you: \"{r.title}\" — {r.get_repeat_display().lower()} at "
-                       f"{when.hour % 12 or 12}:{when:%M} {when:%p}. You can mute it in Profile Settings.")
+                       f"{when.hour % 12 or 12}:{when:%M} {when:%p}. It shows on your dashboard under My tasks.")
         return Response(ReminderSerializer(r).data, status=status.HTTP_201_CREATED)
 
 

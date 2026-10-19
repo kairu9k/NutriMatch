@@ -3,7 +3,7 @@
     <div class="head">
       <div>
         <h3 class="nm-panel-title">Tasks & reminders for {{ clientFirstName }}</h3>
-        <p class="nm-panel-sub">Medication cues and habit prompts. {{ clientFirstName }} gets each one as a notification (and by email if they turned that on). They can mute a reminder, but only you can change or delete it.</p>
+        <p class="nm-panel-sub">Medication cues and habit prompts. {{ clientFirstName }} gets each one as a notification (and by email if they turned that on). It shows on their My tasks list to tick off; only you can change or delete it.</p>
       </div>
       <button v-if="canEdit" class="nm-btn-dark" type="button" @click="openForm()"><Plus :size="15" /> Add reminder</button>
     </div>

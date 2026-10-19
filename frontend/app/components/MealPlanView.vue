@@ -326,6 +326,7 @@ async function saveMealLog() {
     const idx = todaysLogs.value.findIndex(l => l.meal_plan_meal === activeMeal.value.id)
     if (idx >= 0) todaysLogs.value.splice(idx, 1, saved)
     else todaysLogs.value.push(saved)
+    resetLogForm() // show the saved photo/note (the watcher only sees a new list)
 
     fireToast(`${mealTimeLabel(activeMeal.value.meal_time)} log saved & sent to your RND!`)
   } catch (error) {

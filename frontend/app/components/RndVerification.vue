@@ -275,7 +275,6 @@ const incomplete = computed(() => {
   if (!r.prc_license_number) missing.push('no PRC license number')
   if (Number(r.consultation_fee || 0) < 100) missing.push('no consultation fee')
   if (!(r.bio || '').trim()) missing.push('no bio')
-  if (!(r.availability || []).length) missing.push('no weekly hours')
   return missing
 })
 const allChecked = computed(() => CHECKS.every(c => checks[c.key]))
