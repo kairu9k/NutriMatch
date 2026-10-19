@@ -13,7 +13,7 @@
 
     <div class="profile-layout">
       <!-- TABS -->
-      <div class="tab-card">
+      <div ref="tabCard" class="tab-card">
         <button
           v-for="tab in tabs"
           :key="tab.key"
@@ -91,11 +91,25 @@
             <dl class="info-grid">
               <div class="info-item"><dt>PRC License Number</dt><dd :class="{ muted: !personalInfo.prcNumber }">{{ personalInfo.prcNumber || 'Not provided' }}</dd></div>
               <div class="info-item"><dt>Verified On</dt><dd :class="{ muted: !personalInfo.prcVerifiedOn }">{{ personalInfo.prcVerifiedOn || 'Not yet verified' }}</dd></div>
+              <div class="info-item"><dt>Specialization</dt><dd :class="{ muted: !personalInfo.specialization }">{{ personalInfo.specialization || 'Not set' }}</dd></div>
             </dl>
             <a v-if="personalInfo.prcPhotoUrl" :href="personalInfo.prcPhotoUrl" target="_blank" rel="noopener" class="prc-photo-link">
               <FileImage :size="15" /> View license photo
             </a>
-            <p class="field-hint">Your PRC details can't be edited here. To update them, contact the NutriMatch admin.</p>
+            <p class="field-hint">Your PRC details and specialization can't be edited here. To update them, contact the NutriMatch admin.</p>
+          </div>
+
+          <div class="newclients-row">
+            <div>
+              <p class="newclients-label">Taking new clients</p>
+              <p class="field-hint">{{ personalInfo.acceptingNewClients
+                ? 'New clients can find and book you. Turn it off when your schedule is full.'
+                : 'Hidden from new clients on Find an RND — your current patients can still book you.' }}</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" :checked="personalInfo.acceptingNewClients" :disabled="savingNewClients" aria-label="Taking new clients" @change="toggleNewClients($event.target.checked)" />
+              <span class="toggle-track"><span class="toggle-thumb" /></span>
+            </label>
           </div>
 
           <!-- READ-ONLY: bio / fee / formats -->
@@ -219,63 +233,45 @@
           <p v-if="languageError" class="profile-error">{{ languageError }}</p>
         </template>
 
-        <!-- ============ REVIEWS ============ -->
-        <template v-else-if="activeTab === 'reviews'">
+        <!-- ============ SECURITY ============ -->
+        <!-- Change password right here (POST /api/auth/me/password/): current
+             password + a new one with the sign-up rules; a confirmation email
+             goes out. Sign out lives in the account menu. -->
+        <template v-else-if="activeTab === 'security'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Reviews</h3>
-              <p class="tab-panel-sub">See what your patients are saying about their care.</p>
+              <h3 class="tab-panel-title">Security</h3>
+              <p class="tab-panel-sub">Keep your account safe.</p>
             </div>
           </div>
-
-          <div v-if="reviews.length" class="summary-row">
-            <div class="score-card">
-              <p class="score-number">{{ reviewsSummary.average.toFixed(1) }}</p>
-              <div class="stars-row">
-                <Star
-                  v-for="n in 5" :key="n" :size="17"
-                  :fill="n <= Math.round(reviewsSummary.average) ? '#D4A017' : 'none'"
-                  :color="n <= Math.round(reviewsSummary.average) ? '#D4A017' : '#d5dad5'"
-                  :stroke-width="1.5"
-                />
-              </div>
-              <p class="score-caption">Based on {{ reviewsSummary.total }} reviews</p>
+          <form class="pw-form" novalidate @submit.prevent="changePassword">
+            <p class="pw-title">Change password</p>
+            <div class="field">
+              <label class="field-label" for="rpw-current">Current password</label>
+              <input id="rpw-current" v-model="pw.current" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pwErrors.current_password }" autocomplete="current-password" />
+              <p v-if="pwErrors.current_password" class="field-error">{{ pwErrors.current_password }}</p>
             </div>
-
-            <div class="breakdown-card">
-              <div v-for="row in ratingBreakdown" :key="row.stars" class="breakdown-row">
-                <span class="breakdown-label">{{ row.stars }} star{{ row.stars !== 1 ? 's' : '' }}</span>
-                <div class="breakdown-track">
-                  <div class="breakdown-fill" :style="{ width: maxCount ? `${(row.count / maxCount) * 100}%` : '0%' }" />
-                </div>
-                <span class="breakdown-count">{{ row.count }}</span>
-              </div>
+            <div class="field">
+              <label class="field-label" for="rpw-new">New password</label>
+              <input id="rpw-new" v-model="pw.next" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pwErrors.new_password }" autocomplete="new-password" />
+              <p v-if="pwErrors.new_password" class="field-error">{{ pwErrors.new_password }}</p>
+              <ul class="pw-rules" aria-label="Password rules">
+                <li v-for="r in pwRules" :key="r.label" :class="{ ok: r.ok }"><Check v-if="r.ok" :size="12" /><span v-else class="pw-dot" />{{ r.label }}</li>
+              </ul>
             </div>
-          </div>
-
-          <div v-if="reviews.length" class="review-list">
-            <div v-for="review in reviews" :key="review.id" class="review-card">
-              <div class="review-top">
-                <div class="review-who">
-                  <div class="review-avatar" :style="{ background: review.avatarColor }">{{ review.initials }}</div>
-                  <div>
-                    <p class="review-name">{{ review.name }}</p>
-                    <div class="stars-row stars-row-sm">
-                      <Star
-                        v-for="n in 5" :key="n" :size="13"
-                        :fill="n <= review.rating ? '#D4A017' : 'none'"
-                        :color="n <= review.rating ? '#D4A017' : '#d5dad5'"
-                        :stroke-width="1.5"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <span class="review-time">{{ review.postedAt }}</span>
-              </div>
-              <p class="review-comment">"{{ review.comment }}"</p>
+            <div class="field">
+              <label class="field-label" for="rpw-confirm">Confirm new password</label>
+              <input id="rpw-confirm" v-model="pw.confirm" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pw.confirm && pw.confirm !== pw.next }" autocomplete="new-password" />
+              <p v-if="pw.confirm && pw.confirm !== pw.next" class="field-error">The passwords don't match.</p>
             </div>
-          </div>
-          <p v-else class="empty-note">No reviews yet.</p>
+            <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
+            <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
+            <div class="pw-actions">
+              <button type="submit" class="save-btn" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change Password' }}</button>
+              <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
+            </div>
+            <p class="field-hint">We'll email you to confirm the change.</p>
+          </form>
         </template>
 
         <!-- ============ OTHER TABS (still placeholder) ============ -->
@@ -294,16 +290,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   Briefcase, BadgeCheck,
-  Star, CalendarClock, X, Languages,
+  CalendarClock, X, Languages, Shield,
   Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2
 } from 'lucide-vue-next'
-import { db } from '~/mock/mockDatabase'
 import { formatPhone, rndPhoneError } from '~/utils/phone'
 
-const { get, patch, put } = useApi()
+const { get, patch, post, put } = useApi()
 
 definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
@@ -311,7 +306,7 @@ const tabs = [
   { key: 'professional', label: 'Professional Profile', icon: Briefcase },
   { key: 'availability', label: 'Availability', icon: CalendarClock },
   { key: 'languages', label: 'Languages', icon: Languages },
-  { key: 'reviews', label: 'Reviews', icon: Star },
+  { key: 'security', label: 'Security', icon: Shield },
 ]
 
 const route = useRoute()
@@ -319,6 +314,8 @@ const validTabKeys = tabs.map(t => t.key)
 
 // Earnings moved to its own page (sidebar → Earnings).
 if (route.query.tab === 'earnings') navigateTo('/earnings', { replace: true })
+// Reviews live on their own page (sidebar → Reviews, real data).
+if (route.query.tab === 'reviews') navigateTo('/reviews', { replace: true })
 const activeTab = ref(validTabKeys.includes(route.query.tab) ? route.query.tab : 'professional')
 const activeTabLabel = computed(() => tabs.find(t => t.key === activeTab.value)?.label)
 
@@ -332,8 +329,9 @@ const MODE_OPTIONS = [
 
 const personalInfo = ref({
   firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
-  consultationModes: [], clinicAddress: '', initials: '', avatarColor: db.personalInfo.avatarColor,
+  consultationModes: [], clinicAddress: '', initials: '', avatarColor: '#D4A017',
   prcVerified: false, prcNumber: '', prcVerifiedOn: '', prcPhotoUrl: '',
+  specialization: '', acceptingNewClients: true,
 })
 const isSavingProfile = ref(false)
 const profileError = ref('')
@@ -384,6 +382,8 @@ function applyProfile(user, rndProfile) {
   personalInfo.value.consultationFee = rndProfile.consultation_fee != null ? Number(rndProfile.consultation_fee) : ''
   personalInfo.value.consultationModes = [...(rndProfile.consultation_modes || [])]
   personalInfo.value.clinicAddress = rndProfile.clinic_address || ''
+  personalInfo.value.specialization = rndProfile.specialization || ''
+  personalInfo.value.acceptingNewClients = rndProfile.available_for_new_clients !== false
   // PRC — read-only. The photo link is signed and short-lived (it's a
   // private upload), so it's refreshed every time the profile loads.
   personalInfo.value.prcVerified = Boolean(rndProfile.is_verified)
@@ -510,11 +510,68 @@ async function saveChanges() {
   }
 }
 
-/* ---------- REVIEWS ---------- */
-const reviewsSummary = ref(db.reviewsSummary)
-const ratingBreakdown = ref(db.ratingBreakdown)
-const reviews = ref(db.reviews)
-const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.count)))
+/* ---------- TAKING NEW CLIENTS (saves straight away) ---------- */
+// Off = hidden from new clients on Find an RND and new bookings are refused;
+// current patients can still book.
+const savingNewClients = ref(false)
+async function toggleNewClients(value) {
+  const before = personalInfo.value.acceptingNewClients
+  personalInfo.value.acceptingNewClients = value
+  savingNewClients.value = true
+  try {
+    await patch('/rnd/profile/', { available_for_new_clients: value })
+    fireToast(value ? 'You\'re taking new clients again.' : 'New clients can no longer book you.')
+  } catch {
+    personalInfo.value.acceptingNewClients = before
+    fireToast('Could not save. Please try again.')
+  } finally {
+    savingNewClients.value = false
+  }
+}
+
+/* ---------- SECURITY: change password (rules mirror PasswordComplexityValidator) ---------- */
+const pw = reactive({ current: '', next: '', confirm: '' })
+const pwErrors = ref({})
+const savingPw = ref(false)
+const showPw = ref(false)
+const pwRules = computed(() => [
+  { label: 'At least 8 characters', ok: pw.next.length >= 8 },
+  { label: 'An uppercase letter', ok: /[A-Z]/.test(pw.next) },
+  { label: 'A lowercase letter', ok: /[a-z]/.test(pw.next) },
+  { label: 'A number', ok: /\d/.test(pw.next) },
+  { label: 'A special character', ok: /[^A-Za-z0-9]/.test(pw.next) },
+])
+const canChangePw = computed(() => pw.current && pwRules.value.every(r => r.ok) && pw.next === pw.confirm)
+async function changePassword() {
+  pwErrors.value = {}
+  if (!canChangePw.value) return
+  savingPw.value = true
+  try {
+    await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
+    Object.assign(pw, { current: '', next: '', confirm: '' })
+    showPw.value = false
+    fireToast('Password changed — we emailed you a confirmation.')
+  } catch (e) {
+    const d = e?.data || {}
+    const out = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
+    pwErrors.value = Object.keys(out).length ? out : { detail: 'Could not change your password. Please try again.' }
+  } finally {
+    savingPw.value = false
+  }
+}
+
+/* ---------- phones: keep the selected tab in view in the sideways strip ---------- */
+const tabCard = ref(null)
+function showActiveTab() {
+  nextTick(() => {
+    const strip = tabCard.value
+    const btn = strip?.querySelector('.tab-item.active')
+    if (!strip || !btn || strip.scrollWidth <= strip.clientWidth) return
+    strip.scrollLeft = Math.min(Math.max(0, btn.offsetLeft - (strip.clientWidth - btn.offsetWidth) / 2), strip.scrollWidth - strip.clientWidth)
+  })
+}
+watch(activeTab, showActiveTab)
+onMounted(showActiveTab)
 
 </script>
 
@@ -672,29 +729,6 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 
 
 
-/* REVIEWS TAB */
-.summary-row { display: grid; grid-template-columns: 220px 1fr; gap: 14px; margin-bottom: 20px; }
-.score-card { background: #fafbfa; border-radius: 10px; border: 1px solid #f0f2f0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.score-number { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.stars-row { display: flex; gap: 3px; margin-top: 6px; }
-.stars-row-sm { margin-top: 2px; }
-.score-caption { font-size: 0.78rem; color: #8a9a8a; margin: 8px 0 0; }
-.breakdown-card { background: #fafbfa; border-radius: 10px; border: 1px solid #f0f2f0; padding: 18px 22px; display: flex; flex-direction: column; justify-content: center; gap: 9px; }
-.breakdown-row { display: flex; align-items: center; gap: 10px; }
-.breakdown-label { width: 46px; font-size: 0.78rem; color: #4a5a4a; }
-.breakdown-track { flex: 1; height: 7px; border-radius: 999px; background: #eceeec; overflow: hidden; }
-.breakdown-fill { height: 100%; background: #D4A017; border-radius: 999px; }
-.breakdown-count { width: 20px; text-align: right; font-size: 0.78rem; color: #8a9a8a; }
-
-.review-list { display: flex; flex-direction: column; gap: 14px; }
-.review-card { background: #fafbfa; border-radius: 10px; border: 1px solid #f0f2f0; padding: 16px 20px; }
-.review-top { display: flex; align-items: flex-start; justify-content: space-between; }
-.review-who { display: flex; align-items: flex-start; gap: 12px; }
-.review-avatar { width: 34px; height: 34px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
-.review-name { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
-.review-time { font-size: 0.76rem; color: #9aaa9a; white-space: nowrap; }
-.review-comment { font-size: 0.84rem; color: #4a5a4a; line-height: 1.55; margin: 10px 0 0 46px; }
-
 /* AVAILABILITY TAB */
 .day-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
 .day-row { background: #fafbfa; border-radius: 10px; border: 1px solid #f0f2f0; padding: 14px 18px; display: flex; align-items: center; gap: 16px; }
@@ -725,7 +759,6 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .remove-block-btn:hover { color: #c0483a; }
 
 @media (max-width: 1100px) {
-  .summary-row { grid-template-columns: 1fr; }
   .block-form { grid-template-columns: 1fr; }
 }
 
@@ -733,7 +766,7 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
    tabs become a sideways-scrolling strip above the panel. */
 @media (max-width: 900px) {
   .profile-layout { grid-template-columns: 1fr; }
-  .tab-card { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .tab-card { position: relative; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
   .tab-card::-webkit-scrollbar { display: none; }
   .tab-item { flex-shrink: 0; padding: 10px 12px; white-space: nowrap; }
   .panel-card { min-width: 0; }
@@ -747,4 +780,29 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
   .tab-panel-header { flex-direction: column; }
   .language-add-row { flex-wrap: wrap; }
 }
+
+/* Taking new clients */
+.newclients-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 20px; padding: 14px 16px; border: 1px solid #e5e8e5; border-radius: 12px; background: #fff; }
+.newclients-row .field-hint { margin: 2px 0 0; }
+.newclients-label { margin: 0; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
+.toggle { position: relative; flex-shrink: 0; width: 42px; height: 24px; cursor: pointer; }
+.toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.toggle-track { position: absolute; inset: 0; border-radius: 999px; background: #d5dad5; transition: background 0.2s; }
+.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transition: transform 0.2s; }
+.toggle input:checked + .toggle-track { background: #1f8f5c; }
+.toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); }
+.toggle input:focus-visible + .toggle-track { box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.25); }
+.toggle input:disabled + .toggle-track { opacity: 0.6; }
+
+/* Security — change password */
+.pw-form { display: flex; flex-direction: column; gap: 14px; max-width: 440px; }
+.pw-title { margin: 0; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
+.pw-rules { list-style: none; padding: 0; margin: 4px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; }
+.pw-rules li { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #8a9a8a; }
+.pw-rules li.ok { color: #1f8f5c; }
+.pw-dot { width: 6px; height: 6px; border-radius: 50%; border: 1px solid #b0bab0; margin: 0 3px; }
+.pw-show { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #4a5a4a; cursor: pointer; }
+.pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pw-forgot { font-size: 0.82rem; color: #1a3a1a; font-weight: 600; text-decoration: underline; }
+@media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
 </style>

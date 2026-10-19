@@ -118,6 +118,9 @@ class RndProfileUpdateSerializer(serializers.ModelSerializer):
             "specialization", "language_codes", "bio", "consultation_fee",
             "consultation_modes", "available_for_new_clients", "languages", "clinic_address",
         ]
+        # Specialization is picked at registration (from RND_SPECIALIZATIONS) and
+        # changed only by an admin (Edit details) — shown read-only to the RND.
+        read_only_fields = ["specialization"]
 
     def validate_clinic_address(self, value):
         value = (value or "").strip()

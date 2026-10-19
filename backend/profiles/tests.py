@@ -77,6 +77,16 @@ class RndConsultationModeTests(TestCase):
         self.rnd = _make_rnd()
         self.client_user = _make_client()
 
+    def test_rnd_cannot_change_specialization_but_can_stop_new_clients(self):
+        # 2026-10-19: specialization is admin-managed; "Taking new clients" is the RND's switch.
+        RndProfile.objects.filter(user=self.rnd).update(specialization="Renal Nutrition")
+        self.client_api.force_authenticate(self.rnd)
+        resp = self.client_api.patch("/api/rnd/profile/", {"specialization": "Anything I like", "available_for_new_clients": False}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        profile = RndProfile.objects.get(user=self.rnd)
+        self.assertEqual(profile.specialization, "Renal Nutrition")
+        self.assertFalse(profile.available_for_new_clients)
+
     def test_new_rnd_offers_all_modes_by_default(self):
         self.assertEqual(RndProfile.objects.get(user=self.rnd).consultation_modes, ["video", "in_person"])
 
