@@ -51,3 +51,14 @@ class AdminAccountTests(TestCase):
         self.assertTrue(self.admin.check_password(GOOD))
         self.assertTrue(AuditLog.objects.filter(action="password.changed", record_id=self.admin.pk).exists())
         self.assertEqual(mail.outbox[-1].to, ["a@x.ph"])
+
+    def test_client_changes_password_in_profile_settings(self):
+        # Profile Settings -> Security uses the same endpoint (2026-10-19).
+        client = onboard_client(User.objects.create_user(email="cc@x.ph", password="OldPass#2026", role="client", first_name="C", last_name="C"))
+        api = APIClient()
+        api.force_authenticate(client)
+        self.assertEqual(api.post("/api/auth/me/password/", {"current_password": "nope", "new_password": GOOD}, format="json").status_code, 400)
+        self.assertEqual(api.post("/api/auth/me/password/", {"current_password": "OldPass#2026", "new_password": GOOD}, format="json").status_code, 200)
+        client.refresh_from_db()
+        self.assertTrue(client.check_password(GOOD))
+        self.assertEqual(mail.outbox[-1].to, ["cc@x.ph"])

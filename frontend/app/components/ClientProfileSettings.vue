@@ -213,20 +213,37 @@
               <p class="tab-panel-sub">Keep your account safe.</p>
             </div>
           </div>
-          <div class="setting-row">
-            <div>
-              <p class="setting-label">Password</p>
-              <p class="setting-detail">We'll email you a 6-digit code to set a new password.</p>
+          <!-- Change password right here (POST /api/auth/me/password/): current
+               password + a new one with the sign-up rules; a confirmation
+               email goes out. Sign out lives in the account menu. -->
+          <form class="pw-form" novalidate @submit.prevent="changePassword">
+            <p class="setting-label">Change password</p>
+            <div class="field">
+              <label class="field-label" for="pw-current">Current password</label>
+              <input id="pw-current" v-model="pw.current" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pwErrors.current_password }" autocomplete="current-password" />
+              <p v-if="pwErrors.current_password" class="field-error">{{ pwErrors.current_password }}</p>
             </div>
-            <button class="outline-btn" type="button" @click="navigateTo('/forgot-password')">Change Password</button>
-          </div>
-          <div class="setting-row">
-            <div>
-              <p class="setting-label">Sign Out</p>
-              <p class="setting-detail">Sign out of NutriMatch on this device.</p>
+            <div class="field">
+              <label class="field-label" for="pw-new">New password</label>
+              <input id="pw-new" v-model="pw.next" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pwErrors.new_password }" autocomplete="new-password" />
+              <p v-if="pwErrors.new_password" class="field-error">{{ pwErrors.new_password }}</p>
+              <ul class="pw-rules" aria-label="Password rules">
+                <li v-for="r in pwRules" :key="r.label" :class="{ ok: r.ok }"><Check v-if="r.ok" :size="12" /><span v-else class="pw-dot" />{{ r.label }}</li>
+              </ul>
             </div>
-            <button class="danger-outline-btn" type="button" @click="handleLogout">Sign Out</button>
-          </div>
+            <div class="field">
+              <label class="field-label" for="pw-confirm">Confirm new password</label>
+              <input id="pw-confirm" v-model="pw.confirm" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pw.confirm && pw.confirm !== pw.next }" autocomplete="new-password" />
+              <p v-if="pw.confirm && pw.confirm !== pw.next" class="field-error">The passwords don't match.</p>
+            </div>
+            <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
+            <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
+            <div class="pw-actions">
+              <button type="submit" class="save-btn" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change Password' }}</button>
+              <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
+            </div>
+            <p class="setting-detail">We'll email you to confirm the change.</p>
+          </form>
         </template>
 
         <!-- ============ NOTIFICATIONS ============ -->
@@ -364,7 +381,7 @@ import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
 
 const auth = useAuthStore()
-const { get, patch, put } = useApi()
+const { get, patch, post, put } = useApi()
 
 const tabs = [
   { key: 'personal', label: 'Personal Info', icon: User },
@@ -716,9 +733,35 @@ function printHistory() {
   window.print()
 }
 
-function handleLogout() {
-  auth.logout()
-  navigateTo('/login')
+/* ---------- change password (Security tab; rules mirror PasswordComplexityValidator) ---------- */
+const pw = reactive({ current: '', next: '', confirm: '' })
+const pwErrors = ref({})
+const savingPw = ref(false)
+const showPw = ref(false)
+const pwRules = computed(() => [
+  { label: 'At least 8 characters', ok: pw.next.length >= 8 },
+  { label: 'An uppercase letter', ok: /[A-Z]/.test(pw.next) },
+  { label: 'A lowercase letter', ok: /[a-z]/.test(pw.next) },
+  { label: 'A number', ok: /\d/.test(pw.next) },
+  { label: 'A special character', ok: /[^A-Za-z0-9]/.test(pw.next) },
+])
+const canChangePw = computed(() => pw.current && pwRules.value.every(r => r.ok) && pw.next === pw.confirm)
+async function changePassword() {
+  pwErrors.value = {}
+  if (!canChangePw.value) return
+  savingPw.value = true
+  try {
+    await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
+    Object.assign(pw, { current: '', next: '', confirm: '' })
+    showPw.value = false
+    fireToast('Password changed — we emailed you a confirmation.')
+  } catch (e) {
+    const d = e?.data || {}
+    const out = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
+    pwErrors.value = Object.keys(out).length ? out : { detail: 'Could not change your password. Please try again.' }
+  } finally {
+    savingPw.value = false
+  }
 }
 
 onMounted(async () => {
@@ -834,11 +877,6 @@ onMounted(async () => {
 }
 .outline-btn:hover:not(:disabled) { background: #f7f9f7; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.danger-outline-btn {
-  flex-shrink: 0; border: 1px solid #c0392b; background: #fff; color: #c0392b; border-radius: 8px;
-  padding: 10px 16px; font-weight: 700; font-size: 0.84rem; cursor: pointer; white-space: nowrap; font-family: inherit;
-}
-.danger-outline-btn:hover { background: #fdecec; }
 
 /* SHARED TAB PANEL HEADER */
 .tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
@@ -932,7 +970,7 @@ onMounted(async () => {
   .form-grid, .stat-grid-3, .info-grid { grid-template-columns: 1fr; }
   .info-item:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 14px; }
   .tab-panel-header, .setting-row { flex-direction: column; align-items: stretch; }
-  .outline-btn, .danger-outline-btn, .save-btn { justify-content: center; }
+  .outline-btn, .save-btn { justify-content: center; }
   .entry-row { flex-wrap: wrap; }
   .entry-time { width: 100%; padding-left: 48px; }
 }
@@ -942,4 +980,16 @@ onMounted(async () => {
   .profile-layout { grid-template-columns: 1fr; }
   .panel-card { border: none; padding: 0; }
 }
+
+/* Security tab — change password */
+.pw-form { display: flex; flex-direction: column; gap: 14px; max-width: 440px; }
+.pw-form > .setting-label { margin: 0; }
+.pw-rules { list-style: none; padding: 0; margin: 4px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; }
+.pw-rules li { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #8a9a8a; }
+.pw-rules li.ok { color: #1f8f5c; }
+.pw-dot { width: 6px; height: 6px; border-radius: 50%; border: 1px solid #b0bab0; margin: 0 3px; }
+.pw-show { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #4a5a4a; cursor: pointer; }
+.pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pw-forgot { font-size: 0.82rem; color: #1a3a1a; font-weight: 600; text-decoration: underline; }
+@media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
 </style>
