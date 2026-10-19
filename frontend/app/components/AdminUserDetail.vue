@@ -222,6 +222,10 @@
         <p class="nm-modal-text">
           They'll be signed out and won't be able to sign in. We'll email them the reason below. You can reactivate the account any time.
         </p>
+        <p v-if="rnd" class="nm-note" style="margin: 0 0 12px">
+          <strong>Their patients are let go right away:</strong> every upcoming consultation is cancelled (paid ones go to Billing → Refunds)
+          and their care ends, so the clients can choose another RND. Reactivating doesn't bring these back.
+        </p>
         <label class="nm-label" for="deactivate-reason">Reason</label>
         <textarea id="deactivate-reason" v-model="reason" class="nm-input" rows="4" maxlength="1000"
           placeholder="e.g. Repeated no-shows and abusive messages to an RND." />
@@ -362,7 +366,9 @@ async function saveEdit() {
     editErrors.value = { reason: 'Explain the change in at least 10 characters.' }
     return
   }
-  const phoneMsg = editForm.phone === editBefore.value.phone ? '' : (rnd.value ? rndPhoneError : phoneError)(editForm.phone)
+  const phoneMsg = editForm.phone === editBefore.value.phone ? ''
+    : rnd.value && !editForm.phone ? 'RNDs must have a mobile number — enter a Philippine mobile, e.g. +63 917 123 4567.'
+    : (rnd.value ? rndPhoneError : phoneError)(editForm.phone)
   if (phoneMsg) {
     editErrors.value = { phone: phoneMsg }
     return
@@ -400,10 +406,13 @@ async function deactivate() {
   }
   busy.value = true
   try {
-    await post(`/admin/users/${u.value.id}/deactivate/`, { reason: reason.value.trim() })
+    const res = await post(`/admin/users/${u.value.id}/deactivate/`, { reason: reason.value.trim() })
     showDeactivate.value = false
     await load()
-    flash('Account deactivated — the user was emailed.')
+    const n = res?.consultations_cancelled || 0, m = res?.care_ended || 0
+    flash('Account deactivated — the user was emailed.'
+      + (n ? ` ${n} consultation${n === 1 ? '' : 's'} cancelled.` : '')
+      + (m ? ` Care ended for ${m} client${m === 1 ? '' : 's'}.` : ''))
   } catch (e) {
     reasonError.value = apiError(e)
   } finally {

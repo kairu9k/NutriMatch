@@ -496,16 +496,19 @@ class AdminDeactivateUserView(APIView):
             return Response({"reason": ["Explain why in at least 10 characters — the user will see this."]}, status=status.HTTP_400_BAD_REQUEST)
         if not user.is_active:
             return Response({"detail": "This account is already deactivated."}, status=status.HTTP_400_BAD_REQUEST)
-        user.is_active = False
-        user.save(update_fields=["is_active"])
-        ended = 0
-        if user.role == User.Role.RND:
-            # Their clients mustn't stay locked to an RND who can't work (one RND at a time).
-            from scheduling.discharge_requests import end_care_of_deactivated_rnd
+        from django.db import transaction
 
-            ended = end_care_of_deactivated_rnd(user, request.user)
-        AuditLog.objects.create(user=request.user, action="user.deactivated", table_name="users", record_id=user.pk,
-                                new_values={"reason": reason[:1000], "care_ended": ended})
+        cancelled = ended = 0
+        with transaction.atomic():
+            user.is_active = False
+            user.save(update_fields=["is_active"])
+            if user.role == User.Role.RND:
+                # Their clients mustn't stay locked to an RND who can't work (one RND at a time).
+                from scheduling.discharge_requests import end_care_of_deactivated_rnd
+
+                cancelled, ended = end_care_of_deactivated_rnd(user, request.user)
+            AuditLog.objects.create(user=request.user, action="user.deactivated", table_name="users", record_id=user.pk,
+                                    new_values={"reason": reason[:1000], "consultations_cancelled": cancelled, "care_ended": ended})
         try:
             send_notice_email(
                 user,
@@ -520,7 +523,7 @@ class AdminDeactivateUserView(APIView):
             )
         except Exception:
             pass
-        return Response(UserSerializer(user).data)
+        return Response({**UserSerializer(user).data, "consultations_cancelled": cancelled, "care_ended": ended})
 
 
 class AdminReactivateUserView(APIView):

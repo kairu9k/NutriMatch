@@ -119,3 +119,6 @@ class DeactivatedRndTests(TestCase):
         self.assertEqual(appt.status, "cancelled")
         self.assertEqual(inv.status, "refund_pending")  # paid -> refunded
         self.assertIsNone(current_rnd_relationship(c))
+        self.assertEqual((resp.data["consultations_cancelled"], resp.data["care_ended"]), (1, 1))
+        from communication.models import NotificationLog
+        self.assertTrue(NotificationLog.objects.filter(recipient=c, notifiable_type="appointment", notifiable_id=appt.id).exists())

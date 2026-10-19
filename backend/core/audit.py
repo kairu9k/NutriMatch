@@ -115,4 +115,12 @@ AUDIT_LABELS = {
     "lab_result.uploaded": "Lab result uploaded",
     "lab_result.viewed": "Lab result viewed by RND",
     "lab_result.deleted": "Lab result deleted",
+    "admin.created": "Admin account added",
+    "user.updated": "Account details edited",
+    "password.changed": "Password changed",
+    "invoice.refund_requested": "Refund sent to PayMongo",
+    "relationship.discharged": "Client discharged",
+    "relationship.discharge_requested": "Client asked to be discharged",
+    "ncp_record.deleted": "NCP draft deleted",
+    "meal_plan.deleted": "Meal plan draft deleted",
 }

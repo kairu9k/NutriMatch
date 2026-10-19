@@ -52,6 +52,8 @@ class AdminUserEditSerializer(serializers.Serializer):
 
     def validate_phone(self, value):
         if self.context["user"].role == User.Role.RND:
+            if not (value or "").strip():
+                raise serializers.ValidationError("RNDs must have a mobile number — enter a Philippine mobile, e.g. +63 917 123 4567.")
             return validate_rnd_phone(value)
         return validate_phone(value)
 

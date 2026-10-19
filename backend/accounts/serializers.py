@@ -244,7 +244,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "first_name", "last_name", "email", "is_active", "created_at",
+            "id", "first_name", "last_name", "email", "phone", "is_active", "created_at",
             "prc_license_number", "prc_license_image_url", "specialization", "is_verified", "verified_at",
             "submitted_at", "patients", "consultations", "average_rating", "revenue",
             "review_status", "rejection_reason", "reviewed_at", "bio", "consultation_fee", "consultation_modes",

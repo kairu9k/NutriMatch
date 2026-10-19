@@ -87,6 +87,7 @@
                 <div><dt>Name on application</dt><dd>{{ selected.first_name }} {{ selected.last_name }}</dd></div>
                 <div><dt>Date of birth</dt><dd>{{ shortDate(selected.date_of_birth) }}<template v-if="selected.date_of_birth"> ({{ ageFrom(selected.date_of_birth) }} yrs)</template></dd></div>
                 <div><dt>Email</dt><dd>{{ selected.email }}</dd></div>
+                <div><dt>Mobile</dt><dd>{{ formatPhone(selected.phone) || '—' }}</dd></div>
               </dl>
             </div>
 
@@ -212,6 +213,7 @@
 import {
   ArrowLeft, Check, CheckCircle2, ChevronRight, ExternalLink, MailCheck, MailX, Maximize2, Search, ShieldCheck, X,
 } from 'lucide-vue-next'
+import { formatPhone } from '~/utils/phone'
 
 const { get, patch } = useApi()
 const route = useRoute()

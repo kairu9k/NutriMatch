@@ -123,7 +123,7 @@
           <button v-else class="nm-btn-dark" @click="refundConfirm = inv.id">Refund through PayMongo</button>
         </div>
         <div v-else class="refund-actions">
-          <p class="refund-state muted">Not paid through PayMongo (demo data) — return the money another way, then mark it refunded.</p>
+          <p class="refund-state muted">Not paid through PayMongo — return the money another way, then mark it refunded.</p>
           <input v-model="refundRefs[inv.id]" class="nm-input" maxlength="100" placeholder="Refund reference (optional)" />
           <button class="nm-btn-dark" :disabled="refundBusy === inv.id" @click="markRefunded(inv)">
             {{ refundBusy === inv.id ? 'Saving…' : 'Mark as refunded' }}

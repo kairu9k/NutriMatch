@@ -74,20 +74,34 @@ def process_due_discharge_requests(**scope):
 def end_care_of_deactivated_rnd(rnd, admin):
     """An RND was deactivated: their upcoming consultations are cancelled
     (paid ones become refund-pending) and every open care ends, so their
-    clients can choose another RND."""
+    clients can choose another RND. Each client is notified (and texted, if
+    they turned SMS on). Returns (consultations cancelled, care ended)."""
     from billing.services import settle_cancelled_appointment
+    from communication.reminders import _when
+    from communication.services import notify
+    from communication.sms import text_client
 
     from .discharge import discharge
+    from .views import format_ph_datetime
 
     now = timezone.now()
     reason = "Your RND's NutriMatch account was deactivated, so you can choose a new RND."
+    cancelled = 0
     for appt in Appointment.objects.filter(
         relationship__rnd=rnd, status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED], scheduled_at__gt=now,
-    ).select_related("relationship"):
+    ).select_related("relationship__client"):
         appt.status = Appointment.Status.CANCELLED
         appt.cancellation_reason = "Cancelled by NutriMatch: the RND's account was deactivated."
         appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
         settle_cancelled_appointment(appt)
+        client = appt.relationship.client
+        notify(recipient=client, notifiable_type="appointment", notifiable_id=appt.id, subject="Appointment cancelled",
+               content=f"Your {appt.get_type_display().lower()} consultation with RND {rnd.full_name} for "
+                       f"{format_ph_datetime(appt.scheduled_at)} was cancelled because the RND's account was deactivated. "
+                       "You can book another RND on Find an RND.")
+        text_client(client, f"NutriMatch cancelled your consultation with RND {rnd.full_name} on {_when(appt.scheduled_at)}. "
+                            "Open the app for details.")
+        cancelled += 1
     ended = 0
     for rel in RndClientRelationship.objects.filter(
         rnd=rnd, status__in=[RndClientRelationship.Status.ACTIVE, RndClientRelationship.Status.PENDING],
@@ -101,7 +115,7 @@ def end_care_of_deactivated_rnd(rnd, admin):
             rel.discharge_reason = reason
             rel.save(update_fields=["status", "ended_at", "ended_by", "discharge_reason", "updated_at"])
         ended += 1
-    return ended
+    return cancelled, ended
 
 
 class DischargeRequestSerializer(serializers.Serializer):
