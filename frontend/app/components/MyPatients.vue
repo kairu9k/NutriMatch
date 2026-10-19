@@ -281,7 +281,7 @@ const NextCell = defineComponent({
   },
 })
 
-const PRIMARY = ['review_booking', 'finish_ncp', 'start_ncp', 'create_plan', 'send_plan']
+const PRIMARY = ['review_booking', 'video_call', 'finish_ncp', 'start_ncp', 'create_plan', 'send_plan']
 const RowActions = defineComponent({
   props: { p: Object },
   setup(props) {

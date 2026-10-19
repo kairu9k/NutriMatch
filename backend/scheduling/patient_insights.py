@@ -84,6 +84,28 @@ class CareData:
         for pr in ProgressRecord.objects.filter(relationship_id__in=rel_ids).order_by("record_date", "created_at"):
             self.progress[pr.relationship_id].append(pr)
 
+        # The first video call still ahead (no consultation completed yet): the
+        # NCP is written during that call, so "Start NCP record" waits for it
+        # (user's call, 2026-10-20).
+        from .models import Appointment
+
+        seen = set(Appointment.objects.filter(relationship_id__in=rel_ids, status=Appointment.Status.COMPLETED)
+                   .values_list("relationship_id", flat=True))
+        self.video_ahead = {}
+        for a in (Appointment.objects.filter(relationship_id__in=rel_ids, type=Appointment.Type.VIDEO,
+                                             status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED])
+                  .exclude(relationship_id__in=seen).order_by("scheduled_at")):
+            if a.scheduled_at + timedelta(minutes=a.duration_minutes or 60) > self.now:
+                self.video_ahead.setdefault(a.relationship_id, a)
+
+    def video_call_step(self, rel):
+        """(key, label, link) pointing at the first video call, or None."""
+        a = self.video_ahead.get(rel.id)
+        if not a:
+            return None
+        d = a.scheduled_at.astimezone(self.ph)
+        return ("video_call", f"Video call {d:%b} {d.day}", f"/appointments?tab=upcoming&relationship={rel.id}")
+
     # ------------------------------------------------------------ adherence
     def day_stats(self, d, rel_id=None):
         """(planned, logged, score, waiting) for one day — only meals whose time
@@ -181,7 +203,7 @@ class CareData:
         elif draft:
             step = ("finish_ncp", "Finish NCP draft", f"/client-detail/{rid}?tab=ncp")
         elif not finalized:
-            step = ("start_ncp", "Start NCP record", f"/client-detail/{rid}?tab=ncp")
+            step = self.video_call_step(rel) or ("start_ncp", "Start NCP record", f"/client-detail/{rid}?tab=ncp")
         elif has_intervention and not active_plan:
             step = ("send_plan", "Send meal plan", f"/meal-planning?relationship={rid}") if draft_plan else \
                 ("create_plan", "Create meal plan", f"/meal-planning?relationship={rid}")
@@ -215,9 +237,11 @@ class CareData:
         s = self.screenings.get(c.id)
         finalized = any(r.status == "completed" for r in self.ncp.get(rel.id, []))
         if s and s.nrs_score is not None and s.nrs_score >= HIGH_NRS and not finalized:
+            call = self.video_call_step(rel)
             out.append({"level": "critical", "kind": "nrs", "title": f"At nutritional risk (NRS-2002 score {s.nrs_score})",
-                        "detail": "No completed NCP assessment yet.", "action": "Start NCP record",
-                        "link": f"/client-detail/{rel.id}?tab=ncp"})
+                        "detail": "Assess them during the first video call." if call else "No completed NCP assessment yet.",
+                        "action": call[1] if call else "Start NCP record",
+                        "link": call[2] if call else f"/client-detail/{rel.id}?tab=ncp"})
         recs = self.weights(rel.id)
         if len(recs) >= 2:
             change = recs[-1].weight_kg - recs[-2].weight_kg

@@ -43,6 +43,18 @@ class PatientsAndDischargeTests(TestCase):
         self.assertEqual((row["stage"]["meal_plan"], row["stage"]["next_step"]["key"]), ("active", "open"))
         self.assertIsNotNone(row["adherence"])
 
+    def test_video_call_comes_before_the_ncp(self):
+        # First video call still ahead: the NCP is written during it.
+        appt = Appointment.objects.create(relationship=self.rel, type="video", status="confirmed",
+                                          scheduled_at=timezone.now() + timedelta(days=1), duration_minutes=60)
+        step = self._row()["stage"]["next_step"]
+        self.assertEqual(step["key"], "video_call")
+        self.assertTrue(step["label"].startswith("Video call "))
+        # Once the call is done (NCP still missing), it goes back to Start NCP record.
+        appt.status = "completed"
+        appt.save()
+        self.assertEqual(self._row()["stage"]["next_step"]["key"], "start_ncp")
+
     def test_discharge_blocked_by_upcoming_consultation_and_draft(self):
         Appointment.objects.create(relationship=self.rel, type="video", status="confirmed", scheduled_at=timezone.now() + timedelta(days=1))
         NcpRecord.objects.create(relationship=self.rel, status="draft", encounter_date=timezone.now().date())
