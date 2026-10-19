@@ -45,9 +45,7 @@ class BillingAndVideoViewTests(TestCase):
         mock_client = MagicMock()
         mock_client.__enter__.return_value = mock_client
         mock_client.post.return_value = self._mock_resp({
-            "data": {"id": "link_abc", "attributes": {
-                "checkout_url": "https://pm.link/xyz", "reference_number": "ref_abc"
-            }}
+            "data": {"id": "cs_abc", "attributes": {"checkout_url": "https://checkout.paymongo.com/xyz"}}
         })
         mock_client_cls.return_value = mock_client
 
@@ -55,9 +53,9 @@ class BillingAndVideoViewTests(TestCase):
         resp = self.client_api.post(f"/api/client/invoices/{self.invoice.id}/pay/")
 
         self.assertEqual(resp.status_code, 200, resp.data)
-        self.assertEqual(resp.data["payment_url"], "https://pm.link/xyz")
+        self.assertEqual(resp.data["payment_url"], "https://checkout.paymongo.com/xyz")
         self.invoice.refresh_from_db()
-        self.assertEqual(self.invoice.gateway_reference_id, "ref_abc")
+        self.assertEqual(self.invoice.gateway_reference_id, "cs_abc")
 
     def test_webhook_marks_invoice_paid(self):
         self.invoice.gateway_reference_id = "ref_999"

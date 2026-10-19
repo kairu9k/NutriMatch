@@ -64,7 +64,7 @@ class AdminInvoiceListView(generics.ListAPIView):
         expire_unpaid_appointments()
         return Invoice.objects.select_related(
             "relationship__client", "relationship__rnd"
-        ).order_by("-created_at")
+        ).prefetch_related("transactions").order_by("-created_at")
 
 
 class AdminInvoiceDetailView(generics.RetrieveAPIView):
@@ -187,7 +187,7 @@ class ClientInvoiceSyncView(APIView):
         updated = []
         for invoice in pending:
             try:
-                result = service.get_link_status(invoice.gateway_reference_id)
+                result = service.get_payment_status(invoice.gateway_reference_id)
             except PaymentGatewayError:
                 continue
             if result["status"] == "success" and record_successful_payment(
@@ -196,7 +196,14 @@ class ClientInvoiceSyncView(APIView):
             ):
                 updated.append(invoice.id)
 
-        return Response({"updated": updated})
+        # A refund PayMongo has completed since → Refunded on the client's page.
+        from .refunds import sync_refunds_for
+
+        refunded = sync_refunds_for(Invoice.objects.filter(
+            relationship__client=request.user, status=Invoice.Status.REFUND_PENDING,
+            payment_gateway=Invoice.PaymentGateway.PAYMONGO,
+        ))
+        return Response({"updated": updated + refunded})
 
 
 
@@ -216,6 +223,25 @@ class AdminMarkRefundedView(APIView):
         invoice = get_object_or_404(Invoice, pk=invoice_id)
         if invoice.status != Invoice.Status.REFUND_PENDING:
             return Response({"detail": "Only refund-pending invoices can be marked refunded."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Paid through PayMongo → only PayMongo can say it's refunded
+        # (2026-10-19: a click alone used to mark it, money or not).
+        from .refunds import apply_confirmed_refund, invoice_payment_id, paymongo_status
+
+        if invoice_payment_id(invoice):
+            try:
+                state = paymongo_status(invoice)
+            except PaymentGatewayError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+            if not apply_confirmed_refund(invoice, state, request.user):
+                tried = state["refunds"][-1] if state["refunds"] else None
+                why = (f"PayMongo shows the last refund attempt ({tried['id']}) as {tried['status']}"
+                       if tried else "PayMongo has no refund for this payment yet")
+                return Response({"detail": f"Not refunded yet — {why}. Use Refund through PayMongo, "
+                                           "or refund it in the PayMongo dashboard first.",
+                                 "paymongo": state}, status=status.HTTP_409_CONFLICT)
+            return Response({"id": invoice.id, "status": Invoice.Status.REFUNDED})
+
         reference = (request.data.get("reference") or "").strip()[:100]
         invoice.status = Invoice.Status.REFUNDED
         invoice.save(update_fields=["status"])
@@ -239,6 +265,46 @@ class AdminMarkRefundedView(APIView):
         return Response({"id": invoice.id, "status": invoice.status})
 
 
+
+
+class AdminInvoicePayMongoView(APIView):
+    """GET → what PayMongo says about this invoice's payment and refunds
+    (the admin invoice pop-up's "Check with PayMongo"). A refund PayMongo has
+    completed turns a refund-pending invoice Refunded."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, invoice_id):
+        from .refunds import apply_confirmed_refund, paymongo_status
+
+        invoice = get_object_or_404(Invoice, pk=invoice_id)
+        try:
+            state = paymongo_status(invoice)
+        except PaymentGatewayError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        if state["available"] and invoice.status == Invoice.Status.REFUND_PENDING:
+            apply_confirmed_refund(invoice, state, request.user)
+            invoice.refresh_from_db(fields=["status"])
+        return Response({**state, "invoice_status": invoice.status})
+
+
+class AdminInvoiceRefundView(APIView):
+    """POST → refund a refund-pending invoice through PayMongo (in full,
+    once). It becomes Refunded only when PayMongo reports the refund
+    succeeded."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, invoice_id):
+        from .refunds import RefundError, refund_through_paymongo
+
+        invoice = get_object_or_404(Invoice, pk=invoice_id)
+        try:
+            state, refund = refund_through_paymongo(invoice, request.user)
+        except RefundError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        invoice.refresh_from_db(fields=["status"])
+        return Response({**state, "invoice_status": invoice.status, "refund": refund})
 
 # --------------------------------------------------------------- payouts
 class RndPayoutAccountView(APIView):

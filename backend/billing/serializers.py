@@ -118,13 +118,26 @@ class AdminInvoiceListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     rnd_name = serializers.SerializerMethodField()
     net = serializers.SerializerMethodField()
+    # The PayMongo payment id (pay_...) when it was paid through PayMongo —
+    # those are refunded through PayMongo, the rest (demo data) by hand.
+    paymongo_payment_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
         fields = [
             "id", "client_name", "rnd_name", "amount", "commission_pct", "commission_amt",
-            "net", "status", "payment_method", "paid_at", "created_at",
+            "net", "status", "payment_method", "paid_at", "created_at", "paymongo_payment_id",
         ]
+
+    def get_paymongo_payment_id(self, obj):
+        from .services import payment_receipt
+
+        for t in sorted(obj.transactions.all(), key=lambda t: t.created_at, reverse=True):
+            if t.transaction_type == "payment" and t.status == "success":
+                pid = payment_receipt(t.gateway_payload).get("payment_id")
+                if pid:
+                    return pid
+        return None
 
     def get_client_name(self, obj):
         client = obj.relationship.client

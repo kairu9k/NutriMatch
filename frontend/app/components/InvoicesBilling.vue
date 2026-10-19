@@ -21,7 +21,7 @@
         <div class="nm-stat-icon gold"><RotateCcw :size="17" /></div>
         <p class="nm-stat-value">{{ peso(refundTotal) }}</p>
         <p class="nm-stat-label">Refunds in progress</p>
-        <p class="nm-stat-note">{{ refunding.length ? 'NutriMatch is processing it' : 'None' }}</p>
+        <p class="nm-stat-note">{{ refunding.length ? `Within ${REFUND_WINDOW}` : 'None' }}</p>
       </div>
       <div class="nm-stat-card">
         <div class="nm-stat-icon"><CalendarClock :size="17" /></div>
@@ -135,7 +135,7 @@
             <li :class="{ on: true, now: current.refund.status === 'refund_pending' }"><span /> Refund in progress</li>
             <li :class="{ on: current.refund.status === 'refunded' }"><span /> Refunded<template v-if="current.refund.refunded_at"> · {{ shortDate(current.refund.refunded_at) }}</template></li>
           </ol>
-          <p v-if="current.refund.status === 'refund_pending'" class="nm-hint">NutriMatch sends the refund back to how you paid. Banks can take a few working days to show it.</p>
+          <p v-if="current.refund.status === 'refund_pending'" class="nm-hint">{{ refundMessage(Number(current.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }), current.payment_method) }}</p>
         </div>
         <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note" style="margin: 14px 0 0">{{ current.consultation.cancellation_reason }}</p>
 

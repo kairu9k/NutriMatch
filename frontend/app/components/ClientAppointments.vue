@@ -113,6 +113,7 @@
               <p class="history-meta">{{ appt.timeRange }} · {{ appt.typeLabel }}</p>
               <p v-if="appt.status === 'cancelled' && appt.cancellationReason" class="history-meta">Reason: {{ appt.cancellationReason }}</p>
               <p v-if="appt.hint" class="history-meta">{{ appt.hint }}</p>
+              <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
 
               <div v-if="appt.payment || appt.review" class="history-extras">
                 <template v-if="appt.payment">
@@ -146,7 +147,7 @@
           RND {{ cancelTarget.rnd.firstName }} will be notified.
         </p>
         <p v-if="cancelTarget.payment?.status === 'paid'" class="modal-note">
-          You paid ₱{{ money(cancelTarget.payment.amount) }} for this consultation. It will be refunded to you.
+          You paid ₱{{ money(cancelTarget.payment.amount) }} for this consultation. {{ refundMessage(money(cancelTarget.payment.amount), cancelTarget.payment.method) }}
         </p>
         <p v-else-if="cancelTarget.payment?.status === 'unpaid'" class="modal-note">Its unpaid invoice will be voided — nothing to pay.</p>
         <label class="field-label" for="cancel-reason">Reason <span class="optional">(optional)</span></label>
@@ -634,4 +635,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   .history-actions > * { flex: 1; }
   .toast { white-space: normal; max-width: calc(100% - 32px); }
 }
+.refund-note { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: #fdf8e8; border: 1px solid #f0e2b0; color: #6a5410; font-size: 0.78rem; line-height: 1.45; }
 </style>

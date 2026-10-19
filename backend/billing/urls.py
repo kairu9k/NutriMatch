@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     AdminInvoiceDetailView,
     AdminInvoiceListView,
+    AdminInvoicePayMongoView,
+    AdminInvoiceRefundView,
     AdminMarkRefundedView,
     AdminPayoutListView,
     AdminPayoutRunView,
@@ -35,6 +37,8 @@ urlpatterns = [
     path("rnd/payout-account/", RndPayoutAccountView.as_view(), name="rnd_payout_account"),
     path("rnd/earnings/", RndEarningsView.as_view(), name="rnd_earnings"),
     path("admin/invoices/<int:invoice_id>/mark-refunded/", AdminMarkRefundedView.as_view(), name="admin_mark_refunded"),
+    path("admin/invoices/<int:invoice_id>/paymongo/", AdminInvoicePayMongoView.as_view(), name="admin_invoice_paymongo"),
+    path("admin/invoices/<int:invoice_id>/refund/", AdminInvoiceRefundView.as_view(), name="admin_invoice_refund"),
 ]
 
 webhook_urlpatterns = [

@@ -48,19 +48,20 @@ class PayMongoServiceTests(TestCase):
         mock_client = MagicMock()
         mock_client.__enter__.return_value = mock_client
         mock_client.post.return_value = _mock_response({
-            "data": {"id": "link_123", "attributes": {
-                "checkout_url": "https://pm.link/abc", "reference_number": "ref_xyz"
-            }}
+            "data": {"id": "cs_123", "attributes": {"checkout_url": "https://checkout.paymongo.com/abc"}}
         })
         mock_client_cls.return_value = mock_client
 
         result = PayMongoService().create_payment_link(self.invoice)
 
-        self.assertEqual(result["payment_url"], "https://pm.link/abc")
-        self.assertEqual(result["gateway_reference_id"], "ref_xyz")
-        # amount converted to centavos correctly
-        sent_kwargs = mock_client.post.call_args.kwargs
-        self.assertEqual(sent_kwargs["json"]["data"]["attributes"]["amount"], 80000)
+        # A Checkout Session (2026-10-19): its cs_ id is what's stored.
+        self.assertEqual(result["payment_url"], "https://checkout.paymongo.com/abc")
+        self.assertEqual(result["gateway_reference_id"], "cs_123")
+        self.assertEqual(mock_client.post.call_args.args[0], "https://api.paymongo.com/v1/checkout_sessions")
+        attrs = mock_client.post.call_args.kwargs["json"]["data"]["attributes"]
+        self.assertEqual(attrs["line_items"][0]["amount"], 80000)  # centavos
+        self.assertEqual(attrs["payment_method_types"], ["qrph", "gcash", "paymaya", "card"])
+        self.assertEqual(attrs["reference_number"], f"INV-{self.invoice.id:04d}")
 
     @patch("billing.services.httpx.Client")
     def test_create_payment_link_gateway_error(self, mock_client_cls):

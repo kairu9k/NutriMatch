@@ -9,8 +9,8 @@ For answering panel / adviser questions. Short answer first, then the detail.
 Q: How does a client pay?
 A: Through PayMongo, a licensed Philippine payment gateway. When the RND
    confirms a booking, the system issues an invoice. The client presses
-   "Pay now", our backend creates a PayMongo Payment Link, and the client
-   pays on PayMongo's secure page (QR Ph / GCash / Maya / card).
+   "Pay now", our backend creates a PayMongo Checkout Session, and the
+   client pays on PayMongo's secure page with QR Ph, GCash, Maya or card.
    We never see or store card numbers - PayMongo handles that.
 
 Q: When does the client pay?
@@ -32,8 +32,16 @@ A: Two ways, so a payment is never missed:
    recorded once, even if both arrive.
 
 Q: Is it real money?
-A: For the demo we use PayMongo's TEST mode. The flow is identical to live;
-   switching to live only needs the live API keys.
+A: For the demo we use PayMongo's TEST mode (sandbox). The flow is identical
+   to live; switching to live only needs the live API keys (PayMongo first
+   verifies the business).
+
+Q: How can you PROVE a payment went through PayMongo?
+A: Every receipt shows PayMongo's own payment ID (pay_...). Open the PayMongo
+   dashboard (Test mode) -> Payments and search that ID: the same amount,
+   method, time and "NutriMatch Consultation Invoice #N" are there, plus
+   PayMongo's fee. The admin invoice pop-up also has "Check with PayMongo",
+   which asks PayMongo live and shows its answer.
 
 Q: What happens after paying?
 A: The invoice becomes "Paid", a payment transaction is logged, an audit log
@@ -54,15 +62,31 @@ A: - Not yet paid: the appointment is simply cancelled; nothing to refund.
    the client is notified with that reason.
 
 Q: How is the refund done?
-A: Refunds are processed by the admin, not automatically:
-   1. Admin dashboard shows "1 refund to send".
-   2. Admin refunds the payment in the PayMongo dashboard.
-   3. Admin presses "Mark as refunded" on Billing & Commission (can enter
-      the PayMongo refund reference).
-   4. The system records a REFUND transaction + audit log row and notifies
-      the client.
-   WHY manual: refunds move real money back, so a human (admin) confirms
-   each one. This is common for small platforms and keeps control.
+A: Through PayMongo, started by the admin:
+   1. Billing & Commission -> Refunds shows "Refunds to send".
+   2. Admin presses "Refund through PayMongo" and confirms. NutriMatch sends
+      the refund to PayMongo's Refunds API (in full, never twice).
+   3. The invoice becomes "Refunded" ONLY when PayMongo reports the refund
+      "succeeded" - then the refund ID (ref_...) is saved, an audit log row
+      is written and the client is notified. A click alone can't mark it.
+   4. GCash / Maya / card refunds go straight back to the same wallet or
+      card. QR Ph refunds are claimed by the client through a PayMongo link
+      (valid 3 days) to their bank or e-wallet.
+   The client is told: refunded within 5-7 business days.
+   WHY a human starts it: refunds move money, so the admin decides; but
+   PayMongo, not the admin, confirms it happened.
+
+Q: How can you prove the refund happened?
+A: PayMongo dashboard (Test mode) -> Payments: the payment's status changes
+   to REFUNDED, and its page lists the refund (ref_...) as Succeeded - the
+   same ID shown in NutriMatch's admin invoice pop-up ("In PayMongo").
+
+Q: Why does a QR Ph refund fail in the demo?
+A: PayMongo's test mode can't complete QR Ph refunds (we tested it: the
+   refund is recorded as "failed", and the normal refund API says "Refunds
+   are not allowed for payments with source type qrph"). NutriMatch shows
+   that answer and keeps the invoice "Refund pending" instead of pretending.
+   For the demo, pay with GCash, Maya or a test card to show a refund.
 
 Q: Does the RND still get paid for a refunded consultation?
 A: No. Refunded or refund-pending invoices are never paid out to the RND,
@@ -358,7 +382,8 @@ ADMIN  (/api/admin/)
     send-password-reset/ , verify-rnd/ (approve) , reject-rnd/
   admins/ (add admin) , rnds/ , clients/
   appointments/ , appointments/<id>/cancel/
-  invoices/ , invoices/<id>/ , invoices/<id>/mark-refunded/
+  invoices/ , invoices/<id>/ , invoices/<id>/mark-refunded/ ,
+  invoices/<id>/paymongo/ (what PayMongo says) , invoices/<id>/refund/
   payouts/ , payouts/run/ , payouts/release/<rnd_id>/
   support/tickets/ (reply, close, reopen) , audit-logs/ (+ export) ,
   settings/ (e.g. commission rate, support email)

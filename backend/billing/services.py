@@ -24,6 +24,22 @@ class InvalidWebhookSignatureError(Exception):
     pass
 
 
+# What the client can pay with on PayMongo's checkout page (2026-10-19, user's
+# call). Payment Links on this account only offered QR Ph, and the sandbox
+# can't complete a QR Ph refund; GCash / Maya / card refunds go back to the
+# same wallet or card and complete in test mode too.
+CHECKOUT_PAYMENT_METHODS = ["qrph", "gcash", "paymaya", "card"]
+# QR Ph refunds have their own API (the client claims them through a link);
+# every other method uses the standard POST /v1/refunds.
+QRPH_REFUNDS_URL = "https://refunds-api.paymongo.com/v1/refunds"
+
+
+def is_checkout_session(reference: str | None) -> bool:
+    """Invoices paid since 2026-10-19 store the checkout session id (cs_...);
+    older ones store a payment link's reference_number."""
+    return bool(reference) and str(reference).startswith("cs_")
+
+
 class PayMongoService:
     def __init__(self):
         cfg = settings.PAYMONGO
@@ -38,30 +54,36 @@ class PayMongoService:
         return httpx.Client(auth=(self.secret_key, ""), timeout=self.timeout)
 
     def create_payment_link(self, invoice) -> dict:
-        """Create a PayMongo payment link for an invoice.
-        Returns {'payment_url': ..., 'gateway_reference_id': ...}.
+        """Create a PayMongo Checkout Session for an invoice (QR Ph, GCash,
+        Maya or card — CHECKOUT_PAYMENT_METHODS).
+        Returns {'payment_url': ..., 'gateway_reference_id': <cs_... id>}.
 
-        gateway_reference_id is the link's reference_number, not its `id`
-        (link_...) — the payment.paid webhook payload never echoes the link
-        id back, only external_reference_number/metadata.pm_reference_number,
-        which equals reference_number. Matching on the link id would never
-        find the invoice.
+        The session id is what the checkout_session.payment.paid webhook and
+        GET /checkout_sessions/{id} identify it by; our own INV-0000 number
+        goes in reference_number/metadata for the PayMongo dashboard.
         """
         amount_centavos = int(round(invoice.amount * 100))
+        frontend = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        attributes = {
+            "line_items": [{
+                "name": f"NutriMatch consultation (INV-{invoice.id:04d})",
+                "amount": amount_centavos, "currency": "PHP", "quantity": 1,
+            }],
+            "payment_method_types": CHECKOUT_PAYMENT_METHODS,
+            "description": f"NutriMatch Consultation Invoice #{invoice.id}",
+            "reference_number": f"INV-{invoice.id:04d}",
+            "metadata": {"invoice_id": str(invoice.id)},
+            # NutriMatch emails its own receipt (billing/receipts.py).
+            "send_email_receipt": False,
+            "show_description": True,
+            "show_line_items": True,
+        }
+        if frontend:
+            attributes["success_url"] = f"{frontend}/invoices-billing"
+            attributes["cancel_url"] = f"{frontend}/invoices-billing"
 
         with self._client() as client:
-            response = client.post(
-                f"{self.base_url}/links",
-                json={
-                    "data": {
-                        "attributes": {
-                            "amount": amount_centavos,
-                            "description": f"NutriMatch Consultation Invoice #{invoice.id}",
-                            "currency": "PHP",
-                        }
-                    }
-                },
-            )
+            response = client.post(f"{self.base_url}/checkout_sessions", json={"data": {"attributes": attributes}})
 
         if response.is_error:
             # NOTE: never log secret_key or the full response body
@@ -70,7 +92,7 @@ class PayMongoService:
         data = response.json()["data"]
         return {
             "payment_url": data["attributes"]["checkout_url"],
-            "gateway_reference_id": data["attributes"]["reference_number"],
+            "gateway_reference_id": data["id"],
         }
 
     def handle_webhook(self, payload: bytes, signature: str) -> dict:
@@ -87,6 +109,18 @@ class PayMongoService:
         payment_data = event.get("data", {}).get("attributes", {}).get("data", {})
         payment_attrs = payment_data.get("attributes", {})
 
+        if event_type == "checkout_session.payment.paid":
+            # The event carries the checkout session itself (cs_...), the id
+            # create_payment_link() stored on the invoice.
+            paid = paid_payment_of(payment_data)
+            return {
+                "event_type": event_type,
+                "gateway_reference_id": payment_data.get("id"),
+                "status": "success" if paid else "pending",
+                "payment_method": payment_method_from_source((paid or {}).get("attributes", {}).get("source")),
+                "raw": event,
+            }
+
         return {
             "event_type": event_type,
             # external_reference_number is the payment link's reference_number
@@ -97,6 +131,55 @@ class PayMongoService:
             "payment_method": payment_method_from_source(payment_attrs.get("source")),
             "raw": event,
         }
+
+    def get_payment_status(self, reference: str) -> dict:
+        """Has this invoice's checkout been paid? Works for checkout sessions
+        (cs_...) and the payment links used before 2026-10-19.
+        Returns {'status': 'success'|'pending', 'payment_method', 'raw'}."""
+        if not is_checkout_session(reference):
+            return self.get_link_status(reference)
+        with self._client() as client:
+            response = client.get(f"{self.base_url}/checkout_sessions/{reference}")
+        if response.is_error:
+            raise PaymentGatewayError("Could not check the payment status. Please try again later.")
+        session = response.json()["data"]
+        paid = paid_payment_of(session)
+        return {
+            "status": "success" if paid else "pending",
+            "payment_method": payment_method_from_source((paid or {}).get("attributes", {}).get("source")),
+            "raw": session,
+        }
+
+    def get_payment(self, payment_id: str) -> dict:
+        """The PayMongo payment resource (with its `refunds`)."""
+        with self._client() as client:
+            response = client.get(f"{self.base_url}/payments/{payment_id}")
+        if response.is_error:
+            raise PaymentGatewayError("Could not reach PayMongo. Please try again later.")
+        return response.json()["data"]
+
+    def create_refund(self, payment_id: str, amount_centavos: int, source_type: str | None, notes: str = "") -> dict:
+        """Refund a payment in full. QR Ph goes through PayMongo's QR Ph
+        refunds API (the client claims it through a transfer link); every
+        other method through POST /v1/refunds, back to the same card/wallet.
+        Returns the refund resource — its status can already be "failed"
+        (PayMongo answers 422 with the refund in that case)."""
+        url = QRPH_REFUNDS_URL if source_type == "qrph" else f"{self.base_url}/refunds"
+        body = {"data": {"attributes": {
+            "payment_id": payment_id, "amount": amount_centavos,
+            "reason": "requested_by_customer", "notes": notes[:255],
+        }}}
+        with self._client() as client:
+            response = client.post(url, json=body)
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
+        refund = data.get("data") if isinstance(data, dict) else None
+        if isinstance(refund, dict) and str(refund.get("id", "")).startswith("ref_"):
+            return refund
+        errors = (data or {}).get("errors") or [{}]
+        raise PaymentGatewayError(errors[0].get("detail") or "PayMongo refused the refund. Please try again later.")
 
     def get_link_status(self, reference_number: str) -> dict:
         """Ask PayMongo directly whether a payment link has been paid — the
@@ -174,6 +257,16 @@ _SOURCE_TO_METHOD = {
     "brankas_landbank": "bank_transfer",
     "brankas_metrobank": "bank_transfer",
 }
+
+
+def paid_payment_of(session) -> dict | None:
+    """The paid payment ({"id": "pay_...", "attributes": {...}}) listed on a
+    checkout session resource, or None while nothing is paid."""
+    for p in ((session or {}).get("attributes") or {}).get("payments") or []:
+        p = p.get("data", p) if isinstance(p, dict) else None
+        if isinstance(p, dict) and (p.get("attributes") or {}).get("status") == "paid":
+            return p
+    return None
 
 
 def payment_method_from_source(source) -> str | None:
@@ -285,6 +378,24 @@ def create_appointment_invoice(appointment):
     return Invoice.objects.create(**kwargs), True
 
 
+# What the client is told about a refund (user's call, 2026-10-19). QR Ph
+# refunds are claimed through a PayMongo link that works for 3 days; GCash /
+# Maya / card refunds go back to the same wallet or card.
+# Mirrored in frontend/app/utils/refund.js.
+REFUND_WINDOW = "5–7 business days"
+REFUND_CLAIM_NOTE = "We'll send you a PayMongo link to claim it to your bank or e-wallet — claim it within 3 days of getting the link."
+_REFUND_BACK_TO = {"gcash": "your GCash", "maya": "your Maya account", "card": "the card you paid with"}
+
+
+def refund_note(payment_method):
+    """How the money comes back, by how the client paid."""
+    if payment_method == "qrph":
+        return REFUND_CLAIM_NOTE
+    if payment_method in _REFUND_BACK_TO:
+        return f"It goes back to {_REFUND_BACK_TO[payment_method]}."
+    return ""
+
+
 def settle_cancelled_appointment(appointment):
     """After an appointment is cancelled: a paid invoice becomes
     refund-pending (client told), an unpaid one is voided. Returns the
@@ -306,7 +417,7 @@ def settle_cancelled_appointment(appointment):
             subject="Refund being processed",
             content=(
                 f"Your appointment was cancelled, so your ₱{invoice.amount:,.2f} payment for "
-                f"INV-{invoice.id:04d} will be refunded. The NutriMatch team will process it."
+                f"INV-{invoice.id:04d} will be refunded within {REFUND_WINDOW}. {refund_note(invoice.payment_method)}".strip()
             ),
         )
     elif invoice.status == Invoice.Status.UNPAID:
@@ -363,6 +474,8 @@ def _find_payment_resource(payload):
     event_data = (payload.get("data") or {}).get("attributes", {}).get("data")
     if isinstance(event_data, dict) and str(event_data.get("id", "")).startswith("pay_"):
         return event_data
+    if isinstance(event_data, dict) and str(event_data.get("id", "")).startswith("cs_"):
+        return paid_payment_of(event_data)
     for p in (payload.get("attributes") or {}).get("payments") or []:
         p = p.get("data", p) if isinstance(p, dict) else None
         if isinstance(p, dict) and str(p.get("id", "")).startswith("pay_"):

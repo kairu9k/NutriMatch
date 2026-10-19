@@ -69,7 +69,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         invoice = appointment_invoice(instance)
         data["payment"] = (
-            {"invoice_id": invoice.id, "status": invoice.status, "amount": str(invoice.amount)} if invoice else None
+            {"invoice_id": invoice.id, "status": invoice.status, "amount": str(invoice.amount),
+             "method": invoice.payment_method} if invoice else None
         )
         # Join window: the room opens JOIN_EARLY_MINUTES before the start and
         # closes JOIN_LATE_MINUTES after the scheduled end.

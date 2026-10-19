@@ -96,7 +96,7 @@
       <div class="nm-panel-head">
         <div>
           <h2 class="nm-panel-title">Refunds to send</h2>
-          <p class="nm-panel-sub">These consultations were paid, then cancelled. Refund each one in the PayMongo dashboard, then mark it refunded here — the client is notified.</p>
+          <p class="nm-panel-sub">These consultations were paid, then cancelled. Refund each one through PayMongo — it turns Refunded only once PayMongo confirms the money went back, and the client is notified.</p>
         </div>
       </div>
       <p v-if="refundError" class="nm-error">{{ refundError }}</p>
@@ -111,8 +111,20 @@
             {{ peso(inv.amount) }}<template v-if="inv.payment_method"> · paid via {{ METHOD_LABELS[inv.payment_method] || inv.payment_method }}</template><template v-if="inv.paid_at"> on {{ shortDate(inv.paid_at) }}</template>
           </p>
         </div>
-        <div class="refund-actions">
-          <input v-model="refundRefs[inv.id]" class="nm-input" maxlength="100" placeholder="PayMongo refund ref (optional)" />
+        <div v-if="inv.paymongo_payment_id" class="refund-actions">
+          <p v-if="refundNotes[inv.id]" class="refund-state" :class="refundNotes[inv.id].tone">{{ refundNotes[inv.id].text }}</p>
+          <template v-if="refundConfirm === inv.id">
+            <span class="nm-hint">Send {{ peso(inv.amount) }} back to {{ inv.client_name }}?</span>
+            <button class="nm-btn-dark" :disabled="refundBusy === inv.id" @click="refundViaPayMongo(inv)">
+              {{ refundBusy === inv.id ? 'Sending to PayMongo…' : 'Yes, refund' }}
+            </button>
+            <button class="nm-btn-outline" :disabled="refundBusy === inv.id" @click="refundConfirm = null">Cancel</button>
+          </template>
+          <button v-else class="nm-btn-dark" @click="refundConfirm = inv.id">Refund through PayMongo</button>
+        </div>
+        <div v-else class="refund-actions">
+          <p class="refund-state muted">Not paid through PayMongo (demo data) — return the money another way, then mark it refunded.</p>
+          <input v-model="refundRefs[inv.id]" class="nm-input" maxlength="100" placeholder="Refund reference (optional)" />
           <button class="nm-btn-dark" :disabled="refundBusy === inv.id" @click="markRefunded(inv)">
             {{ refundBusy === inv.id ? 'Saving…' : 'Mark as refunded' }}
           </button>
@@ -228,6 +240,37 @@
             <p>{{ selected.status === 'unpaid' ? 'The client hasn\'t paid this invoice yet.' : 'No payment was made on this invoice.' }}</p>
           </div>
 
+          <div v-if="payment?.receipt?.payment_id" class="pm-box">
+            <div class="pm-head">
+              <p class="nm-section-title" style="margin: 0">In PayMongo</p>
+              <button class="nm-btn-outline nm-btn-sm" :disabled="pmLoading" @click="checkPayMongo">{{ pmLoading ? 'Checking…' : 'Check with PayMongo' }}</button>
+            </div>
+            <p v-if="pmError" class="nm-error" style="margin: 8px 0 0">{{ pmError }}</p>
+            <template v-else-if="pm">
+              <p class="pm-line">
+                Payment <span class="mono">{{ pm.payment_id }}</span> ·
+                <strong>{{ pm.refunded ? 'Refunded' : pm.in_progress ? 'Refund in progress' : 'Paid' }}</strong>
+                <span v-if="pm.livemode === false" class="nm-pill gold" style="margin-left: 6px">Test mode</span>
+              </p>
+              <p v-if="!pm.refunds.length" class="nm-hint" style="margin: 4px 0 0">No refund sent to PayMongo yet.</p>
+              <div v-for="r in pm.refunds" :key="r.id" class="line">
+                <span><span class="mono">{{ r.id }}</span><span class="sub">{{ dateTime(unix(r.refunded_at || r.created_at)) }}</span></span>
+                <span>{{ peso(r.amount) }} <span class="nm-pill" :class="PM_REFUND_PILLS[r.status] || 'muted'">{{ PM_REFUND_LABELS[r.status] || r.status }}</span></span>
+              </div>
+              <p v-if="pm.refunds.some(r => r.status === 'failed') && pm.source_type === 'qrph' && pm.livemode === false" class="nm-hint" style="margin: 6px 0 0">
+                PayMongo's test mode can't complete QR Ph refunds — GCash, Maya and card refunds work in test mode.
+              </p>
+            </template>
+            <div v-if="selected.status === 'refund_pending'" class="refund-actions" style="margin-top: 10px">
+              <template v-if="refundConfirm === selected.id">
+                <span class="nm-hint">Send {{ peso(selected.amount) }} back to {{ selected.client_name }}?</span>
+                <button class="nm-btn-dark" :disabled="refundBusy === selected.id" @click="refundViaPayMongo(selected)">{{ refundBusy === selected.id ? 'Sending to PayMongo…' : 'Yes, refund' }}</button>
+                <button class="nm-btn-outline" :disabled="refundBusy === selected.id" @click="refundConfirm = null">Cancel</button>
+              </template>
+              <button v-else class="nm-btn-dark" @click="refundConfirm = selected.id">Refund through PayMongo</button>
+            </div>
+          </div>
+
           <template v-if="refunds.length">
             <p class="nm-section-title">Refunds</p>
             <div v-for="r in refunds" :key="r.id" class="line">
@@ -305,9 +348,13 @@ async function openInvoice(inv) {
   selected.value = inv
   detail.value = null
   detailError.value = ''
+  pm.value = null
+  pmError.value = ''
+  refundConfirm.value = null
   try {
     const d = await get(`/admin/invoices/${inv.id}/`)
     if (selected.value?.id === inv.id) detail.value = d
+    if (inv.paymongo_payment_id) checkPayMongo()
   } catch (e) {
     if (selected.value?.id === inv.id) detailError.value = apiError(e, 'Could not load this invoice. Please try again.')
   }
@@ -326,11 +373,74 @@ const methodText = computed(() => {
   return m ? (METHOD_LABELS[m] || m) : (r.source_type || '—')
 })
 
-/* refunds — not automated: the admin refunds in PayMongo, then records it */
+/* What PayMongo says about the payment and its refunds (2026-10-19): an
+   invoice paid through PayMongo is refunded through PayMongo and only turns
+   Refunded once PayMongo reports the refund succeeded. */
+const PM_REFUND_LABELS = { succeeded: 'Succeeded', failed: 'Failed', pending: 'Processing', processing: 'Processing', refunding: 'Waiting for the client to claim it' }
+const PM_REFUND_PILLS = { succeeded: 'green', failed: 'red', pending: 'gold', processing: 'gold', refunding: 'gold' }
+const pm = ref(null)
+const pmError = ref('')
+const pmLoading = ref(false)
+const unix = t => (typeof t === 'number' ? new Date(t * 1000).toISOString() : t)
+
+async function checkPayMongo() {
+  const inv = selected.value
+  if (!inv) return
+  pmLoading.value = true
+  pmError.value = ''
+  try {
+    const res = await get(`/admin/invoices/${inv.id}/paymongo/`)
+    if (selected.value?.id !== inv.id) return
+    pm.value = res
+    if (res.invoice_status && res.invoice_status !== inv.status) await afterStatusChange(inv)
+  } catch (e) {
+    if (selected.value?.id === inv.id) pmError.value = apiError(e, 'Could not reach PayMongo. Please try again.')
+  } finally {
+    pmLoading.value = false
+  }
+}
+
+async function afterStatusChange(inv) {
+  await loadInvoices()
+  const fresh = invoices.value.find(i => i.id === inv.id)
+  if (fresh && selected.value?.id === inv.id) {
+    selected.value = fresh
+    detail.value = await get(`/admin/invoices/${inv.id}/`).catch(() => detail.value)
+  }
+}
+
+/* refunds */
 const refundsDue = computed(() => invoices.value.filter(i => i.status === 'refund_pending'))
 const refundRefs = reactive({})
 const refundBusy = ref(null)
 const refundError = ref('')
+const refundConfirm = ref(null)
+const refundNotes = reactive({})
+
+async function refundViaPayMongo(inv) {
+  refundBusy.value = inv.id
+  refundError.value = ''
+  try {
+    const res = await post(`/admin/invoices/${inv.id}/refund/`)
+    refundConfirm.value = null
+    const last = res.refunds?.[res.refunds.length - 1]
+    if (res.invoice_status === 'refunded') {
+      flash(`${invNo(inv)} refunded through PayMongo${last ? ' (' + last.id + ')' : ''} — ${inv.client_name} was notified.`)
+    } else if (last?.status === 'failed') {
+      refundNotes[inv.id] = { tone: 'bad', text: `PayMongo refused it: refund ${last.id} failed.${res.source_type === 'qrph' && res.livemode === false ? ' Test mode can\'t complete QR Ph refunds.' : ''}` }
+    } else {
+      refundNotes[inv.id] = { tone: 'wait', text: `Sent to PayMongo (${last?.id || 'refund'}) — it turns Refunded once PayMongo confirms.` }
+    }
+    if (selected.value?.id === inv.id) pm.value = res
+    await afterStatusChange(inv)
+  } catch (e) {
+    const msg = apiError(e, 'Could not send the refund to PayMongo. Please try again.')
+    if (selected.value?.id === inv.id) pmError.value = msg
+    else refundError.value = msg
+  } finally {
+    refundBusy.value = null
+  }
+}
 async function markRefunded(inv) {
   refundBusy.value = inv.id
   refundError.value = ''
@@ -420,6 +530,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 }
 .refund-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .refund-actions .nm-input { width: 240px; max-width: 100%; }
+.refund-state { flex-basis: 100%; margin: 0; font-size: 0.8rem; color: #4a5a4a; }
+.refund-state.bad { color: #a12525; }
+.refund-state.wait { color: #8a6a10; }
+.refund-state.muted { color: #8a9a8a; }
+.pm-box { margin-top: 16px; padding: 12px 14px; border: 1px solid #eceeec; border-radius: 12px; background: #fafbfa; }
+.pm-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pm-line { margin: 10px 0 0; font-size: 0.84rem; color: #2a3a2a; overflow-wrap: anywhere; }
+.pm-box .line .sub { display: block; font-size: 0.74rem; color: #8a9a8a; }
 @media (max-width: 640px) {
   .refund-actions { width: 100%; }
   .refund-actions > * { width: 100% !important; }
