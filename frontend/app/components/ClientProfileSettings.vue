@@ -196,6 +196,30 @@
             </div>
             <button class="outline-btn" type="button" @click="navigateTo('/messages')">Send a Message</button>
           </div>
+
+          <!-- Ending care (2026-10-19): one RND at a time, so the client can ask
+               to end it; the RND has 3 days to discharge them, then it ends on
+               its own (scheduling/discharge_requests.py). -->
+          <template v-if="careRnd && careRel">
+            <div v-if="careRel.discharge_request" class="dr-pending" role="status">
+              <p class="dr-title">You asked to end your care</p>
+              <p class="dr-text">
+                Asked on {{ drDate(careRel.discharge_request.requested_at) }} — {{ careRel.discharge_request.reason_label }}.
+                RND {{ careRnd.user.first_name }} can close your care with a final note until
+                <strong>{{ drDate(careRel.discharge_request.ends_at) }}</strong>. After that it ends automatically and you can book any RND.
+                Your records stay in your account.
+              </p>
+              <p v-if="drError" class="field-error">{{ drError }}</p>
+              <button class="outline-btn" type="button" :disabled="drBusy" @click="withdrawDischarge">{{ drBusy ? 'Saving…' : 'Keep my RND' }}</button>
+            </div>
+            <div v-else class="setting-row">
+              <div>
+                <p class="setting-label">End care with this RND</p>
+                <p class="setting-detail">Want to switch RNDs or finished your care? Ask to end it — your RND gets {{ DR_DAYS }} days to close it, then it ends automatically.</p>
+              </div>
+              <button class="outline-btn" type="button" @click="openDischarge">Request discharge</button>
+            </div>
+          </template>
           <div v-else class="setting-row">
             <div>
               <p class="setting-label">No RND yet</p>
@@ -367,6 +391,45 @@
       </div>
     </Transition>
     <ScreeningModal v-if="screeningOpen" @close="screeningOpen = false" />
+
+    <div v-if="drOpen" class="dr-overlay" @click.self="drOpen = false" @keydown.esc="drOpen = false">
+      <div class="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-heading">
+        <h3 id="dr-heading" class="dr-heading">Request discharge</h3>
+        <p class="dr-text">
+          You're asking to end your care with <strong>RND {{ careRnd?.user.first_name }} {{ careRnd?.user.last_name }}</strong>.
+          They'll be told right away and have <strong>{{ DR_DAYS }} days</strong> to close your care with a final note.
+          If they don't, it ends automatically on <strong>{{ drDate(drEndsPreview) }}</strong>.
+        </p>
+        <ul class="dr-points">
+          <li>Your consultations, meal plans and progress stay in your account (read-only).</li>
+          <li>Your meal plan and RND reminders stop when your care ends.</li>
+          <li>You can then book any RND — including RND {{ careRnd?.user.first_name }} again.</li>
+        </ul>
+        <div class="field">
+          <label class="field-label" for="dr-reason">Why are you ending care?</label>
+          <select id="dr-reason" v-model="dr.reason" class="nm-select block" :class="{ invalid: drFieldErrors.reason }">
+            <option value="" disabled>Choose a reason</option>
+            <option v-for="r in DR_REASONS" :key="r.value" :value="r.value">{{ r.label }}</option>
+          </select>
+          <p v-if="drFieldErrors.reason" class="field-error">{{ drFieldErrors.reason }}</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="dr-note">Anything to add? <span class="optional-tag">{{ dr.reason === 'other' ? 'Required' : 'Optional' }}</span></label>
+          <textarea id="dr-note" v-model="dr.note" class="field-input" rows="3" maxlength="500" data-allow-emoji
+            :class="{ invalid: drFieldErrors.note }" placeholder="Your RND will see this." />
+          <p v-if="drFieldErrors.note" class="field-error">{{ drFieldErrors.note }}</p>
+        </div>
+        <p v-if="drError" class="field-error">{{ drError }}
+          <NuxtLink v-if="/upcoming consultation/i.test(drError)" to="/appointments" class="dr-link">Open My Appointments</NuxtLink>
+        </p>
+        <div class="dr-actions">
+          <button class="outline-btn" type="button" :disabled="drBusy" @click="drOpen = false">Keep my RND</button>
+          <button class="save-btn" type="button" :disabled="drBusy || !dr.reason || (dr.reason === 'other' && !dr.note.trim())" @click="requestDischarge">
+            {{ drBusy ? 'Sending…' : 'Request discharge' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -381,7 +444,7 @@ import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
 
 const auth = useAuthStore()
-const { get, patch, post, put } = useApi()
+const { get, patch, post, put, del } = useApi()
 
 const tabs = [
   { key: 'personal', label: 'Personal Info', icon: User },
@@ -645,6 +708,62 @@ onMounted(loadReminders)
 
 /* ---------- Care team ---------- */
 const careRnd = ref(null)
+const careRel = ref(null) // the active care relationship (id + any discharge request)
+
+/* ---------- request discharge (Care Team) ---------- */
+const DR_DAYS = 3 // scheduling/discharge_requests.py DISCHARGE_REQUEST_DAYS
+const DR_REASONS = [
+  { value: 'different_rnd', label: 'I want a different RND' },
+  { value: 'goal_reached', label: 'I reached my goal' },
+  { value: 'moved', label: "I'm moving or no longer available" },
+  { value: 'schedule', label: "The schedule doesn't work for me" },
+  { value: 'cost', label: 'Cost' },
+  { value: 'other', label: 'Other' },
+]
+const drOpen = ref(false)
+const drBusy = ref(false)
+const drError = ref('')
+const drFieldErrors = reactive({ reason: '', note: '' })
+const dr = reactive({ reason: '', note: '' })
+const drEndsPreview = computed(() => new Date(Date.now() + DR_DAYS * 86400000).toISOString())
+const drDate = (iso) => new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+function openDischarge() {
+  Object.assign(dr, { reason: '', note: '' })
+  Object.assign(drFieldErrors, { reason: '', note: '' })
+  drError.value = ''
+  drOpen.value = true
+}
+async function requestDischarge() {
+  drBusy.value = true
+  drError.value = ''
+  Object.assign(drFieldErrors, { reason: '', note: '' })
+  try {
+    const res = await post(`/client/relationships/${careRel.value.id}/discharge-request/`, { reason: dr.reason, note: dr.note.trim() })
+    careRel.value = { ...careRel.value, discharge_request: res.discharge_request }
+    drOpen.value = false
+    fireToast(`Request sent — RND ${careRnd.value.user.first_name} has been told.`)
+  } catch (e) {
+    const d = e?.data || {}
+    drFieldErrors.reason = Array.isArray(d.reason) ? d.reason[0] : ''
+    drFieldErrors.note = Array.isArray(d.note) ? d.note[0] : ''
+    drError.value = d.detail || (drFieldErrors.reason || drFieldErrors.note ? '' : 'Could not send your request. Please try again.')
+  } finally {
+    drBusy.value = false
+  }
+}
+async function withdrawDischarge() {
+  drBusy.value = true
+  drError.value = ''
+  try {
+    await del(`/client/relationships/${careRel.value.id}/discharge-request/`)
+    careRel.value = { ...careRel.value, discharge_request: null }
+    fireToast(`You're continuing your care with RND ${careRnd.value.user.first_name}.`)
+  } catch (e) {
+    drError.value = e?.data?.detail || 'Could not cancel your request. Please try again.'
+  } finally {
+    drBusy.value = false
+  }
+}
 const careRndInitials = computed(() =>
   careRnd.value ? `${careRnd.value.user.first_name?.[0] || ''}${careRnd.value.user.last_name?.[0] || ''}`.toUpperCase() : ''
 )
@@ -777,6 +896,7 @@ onMounted(async () => {
     profileLoaded.value = true
     screening.value = latestScreening
     const active = relationships.find(r => r.status === 'active')
+    careRel.value = active || null
     if (active) careRnd.value = await get(`/client/rnds/${active.rnd.id}/`).catch(() => null)
   } catch {
     loadError.value = 'Could not load your profile. Please try again later.'
@@ -992,4 +1112,16 @@ onMounted(async () => {
 .pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .pw-forgot { font-size: 0.82rem; color: #1a3a1a; font-weight: 600; text-decoration: underline; }
 @media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
+
+/* Request discharge (Care Team) */
+.dr-pending { margin-top: 12px; padding: 14px 16px; border: 1px solid #f0e2b0; border-radius: 12px; background: #fdf8e8; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.dr-title { margin: 0; font-size: 0.9rem; font-weight: 700; color: #6a5410; }
+.dr-text { margin: 0; font-size: 0.84rem; line-height: 1.55; color: #4a5a4a; }
+.dr-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(15, 30, 15, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dr-modal { width: 100%; max-width: 480px; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
+.dr-heading { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; }
+.dr-points { margin: 0; padding-left: 18px; font-size: 0.82rem; color: #4a5a4a; line-height: 1.6; }
+.dr-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.dr-link { margin-left: 6px; color: #1a3a1a; font-weight: 700; text-decoration: underline; }
+.optional-tag { font-weight: 500; color: #8a9a8a; margin-left: 4px; }
 </style>

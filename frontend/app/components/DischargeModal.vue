@@ -37,6 +37,8 @@
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
   patientName: { type: String, default: 'this patient' },
+  // Pre-filled when the client asked to end care (the RND adds a closing note).
+  initialReason: { type: String, default: '' },
 })
 const emit = defineEmits(['close', 'discharged'])
 const { get, post } = useApi()
@@ -44,7 +46,7 @@ const { get, post } = useApi()
 const firstName = computed(() => props.patientName.split(' ')[0])
 const checking = ref(true)
 const blockers = ref([])
-const reason = ref('')
+const reason = ref(props.initialReason)
 const saving = ref(false)
 const error = ref('')
 

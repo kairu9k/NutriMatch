@@ -129,7 +129,7 @@
             <!-- One RND at a time: booking someone else waits until the current RND discharges them. -->
             <div v-if="rnd.booking_blocked_by" class="one-rnd">
               <p v-if="rnd.booking_blocked_by.status === 'active'">
-                You're under <strong>RND {{ rnd.booking_blocked_by.name }}</strong>'s care. You can book a different RND once RND {{ rnd.booking_blocked_by.name }} discharges you.
+                You're under <strong>RND {{ rnd.booking_blocked_by.name }}</strong>'s care. You can book a different RND once RND {{ rnd.booking_blocked_by.name }} discharges you. Want to switch? <NuxtLink to="/profile-settings?tab=care">Ask to end care</NuxtLink> in Profile Settings → Care Team.
               </p>
               <p v-else>
                 You have a booking waiting for <strong>RND {{ rnd.booking_blocked_by.name }}</strong>. Cancel it first if you'd like a different RND.

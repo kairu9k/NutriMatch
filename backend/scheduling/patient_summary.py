@@ -109,8 +109,12 @@ def build_patient_summary(rnd, rel_id, now=None):
             "upcoming": a.status in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED) and end > now,
         })
 
+    from .discharge_requests import request_payload as discharge_request_payload
+
     return {
         "patient": row,
+        # The client asked to end care (Client Detail banner: Discharge now).
+        "discharge_request": discharge_request_payload(rel),
         "health": {
             "conditions": (health.medical_conditions if health else None) or [],
             "allergies": (health.allergies if health else None) or [],
@@ -147,5 +151,8 @@ class RndPatientSummaryView(APIView):
     def get(self, request, pk):
         from billing.services import expire_unpaid_appointments
 
+        from .discharge_requests import process_due_discharge_requests
+
         expire_unpaid_appointments(relationship_id=pk, relationship__rnd=request.user)
+        process_due_discharge_requests(rnd=request.user, pk=pk)
         return Response(build_patient_summary(request.user, pk))

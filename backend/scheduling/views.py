@@ -70,6 +70,9 @@ class ClientActiveRelationshipsView(generics.ListAPIView):
     def get_queryset(self):
         # ?include=ended also lists discharged care and care waiting for the
         # RND to confirm a booking (read-only chat history).
+        from .discharge_requests import process_due_discharge_requests
+
+        process_due_discharge_requests(client=self.request.user)
         qs = RndClientRelationship.objects.filter(client=self.request.user)
         if self.request.query_params.get("include") == "ended":
             return _with_ended(qs).select_related("rnd", "client")

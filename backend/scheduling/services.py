@@ -62,8 +62,10 @@ def current_rnd_relationship(client, exclude_rnd_id=None):
     booking was declined, cancelled or expired doesn't block."""
     from django.utils import timezone
 
+    from .discharge_requests import process_due_discharge_requests
     from .models import Appointment, RndClientRelationship
 
+    process_due_discharge_requests(client=client)  # a request's 3 days may be up
     qs = RndClientRelationship.objects.filter(client=client).select_related("rnd")
     if exclude_rnd_id is not None:
         qs = qs.exclude(rnd_id=exclude_rnd_id)

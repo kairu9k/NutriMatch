@@ -39,34 +39,49 @@ def discharge_blockers(relationship):
     return blockers
 
 
-def discharge(relationship, by, reason):
+def discharge(relationship, by, reason, *, ended_by=RndClientRelationship.EndedBy.RND):
+    """End care. `by` is the RND (or the admin); `ended_by` says how it ended:
+    the RND discharged them, it ended on its own after the client's request
+    (by=None), or NutriMatch ended it (e.g. the RND was deactivated)."""
     from communication.models import Reminder
     from communication.services import notify
     from core.models import AuditLog
     from nutrition.models import MealPlan
 
     now = timezone.now()
+    rnd = relationship.rnd
     with transaction.atomic():
         relationship.status = RndClientRelationship.Status.DISCHARGED
         relationship.ended_at = now
         relationship.discharge_reason = reason
-        relationship.save(update_fields=["status", "ended_at", "discharge_reason", "updated_at"])
+        relationship.ended_by = ended_by
+        relationship.discharge_requested_at = None
+        relationship.save(update_fields=["status", "ended_at", "discharge_reason", "ended_by",
+                                         "discharge_requested_at", "updated_at"])
         archived = MealPlan.objects.filter(relationship=relationship, status=MealPlan.Status.ACTIVE).update(
             status=MealPlan.Status.ARCHIVED)
         stopped = Reminder.objects.filter(relationship=relationship, is_active=True).update(is_active=False)
         AuditLog.objects.create(
             user=by, action="relationship.discharged", table_name="rnd_client_relationships", record_id=relationship.id,
             old_values={"status": "active"},
-            new_values={"status": "discharged", "reason": reason[:1000], "meal_plans_archived": archived,
-                        "reminders_stopped": stopped},
+            new_values={"status": "discharged", "reason": reason[:1000], "ended_by": ended_by,
+                        "meal_plans_archived": archived, "reminders_stopped": stopped},
         )
+        if ended_by == RndClientRelationship.EndedBy.RND:
+            client_text = (f"{rnd.full_name} has completed your care at NutriMatch. Reason: {reason} "
+                           "Your records stay available, and you can book them again any time.")
+        else:
+            client_text = (f"Your care with RND {rnd.full_name} has ended. {reason} "
+                           "Your records stay available, and you can book any RND now.")
+            notify(recipient=rnd, notifiable_type="relationship", notifiable_id=relationship.id,
+                   subject="Patient's care ended",
+                   content=f"Your care for {relationship.client.full_name} has ended. {reason} Their record is now read-only.")
         notify(
             recipient=relationship.client,
             notifiable_type="relationship",
             notifiable_id=relationship.id,
             subject="Your care plan has ended",
-            content=f"{by.full_name} has completed your care at NutriMatch. Reason: {reason} "
-                    "Your records stay available, and you can book them again any time.",
+            content=client_text,
         )
 
     client = relationship.client
@@ -75,19 +90,21 @@ def discharge(relationship, by, reason):
         from accounts.emails import send_notice_email
 
         try:
+            by_rnd = ended_by == RndClientRelationship.EndedBy.RND
             send_notice_email(
                 client,
-                subject=f"Your care with {by.full_name} has ended",
+                subject=f"Your care with {rnd.full_name} has ended",
                 heading="Your care plan has ended",
                 paragraphs=[
-                    f"{by.full_name} has completed your nutrition care on NutriMatch.",
+                    f"{rnd.full_name} has completed your nutrition care on NutriMatch." if by_rnd
+                    else f"Your nutrition care with RND {rnd.full_name} has ended.",
                     "Your past consultations, meal plans and progress stay in your account. "
-                    "If you need help again, you can book them or another RND any time.",
+                    "If you need help again, you can book an RND any time.",
                 ],
-                highlight=f"Note from your RND: {reason}",
+                highlight=f"Note from your RND: {reason}" if by_rnd else reason,
                 button_label="Open NutriMatch",
                 button_url=f"{settings.FRONTEND_URL}/client-dashboard",
-                preheader=f"{by.full_name} has completed your care.",
+                preheader=f"Your care with {rnd.full_name} has ended.",
             )
         except Exception:  # best effort — the discharge itself is already saved
             pass

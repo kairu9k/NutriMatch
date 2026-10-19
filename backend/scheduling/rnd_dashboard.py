@@ -160,5 +160,8 @@ class RndDashboardView(APIView):
     def get(self, request):
         from billing.services import expire_unpaid_appointments
 
+        from .discharge_requests import process_due_discharge_requests
+
         expire_unpaid_appointments()
+        process_due_discharge_requests(rnd=request.user)
         return Response(build_dashboard(request.user))

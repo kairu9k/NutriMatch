@@ -31,6 +31,17 @@
         </div>
       </section>
 
+      <!-- The client asked to end care (Profile Settings -> Care Team): close it
+           properly with a note, or it ends on its own on the date shown. -->
+      <section v-if="p.status === 'active' && s.discharge_request" class="nm-note dr-banner" role="status">
+        <div>
+          <strong>{{ p.client.first_name }} asked to end their care</strong> on {{ shortDate(s.discharge_request.requested_at) }}
+          — {{ s.discharge_request.reason_label }}.<template v-if="s.discharge_request.note"> “{{ s.discharge_request.note }}”</template>
+          Discharge them with a closing note by <strong>{{ shortDate(s.discharge_request.ends_at) }}</strong>; after that it ends automatically.
+        </div>
+        <button type="button" class="pb-btn" @click="showDischarge = true">Discharge now</button>
+      </section>
+
       <section v-if="p.status === 'discharged'" class="nm-note">
         <strong>Discharged{{ p.ended_at ? ` on ${shortDate(p.ended_at)}` : '' }}.</strong>
         This record is read-only.<template v-if="p.discharge_reason"> Reason: “{{ p.discharge_reason }}”</template>
@@ -463,6 +474,7 @@
     />
     <DischargeModal
       v-if="showDischarge" :relationship-id="relationshipId" :patient-name="p?.client.name"
+      :initial-reason="s?.discharge_request ? `Care ended at ${p.client.first_name}'s request (${s.discharge_request.reason_label}). ` : ''"
       @close="showDischarge = false" @discharged="onDischarged"
     />
     <ConsultationSummaryModal v-if="summaryId" :appointment-id="summaryId" role="rnd" @close="summaryId = null" />
@@ -854,4 +866,6 @@ watch(metricSeries, (ms) => {
 }
 .nowrap { white-space: nowrap; }
 .self-tag { margin-left: 6px; font-size: 0.62rem; }
+
+.dr-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fdf8e8; border-color: #f0e2b0; }
 </style>

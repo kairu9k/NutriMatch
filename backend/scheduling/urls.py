@@ -2,6 +2,7 @@ from django.urls import path
 
 from .admin_views import AdminAppointmentCancelView, AdminAppointmentListView, AdminAppointmentSummaryView
 from .discharge import RndDischargeView
+from .discharge_requests import ClientDischargeRequestView
 from .patient_list import RndPatientListView
 from .patient_summary import RndPatientSummaryView
 from .rnd_appointments import RndAppointmentBoardView
@@ -27,6 +28,7 @@ from .views import (
 
 urlpatterns = [
     path("client/relationships/", ClientActiveRelationshipsView.as_view(), name="client_active_relationships"),
+    path("client/relationships/<int:pk>/discharge-request/", ClientDischargeRequestView.as_view(), name="client_discharge_request"),
     path("rnd/relationships/active/", RndActiveRelationshipsView.as_view(), name="rnd_active_relationships"),
     path("rnd/patients/", RndPatientListView.as_view(), name="rnd_patient_list"),
     path("rnd/relationships/<int:pk>/discharge/", RndDischargeView.as_view(), name="rnd_discharge"),

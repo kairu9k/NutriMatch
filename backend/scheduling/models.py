@@ -19,6 +19,28 @@ class RndClientRelationship(models.Model):
     ended_at = models.DateTimeField(null=True, blank=True)
     # why the RND ended care (shown to the client); cleared if they're rebooked
     discharge_reason = models.TextField(null=True, blank=True)
+
+    class EndedBy(models.TextChoices):
+        RND = "rnd", "Discharged by the RND"
+        AUTO = "auto", "Ended automatically (client's request)"
+        ADMIN = "admin", "Ended by NutriMatch"
+
+    ended_by = models.CharField(max_length=10, choices=EndedBy.choices, null=True, blank=True)
+
+    # The client asked to end care (Profile Settings -> Care Team, 2026-10-19):
+    # the RND has DISCHARGE_REQUEST_DAYS to discharge them, then it ends on its
+    # own (scheduling/discharge_requests.py). Added after the proposal.
+    class RequestReason(models.TextChoices):
+        DIFFERENT_RND = "different_rnd", "I want a different RND"
+        GOAL_REACHED = "goal_reached", "I reached my goal"
+        MOVED = "moved", "I'm moving or no longer available"
+        SCHEDULE = "schedule", "The schedule doesn't work for me"
+        COST = "cost", "Cost"
+        OTHER = "other", "Other"
+
+    discharge_requested_at = models.DateTimeField(null=True, blank=True)
+    discharge_request_reason = models.CharField(max_length=20, choices=RequestReason.choices, null=True, blank=True)
+    discharge_request_note = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

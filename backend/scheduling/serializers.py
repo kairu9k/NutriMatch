@@ -34,6 +34,10 @@ class RndClientRelationshipSerializer(serializers.ModelSerializer):
             data["rnd"] = {k: v for k, v in (data.get("rnd") or {}).items() if k in self.PUBLIC_PERSON}
         if not is_admin and viewer_id not in (instance.rnd_id, instance.client_id):
             data["client"] = {k: v for k, v in (data.get("client") or {}).items() if k in self.PUBLIC_PERSON}
+        from .discharge_requests import request_payload
+
+        data["discharge_request"] = request_payload(instance)
+        data["ended_by"] = instance.ended_by
         return data
 
 
@@ -207,7 +211,8 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         if current:
             name = current.rnd.full_name
             raise serializers.ValidationError(
-                f"You're under RND {name}'s care. You can book a different RND once RND {name} discharges you."
+                f"You're under RND {name}'s care. You can book a different RND once RND {name} discharges you "
+                "(or ask to end care in Profile Settings -> Care Team)."
                 if current.status == RndClientRelationship.Status.ACTIVE else
                 f"You have a booking waiting for RND {name}. Cancel it first if you'd like a different RND."
             )
@@ -251,6 +256,13 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
             relationship.status = RndClientRelationship.Status.PENDING
             relationship.ended_at = None
             relationship.save(update_fields=["status", "ended_at", "updated_at"])
+        elif relationship.discharge_requested_at:
+            # Booking this RND again withdraws the request to end care.
+            relationship.discharge_requested_at = None
+            relationship.discharge_request_reason = None
+            relationship.discharge_request_note = None
+            relationship.save(update_fields=["discharge_requested_at", "discharge_request_reason",
+                                             "discharge_request_note", "updated_at"])
         return Appointment.objects.create(relationship=relationship, **validated_data)
 
 

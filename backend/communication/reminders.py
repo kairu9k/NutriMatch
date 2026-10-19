@@ -119,7 +119,11 @@ def run_due_reminders(now=None, client=None):
     on-open run). Returns how many were sent."""
     from billing.models import Invoice
     from nutrition.models import MealLog, MealPlan, MealPlanMeal
+    from scheduling.discharge_requests import process_due_discharge_requests
     from scheduling.models import Appointment, RndClientRelationship
+
+    # Care whose discharge request has waited 3 days ends here too.
+    process_due_discharge_requests(**({"client": client} if client else {}))
 
     from .models import Reminder, ReminderPreference
 

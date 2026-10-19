@@ -40,7 +40,7 @@
 
     <!-- One RND at a time (until the current RND discharges the client). -->
     <p v-if="blockedBy" class="one-rnd">
-      {{ blockedBy.status === 'active' ? `You're under RND ${blockedBy.name}'s care — you can book a different RND once they discharge you.` : `You have a booking waiting for RND ${blockedBy.name} — cancel it first to book someone else.` }}
+      {{ blockedBy.status === 'active' ? `You're under RND ${blockedBy.name}'s care — you can book a different RND once they discharge you. Want to switch? Ask to end care in Profile Settings → Care Team.` : `You have a booking waiting for RND ${blockedBy.name} — cancel it first to book someone else.` }}
       <NuxtLink :to="`/rnd-profile-view/${blockedBy.rnd_id}`">Go to RND {{ blockedBy.name }} →</NuxtLink>
     </p>
     <div class="results-row">
