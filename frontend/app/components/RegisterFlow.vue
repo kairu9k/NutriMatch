@@ -416,8 +416,15 @@
               </div>
               <iframe class="legal-frame" :class="{ ready: legalReady }" :src="legalTab === 'terms' ? '/terms' : '/privacy-policy'" :title="legalTab === 'terms' ? 'Terms and Conditions' : 'Privacy Policy'" @load="trimLegalFrame"></iframe>
               <div class="legal-foot">
-                <p class="legal-hint">{{ termsViewed ? 'You can now tick the consent boxes.' : 'Open both tabs to continue.' }}</p>
-                <button type="button" class="btn-primary legal-done" @click="legalOpen = false">{{ termsViewed ? 'Done' : 'Close' }}</button>
+                <!-- Terms first, then Next leads to the Privacy Policy, which closes. -->
+                <template v-if="legalTab === 'terms'">
+                  <p class="legal-hint">Read the Terms, then the Privacy Policy.</p>
+                  <button type="button" class="btn-primary legal-done" @click="openLegal('privacy')">Next: Privacy Policy →</button>
+                </template>
+                <template v-else>
+                  <p class="legal-hint">{{ termsViewed ? 'You can now tick the consent boxes.' : 'Open the Terms tab too to continue.' }}</p>
+                  <button type="button" class="btn-primary legal-done" @click="legalOpen = false">{{ termsViewed ? 'Done' : 'Close' }}</button>
+                </template>
               </div>
             </div>
           </div>
