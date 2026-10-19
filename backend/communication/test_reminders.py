@@ -144,9 +144,11 @@ class ReminderTests(TestCase):
         self._meal(at=time(7, 30))
         self._appt(NOW + timedelta(hours=6))
         Reminder.objects.create(client=self.client_user, relationship=self.rel, created_by=self.rnd, title="Water",
-                                send_at=NOW + timedelta(hours=2))
-        kinds = [i["kind"] for i in today_items(self.client_user, now=NOW)]
-        self.assertEqual(kinds, ["meal", "task", "appointment"])
+                                message="Drink 2 glasses before lunch", send_at=NOW + timedelta(hours=2))
+        items = today_items(self.client_user, now=NOW)
+        self.assertEqual([i["kind"] for i in items], ["meal", "task", "appointment"])
+        # The RND's note reaches the client's My tasks card.
+        self.assertEqual(next(i for i in items if i["kind"] == "task")["note"], "Drink 2 glasses before lunch")
 
     def test_my_tasks_checkbox_and_own_tasks(self):
         from rest_framework.test import APIClient

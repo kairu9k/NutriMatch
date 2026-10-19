@@ -318,6 +318,8 @@ def today_items(client, now=None):
         own = r.created_by_id == client.id
         items.append({"kind": "task", "id": r.id, "at": at, "title": r.title,
                       "detail": "Your task" if own else f"From RND {r.created_by.full_name}",
+                      # what the RND (or the client) wrote with the task, e.g. "After breakfast"
+                      "note": (r.message or "").strip(),
                       "own": own, "done": r.done_on == today, "link": None})
 
     # Lab tests the RND requested: open ones stay on the list until uploaded;

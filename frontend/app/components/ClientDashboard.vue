@@ -245,6 +245,7 @@
                 <input type="checkbox" class="task-check" :checked="item.done" @change="toggleTask(item, $event.target.checked)" />
                 <span class="today-main">
                   <span class="today-title">{{ item.title }}</span>
+                  <span v-if="item.note" class="today-note">“{{ item.note }}”</span>
                   <span class="today-detail">{{ item.detail }}</span>
                 </span>
                 <span class="today-time">{{ phClock(item.at) }}</span>
@@ -746,6 +747,7 @@ function phClock(iso) {
 .task-check { width: 20px; height: 20px; margin: 0 5px; flex-shrink: 0; accent-color: #1f8f5c; cursor: pointer; }
 .task-check.meal { display: inline-flex; align-items: center; justify-content: center; border: 2px solid #b9c4b9; border-radius: 5px; color: #fff; box-sizing: border-box; }
 .task-check.meal.on { background: #1f8f5c; border-color: #1f8f5c; }
+.today-note { display: block; font-size: 0.8rem; color: #3a4a3a; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
 .task-x { border: none; background: none; color: #9aaa9a; cursor: pointer; padding: 2px; display: flex; }
 .task-x:hover { color: #c0392b; }
 .as-btn { background: none; border: none; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 3px; padding: 0; }
