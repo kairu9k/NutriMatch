@@ -79,11 +79,13 @@ MIDDLEWARE = [
 
 AUTH_USER_MODEL = 'accounts.User'
 
-CORS_ALLOWED_ORIGINS = config(
+# Trailing slashes are dropped: django-cors-headers refuses "https://x.app/"
+# (and the deploy fails on its start-up check).
+CORS_ALLOWED_ORIGINS = [o.rstrip('/') for o in config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:3000,http://127.0.0.1:3000',
     cast=Csv(),
-)
+)]
 # Development only: any local port (Nuxt moves to 3001, 3002… when 3000 is
 # taken) and the home network (testing on a phone). Production uses only the
 # list above.
@@ -238,7 +240,7 @@ STORAGES = {
 }
 
 # Production (DEBUG=False) behind Render's HTTPS proxy.
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+CSRF_TRUSTED_ORIGINS = [o.rstrip('/') for o in config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())]
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
