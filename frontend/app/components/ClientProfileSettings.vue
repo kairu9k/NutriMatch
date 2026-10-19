@@ -14,7 +14,7 @@
 
     <div class="profile-layout">
       <!-- TABS -->
-      <div class="tab-card">
+      <div ref="tabCard" class="tab-card">
         <button
           v-for="tab in tabs"
           :key="tab.key"
@@ -354,7 +354,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   User, HeartPulse, Shield, Bell, FileText, History as HistoryIcon, CheckCircle2,
   Printer, ClipboardList, ShieldCheck, CalendarCheck, UtensilsCrossed,
@@ -689,6 +689,22 @@ watch(activeTab, (tab) => {
   if (tab === 'history' && !historyLoaded) loadHistory()
 }, { immediate: true })
 
+// Phones: the tabs are a sideways-scrolling strip — keep the selected one in
+// view (centred), also when the page opens on ?tab=… .
+const tabCard = ref(null)
+function showActiveTab() {
+  nextTick(() => {
+    const strip = tabCard.value
+    const btn = strip?.querySelector('.tab-item.active')
+    if (!strip || !btn || strip.scrollWidth <= strip.clientWidth) return
+    // Clamped: Chrome ignores a smooth scroll to a negative position (the first tab).
+    const left = Math.min(Math.max(0, btn.offsetLeft - (strip.clientWidth - btn.offsetWidth) / 2), strip.scrollWidth - strip.clientWidth)
+    strip.scrollLeft = left
+  })
+}
+watch(activeTab, () => showActiveTab())
+onMounted(showActiveTab)
+
 const filteredHistory = computed(() =>
   historyFilter.value === 'all' ? historyEntries.value : historyEntries.value.filter(e => e.type === historyFilter.value)
 )
@@ -905,7 +921,7 @@ onMounted(async () => {
 /* MOBILE — tabs become a sideways-scrolling strip above the panel. */
 @media (max-width: 900px) {
   .profile-layout { grid-template-columns: 1fr; }
-  .tab-card { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .tab-card { position: relative; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
   .tab-card::-webkit-scrollbar { display: none; }
   .tab-item { flex-shrink: 0; padding: 10px 12px; }
 }
