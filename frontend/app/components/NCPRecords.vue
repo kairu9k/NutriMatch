@@ -88,7 +88,7 @@
                 <span v-if="g.drafts" class="nm-pill gold">{{ g.drafts }} draft</span>
               </span>
               <span class="pdate">{{ shortDate(g.records[0].encounter_date) }}</span>
-              <span class="pgoal">{{ g.goal || '—' }}</span>
+              <span class="pgoal" :class="{ muted: !g.goal }">{{ g.goal || (g.latest.status === 'completed' ? 'At first follow-up' : '—') }}</span>
             </button>
             <div v-if="expanded.has(g.relationship_id)" class="timeline">
               <button v-for="rec in g.records" :key="rec.id" type="button" class="trow" @click="open = rec">
@@ -97,7 +97,8 @@
                 <span class="tkind">{{ rec.is_follow_up ? `Follow-up #${rec.follow_up_no}` : 'Initial' }}</span>
                 <span class="tdx">{{ rec.pes_problem || 'No diagnosis yet' }}</span>
                 <span class="tkcal">{{ rec.target_kcal ? `${Math.round(rec.target_kcal).toLocaleString('en-PH')} kcal` : '—' }}</span>
-                <span class="tgoal">{{ rec.goal_status_label || (rec.status === 'draft' ? `Draft · ${rec.missing.length} missing` : '—') }}</span>
+                <!-- goal status is only rated at a follow-up (Monitoring step) -->
+                <span class="tgoal" :class="{ muted: !rec.goal_status_label && rec.status !== 'draft' }">{{ rec.goal_status_label || (rec.status === 'draft' ? `Draft · ${rec.missing.length} missing` : (rec.is_follow_up ? '—' : 'Set at follow-up')) }}</span>
                 <span class="tview">View <ChevronRight :size="14" /></span>
               </button>
               <NuxtLink :to="`/client-detail/${g.relationship_id}?tab=ncp`" class="nm-panel-link chart-link">Open patient chart →</NuxtLink>
@@ -281,6 +282,7 @@ const Avatar = defineComponent({
 .tdx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tkcal { font-variant-numeric: tabular-nums; color: #4a5a4a; }
 .tgoal { color: #4a5a4a; }
+.pgoal.muted, .tgoal.muted { color: #8a968a; font-style: italic; }
 .tview { display: inline-flex; align-items: center; justify-content: flex-end; color: #1f6f46; font-weight: 600; }
 .chart-link { display: inline-block; margin: 6px 0 0 10px; }
 .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: 0.82rem; }
