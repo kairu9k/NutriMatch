@@ -210,6 +210,11 @@ class AdminAppointmentCancelView(APIView):
                content=f"The NutriMatch team cancelled your {kind} consultation with RND {rnd.full_name} for {when}. Reason: {reason}")
         notify(recipient=rnd, notifiable_type="appointment", notifiable_id=appointment.id, subject="Appointment cancelled",
                content=f"The NutriMatch team cancelled your {kind} consultation with {client.full_name} for {when}. Reason: {reason}")
+        from communication.reminders import _when
+        from communication.sms import text_client
+
+        text_client(client, f"NutriMatch cancelled your consultation with RND {rnd.full_name} on {_when(appointment.scheduled_at)}. "
+                            "Open the app for details.")
         AuditLog.objects.create(
             user=request.user, action="appointment.cancelled", table_name="appointments", record_id=appointment.id,
             old_values={"status": old_status},

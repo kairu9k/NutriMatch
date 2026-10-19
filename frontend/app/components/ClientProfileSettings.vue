@@ -264,7 +264,7 @@
             <div class="setting-row">
               <div>
                 <p class="setting-label">Also send reminders by text (SMS)</p>
-                <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Consultation, payment and task reminders only — short texts with no health details.</p>
+                <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Only the important ones: booking confirmed, payment due, your consultation starting in 1 hour, and a cancelled consultation — short texts with no health details.</p>
                 <p v-else-if="auth.user?.phone" class="setting-detail">SMS reminders are only available for Philippine mobile numbers (+63). Yours is {{ formatPhone(auth.user.phone) }}.</p>
                 <p v-else class="setting-detail">Add your mobile number (e.g. 0917 123 4567) in Personal Info first.</p>
               </div>

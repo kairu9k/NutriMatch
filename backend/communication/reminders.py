@@ -91,9 +91,11 @@ def _deliver(client, pref, *, subject, content, notifiable_type, notifiable_id, 
             )
         except Exception:
             logger.exception("Could not email reminder %r to %s", subject, client.pk)
-    # SMS (opt-in): only reminders that pass an sms_text — consultations,
-    # payments and tasks; meal logging (up to 5 a day) stays in-app / email.
-    # The SMS wording never carries health details (RA 10173).
+    # SMS (opt-in, user's budget call 2026-10-19): only the 1-hour
+    # consultation reminder and payment due pass an sms_text; the 24-hour
+    # reminder, tasks, meal logging and labs stay in-app / email. Booking
+    # confirmed and RND/admin cancellations are texted where they happen
+    # (sms.text_client). The SMS wording never carries health details (RA 10173).
     if sms_text and getattr(pref, "sms", False):
         from .sms import send_sms
 
@@ -152,7 +154,8 @@ def run_due_reminders(now=None, client=None):
         if _claim(key, client=c, title=subject, message=content, type=Reminder.Type.APPOINTMENT, send_at=now):
             _deliver(c, pref_for(c), subject=subject, content=content, notifiable_type="appointment",
                      notifiable_id=appt.id, link="/appointments", link_label="Open My Appointments",
-                     sms_text=f"Your {kind} consultation with RND {rnd.full_name} is {day_word} at {_clock(appt.scheduled_at)}. Join from the app.")
+                     sms_text=(f"Your {kind} consultation with RND {rnd.full_name} starts at {_clock(appt.scheduled_at)}. "
+                               "Join from the app." if soon else None))
             sent += 1
 
     # 2) payment still due within 24 hours of the start
@@ -240,10 +243,7 @@ def run_due_reminders(now=None, client=None):
             if fresh and not r.is_muted and (own or pref_for(c).rnd_reminders):
                 content = r.message or ("Your task for today." if own else f"A reminder from RND {r.created_by.full_name}.")
                 _deliver(c, pref_for(c), subject=r.title, content=content, notifiable_type="reminder",
-                         notifiable_id=r.id, link="/client-dashboard", link_label="Open My tasks",
-                         # generic on purpose: task titles can name a medicine
-                         sms_text="You have a task reminder. Open My tasks in the app." if own
-                         else "You have a reminder from your RND. Open My tasks in the app.")
+                         notifiable_id=r.id, link="/client-dashboard", link_label="Open My tasks")
                 r.last_sent_at = now
                 sent += 1
             nxt = next_occurrence(r, now)

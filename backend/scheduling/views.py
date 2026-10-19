@@ -281,6 +281,12 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
                 f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) before then to start your consultation."
             ),
         )
+        from communication.reminders import _when
+        from communication.sms import text_client
+
+        text_client(appointment.relationship.client,
+                    f"RND {appointment.relationship.rnd.full_name} confirmed your consultation on {_when(appointment.scheduled_at)}. "
+                    f"Please pay P{invoice.amount:,.2f} in the app before it starts.")
 
         return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 
@@ -365,6 +371,14 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
                 + (f" Reason: {reason}" if reason else "")
             ),
         )
+        # By SMS too, so nobody waits in the room or travels for nothing.
+        # The reason stays in the app (it can mention health details).
+        from communication.reminders import _when
+        from communication.sms import text_client
+
+        text_client(appointment.relationship.client,
+                    f"RND {appointment.relationship.rnd.full_name} cancelled your consultation on {_when(appointment.scheduled_at)}. "
+                    "Open the app for details.")
         return response
 
 class ClientReviewListCreateView(generics.ListCreateAPIView):

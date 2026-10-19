@@ -78,3 +78,19 @@ def send_sms(raw_number, text):
     except Exception:
         logger.exception("Could not send SMS to %s", mask_mobile(number))
         return False
+
+
+def text_client(user, text):
+    """A one-off SMS to a client who turned SMS on (Profile Settings ->
+    Notifications): booking confirmed, consultation cancelled by the RND or
+    NutriMatch. Sent after the database change is saved; returns whether
+    it was queued (False when the client hasn't turned SMS on)."""
+    from django.db import transaction
+
+    from .models import ReminderPreference
+
+    if getattr(user, "role", None) != "client" or not ReminderPreference.for_user(user).sms:
+        return False
+    phone = user.phone
+    transaction.on_commit(lambda: send_sms(phone, text))
+    return True
