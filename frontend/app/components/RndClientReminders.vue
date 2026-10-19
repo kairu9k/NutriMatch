@@ -30,7 +30,6 @@
             <span class="nm-pill" :class="r.type === 'medication' ? 'gold' : 'muted'">{{ r.type_label }}</span>
             <span v-if="r.done" class="nm-pill muted">Finished</span>
             <span v-else-if="!r.is_active" class="nm-pill muted">Paused</span>
-            <span v-if="r.is_muted" class="nm-pill red">Muted by {{ clientFirstName }}</span>
             <span v-if="r.done_today" class="nm-pill green">✓ Done today</span>
             <span v-if="r.last_sent_at" class="nm-pill blue">Last sent {{ dayLabel(r.last_sent_at) }}</span>
           </div>

@@ -102,12 +102,17 @@ class ReminderTests(TestCase):
         self.assertEqual(r.send_at.astimezone(PH), datetime(2026, 10, 13, 7, 55, tzinfo=PH))  # next day, same time
         self.assertIn("Take metformin", self._notes(notifiable_type="reminder"))
 
-    def test_muted_and_stale_are_skipped_but_move_on(self):
+    def test_switched_off_and_stale_are_skipped_but_move_on(self):
+        # "Reminders from your RND" off: no notification, but the task stays on My tasks.
+        ReminderPreference.for_user(self.client_user)
+        ReminderPreference.objects.filter(user=self.client_user).update(rnd_reminders=False)
         r = Reminder.objects.create(client=self.client_user, relationship=self.rel, created_by=self.rnd, title="Walk",
-                                    repeat="weekdays", send_at=NOW - timedelta(minutes=1), is_muted=True)
+                                    repeat="weekdays", send_at=NOW - timedelta(minutes=1))
+        Reminder.objects.filter(pk=r.pk).update(created_at=NOW - timedelta(days=1))
         self.assertEqual(run_due_reminders(now=NOW), 0)
         r.refresh_from_db()
         self.assertGreater(r.send_at, NOW)
+        self.assertIn("Walk", [i["title"] for i in today_items(self.client_user, now=NOW) if i["kind"] == "task"])
         once = Reminder.objects.create(client=self.client_user, relationship=self.rel, created_by=self.rnd, title="Old",
                                        send_at=NOW - timedelta(days=3))
         self.assertEqual(run_due_reminders(now=NOW), 0)

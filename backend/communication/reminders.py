@@ -62,6 +62,26 @@ def next_occurrence(reminder, after):
     return None
 
 
+def occurrence_on(reminder, day, start, end):
+    """When `reminder` is due on `day` (PH date; start/end = that day's
+    bounds), or None. From its schedule — not from whether a notification
+    went out — so My tasks lists a task even when its reminder wasn't sent
+    (the client switched RND reminders off, or it was muted before)."""
+    if start <= reminder.send_at < end:
+        return reminder.send_at
+    if reminder.repeat == reminder.Repeat.ONCE:
+        return reminder.last_sent_at if reminder.last_sent_at and start <= reminder.last_sent_at < end else None
+    ph = ph_tz()
+    base = reminder.send_at.astimezone(ph)
+    candidate = datetime.combine(day, base.timetz().replace(tzinfo=None), tzinfo=ph)
+    if reminder.repeat == reminder.Repeat.WEEKDAYS and day.weekday() >= 5:
+        return None
+    if reminder.repeat == reminder.Repeat.WEEKLY and day.weekday() != base.weekday():
+        return None
+    # only once the task existed (not a day before it was set)
+    return candidate if candidate >= reminder.created_at - timedelta(minutes=1) else None
+
+
 def first_occurrence(repeat, start):
     """Weekday reminders that start on a weekend move to Monday."""
     from .models import Reminder
@@ -244,7 +264,7 @@ def run_due_reminders(now=None, client=None):
             c = r.client
             fresh = now - r.send_at <= STALE_AFTER
             own = r.created_by_id == c.id
-            if fresh and not r.is_muted and (own or pref_for(c).rnd_reminders):
+            if fresh and (own or pref_for(c).rnd_reminders):
                 content = r.message or ("Your task for today." if own else f"A reminder from RND {r.created_by.full_name}.")
                 _deliver(c, pref_for(c), subject=r.title, content=content, notifiable_type="reminder",
                          notifiable_id=r.id, link="/client-dashboard", link_label="Open My tasks")
@@ -306,15 +326,11 @@ def today_items(client, now=None):
     # Tasks (RND-set or the client's own) due today — still to come, or already
     # sent earlier today (a repeating one has moved on to its next time). Each
     # is a checkbox: done = ticked off today (Reminder.done_on).
-    seen = set()
-    todays = (Reminder.objects.filter(client=client, created_by__isnull=False, is_active=True, is_muted=False)
-              .filter(Q(is_sent=False, send_at__gte=start, send_at__lt=end) | Q(last_sent_at__gte=start, last_sent_at__lt=end))
-              .select_related("created_by"))
-    for r in todays:
-        if r.id in seen:
+    for r in (Reminder.objects.filter(client=client, created_by__isnull=False, is_active=True)
+              .select_related("created_by")):
+        at = occurrence_on(r, today, start, end)
+        if at is None:
             continue
-        seen.add(r.id)
-        at = r.last_sent_at if r.last_sent_at and start <= r.last_sent_at < end else r.send_at
         own = r.created_by_id == client.id
         items.append({"kind": "task", "id": r.id, "at": at, "title": r.title,
                       "detail": "Your task" if own else f"From RND {r.created_by.full_name}",

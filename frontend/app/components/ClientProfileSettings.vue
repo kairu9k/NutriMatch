@@ -315,23 +315,6 @@
               </label>
             </div>
 
-            <div class="rnd-reminders">
-              <p class="setting-label" style="margin-bottom: 4px">Set by your RND</p>
-              <p class="setting-detail" style="margin-bottom: 12px">Medication and habit reminders your RND set for you. Mute one if you don't need it.</p>
-              <p v-if="!rndReminders.length" class="placeholder-text">Your RND hasn't set any reminders for you.</p>
-              <div v-for="r in rndReminders" :key="r.id" class="rnd-reminder" :class="{ muted: r.is_muted }">
-                <span class="rr-icon"><component :is="r.type === 'medication' ? Pill : AlarmClock" :size="16" /></span>
-                <div class="rr-main">
-                  <p class="rr-title">{{ r.title }}</p>
-                  <p class="rr-sub">{{ r.repeat_label }} at {{ clock(r.time_of_day) }}<template v-if="r.repeat === 'once'"> · {{ dayLabel(r.next_at) }}</template> · from RND {{ r.created_by_name }}</p>
-                  <p v-if="r.message" class="rr-msg">{{ r.message }}</p>
-                </div>
-                <label class="toggle" :title="r.is_muted ? 'Muted' : 'On'">
-                  <input :checked="!r.is_muted" type="checkbox" @change="setMuted(r, !$event.target.checked)" />
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                </label>
-              </div>
-            </div>
           </template>
         </template>
 
@@ -438,7 +421,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   User, HeartPulse, Shield, Bell, FileText, History as HistoryIcon, CheckCircle2,
   Printer, ClipboardList, ShieldCheck, CalendarCheck, UtensilsCrossed,
-  Stethoscope, Scale, Flame, Activity, Pencil, Check, AlarmClock, Pill,
+  Stethoscope, Scale, Flame, Activity, Pencil, Check,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
@@ -663,13 +646,10 @@ const REMINDER_OPTIONS = [
   { key: 'rnd_reminders', label: 'Reminders from your RND', detail: 'Medication and habit reminders your RND sets for you.' },
 ]
 const reminderPrefs = ref(null)
-const rndReminders = ref([])
 const reminderError = ref('')
 async function loadReminders() {
   try {
-    const [prefs, list] = await Promise.all([get('/client/reminder-settings/'), get('/client/reminders/')])
-    reminderPrefs.value = prefs
-    rndReminders.value = list
+    reminderPrefs.value = await get('/client/reminder-settings/')
   } catch {
     reminderError.value = 'Could not load your reminder settings. Please refresh.'
   }
@@ -685,21 +665,6 @@ async function savePref(key, value) {
     reminderPrefs.value[key] = before
     reminderError.value = error?.data?.[key]?.[0] || 'Could not save. Please try again.'
   }
-}
-async function setMuted(r, muted) {
-  try {
-    Object.assign(r, await patch(`/client/reminders/${r.id}/`, { is_muted: muted }))
-    fireReminderToast(muted ? 'Reminder muted.' : 'Reminder turned back on.')
-  } catch {
-    reminderError.value = 'Could not update this reminder. Please try again.'
-  }
-}
-function clock(hhmm) {
-  const [h, m] = String(hhmm || '00:00').split(':').map(Number)
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
-}
-function dayLabel(iso) {
-  return iso ? new Date(iso).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric' }) : ''
 }
 function fireReminderToast(text) {
   fireToast(text)
@@ -1018,14 +983,6 @@ onMounted(async () => {
 .mini-stat-label { font-size: 0.75rem; color: #8a9a8a; margin: 3px 0 0; }
 
 /* SETTING ROWS (security, notifications, privacy, care team) */
-.rnd-reminders { margin-top: 22px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
-.rnd-reminder { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid #eceeec; border-radius: 12px; margin-bottom: 8px; }
-.rnd-reminder.muted { opacity: 0.6; }
-.rr-icon { width: 32px; height: 32px; border-radius: 9px; background: #fdf1d6; color: #b8860b; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rr-main { flex: 1; min-width: 0; }
-.rr-title { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
-.rr-sub { font-size: 0.76rem; color: #8a9a8a; margin: 2px 0 0; }
-.rr-msg { font-size: 0.8rem; color: #4a5a4a; margin: 6px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
 .setting-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
