@@ -1,38 +1,44 @@
+<div align="center">
+
+<img src="frontend/public/resources/nutrimatchlogo.png" alt="NutriMatch logo" width="72" />
+
 # NutriMatch
 
 **Web-Based Clinical Nutrition Consultation Management System**
 
-Capstone project — STI College Davao, BSIT. Connects clients with licensed Registered Nutritionist-Dietitians (RNDs) in the Philippines for structured **Medical Nutrition Therapy (MNT)**, built around the clinical 4-phase **Nutrition Care Process (NCP)**.
+Connecting clients with licensed Registered Nutritionist-Dietitians (RNDs) in the Philippines.
 
-- **Backend:** Django 6.1 + Django REST Framework (`backend/`)
-- **Frontend:** Nuxt 4 + Tailwind CSS (`frontend/`)
-- **Database:** SQLite for local development (a file, nothing to install)
+![Django](https://img.shields.io/badge/Django_6.1-0C4B33?style=flat-square&logo=django&logoColor=white)
+![Nuxt](https://img.shields.io/badge/Nuxt_4-00DC82?style=flat-square&logo=nuxt&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![PayMongo](https://img.shields.io/badge/PayMongo-test_mode-D4A017?style=flat-square)
 
----
+</div>
 
-## How to run it on your computer
+![NutriMatch](vault/github_readme.png)
 
-You run **two programs side by side**: the backend (port 8000) and the frontend (port 3000). The steps below take about 10 minutes the first time.
+## About
 
-### 1. Install these first
+A capstone project (STI College Davao, BSIT) for **Medical Nutrition Therapy**, built around the clinical 4-phase **Nutrition Care Process**: Assessment → Diagnosis → Intervention → Monitoring & Evaluation.
 
-| Tool | Version | Check with |
-|---|---|---|
-| [Git](https://git-scm.com/downloads) | any | `git --version` |
-| [Python](https://www.python.org/downloads/) | **3.13** (tick "Add Python to PATH" when installing) | `python --version` |
-| [Node.js](https://nodejs.org/) | **20 or newer** (LTS) | `node --version` |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | optional — only for the Messages page | `docker --version` |
+| Role | What they do |
+|---|---|
+| **Client** | Pre-consultation screening, book an RND, pay online, follow a weekly FNRI meal plan, log meals, track progress |
+| **RND** | Confirm bookings, video consultations, NCP records, meal planning, lab requests, earnings |
+| **Admin** | Verify RND licenses, manage users, billing & refunds, payouts, reports, audit log |
 
-### 2. Get the code
+Built with the Data Privacy Act (RA 10173) in mind: informed consent, role-based access, private health files and an audit log.
+
+## Quick start
+
+You need **Python 3.13**, **Node.js 20+** and **Git**.
 
 ```bash
 git clone https://github.com/kairu9k/NutriMatch.git
 cd NutriMatch
 ```
 
-### 3. Start the backend (terminal #1)
-
-**Windows (PowerShell):**
+**Backend** (terminal 1, port 8000)
 
 ```powershell
 cd backend
@@ -40,177 +46,69 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 copy .env.example .env
 .\.venv\Scripts\python.exe manage.py migrate
-.\.venv\Scripts\python.exe manage.py seed
-.\.venv\Scripts\python.exe manage.py createsuperuser
+.\.venv\Scripts\python.exe manage.py seed              # FNRI food list + settings
+.\.venv\Scripts\python.exe manage.py createsuperuser   # the first admin
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-**macOS / Linux:**
+> macOS / Linux: use `python3`, `cp` and `.venv/bin/python` instead.
 
-```bash
-cd backend
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-cp .env.example .env
-.venv/bin/python manage.py migrate
-.venv/bin/python manage.py seed
-.venv/bin/python manage.py createsuperuser
-.venv/bin/python manage.py runserver
-```
-
-> Always run Python through `.venv` like above (not plain `python manage.py …`), so it uses the project's packages.
-
-- `migrate` creates the database (`backend/db.sqlite3`).
-- `seed` loads the **FNRI food exchange list** and default settings (reference data the meal planner needs — not demo data).
-- `createsuperuser` makes the first **admin** (asks for an email and a password). There is no demo data: create clients and RNDs by registering in the app — see [Accounts](#accounts).
-- Leave this terminal open. It should say `Watching for file changes…` with no red error — the backend is now at `http://localhost:8000`. Each request your browser makes shows up here as a line.
-
-### 4. Start the frontend (terminal #2)
+**Frontend** (terminal 2, port 3000)
 
 ```bash
 cd frontend
 npm install
-```
-
-Then create the frontend's `.env` file:
-
-- Windows: `copy .env.example .env`
-- macOS / Linux: `cp .env.example .env`
-
-```bash
+copy .env.example .env      # macOS / Linux: cp
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser. Use `localhost`, not `127.0.0.1` — the backend only accepts requests from those exact addresses.
-
-### 5. (Optional) Reminders on a schedule
-
-Reminders (consultations, payments, meal logging, RND reminders) are also sent whenever a client opens the app, so nothing extra is needed to test them. To send them on a timer like a real server would, run in a third terminal:
-
-```bash
-.\.venv\Scripts\python.exe manage.py send_reminders --loop 300     # Windows — every 5 minutes
-.venv/bin/python manage.py send_reminders --loop 300               # macOS / Linux
-```
-
-### 6. (Optional) Real-time messages — Redis
-
-The **Messages** page needs Redis. Everything else works without it. With Docker Desktop running:
-
-```bash
-docker run -d --name nutrimatch-redis -p 6379:6379 --restart unless-stopped redis:7-alpine
-```
-
-Run it once; afterwards it starts automatically with Docker. If Messages says it can't connect, open Docker Desktop.
-
----
+Open **http://localhost:3000** (use `localhost`, not `127.0.0.1`).
 
 ## Accounts
 
-There is **no demo data** (removed 2026-10-19 at the adviser's request). Use real accounts:
+There is no demo data. Register clients and RNDs in the app.
 
-- **Admin** — the one from `createsuperuser`, signing in at **http://localhost:3000/admin/login**. More admins: Users → **Add admin**.
-- **Client** — Register at http://localhost:3000/register as a patient, verify the 6-digit code, go through onboarding.
-- **RND** — Register as an RND (needs Cloudinary keys for the PRC photo), verify the code, then **approve the application as the admin** (RND Applications) — only then can the RND sign in.
+- **Admin**: the `createsuperuser` account, at `/admin/login`. More admins via Users → Add admin.
+- **Client**: Register, enter the 6-digit email code, finish onboarding.
+- **RND**: Register, enter the code, then an admin approves the application.
 
-Clients and RNDs sign in at **http://localhost:3000/login**. Never write real passwords in the repo.
+## Keys (optional)
 
----
+The app runs with the blank `.env`. Add keys to `backend/.env` to turn on:
 
-## What works without any keys
-
-You don't need any passwords or API keys to test most of the app. The `.env` you copied leaves them blank:
-
-| Feature | Without keys | To make it fully work |
+| Key | Turns on | Without it |
 |---|---|---|
-| Sign-up emails (verification code, password reset) | Nothing is sent — **the email, including the 6-digit code, is printed in the backend terminal (#1)**. Copy the code from there. | Gmail App Password in `GMAIL_HOST_USER` / `GMAIL_HOST_PASSWORD` |
-| Registering a **new RND** (PRC license photo) and **profile photos** | Shows "Cloudinary is not configured". | Cloudinary keys in `CLOUDINARY_*` (ask the team lead — never commit them) |
-| **Paying** an invoice (PayMongo) | Paying shows "PAYMONGO_SECRET_KEY is not configured." | PayMongo **test** keys in `PAYMONGO_SECRET_KEY` |
-| Messages (real-time chat) | Can't send | Redis — [step 6](#6-optional-real-time-messages--redis) |
-| Video consultation | Works (free Jitsi, no key) | — |
+| `GMAIL_HOST_USER` / `GMAIL_HOST_PASSWORD` | Real emails | Emails (and codes) print in the backend terminal |
+| `CLOUDINARY_*` | RND license, profile, meal and lab photos | Uploads are refused |
+| `PAYMONGO_SECRET_KEY` | Online payments and refunds (test mode) | Paying is refused |
+| `USDA_FDC_API_KEY` | USDA food search | FNRI foods only |
+| `SEMAPHORE_API_KEY` | SMS reminders | Texts are only logged |
 
-Registering a new **client** works without any keys — grab the verification code from the backend terminal.
+Ask the team lead for keys. Never commit `.env`.
 
----
+## After pulling
 
-## Things to try
-
-**As a client** (register one): onboarding + pre-consultation screening → Find an RND → book → pay (PayMongo test keys) → My Meal Plan → log a meal → Progress Tracker.
-
-**As an RND** (register one, approve it as admin): Dashboard → Appointments (confirm the booking) → My Patients → NCP Records → Meal Planning → Profile Settings → **Earnings**.
-
-**As the admin** (at `/admin/login`): Dashboard to-do → **RND Applications** → Users → Appointments → Billing & Commission → Payouts → Audit Logs (filters, Export CSV). System Settings is in the account menu (bottom of the sidebar).
-
-Found a bug? Note the account you used, the page, and what you clicked, and send a screenshot.
-
----
-
-## Testing on your phone
-
-Your phone and laptop must be on the same Wi-Fi — or connect the laptop to your phone's hotspot.
-
-1. Find the laptop's IP address: Windows `ipconfig` (IPv4 Address, e.g. `192.168.1.23`); macOS `ipconfig getifaddr en0`.
-2. In `backend/.env`, add that address (keep the existing ones):
-   ```
-   ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.23
-   CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.23:3000
-   ```
-3. In `frontend/.env`: `NUXT_PUBLIC_API_BASE=http://192.168.1.23:8000/api`
-4. Start the backend with `manage.py runserver 0.0.0.0:8000` and the frontend with `npm run dev -- --host`.
-5. On the phone, open `http://192.168.1.23:3000`.
-
-If the phone says "site can't be reached", Windows Firewall is blocking it — allow Python and Node when Windows asks, or use the phone-hotspot option. Undo steps 2–3 when you're done.
-
----
-
-## After you pull new changes
-
-New code can add packages or database changes. After every `git pull`:
-
-```bash
+```powershell
 cd backend
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt   # (macOS: .venv/bin/python …)
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe manage.py migrate
 cd ../frontend
 npm install
 ```
 
----
+## Tests
 
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| "Incorrect email or password" | Use **Forgot password** (the code is emailed, or printed in terminal #1 without Gmail keys). For an admin you can also run `manage.py changepassword <email>`. |
-| Pages load but say "Could not load…" | The backend (terminal #1) isn't running, or stopped with an error — check that terminal. |
-| `Error: That port is already in use` | Another backend is still running. Close it, or on Windows: `Get-Process python \| Stop-Process` in PowerShell. |
-| Frontend not on port 3000 (e.g. 3001) | Another `npm run dev` is still running, and the backend only accepts port 3000. Close the other one and start again. |
-| `no such table` / `no such column` errors | You skipped `migrate` after pulling — run it. |
-| `ModuleNotFoundError` | Run Python through `.venv` (step 3) and re-run `pip install -r requirements.txt`. |
-| Messages won't send | Redis isn't running — open Docker Desktop ([step 6](#6-optional-real-time-messages--redis)). |
-
-## Running the automated tests
-
-```bash
+```powershell
 cd backend
-.\.venv\Scripts\python.exe manage.py test accounts billing core profiles scheduling clinical nutrition
+.\.venv\Scripts\python.exe manage.py test
 ```
 
-(`communication` has 3 extra tests that need Redis running.)
+## Contributing
 
----
+- `main` is protected: branch off it (`feature/<name>`) and open a pull request.
+- One feature or fix per pull request.
+- Never commit `.env`, `db.sqlite3`, passwords or keys.
 
-## Branching & contribution workflow
-
-- `main` is protected — nothing merges in without a pull request and review.
-- Branch off `main` for your work:
-  ```bash
-  git checkout main
-  git pull
-  git checkout -b feature/<short-description>
-  ```
-- Push and open a PR into `main` when ready:
-  ```bash
-  git push -u origin feature/<short-description>
-  ```
-- Keep PRs scoped to one feature/fix at a time.
-- Never commit `.env` files, `db.sqlite3` or anyone's passwords/keys — they're already in `.gitignore`.
+<div align="center">
+<sub>STI College Davao · BSIT Capstone · 2026</sub>
+</div>
