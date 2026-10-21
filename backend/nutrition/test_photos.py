@@ -34,7 +34,7 @@ class PrivateMealPhotoTests(TestCase):
         self.client_user = User.objects.create_user(email="cp@nt.ph", password="x", role="client", first_name="A", last_name="C")
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Plan", status="active")
-        self.meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=1, meal_time="breakfast")
+        self.meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=None, meal_time="breakfast")
         MealPlanFoodItem.objects.create(meal_plan_meal=self.meal, food_name="Rice", household_measure="1/2 cup", kcal=Decimal("100"))
 
     def _log_photo(self, public_id="meal-logs-private/abc"):

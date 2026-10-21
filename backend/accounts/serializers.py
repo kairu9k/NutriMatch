@@ -481,7 +481,9 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         from profiles.services import set_rnd_languages
 
         set_rnd_languages(user, validated_data["languages"])
-        today = timezone.now().date()
+        from core.ph_time import ph_today
+
+        today = ph_today()
         RndAvailabilitySchedule.objects.bulk_create([
             RndAvailabilitySchedule(rnd=user, day_of_week=day, start_time=start, end_time=end, effective_from=today)
             for day, start, end in validated_data.get("availability", [])

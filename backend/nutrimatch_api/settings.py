@@ -69,6 +69,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # serves /static/ in production
     'corsheaders.middleware.CorsMiddleware',
+    'core.server_time.server_time_middleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,6 +87,9 @@ CORS_ALLOWED_ORIGINS = [o.rstrip('/') for o in config(
     default='http://localhost:3000,http://127.0.0.1:3000',
     cast=Csv(),
 )]
+# The frontend follows the server's clock (core/server_time.py,
+# plugins/00.ph-time.client.ts); cross-origin JS can't read it otherwise.
+CORS_EXPOSE_HEADERS = ['X-Server-Time']
 # Development only: any local port (Nuxt moves to 3001, 3002… when 3000 is
 # taken) and the home network (testing on a phone). Production uses only the
 # list above.

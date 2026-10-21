@@ -362,7 +362,18 @@ class ClientMealLogSaveView(APIView):
             meal_plan__relationship__client=request.user,
         )
 
-        log_date = request.data.get("log_date") or timezone.localdate().isoformat()
+        # The day is the server's Philippine date — never the client's: a phone
+        # set to another date could otherwise log meals for other days and
+        # skew adherence. A meal planned for another weekday can't be logged today.
+        from core.ph_time import ph_today
+
+        today = ph_today()
+        sent = (request.data.get("log_date") or "").strip()
+        if sent and sent != today.isoformat():
+            raise serializers.ValidationError({"detail": "Meals can only be logged for today. Check your phone's date and time."})
+        if meal.day_of_week is not None and meal.day_of_week != (today.weekday() + 1) % 7:
+            raise serializers.ValidationError({"detail": "This meal isn't on today's plan."})
+        log_date = today
         instance = MealLog.objects.filter(meal_plan_meal=meal, log_date=log_date).first()
 
         serializer = MealLogSerializer(instance, data=request.data, partial=instance is not None)

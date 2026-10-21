@@ -147,6 +147,7 @@
 </template>
 
 <script setup>
+import { phHour } from '~/utils/phTime'
 import { AlertOctagon, AlertTriangle, CalendarCheck, CheckCircle2, ChevronRight, Coins, Info, ShieldCheck, Stethoscope, TrendingDown, TrendingUp, Users } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
@@ -179,7 +180,7 @@ const activity = ref([])
 
 const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
 const partOfDay = (() => {
-  const h = new Date().getHours()
+  const h = phHour()
   return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'
 })()
 const todoCount = computed(() => (stats.value.pending_verif || 0) + (stats.value.refunds_pending || 0) + (stats.value.payouts_due_count || 0))

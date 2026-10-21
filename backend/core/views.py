@@ -75,7 +75,7 @@ def _admin_todo_counts():
         "unpaid_invoices": Invoice.objects.filter(status=Invoice.Status.UNPAID).count(),
         "payouts_due_count": due_rnds,
         "payouts_due_total": due_total,
-        "next_payout_date": next_payout_date(timezone.localdate()),
+        "next_payout_date": next_payout_date(),
         "appointments": appointment_summary(),
     }
 

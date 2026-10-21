@@ -353,11 +353,13 @@ class RndEarningsView(APIView):
         data = rnd_earnings(request.user)
         data["payouts"] = PayoutSerializer(Payout.objects.filter(rnd=request.user).order_by("-released_at"), many=True).data
         data["statement"] = rnd_statement(request.user)
-        month = timezone.localdate()
+        from core.ph_time import ph_date, ph_today
+
+        month = ph_today()
         data["this_month"] = {
-            "gross": sum((r["amount"] for r in data["statement"] if r["paid_at"] and timezone.localdate(r["paid_at"]).replace(day=1) == month.replace(day=1)
+            "gross": sum((r["amount"] for r in data["statement"] if r["paid_at"] and ph_date(r["paid_at"]).replace(day=1) == month.replace(day=1)
                           and r["state"] in ("pending", "posted", "paid_out")), 0),
-            "share": sum((r["share"] for r in data["statement"] if r["paid_at"] and timezone.localdate(r["paid_at"]).replace(day=1) == month.replace(day=1)
+            "share": sum((r["share"] for r in data["statement"] if r["paid_at"] and ph_date(r["paid_at"]).replace(day=1) == month.replace(day=1)
                           and r["state"] in ("pending", "posted", "paid_out")), 0),
         }
         account = getattr(request.user, "payout_account", None)
@@ -477,7 +479,9 @@ class AdminPayoutRunView(APIView):
                     "bank_name": account.bank_name,
                 } if account else None,
             })
-        today = timezone.localdate()
+        from core.ph_time import ph_today
+
+        today = ph_today()
         return Response({
             "next_payout_date": next_payout_date(today),
             "payout_day_reached": today.day >= PAYOUT_DAY,

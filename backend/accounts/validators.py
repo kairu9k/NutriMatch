@@ -1,5 +1,4 @@
 import re
-from datetime import date
 
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
@@ -35,7 +34,9 @@ MIN_RND_AGE = 21
 
 
 def age_on(birth_date, today=None):
-    today = today or date.today()
+    from core.ph_time import ph_today
+
+    today = today or ph_today()
     return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
 
@@ -44,7 +45,9 @@ def validate_birth_date(value, min_age=None):
     person must be at least `min_age` years old when given."""
     if value is None:
         return value
-    if value > date.today():
+    from core.ph_time import ph_today
+
+    if value > ph_today():
         raise serializers.ValidationError("Date of birth can't be in the future.")
     if value.year < 1900:
         raise serializers.ValidationError("Enter a valid date of birth.")

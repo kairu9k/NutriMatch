@@ -160,6 +160,7 @@
 </template>
 
 <script setup>
+import { phIso, phWeekday } from '~/utils/phTime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X } from 'lucide-vue-next'
 
@@ -171,10 +172,10 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const plans = ref([])
 const activeMealIndex = ref(0)
-// Local date — toISOString() is UTC and gives yesterday before 8 AM in PHT.
+// Philippine date on the server's clock (the server decides the log day anyway).
 const now = new Date()
-const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-const todayDow = now.getDay()
+const todayIso = phIso(now)
+const todayDow = phWeekday(now)
 const todayLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
 // Only the plan the RND has sent (drafts never reach the client; archived

@@ -328,7 +328,9 @@ class RndMealLogNotificationTests(TestCase):
         self.client_user = User.objects.create_user(email="client9@nt.ph", password="x", role="client", first_name="Ana", last_name="C")
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.client_user, status="active")
         plan = MealPlan.objects.create(relationship=rel, name="Plan", status="active")
-        self.meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=1, meal_time="breakfast")
+        # day_of_week None = every day, so it can be logged whatever today is.
+        self.meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=None, meal_time="breakfast")
+        self.plan = plan
         MealPlanFoodItem.objects.create(meal_plan_meal=self.meal, food_name="Rice, boiled", household_measure="1/2 cup", kcal=Decimal("100"))
 
         self.client_api.force_authenticate(self.client_user)
@@ -372,7 +374,7 @@ class RndMealLogNotificationTests(TestCase):
 
     def test_a_log_needs_a_photo_or_note(self):
         self.client_api.force_authenticate(self.client_user)
-        resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": "2026-09-01", "reason_notes": "  "}, format="json")
+        resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"reason_notes": "  "}, format="json")
         self.assertEqual(resp.status_code, 400)
 
     def test_only_the_rnd_rates_and_resaving_sends_it_back(self):
@@ -395,3 +397,20 @@ class RndMealLogNotificationTests(TestCase):
         self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": str(log.log_date), "reason_notes": "Actually all of it"}, format="json")
         log.refresh_from_db()
         self.assertIsNone(log.status)
+
+    def test_the_day_comes_from_the_server_not_the_phone(self):
+        # A phone set to another date can't log meals for other days.
+        from core.ph_time import ph_today
+
+        from .models import MealLog
+
+        self.client_api.force_authenticate(self.client_user)
+        self.assertEqual(MealLog.objects.get(pk=self.log_id).log_date, ph_today())
+        past = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": "2026-01-05", "reason_notes": "Backdated"}, format="json")
+        self.assertEqual(past.status_code, 400)
+        self.assertEqual(MealLog.objects.filter(meal_plan_meal=self.meal).count(), 1)
+        # A meal planned for another weekday isn't on today's plan.
+        other_day = (ph_today().weekday() + 2) % 7
+        meal = MealPlanMeal.objects.create(meal_plan=self.plan, day_of_week=other_day, meal_time="lunch")
+        resp = self.client_api.post(f"/api/client/meals/{meal.id}/log/", {"reason_notes": "Lunch"}, format="json")
+        self.assertEqual(resp.status_code, 400)

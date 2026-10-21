@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
+from core.ph_time import ph_today
 from scheduling.models import RndClientRelationship
 
 from .models import Reminder, ReminderPreference
@@ -85,7 +86,7 @@ class ReminderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"time": ["Pick when the reminder starts."]})
         if "date" in attrs or "time" in attrs or "repeat" in attrs:
             local = inst.send_at.astimezone(ph_tz()) if inst else None
-            d = attrs.pop("date", None) or (local.date() if local else date.today())
+            d = attrs.pop("date", None) or (local.date() if local else ph_today())
             t = attrs.pop("time", None) or (local.timetz().replace(tzinfo=None) if local else time(8))
             repeat = attrs.get("repeat", inst.repeat if inst else Reminder.Repeat.ONCE)
             start = first_occurrence(repeat, datetime.combine(d, t, tzinfo=ph_tz()))

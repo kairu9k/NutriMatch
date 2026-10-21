@@ -30,7 +30,9 @@ from .services import (
 
 
 def _age_from_dob(dob: date) -> int:
-    today = date.today()
+    from core.ph_time import ph_today
+
+    today = ph_today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 

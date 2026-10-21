@@ -115,6 +115,7 @@
 </template>
 
 <script setup>
+import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { X, CalendarOff } from 'lucide-vue-next'
 
@@ -180,9 +181,7 @@ async function confirmAddSlot(dayIndex) {
     return
   }
   try {
-    // Local date — toISOString() is UTC and gives yesterday before 8 AM in PHT.
-    const now = new Date()
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const today = phIso()
     const created = await post('/rnd/availability/', {
       day_of_week: dayIndex,
       start_time: `${addForm.start_time}:00`,

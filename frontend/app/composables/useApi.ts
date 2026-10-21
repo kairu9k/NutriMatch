@@ -6,6 +6,11 @@ type ApiOptions = Parameters<typeof $fetch>[1] & { skipAuth?: boolean }
 // access token, and retries once via /auth/refresh/ on a 401 before giving up.
 export function useApi() {
   const config = useRuntimeConfig()
+  const { $syncServerClock } = useNuxtApp() as any
+  // Every reply carries the server's time (plugins/00.ph-time.client.ts).
+  const onResponse = ({ response }: { response: Response }) => {
+    if (import.meta.client && $syncServerClock) $syncServerClock(response.headers.get('x-server-time'))
+  }
 
   async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
     const auth = useAuthStore()
@@ -21,6 +26,7 @@ export function useApi() {
     try {
       return await $fetch<T>(path, {
         baseURL: config.public.apiBase,
+        onResponse,
         ...fetchOptions,
         headers,
       })
@@ -30,6 +36,7 @@ export function useApi() {
         if (refreshed) {
           return await $fetch<T>(path, {
             baseURL: config.public.apiBase,
+            onResponse,
             ...fetchOptions,
             headers: { ...headers, Authorization: `Bearer ${auth.accessToken}` },
           })

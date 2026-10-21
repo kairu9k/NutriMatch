@@ -27,7 +27,9 @@ def rnd_share(invoice):
 
 
 def next_payout_date(today=None):
-    today = today or timezone.localdate()
+    from core.ph_time import ph_today
+
+    today = today or ph_today()
     if today.day <= PAYOUT_DAY:
         return today.replace(day=PAYOUT_DAY)
     month = today.month % 12 + 1

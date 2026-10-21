@@ -293,6 +293,7 @@
 </template>
 
 <script setup>
+import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
@@ -321,11 +322,9 @@ const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunc
 const MEAL_ICONS = { breakfast: Sunrise, am_snack: Coffee, lunch: Sun, pm_snack: Coffee, dinner: Moon, bedtime_snack: Moon }
 const LOG_LABELS = { followed: 'Followed', partially_followed: 'Partly followed', not_followed: 'Not followed' }
 
-// Local dates — toISOString() is UTC and would give yesterday before 8 AM in PHT.
+// Philippine dates on the server's clock.
 const now = new Date()
-function localIso(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const localIso = phIso
 const todayIso = localIso(now)
 const weekdayLabel = now.toLocaleDateString('en-US', { weekday: 'long' })
 

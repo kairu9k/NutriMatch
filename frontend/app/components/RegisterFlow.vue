@@ -478,6 +478,7 @@
 </template>
 
 <script setup>
+import { phIso } from '~/utils/phTime'
 import { ClipboardCheck, Lock, Mail, User } from 'lucide-vue-next'
 const auth = useAuthStore()
 
@@ -652,11 +653,8 @@ const passwordRules = computed(() => [
 ])
 const passwordsMatch = computed(() => form.password === form.confirmPassword)
 
-// Local date (not toISOString, which is UTC and a day behind before 8 AM PHT).
-const todayIso = (() => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-})()
+// Philippine date on the server's clock.
+const todayIso = phIso()
 // Minimum ages — the API enforces the same numbers (accounts/validators.py):
 // clients 18 (a minor's health data needs a guardian's consent, RA 10173),
 // RNDs 21 (4-year nutrition degree + PRC board exam).
