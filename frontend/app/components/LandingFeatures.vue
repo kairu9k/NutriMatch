@@ -192,6 +192,12 @@ const features = [
   .features-grid { grid-template-columns: repeat(2, 1fr); }
   .features { padding: 60px 24px; }
 }
+
+/* Phones: one card per row (two were too narrow to read). */
+@media (max-width: 600px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .features { padding: 56px 20px; }
+}
 </style>
  
 

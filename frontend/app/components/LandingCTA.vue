@@ -83,7 +83,14 @@
   font-family: 'Inter', sans-serif;
 }
 
+.btn-gold, .btn-outline { white-space: nowrap; }
+
 @media (max-width: 900px) {
   .cta { padding: 72px 24px; }
+}
+
+/* Phones: the two buttons stack full width. */
+@media (max-width: 600px) {
+  .cta-buttons { flex-direction: column; align-items: stretch; gap: 12px; }
 }
 </style>

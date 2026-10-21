@@ -267,7 +267,7 @@ async function handleConfirm() {
 .code-input { letter-spacing: 0.3em; font-size: 1.2rem; text-align: center; font-weight: 700; }
 
 .input-icon-wrap { position: relative; display: flex; align-items: center; }
-.input-icon-wrap input { flex: 1; padding-left: 38px; padding-right: 60px; }
+.input-icon-wrap input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; padding-left: 38px; padding-right: 60px; }
 .input-icon { position: absolute; left: 12px; font-size: 0.9rem; color: #9aa8a0; pointer-events: none; }
 .toggle-visibility {
   position: absolute; right: 12px;
@@ -314,13 +314,14 @@ async function handleConfirm() {
   margin: -4px 0 0;
 }
 
+/* Phones/tablets: like the sign-in page, the green panel shrinks to a slim
+   branded bar so the form is on screen first. */
 @media (max-width: 900px) {
-  .login-page { grid-template-columns: minmax(0, 1fr); }
-  .left-panel { padding: 32px; min-height: 240px; }
-  .left-content { margin-top: 32px; }
-  .right-panel { padding: 32px; }
-  .form-wrap { margin-top: 32px; }
-  .trust-badges { margin-top: 24px; }
+  .login-page { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .left-panel { padding: 16px 20px; min-height: 0; }
+  .left-content, .trust-badges, .circle { display: none; }
+  .right-panel { padding: 24px 20px 32px; }
+  .form-wrap { margin-top: 16px; }
 }
 @media (max-width: 480px) {
   .left-panel, .right-panel { padding: 24px 20px; }

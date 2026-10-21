@@ -49,8 +49,19 @@
 }
 .btn-get-started:hover { background: #c4920f; }
 
+.btn-login, .btn-get-started { white-space: nowrap; }
+
 @media (max-width: 900px) {
   .navbar { padding: 0 24px; }
   .nav-links { display: none; }
+}
+
+/* Phones: same slim bar as the landing page's LandingNavbar.vue. */
+@media (max-width: 600px) {
+  .navbar { padding: 0 16px; height: 64px; }
+  .logo-img { width: 34px; height: 30px; }
+  .nav-logo { gap: 6px; }
+  .nav-actions { gap: 8px; }
+  .btn-login, .btn-get-started { padding: 8px 14px; }
 }
 </style>
