@@ -103,6 +103,8 @@ function go(to) {
 function onKeydown(e) {
   if (props.open && e.key === 'Escape') close()
 }
+// The dashboard behind doesn't scroll while this is open:
+// plugins/modal-scroll-lock.client.ts (.welcome-overlay).
 watch(() => props.open, async (isOpen) => {
   if (!isOpen) return
   await nextTick()
@@ -114,11 +116,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <style scoped>
 .welcome-overlay {
-  position: fixed; inset: 0; z-index: 500; background: rgba(6, 26, 16, 0.55);
+  position: fixed; inset: 0; z-index: 500; background: rgba(6, 26, 16, 0.55); overscroll-behavior: contain;
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .welcome-card {
-  position: relative; width: 100%; max-width: 560px; max-height: calc(100vh - 32px); overflow-y: auto;
+  position: relative; width: 100%; max-width: 560px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25); font-family: 'Inter', sans-serif;
 }
 .welcome-card:focus { outline: none; }
@@ -173,13 +176,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .welcome-fade-enter-from, .welcome-fade-leave-to { opacity: 0; }
 .welcome-fade-enter-from .welcome-card { transform: translateY(10px) scale(0.98); }
 
+/* Phones: a compact bottom sheet that fits the visible screen (dvh leaves out
+   the area behind the address bar). */
 @media (max-width: 640px) {
   .welcome-overlay { align-items: flex-end; padding: 0; }
-  .welcome-card { max-width: none; max-height: 92vh; border-radius: 18px 18px 0 0; }
-  .welcome-head { padding: 22px 20px 20px; }
-  .welcome-title { font-size: 1.3rem; padding-right: 30px; }
-  .welcome-body { padding: 18px 20px 22px; }
-  .welcome-actions { flex-direction: column-reverse; }
-  .welcome-actions > * { width: 100%; }
+  .welcome-card { max-width: none; max-height: 88vh; max-height: 88dvh; border-radius: 18px 18px 0 0; }
+  .welcome-head { padding: 16px 18px 14px; }
+  .welcome-brand { margin-bottom: 10px; }
+  .welcome-logo { width: 22px; height: 22px; }
+  .welcome-title { font-size: 1.12rem; padding-right: 34px; margin-bottom: 6px; }
+  .welcome-intro { font-size: 0.8rem; line-height: 1.5; }
+  .welcome-body { padding: 14px 18px 18px; }
+  .welcome-howto { margin-bottom: 10px; }
+  .welcome-steps { gap: 9px; }
+  .step-icon { width: 28px; height: 28px; border-radius: 8px; }
+  .step-title { font-size: 0.84rem; }
+  .step-text { font-size: 0.76rem; line-height: 1.4; }
+  .welcome-closing { font-size: 0.8rem; padding: 8px 12px; margin-top: 12px; }
+  .welcome-actions { flex-direction: column-reverse; gap: 8px; margin-top: 14px; }
+  .welcome-actions > * { width: 100%; padding-top: 10px; padding-bottom: 10px; }
 }
 </style>

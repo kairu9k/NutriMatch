@@ -243,3 +243,7 @@ textarea.nm-input { resize: vertical; line-height: 1.5; }
   .nm-upnext-actions { width: 100%; }
   .nm-hero-btn { flex: 1; justify-content: center; }
 }
+
+/* Scrolling to the end of a pop-up never carries on into the page behind
+   (with plugins/modal-scroll-lock.client.ts, which locks the page). */
+.nm-modal-overlay, .nm-modal-overlay *, .modal-overlay, .modal-overlay * { overscroll-behavior: contain; }

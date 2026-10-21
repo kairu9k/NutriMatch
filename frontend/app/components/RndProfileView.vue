@@ -705,7 +705,7 @@ async function confirmBooking() {
 
 /* BOOK APPOINTMENT MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(20,30,20,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-.booking-modal-box { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 640px; max-height: 92vh; overflow-y: auto; }
+.booking-modal-box { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 640px; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; }
 .booking-close {
   position: sticky; top: 14px; float: right; margin-right: 14px; z-index: 5; background: #fff; border: 1px solid #eceeec;
   border-radius: 50%; width: 32px; height: 32px;

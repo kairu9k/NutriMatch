@@ -155,12 +155,8 @@ const todayLabel = computed(() => new Date().toLocaleDateString('en-US', { weekd
 
 // Close the mobile sidebar automatically on route change (e.g. browser back/forward).
 watch(() => route.path, () => { isSidebarOpen.value = false })
-// While the phone menu is open the page behind it doesn't scroll, so a swipe
-// always scrolls the menu.
-watch(isSidebarOpen, (open) => {
-  if (import.meta.client) document.body.style.overflow = open ? 'hidden' : ''
-})
-onBeforeUnmount(() => { if (import.meta.client) document.body.style.overflow = '' })
+// The page behind the open phone menu doesn't scroll:
+// plugins/modal-scroll-lock.client.ts (.sidebar-overlay).
 
 // Page title comes from each page's definePageMeta({ title: '...' })
 const pageTitle = computed(() => route.meta.title || 'Dashboard')
