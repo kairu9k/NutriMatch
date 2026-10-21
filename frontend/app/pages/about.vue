@@ -36,7 +36,7 @@
 
       <div class="adviser-card">
         <GraduationCap :size="26" />
-        <p>Developed under the guidance of Capstone Project Adviser <strong>Elvi Lito Ubas</strong>, STI College Davao, in partial fulfillment of the requirements for the degree of Bachelor of Science in Information Technology.</p>
+        <p>Developed under the guidance of Capstone Project Adviser <strong>Rimuru Tempest</strong>, STI College Davao, in partial fulfillment of the requirements for the degree of Bachelor of Science in Information Technology.</p>
       </div>
     </section>
 
@@ -48,10 +48,10 @@
 import { Target, HeartPulse, GraduationCap } from 'lucide-vue-next'
 
 const team = [
-  { initials: 'KC', name: 'King Chiu', role: 'Backend Developer' },
   { initials: 'IA', name: 'Ivy Hope Alba', role: 'Project Member' },
   { initials: 'JB', name: 'Julia Niel Bulalaque', role: 'Project Member' },
   { initials: 'KL', name: 'Kent Leabres', role: 'Project Member' },
+  { initials: 'KT', name: 'Khyle Timtim', role: 'Backend Developer' },
 ]
 </script>
 

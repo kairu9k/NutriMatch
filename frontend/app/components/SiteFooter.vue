@@ -34,7 +34,7 @@
     </div>
 
     <div class="footer-bottom">
-      <span>© 2026 NutriMatch · BSIT Group 12 · STI College Davao · Timtim · Alba · Bulalaque · Leabres</span>
+      <span>© 2026 NutriMatch · BSIT Group 12 · STI College Davao · Alba · Bulalaque · Leabres · Timtim</span>
       <div class="footer-links">
         <NuxtLink to="/privacy-policy">Privacy</NuxtLink>
         <NuxtLink to="/terms">Terms</NuxtLink>
