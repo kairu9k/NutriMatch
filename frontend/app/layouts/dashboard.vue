@@ -155,6 +155,12 @@ const todayLabel = computed(() => new Date().toLocaleDateString('en-US', { weekd
 
 // Close the mobile sidebar automatically on route change (e.g. browser back/forward).
 watch(() => route.path, () => { isSidebarOpen.value = false })
+// While the phone menu is open the page behind it doesn't scroll, so a swipe
+// always scrolls the menu.
+watch(isSidebarOpen, (open) => {
+  if (import.meta.client) document.body.style.overflow = open ? 'hidden' : ''
+})
+onBeforeUnmount(() => { if (import.meta.client) document.body.style.overflow = '' })
 
 // Page title comes from each page's definePageMeta({ title: '...' })
 const pageTitle = computed(() => route.meta.title || 'Dashboard')
@@ -572,12 +578,18 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     position: fixed;
     top: 0; left: 0;
     width: 260px !important; padding: 14px 22px 28px !important;
-    height: 100vh;
+    /* dvh = the visible screen (100vh also counts the area behind a phone's
+       address bar, which hid the account section at the bottom). */
+    height: 100vh; height: 100dvh;
     z-index: 40;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
   }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.2); }
+  /* One scroll area on phones: the whole menu scrolls, not a list inside it. */
+  .sidebar-nav { flex: none; overflow: visible; }
 
   .sidebar-overlay {
     display: block;
