@@ -363,7 +363,9 @@ async function handleAdminLogin() {
 .field input:focus { outline: none; border-color: #1a3a1a; background: #fff; }
 
 .input-icon-wrap { position: relative; display: flex; align-items: center; }
-.input-icon-wrap input { flex: 1; padding-left: 38px; padding-right: 60px; }
+/* min-width: 0 lets the input shrink on phones (a flex item won't go below
+   its natural width otherwise, and the password box stuck out of the card). */
+.input-icon-wrap input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; padding-left: 38px; padding-right: 60px; }
 .input-icon {
   position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
   width: 16px; height: 16px; color: #9aa8a0;
