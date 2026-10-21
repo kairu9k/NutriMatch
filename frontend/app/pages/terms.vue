@@ -37,7 +37,7 @@
       <p>We may update these Terms from time to time. Continued use of NutriMatch after changes take effect constitutes acceptance of the revised Terms.</p>
 
       <h2>9. Contact</h2>
-      <p>Questions about these Terms can be directed to <strong>support@nutrimatch.ph</strong> or via our <NuxtLink to="/contact">Contact page</NuxtLink>.</p>
+      <p>Questions about these Terms can be directed to <strong>nutrimatch36@gmail.com</strong> or via our <NuxtLink to="/contact">Contact page</NuxtLink>.</p>
     </div>
 
     <SiteFooter />

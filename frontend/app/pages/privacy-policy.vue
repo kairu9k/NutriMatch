@@ -46,7 +46,7 @@
       <p>As a capstone academic system, NutriMatch does not currently implement an automated data retention schedule or granular consent revocation. Organizations deploying NutriMatch for clinical use are responsible for establishing retention policies appropriate to their practice and applicable regulations.</p>
 
       <h2 id="contact-dpo">7. Contact Our Data Protection Officer</h2>
-      <p>For questions about this policy or to exercise your data subject rights, contact us at <strong>privacy@nutrimatch.ph</strong> or through our <NuxtLink to="/contact">Contact page</NuxtLink>.</p>
+      <p>For questions about this policy or to exercise your data subject rights, contact us at <strong>nutrimatch36@gmail.com</strong> or through our <NuxtLink to="/contact">Contact page</NuxtLink>.</p>
 
       <div class="info-note">
         <Info :size="16" />

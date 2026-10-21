@@ -13,7 +13,7 @@
         <div class="email-card">
           <h3 class="card-title">Send Us a Message</h3>
           <p class="card-text">Click below to open your email client with our support address pre-filled. We aim to respond within 1–2 business days.</p>
-          <a href="mailto:support@nutrimatch.ph?subject=NutriMatch%20Inquiry" class="email-btn">
+          <a href="mailto:nutrimatch36@gmail.com?subject=NutriMatch%20Inquiry" class="email-btn">
             <Mail :size="16" /> Email Us
           </a>
         </div>
@@ -22,7 +22,7 @@
           <h3 class="card-title info-title">Contact Information</h3>
           <div class="info-row">
             <div class="info-icon"><Mail :size="16" /></div>
-            <div><div class="info-label">Email</div><div class="info-value">support@nutrimatch.ph</div></div>
+            <div><div class="info-label">Email</div><div class="info-value">nutrimatch36@gmail.com</div></div>
           </div>
           <div class="info-row">
             <div class="info-icon"><Phone :size="16" /></div>
