@@ -2,7 +2,6 @@
   <div class="profile-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Profile Settings</h1>
         <p class="page-sub">Manage your professional profile, credentials, and preferences.</p>
       </div>
       <span v-if="personalInfo.prcVerified" class="verified-pill">

@@ -2,7 +2,6 @@
   <div class="notifications-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Notifications</h1>
         <p class="page-sub">Stay up to date on appointments, messages, and invoices.</p>
       </div>
       <button v-if="unreadCount > 0" class="mark-all-btn" type="button" :disabled="isMarkingAll" @click="markAllRead">

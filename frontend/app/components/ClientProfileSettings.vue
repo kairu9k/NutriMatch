@@ -4,7 +4,6 @@
   <div class="profile-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Profile Settings</h1>
         <p class="page-sub">Manage your personal details, health profile, and account preferences.</p>
       </div>
       <span class="role-pill"><User :size="14" /> Patient</span>
