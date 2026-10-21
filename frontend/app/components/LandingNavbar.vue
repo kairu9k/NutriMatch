@@ -176,8 +176,21 @@ onBeforeUnmount(() => {
 }
 .btn-get-started:hover {background: #EFBF04; box-shadow: 0 4px 12px rgb(255, 230, 2);}
 
+.btn-login, .btn-get-started { white-space: nowrap; }
+
 @media (max-width: 900px) {
   .navbar { padding: 0 24px; }
   .nav-links { display: none; }
+}
+
+/* Phones: a slimmer bar (64px) so the logo and both buttons fit on one line.
+   LandingHero.vue's top padding matches this height. */
+@media (max-width: 600px) {
+  .navbar { padding: 0 16px; height: 64px; }
+  .logo-img { width: 34px; height: 30px; }
+  .nav-logo { gap: 6px; }
+  .nav-actions { gap: 8px; }
+  .btn-login { padding: 8px 14px; }
+  .btn-get-started { padding: 8px 14px; }
 }
 </style>

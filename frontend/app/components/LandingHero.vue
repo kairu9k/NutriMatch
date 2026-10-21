@@ -218,6 +218,8 @@ onUnmounted(() => {
 
 .hero-cta { display: flex; gap: 20px; align-items: center; }
 
+.btn-primary, .btn-secondary { white-space: nowrap; }
+
 .btn-primary {
   background: #123524; border: none; color: #ffffff;
   padding: 14px 28px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
@@ -360,8 +362,9 @@ onUnmounted(() => {
 .stats-label { font-size: 0.82rem; color: #55655C; margin-top: 2px; font-weight: 500; }
 
 @media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; }
-  .hero-content { padding: 48px 24px; }
+  .hero { grid-template-columns: 1fr; min-height: 0; }
+  /* clear the fixed navbar (90px here, 64px on phones) */
+  .hero-content { padding: 116px 24px 48px; }
   .hero-image-wrap { padding: 32px 24px 88px; }
   .hero-image-card { max-width: 100%; }
   .stats-bar { gap: 32px; flex-wrap: wrap; }
@@ -372,5 +375,13 @@ onUnmounted(() => {
   .screening-card { left: 16px; right: 16px; bottom: 0; max-width: unset; padding: 12px 14px; }
   .screening-title { margin-bottom: 12px; }
   .screening-rnd { margin-top: 10px; padding-top: 8px; }
+}
+
+/* Phones: badge text may wrap, buttons stack full width. */
+@media (max-width: 600px) {
+  .hero-content { padding: 92px 20px 40px; gap: 18px; }
+  .hero-badge { max-width: 100%; font-size: 0.62rem; letter-spacing: 0.05em; line-height: 1.5; padding: 7px 14px; }
+  .hero-cta { flex-direction: column; align-items: stretch; gap: 12px; }
+  .hero-cta .btn-primary, .hero-cta .btn-secondary { width: 100%; }
 }
 </style>
