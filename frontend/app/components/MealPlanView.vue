@@ -92,6 +92,17 @@
             <div class="meal-col">
               <span class="col-eyebrow">What you ate</span>
 
+              <!-- rated by the RND: final, shown read-only -->
+              <template v-if="isRated">
+                <div v-if="activeLog.photo_url" class="photo-preview">
+                  <button type="button" class="photo-thumb" aria-label="View the photo full size" @click="viewerOpen = true">
+                    <img :src="activeLog.photo_url" alt="Photo you logged for this meal" />
+                  </button>
+                </div>
+                <p v-if="activeLog.reason_notes" class="rated-note">{{ activeLog.reason_notes }}</p>
+                <p class="rated-lock"><Lock :size="13" aria-hidden="true" /> Your RND rated this meal, so it can't be changed. Message your RND if something's wrong.</p>
+              </template>
+              <template v-else>
               <input ref="photoInput" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
               <!-- The chosen photo (not uploaded until Save) or the one already
                    saved today, shown as a picture; tap it to see it full size. -->
@@ -134,6 +145,7 @@
               <button v-if="canSaveLog" class="save-log-btn" :disabled="isSavingLog" @click="saveMealLog">
                 <Save :size="15" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
               </button>
+              </template>
             </div>
           </div>
         </div>
@@ -163,7 +175,7 @@
 <script setup>
 import { phIso, phWeekday } from '~/utils/phTime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle } from 'lucide-vue-next'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle, Lock } from 'lucide-vue-next'
 import { allergyWarnings } from '~/utils/foodWarnings'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
@@ -244,6 +256,8 @@ function logFor(mealId) {
   return todaysLogs.value.find(l => l.meal_plan_meal === mealId) || null
 }
 const activeLog = computed(() => activeMeal.value ? logFor(activeMeal.value.id) : null)
+// rated by the RND (Followed / Partly / Not followed): final for the client
+const isRated = computed(() => Boolean(activeLog.value?.status))
 
 const logForm = reactive({ reasonNotes: '', photoFile: null, photoName: '', removeSaved: false })
 // Save shows once there's something new: a photo, a removed photo, or a changed note.
@@ -398,6 +412,9 @@ onMounted(loadMealPlans)
 .pill-red { background: #fbe1de; color: #c0483a; }
 .status-col { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
 .logged-at { font-size: 0.76rem; color: #6a7a6a; }
+.rated-note { font-size: 0.88rem; color: #1a3a1a; line-height: 1.5; margin: 0 0 10px; white-space: pre-line; overflow-wrap: anywhere; background: #fff; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px 12px; }
+.rated-lock { display: flex; gap: 6px; align-items: flex-start; font-size: 0.8rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; margin: 0; line-height: 1.45; }
+.rated-lock svg { flex-shrink: 0; margin-top: 2px; }
 .log-hint { font-size: 0.78rem; color: #6a7a6a; margin: 8px 0 0; line-height: 1.5; }
 
 /* YOUR ALLERGIES: always red, always first */

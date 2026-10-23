@@ -377,7 +377,7 @@ class RndMealLogNotificationTests(TestCase):
         resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"reason_notes": "  "}, format="json")
         self.assertEqual(resp.status_code, 400)
 
-    def test_only_the_rnd_rates_and_resaving_sends_it_back(self):
+    def test_only_the_rnd_rates_and_a_rated_log_is_final(self):
         from .models import MealLog
 
         self.client_api.force_authenticate(self.rnd)
@@ -391,12 +391,13 @@ class RndMealLogNotificationTests(TestCase):
         self.client_api.force_authenticate(other)
         self.assertEqual(self.client_api.patch(f"/api/rnd/meal-logs/{self.log_id}/review/", {"status": "followed"}, format="json").status_code, 404)
 
-        # The client edits the log -> back to waiting for review.
+        # Once rated, the client can't change it (and the rating stays).
         self.client_api.force_authenticate(self.client_user)
         log = MealLog.objects.get(pk=self.log_id)
-        self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": str(log.log_date), "reason_notes": "Actually all of it"}, format="json")
+        resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"log_date": str(log.log_date), "reason_notes": "Actually all of it"}, format="json")
+        self.assertEqual(resp.status_code, 400)
         log.refresh_from_db()
-        self.assertIsNone(log.status)
+        self.assertEqual((log.status, log.reason_notes == "Actually all of it"), ("partially_followed", False))
 
     def test_the_day_comes_from_the_server_not_the_phone(self):
         # A phone set to another date can't log meals for other days.

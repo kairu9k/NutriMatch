@@ -375,6 +375,10 @@ class ClientMealLogSaveView(APIView):
             raise serializers.ValidationError({"detail": "This meal isn't on today's plan."})
         log_date = today
         instance = MealLog.objects.filter(meal_plan_meal=meal, log_date=log_date).first()
+        # Once the RND has rated a log it's final for the client (user's rule,
+        # 2026-10-24): editing it would quietly undo the rating and skew adherence.
+        if instance and instance.status:
+            raise serializers.ValidationError({"detail": "Your RND already rated this meal, so it can't be changed. Message your RND if something's wrong."})
 
         serializer = MealLogSerializer(instance, data=request.data, partial=instance is not None)
         serializer.is_valid(raise_exception=True)
@@ -405,7 +409,7 @@ class ClientMealLogSaveView(APIView):
 
         from scheduling.patient_insights import ph_tz
 
-        # Saving (again) sends it back to the RND for review; the time is when it was saved.
+        # Saving again (before a rating) keeps it waiting for review; the time is when it was saved.
         meal_log = serializer.save(
             meal_plan_meal=meal, client=request.user, log_date=log_date, **photo_fields,
             time_logged=timezone.now().astimezone(ph_tz()).time().replace(microsecond=0),
