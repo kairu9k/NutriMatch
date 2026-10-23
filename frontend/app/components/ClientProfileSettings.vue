@@ -1078,7 +1078,7 @@ onMounted(async () => {
 .dr-modal { width: 100%; max-width: 480px; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
 .dr-heading { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; }
 .dr-points { margin: 0; padding-left: 18px; font-size: 0.82rem; color: #4a5a4a; line-height: 1.6; }
-.dr-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.dr-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; position: sticky; bottom: -22px; z-index: 2; margin: 0 -22px -22px; padding: 14px 22px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 .dr-link { margin-left: 6px; }
 .optional-tag { font-weight: 500; color: #8a9a8a; margin-left: 4px; }
 </style>

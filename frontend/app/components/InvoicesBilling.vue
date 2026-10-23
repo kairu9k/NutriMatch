@@ -150,6 +150,7 @@
         <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note plain-note" style="margin: 14px 0 0"><strong>Reason for cancelling:</strong> {{ current.consultation.cancellation_reason }}</p>
 
         <div class="rm-total"><span>{{ current.receipt ? 'Total paid' : 'Amount' }}</span><strong>{{ peso(current.amount) }}</strong></div>
+        <p v-if="current.receipt" class="nm-hint" style="margin: 12px 0 0">The receipt was emailed to you when you paid. Resend it if you can't find it.</p>
 
         <div class="nm-modal-actions">
           <template v-if="current.receipt">
@@ -158,7 +159,6 @@
           </template>
           <button v-else-if="current.status === 'unpaid' && current.pay_by" class="nm-btn-dark" :disabled="payingId === current.id" @click="payInvoice(current)"><CreditCard :size="14" /> Pay now</button>
         </div>
-        <p v-if="current.receipt" class="nm-hint" style="text-align: right">The receipt was emailed to you when you paid. Resend it if you can't find it.</p>
       </div>
     </div>
 

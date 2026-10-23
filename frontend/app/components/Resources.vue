@@ -551,7 +551,7 @@ onMounted(loadResources)
 }
 .modal-box {
   background: #fff; border-radius: 16px; width: 100%; max-width: 500px;
-  max-height: 90vh; overflow-y: auto; padding: 28px;
+  max-height: 90vh; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; padding: 28px;
 }
 .modal-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #1a3a1a; margin: 0 0 20px; }
 
@@ -585,7 +585,7 @@ onMounted(loadResources)
 
 .upload-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; background: #fdf8ee; border: 1px solid #f1e3bd; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
 
-.modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 .modal-cancel-btn { background: none; border: none; color: #4a5a4a; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 11px 16px; }
 .modal-upload-btn {
   background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
@@ -599,5 +599,6 @@ onMounted(loadResources)
   .type-selector { display: flex; }
   .type-option { flex: 1; justify-content: center; padding: 7px 6px; }
   .modal-box { padding: 22px 18px; }
+  .modal-actions { bottom: -22px; margin: 0 -18px -22px; padding: 12px 18px 16px; }
 }
 </style>

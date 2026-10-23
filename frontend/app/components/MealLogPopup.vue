@@ -110,7 +110,7 @@ function formatTime(t) {
   display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px;
 }
 .ml-box {
-  position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+  position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain;
   padding: 26px 28px; font-family: 'Inter', sans-serif;
   box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 16px 40px -12px rgba(0, 77, 58, 0.35);
 }
@@ -143,11 +143,14 @@ function formatTime(t) {
 .ml-measure { color: #7a8a7a; }
 .ml-kcal { color: #7a8a7a; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-.ml-actions { display: flex; margin-top: 22px; }
+.ml-actions { display: flex; position: sticky; bottom: -26px; z-index: 2; margin: 22px -28px -26px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 .ml-primary-btn {
   flex: 1; background: #14301a; color: #fff; border: none; border-radius: 8px;
   padding: 12px 20px; font-weight: 700; font-size: 0.88rem; cursor: pointer; font-family: inherit;
 }
 .ml-primary-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-@media (max-width: 600px) { .ml-box { padding: 22px 18px; } }
+@media (max-width: 600px) {
+  .ml-box { padding: 22px 18px; }
+  .ml-actions { bottom: -22px; margin: 18px -18px -22px; padding: 12px 18px 16px; }
+}
 </style>

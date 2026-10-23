@@ -26,11 +26,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <style scoped>
 .scr-box { position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 820px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 28px 30px 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
-.scr-x { position: absolute; top: 14px; right: 14px; border: 0; background: none; color: #6a7a6a; cursor: pointer; padding: 6px; border-radius: 8px; display: flex; }
+.scr-x { position: sticky; top: -14px; float: right; z-index: 3; margin: -14px -16px 0 8px; border: 0; background: #fff; color: #6a7a6a; cursor: pointer; padding: 6px; border-radius: 8px; display: flex; }
 .scr-x:hover { background: #f1f3f1; color: #1a3a1a; }
-.scr-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+.scr-foot { display: flex; justify-content: flex-end; position: sticky; bottom: -20px; z-index: 2; margin: 18px -30px -20px; padding: 14px 30px 16px; border-top: 1px solid #d9e3dc; background: #fff; }
 @media (max-width: 560px) {
   .nm-modal-overlay { padding: 0; }
-  .scr-box { max-width: none; max-height: 100vh; height: 100vh; border-radius: 0; padding: 20px 16px; }
+  .scr-box { max-width: none; max-height: 100vh; height: 100vh; height: 100dvh; border-radius: 0; padding: 20px 16px; }
+  .scr-foot { margin: 18px -16px -20px; padding: 12px 16px 14px; }
+  .scr-foot > * { flex: 1; }
 }
 </style>

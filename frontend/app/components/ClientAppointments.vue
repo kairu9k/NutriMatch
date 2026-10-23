@@ -595,7 +595,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(10, 25, 15, 0.45); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
-.modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
+.modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 440px; max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
 .modal-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 8px; }
 .modal-text { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 16px; }
 .field-label { display: block; font-size: 0.8rem; font-weight: 600; color: #1a3a1a; margin: 0 0 6px; }
@@ -603,7 +603,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .field-input { width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; font-family: inherit; color: #1a3a1a; resize: vertical; }
 .field-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 .char-count { font-size: 0.74rem; color: #6a7a6a; text-align: right; margin: 4px 0 0; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: -24px; z-index: 2; margin: 16px -24px -24px; padding: 14px 24px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 .star-row { display: flex; align-items: center; gap: 2px; margin: 0 0 16px; }
 .star-btn { background: none; border: none; padding: 2px; cursor: pointer; display: flex; border-radius: 6px; }
 .star-btn:focus-visible { outline: 2px solid #D4A017; }

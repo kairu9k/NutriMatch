@@ -161,7 +161,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   font-size: 0.9rem; font-weight: 600; color: #1e4a26;
   border-top: 1px solid #d9e3dc; padding-top: 14px; margin: 18px 0 0;
 }
-.welcome-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.welcome-actions {
+  display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: -24px; z-index: 2;
+  margin: 20px -28px -24px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff;
+}
 .btn-dark {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: #0a4a37; color: #fff;
   border: none; border-radius: 8px; padding: 11px 18px; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit;
@@ -202,7 +205,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   .step-title { font-size: 0.84rem; }
   .step-text { font-size: 0.76rem; line-height: 1.4; }
   .welcome-closing { font-size: 0.82rem; padding-top: 10px; margin-top: 12px; }
-  .welcome-actions { flex-direction: column-reverse; gap: 8px; margin-top: 14px; }
+  .welcome-actions { flex-direction: column-reverse; gap: 8px; bottom: -18px; margin: 14px -18px -18px; padding: 12px 18px 14px; }
   .welcome-actions > * { width: 100%; padding-top: 10px; padding-bottom: 10px; }
 }
 </style>

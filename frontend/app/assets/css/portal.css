@@ -170,7 +170,7 @@
 
 /* modals */
 .nm-modal-overlay { position: fixed; inset: 0; background: rgba(10, 25, 15, 0.45); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
-.nm-modal { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 460px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); font-family: 'Inter', sans-serif; color: #1a3a1a; max-height: calc(100vh - 32px); overflow-y: auto; }
+.nm-modal { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 460px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); font-family: 'Inter', sans-serif; color: #1a3a1a; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
 .nm-modal-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; margin: 0 0 8px; }
 .nm-modal-text { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 16px; }
 .nm-label { display: block; font-size: 0.8rem; font-weight: 600; color: #1a3a1a; margin: 0 0 6px; }
@@ -179,6 +179,12 @@ textarea.nm-input { resize: vertical; line-height: 1.5; }
 .nm-hint { font-size: 0.74rem; color: #8a9a8a; margin: 4px 0 0; }
 .nm-field-error { font-size: 0.78rem; color: #c0392b; margin: 6px 0 0; }
 .nm-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+/* In a pop-up the button row stays pinned to the bottom while the content above
+   scrolls (like the booking pop-up), so Save / Send never sits below the fold. */
+.nm-modal .nm-modal-actions {
+  position: sticky; bottom: -24px; z-index: 2; flex-wrap: wrap; background: #fff;
+  margin: 18px -24px -24px; padding: 14px 24px 18px; border-top: 1px solid #d9e3dc;
+}
 
 /* toast */
 .nm-toast {
