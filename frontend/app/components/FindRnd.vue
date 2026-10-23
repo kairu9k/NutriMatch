@@ -6,11 +6,11 @@
     <div class="nm-panel filters">
       <div class="filter-top">
         <div class="nm-search name-search">
-          <Search :size="15" />
-          <input v-model="search" type="search" placeholder="Search by name" />
+          <Search :size="15" aria-hidden="true" />
+          <input v-model="search" type="search" placeholder="Search by name" aria-label="Search RNDs by name" />
         </div>
         <button class="nm-btn-soft filters-toggle" type="button" @click="showFilters = !showFilters">
-          <SlidersHorizontal :size="15" /> Filters<span v-if="activeFilterCount"> ({{ activeFilterCount }})</span>
+          <SlidersHorizontal :size="15" aria-hidden="true" /> Filters<span v-if="activeFilterCount"> ({{ activeFilterCount }})</span>
         </button>
       </div>
       <div class="filter-grid" :class="{ open: showFilters }">
@@ -39,10 +39,12 @@
     </div>
 
     <!-- One RND at a time (until the current RND discharges the client). -->
-    <p v-if="blockedBy" class="one-rnd">
-      {{ blockedBy.status === 'active' ? `You're under RND ${blockedBy.name}'s care — you can book a different RND once they discharge you. Want to switch? Ask to end care in Profile Settings → Care Team.` : `You have a booking waiting for RND ${blockedBy.name} — cancel it first to book someone else.` }}
-      <NuxtLink :to="`/rnd-profile-view/${blockedBy.rnd_id}`">Go to RND {{ blockedBy.name }} →</NuxtLink>
-    </p>
+    <div v-if="blockedBy" class="one-rnd">
+      <p>{{ blockedBy.status === 'active'
+        ? `You're under RND ${blockedBy.name}'s care, so you can book a different RND once they discharge you. To switch, ask to end your care in Profile Settings, Care team.`
+        : `You have a booking waiting for RND ${blockedBy.name}. Cancel it first to book someone else.` }}</p>
+      <NuxtLink :to="`/rnd-profile-view/${blockedBy.rnd_id}`" class="nm-btn-soft nm-btn-sm">Go to RND {{ blockedBy.name }}</NuxtLink>
+    </div>
     <div class="results-row">
       <p class="nm-muted">
         <template v-if="loading">Finding RNDs…</template>
@@ -73,13 +75,11 @@
           <img v-if="rnd.user.profile_photo" :src="rnd.user.profile_photo" class="nm-avatar lg" alt="" />
           <span v-else class="nm-avatar lg">{{ userInitials(rnd.user.first_name, rnd.user.last_name) }}</span>
           <div class="card-id">
-            <h2 class="card-name">{{ rnd.user.first_name }} {{ rnd.user.last_name }} <BadgeCheck :size="16" class="verified" aria-label="PRC-verified" /></h2>
-            <p class="card-spec">{{ rnd.specialization || 'General / Clinical Nutrition' }}</p>
+            <h2 class="card-name">{{ rnd.user.first_name }} {{ rnd.user.last_name }} <BadgeCheck :size="16" class="verified" aria-label="PRC verified" /></h2>
+            <p class="card-spec">{{ rnd.specialization || 'General and clinical nutrition' }}</p>
             <p class="card-meta">
               <span v-if="rnd.review_count" class="stars">★ {{ rnd.average_rating.toFixed(1) }}</span>
-              <span v-if="rnd.review_count" class="nm-muted">({{ rnd.review_count }})</span>
-              <span v-else class="nm-muted">New on NutriMatch</span>
-              <span v-if="rnd.consultations_completed" class="nm-muted">· {{ rnd.consultations_completed }} consultation{{ rnd.consultations_completed === 1 ? '' : 's' }}</span>
+              <span class="nm-muted">{{ rnd.review_count ? `(${rnd.review_count})` : 'New on NutriMatch' }}<template v-if="rnd.consultations_completed">, {{ rnd.consultations_completed }} consultation{{ rnd.consultations_completed === 1 ? '' : 's' }}</template></span>
             </p>
           </div>
           <span v-if="rnd.is_my_rnd" class="nm-pill green my-rnd">Your RND</span>
@@ -91,13 +91,13 @@
           <span v-for="l in rnd.languages" :key="l.code" class="chip">{{ l.language_name.replace(/ \(.*\)/, '') }}</span>
         </div>
         <div class="formats">
-          <span v-for="m in rnd.consultation_modes" :key="m" class="format"><component :is="MODE_ICONS[m]" :size="13" /> {{ MODE_LABELS[m] }}</span>
+          <span v-for="m in rnd.consultation_modes" :key="m" class="format"><component :is="MODE_ICONS[m]" :size="13" aria-hidden="true" /> {{ MODE_LABELS[m] }}</span>
         </div>
-        <p v-if="rnd.clinic_address" class="where"><MapPin :size="13" /> {{ rnd.clinic_address }}</p>
+        <p v-if="rnd.clinic_address" class="where"><MapPin :size="13" aria-hidden="true" /> {{ rnd.clinic_address }}</p>
 
         <div class="next" :class="{ none: !rnd.next_open_slots.length }">
-          <CalendarClock :size="14" />
-          <span v-if="rnd.next_open_slots.length">Next available: <strong>{{ slotText(rnd.next_open_slots[0]) }}</strong></span>
+          <CalendarClock :size="14" aria-hidden="true" />
+          <span v-if="rnd.next_open_slots.length">Next open time: <strong>{{ slotText(rnd.next_open_slots[0]) }}</strong></span>
           <span v-else>No open times in the next 4 weeks</span>
         </div>
 
@@ -127,7 +127,7 @@ const { get } = useApi()
 
 const PAGE_SIZE = 6
 const MODE_ICONS = { video: Video, in_person: Users }
-const MODE_LABELS = { video: 'Video', in_person: 'In-person' }
+const MODE_LABELS = { video: 'Video call', in_person: 'In person' }
 
 const options = ref({ specializations: [], languages: [], modes: [] })
 const search = ref('')
@@ -170,7 +170,7 @@ async function load() {
     const r = await get('/client/rnds/', { query })
     if (id === requestId) rnds.value = r
   } catch {
-    if (id === requestId) error.value = 'Could not load RNDs.'
+    if (id === requestId) error.value = 'Could not load the RNDs.'
   } finally {
     if (id === requestId) loading.value = false
   }
@@ -207,9 +207,9 @@ function slotText(iso) {
   const today = new Date().toLocaleDateString('en-CA', ph)
   const tomorrow = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', ph)
   const time = d.toLocaleTimeString('en-PH', { ...ph, hour: 'numeric', minute: '2-digit' })
-  if (day === today) return `Today · ${time}`
-  if (day === tomorrow) return `Tomorrow · ${time}`
-  return `${d.toLocaleDateString('en-PH', { ...ph, weekday: 'short', month: 'short', day: 'numeric' })} · ${time}`
+  if (day === today) return `today, ${time}`
+  if (day === tomorrow) return `tomorrow, ${time}`
+  return `${d.toLocaleDateString('en-PH', { ...ph, weekday: 'short', month: 'short', day: 'numeric' })}, ${time}`
 }
 </script>
 
@@ -221,31 +221,33 @@ function slotText(iso) {
 .filters-toggle { display: none; }
 .filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
 .filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.filter-field > span { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; }
+.filter-field > span { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; }
 .filter-field .nm-select { width: 100%; }
 .results-row { margin: 0 0 14px; }
 
 /* minmax(0, 1fr) + overflow-wrap: long unbroken text can't widen a card past the screen */
 .rnd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.card { display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
+.card { display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow-wrap: anywhere; border-color: #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.filters { border-color: #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .card-head { display: flex; gap: 14px; align-items: flex-start; }
 .card-id { flex: 1; min-width: 0; }
 .card-name { font-family: 'Playfair Display', serif; font-size: 1.12rem; color: #1a3a1a; margin: 0; display: flex; align-items: center; gap: 6px; }
 .verified { color: #1f8f5c; flex-shrink: 0; }
 .card-spec { font-size: 0.82rem; color: #4a5a4a; margin: 3px 0 0; }
-.card-meta { display: flex; flex-wrap: wrap; gap: 4px; font-size: 0.78rem; margin: 5px 0 0; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 0 4px; font-size: 0.8rem; margin: 5px 0 0; }
 .stars { color: #b8860b; font-weight: 700; }
 .my-rnd { flex-shrink: 0; }
 .card-bio { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: 0.72rem; font-weight: 600; background: #f3f5f2; color: #4a5a4a; border-radius: 12px; padding: 3px 10px; }
+.chip { font-size: 0.76rem; font-weight: 600; background: #f2f6f3; border: 1px solid #d9e3dc; color: #4a5a4a; border-radius: 12px; padding: 2px 10px; }
 .formats { display: flex; flex-wrap: wrap; gap: 12px; }
-.format { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #2a3a2a; font-weight: 500; }
-.where { display: flex; align-items: flex-start; gap: 6px; font-size: 0.78rem; color: #6a7a6a; margin: 0; line-height: 1.4; }
+.format { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #1a3a1a; font-weight: 500; }
+.format svg { color: #3f9a6b; }
+.where { display: flex; align-items: flex-start; gap: 6px; font-size: 0.8rem; color: #4a5a4a; margin: 0; line-height: 1.4; }
 .where svg { flex-shrink: 0; margin-top: 2px; }
-.next { display: flex; align-items: center; gap: 8px; background: #eef6f0; color: #1f6f46; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; }
-.next.none { background: #f4f5f3; color: #8a9a8a; }
-.card-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
+.next { display: flex; align-items: center; gap: 8px; background: #e3efe7; color: #1e4a26; border-radius: 8px; padding: 9px 12px; font-size: 0.82rem; }
+.next.none { background: #f4f6f4; color: #6a7a6a; }
+.card-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #d9e3dc; flex-wrap: wrap; }
 .card-actions { display: flex; gap: 8px; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
 
@@ -270,6 +272,7 @@ function slotText(iso) {
   .card-foot { flex-direction: column; align-items: stretch; }
   .card-actions > * { flex: 1; }
 }
-.one-rnd { background: #fff8e8; border: 1px solid #f1dca3; border-radius: 10px; padding: 10px 14px; font-size: 0.84rem; color: #5a4a1a; line-height: 1.5; margin: 0 0 12px; }
-.one-rnd a { color: #1f6f46; font-weight: 600; margin-left: 4px; white-space: nowrap; }
+/* one RND at a time: plain information (grey), with a button to that RND */
+.one-rnd { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
+.one-rnd p { flex: 1; min-width: 240px; margin: 0; font-size: 0.86rem; color: #4a5a4a; line-height: 1.5; }
 </style>
