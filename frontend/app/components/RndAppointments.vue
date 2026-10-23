@@ -430,9 +430,9 @@ async function completeNow() {
 .bento button { font-family: inherit; text-align: left; background: none; border: none; color: inherit; cursor: pointer; }
 .bento button:hover { background: #fafbfa; }
 .bento button:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.bento-main { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 20px 24px; border-right: 1px solid #eef1ee; }
+.bento-main { display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 14px 20px; border-right: 1px solid #eef1ee; }
 .bento-label { font-size: 0.84rem; font-weight: 600; color: #4a5a4a; }
-.bento-big { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 700; line-height: 1.05; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
+.bento-big { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; line-height: 1.1; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
 .bento-note { font-size: 0.8rem; color: #7a8a7a; }
 /* the big cell = the green banner of the dashboard / Earnings; the rows stay light */
 .bento .bento-main { background: linear-gradient(135deg, #00382a 0%, #005a42 100%); border-right: none; color: #fff; }
@@ -443,10 +443,10 @@ async function completeNow() {
 .bento-main .bento-note { color: #cfe0d5; }
 .bento-rows { background: #fbfcfa; }
 .bento-rows { display: flex; flex-direction: column; }
-.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 22px; border-top: 1px solid #d9e3dc; font-size: 0.88rem; font-weight: 600; color: #3a4a3a; }
+.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 20px; border-top: 1px solid #d9e3dc; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
 /* stronger than '.bento button { border: none }' above, which was hiding these */
 .bento .bento-row + .bento-row { border-top: 1px solid #d9e3dc; }
-.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
+.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
 .bento-row.attn strong { color: #a07400; }
 .appt-list { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .filter-note { margin-bottom: 14px; }
@@ -505,9 +505,9 @@ async function completeNow() {
 
 @media (max-width: 760px) {
   .bento { grid-template-columns: minmax(0, 1fr); }
-  .bento-main { border-right: none; padding: 16px 18px; }
-  .bento-big { font-size: 2.4rem; }
-  .bento-row { padding: 11px 18px; }
+  .bento-main { border-right: none; padding: 12px 16px; }
+  .bento-big { font-size: 1.9rem; }
+  .bento-row { padding: 8px 16px; }
             .row { flex-wrap: wrap; }
   .row-actions { width: 100%; justify-content: flex-start; padding-left: 60px; }
   .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
