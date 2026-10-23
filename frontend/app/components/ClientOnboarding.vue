@@ -477,8 +477,8 @@ onMounted(async () => {
 .btn-dark { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: #163a1c; color: #fff; border: none; border-radius: 8px; padding: 11px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit; }
 .btn-dark:hover:not(:disabled) { background: #0f2a14; }
 .btn-dark:disabled { opacity: 0.55; cursor: not-allowed; }
-.outline-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 11px 18px; font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-.outline-btn:hover:not(:disabled) { background: #f7f9f7; }
+.outline-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; background: #e3efe7; color: #0a4a37; border-radius: 8px; padding: 11px 18px; font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+.outline-btn:hover:not(:disabled) { background: #d3e7da; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .outline-btn.small { padding: 9px 14px; font-size: 0.8rem; }
 

@@ -112,7 +112,7 @@
         <div class="panel">
           <div class="side-header-row">
             <h4 class="side-title">Instructions for the patient</h4>
-            <button class="link-btn" type="button" @click="mode = 'create'"><Pencil :size="13" /> Edit</button>
+            <button class="nm-btn-soft nm-btn-sm" type="button" @click="mode = 'create'"><Pencil :size="13" aria-hidden="true" /> Edit</button>
           </div>
           <p v-if="patientAllergies.length" class="instr-allergy" role="note">
             <AlertTriangle :size="14" aria-hidden="true" /> {{ patientFirstName }}'s recorded allergies: {{ patientAllergies.join(', ') }}
@@ -150,7 +150,7 @@
         <div class="panel">
           <div class="side-header-row">
             <h4 class="side-title">Plans for this patient</h4>
-            <button class="link-btn" @click="startNewPlan"><Plus :size="13" /> New plan</button>
+            <button class="nm-btn-soft nm-btn-sm" type="button" @click="startNewPlan"><Plus :size="13" aria-hidden="true" /> New plan</button>
           </div>
           <button
             v-for="p in plans"
@@ -1378,7 +1378,6 @@ function formatTime(t) {
 .side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
 .side-subtitle { font-size: 0.75rem; color: #9aaa9a; }
 .side-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.link-btn { display: flex; align-items: center; gap: 4px; background: none; border: none; color: #1a6a2a; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
 
 .nutrient-row { margin-top: 16px; }
 .nutrient-top { display: flex; justify-content: space-between; font-size: 0.78rem; color: #4a5a4a; margin-bottom: 6px; }

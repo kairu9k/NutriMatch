@@ -246,7 +246,7 @@
               <Save :size="14" /> {{ saving ? 'Saving…' : 'Save draft' }}
             </button>
             <button v-if="tab < steps.length - 1" type="button" class="nm-btn-dark" @click="tab++">Next: {{ steps[tab + 1] }}</button>
-            <button v-else-if="!isReadOnly" type="button" class="nm-btn-gold" :disabled="saving || missing.length > 0 || errorCount > 0" @click="confirmFinalize = true">Finalize record</button>
+            <button v-else-if="!isReadOnly" type="button" class="nm-btn-dark" :disabled="saving || missing.length > 0 || errorCount > 0" @click="confirmFinalize = true">Finalize record</button>
             <button v-else-if="isReadOnly && record?.status === 'draft' && canContinue" type="button" class="nm-btn-dark" @click="emit('continue')">Continue record</button>
             <button v-else-if="!inline" type="button" class="nm-btn-dark" @click="emit('close')">Close</button>
           </div>
@@ -260,7 +260,7 @@
           <p class="nm-modal-text">It becomes part of {{ patientName }}'s permanent record and can't be edited or deleted afterwards. Any changes are saved first.</p>
           <div class="nm-modal-actions">
             <button type="button" class="nm-btn-outline" @click="confirmFinalize = false">Not yet</button>
-            <button type="button" class="nm-btn-gold" :disabled="saving" @click="finalize">{{ saving ? 'Finalizing…' : 'Finalize record' }}</button>
+            <button type="button" class="nm-btn-dark" :disabled="saving" @click="finalize">{{ saving ? 'Finalizing…' : 'Finalize record' }}</button>
           </div>
         </div>
       </div>

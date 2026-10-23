@@ -100,10 +100,12 @@
 .nm-btn-soft:hover:not(:disabled) { background: #d3e7da; }
 .nm-btn-gold { background: #D4A017; color: #1a3a1a; border: none; font-weight: 700; }
 .nm-btn-gold:hover:not(:disabled) { background: #e0ae22; }
-.nm-btn-outline { background: #fff; color: #1a3a1a; border: 1px solid #d5dad5; }
-.nm-btn-outline:hover:not(:disabled) { background: #f7f9f7; }
-.nm-btn-danger { background: #fff; color: #c0392b; border: 1px solid #f0c9c4; }
-.nm-btn-danger:hover:not(:disabled) { background: #fdecec; }
+/* outlined buttons are retired (every button is filled): same as nm-btn-soft */
+.nm-btn-outline { background: #e3efe7; color: #0a4a37; border: none; }
+.nm-btn-outline:hover:not(:disabled) { background: #d3e7da; }
+/* every red button is filled (the old outlined red is retired; .solid kept for old markup) */
+.nm-btn-danger { background: #c0392b; color: #fff; border: 1px solid #c0392b; }
+.nm-btn-danger:hover:not(:disabled) { background: #a93226; }
 .nm-btn-danger.solid { background: #c0392b; color: #fff; border-color: #c0392b; }
 .nm-btn-danger.solid:hover:not(:disabled) { background: #a93226; }
 .nm-btn-dark:disabled, .nm-btn-outline:disabled, .nm-btn-danger:disabled, .nm-btn-gold:disabled, .nm-btn-soft:disabled { opacity: 0.5; cursor: not-allowed; }

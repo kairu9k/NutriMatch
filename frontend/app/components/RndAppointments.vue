@@ -55,7 +55,7 @@
             </div>
             <div class="row-actions">
               <button v-if="!a.time_passed" type="button" class="nm-btn-dark nm-btn-sm" @click="openReview(a)">Review &amp; confirm</button>
-              <button type="button" class="nm-btn-outline nm-btn-sm" @click="openReason(a, 'decline')">Decline</button>
+              <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="openReason(a, 'decline')">Decline</button>
             </div>
           </article>
         </template>
@@ -86,7 +86,7 @@
                   <NuxtLink v-if="a.type === 'video'" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="14" /> Join</NuxtLink>
                 </template>
                 <span v-else-if="a.type !== 'in_person'" class="opens">Opens {{ clock(a.join_opens_at) }}</span>
-                <button type="button" class="nm-btn-outline nm-btn-sm" @click="openReason(a, 'cancel')">Cancel</button>
+                <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="openReason(a, 'cancel')">Cancel</button>
               </div>
             </article>
           </section>
@@ -170,7 +170,7 @@
           <p v-else class="nm-note todo-note">They haven't submitted a pre-consultation screening yet, so this booking can't be confirmed.</p>
           <p v-if="review.actionError" class="nm-field-error">{{ review.actionError }}</p>
           <div class="nm-modal-actions">
-            <button type="button" class="nm-btn-outline" @click="openReason(review.appt, 'decline')">Decline</button>
+            <button type="button" class="nm-btn-danger solid" @click="openReason(review.appt, 'decline')">Decline</button>
             <button type="button" class="nm-btn-dark" :disabled="busy || !review.data.screening" @click="confirmBooking">{{ busy ? 'Confirming…' : 'Confirm booking' }}</button>
           </div>
         </template>

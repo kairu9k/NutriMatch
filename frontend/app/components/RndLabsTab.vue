@@ -26,7 +26,7 @@
           <p v-if="r.note" class="lr-req-note">{{ r.note }}</p>
         </div>
         <span class="nm-pill gold">Waiting for patient</span>
-        <button v-if="canEdit" type="button" class="nm-btn-outline nm-btn-sm" :disabled="cancelling === r.id" @click="cancel(r)">Cancel request</button>
+        <button v-if="canEdit" type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="cancelling === r.id" @click="cancel(r)">Cancel request</button>
       </div>
 
       <p v-if="!data.results.length && !openRequests.length" class="nm-muted">

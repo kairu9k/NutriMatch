@@ -699,10 +699,10 @@ onMounted(showActiveTab)
 .btn-dark:disabled { opacity: 0.5; cursor: not-allowed; }
 .outline-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0;
-  border: 1px solid #d9e3dc; background: #fff; color: #1a3a1a; border-radius: 8px;
+  border: none; background: #e3efe7; color: #0a4a37; border-radius: 8px;
   padding: 9px 16px; font-weight: 600; font-size: 0.82rem; cursor: pointer; white-space: nowrap; font-family: inherit;
 }
-.outline-btn:hover:not(:disabled) { background: #f4f7f5; }
+.outline-btn:hover:not(:disabled) { background: #d3e7da; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin: 0 0 24px; }
 .info-stack { margin: 0 0 8px; }

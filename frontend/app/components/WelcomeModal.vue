@@ -171,10 +171,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 .btn-dark:hover { background: #00382a; }
 .outline-btn {
-  display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d9e3dc; background: #fff; color: #1a3a1a;
+  display: inline-flex; align-items: center; justify-content: center; border: none; background: #e3efe7; color: #0a4a37;
   border-radius: 8px; padding: 11px 16px; font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
-.outline-btn:hover { background: #f4f7f5; }
+.outline-btn:hover { background: #d3e7da; }
 .btn-dark:focus-visible, .outline-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 .welcome-fade-enter-active, .welcome-fade-leave-active { transition: opacity 0.2s ease; }

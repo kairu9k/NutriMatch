@@ -2,7 +2,7 @@
   <div class="resources-page">
     <header class="page-head">
       <p class="page-intro">Handouts, guides and videos for your patients. Uploading sends nothing; you choose who receives each one.</p>
-      <button class="nm-btn-gold" type="button" @click="openUploadModal"><Upload :size="15" /> Upload resource</button>
+      <button class="nm-btn-dark" type="button" @click="openUploadModal"><Upload :size="15" aria-hidden="true" /> Upload resource</button>
     </header>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -171,9 +171,9 @@
         <p class="upload-note">Uploading doesn't send it to anyone. Next, you pick the patients who should receive it.</p>
 
         <div class="modal-actions">
-          <button class="modal-cancel-btn" @click="closeUploadModal">Cancel</button>
+          <button class="nm-btn-soft" type="button" @click="closeUploadModal">Cancel</button>
           <button
-            class="modal-upload-btn"
+            class="nm-btn-dark"
             :disabled="!canSubmit || isSubmitting"
             @click="submitUpload"
           >{{ isSubmitting ? 'Uploading…' : 'Upload' }}</button>
@@ -467,7 +467,7 @@ onMounted(loadResources)
 /* PAGE HEAD: one line of context and the one action */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 22px; }
 .page-intro { font-size: 0.9rem; color: #4a5a4a; line-height: 1.55; margin: 0; max-width: 60ch; }
-.page-head .nm-btn-gold { flex-shrink: 0; }
+.page-head .nm-btn-dark { flex-shrink: 0; }
 
 .empty-state { padding: 40px 32px; }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 6px; }
@@ -586,12 +586,6 @@ onMounted(loadResources)
 .upload-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; background: #fdf8ee; border: 1px solid #f1e3bd; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
 
 .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
-.modal-cancel-btn { background: none; border: none; color: #4a5a4a; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 11px 16px; }
-.modal-upload-btn {
-  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
-  padding: 11px 24px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
-}
-.modal-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 640px) {
   .client-grid { grid-template-columns: minmax(0, 1fr); }
