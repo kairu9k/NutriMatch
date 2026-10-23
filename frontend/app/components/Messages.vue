@@ -70,7 +70,6 @@
         </div>
 
         <div class="chat-body" ref="chatBodyEl">
-          <p class="privacy-note"><Lock :size="12" aria-hidden="true" /> Only you and {{ activeConversation.firstName }} can read this conversation. It's kept private under the Data Privacy Act of 2012 (RA 10173).</p>
           <p v-if="loadingMessages" class="chat-note">Loading messages…</p>
           <p v-else-if="!activeMessages.length" class="chat-note">No messages yet. Say hello to {{ activeConversation.firstName }}.</p>
 
@@ -450,8 +449,6 @@ onUnmounted(() => {
 .conv-pane-header { padding: 18px 16px 12px; }
 .conv-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
 .privacy-line { display: flex; align-items: center; gap: 5px; margin: 3px 0 0; font-size: 0.74rem; color: #5a7a66; }
-.privacy-note { display: flex; align-items: flex-start; justify-content: center; gap: 6px; max-width: 460px; margin: 14px auto 4px; padding: 8px 12px; border-radius: 10px; background: #f2f6f3; font-size: 0.76rem; line-height: 1.45; color: #4a6a56; text-align: center; }
-.privacy-note svg { flex-shrink: 0; margin-top: 2px; }
 
 .search-row { padding: 0 16px 14px; border-bottom: 1px solid #d9e3dc; }
 .search-wrap { position: relative; }
