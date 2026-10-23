@@ -124,10 +124,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .welcome-card:focus { outline: none; }
 .welcome-x {
   position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
-  border: none; background: rgba(255, 255, 255, 0.15); color: #fff; cursor: pointer;
+  border: none; background: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.welcome-x:hover { background: rgba(255, 255, 255, 0.28); }
+.welcome-x:hover { background: rgba(255, 255, 255, 0.15); }
 .welcome-x:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .welcome-head {

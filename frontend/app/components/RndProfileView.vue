@@ -817,8 +817,8 @@ async function confirmBooking() {
 .bk-head-text { flex: 1; min-width: 0; }
 .booking-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; line-height: 1.2; }
 .booking-sub { font-size: 0.85rem; color: #4a5a4a; line-height: 1.5; margin: 0; }
-.bk-x { border: none; background: #e3efe7; color: #0a4a37; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.bk-x:hover { background: #d3e6d9; }
+.bk-x { border: none; background: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.bk-x:hover { background: #f2f5f2; color: #1a3a1a; }
 .bk-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 .bk-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 26px 6px; }

@@ -526,9 +526,10 @@ onMounted(loadMealPlans)
 .photo-viewer img { max-width: min(92vw, 1000px); max-height: 86vh; border-radius: 10px; object-fit: contain; background: #fff; }
 .viewer-close {
   position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%;
-  border: none; background: rgba(255, 255, 255, 0.92); color: #1a3a1a; cursor: pointer;
+  border: none; background: none; color: #fff; cursor: pointer; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
   display: flex; align-items: center; justify-content: center;
 }
+.viewer-close:hover { background: rgba(255, 255, 255, 0.15); }
 .dropzone-icon { color: #1a5a2a; flex-shrink: 0; }
 .dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
 .field label { display: block; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; margin-bottom: 6px; }

@@ -329,8 +329,8 @@ function when(iso) {
 .sw-head-text { flex: 1; min-width: 0; }
 .sw-head h2 { font-family: 'Playfair Display', serif; font-size: 1.08rem; margin: 0; overflow-wrap: anywhere; }
 .sw-head p { font-size: 0.78rem; color: #cfe3d6; margin: 3px 0 0; }
-.sw-icon { border: none; background: rgba(255, 255, 255, 0.12); color: #fff; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
-.sw-icon:hover { background: rgba(255, 255, 255, 0.22); }
+.sw-icon { border: none; background: none; color: #fff; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.sw-icon:hover { background: rgba(255, 255, 255, 0.15); }
 .sw-icon:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .sw-tabs { display: flex; border-bottom: 1px solid #d9e3dc; padding: 0 8px; }
 .sw-tab { flex: 1; border: none; background: none; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; padding: 11px 4px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
