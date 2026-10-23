@@ -446,15 +446,15 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 /* a hairline separates the logo from the pages (same line as above the account) */
 .sidebar-top { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; position: relative; }
-.sidebar-brand { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 6px; }
+.sidebar-brand { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 4px; }
 .brand-words { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
 .brand-tagline { font-size: 0.74rem; font-weight: 500; color: #8fae9f; white-space: nowrap; margin-top: 2px; letter-spacing: 0.01em; }
 .portal-line { margin-top: 5px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: #e2c25e; white-space: nowrap; }
 .home-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; }
 .home-link:focus-visible { outline: 2px solid #D4A017; outline-offset: 3px; }
 .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 0; }
-.logo-mark { width: 48px; height: 48px; flex-shrink: 0; object-fit: contain; }
-.sidebar.collapsed .logo-mark { width: 38px; height: 38px; }
+.logo-mark { width: 60px; height: 60px; flex-shrink: 0; object-fit: contain; }
+.sidebar.collapsed .logo-mark { width: 42px; height: 42px; }
 .logo-text { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.005em; }
 .logo-match { color: #D4A017; }
 
