@@ -8,6 +8,7 @@
       <img v-if="photoUrl" :src="photoUrl" alt="Your profile photo" class="avatar-circle avatar-img" />
       <div v-else class="avatar-circle">{{ initials }}</div>
       <button
+        v-if="editable"
         class="avatar-camera" type="button" :disabled="isUploading"
         :aria-label="photoUrl ? 'Change photo' : 'Upload photo'" @click="photoInput?.click()"
       >
@@ -20,7 +21,7 @@
     <div class="identity-text">
       <p class="identity-name">{{ name }}</p>
       <p class="identity-sub">{{ subtitle }}</p>
-      <p class="photo-links">
+      <p v-if="editable" class="photo-links">
         <button class="photo-link" type="button" :disabled="isUploading" @click="photoInput?.click()">
           {{ isUploading ? 'Uploading…' : photoUrl ? 'Change photo' : 'Upload photo' }}
         </button>
@@ -46,6 +47,8 @@ import { useAuthStore } from '~/stores/auth'
 defineProps({
   name: { type: String, default: '' },
   subtitle: { type: String, default: '' },
+  // false hides the photo controls (RND page: only while editing the profile)
+  editable: { type: Boolean, default: true },
 })
 const emit = defineEmits(['photo-changed'])
 
@@ -109,7 +112,7 @@ async function removePhoto() {
 .identity-row { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .avatar-circle {
-  width: 56px; height: 56px; border-radius: 50%; background: #e3efe7; color: #1e4a26;
+  width: 56px; height: 56px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
   display: flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 700;
 }
 .avatar-img { object-fit: cover; display: block; background: #eef1ee; }

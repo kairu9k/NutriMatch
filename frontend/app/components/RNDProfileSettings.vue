@@ -31,17 +31,11 @@
         <!-- Same pattern as the client's Personal Info tab: read-only until
              "Edit Profile"; Cancel/Save replace it while editing. -->
         <template v-if="activeTab === 'professional'">
-          <ProfileIdentityHeader :name="identityName" :subtitle="identitySubtitle" @photo-changed="fireToast">
+          <ProfileIdentityHeader :name="identityName" :subtitle="identitySubtitle" :editable="isEditing" @photo-changed="fireToast">
             <template #actions>
               <button v-if="!isEditing" class="btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
                 <Pencil :size="15" /> Edit profile
               </button>
-              <template v-else>
-                <button class="outline-btn" type="button" :disabled="isSavingProfile" @click="cancelEdit">Cancel</button>
-                <button class="btn-dark" type="button" :disabled="isSavingProfile" @click="saveChanges">
-                  <Check :size="15" /> {{ isSavingProfile ? 'Saving…' : 'Save changes' }}
-                </button>
-              </template>
             </template>
           </ProfileIdentityHeader>
 
@@ -106,7 +100,7 @@
                 : 'Hidden from new clients on Find an RND. Your current patients can still book you.' }}</p>
             </div>
             <label class="toggle">
-              <input type="checkbox" :checked="personalInfo.acceptingNewClients" :disabled="savingNewClients" aria-label="Taking new clients" @change="toggleNewClients($event.target.checked)" />
+              <input v-model="personalInfo.acceptingNewClients" type="checkbox" :disabled="!isEditing" aria-label="Taking new clients" />
               <span class="toggle-track"><span class="toggle-thumb" /></span>
             </label>
           </div>
@@ -187,7 +181,36 @@
             </div>
           </template>
 
+          <!-- Languages change only in Edit profile and save with Save changes -->
+          <section class="lang-section" aria-labelledby="rp-lang-title">
+            <h4 id="rp-lang-title" class="lang-title">Languages</h4>
+            <p class="field-hint lang-hint">Languages you can talk with patients in. Clients filter RNDs by these.</p>
+            <div v-if="languages.length" class="language-list">
+              <span v-for="lang in languages" :key="lang.id" class="language-pill">
+                {{ lang.name }}
+                <button v-if="isEditing" class="pill-icon-btn" type="button" :aria-label="`Remove ${lang.name}`" @click="removeLanguage(lang)"><X :size="13" /></button>
+              </span>
+            </div>
+            <p v-else class="empty-note">No languages added yet.</p>
+            <div v-if="isEditing && availableLanguageOptions.length" class="language-add-row">
+              <select v-model="newLanguage" class="nm-select language-select" aria-label="Add a language">
+                <option value="">Pick a language</option>
+                <option v-for="opt in availableLanguageOptions" :key="opt.code" :value="opt.code">{{ opt.name }}</option>
+              </select>
+              <button class="btn-dark" type="button" :disabled="!newLanguage" @click="addLanguage">Add</button>
+            </div>
+            <p v-if="languageError" class="profile-error lang-error">{{ languageError }}</p>
+          </section>
+
           <p v-if="profileError" class="profile-error">{{ profileError }}</p>
+
+          <!-- Cancel / Save sit at the end of the form, after everything they save -->
+          <div v-if="isEditing" class="edit-actions">
+            <button class="outline-btn" type="button" :disabled="isSavingProfile" @click="cancelEdit">Cancel</button>
+            <button class="btn-dark" type="button" :disabled="isSavingProfile" @click="saveChanges">
+              <Check :size="15" /> {{ isSavingProfile ? 'Saving…' : 'Save changes' }}
+            </button>
+          </div>
         </template>
 
         <!-- ============ EARNINGS ============ -->
@@ -203,33 +226,6 @@
           <!-- Real, saved schedule (RndAvailabilitySchedule) — the same one
                clients see on your profile and in the booking calendar. -->
           <Availability embedded />
-        </template>
-
-        <!-- ============ LANGUAGES ============ -->
-        <template v-else-if="activeTab === 'languages'">
-          <div class="tab-panel-header">
-            <div>
-              <h3 class="tab-panel-title">Languages</h3>
-              <p class="tab-panel-sub">Languages you can communicate with patients in.</p>
-            </div>
-          </div>
-
-          <div v-if="languages.length" class="language-list">
-            <span v-for="lang in languages" :key="lang.id" class="language-pill">
-              {{ lang.name }}
-              <button class="pill-icon-btn" type="button" @click="removeLanguage(lang)"><X :size="13" /></button>
-            </span>
-          </div>
-          <p v-else class="empty-note">No languages added yet.</p>
-
-          <div class="language-add-row">
-            <select v-model="newLanguage" class="nm-select language-select">
-              <option value="">Pick a language</option>
-              <option v-for="opt in availableLanguageOptions" :key="opt.code" :value="opt.code">{{ opt.name }}</option>
-            </select>
-            <button class="save-btn" type="button" :disabled="!newLanguage" @click="addLanguage">Add</button>
-          </div>
-          <p v-if="languageError" class="profile-error">{{ languageError }}</p>
         </template>
 
         <!-- ============ SECURITY ============ -->
@@ -276,7 +272,7 @@
             <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
             <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
             <div class="pw-actions">
-              <button type="submit" class="save-btn" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change password' }}</button>
+              <button type="submit" class="btn-dark" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change password' }}</button>
               <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
             </div>
             <p class="field-hint">We'll email you to confirm the change.</p>
@@ -317,7 +313,7 @@
           </div>
           <template v-else>
             <NuxtLink v-for="entry in filteredHistory" :key="entry.key" :to="entry.link" class="entry-row">
-              <div class="entry-icon" aria-hidden="true"><component :is="HISTORY_KINDS[entry.type]?.icon || ClipboardList" :size="16" /></div>
+              <div class="entry-icon" :class="HISTORY_KINDS[entry.type]?.cls" aria-hidden="true"><component :is="HISTORY_KINDS[entry.type]?.icon || ClipboardList" :size="16" /></div>
               <div class="entry-info">
                 <p class="entry-title">{{ entry.title }}</p>
                 <p v-if="entry.detail" class="entry-detail">{{ entry.detail }}</p>
@@ -346,7 +342,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   Briefcase, BadgeCheck,
-  CalendarClock, X, Languages, Shield, History, Printer, ClipboardList,
+  CalendarClock, X, Shield, History, Printer, ClipboardList,
   CalendarCheck, FileText, UtensilsCrossed, UserRound, Star, Wallet,
   Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2, Bell
 } from 'lucide-vue-next'
@@ -359,7 +355,6 @@ definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 const tabs = [
   { key: 'professional', label: 'Professional profile', icon: Briefcase },
   { key: 'availability', label: 'Availability', icon: CalendarClock },
-  { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'security', label: 'Security', icon: Shield },
   { key: 'reviews', label: 'Reviews', icon: Star },
@@ -384,7 +379,7 @@ const MODE_OPTIONS = [
 
 const personalInfo = ref({
   firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
-  consultationModes: [], clinicAddress: '', initials: '', avatarColor: '#1e4a26',
+  consultationModes: [], clinicAddress: '', initials: '', avatarColor: '#D4A017',
   prcVerified: false, prcNumber: '', prcVerifiedOn: '', prcPhotoUrl: '',
   specialization: '', acceptingNewClients: true,
 })
@@ -406,12 +401,16 @@ const identitySubtitle = computed(() => {
 
 function startEdit() {
   profileError.value = ''
+  languageError.value = ''
+  newLanguage.value = ''
   fieldErrors.firstName = fieldErrors.lastName = ''
   isEditing.value = true
 }
 function cancelEdit() {
   if (lastLoaded.value) applyProfile(lastLoaded.value.user, lastLoaded.value.rndProfile)
   profileError.value = ''
+  languageError.value = ''
+  newLanguage.value = ''
   fieldErrors.firstName = fieldErrors.lastName = ''
   isEditing.value = false
 }
@@ -461,9 +460,9 @@ async function loadProfessionalProfile() {
 }
 onMounted(loadProfessionalProfile)
 
-// Real RndLanguage rows (profiles/models.py LANGUAGES). Adding/removing
-// saves straight away (PATCH /rnd/profile/ {languages: [codes]}); at least
-// one language must stay.
+// Real RndLanguage rows (profiles/models.py LANGUAGES). Changed while editing
+// and saved with the rest (PATCH /rnd/profile/ {languages: [codes]}); at
+// least one language must stay.
 const LANGUAGE_OPTIONS = [
   { code: 'en', name: 'English' },
   { code: 'tl', name: 'Filipino (Tagalog)' },
@@ -481,18 +480,11 @@ const availableLanguageOptions = computed(() => LANGUAGE_OPTIONS.filter(o => !la
 function setLanguagesFrom(rndProfile) {
   languages.value = (rndProfile.languages || []).map(l => ({ id: l.language_code, code: l.language_code, name: l.language_name }))
 }
-async function saveLanguages(codes) {
-  languageError.value = ''
-  try {
-    const profile = await patch('/rnd/profile/', { languages: codes })
-    setLanguagesFrom(profile)
-  } catch (error) {
-    languageError.value = error?.data?.languages?.[0] || error?.data?.detail || 'Could not save your languages. Please try again.'
-  }
-}
 function addLanguage() {
-  if (!newLanguage.value) return
-  saveLanguages([...languages.value.map(l => l.code), newLanguage.value])
+  const opt = LANGUAGE_OPTIONS.find(o => o.code === newLanguage.value)
+  if (!opt) return
+  languageError.value = ''
+  languages.value = [...languages.value, { id: opt.code, code: opt.code, name: opt.name }]
   newLanguage.value = ''
 }
 function removeLanguage(lang) {
@@ -500,7 +492,8 @@ function removeLanguage(lang) {
     languageError.value = 'Keep at least one language. Clients filter RNDs by language.'
     return
   }
-  saveLanguages(languages.value.filter(l => l.code !== lang.code).map(l => l.code))
+  languageError.value = ''
+  languages.value = languages.value.filter(l => l.code !== lang.code)
 }
 
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑñ]+)*\.?$/
@@ -544,6 +537,8 @@ async function saveChanges() {
         consultation_fee: Number(fee).toFixed(2),
         consultation_modes: personalInfo.value.consultationModes,
         clinic_address: personalInfo.value.consultationModes.includes('in_person') ? address : (address || null),
+        languages: languages.value.map(l => l.code),
+        available_for_new_clients: personalInfo.value.acceptingNewClients,
       }),
     ])
     applyProfile(user, rndProfile)
@@ -567,11 +562,11 @@ async function saveChanges() {
 
 /* ---------- HISTORY ---------- */
 const HISTORY_KINDS = {
-  consultation: { icon: CalendarCheck },
+  consultation: { icon: CalendarCheck, cls: 'icon-gold' },
   ncp: { icon: FileText },
   meal_plan: { icon: UtensilsCrossed },
   patient: { icon: UserRound },
-  review: { icon: Star },
+  review: { icon: Star, cls: 'icon-gold' },
   payout: { icon: Wallet },
 }
 const HISTORY_FILTERS = [
@@ -608,25 +603,6 @@ function formatTimestamp(iso) {
 }
 function printHistory() {
   window.print()
-}
-
-/* ---------- TAKING NEW CLIENTS (saves straight away) ---------- */
-// Off = hidden from new clients on Find an RND and new bookings are refused;
-// current patients can still book.
-const savingNewClients = ref(false)
-async function toggleNewClients(value) {
-  const before = personalInfo.value.acceptingNewClients
-  personalInfo.value.acceptingNewClients = value
-  savingNewClients.value = true
-  try {
-    await patch('/rnd/profile/', { available_for_new_clients: value })
-    fireToast(value ? 'You\'re taking new clients again.' : 'New clients can no longer book you.')
-  } catch {
-    personalInfo.value.acceptingNewClients = before
-    fireToast('Could not save. Please try again.')
-  } finally {
-    savingNewClients.value = false
-  }
 }
 
 /* ---------- SECURITY: change password (rules mirror PasswordComplexityValidator) ---------- */
@@ -763,7 +739,7 @@ onMounted(showActiveTab)
   width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 12px 14px;
   font-size: 0.88rem; color: #1a3a1a; font-family: inherit; background: #fff;
 }
-.field-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
+.field-input:focus { outline: none; border-color: #D4A017; }
 
 .field-bio { margin-bottom: 24px; }
 .bio-label-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
@@ -779,7 +755,7 @@ onMounted(showActiveTab)
 .prc-title { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
 .prc-status { font-size: 0.76rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .prc-verified { background: #e3efe7; color: #1e4a26; }
-.prc-pending { background: #fff; border: 1.5px dashed #3f9a6b; color: #1f4a30; }
+.prc-pending { background: #fdf1d6; color: #b8860b; }
 .prc-section .form-grid { margin-bottom: 12px; }
 .prc-photo-link {
   display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600;
@@ -802,13 +778,16 @@ onMounted(showActiveTab)
 
 .save-btn {
   display: flex; align-items: center; gap: 6px;
-  background: #0a4a37; color: #fff; border: none; border-radius: 8px;
-  padding: 11px 20px; font-weight: 600; font-size: 0.86rem; cursor: pointer; white-space: nowrap; font-family: inherit;
+  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
+  padding: 12px 22px; font-weight: 700; font-size: 0.88rem; cursor: pointer; white-space: nowrap;
 }
-.save-btn:hover:not(:disabled) { background: #00382a; }
 .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* LANGUAGES (nested inside Professional Profile) */
+/* LANGUAGES (inside Professional profile) */
+.lang-section { border-top: 1px solid #d9e3dc; padding-top: 18px; margin-top: 8px; }
+.lang-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.lang-hint { margin: 2px 0 12px; }
+.lang-error { margin-top: 10px; }
 .language-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .language-pill { display: flex; align-items: center; gap: 6px; background: #e3efe7; color: #1e4a26; font-size: 0.8rem; font-weight: 600; padding: 6px 10px 6px 14px; border-radius: 20px; }
 .language-add-row { display: flex; gap: 10px; align-items: center; }
@@ -848,6 +827,9 @@ onMounted(showActiveTab)
   .language-add-row { flex-wrap: wrap; }
 }
 
+.edit-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #d9e3dc; padding-top: 18px; margin-top: 20px; }
+@media (max-width: 640px) { .edit-actions > * { flex: 1; } }
+
 /* Taking new clients */
 .newclients-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 20px; padding: 14px 16px; border: 1px solid #d9e3dc; border-radius: 12px; background: #fff; }
 .newclients-row .field-hint { margin: 2px 0 0; }
@@ -880,6 +862,7 @@ onMounted(showActiveTab)
 .entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #d9e3dc; text-decoration: none; color: inherit; }
 .entry-row:hover .entry-title { text-decoration: underline; }
 .entry-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #e3efe7; color: #1e4a26; }
+.entry-icon.icon-gold { background: #fdf1d6; color: #b8860b; }
 .entry-info { flex: 1; min-width: 0; }
 .entry-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
 .entry-detail { font-size: 0.78rem; color: #6a7a6a; margin: 2px 0 0; overflow-wrap: anywhere; }
