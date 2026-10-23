@@ -18,7 +18,13 @@
               <span class="verified" :title="verifiedTitle" tabindex="0" :aria-label="verifiedTitle"><BadgeCheck :size="20" aria-hidden="true" /></span>
             </h1>
             <p class="hero-spec">{{ rnd.specialization || 'General and clinical nutrition' }}</p>
-            <p v-if="rnd.languages?.length" class="hero-line" :title="languageNames.join(', ')"><Languages :size="14" aria-hidden="true" /> {{ languagesText }}</p>
+            <p v-if="rnd.languages?.length" class="hero-line">
+              <Languages :size="14" aria-hidden="true" />
+              <span>{{ languagesText }}<button
+                v-if="languageNames.length > 3" type="button" class="lang-more" :aria-expanded="showAllLanguages"
+                @click="showAllLanguages = !showAllLanguages"
+              >{{ showAllLanguages ? 'Show less' : `and ${languageNames.length - 3} more` }}</button></span>
+            </p>
             <p v-if="offeredFormats.length" class="hero-line"><component :is="offeredFormats[0].icon" :size="14" aria-hidden="true" /> {{ formatsText }}</p>
           </div>
           <div class="hero-fee">
@@ -331,10 +337,13 @@ const fullName = computed(() => (rnd.value ? `${rnd.value.user.first_name} ${rnd
 // Hero sentences: languages ("Speaks English, Filipino, Bisaya and 3 more"),
 // formats + city ("Video call or in person, Davao City"), PRC details on the check.
 const languageNames = computed(() => (rnd.value?.languages || []).map(l => l.language_name.replace(/ \(.*\)/, '')))
+// More than three: the first three, then an "and 3 more" button that opens the rest.
+const showAllLanguages = ref(false)
 const languagesText = computed(() => {
   const n = languageNames.value
-  if (n.length <= 3) return `Speaks ${n.length > 1 ? `${n.slice(0, -1).join(', ')} and ${n.at(-1)}` : n[0]}`
-  return `Speaks ${n.slice(0, 3).join(', ')} and ${n.length - 3} more`
+  const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0])
+  if (n.length <= 3 || showAllLanguages.value) return `Speaks ${list(n)}`
+  return `Speaks ${n.slice(0, 3).join(', ')}`
 })
 const formatsText = computed(() => {
   const labels = offeredFormats.value.map((f, i) => (i ? f.label.toLowerCase() : f.label))
@@ -710,6 +719,12 @@ async function confirmBooking() {
 .hero-spec { font-size: 0.92rem; color: #e3eee7; margin: 0 0 10px; }
 .hero-line { display: flex; align-items: center; gap: 7px; font-size: 0.86rem; color: #cfe0d5; margin: 4px 0 0; }
 .hero-line svg { flex-shrink: 0; color: #9fd0b4; }
+.lang-more {
+  margin-left: 6px; min-height: 24px; padding: 0 10px; border: none; border-radius: 999px; vertical-align: middle;
+  background: rgba(255, 255, 255, 0.16); color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.lang-more:hover { background: rgba(255, 255, 255, 0.26); }
+.lang-more:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .gold { color: #D4A017; fill: #D4A017; }
 .hero-fee { text-align: right; flex-shrink: 0; }
 .fee-amount { font-family: 'Playfair Display', serif; font-size: 1.9rem; font-weight: 700; margin: 0; line-height: 1; }
