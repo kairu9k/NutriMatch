@@ -99,7 +99,7 @@
             <CheckCircle2 :size="15" /> {{ justCompleted.client.first_name }}'s consultation is complete. Next:
             <NuxtLink :to="`/client-detail/${justCompleted.relationship_id}?tab=ncp`" class="nm-panel-link">Finish the NCP record</NuxtLink>
           </p>
-          <div v-if="!list('to_complete').length" class="nm-empty"><CheckCircle2 :size="26" /><p>Nothing to close — all caught up.</p></div>
+          <div v-if="!list('to_complete').length" class="nm-empty"><CheckCircle2 :size="26" /><p>Nothing to close. You're all caught up.</p></div>
           <article v-for="a in list('to_complete')" :key="a.id" class="row">
             <DateBlock :at="a.scheduled_at" tone="muted" />
             <div class="row-main">

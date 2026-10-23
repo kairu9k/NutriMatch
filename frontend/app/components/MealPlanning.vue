@@ -114,6 +114,9 @@
             <h4 class="side-title">Instructions for the patient</h4>
             <button class="link-btn" type="button" @click="mode = 'create'"><Pencil :size="13" /> Edit</button>
           </div>
+          <p v-if="patientAllergies.length" class="instr-allergy" role="note">
+            <AlertTriangle :size="14" aria-hidden="true" /> {{ patientFirstName }}'s recorded allergies: {{ patientAllergies.join(', ') }}
+          </p>
           <dl class="instr-read">
             <dt>Allergies and restrictions</dt>
             <dd :class="{ empty: !instructions.allergies }">{{ instructions.allergies || 'None written' }}</dd>
@@ -337,7 +340,7 @@
                 </template>
                 <p v-if="needsNumbers(item)" class="food-hint">Enter its calories and macros, or pick a food from the FNRI list so they fill in.</p>
                 <p v-if="itemWarnings(item).length" class="food-warn" :class="{ allergy: itemAllergyWarnings(item).length }" role="note">
-                  <AlertTriangle :size="13" /> {{ itemWarnings(item).join(' · ') }}
+                  <AlertTriangle :size="13" /> {{ itemWarnings(item).join(', ') }}
                 </p>
               </div>
             </div>
@@ -350,8 +353,8 @@
 
           <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay}, ${usdaMeal.type}`" :allergies="patientAllergies" :patient-name="patientFirstName" @close="usdaMeal = null" @pick="addUsdaFood" />
 
-          <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client — this plan can't be deleted. Edit it and Resend, or send a new plan.</p>
-          <p v-else class="sent-lock"><Lock :size="13" /> Draft — only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
+          <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client, so this plan can't be deleted. Edit it and resend, or send a new plan.</p>
+          <p v-else class="sent-lock"><Lock :size="13" /> Draft. Only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
           <div class="plan-actions create-actions">
             <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
             <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
@@ -389,7 +392,7 @@
               </div>
             </div>
             <div v-if="filledRows(otherRows).length" class="target-list">
-              <p class="target-list-title">Other targets <span>· not in the kcal target</span></p>
+              <p class="target-list-title">Other targets <span>(not in the kcal target)</span></p>
               <div v-for="row in filledRows(otherRows)" :key="row.label" class="target-row">
                 <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
               </div>
@@ -439,7 +442,7 @@
     <div v-if="confirmDelete" class="nm-modal-overlay no-print" @click.self="confirmDelete = false">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
         <h3 id="del-title" class="nm-modal-title">Delete this draft?</h3>
-        <p class="nm-modal-text">"{{ selectedPlan?.name }}" was never sent to {{ selectedPatientName || 'the patient' }}. Deleting it removes the whole 7-day week — every meal and food in it. This can't be undone.</p>
+        <p class="nm-modal-text">"{{ selectedPlan?.name }}" was never sent to {{ selectedPatientName || 'the patient' }}. Deleting it removes the whole 7-day week, every meal and food in it. This can't be undone.</p>
         <div class="nm-modal-actions">
           <button class="btn-secondary" type="button" @click="confirmDelete = false">Keep it</button>
           <button class="btn-danger solid" type="button" :disabled="isDeleting || deleteWait > 0" @click="deleteDraft"><Trash2 :size="15" /> {{ isDeleting ? 'Deleting…' : deleteWait > 0 ? `Delete draft (${deleteWait})` : 'Delete draft' }}</button>
@@ -456,9 +459,9 @@
         </p>
 
         <template v-if="allergyHits.length">
-          <p class="send-section allergy"><AlertTriangle :size="15" /> Allergy alert — contains foods {{ patientFirstName }} is allergic to ({{ patientAllergies.join(', ') }})</p>
+          <p class="send-section allergy"><AlertTriangle :size="15" /> Allergy alert: contains foods {{ patientFirstName }} is allergic to ({{ patientAllergies.join(', ') }})</p>
           <ul class="send-check-list allergy">
-            <li v-for="w in allergyHits" :key="w.key"><strong>{{ w.day }} · <span class="send-check-meal">{{ w.meal }}</span> — {{ w.food }}</strong><span>{{ w.allergy.join(' · ') }}</span></li>
+            <li v-for="w in allergyHits" :key="w.key"><strong>{{ w.day }}, <span class="send-check-meal">{{ w.meal }}</span>: {{ w.food }}</strong><span>{{ w.allergy.join(', ') }}</span></li>
           </ul>
           <label class="allergy-ack">
             <input v-model="allergyAck" type="checkbox" />
@@ -469,7 +472,7 @@
         <template v-if="conditionHits.length">
           <p class="send-section">May not suit {{ patientFirstName }}'s condition ({{ conditionSummary }})</p>
           <ul class="send-check-list">
-            <li v-for="w in conditionHits" :key="w.key"><strong>{{ w.day }} · <span class="send-check-meal">{{ w.meal }}</span> — {{ w.food }}</strong><span>{{ w.condition.join(' · ') }}</span></li>
+            <li v-for="w in conditionHits" :key="w.key"><strong>{{ w.day }}, <span class="send-check-meal">{{ w.meal }}</span>: {{ w.food }}</strong><span>{{ w.condition.join(', ') }}</span></li>
           </ul>
         </template>
 
@@ -950,7 +953,7 @@ function weekPayload() {
 function onTemplateCreated(plan, label) {
   replacePlan(plan)
   selectPlan(plan.id)
-  flash(`Draft built from the ${label} template — review each day and adjust, then send it to ${selectedPatientName.value}.`)
+  flash(`Draft built from the ${label} template. Check each day and adjust, then send it to ${selectedPatientName.value}.`)
 }
 
 function replacePlan(updated) {
@@ -969,7 +972,7 @@ async function createPlan() {
     })
     replacePlan(created)
     selectedPlanId.value = created.id
-    flash('Plan created as a draft — add meals for each day, then send it to your patient.')
+    flash('Plan created as a draft. Add meals for each day, then send it to your patient.')
   } catch (error) {
     errorMessage.value = apiError(error, 'Could not create the plan.')
   } finally {
@@ -1561,6 +1564,8 @@ button.saved-plan-card.selected { border-color: #163a1c; }
 .instructions-view p { font-size: 0.8rem; color: #4a5a4a; margin: 0 0 6px; line-height: 1.5; }
 .instructions-view p:last-child { margin: 0; }
 .instr-read { margin: 10px 0 0; }
+.instr-allergy { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; font-size: 0.8rem; font-weight: 600; line-height: 1.4; color: #8a1f14; background: #fdf1ef; border: 1.5px solid #c0392b; border-radius: 8px; padding: 7px 10px; }
+.instr-allergy svg { flex-shrink: 0; margin-top: 1px; color: #c0392b; }
 .instr-read dt { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; margin: 0 0 3px; }
 .instr-read dd { font-size: 0.84rem; color: #1a3a1a; line-height: 1.5; margin: 0 0 12px; white-space: pre-line; overflow-wrap: anywhere; }
 .instr-read dd:last-child { margin-bottom: 0; }

@@ -417,8 +417,8 @@ function printStatement(p) {
   const method = payoutVia(p.method, p.bank_name)
   const ok = printDocument({
     title: 'Payout statement',
-    number: `Payout #${p.id} · ${shortDate(p.released_at)}`,
-    rows: [['Paid to', p.account_name], ['Sent via', `${method} · ${p.account_number}`], ['Reference', p.reference], ['Payout date', shortDate(p.payout_date)]],
+    number: `Payout #${p.id}, ${shortDate(p.released_at)}`,
+    rows: [['Paid to', p.account_name], ['Sent via', `${method}, ${p.account_number}`], ['Reference', p.reference], ['Payout date', shortDate(p.payout_date)]],
     table: [['Invoice', 'Patient', 'Consultation', 'Fee', 'Your share'],
       ...p.invoices.map(i => [`INV-${pad(i.invoice_id)}`, i.client_name, i.consultation_at ? shortDate(i.consultation_at) : '—', peso(i.amount), peso(i.share)])],
     total: ['Total paid out', peso(p.amount)],

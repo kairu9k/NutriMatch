@@ -32,7 +32,7 @@
         <!-- ============ PERSONAL INFO ============ -->
         <!-- Read-only until "Edit Profile"; Save/Cancel replace it while editing. -->
         <template v-if="activeTab === 'personal'">
-          <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" @photo-changed="fireToast">
+          <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" :editable="isEditing" @photo-changed="fireToast">
             <template #actions>
               <button v-if="!isEditing" class="btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
                 <Pencil :size="15" /> Edit Profile

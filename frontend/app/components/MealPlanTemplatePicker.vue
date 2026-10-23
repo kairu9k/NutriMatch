@@ -33,7 +33,6 @@
         <button type="button" class="tpl-btn" :disabled="!picked || !!kcalError || busy" @click="generate">
           {{ busy ? 'Building the week…' : 'Generate draft plan' }}
         </button>
-        <span class="tpl-or">or fill in the plan yourself below</span>
       </div>
     </template>
   </div>

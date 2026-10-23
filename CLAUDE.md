@@ -69,6 +69,16 @@ Three roles: **client**, **RND**, **admin**.
 - **RA 10173 (Data Privacy Act) compliance is a first-class requirement**: audit logging (immutable `audit_logs` rows), RBAC, encryption in transit, informed consent. Explicitly out of scope per the proposal: formal NPC registration, end-to-end encryption, automated data retention schedules, granular consent revocation — don't add these unless asked.
 - **Invoices/commission amounts freeze at creation** — don't let commission calculations recompute retroactively.
 
+## Design rules (user's calls, 2026-10-24 RND design pass — keep new UI looking hand-made, not generated)
+
+- **Text:** sentence case everywhere (labels, buttons, titles); no all-caps labels or tracked-out eyebrows; join details with commas, never " · "; no " — " inside sentences (use a full stop, comma or colon); no "→" on links or buttons. A lone "—" is fine only as an empty table/figure cell.
+- **Colour meaning:** dashed green (`1.5px dashed #3f9a6b`, white background) = something still to do (`.nm-note.todo-note`); red = real warnings only (allergies, clashes, overdue, NRS risk); grey (`.nm-note.plain-note`) = plain information; dividers `#d9e3dc`; main buttons dark green `#0a4a37` (hover `#00382a`). Gold stays for stars, brand marks and where the user asked for it — check before swapping gold for green.
+- **Shadows:** light `0 0 1px rgba(0,77,58,.06), 0 0 14px rgba(0,77,58,.09)`; strong (pop-ups, floating button) `0 0 2px rgba(0,77,58,.08), 0 0 24px rgba(0,77,58,.22)`. Green banner gradient `linear-gradient(135deg,#00382a 0%,#005a42 100%)`.
+- **Structure:** figures in one divided panel (cells split by `#d9e3dc` lines), not rows of small boxes; numbered markers only for real sequences; motion only to draw attention to one thing, inside `prefers-reduced-motion: no-preference`.
+- **Allergies are never quiet:** any food picker or plan view that knows the patient's allergies shows matches in red (`utils/foodWarnings.js allergyWarnings`).
+- **Edit pages** (Profile Settings) are read-only until **Edit profile**, with Cancel / Save changes at the bottom.
+- Don't name a Tailwind utility as a class (`ring`, `shadow`, `border`…) in scoped CSS — Tailwind styles it too (the blue ring around the dashboard earnings chart).
+
 ## Working conventions
 
 - **Philippine time on the server's clock (user's rule, 2026-10-22 — no device-date tricks):** backend "today" decisions use `core/ph_time.py` (`ph_today()`, `ph_date()`), never `timezone.localdate()`/`date.today()` (UTC — a day behind before 8 AM PHT); dates a client could fake are decided by the server (meal logs: the day is always the server's PH date, a different `log_date` is refused, a meal planned for another weekday can't be logged). Every response carries `X-Server-Time` (epoch ms, `core/server_time.py`, `CORS_EXPOSE_HEADERS`); `frontend/app/plugins/00.ph-time.client.ts` makes `toLocale*String()` default to Asia/Manila and `new Date()`/`Date.now()` follow the server clock (offset synced in `useApi`), so changing a phone's date/time changes nothing. Use `utils/phTime.js` (`phIso`, `phWeekday`, `phHour`) instead of `getFullYear()/getDate()/getDay()/getHours()` for "today" logic.

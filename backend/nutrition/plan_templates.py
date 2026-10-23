@@ -254,7 +254,7 @@ def build_plan_from_template(rel, key, kcal):
     restrictions = [f"Allergies: {', '.join(health.allergies)}"] if health and health.allergies else []
     with transaction.atomic():
         plan = MealPlan.objects.create(
-            relationship=rel, name=f"{tpl['label']} plan — {kcal:,} kcal", condition=tpl["condition"],
+            relationship=rel, name=f"{tpl['label']} plan, {kcal:,} kcal", condition=tpl["condition"],
             target_kcal=Decimal(kcal), target_carb_g=Decimal(round(kcal * carb_pct / 100 / 4)),
             target_protein_g=Decimal(round(kcal * prot_pct / 100 / 4)), target_fat_g=Decimal(round(kcal * fat_pct / 100 / 9)),
             total_rice=day["rice"], total_meat=day["meat"], total_vegetable=day["veg"], total_fruit=day["fruit"],

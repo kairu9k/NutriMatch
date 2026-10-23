@@ -549,7 +549,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .icon-btn:hover { background: rgba(0,77,58,0.05); }
 .icon-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
-.content { flex: 1; padding: 24px 40px 32px; }
+.content { flex: 1; padding: 24px 40px 96px; } /* bottom room so the help button never covers a page's last button */
 
 /* MOBILE TOPBAR — hidden on desktop, shown only under the breakpoint below */
 .mobile-topbar { display: none; }
@@ -610,6 +610,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   }
 
   .main-column { height: auto; overflow: visible; }
-  .content { padding: 20px 16px 60px; }
+  .content { padding: 20px 16px 88px; }
 }
 </style>

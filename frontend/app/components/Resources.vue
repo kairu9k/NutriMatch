@@ -90,7 +90,7 @@
             <p v-if="!selected.is_active" class="nm-note plain-note" style="margin: 0 0 10px">It's hidden, so clients can't see it even if it's shared. Show it again to give them access.</p>
             <p v-if="shareLoading" class="nm-muted">Loading your clients…</p>
             <p v-else-if="shareError" class="nm-error">{{ shareError }}</p>
-            <p v-else-if="!shareRows.length" class="nm-muted">You don't have any active clients yet — once an appointment is confirmed you can share resources with them.</p>
+            <p v-else-if="!shareRows.length" class="nm-muted">You don't have any active clients yet. Once you confirm an appointment, you can share resources with them.</p>
             <div v-else class="client-grid">
               <label v-for="row in shareRows" :key="row.relationship_id" class="client-check" :class="{ on: chosen.includes(row.relationship_id) }">
                 <input v-model="chosen" type="checkbox" :value="row.relationship_id" />
@@ -325,7 +325,7 @@ async function saveSharing() {
     r.shared_count = chosen.value.length
     await loadSharing(r.id)
     const parts = []
-    if (added) parts.push(`Shared with ${added} client${added > 1 ? 's' : ''} — they were notified`)
+    if (added) parts.push(`Shared with ${added} client${added > 1 ? 's' : ''} (they were notified)`)
     if (removed) parts.push(`removed from ${removed}`)
     showToast(parts.join(', ') + '.')
   } catch (e) {
@@ -348,7 +348,7 @@ async function toggleActive(r) {
   try {
     await patch(`/rnd/resources/${r.id}/`, { is_active: !r.is_active })
     r.is_active = !r.is_active
-    showToast(r.is_active ? 'Clients you shared it with can see it again.' : 'Hidden — clients can no longer see it.')
+    showToast(r.is_active ? 'Clients you shared it with can see it again.' : 'Hidden. Clients can no longer see it.')
   } catch {
     errorMessage.value = 'Could not update this resource. Please try again.'
   } finally {
