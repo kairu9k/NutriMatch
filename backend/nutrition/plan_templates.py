@@ -1,5 +1,6 @@
-"""Disease-specific diet templates (proposal objective 3): diabetes,
-hypertension, renal disease and weight management.
+"""Diet templates (proposal objective 3): diabetes, hypertension, renal
+disease and weight management, plus weight gain (for patients the NRS-2002
+screening flags as at risk) and a general balanced plan.
 
 A template turns a kcal target into a week of meals with the standard FNRI
 food-exchange method:
@@ -66,7 +67,33 @@ TEMPLATES = {
         "guidance": "Half the plate vegetables, a quarter rice, a quarter lean protein. One cup of rice per meal at most; "
                     "water instead of sweetened drinks; avoid fried and fatty dishes.",
     },
+    "weight_gain": {
+        "label": "Weight gain", "condition": MealPlan.Condition.WEIGHT_GAIN, "split": (50, 20, 30),
+        "veg": 3, "fruit": 3, "milk": 2, "milk_code": "milk_whole", "sugar": 1, "milk_slot": "am_snack",
+        "rice_codes": ["rice_b", "rice_c"], "meat_codes": ["meat_low"], "flag": None,
+        # snacks carry rice and protein too, so the extra calories come in smaller meals
+        "slots": [
+            ("breakfast", time(7), {"rice": .25, "meat": .20, "veg": 0, "fruit": .30, "fat": .20}),
+            ("am_snack", time(10), {"rice": .10, "meat": .10, "veg": 0, "fruit": .35, "fat": .10}),
+            ("lunch", time(12), {"rice": .25, "meat": .30, "veg": .50, "fruit": 0, "fat": .30}),
+            ("pm_snack", time(15, 30), {"rice": .10, "meat": .10, "veg": 0, "fruit": .35, "fat": .10}),
+            ("dinner", time(19), {"rice": .30, "meat": .30, "veg": .50, "fruit": 0, "fat": .30}),
+        ],
+        "description": "Calorie surplus with more protein, full-cream milk and real snacks between meals.",
+        "guidance": "Eat every 3 hours and don't skip snacks. Add an extra spoon of rice or a slice of bread when you can; "
+                    "drink milk between meals, not before them, so you still finish your meals.",
+    },
+    "general": {
+        "label": "General balanced", "condition": MealPlan.Condition.GENERAL, "split": (55, 15, 30),
+        "veg": 4, "fruit": 3, "milk": 1, "milk_code": "milk_lowfat", "sugar": 0,
+        "rice_codes": ["rice_b", "rice_c"], "meat_codes": ["meat_low"], "flag": None,
+        "description": "Pinggang Pinoy: balanced meals for a healthy adult with no special diet.",
+        "guidance": "Half the plate vegetables and fruit, a quarter rice or other carbs, a quarter fish, meat, egg or beans. "
+                    "Water over sweetened drinks; go easy on fried, salty and sweet food.",
+    },
 }
+# kcal added to the screening TDEE when there's no NCP prescription yet
+KCAL_ADJUST = {"weight_management": -500, "weight_gain": 500}
 
 SLOTS = [  # (meal slot, time, share of each group: rice, meat, veg, fruit, fat)
     ("breakfast", time(7), {"rice": .30, "meat": .20, "veg": 0, "fruit": .25, "fat": .20}),
@@ -99,10 +126,10 @@ def daily_exchanges(tpl, kcal):
             "milk": _half(milk), "fat": _half(fat), "sugar": _half(sugar)}
 
 
-def split_over_slots(total, group):
+def split_over_slots(total, group, slots=SLOTS):
     """Spread a day's exchanges over the meals; the last meal that gets this
     group takes the remainder so the day adds up exactly."""
-    shares = [(slot, s[group]) for slot, _, s in SLOTS if s[group]]
+    shares = [(slot, s[group]) for slot, _, s in slots if s[group]]
     out, used = {}, Decimal("0")
     for i, (slot, share) in enumerate(shares):
         amount = total - used if i == len(shares) - 1 else _half(float(total) * share)
@@ -186,7 +213,7 @@ def candidates(tpl, codes, allergens):
 def suggested_kcal(rel, key=None):
     """The plan's starting kcal: the latest finalized NCP prescription, else the
     latest draft's, else the screening TDEE (minus 500 kcal, min 1,200, for
-    weight management)."""
+    weight management; plus 500 kcal for weight gain)."""
     from clinical.models import NcpRecord, PreConsultationScreening
 
     recs = NcpRecord.objects.filter(relationship=rel, target_kcal__isnull=False).order_by("-encounter_date", "-created_at")
@@ -196,8 +223,10 @@ def suggested_kcal(rel, key=None):
     s = PreConsultationScreening.objects.filter(client=rel.client).order_by("-created_at").first()
     if s and s.tdee_kcal:
         tdee = float(s.tdee_kcal)
-        if key == "weight_management":
-            return {"value": int(max(1200, round((tdee - 500) / 50) * 50)), "source": "screening TDEE − 500 kcal"}
+        adjust = KCAL_ADJUST.get(key, 0)
+        if adjust:
+            value = max(1200, min(MAX_KCAL, round((tdee + adjust) / 50) * 50))
+            return {"value": int(value), "source": f"screening TDEE {'+' if adjust > 0 else '−'} {abs(adjust)} kcal"}
         return {"value": int(round(tdee / 50) * 50), "source": "screening TDEE"}
     return {"value": 1800, "source": "default — no NCP target or screening yet"}
 
@@ -216,8 +245,9 @@ def build_plan_from_template(rel, key, kcal):
         "fat": candidates(tpl, ["fat"], allergens),
         "sugar": candidates(tpl, ["sugar"], allergens),
     }
-    per_slot = {g: split_over_slots(day[g], g) for g in ("rice", "meat", "veg", "fruit", "fat")}
-    per_slot["milk"] = {"breakfast": day["milk"]} if day["milk"] else {}
+    slots = tpl.get("slots", SLOTS)
+    per_slot = {g: split_over_slots(day[g], g, slots) for g in ("rice", "meat", "veg", "fruit", "fat")}
+    per_slot["milk"] = {tpl.get("milk_slot", "breakfast"): day["milk"]} if day["milk"] else {}
     per_slot["sugar"] = {"pm_snack": day["sugar"]} if day["sugar"] else {}
 
     carb_pct, prot_pct, fat_pct = tpl["split"]
@@ -233,7 +263,7 @@ def build_plan_from_template(rel, key, kcal):
             status=MealPlan.Status.DRAFT,
         )
         for d in range(7):
-            for si, (slot, at, _) in enumerate(SLOTS):
+            for si, (slot, at, _) in enumerate(slots):
                 meal = MealPlanMeal.objects.create(meal_plan=plan, day_of_week=d, meal_time=slot, scheduled_time=at)
                 for group in ("rice", "meat", "veg", "fruit", "milk", "fat", "sugar"):
                     ex = per_slot[group].get(slot, Decimal("0"))
@@ -273,7 +303,8 @@ class MealPlanTemplateListView(APIView):
         return Response({
             "templates": [
                 {"key": k, "label": t["label"], "description": t["description"], "condition": t["condition"],
-                 "split": {"carbs": t["split"][0], "protein": t["split"][1], "fat": t["split"][2]}}
+                 "split": {"carbs": t["split"][0], "protein": t["split"][1], "fat": t["split"][2]},
+                 "suggested_kcal": suggested_kcal(rel, k)}
                 for k, t in TEMPLATES.items()
             ],
             "suggested_kcal": suggested_kcal(rel),

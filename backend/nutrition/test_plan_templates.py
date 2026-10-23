@@ -84,7 +84,7 @@ class DietTemplateTests(TestCase):
 
     def test_kcal_suggestion(self):
         data = self.api.get(f"/api/rnd/relationships/{self.rel.id}/meal-plan-templates/").data
-        self.assertEqual(len(data["templates"]), 4)
+        self.assertEqual(len(data["templates"]), 6)
         self.assertEqual(data["suggested_kcal"]["value"], 2100)  # screening TDEE
         self.assertEqual(data["allergies"], ["Shrimp"])
         NcpRecord.objects.create(relationship=self.rel, status="completed", encounter_date="2026-10-01", target_kcal=Decimal("1500"))
@@ -95,6 +95,17 @@ class DietTemplateTests(TestCase):
     def test_weight_management_default_deficit(self):
         resp = self.api.post(self.url, {"template": "weight_management"}, format="json")
         self.assertEqual(MealPlan.objects.get(pk=resp.data["id"]).target_kcal, Decimal("1600"))  # 2100 − 500
+
+    def test_weight_gain_default_surplus_and_snacks(self):
+        data = self.api.get(f"/api/rnd/relationships/{self.rel.id}/meal-plan-templates/").data
+        by_key = {t["key"]: t["suggested_kcal"]["value"] for t in data["templates"]}
+        self.assertEqual((by_key["weight_gain"], by_key["weight_management"], by_key["general"]), (2600, 1600, 2100))
+        resp = self.api.post(self.url, {"template": "weight_gain"}, format="json")
+        plan = MealPlan.objects.get(pk=resp.data["id"])
+        self.assertEqual(plan.target_kcal, Decimal("2600"))  # 2100 + 500
+        snack = plan.meals.get(day_of_week=1, meal_time="am_snack")
+        groups = set(snack.food_items.values_list("food_item__category__code", flat=True))
+        self.assertTrue({"milk_whole", "meat_low"} <= groups, groups)  # a real snack, not just fruit
 
     def test_guards(self):
         self.assertEqual(self.api.post(self.url, {"template": "keto"}, format="json").status_code, 400)

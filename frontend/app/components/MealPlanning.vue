@@ -6,7 +6,7 @@
     </button>
     <div v-if="selectedRelId && !isLoading" class="top-controls no-print">
       <div class="mode-toggle">
-        <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="mode = 'view'">
+        <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="showView">
           <Eye :size="15" /> View plan
         </button>
         <button class="mode-btn" :class="{ active: mode === 'create' }" :disabled="!patients.length" @click="openCreate">
@@ -91,7 +91,7 @@
           </div>
         </div>
 
-        <div v-if="instructions.allergies || instructions.notes" class="instructions-view">
+        <div v-if="instructions.allergies || instructions.notes" class="instructions-view print-only">
           <p v-if="instructions.allergies"><strong>Allergies and restrictions:</strong> {{ instructions.allergies }}</p>
           <p v-if="instructions.notes"><strong>Notes from the RND:</strong> {{ instructions.notes }}</p>
         </div>
@@ -108,6 +108,20 @@
 
       <!-- RIGHT SIDEBAR -->
       <div class="side-column no-print">
+        <!-- same panel as in Edit plan, read-only here -->
+        <div class="panel">
+          <div class="side-header-row">
+            <h4 class="side-title">Instructions for the patient</h4>
+            <button class="link-btn" type="button" @click="mode = 'create'"><Pencil :size="13" /> Edit</button>
+          </div>
+          <dl class="instr-read">
+            <dt>Allergies and restrictions</dt>
+            <dd :class="{ empty: !instructions.allergies }">{{ instructions.allergies || 'None written' }}</dd>
+            <dt>Notes for the patient</dt>
+            <dd :class="{ empty: !instructions.notes }">{{ instructions.notes || 'None written' }}</dd>
+          </dl>
+        </div>
+
         <div class="panel">
           <h4 class="side-title">{{ DAY_FULL[activeDay] }}'s totals</h4>
           <span class="side-subtitle">Against the plan's daily targets</span>
@@ -156,13 +170,27 @@
     <!-- ================= CREATE / EDIT PLAN MODE ================= -->
     <div v-else class="planning-layout">
       <div class="create-column">
-        <!-- NEW PLAN: disease-specific diet template (diabetes, hypertension, renal, weight management) -->
-        <MealPlanTemplatePicker v-if="!selectedPlan" :relationship-id="selectedRelId" @created="onTemplateCreated" />
+        <!-- NEW PLAN: pick how to start first, so the two forms never sit on top of each other -->
+        <div v-if="!selectedPlan" class="panel start-choice">
+          <h4 class="no-plan-title">New meal plan for {{ selectedPatientName }}</h4>
+          <div class="start-options" role="radiogroup" aria-label="How to start the plan">
+            <button type="button" role="radio" class="start-opt" :class="{ on: startWith === 'template' }" :aria-checked="startWith === 'template'" @click="startWith = 'template'">
+              <span class="start-name">Start from a diet template <span class="start-rec">Recommended</span></span>
+              <span class="start-desc">Pick the condition and calories. A full week is filled in for you to check and adjust.</span>
+            </button>
+            <button type="button" role="radio" class="start-opt" :class="{ on: startWith === 'blank' }" :aria-checked="startWith === 'blank'" @click="startWith = 'blank'">
+              <span class="start-name">Start blank</span>
+              <span class="start-desc">Name the plan and set the calories, then add every meal yourself.</span>
+            </button>
+          </div>
+        </div>
 
-        <!-- STEP 1: PLAN DETAILS -->
-        <div class="panel">
-          <h4 v-if="!selectedPlan" class="no-plan-title">No meal plan yet for {{ selectedPatientName }}</h4>
-          <h4 v-else class="side-title">Plan details</h4>
+        <!-- disease-specific diet template (diabetes, hypertension, renal, weight management) -->
+        <MealPlanTemplatePicker v-if="!selectedPlan && startWith === 'template'" :relationship-id="selectedRelId" @created="onTemplateCreated" />
+
+        <!-- STEP 1: PLAN DETAILS (a new blank plan, or the plan being edited) -->
+        <div v-if="selectedPlan || startWith === 'blank'" class="panel">
+          <h4 class="side-title">Plan details</h4>
           <p v-if="!selectedPlan && ncpTargets" class="macro-note prefill-note">Targets are filled in from this client's NCP Intervention. Adjust them if needed.</p>
 
           <div class="form-row-6">
@@ -217,6 +245,7 @@
           <button v-if="!selectedPlan" class="btn-primary" :disabled="!planMeta.name || !planMeta.kcalPerDay || isSaving" @click="createPlan">
             {{ isSaving ? 'Creating…' : 'Create meal plan' }}
           </button>
+          <p v-if="!selectedPlan && createBlocker" class="create-hint">{{ createBlocker }} Then you can add the meals day by day.</p>
         </div>
 
         <!-- STEP 2: DAILY MEALS — only once the plan exists -->
@@ -231,6 +260,19 @@
             >
               {{ day }}<span v-if="warningDays.has(day)" class="day-warn-dot" title="A food on this day may not suit the patient's condition" />
             </button>
+          </div>
+
+          <div class="copy-day">
+            <label for="copy-to">Copy {{ DAY_FULL[activeDay] }}'s meals to</label>
+            <select id="copy-to" v-model="copyTarget" class="nm-select">
+              <option value="">Pick days</option>
+              <option value="all">Every other day</option>
+              <option value="weekdays">Monday to Friday</option>
+              <option value="weekend">Saturday and Sunday</option>
+              <option v-for="d in days.filter(x => x !== activeDay)" :key="d" :value="d">{{ DAY_FULL[d] }}</option>
+            </select>
+            <button type="button" class="btn-secondary" :disabled="!copyTarget || !dayHasFood(activeDay)" @click="copyDay">Copy</button>
+            <span v-if="!dayHasFood(activeDay)" class="copy-hint">Add food to {{ DAY_FULL[activeDay] }} first.</span>
           </div>
 
           <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
@@ -293,6 +335,7 @@
                   <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
                   <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
                 </template>
+                <p v-if="needsNumbers(item)" class="food-hint">Enter its calories and macros, or pick a food from the FNRI list so they fill in.</p>
                 <p v-if="itemWarnings(item).length" class="food-warn" :class="{ allergy: itemAllergyWarnings(item).length }" role="note">
                   <AlertTriangle :size="13" /> {{ itemWarnings(item).join(' · ') }}
                 </p>
@@ -313,7 +356,7 @@
             <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
             <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
             <button class="btn-secondary" @click="discardChanges">Discard changes</button>
-            <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : 'Save Plan' }}</button>
+            <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : selectedPlan.status === 'draft' ? 'Save draft' : 'Save changes' }}</button>
             <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; Send to Patient</button>
           </div>
         </template>
@@ -564,6 +607,36 @@ function defaultTargetRows(protein = null, carb = null, fat = null) {
 const instructions = reactive({ allergies: '', notes: '' })
 const weeklyPlan = reactive(emptyWeek())
 
+// New plan: 'template' or 'blank', picked before either form shows.
+const startWith = ref(null)
+const createBlocker = computed(() => {
+  const missing = [!planMeta.name?.trim() && 'a plan name', !planMeta.kcalPerDay && 'daily calories'].filter(Boolean)
+  return missing.length ? `Add ${missing.join(' and ')} to continue.` : ''
+})
+
+// Copy the open day's meals (times and foods) onto other days. Undo brings them back.
+const copyTarget = ref('')
+const COPY_SETS = { all: null, weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], weekend: ['Sat', 'Sun'] }
+function dayHasFood(day) {
+  return mealOrder.some(type => weeklyPlan[day][type].items.some(i => i.name?.trim()))
+}
+function copyDay() {
+  const from = activeDay.value
+  const set = copyTarget.value in COPY_SETS ? (COPY_SETS[copyTarget.value] || days) : [copyTarget.value]
+  const targets = set.filter(d => d !== from)
+  for (const d of targets) {
+    for (const type of mealOrder) weeklyPlan[d][type] = JSON.parse(JSON.stringify(weeklyPlan[from][type]))
+  }
+  copyTarget.value = ''
+  flash(`Copied ${DAY_FULL[from]}'s meals to ${targets.map(d => DAY_FULL[d]).join(', ')}. Press Undo if that wasn't right.`)
+}
+
+// A food typed by hand (not from FNRI or USDA) with no numbers adds nothing to the totals.
+function needsNumbers(item) {
+  return item.source !== 'usda' && !item.foodItemId && item.name?.trim()
+    && [item.kcal, item.carb, item.prot, item.fat].every(v => !Number(v))
+}
+
 function emptyWeek() {
   const week = {}
   for (const day of days) {
@@ -717,7 +790,22 @@ function selectPlan(id) {
   mode.value = 'view'
 }
 
+// + New plan clears the selection; View plan brings back the plan you were
+// on (or the sent one) instead of showing "No meal plan yet".
+let planBeforeNew = null
+function showView() {
+  if (!selectedPlanId.value && plans.value.length) {
+    const back = plans.value.find(p => p.id === planBeforeNew)
+      || plans.value.find(p => p.status === 'active') || plans.value[0]
+    selectPlan(back.id)
+    return
+  }
+  mode.value = 'view'
+}
+
 function startNewPlan() {
+  planBeforeNew = selectedPlanId.value
+  startWith.value = null
   selectedPlanId.value = null
   resetForm()
   mode.value = 'create'
@@ -725,13 +813,13 @@ function startNewPlan() {
 
 function openCreate() {
   if (selectedPlan.value) fillFromPlan(selectedPlan.value)
-  else resetForm()
+  else { resetForm(); startWith.value = null }
   mode.value = 'create'
 }
 
 function discardChanges() {
   if (selectedPlan.value) fillFromPlan(selectedPlan.value)
-  mode.value = 'view'
+  showView()
 }
 
 async function loadPatients() {
@@ -1310,6 +1398,24 @@ function formatTime(t) {
 
 /* CREATE MODE — STEP 1 (simplified plan details form) */
 .no-plan-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
+.start-choice { margin-bottom: 16px; }
+.start-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.start-opt { display: flex; flex-direction: column; gap: 4px; text-align: left; background: #fff; border: 1.5px solid #d9e3dc; border-radius: 12px; padding: 12px 14px; font-family: inherit; cursor: pointer; }
+.start-opt:hover { border-color: #9ec4ad; }
+.start-opt:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.start-opt.on { border-color: #0a4a37; background: #e3efe7; }
+.start-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 700; font-size: 0.9rem; color: #1a3a1a; }
+.start-rec { font-size: 0.7rem; font-weight: 700; color: #1a3a1a; background: #D4A017; border-radius: 999px; padding: 1px 8px; }
+.start-desc { font-size: 0.8rem; color: #4a5a4a; line-height: 1.45; }
+.create-hint { font-size: 0.8rem; color: #4a5a4a; margin: 8px 0 0; }
+.copy-day { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: -12px 0 16px; font-size: 0.82rem; color: #1a3a1a; }
+.copy-day label { font-weight: 600; }
+.copy-hint { font-size: 0.78rem; color: #6a7a6a; }
+.food-hint { grid-column: 2 / -1; margin: -4px 0 0; font-size: 0.76rem; color: #4a5a4a; background: #f2f6f3; border: 1px dashed #9ec4ad; border-radius: 6px; padding: 6px 9px; line-height: 1.4; }
+@media (max-width: 640px) {
+  .start-options { grid-template-columns: 1fr; }
+  .copy-day .nm-select { flex: 1; min-width: 0; }
+}
 .form-row-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 24px; margin-bottom: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field label { font-size: 0.8rem; font-weight: 600; color: #3a4a3a; }
@@ -1454,6 +1560,11 @@ button.saved-plan-card.selected { border-color: #163a1c; }
 .instructions-view { margin-top: 16px; padding: 14px 16px; background: #fafbfa; border-radius: 8px; }
 .instructions-view p { font-size: 0.8rem; color: #4a5a4a; margin: 0 0 6px; line-height: 1.5; }
 .instructions-view p:last-child { margin: 0; }
+.instr-read { margin: 10px 0 0; }
+.instr-read dt { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; margin: 0 0 3px; }
+.instr-read dd { font-size: 0.84rem; color: #1a3a1a; line-height: 1.5; margin: 0 0 12px; white-space: pre-line; overflow-wrap: anywhere; }
+.instr-read dd:last-child { margin-bottom: 0; }
+.instr-read dd.empty { color: #8a9a8a; }
 
 .meal-time-input { border: 1px solid #d5dfd5; border-radius: 6px; padding: 5px 8px; font-size: 0.78rem; font-family: inherit; color: #1a3a1a; background: #fff; }
 .create-actions { margin: 0 0 20px; padding: 0; border-top: none; }

@@ -72,8 +72,16 @@ async function load() {
 onMounted(load)
 watch(() => props.relationshipId, () => { picked.value = null; load() })
 
+// Each template has its own starting kcal (weight gain adds 500, weight
+// management takes 500 off the screening TDEE). Picking another template moves
+// the kcal along, unless the RND typed their own number.
+const suggestion = computed(() => data.value?.templates.find(t => t.key === picked.value)?.suggested_kcal || data.value?.suggested_kcal)
+watch(picked, (key, before) => {
+  const prev = data.value?.templates.find(t => t.key === before)?.suggested_kcal || data.value?.suggested_kcal
+  if (suggestion.value && (!prev || Number(kcal.value) === prev.value)) kcal.value = suggestion.value.value
+})
 const kcalSource = computed(() => {
-  const s = data.value?.suggested_kcal
+  const s = suggestion.value
   return s && Number(kcal.value) === s.value ? `From the ${s.source}` : ''
 })
 const kcalError = computed(() => {
@@ -103,7 +111,7 @@ async function generate() {
 .tpl-title { display: flex; align-items: center; gap: 6px; font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 4px; }
 .tpl-sub { font-size: 0.82rem; color: #6a7a6a; margin: 0 0 12px; line-height: 1.5; }
 .tpl-error { color: #c0392b; font-size: 0.78rem; }
-.tpl-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tpl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .tpl-card { text-align: left; display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1.5px solid #d9e3dc; border-radius: 12px; padding: 12px; font-family: inherit; cursor: pointer; transition: border-color 0.15s; }
 .tpl-card:hover { border-color: #9ec4ad; }
 .tpl-card:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
