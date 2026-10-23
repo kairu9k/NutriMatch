@@ -202,6 +202,9 @@ class AdminAppointmentCancelView(APIView):
         appointment.cancellation_reason = f"Cancelled by NutriMatch: {reason}"[:500]
         appointment.save(update_fields=["status", "cancellation_reason", "updated_at"])
         invoice = settle_cancelled_appointment(appointment)
+        from .services import close_reopened_care_if_idle
+
+        close_reopened_care_if_idle(appointment.relationship)
 
         when = format_ph_datetime(appointment.scheduled_at)
         kind = appointment.get_type_display().lower()

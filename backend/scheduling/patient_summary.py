@@ -95,6 +95,8 @@ def build_patient_summary(rnd, rel_id, now=None):
         for p in reversed(care.progress.get(rel.id, []))
     ]
 
+    # appointment id -> its NCP record's status (completed / draft); none = no record
+    written = {r.appointment_id: r.status for r in recs if r.appointment_id}
     appointments = []
     for a in sorted(rel.appointments.all(), key=lambda a: a.scheduled_at, reverse=True):
         inv = appointment_invoice(a)
@@ -107,6 +109,8 @@ def build_patient_summary(rnd, rel_id, now=None):
             "join_opens_at": a.scheduled_at - timedelta(minutes=JOIN_EARLY_MINUTES),
             "join_closes_at": end + timedelta(minutes=JOIN_LATE_MINUTES),
             "upcoming": a.status in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED) and end > now,
+            "has_ncp": a.id in written,
+            "ncp_status": written.get(a.id),
         })
 
     from .discharge_requests import request_payload as discharge_request_payload

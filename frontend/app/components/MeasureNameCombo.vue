@@ -68,7 +68,7 @@ function closeSoon() { setTimeout(() => { open.value = false }, 120) }
 .combo input { width: 100%; }
 .nm-input.bad { border-color: #e0a3a3; background: #fffafa; }
 .combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: max(100%, 280px); max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }
-.combo-group { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 6px 8px 2px; }
+.combo-group { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; margin: 6px 8px 2px; }
 .combo-opt { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
 .combo-opt:hover { background: #eef3ec; }
 .opt-unit { color: #8a9a8a; font-size: 0.76rem; }

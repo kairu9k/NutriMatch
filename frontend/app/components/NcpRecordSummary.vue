@@ -3,7 +3,7 @@
     <div class="sum" role="dialog" aria-modal="true" aria-labelledby="sum-title">
       <header class="sum-head">
         <div>
-          <p class="kind">{{ row.is_follow_up ? `Follow-up #${row.follow_up_no}` : 'Initial record' }} · {{ shortDate(row.encounter_date) }}</p>
+          <p class="kind">{{ row.is_follow_up ? `Follow-up #${row.follow_up_no}` : 'Initial record' }}, {{ shortDate(row.encounter_date) }}</p>
           <h2 id="sum-title" class="sum-title">{{ row.patient.name }}</h2>
           <p class="sub">{{ patientLine }}</p>
         </div>
@@ -21,7 +21,7 @@
           <p v-if="row.status === 'draft'" class="draft-note"><AlertTriangle :size="14" /> Unfinished — still needs {{ row.missing.join(', ') || 'a final check' }}.</p>
 
           <section>
-            <h3>1 · Assessment</h3>
+            <h3>1. Assessment</h3>
             <dl class="facts">
               <div v-for="[k, v] in assessment" :key="k"><dt>{{ k }}</dt><dd>{{ v }}</dd></div>
             </dl>
@@ -30,12 +30,12 @@
           </section>
 
           <section>
-            <h3>2 · Diagnosis</h3>
+            <h3>2. Diagnosis</h3>
             <p class="pes">{{ pes || 'Not written yet.' }}</p>
           </section>
 
           <section>
-            <h3>3 · Intervention</h3>
+            <h3>3. Intervention</h3>
             <dl class="facts">
               <div v-for="[k, v] in intervention" :key="k"><dt>{{ k }}</dt><dd>{{ v }}</dd></div>
             </dl>
@@ -44,14 +44,14 @@
           </section>
 
           <section v-if="row.is_follow_up || r.goal_status || r.monitoring_notes">
-            <h3>4 · Monitoring &amp; evaluation</h3>
+            <h3>4. Monitoring &amp; evaluation</h3>
             <dl class="facts">
               <div><dt>Goal status</dt><dd>{{ GOALS[r.goal_status] || '—' }}</dd></div>
             </dl>
             <p v-if="r.monitoring_notes" class="txt"><span class="k">Monitoring notes</span>{{ r.monitoring_notes }}</p>
           </section>
 
-          <p class="sig">By {{ rnd.name }}{{ rnd.prc_license_number ? `, RND · PRC No. ${rnd.prc_license_number}` : '' }} · {{ row.status === 'completed' ? `finalized ${dateTime(r.updated_at)}` : `last edited ${dateTime(r.updated_at)}` }}</p>
+          <p class="sig">By {{ rnd.name }}{{ rnd.prc_license_number ? `, RND, PRC No. ${rnd.prc_license_number}` : '' }}. {{ row.status === 'completed' ? `Finalized ${dateTime(r.updated_at)}` : `Last edited ${dateTime(r.updated_at)}` }}.</p>
         </template>
       </div>
 
@@ -73,7 +73,7 @@
 import { AlertTriangle, CalendarCheck, Printer, X } from 'lucide-vue-next'
 import { bmiClass, bpLabel, glucoseCategory, hba1cCategory } from '~/utils/ncp'
 
-const withCat = (text, cat) => (cat ? `${text} · ${cat.label}` : text)
+const withCat = (text, cat) => (cat ? `${text}, ${cat.label}` : text)
 
 const props = defineProps({
   row: { type: Object, required: true }, // a record row from /rnd/ncp/overview/
@@ -101,13 +101,13 @@ const SEX = { male: 'Male', female: 'Female' }
 const PH = { timeZone: 'Asia/Manila' }
 const longWhen = v => new Date(v).toLocaleString('en-PH', { ...PH, month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 const num = (v, unit, dp = 1) => (v == null || v === '' ? '—' : `${Number(v).toFixed(dp).replace(/\.0+$/, '')}${unit ? ` ${unit}` : ''}`)
-const patientLine = computed(() => [props.row.patient.age != null ? `${props.row.patient.age} y/o` : null, SEX[props.row.patient.sex]].filter(Boolean).join(' · '))
+const patientLine = computed(() => [props.row.patient.age != null ? `${props.row.patient.age} y/o` : null, SEX[props.row.patient.sex]].filter(Boolean).join(', '))
 
 const assessment = computed(() => {
   const x = r.value
   const rows = [
     ['Height', num(x.height_cm, 'cm')], ['Weight', num(x.weight_kg, 'kg')],
-    ['BMI', x.bmi ? `${Number(x.bmi).toFixed(1)} · ${bmiClass(Number(x.bmi))}` : '—'],
+    ['BMI', x.bmi ? `${Number(x.bmi).toFixed(1)}, ${bmiClass(Number(x.bmi))}` : '—'],
     ['Blood pressure', bpLabel(x.blood_pressure) || '—'],
     ['Fasting glucose', withCat(num(x.blood_glucose, 'mg/dL', 0), glucoseCategory(x.blood_glucose))],
     ['HbA1c', withCat(num(x.hba1c, '%'), hba1cCategory(x.hba1c))],
@@ -133,18 +133,18 @@ const pes = computed(() => {
 function print() {
   const x = r.value
   const sections = [
-    { heading: '1 · Nutrition assessment', rows: assessment.value, text: [x.lab_notes && `Lab notes: ${x.lab_notes}`, x.assessment_notes && `Notes: ${x.assessment_notes}`].filter(Boolean).join('\n') },
-    { heading: '2 · Nutrition diagnosis (PES)', text: pes.value || '—' },
-    { heading: '3 · Nutrition intervention', rows: intervention.value, text: [x.diet_prescription && `Diet prescription: ${x.diet_prescription}`, x.intervention_notes && `Notes: ${x.intervention_notes}`].filter(Boolean).join('\n') },
+    { heading: '1. Nutrition assessment', rows: assessment.value, text: [x.lab_notes && `Lab notes: ${x.lab_notes}`, x.assessment_notes && `Notes: ${x.assessment_notes}`].filter(Boolean).join('\n') },
+    { heading: '2. Nutrition diagnosis (PES)', text: pes.value || '—' },
+    { heading: '3. Nutrition intervention', rows: intervention.value, text: [x.diet_prescription && `Diet prescription: ${x.diet_prescription}`, x.intervention_notes && `Notes: ${x.intervention_notes}`].filter(Boolean).join('\n') },
   ]
   if (props.row.is_follow_up || x.goal_status || x.monitoring_notes) {
-    sections.push({ heading: '4 · Monitoring & evaluation', rows: [['Goal status', GOALS[x.goal_status] || '—']], text: x.monitoring_notes || '' })
+    sections.push({ heading: '4. Monitoring & evaluation', rows: [['Goal status', GOALS[x.goal_status] || '—']], text: x.monitoring_notes || '' })
   }
   const ok = printDocument({
     title: 'Nutrition Care Process record',
     number: `NCP-${String(x.id).padStart(4, '0')} · ${props.row.is_follow_up ? `Follow-up #${props.row.follow_up_no}` : 'Initial'}`,
     rows: [
-      ['Patient', props.row.patient.name], ['Age · sex', patientLine.value || '—'],
+      ['Patient', props.row.patient.name], ['Age and sex', patientLine.value || '—'],
       ['Encounter date', shortDate(props.row.encounter_date)],
       ['Registered Nutritionist-Dietitian', `${props.rnd.name || ''}${props.rnd.prc_license_number ? ` (PRC No. ${props.rnd.prc_license_number})` : ''}`],
       ['Finalized', dateTime(x.updated_at)],
@@ -159,7 +159,7 @@ function print() {
 <style scoped>
 .sum { background: #fff; border-radius: 16px; width: 100%; max-width: 720px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); overflow: hidden; }
 .sum-head { display: flex; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; border-bottom: 1px solid #f0f2f0; }
-.kind { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b8860b; margin: 0 0 2px; }
+.kind { font-size: 0.82rem; font-weight: 700; color: #a07400; margin: 0 0 2px; }
 .sum-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin: 0; }
 .sub { font-size: 0.8rem; color: #8a9a8a; margin: 2px 0 0; }
 .head-right { display: flex; align-items: flex-start; gap: 8px; }
@@ -171,12 +171,12 @@ function print() {
 .draft-note { background: #fdf6e3; color: #7a5a00; }
 section { padding: 12px 0; border-top: 1px solid #f0f2f0; }
 section:first-of-type { border-top: none; }
-h3 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6a7a6a; margin: 0 0 8px; }
+h3 { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 14px; margin: 0; }
 .facts dt { font-size: 0.7rem; color: #8a9a8a; margin: 0; }
 .facts dd { margin: 0; font-size: 0.86rem; font-weight: 600; overflow-wrap: anywhere; }
 .txt { font-size: 0.84rem; line-height: 1.55; margin: 10px 0 0; overflow-wrap: anywhere; white-space: pre-line; }
-.k { display: block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin-bottom: 2px; }
+.k { display: block; font-size: 0.76rem; font-weight: 500; color: #7a8a7a; margin-bottom: 2px; }
 .pes { font-size: 0.9rem; line-height: 1.55; margin: 0; }
 .sig { font-size: 0.76rem; color: #8a9a8a; margin: 12px 0 0; border-top: 1px solid #f0f2f0; padding-top: 10px; }
 .sum-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 12px 22px; border-top: 1px solid #f0f2f0; }

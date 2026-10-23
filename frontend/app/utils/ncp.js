@@ -72,7 +72,7 @@ export function bpCategory(systolic, diastolic) {
   if (s < 90 || d < 60) return { label: 'Low blood pressure', level: 'warn' }
   return { label: 'Optimal', level: 'ok' }
 }
-export const bpLabel = bp => (bp ? `${bp} mmHg${bpCategory(bp) ? ` · ${bpCategory(bp).label}` : ''}` : '')
+export const bpLabel = bp => (bp ? `${bp} mmHg${bpCategory(bp) ? `, ${bpCategory(bp).label}` : ''}` : '')
 
 // Fasting blood glucose (mg/dL) and HbA1c (%) categories (ADA cutoffs,
 // user's call 2026-10-16). Warnings only, same { label, level } shape.

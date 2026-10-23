@@ -24,8 +24,9 @@ export default defineNuxtPlugin(() => {
     const open = !!document.querySelector(OPEN_POPUP)
     if (open === locked) return
     locked = open
+    // Only <html>: hiding <body> too made it its own scroll box, so the
+    // sticky sidebar jumped to the page top and looked cut off.
     document.documentElement.style.overflow = open ? 'hidden' : ''
-    document.body.style.overflow = open ? 'hidden' : ''
   }
 
   new MutationObserver(() => {

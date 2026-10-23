@@ -1,56 +1,46 @@
 <template>
   <Teleport to="body">
     <div class="ml-overlay" @click.self="emit('close')">
-      <div class="ml-box">
+      <div class="ml-box" role="dialog" aria-modal="true" :aria-label="log ? title : 'Meal log'">
+        <button type="button" class="ml-x" aria-label="Close" @click="emit('close')"><X :size="18" /></button>
         <div class="ml-header">
-          <div>
-            <h2 class="ml-title">Meal Log</h2>
-            <p class="ml-sub">{{ log ? `${log.meal_label} · ${formatDate(log.log_date)}` : 'Loading…' }}</p>
-          </div>
-          <div v-if="log" class="ml-chip">
-            <span class="ml-avatar">{{ initials(log.client_name) }}</span>
-            {{ log.client_name }}
-          </div>
+          <h2 class="ml-title">{{ log ? title : 'Meal log' }}</h2>
+          <p class="ml-sub">{{ log ? subLine : 'Loading…' }}</p>
+          <span v-if="log" class="ml-status" :class="`ml-status-${log.status || 'waiting'}`">{{ log.status_label }}</span>
         </div>
 
         <p v-if="error" class="ml-error">{{ error }}</p>
 
         <template v-else-if="log">
-          <div class="ml-status-row">
-            <span class="ml-status" :class="`ml-status-${log.status || 'waiting'}`">{{ log.status_label }}</span>
-            <span class="ml-meta">Logged at {{ formatTime(log.time_logged) || '—' }}{{ log.scheduled_time ? ` · scheduled ${formatTime(log.scheduled_time)}` : '' }}</span>
-          </div>
+          <section class="ml-sec">
+            <h3 class="ml-h">What they ate</h3>
+            <a v-if="log.photo_url" :href="log.photo_url" target="_blank" rel="noopener" class="ml-photo-link" title="Open full size">
+              <img :src="log.photo_url" :alt="`${log.client_name}'s ${log.meal_label.toLowerCase()}`" class="ml-photo" />
+            </a>
+            <p v-else class="ml-empty"><ImageOff :size="16" /> No photo was uploaded for this meal.</p>
+            <p v-if="log.reason_notes" class="ml-note">{{ log.reason_notes }}</p>
+          </section>
 
-          <span class="ml-eyebrow">WHAT THE CLIENT ATE</span>
-          <a v-if="log.photo_url" :href="log.photo_url" target="_blank" rel="noopener" class="ml-photo-link" title="Open full size">
-            <img :src="log.photo_url" :alt="`${log.client_name}'s ${log.meal_label.toLowerCase()}`" class="ml-photo" />
-          </a>
-          <p v-else class="ml-no-photo"><ImageOff :size="16" /> No photo was uploaded for this meal.</p>
+          <section class="ml-sec">
+            <h3 class="ml-h">What was planned</h3>
+            <p class="ml-hsub">{{ log.plan_name }}</p>
+            <ul v-if="log.planned_items.length" class="ml-planned">
+              <li v-for="(item, i) in log.planned_items" :key="i">
+                <span>{{ item.food_name }}<span v-if="item.household_measure" class="ml-measure">, {{ item.household_measure }}</span></span>
+                <span v-if="item.kcal" class="ml-kcal">{{ Math.round(item.kcal) }} kcal</span>
+              </li>
+            </ul>
+            <p v-else class="ml-empty">No foods were planned for this meal.</p>
+          </section>
 
-          <template v-if="log.reason_notes">
-            <label class="ml-label">Client's note</label>
-            <p class="ml-note">{{ log.reason_notes }}</p>
-          </template>
-
-          <span class="ml-eyebrow">WHAT WAS PLANNED · {{ log.plan_name }}</span>
-          <ul v-if="log.planned_items.length" class="ml-planned">
-            <li v-for="(item, i) in log.planned_items" :key="i">
-              <span>{{ item.food_name }}<span v-if="item.household_measure" class="ml-measure"> · {{ item.household_measure }}</span></span>
-              <span v-if="item.kcal" class="ml-kcal">{{ Math.round(item.kcal) }} kcal</span>
-            </li>
-          </ul>
-          <p v-else class="ml-no-photo">No foods were planned for this meal.</p>
-
-          <template v-if="log.can_review !== false">
-            <span class="ml-eyebrow">YOUR RATING</span>
-            <p class="ml-rate-hint">How well did this meal follow the plan? It counts toward their adherence once rated.</p>
-            <MealLogRating :log-id="log.id" :status="log.status" :label="`${log.client_name}'s ${log.meal_label.toLowerCase()}`"
-                           class="ml-rate" @rated="onRated" />
-          </template>
+          <section v-if="log.can_review !== false" class="ml-sec">
+            <h3 class="ml-h">Your rating</h3>
+            <p class="ml-hsub">How well did this meal follow the plan? It counts toward their adherence once rated.</p>
+            <MealLogRating :log-id="log.id" :status="log.status" :label="`${log.client_name}'s ${log.meal_label.toLowerCase()}`" @rated="onRated" />
+          </section>
 
           <div class="ml-actions">
-            <button class="ml-secondary-btn" type="button" @click="emit('close')">Close</button>
-            <button class="ml-primary-btn" type="button" @click="openChart">Open Patient Chart</button>
+            <button class="ml-primary-btn" type="button" @click="openChart">Open patient chart</button>
           </div>
         </template>
       </div>
@@ -64,8 +54,8 @@
 // RND's rating (Followed / Partly / Not followed). Shows the
 // copy that came with the notification right away, then refreshes it from
 // GET /api/rnd/meal-logs/<id>/ (the client may have edited the log since).
-import { onMounted, ref } from 'vue'
-import { ImageOff } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { ImageOff, X } from 'lucide-vue-next'
 
 const props = defineProps({
   mealLogId: { type: Number, required: true },
@@ -85,15 +75,22 @@ onMounted(async () => {
   }
 })
 
+// "Ana Cruz's breakfast" / "Friday, October 23, logged 8:05 AM, planned for 7:00 AM"
+const title = computed(() => `${log.value.client_name}'s ${log.value.meal_label.toLowerCase()}`)
+const subLine = computed(() => {
+  const l = log.value
+  const parts = [formatDate(l.log_date)]
+  if (l.time_logged) parts.push(`logged ${formatTime(l.time_logged)}`)
+  if (l.scheduled_time) parts.push(`planned for ${formatTime(l.scheduled_time)}`)
+  return parts.join(', ')
+})
+
 function onRated(updated) {
   log.value = { ...log.value, ...updated }
 }
 function openChart() {
   emit('close')
   navigateTo(`/client-detail/${log.value.relationship_id}`)
-}
-function initials(name) {
-  return (name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
 function formatDate(iso) {
   return iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''
@@ -113,53 +110,44 @@ function formatTime(t) {
   display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px;
 }
 .ml-box {
-  background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
-  padding: 28px; font-family: 'Inter', sans-serif;
+  position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+  padding: 26px 28px; font-family: 'Inter', sans-serif;
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 16px 40px -12px rgba(0, 77, 58, 0.35);
 }
-.ml-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #eceeec; }
+.ml-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: 8px; color: #6a7a6a; cursor: pointer; }
+.ml-x:hover { background: #f2f5f2; color: #1a3a1a; }
+.ml-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
+.ml-header { padding: 0 36px 16px 0; border-bottom: 1px solid #d9e3dc; }
 .ml-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #1a3a1a; margin: 0 0 4px; }
-.ml-sub { font-size: 0.82rem; color: #8a9a8a; margin: 0; }
-.ml-chip {
-  display: flex; align-items: center; gap: 8px; border: 1px solid #e5e8e5; border-radius: 20px;
-  padding: 6px 14px 6px 6px; font-size: 0.82rem; font-weight: 700; color: #1a3a1a; white-space: nowrap;
-}
-.ml-avatar {
-  width: 26px; height: 26px; border-radius: 50%; background: #14301a; color: #fff;
-  display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700;
-}
-.ml-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; }
+.ml-sub { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 10px; }
+.ml-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin-top: 16px; }
 
-.ml-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
-.ml-status { font-size: 0.74rem; font-weight: 700; padding: 4px 12px; border-radius: 14px; }
+.ml-status { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 3px 11px; border-radius: 14px; }
 .ml-status-followed { background: #e3f3ea; color: #1f8f5c; }
-.ml-status-partially_followed { background: #fdf1d6; color: #b8860b; }
-.ml-status-not_followed { background: #fbe1de; color: #c0483a; }
+.ml-status-partially_followed { background: #fdf1d6; color: #8a6508; }
+.ml-status-not_followed { background: #fbe1de; color: #b23b2e; }
 .ml-status-waiting { background: #eceeec; color: #5a6a5a; }
-.ml-rate-hint { font-size: 0.8rem; color: #6a7a6a; margin: 0 0 10px; }
-.ml-rate { margin-bottom: 20px; }
-.ml-meta { font-size: 0.8rem; color: #6a7a6a; }
 
-.ml-eyebrow { display: block; font-size: 0.68rem; letter-spacing: 0.08em; color: #b8860b; font-weight: 700; margin: 4px 0 10px; }
-.ml-photo-link { display: block; margin-bottom: 16px; }
+.ml-sec { padding: 18px 0 0; }
+.ml-sec + .ml-sec { margin-top: 18px; border-top: 1px solid #eef1ee; }
+.ml-h { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
+.ml-hsub { font-size: 0.82rem; color: #6a7a6a; margin: -4px 0 10px; }
+.ml-photo-link { display: block; }
 .ml-photo { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px; border: 1px solid #eceeec; display: block; }
-.ml-no-photo { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #8a9a8a; background: #f7f8f7; border-radius: 10px; padding: 14px 16px; margin: 0 0 16px; }
-.ml-label { display: block; font-size: 0.82rem; font-weight: 600; color: #2a2a2a; margin: 0 0 6px; }
-.ml-note { font-size: 0.85rem; color: #4a5a4a; background: #f4f6f4; border-radius: 8px; padding: 11px 14px; margin: 0 0 18px; }
+.ml-empty { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #7a8a7a; background: #f7f9f7; border-radius: 10px; padding: 14px 16px; margin: 0; }
+.ml-note { font-size: 0.86rem; color: #3a4a3a; margin: 12px 0 0; padding-left: 10px; border-left: 2px solid #d9e3dc; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
 
-.ml-planned { list-style: none; padding: 0; margin: 0 0 20px; border: 1px solid #eceeec; border-radius: 10px; }
-.ml-planned li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; font-size: 0.85rem; color: #1a3a1a; border-bottom: 1px solid #f2f4f2; }
+.ml-planned { list-style: none; padding: 0; margin: 0; border: 1px solid #d9e3dc; border-radius: 10px; }
+.ml-planned li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; font-size: 0.86rem; color: #1a3a1a; border-bottom: 1px solid #eef1ee; }
 .ml-planned li:last-child { border-bottom: none; }
-.ml-measure { color: #8a9a8a; }
-.ml-kcal { color: #8a9a8a; white-space: nowrap; }
+.ml-measure { color: #7a8a7a; }
+.ml-kcal { color: #7a8a7a; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-.ml-actions { display: flex; gap: 12px; }
-.ml-secondary-btn {
-  border: 1px solid #d5dad5; background: #fff; color: #4a5a4a; border-radius: 8px;
-  padding: 11px 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
-}
+.ml-actions { display: flex; margin-top: 22px; }
 .ml-primary-btn {
   flex: 1; background: #14301a; color: #fff; border: none; border-radius: 8px;
-  padding: 12px 20px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+  padding: 12px 20px; font-weight: 700; font-size: 0.88rem; cursor: pointer; font-family: inherit;
 }
-@media (max-width: 600px) { .ml-header { flex-direction: column; } }
+.ml-primary-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+@media (max-width: 600px) { .ml-box { padding: 22px 18px; } }
 </style>

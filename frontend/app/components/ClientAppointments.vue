@@ -69,7 +69,7 @@
                 <Video :size="14" /> Join opens {{ appt.opensLabel }}
               </button>
               <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" /> Message RND</NuxtLink>
-              <button class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
+              <button v-if="appt.canCancel" class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
                 {{ appt.status === 'pending' ? 'Cancel Request' : 'Cancel' }}
               </button>
             </div>
@@ -307,6 +307,8 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     opensLabel: formatJoinTime(opensAt, nowMs),
     needsRoomRefresh: phase === 'confirmed' && a.type === 'video' && inWindow && !a.video_session_url,
     canMessage: relActive,
+    // A confirmed consultation can't be cancelled once it has started (the API refuses too).
+    canCancel: a.status === 'pending' || (a.status === 'confirmed' && nowMs < start.getTime()),
     review: reviewByAppt.value[a.id] || null,
     payment,
   }

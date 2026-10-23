@@ -99,11 +99,11 @@ onUnmounted(() => clearInterval(fallbackTimer))
   <div class="relative" v-click-outside="close">
     <button
       ref="bellEl"
-      class="btn-press w-9 h-9 rounded-lg border border-forest/15 flex items-center justify-center relative hover:bg-forest/5 hover:scale-105"
+      class="btn-press w-10 h-10 rounded-lg border border-forest/15 flex items-center justify-center relative hover:bg-forest/5"
       aria-label="Notifications"
       @click="toggle"
     >
-      <NavIcon name="bell" class="w-4 h-4 text-forest transition-transform" :class="open ? 'rotate-12' : ''" />
+      <NavIcon name="bell" class="w-5 h-5 text-forest transition-transform" :class="open ? 'rotate-12' : ''" />
       <span v-if="unreadCount" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gold border-2 border-cream animate-pop"></span>
     </button>
 
@@ -122,8 +122,8 @@ onUnmounted(() => clearInterval(fallbackTimer))
 
         <div v-if="isLoading" class="px-5 py-8 text-center text-sm text-forest/40">Loading…</div>
 
-        <div v-else-if="!notifications.length" class="px-5 py-8 text-center text-sm text-forest/40">
-          No notifications yet.
+        <div v-else-if="!notifications.length" class="px-5 py-8 text-center text-sm text-forest/50">
+          No notifications yet. Updates about consultations, payments and your care show up here.
         </div>
 
         <TransitionGroup v-else name="list" tag="div" class="notif-list max-h-80 overflow-y-auto scrollbar-thin relative">
@@ -142,7 +142,7 @@ onUnmounted(() => clearInterval(fallbackTimer))
               <p class="text-xs text-forest/60">{{ n.content }}</p>
               <p v-if="n.meal_log" class="mt-1 flex items-center gap-2">
                 <span class="text-[11px] font-semibold rounded-full px-2 py-0.5" :class="STATUS_CLASS[n.meal_log.status]">{{ n.meal_log.status_label }}</span>
-                <span class="text-[11px] font-semibold text-emerald-700">View log →</span>
+                <span class="text-[11px] font-semibold text-emerald-700">View log</span>
               </p>
               <p class="text-xs text-forest/50 mt-0.5">{{ timeAgo(n.created_at) }}</p>
             </div>
@@ -158,6 +158,8 @@ onUnmounted(() => clearInterval(fallbackTimer))
 </template>
 
 <style scoped>
+/* the app's green-tinted shadow instead of a grey one */
+.notif-panel { box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 12px 32px -8px rgba(0, 77, 58, 0.28); }
 @media (max-width: 639px) {
   .notif-panel {
     position: fixed;

@@ -6,11 +6,8 @@
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading your patients…</p></div>
 
     <div v-else-if="!patients.length" class="nm-panel">
-      <div class="nm-empty">
-        <Users :size="28" />
-        <p><strong>No patients yet</strong></p>
-        <p>When a client books you, they show up here. Confirming their booking makes them your patient.</p>
-      </div>
+      <h2 class="empty-title">No patients yet</h2>
+      <p class="empty-text">When a client books you, they show up here. Confirming their booking makes them your patient.</p>
     </div>
 
     <template v-else>
@@ -49,7 +46,7 @@
               <tr>
                 <th>Patient</th>
                 <th>Care stage</th>
-                <th>Adherence · 7 days</th>
+                <th>7-day adherence</th>
                 <th>Progress</th>
                 <th>Next appointment</th>
                 <th><span class="sr-only">Actions</span></th>
@@ -76,7 +73,7 @@
             <PatientIdentity :p="p" />
             <div class="card-grid">
               <div><p class="k">Care stage</p><CareStage :p="p" /></div>
-              <div><p class="k">Adherence · 7 days</p><AdherenceCell :p="p" /></div>
+              <div><p class="k">7-day adherence</p><AdherenceCell :p="p" /></div>
               <div><p class="k">Progress</p><ProgressCell :p="p" /></div>
               <div><p class="k">Next appointment</p><NextCell :p="p" /></div>
             </div>
@@ -90,7 +87,7 @@
 </template>
 
 <script setup>
-import { AlertTriangle, FlaskConical, Info, MessageSquare, OctagonAlert, Search, Users } from 'lucide-vue-next'
+import { AlertTriangle, FlaskConical, Info, MessageSquare, OctagonAlert, Search } from 'lucide-vue-next'
 
 const { get } = useApi()
 
@@ -170,7 +167,7 @@ const PatientIdentity = defineComponent({
       const p = props.p
       const c = p.client
       const meta = [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], p.condition ? p.condition + (p.other_conditions ? ` +${p.other_conditions}` : '') : null]
-        .filter(Boolean).join(' · ')
+        .filter(Boolean).join(', ')
       const alert = p.alerts[0]
       const AlertIcon = alert ? { critical: OctagonAlert, warning: AlertTriangle, info: Info }[alert.level] : null
       return h('div', { class: 'identity' }, [
@@ -209,7 +206,7 @@ function stageCaption(p) {
   if (s.ncp_draft) return 'Follow-up NCP in progress'
   if (s.meal_plan === 'none') return 'No meal plan yet'
   if (s.meal_plan === 'draft') return 'Meal plan not sent yet'
-  return s.follow_up ? `On plan · ${s.ncp_count} NCP records` : 'On plan · awaiting follow-up'
+  return s.follow_up ? `On a plan, ${s.ncp_count} NCP records` : 'On a plan, follow-up next'
 }
 const CareStage = defineComponent({
   props: { p: Object },
@@ -219,7 +216,7 @@ const CareStage = defineComponent({
       const label = STEPS.map((n, i) => `${n}: ${{ done: 'done', current: 'in progress', todo: 'not yet' }[states[i]]}`).join(', ')
       return h('div', { class: 'stage' }, [
         h('div', { class: 'steps', role: 'img', 'aria-label': label },
-          STEPS.map((n, i) => h('span', { class: ['step', states[i]], title: `${n} — ${{ done: 'done', current: 'in progress', todo: 'not yet' }[states[i]]}` }))),
+          STEPS.map((n, i) => h('span', { class: ['step', states[i]], title: `${n}: ${{ done: 'done', current: 'in progress', todo: 'not yet' }[states[i]]}` }))),
         h('p', { class: 'nm-row-sub' }, stageCaption(props.p)),
       ])
     }
@@ -255,8 +252,7 @@ const ProgressCell = defineComponent({
       if (g.latest_weight_kg == null && g.bmi == null) return h('span', { class: 'nm-muted' }, 'No measurements yet')
       return h('div', [
         h('p', { class: 'cell-main' }, change ?? `${Number(g.latest_weight_kg).toFixed(1)} kg`),
-        h('p', { class: 'nm-row-sub' }, [g.bmi != null ? `BMI ${Number(g.bmi).toFixed(1)}` : null, g.bmi_class].filter(Boolean).join(' · ')
-          + (change ? '' : ' · at screening')),
+        h('p', { class: 'nm-row-sub' }, [g.bmi != null ? `BMI ${Number(g.bmi).toFixed(1)}` : null, g.bmi_class, change ? null : 'at screening'].filter(Boolean).join(', ')),
       ])
     }
   },
@@ -310,9 +306,13 @@ const RowActions = defineComponent({
 </script>
 
 <style scoped>
+.empty-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 6px; }
+.empty-text { font-size: 0.88rem; color: #5a6a5a; line-height: 1.55; margin: 0; max-width: 56ch; }
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0 0 18px; }
 .sort { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #6a7a6a; }
 .list-panel { padding-top: 14px; }
+/* the patient list: the light card shadow (Food Exchange, NCP Records, Appointments) */
+.list-panel { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .empty-filter { padding: 12px 0; margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -326,7 +326,7 @@ const RowActions = defineComponent({
 :deep(.id-name) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-weight: 700; color: #1a3a1a; font-size: 0.9rem; }
 :deep(.name-link) { color: inherit; text-decoration: none; }
 :deep(.name-link:hover) { text-decoration: underline; }
-:deep(.allergy) { display: inline-block; margin: 4px 0 0; font-size: 0.72rem; font-weight: 600; color: #8a5a00; background: #fdf1d6; padding: 2px 8px; border-radius: 10px; }
+:deep(.allergy) { display: inline-block; margin: 4px 0 0; font-size: 0.72rem; font-weight: 600; color: #a12525; background: #fdecec; padding: 2px 8px; border-radius: 10px; }
 :deep(.flag) { display: flex; align-items: center; gap: 5px; margin: 5px 0 0; font-size: 0.76rem; font-weight: 600; }
 :deep(.flag.critical) { color: #a12525; }
 :deep(.flag.warning) { color: #9a6a00; }
@@ -361,7 +361,7 @@ const RowActions = defineComponent({
 .card:first-child { border-top: none; padding-top: 4px; }
 .card.muted { opacity: 0.8; }
 .card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 12px 0; }
-.k { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 4px; }
+.k { font-size: 0.76rem; font-weight: 500; color: #7a8a7a; margin: 0 0 4px; }
 .card-actions :deep(.row-actions) { justify-content: flex-start; }
 
 @media (max-width: 900px) {

@@ -60,7 +60,7 @@
               <td data-label="Paid out" class="nm-num">{{ peso(r.paid_out) }}</td>
               <td data-label="Send to">
                 <template v-if="r.payout_account">
-                  <span class="acct-method">{{ r.payout_account.method_label }}<template v-if="r.payout_account.bank_name"> · {{ r.payout_account.bank_name }}</template></span>
+                  <span class="acct-method">{{ payoutVia(r.payout_account.method, r.payout_account.bank_name) }}</span>
                   <span class="acct-line">{{ r.payout_account.account_name }} · {{ r.payout_account.account_number }}</span>
                 </template>
                 <span v-else class="nm-pill gold">No payout details</span>
@@ -117,7 +117,7 @@
           First send the money yourself, then record it here. The RND gets an email and a notification.
         </p>
         <dl class="nm-dl send-box">
-          <div><dt>Method</dt><dd>{{ releasing.payout_account.method_label }}<template v-if="releasing.payout_account.bank_name"> · {{ releasing.payout_account.bank_name }}</template></dd></div>
+          <div><dt>Method</dt><dd>{{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }}</dd></div>
           <div><dt>Amount</dt><dd>{{ peso(releasing.posted) }} ({{ releasing.posted_count }} consult{{ releasing.posted_count === 1 ? '' : 's' }})</dd></div>
           <div><dt>Account name</dt><dd>{{ releasing.payout_account.account_name }}</dd></div>
           <div><dt>Account number</dt><dd class="mono">{{ releasing.payout_account.account_number }}</dd></div>
@@ -139,6 +139,7 @@
 </template>
 
 <script setup>
+import { payoutVia } from '~/utils/payout'
 import { CheckCircle2, Wallet } from 'lucide-vue-next'
 
 const { get, post } = useApi()
@@ -204,7 +205,7 @@ function nameInitials(name) {
   return userInitials(parts[0], parts[parts.length - 1])
 }
 function methodText(p) {
-  const m = p.method === 'gcash' ? 'GCash' : (p.bank_name || 'Bank')
+  const m = payoutVia(p.method, p.bank_name)
   return `${m} · ${p.account_number}`
 }
 </script>

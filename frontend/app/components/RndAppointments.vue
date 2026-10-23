@@ -9,11 +9,24 @@
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading appointments…</p></div>
 
     <template v-else-if="board">
-      <div class="summary">
-        <div class="sum-item"><strong>{{ board.summary.today }}</strong><span>today</span></div>
-        <div class="sum-item"><strong>{{ board.summary.this_week }}</strong><span>this week</span></div>
-        <div class="sum-item" :class="{ attn: board.summary.requests }"><strong>{{ board.summary.requests }}</strong><span>request{{ board.summary.requests === 1 ? '' : 's' }} waiting</span></div>
-        <div class="sum-item" :class="{ attn: board.summary.to_complete }"><strong>{{ board.summary.to_complete }}</strong><span>to mark complete</span></div>
+      <!-- bento (user's sketch): today as the big cell, three rows beside it -->
+      <div class="nm-panel bento">
+        <button type="button" class="bento-main" @click="setTab('upcoming')">
+          <span class="bento-label">Today</span>
+          <strong class="bento-big">{{ board.summary.today }}</strong>
+          <span class="bento-note">consultation{{ board.summary.today === 1 ? '' : 's' }} today</span>
+        </button>
+        <div class="bento-rows">
+          <button type="button" class="bento-row" @click="setTab('upcoming')">
+            <span>This week</span><strong>{{ board.summary.this_week }}</strong>
+          </button>
+          <button type="button" class="bento-row" :class="{ attn: board.summary.requests }" @click="setTab('requests')">
+            <span>Requests waiting</span><strong>{{ board.summary.requests }}</strong>
+          </button>
+          <button type="button" class="bento-row" :class="{ attn: board.summary.to_complete }" @click="setTab('to_complete')">
+            <span>To mark complete</span><strong>{{ board.summary.to_complete }}</strong>
+          </button>
+        </div>
       </div>
 
       <div v-if="patientFilter" class="nm-note filter-note">
@@ -34,7 +47,7 @@
         </label>
       </div>
 
-      <div class="nm-panel">
+      <div class="nm-panel appt-list">
         <!-- ============ REQUESTS ============ -->
         <template v-if="tab === 'requests'">
           <p class="tab-intro">Check each request and their screening before you confirm. Confirming sends them an invoice to pay before the consultation.</p>
@@ -46,19 +59,19 @@
                 <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink>
                 <span class="nm-pill" :class="a.returning ? 'blue' : 'muted'">{{ a.returning ? 'Returning patient' : 'New patient' }}</span>
               </p>
-              <p class="nm-row-sub">{{ timeRange(a) }} · {{ a.type_label }} · {{ a.duration_minutes }} min</p>
-              <p v-if="a.time_passed" class="flag critical"><OctagonAlert :size="13" /> The requested time has passed — decline it so they can rebook.</p>
-              <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Starts in {{ hoursText(a.starts_in_hours) }} — answer soon.</p>
+              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, {{ a.duration_minutes }} min</p>
+              <p v-if="a.time_passed" class="flag critical"><OctagonAlert :size="13" /> The requested time has passed. Decline it so they can book again.</p>
+              <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Starts in {{ hoursText(a.starts_in_hours) }}. Answer soon.</p>
               <div class="chips">
                 <template v-if="a.screening.submitted">
-                  <span v-if="a.screening.nrs_score != null" class="chip" :class="{ risk: a.screening.nrs_score >= 3 }">NRS-2002 {{ a.screening.nrs_score }}{{ a.screening.nrs_risk ? ` · ${a.screening.nrs_risk}` : '' }}</span>
-                  <span v-if="a.screening.bmi_category" class="chip">BMI {{ a.screening.bmi?.toFixed(1) }} · {{ a.screening.bmi_category }}</span>
+                  <span v-if="a.screening.nrs_score != null" class="chip" :class="{ risk: a.screening.nrs_score >= 3 }">NRS-2002 {{ a.screening.nrs_score }}{{ a.screening.nrs_risk ? `, ${a.screening.nrs_risk.toLowerCase()}` : '' }}</span>
+                  <span v-if="a.screening.bmi_category" class="chip">BMI {{ a.screening.bmi?.toFixed(1) }}, {{ a.screening.bmi_category }}</span>
                   <span v-for="c in a.screening.conditions" :key="c" class="chip">{{ c }}</span>
                   <span v-if="a.screening.allergies.length" class="chip allergy">Allergy: {{ a.screening.allergies.join(', ') }}</span>
                 </template>
-                <span v-else class="chip risk">No screening yet — can't be confirmed</span>
+                <span v-else class="chip risk">No screening yet, so it can't be confirmed</span>
               </div>
-              <p v-if="a.notes" class="client-note">“{{ a.notes }}”</p>
+              <p v-if="a.notes" class="client-note">{{ a.notes }}</p>
             </div>
             <div class="row-actions">
               <button v-if="!a.time_passed" type="button" class="nm-btn-dark nm-btn-sm" @click="openReview(a)">Review &amp; confirm</button>
@@ -81,12 +94,12 @@
                   <span v-else class="nm-pill muted">Not paid yet</span>
                 </p>
                 <p class="nm-row-sub with-icon">
-                  <component :is="TYPE_ICONS[a.type]" :size="13" class="ti" /> {{ a.type_label }} · until {{ clock(a.ends_at) }}
+                  <component :is="TYPE_ICONS[a.type]" :size="13" class="ti" /> {{ a.type_label }}, until {{ clock(a.ends_at) }}
                 </p>
                 <p v-if="a.type === 'in_person'" class="nm-row-sub addr with-icon">
-                  <MapPin :size="13" class="ti" /> {{ a.clinic_address || 'No clinic address set — add it in Profile Settings' }}
+                  <MapPin :size="13" class="ti" /> {{ a.clinic_address || 'No clinic address set. Add it in Profile Settings.' }}
                 </p>
-                <p v-if="a.payment?.status !== 'paid'" class="nm-row-sub">They pay before it starts; if it's still unpaid at {{ clock(a.scheduled_at) }} it's cancelled automatically.</p>
+                <p v-if="a.payment?.status !== 'paid'" class="nm-row-sub">They pay before it starts. If it's still unpaid at {{ clock(a.scheduled_at) }}, it's cancelled automatically.</p>
               </div>
               <div class="row-actions">
                 <template v-if="inWindow(a)">
@@ -104,15 +117,14 @@
           <p class="tab-intro">These consultations have ended. Mark each one complete so it's closed, and your share starts its 3-day hold before payout.</p>
           <p v-if="justCompleted" class="done-note">
             <CheckCircle2 :size="15" /> {{ justCompleted.client.first_name }}'s consultation is complete. Next:
-            <NuxtLink :to="`/client-detail/${justCompleted.relationship_id}?tab=progress`" class="nm-panel-link">Record progress</NuxtLink> ·
-            <NuxtLink :to="`/client-detail/${justCompleted.relationship_id}?tab=ncp`" class="nm-panel-link">NCP records</NuxtLink>
+            <NuxtLink :to="`/client-detail/${justCompleted.relationship_id}?tab=ncp`" class="nm-panel-link">Finish the NCP record</NuxtLink>
           </p>
           <div v-if="!list('to_complete').length" class="nm-empty"><CheckCircle2 :size="26" /><p>Nothing to close — all caught up.</p></div>
           <article v-for="a in list('to_complete')" :key="a.id" class="row">
             <DateBlock :at="a.scheduled_at" tone="muted" />
             <div class="row-main">
               <p class="who"><NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink></p>
-              <p class="nm-row-sub">{{ timeRange(a) }} · {{ a.type_label }} · ended {{ ago(a.ends_at) }}</p>
+              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, ended {{ ago(a.ends_at) }}</p>
             </div>
             <div class="row-actions">
               <button v-if="a.payment && a.payment.status !== 'paid'" type="button" class="nm-btn-outline nm-btn-sm" disabled title="Can't complete an unpaid consultation">Waiting for payment</button>
@@ -132,7 +144,7 @@
                 <span class="nm-pill" :class="a.status === 'completed' ? 'green' : 'muted'">{{ a.status === 'completed' ? 'Completed' : 'Cancelled' }}</span>
                 <span v-if="a.payment && ['refund_pending', 'refunded'].includes(a.payment.status)" class="nm-pill red">{{ a.payment.status === 'refunded' ? 'Refunded' : 'Refund pending' }}</span>
               </p>
-              <p class="nm-row-sub">{{ timeRange(a) }} · {{ a.type_label }}{{ a.payment?.status === 'paid' ? ` · ${peso(a.payment.amount)}` : '' }}</p>
+              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}{{ a.payment?.status === 'paid' ? `, ${peso(a.payment.amount)}` : '' }}</p>
               <p v-if="a.status === 'cancelled' && a.cancellation_reason" class="nm-row-sub">Reason: {{ a.cancellation_reason }}</p>
             </div>
             <div v-if="a.status === 'completed'" class="row-actions">
@@ -145,30 +157,31 @@
 
     <!-- REVIEW & CONFIRM (full screening) -->
     <div v-if="review" class="nm-modal-overlay" @click.self="review = null">
-      <div class="nm-modal wide" role="dialog" aria-modal="true" aria-labelledby="review-title">
+      <div class="nm-modal wide review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
+        <button type="button" class="modal-x" aria-label="Close" @click="review = null"><X :size="18" /></button>
         <h2 id="review-title" class="nm-modal-title">{{ review.appt.client.name }}</h2>
-        <p class="nm-modal-text">{{ longWhen(review.appt.scheduled_at) }} · {{ review.appt.type_label }} · {{ review.appt.duration_minutes }} min</p>
+        <p class="nm-modal-text">{{ longWhen(review.appt.scheduled_at) }}, {{ review.appt.type_label.toLowerCase() }}, {{ review.appt.duration_minutes }} min</p>
         <p v-if="review.loading" class="nm-muted">Loading screening…</p>
         <p v-else-if="review.error" class="nm-error">{{ review.error }}</p>
         <template v-else-if="review.data">
           <dl class="facts">
-            <div><dt>Age · sex</dt><dd>{{ review.data.client.age ?? '—' }} · {{ SEX[review.data.client.sex] || '—' }}</dd></div>
+            <div><dt>Age and sex</dt><dd>{{ review.data.client.age ?? '—' }}, {{ SEX[review.data.client.sex] || '—' }}</dd></div>
             <div><dt>Conditions</dt><dd>{{ listText(review.data.client.medical_conditions) }}</dd></div>
             <div><dt>Food allergies</dt><dd :class="{ warn: review.data.client.allergies?.length }">{{ listText(review.data.client.allergies) }}</dd></div>
             <div><dt>Diet</dt><dd>{{ listText(review.data.client.dietary_restrictions) }}</dd></div>
             <div><dt>Goals</dt><dd>{{ listText(review.data.client.health_goals) }}</dd></div>
           </dl>
-          <p v-if="review.data.appointment.notes" class="client-note">“{{ review.data.appointment.notes }}”</p>
+          <p v-if="review.data.appointment.notes" class="client-note">{{ review.data.appointment.notes }}</p>
           <template v-if="review.data.screening">
-            <p class="section-k">Screening · submitted {{ shortDate(review.data.screening.created_at) }}</p>
+            <p class="section-k">Screening, submitted {{ shortDate(review.data.screening.created_at) }}</p>
             <div class="results">
-              <div><strong>{{ review.data.screening.bmi ?? '—' }}</strong><span>BMI · {{ review.data.screening.bmi_category || '—' }}</span></div>
+              <div><strong>{{ review.data.screening.bmi ?? '—' }}</strong><span>BMI, {{ review.data.screening.bmi_category || '—' }}</span></div>
               <div><strong>{{ whole(review.data.screening.bmr_kcal) }}</strong><span>BMR kcal/day</span></div>
               <div><strong>{{ whole(review.data.screening.tdee_kcal) }}</strong><span>TDEE kcal/day</span></div>
-              <div :class="{ risk: (review.data.screening.nrs_score ?? 0) >= 3 }"><strong>{{ review.data.screening.nrs_score ?? '—' }}</strong><span>NRS-2002 · {{ RISK[review.data.screening.nrs_risk] || '—' }}</span></div>
+              <div :class="{ risk: (review.data.screening.nrs_score ?? 0) >= 3 }"><strong>{{ review.data.screening.nrs_score ?? '—' }}</strong><span>NRS-2002, {{ RISK[review.data.screening.nrs_risk] || '—' }}</span></div>
             </div>
             <dl class="facts">
-              <div><dt>Height · weight</dt><dd>{{ review.data.screening.height_cm }} cm · {{ review.data.screening.weight_kg }} kg</dd></div>
+              <div><dt>Height and weight</dt><dd>{{ review.data.screening.height_cm }} cm, {{ review.data.screening.weight_kg }} kg</dd></div>
               <div><dt>Activity</dt><dd>{{ ACTIVITY[review.data.screening.activity_level] || '—' }}</dd></div>
               <div><dt>Symptoms</dt><dd>{{ review.data.screening.symptoms || 'None reported' }}</dd></div>
             </dl>
@@ -177,7 +190,6 @@
           <p v-else class="nm-note">They haven't submitted a pre-consultation screening yet, so this booking can't be confirmed.</p>
           <p v-if="review.actionError" class="nm-field-error">{{ review.actionError }}</p>
           <div class="nm-modal-actions">
-            <button type="button" class="nm-btn-outline" @click="review = null">Close</button>
             <button type="button" class="nm-btn-outline" @click="openReason(review.appt, 'decline')">Decline</button>
             <button type="button" class="nm-btn-dark" :disabled="busy || !review.data.screening" @click="confirmBooking">{{ busy ? 'Confirming…' : 'Confirm booking' }}</button>
           </div>
@@ -190,14 +202,14 @@
       <form class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="reason-title" @submit.prevent="submitReason">
         <h2 id="reason-title" class="nm-modal-title">{{ reason.kind === 'decline' ? 'Decline this request?' : 'Cancel this consultation?' }}</h2>
         <p class="nm-modal-text">
-          {{ reason.appt.client.name }} · {{ longWhen(reason.appt.scheduled_at) }}.
+          {{ reason.appt.client.name }}, {{ longWhen(reason.appt.scheduled_at) }}.
           <template v-if="reason.kind === 'decline'">They're notified with your reason and can book another time.</template>
           <template v-else-if="reason.appt.payment?.status === 'paid'">They already paid, so their invoice goes to <strong>refund pending</strong> and the NutriMatch admin refunds them.</template>
           <template v-else>Their unpaid invoice is voided and they're notified with your reason.</template>
         </p>
         <label class="nm-label" for="reason-text">Reason (sent to the client)</label>
         <textarea id="reason-text" v-model="reason.text" class="nm-input" rows="3" maxlength="500"
-                  :placeholder="reason.kind === 'decline' ? 'e.g. I\'m fully booked that day — please choose another time.' : 'e.g. I have a family emergency — please rebook any day next week.'"></textarea>
+                  :placeholder="reason.kind === 'decline' ? 'e.g. I\'m fully booked that day. Please choose another time.' : 'e.g. I have a family emergency. Please book again any day next week.'"></textarea>
         <p v-if="reason.error" class="nm-field-error">{{ reason.error }}</p>
         <p v-else class="nm-hint">At least 10 characters.</p>
         <div class="nm-modal-actions">
@@ -214,7 +226,7 @@
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="complete-title">
         <h2 id="complete-title" class="nm-modal-title">Mark this consultation complete?</h2>
         <p class="nm-modal-text">
-          {{ completeTarget.client.name }} · {{ longWhen(completeTarget.scheduled_at) }}.
+          {{ completeTarget.client.name }}, {{ longWhen(completeTarget.scheduled_at) }}.
           <template v-if="completeTarget.payment">They paid {{ peso(completeTarget.payment.amount) }}. Your share posts 3 days after today.</template>
           <template v-else>This was booked before pay-first, so completing sends them an invoice.</template>
           This can't be undone.
@@ -232,7 +244,7 @@
 
 <script setup>
 import {
-  AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, FileText, History, Inbox, MapPin, MessageSquare, OctagonAlert, Search, Users, Video,
+  AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, FileText, History, Inbox, MapPin, MessageSquare, OctagonAlert, Search, Users, Video, X,
 } from 'lucide-vue-next'
 
 const { get, patch } = useApi()
@@ -336,7 +348,7 @@ const DateBlock = defineComponent({
   setup(props) {
     return () => h('span', { class: ['date-block', props.tone] }, [
       h('span', { class: 'db-day' }, new Date(props.at).toLocaleDateString('en-PH', { ...PH, day: 'numeric' })),
-      h('span', { class: 'db-mon' }, new Date(props.at).toLocaleDateString('en-PH', { ...PH, month: 'short' }).toUpperCase()),
+      h('span', { class: 'db-mon' }, new Date(props.at).toLocaleDateString('en-PH', { ...PH, month: 'short' })),
     ])
   },
 })
@@ -413,12 +425,30 @@ async function completeNow() {
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 .head .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 
-.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
-.sum-item { background: #fff; border: 1px solid #eceeec; border-radius: 12px; padding: 12px 14px; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.sum-item strong { font-size: 1.35rem; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.sum-item span { font-size: 0.8rem; color: #6a7a6a; }
-.sum-item.attn { border-color: #f0dca0; background: #fffaf0; }
-.sum-item.attn strong { color: #8a6a00; }
+.bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); padding: 0; overflow: hidden; margin-bottom: 16px;
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
+.bento button { font-family: inherit; text-align: left; background: none; border: none; color: inherit; cursor: pointer; }
+.bento button:hover { background: #fafbfa; }
+.bento button:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.bento-main { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 20px 24px; border-right: 1px solid #eef1ee; }
+.bento-label { font-size: 0.84rem; font-weight: 600; color: #4a5a4a; }
+.bento-big { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 700; line-height: 1.05; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
+.bento-note { font-size: 0.8rem; color: #7a8a7a; }
+/* the big cell = the green banner of the dashboard / Earnings; the rows stay light */
+.bento .bento-main { background: linear-gradient(135deg, #00382a 0%, #005a42 100%); border-right: none; color: #fff; }
+.bento .bento-main:hover { background: linear-gradient(135deg, #00402f 0%, #00684c 100%); }
+.bento .bento-main:focus-visible { outline: 2px solid #f3d27a; outline-offset: -3px; }
+.bento-main .bento-label { color: #e2c25e; }
+.bento-main .bento-big { color: #fff; }
+.bento-main .bento-note { color: #cfe0d5; }
+.bento-rows { background: #fbfcfa; }
+.bento-rows { display: flex; flex-direction: column; }
+.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 22px; border-top: 1px solid #d9e3dc; font-size: 0.88rem; font-weight: 600; color: #3a4a3a; }
+/* stronger than '.bento button { border: none }' above, which was hiding these */
+.bento .bento-row + .bento-row { border-top: 1px solid #d9e3dc; }
+.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
+.bento-row.attn strong { color: #a07400; }
+.appt-list { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .filter-note { margin-bottom: 14px; }
 
 .tab-intro { font-size: 0.82rem; color: #6a7a6a; margin: 0 0 6px; }
@@ -438,13 +468,13 @@ async function completeNow() {
 .flag.warning { color: #9a6a00; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .chip { font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: #f2f5f2; color: #3a4a3a; }
-.chip.allergy { background: #fdf1d6; color: #8a5a00; }
+.chip.allergy { background: #fdecec; color: #a12525; }
 .chip.risk { background: #fdecec; color: #a12525; }
-.client-note { margin: 8px 0 0; font-size: 0.82rem; color: #4a5a4a; font-style: italic; overflow-wrap: anywhere; }
+.client-note { margin: 8px 0 0; padding-left: 10px; border-left: 2px solid #e3e9e4; font-size: 0.82rem; color: #4a5a4a; overflow-wrap: anywhere; }
 
 .day + .day { margin-top: 10px; }
-.day-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 2px; }
-.time { width: 64px; flex-shrink: 0; font-weight: 700; color: #1a3a1a; font-size: 0.9rem; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; }
+.day-label { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
+.time { width: 76px; white-space: nowrap; flex-shrink: 0; font-weight: 700; color: #1a3a1a; font-size: 0.9rem; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; }
 .time small { font-weight: 500; font-size: 0.72rem; color: #8a9a8a; }
 .opens { font-size: 0.78rem; color: #6a7a6a; }
 .done-note { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.84rem; color: #1f6f46; font-weight: 600; margin: 4px 0 10px; }
@@ -453,15 +483,20 @@ async function completeNow() {
 :deep(.date-block.gold) { background: #fdf1d6; }
 :deep(.date-block.muted) { background: #f4f5f4; }
 :deep(.db-day) { font-size: 1.05rem; font-weight: 700; color: #1a3a1a; line-height: 1; }
-:deep(.db-mon) { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; color: #6a7a6a; }
+:deep(.db-mon) { font-size: 0.72rem; font-weight: 600; color: #6a7a6a; }
 
 /* modals */
 .nm-modal.wide { max-width: 620px; }
+.review-modal { position: relative; }
+.review-modal .nm-modal-title { padding-right: 36px; }
+.modal-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: 8px; color: #6a7a6a; cursor: pointer; }
+.modal-x:hover { background: #f2f5f2; color: #1a3a1a; }
+.modal-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0 0 12px; }
 .facts dt { font-size: 0.72rem; color: #8a9a8a; margin: 0; }
 .facts dd { margin: 0; font-size: 0.85rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
-.facts dd.warn { color: #8a5a00; }
-.section-k { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 16px 0 8px; }
+.facts dd.warn { color: #a12525; }
+.section-k { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 16px 0 8px; }
 .results { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 .results div { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; min-width: 0; }
 .results div.risk { background: #fdecec; border-color: #f3c9c9; }
@@ -469,8 +504,11 @@ async function completeNow() {
 .results span { font-size: 0.7rem; color: #6a7a6a; }
 
 @media (max-width: 760px) {
-  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .row { flex-wrap: wrap; }
+  .bento { grid-template-columns: minmax(0, 1fr); }
+  .bento-main { border-right: none; padding: 16px 18px; }
+  .bento-big { font-size: 2.4rem; }
+  .bento-row { padding: 11px 18px; }
+            .row { flex-wrap: wrap; }
   .row-actions { width: 100%; justify-content: flex-start; padding-left: 60px; }
   .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

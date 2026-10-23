@@ -2,7 +2,7 @@
 where the patient is in their care, adherence, progress, schedule and the
 same attention flags as the dashboard — all in one request."""
 
-from django.db.models import Prefetch
+from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -42,7 +42,19 @@ def build_patient_rows(rnd, now=None, rel_id=None, care=None):
 
     now = now or timezone.now()
     today = now.astimezone(ph_tz()).date()
-    qs = RndClientRelationship.objects.filter(rnd=rnd)
+    # A client whose booking was cancelled, declined or left unconfirmed until
+    # its time passed isn't a patient: pending care only shows while a request
+    # is still ahead or a booking is confirmed. Reopened care (discharged
+    # before) stays listed — they were a patient.
+    waiting = Appointment.objects.filter(relationship=OuterRef("pk")).filter(
+        Q(status=Appointment.Status.CONFIRMED)
+        | Q(status=Appointment.Status.PENDING, scheduled_at__gt=now)
+    )
+    qs = RndClientRelationship.objects.filter(rnd=rnd).filter(
+        ~Q(status=RndClientRelationship.Status.PENDING)
+        | Q(discharge_reason__isnull=False) & ~Q(discharge_reason="")
+        | Q(Exists(waiting))
+    )
     if rel_id is not None:
         qs = qs.filter(pk=rel_id)
     rels = list(

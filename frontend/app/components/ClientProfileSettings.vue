@@ -281,6 +281,7 @@
           <p v-if="reminderError" class="form-error">{{ reminderError }}</p>
           <p v-if="!reminderPrefs" class="placeholder-text">Loading…</p>
           <template v-else>
+            <NotificationSoundToggle />
             <div v-for="opt in REMINDER_OPTIONS" :key="opt.key" class="setting-row">
               <div>
                 <p class="setting-label">{{ opt.label }}</p>

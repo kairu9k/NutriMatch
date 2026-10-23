@@ -198,6 +198,19 @@ class NotificationDetailSerializer(NotificationLogSerializer):
             "invoice": self._invoice_summary(appointment_invoice(appt)),
         }
 
+    def _related_relationship(self, pk, user):
+        from django.db.models import Q
+
+        from scheduling.models import RndClientRelationship
+
+        rel = RndClientRelationship.objects.filter(Q(client=user) | Q(rnd=user), pk=pk).select_related("client", "rnd").first()
+        if rel is None:
+            return None
+        return {
+            "id": rel.id, "relationship_id": rel.id, "with": self._other_party(rel, user),
+            "status": rel.status, "discharge_requested_at": rel.discharge_requested_at,
+        }
+
     def _related_invoice(self, pk, user):
         from billing.models import Invoice
 
@@ -303,6 +316,6 @@ class NotificationDetailSerializer(NotificationLogSerializer):
         if payout is None:
             return None
         return {
-            "id": payout.id, "amount": payout.amount, "method": payout.method, "reference": payout.reference,
+            "id": payout.id, "amount": payout.amount, "method": payout.method, "bank_name": payout.bank_name, "reference": payout.reference,
             "released_at": payout.released_at,
         }

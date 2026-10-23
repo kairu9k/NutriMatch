@@ -5,51 +5,63 @@
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading patient…</p></div>
 
     <template v-else-if="s">
-      <!-- BANNER -->
-      <section class="nm-banner patient-banner">
-        <div class="pb-left">
-          <img v-if="p.client.profile_photo" :src="p.client.profile_photo" class="pb-avatar" alt="" />
-          <span v-else class="pb-avatar">{{ userInitials(p.client.first_name, p.client.last_name) }}</span>
-          <div class="pb-info">
-            <h1 class="nm-banner-title">{{ p.client.name }}</h1>
-            <p class="nm-banner-sub">{{ metaLine }}</p>
-            <div class="pb-chips">
-              <span class="pb-chip" :class="p.status">{{ STATUS_LABEL[p.status] }}</span>
-              <span v-if="s.health.allergies.length" class="pb-chip allergy">Allergy: {{ s.health.allergies.join(', ') }}</span>
-              <span v-if="p.started_at && p.status !== 'pending'" class="pb-chip">Patient since {{ shortDate(p.started_at) }}</span>
+      <!-- HEADER: who, status, the next step; Discharge lives in the More menu -->
+      <section class="nm-panel patient-head">
+        <div class="ph-top">
+          <div class="ph-who">
+            <img v-if="p.client.profile_photo" :src="p.client.profile_photo" class="ph-avatar" alt="" />
+            <span v-else class="ph-avatar">{{ userInitials(p.client.first_name, p.client.last_name) }}</span>
+            <div class="ph-info">
+              <h1 class="ph-name">{{ p.client.name }}</h1>
+              <p v-if="metaLine" class="ph-meta">{{ metaLine }}</p>
+              <p class="ph-status">
+                <span class="ph-pill" :class="p.status">{{ STATUS_LABEL[p.status] }}</span>
+                <span v-if="p.started_at && p.status !== 'pending'" class="ph-since">Patient since {{ shortDate(p.started_at) }}</span>
+              </p>
+            </div>
+          </div>
+          <div class="ph-actions">
+            <NuxtLink v-if="p.status === 'active' && p.stage.next_step.key !== 'open'" :to="p.stage.next_step.link" class="nm-btn-gold">{{ p.stage.next_step.label }}</NuxtLink>
+            <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="nm-btn-outline ph-btn">
+              <MessageSquare :size="15" /> {{ p.status === 'discharged' ? 'Message history' : 'Message' }}
+              <span v-if="p.unread_messages" class="ph-badge">{{ p.unread_messages }}</span>
+            </NuxtLink>
+            <button v-if="p.status === 'active'" type="button" class="nm-btn-outline ph-btn" @click="requestLabs"><FlaskConical :size="15" /> Request lab tests</button>
+            <div v-if="p.status === 'active'" class="more-wrap">
+              <button type="button" class="more-btn" aria-label="More actions" aria-haspopup="menu" :aria-expanded="moreOpen" @click.stop="moreOpen = !moreOpen">
+                <MoreHorizontal :size="18" />
+              </button>
+              <div v-if="moreOpen" class="more-menu" role="menu" @click.stop>
+                <button type="button" role="menuitem" class="more-item danger" @click="moreOpen = false; showDischarge = true">Discharge patient…</button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="pb-actions">
-          <NuxtLink v-if="p.status === 'active' && p.stage.next_step.key !== 'open'" :to="p.stage.next_step.link" class="nm-btn-gold">{{ p.stage.next_step.label }}</NuxtLink>
-          <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="pb-btn">
-            <MessageSquare :size="15" /> {{ p.status === 'discharged' ? 'Message history' : 'Message' }}
-            <span v-if="p.unread_messages" class="pb-badge">{{ p.unread_messages }}</span>
-          </NuxtLink>
-          <button v-if="p.status === 'active'" type="button" class="pb-btn" @click="requestLabs"><FlaskConical :size="15" /> Request lab tests</button>
-          <button v-if="p.status === 'active'" type="button" class="pb-btn" @click="showDischarge = true">Discharge</button>
-        </div>
+        <!-- allergies stay in the header so they're never missed (patient safety) -->
+        <p v-if="s.health.allergies.length" class="ph-allergy" role="note">
+          <AlertTriangle :size="15" /> <span><strong>Food allergy:</strong> {{ s.health.allergies.join(', ') }}. Check every food in their plan against this.</span>
+        </p>
       </section>
 
       <!-- The client asked to end care (Profile Settings -> Care Team): close it
            properly with a note, or it ends on its own on the date shown. -->
       <section v-if="p.status === 'active' && s.discharge_request" class="nm-note dr-banner" role="status">
         <div>
-          <strong>{{ p.client.first_name }} asked to end their care</strong> on {{ shortDate(s.discharge_request.requested_at) }}
-          — {{ s.discharge_request.reason_label }}.<template v-if="s.discharge_request.note"> “{{ s.discharge_request.note }}”</template>
-          Discharge them with a closing note by <strong>{{ shortDate(s.discharge_request.ends_at) }}</strong>; after that it ends automatically.
+          <strong>{{ p.client.first_name }} asked to end their care</strong> on {{ shortDate(s.discharge_request.requested_at) }}.
+          Reason: {{ s.discharge_request.reason_label }}.<template v-if="s.discharge_request.note"> "{{ s.discharge_request.note }}"</template>
+          Discharge them with a closing note by <strong>{{ shortDate(s.discharge_request.ends_at) }}</strong>. After that, it ends automatically.
         </div>
         <button type="button" class="nm-btn-dark" @click="showDischarge = true">Discharge now</button>
       </section>
 
       <section v-if="p.status === 'discharged'" class="nm-note">
         <strong>Discharged{{ p.ended_at ? ` on ${shortDate(p.ended_at)}` : '' }}.</strong>
-        This record is read-only.<template v-if="p.discharge_reason"> Reason: “{{ p.discharge_reason }}”</template>
+        This record is read-only.<template v-if="p.discharge_reason"> Reason: "{{ p.discharge_reason }}"</template>
         If {{ p.client.first_name }} books you again, it reopens when you confirm the booking.
       </section>
       <section v-else-if="p.status === 'pending'" class="nm-note">
         <strong>New booking.</strong> {{ p.client.first_name }} becomes your patient once you confirm their booking.
-        <NuxtLink to="/appointments" class="nm-panel-link">Review booking →</NuxtLink>
+        <NuxtLink to="/appointments?tab=requests" class="nm-panel-link">Review booking</NuxtLink>
       </section>
 
       <nav class="nm-tabs tabs" role="tablist" aria-label="Patient sections">
@@ -69,30 +81,26 @@
           </div>
         </div>
 
-        <div class="nm-stat-grid">
-          <div class="nm-stat-card">
-            <div class="nm-stat-icon"><Scale :size="17" /></div>
-            <p class="nm-stat-value">{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</p>
-            <p class="nm-stat-label">Current weight</p>
-            <p class="nm-stat-note">{{ p.progress.weight_change_kg != null ? `${signed(p.progress.weight_change_kg)} kg since screening` : 'From their screening' }}</p>
+        <div class="nm-panel figures">
+          <div class="fig">
+            <p class="fig-label">Current weight</p>
+            <p class="fig-value">{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</p>
+            <p class="fig-note">{{ p.progress.weight_change_kg != null ? `${signed(p.progress.weight_change_kg)} kg since screening` : 'From their screening' }}</p>
           </div>
-          <div class="nm-stat-card">
-            <div class="nm-stat-icon"><Activity :size="17" /></div>
-            <p class="nm-stat-value">{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</p>
-            <p class="nm-stat-label">BMI</p>
-            <p class="nm-stat-note">{{ p.progress.bmi_class ? `${p.progress.bmi_class} (Asia-Pacific)` : 'No measurement yet' }}</p>
+          <div class="fig">
+            <p class="fig-label">BMI</p>
+            <p class="fig-value">{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</p>
+            <p class="fig-note">{{ p.progress.bmi_class ? `${p.progress.bmi_class}, Asia-Pacific` : 'Not measured yet' }}</p>
           </div>
-          <div class="nm-stat-card">
-            <div class="nm-stat-icon gold"><Utensils :size="17" /></div>
-            <p class="nm-stat-value">{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</p>
-            <p class="nm-stat-label">Meal-plan adherence · 7 days</p>
-            <p class="nm-stat-note">{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} meals logged` : 'No active meal plan' }}</p>
+          <div class="fig">
+            <p class="fig-label">7-day meal-plan adherence</p>
+            <p class="fig-value">{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</p>
+            <p class="fig-note">{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} meals logged` : 'No meal plan sent yet' }}</p>
           </div>
-          <div class="nm-stat-card">
-            <div class="nm-stat-icon" :class="{ gold: (s.screening?.nrs_score ?? 0) >= 3 }"><ShieldAlert :size="17" /></div>
-            <p class="nm-stat-value">{{ s.screening?.nrs_score ?? '—' }}</p>
-            <p class="nm-stat-label">NRS-2002 score</p>
-            <p class="nm-stat-note" :class="{ warn: (s.screening?.nrs_score ?? 0) >= 3 }">{{ s.screening ? (s.screening.nrs_risk || 'Not scored') : 'No screening yet' }}</p>
+          <div class="fig" :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }">
+            <p class="fig-label">NRS-2002 score</p>
+            <p class="fig-value">{{ s.screening?.nrs_score ?? '—' }}</p>
+            <p class="fig-note">{{ s.screening ? (s.screening.nrs_risk || 'Not scored') : 'No screening yet' }}</p>
           </div>
         </div>
 
@@ -117,9 +125,9 @@
                   <h2 class="nm-panel-title">Current diagnosis &amp; plan</h2>
                   <p class="nm-panel-sub">{{ s.care_plan ? `From the ${s.care_plan.is_follow_up ? 'follow-up' : 'initial'} NCP record of ${shortDate(s.care_plan.encounter_date)}` : 'From their latest finalized NCP record' }}</p>
                 </div>
-                <button v-if="ncpRecords.length" type="button" class="nm-panel-link" @click="setTab('ncp')">NCP records →</button>
+                <button v-if="ncpRecords.length" type="button" class="nm-panel-link" @click="setTab('ncp')">NCP records</button>
               </div>
-              <p v-if="!s.care_plan" class="nm-muted">No finalized NCP record yet{{ s.ncp_draft_id ? ' — a draft is in progress' : '' }}.</p>
+              <p v-if="!s.care_plan" class="nm-muted">No finalized NCP record yet.{{ s.ncp_draft_id ? ' A draft is in progress.' : '' }}</p>
               <template v-else>
                 <div v-if="s.care_plan.pes_problem" class="pes">
                   <p class="k">PES statement</p>
@@ -130,11 +138,12 @@
                   <p>{{ s.care_plan.diet_prescription }}</p>
                 </div>
                 <div v-if="s.care_plan.target_kcal" class="targets">
-                  <div><strong>{{ Math.round(s.care_plan.target_kcal) }}</strong><span>kcal / day</span></div>
-                  <div v-if="s.care_plan.target_carb_g"><strong>{{ Math.round(s.care_plan.target_carb_g) }} g</strong><span>carbs</span></div>
-                  <div v-if="s.care_plan.target_protein_g"><strong>{{ Math.round(s.care_plan.target_protein_g) }} g</strong><span>protein</span></div>
-                  <div v-if="s.care_plan.target_fat_g"><strong>{{ Math.round(s.care_plan.target_fat_g) }} g</strong><span>fat</span></div>
+                  <div><span>Calories</span><strong>{{ Math.round(s.care_plan.target_kcal).toLocaleString('en-PH') }} kcal</strong></div>
+                  <div v-if="s.care_plan.target_carb_g"><span>Carbs</span><strong>{{ Math.round(s.care_plan.target_carb_g) }} g</strong></div>
+                  <div v-if="s.care_plan.target_protein_g"><span>Protein</span><strong>{{ Math.round(s.care_plan.target_protein_g) }} g</strong></div>
+                  <div v-if="s.care_plan.target_fat_g"><span>Fat</span><strong>{{ Math.round(s.care_plan.target_fat_g) }} g</strong></div>
                 </div>
+                <p v-if="s.care_plan.target_kcal" class="targets-note">Daily targets</p>
                 <p v-if="s.care_plan.goal_status" class="nm-hint">Goal status at last follow-up: <strong>{{ s.care_plan.goal_status }}</strong></p>
               </template>
             </div>
@@ -148,13 +157,13 @@
                 <dl class="facts">
                   <div><dt>Height</dt><dd>{{ fmt1(s.screening.height_cm) }} cm</dd></div>
                   <div><dt>Weight</dt><dd>{{ fmt1(s.screening.weight_kg) }} kg</dd></div>
-                  <div><dt>BMI</dt><dd>{{ s.screening.bmi ? fmt1(s.screening.bmi) : '—' }}<small v-if="s.screening.bmi_category"> · {{ s.screening.bmi_category }}</small></dd></div>
+                  <div><dt>BMI</dt><dd>{{ s.screening.bmi ? fmt1(s.screening.bmi) : '—' }}<small v-if="s.screening.bmi_category">, {{ s.screening.bmi_category }}</small></dd></div>
                   <div><dt>Activity</dt><dd>{{ s.screening.activity_level }}</dd></div>
-                  <div><dt>BMR (Mifflin-St Jeor)</dt><dd>{{ s.screening.bmr_kcal ? `${Math.round(s.screening.bmr_kcal)} kcal` : '—' }}</dd></div>
-                  <div><dt>TDEE</dt><dd>{{ s.screening.tdee_kcal ? `${Math.round(s.screening.tdee_kcal)} kcal` : '—' }}</dd></div>
-                  <div><dt>NRS-2002</dt><dd>{{ s.screening.nrs_score ?? '—' }}<small v-if="s.screening.nrs_risk"> · {{ s.screening.nrs_risk }}</small></dd></div>
+                  <div><dt>BMR (Mifflin-St Jeor)</dt><dd>{{ s.screening.bmr_kcal ? `${Math.round(s.screening.bmr_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
+                  <div><dt>TDEE</dt><dd>{{ s.screening.tdee_kcal ? `${Math.round(s.screening.tdee_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
+                  <div><dt>NRS-2002</dt><dd>{{ s.screening.nrs_score ?? '—' }}<small v-if="s.screening.nrs_risk">, {{ s.screening.nrs_risk.toLowerCase() }}</small></dd></div>
                 </dl>
-                <p v-if="s.screening.symptoms" class="symptoms"><span class="k">Symptoms / notes</span>{{ s.screening.symptoms }}</p>
+                <p v-if="s.screening.symptoms" class="symptoms"><span class="k">Symptoms and notes</span>{{ s.screening.symptoms }}</p>
               </template>
             </div>
           </div>
@@ -164,11 +173,11 @@
             <div class="nm-panel">
               <div class="nm-panel-head">
                 <h2 class="nm-panel-title">Next consultation</h2>
-                <button type="button" class="nm-panel-link" @click="setTab('appointments')">All →</button>
+                <button type="button" class="nm-panel-link" @click="setTab('appointments')">All consultations</button>
               </div>
               <template v-if="nextAppt">
                 <p class="big-when">{{ longWhen(nextAppt.scheduled_at) }}</p>
-                <p class="nm-row-sub">{{ nextAppt.type_label }} · {{ nextAppt.duration_minutes }} min</p>
+                <p class="nm-row-sub">{{ nextAppt.type_label }}, {{ nextAppt.duration_minutes }} min</p>
                 <p class="pills">
                   <span v-if="nextAppt.status === 'pending'" class="nm-pill gold">Needs your confirmation</span>
                   <span v-else-if="nextAppt.payment === 'paid'" class="nm-pill green">Paid</span>
@@ -187,7 +196,7 @@
                 <div><dt>Conditions</dt><dd>{{ list(s.health.conditions) }}</dd></div>
                 <div><dt>Food allergies</dt><dd :class="{ warn: s.health.allergies.length }">{{ s.health.allergies.length ? s.health.allergies.join(', ') : 'None reported' }}</dd></div>
                 <div><dt>Diet</dt><dd>{{ list(s.health.dietary_restrictions) }}</dd></div>
-                <div><dt>Religion</dt><dd>{{ s.health.religion || '—' }}</dd></div>
+                <div><dt>Religion</dt><dd>{{ s.health.religion || 'Not recorded' }}</dd></div>
                 <div><dt>Goals</dt><dd>{{ list(s.health.health_goals) }}</dd></div>
               </dl>
             </div>
@@ -196,7 +205,7 @@
             <div class="nm-panel">
               <div class="nm-panel-head">
                 <h2 class="nm-panel-title">Latest progress</h2>
-                <button type="button" class="nm-panel-link" @click="setTab('progress')">{{ p.status === 'active' ? 'Record →' : 'All →' }}</button>
+                <button type="button" class="nm-panel-link" @click="setTab('progress')">All progress</button>
               </div>
               <template v-if="s.progress.length">
                 <p class="nm-row-sub">{{ shortDate(s.progress[0].record_date) }}</p>
@@ -215,10 +224,10 @@
             <div class="nm-panel">
               <div class="nm-panel-head">
                 <h2 class="nm-panel-title">Lab results</h2>
-                <button type="button" class="nm-panel-link" @click="setTab('labs')">{{ s.labs.total_results ? 'View →' : (p.status === 'active' ? 'Request →' : 'Open →') }}</button>
+                <button type="button" class="nm-panel-link" @click="setTab('labs')">{{ s.labs.total_results ? 'View results' : (p.status === 'active' ? 'Request tests' : 'Open') }}</button>
               </div>
               <p v-if="s.labs.new_results" class="labs-new"><FlaskConical :size="14" /> {{ s.labs.new_results }} new lab result{{ s.labs.new_results === 1 ? '' : 's' }} to review</p>
-              <p v-for="r in s.labs.open" :key="r.id" class="nm-row-sub">Requested: {{ r.test_names.join(', ') }} — waiting for the patient</p>
+              <p v-for="r in s.labs.open" :key="r.id" class="nm-row-sub">Requested {{ r.test_names.join(', ') }}. Waiting for the patient to upload.</p>
               <p v-if="!s.labs.total_results && !s.labs.open.length" class="nm-muted">No lab results yet.</p>
               <p v-else-if="s.labs.total_results && !s.labs.new_results" class="nm-muted">{{ s.labs.total_results }} result{{ s.labs.total_results === 1 ? '' : 's' }}, all reviewed.</p>
             </div>
@@ -237,30 +246,39 @@
         <div class="nm-panel-head">
           <div>
             <h2 class="nm-panel-title">NCP records</h2>
-            <p class="nm-panel-sub">Assessment → Diagnosis → Intervention, plus Monitoring on follow-ups. Finalized records can't be changed.</p>
+            <p class="nm-panel-sub">Assessment, diagnosis and intervention, plus monitoring on follow-ups. A finalized record can't be changed.</p>
           </div>
-          <button v-if="p.status === 'active'" class="nm-btn-dark nm-btn-sm" type="button" @click="openNcpForm">
-            {{ openDraft ? 'Continue record' : 'New NCP record' }}
+          <button v-if="p.status === 'active' && !openDraft && unwrittenVisit" class="nm-btn-dark nm-btn-sm" type="button" @click="openNcpForm(unwrittenVisit.id)">
+            Write record for {{ shortDate(unwrittenVisit.scheduled_at) }} visit
           </button>
         </div>
-        <div v-if="ncpRecords.length" class="nm-table-wrap">
-          <table class="nm-table">
-            <thead><tr><th>Created</th><th>Record</th><th>Phase</th><th>Status</th><th class="right">Actions</th></tr></thead>
-            <tbody>
-              <tr v-for="r in ncpRecords" :key="r.id">
-                <td>{{ dateTime(r.created_at) }}</td>
-                <td>{{ r.is_follow_up ? 'Follow-up' : 'Initial' }}</td>
-                <td>{{ ncpPhaseLabel(r) }}</td>
-                <td><span class="nm-pill" :class="r.status === 'completed' ? 'green' : 'gold'">{{ r.status === 'completed' ? 'Finalized' : 'In progress' }}</span></td>
-                <td class="right">
-                  <NcpRowActions :record="r" :patient-name="p.client.name" :editable="p.status === 'active'"
-                                 @view="viewNcpRecord(r)" @edit="openNcpForm" @deleted="refresh" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p v-else class="nm-muted">No NCP records yet.{{ p.status === 'active' ? ' Start the first one with "New NCP record".' : '' }}</p>
+        <!-- timeline, newest first: what each record says, so visits compare at a glance -->
+        <ol v-if="ncpTimeline.length" class="ncp-tl">
+          <li v-for="r in ncpTimeline" :key="r.id" class="tl-item" :class="{ draft: r.status !== 'completed' }">
+            <span class="tl-dot" aria-hidden="true" />
+            <div class="tl-body">
+              <div class="tl-head">
+                <p class="tl-kind" :class="{ follow: r.is_follow_up }">{{ r.kindLabel }}</p>
+                <span class="nm-pill" :class="r.status === 'completed' ? 'green' : 'gold'">{{ r.status === 'completed' ? 'Finalized' : 'Draft' }}</span>
+              </div>
+              <p class="tl-date">{{ shortDate(r.encounter_date || r.created_at) }}<template v-if="r.status !== 'completed'">, last edited {{ dateTime(r.updated_at) }}</template></p>
+              <p class="tl-dx"><span class="tl-k">Diagnosis</span>{{ r.pes_problem || 'Not written yet' }}<template v-if="r.pes_problem && r.pes_etiology">, related to {{ r.pes_etiology }}</template></p>
+              <p class="tl-facts">
+                <span><span class="tl-k">Weight</span>{{ r.weight_kg != null ? `${fmt1(r.weight_kg)} kg` : 'Not measured' }}<small v-if="r.weightChange != null" :class="{ down: r.weightChange < 0 }"> ({{ Math.abs(r.weightChange) < 0.05 ? 'no change' : `${signed(r.weightChange)} kg` }})</small></span>
+                <span><span class="tl-k">Target</span>{{ r.target_kcal ? `${Math.round(r.target_kcal).toLocaleString('en-PH')} kcal` : 'Not set' }}</span>
+                <span v-if="r.is_follow_up"><span class="tl-k">Goal</span>{{ GOAL_LABEL[r.goal_status] || 'Not rated' }}</span>
+              </p>
+              <p v-if="r.status !== 'completed' && r.missing.length" class="tl-missing"><strong>Still needed:</strong> {{ r.missing.join(', ') }}.</p>
+              <div class="tl-actions">
+                <!-- no Delete: a record comes from a consultation, so a draft is continued, never discarded -->
+                <button type="button" class="nm-btn-outline nm-btn-sm" @click="viewNcpRecord(r)"><Eye :size="14" /> View record</button>
+                <button v-if="r.status !== 'completed' && p.status === 'active'" type="button" class="nm-btn-dark nm-btn-sm" @click="openNcpForm()"><Pencil :size="14" /> Continue record</button>
+              </div>
+            </div>
+          </li>
+        </ol>
+        <p v-else class="nm-muted">No NCP records yet.</p>
+        <p v-if="p.status === 'active' && !openDraft && !unwrittenVisit" class="nm-muted">NCP records are written during the consultation, in the consultation room's NCP tab.</p>
       </div>
 
       <!-- ===================== MEAL PLAN ===================== -->
@@ -270,22 +288,22 @@
             <div>
               <h2 class="nm-panel-title">{{ s.meal_plan ? s.meal_plan.name : 'Meal plan' }}</h2>
               <p class="nm-panel-sub" v-if="s.meal_plan">
-                {{ s.meal_plan.status === 'active' ? `Sent ${shortDate(s.meal_plan.sent_at)}` : 'Draft — not sent to the patient yet' }}
-                · {{ s.meal_plan.meals_per_week }} meals a week
+                {{ s.meal_plan.status === 'active' ? `Sent ${shortDate(s.meal_plan.sent_at)}` : 'Draft, not sent to the patient yet' }},
+                {{ s.meal_plan.meals_per_week }} meals a week
               </p>
             </div>
             <template v-if="p.status === 'active'">
               <NuxtLink v-if="mealPlanReady" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm">
-                {{ s.meal_plan ? (s.meal_plan.status === 'draft' ? 'Finish & send plan' : 'Update meal plan') : 'Create meal plan' }}
+                {{ s.meal_plan ? (s.meal_plan.status === 'draft' ? 'Finish and send plan' : 'Update meal plan') : 'Create meal plan' }}
               </NuxtLink>
             </template>
           </div>
           <p v-if="p.status === 'active' && !mealPlanReady && !s.meal_plan" class="nm-note" style="margin: 0">Finish the NCP Intervention (diet prescription and target calories) before creating a meal plan.</p>
           <div v-if="s.meal_plan?.target_kcal" class="targets">
-            <div><strong>{{ Math.round(s.meal_plan.target_kcal) }}</strong><span>kcal / day</span></div>
-            <div v-if="s.meal_plan.target_carb_g"><strong>{{ Math.round(s.meal_plan.target_carb_g) }} g</strong><span>carbs</span></div>
-            <div v-if="s.meal_plan.target_protein_g"><strong>{{ Math.round(s.meal_plan.target_protein_g) }} g</strong><span>protein</span></div>
-            <div v-if="s.meal_plan.target_fat_g"><strong>{{ Math.round(s.meal_plan.target_fat_g) }} g</strong><span>fat</span></div>
+            <div><span>Calories</span><strong>{{ Math.round(s.meal_plan.target_kcal).toLocaleString('en-PH') }} kcal</strong></div>
+            <div v-if="s.meal_plan.target_carb_g"><span>Carbs</span><strong>{{ Math.round(s.meal_plan.target_carb_g) }} g</strong></div>
+            <div v-if="s.meal_plan.target_protein_g"><span>Protein</span><strong>{{ Math.round(s.meal_plan.target_protein_g) }} g</strong></div>
+            <div v-if="s.meal_plan.target_fat_g"><span>Fat</span><strong>{{ Math.round(s.meal_plan.target_fat_g) }} g</strong></div>
           </div>
           <p v-else-if="!s.meal_plan && mealPlanReady" class="nm-muted">No meal plan yet.</p>
         </div>
@@ -294,7 +312,7 @@
           <div class="nm-panel-head">
             <div>
               <h2 class="nm-panel-title">Adherence, last 14 days</h2>
-              <p class="nm-panel-sub">Share of planned meals followed each day, from your ratings (partly followed counts half; unlogged counts as missed; logs you haven't rated yet aren't counted).</p>
+              <p class="nm-panel-sub">Share of planned meals followed each day, from your ratings. Partly followed counts as half, an unlogged meal counts as missed, and logs you haven't rated yet aren't counted.</p>
             </div>
           </div>
           <p v-if="!s.adherence_days.some(d => d.planned)" class="nm-muted">No meals were planned in the last 14 days.</p>
@@ -324,7 +342,7 @@
 
         <div class="nm-panel">
           <h2 class="nm-panel-title">Recent meal logs</h2>
-          <p class="nm-panel-sub">What {{ p.client.first_name }} ate, with their photo and note. {{ p.status === 'active' ? 'Rate each one — it counts toward adherence once rated.' : '' }}
+          <p class="nm-panel-sub">What {{ p.client.first_name }} ate, with their photo and note. {{ p.status === 'active' ? 'Rate each one. It counts toward adherence once rated.' : '' }}
             <strong v-if="toReview && p.status === 'active'" class="to-review">{{ toReview }} to review</strong></p>
           <div v-if="s.recent_logs.length" class="nm-table-wrap" style="margin-top: 10px">
             <table class="nm-table">
@@ -333,8 +351,8 @@
                 <tr v-for="l in s.recent_logs" :key="l.id">
                   <td>{{ shortDate(l.date) }}</td>
                   <td>{{ l.meal }}</td>
-                  <td>{{ l.time_logged ? clockOf(l.time_logged) : '—' }}</td>
-                  <td class="note-cell">{{ l.note || '—' }}<a v-if="l.photo_url" :href="l.photo_url" target="_blank" rel="noopener" class="nm-panel-link photo-link">Photo</a></td>
+                  <td>{{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</td>
+                  <td class="note-cell">{{ l.note || 'No note' }}<a v-if="l.photo_url" :href="l.photo_url" target="_blank" rel="noopener" class="nm-panel-link photo-link">Photo</a></td>
                   <td>
                     <MealLogRating v-if="p.status === 'active'" :log-id="l.id" :status="l.status" compact
                                    :label="`${l.meal} on ${shortDate(l.date)}`" @rated="load" />
@@ -350,64 +368,31 @@
 
       <!-- ===================== PROGRESS ===================== -->
       <template v-else-if="tab === 'progress'">
-        <div v-if="p.status === 'active'" class="nm-panel">
-          <div class="nm-panel-head">
-            <div>
-              <h2 class="nm-panel-title">Record progress</h2>
-              <p class="nm-panel-sub">Measured or checked during a consultation. BMI is worked out from their screening height.</p>
-            </div>
-            <button v-if="!formOpen" type="button" class="nm-btn-dark nm-btn-sm" @click="openForm"><Plus :size="14" /> Record progress</button>
-          </div>
-          <form v-if="formOpen" class="progress-form" @submit.prevent="saveProgress">
-            <div class="pf-grid">
-              <label><span class="nm-label">Date</span><input v-model="form.record_date" type="date" class="nm-input" :max="todayIso" required /></label>
-              <label><span class="nm-label">Weight (kg)</span><input v-model="form.weight_kg" type="number" step="0.1" min="25" max="300" class="nm-input" placeholder="e.g. 68.5" /></label>
-              <label><span class="nm-label">Blood pressure</span><input v-model="form.blood_pressure" type="text" inputmode="numeric" class="nm-input" placeholder="120/80" /></label>
-              <label><span class="nm-label">Fasting glucose (mg/dL)</span><input v-model="form.blood_glucose" type="number" step="1" min="20" max="600" class="nm-input" placeholder="e.g. 110" /></label>
-              <label><span class="nm-label">HbA1c (%)</span><input v-model="form.hba1c" type="number" step="0.1" min="3" max="20" class="nm-input" placeholder="e.g. 6.5" /></label>
-            </div>
-            <label class="pf-note">
-              <span class="nm-label"><Lock :size="12" /> Private note <span class="nm-muted">(only you see this)</span></span>
-              <textarea v-model="form.rnd_notes" data-allow-emoji class="nm-input" rows="2" maxlength="2000" placeholder="Observations for your own record"></textarea>
-            </label>
-            <p v-if="formError" class="nm-field-error">{{ formError }}</p>
-            <div class="nm-modal-actions">
-              <button type="button" class="nm-btn-outline" @click="formOpen = false">Cancel</button>
-              <button type="submit" class="nm-btn-dark" :disabled="saving">{{ saving ? 'Saving…' : 'Save record' }}</button>
-            </div>
-          </form>
-          <p v-if="savedNote" class="saved">
-            <CheckCircle2 :size="15" /> Saved. {{ p.client.first_name }} can see the new numbers on their Progress page.
-            <NuxtLink :to="`/messages?relationship=${relationshipId}`" class="nm-panel-link">Message {{ p.client.first_name }} →</NuxtLink>
-          </p>
-        </div>
-
+        <!-- every measurement at once (was one chart with a Weight / BMI / … switcher) -->
         <div class="nm-panel">
-          <div class="nm-panel-head">
-            <div>
-              <h2 class="nm-panel-title">Trends</h2>
-              <p class="nm-panel-sub">From the screening, progress records and finalized NCP records.</p>
-            </div>
-            <div v-if="trend && trend.change != null" class="chart-figure">
-              <span class="cf-value">{{ trend.change > 0 ? '+' : trend.change < 0 ? '−' : '' }}{{ Math.abs(trend.change).toFixed(trend.decimals) }} {{ trend.unit }}</span>
-              <span class="cf-sub">{{ trend.changeLabel }}</span>
-            </div>
+          <h2 class="nm-panel-title">Trends</h2>
+          <p class="nm-panel-sub">From the screening, progress records and finalized NCP records.</p>
+          <p v-if="!trends.shown.length" class="nm-muted" style="margin-top: 12px">No measurements yet. They appear here once an NCP record is finalized.</p>
+          <div v-else class="trend-grid">
+            <section v-for="t in trends.shown" :key="t.key" class="trend-card">
+              <div class="tc-head">
+                <h3 class="tc-title">{{ t.label }}</h3>
+                <span class="tc-latest">{{ t.latest }}</span>
+              </div>
+              <p class="tc-sub">{{ t.sub }}</p>
+              <TrendChart v-if="t.hasTrend" :series="t.series" :unit="t.unit" :decimals="t.decimals" :ref-lines="t.refLines" :title="`${t.label} trend`" />
+              <p v-else class="tc-one">One reading so far. The trend line starts at the second.</p>
+            </section>
           </div>
-          <div class="nm-tabs metric-tabs" role="tablist" aria-label="Measurement">
-            <button v-for="mt in METRICS" :key="mt.key" type="button" role="tab" class="nm-tab" :class="{ active: metric === mt.key }"
-                    :aria-selected="metric === mt.key" :disabled="!metricSeries[mt.key].some(x => x.points.length)" @click="metric = mt.key">
-              {{ mt.label }}
-            </button>
-          </div>
-          <p v-if="!trend" class="nm-muted">The trend shows once there are two readings of {{ METRICS.find(x => x.key === metric).label.toLowerCase() }}.</p>
-          <TrendChart v-else :series="trend.series" :unit="trend.unit" :decimals="trend.decimals" :ref-lines="trend.refLines" :title="trend.title" />
+          <p v-if="trends.none.length" class="tc-none">No readings yet: {{ trends.none.join(', ') }}.</p>
         </div>
 
         <div class="nm-panel">
           <h2 class="nm-panel-title">All progress records</h2>
+          <p class="nm-panel-sub">Saved automatically when you finalize an NCP record, with the measurements from that consultation.</p>
           <div v-if="s.progress.length" class="nm-table-wrap" style="margin-top: 10px">
             <table class="nm-table">
-              <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>BP</th><th>Glucose</th><th>HbA1c</th><th>Note</th></tr></thead>
+              <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>Blood pressure</th><th>Glucose</th><th>HbA1c</th><th>Note</th></tr></thead>
               <tbody>
                 <tr v-for="r in s.progress" :key="r.id">
                   <td class="nowrap">{{ shortDate(r.record_date) }}<span v-if="r.source === 'client'" class="nm-pill blue self-tag">Self-reported</span></td>
@@ -430,28 +415,62 @@
         <div class="nm-panel-head">
           <div>
             <h2 class="nm-panel-title">Consultations with {{ p.client.first_name }}</h2>
-            <p class="nm-panel-sub">{{ p.consultations }} completed</p>
+            <p class="nm-panel-sub">{{ p.consultations }} completed{{ consults.upcoming.length ? `, ${consults.upcoming.length} coming up` : '' }}</p>
           </div>
-          <NuxtLink to="/appointments" class="nm-panel-link">Appointments →</NuxtLink>
+          <NuxtLink :to="`/appointments?relationship=${relationshipId}`" class="nm-panel-link">Open Appointments</NuxtLink>
         </div>
         <p v-if="!s.appointments.length" class="nm-muted">No consultations yet.</p>
-        <div v-for="a in s.appointments" :key="a.id" class="appt-row" :class="{ past: !a.upcoming }">
-          <div class="appt-date">
-            <span class="ad-day">{{ dayNum(a.scheduled_at) }}</span>
-            <span class="ad-mon">{{ monthShort(a.scheduled_at) }}</span>
+
+        <!-- 1. coming up -->
+        <section v-if="consults.upcoming.length" class="cs-sec">
+          <h3 class="cs-title">Coming up</h3>
+          <div v-for="a in consults.upcoming" :key="a.id" class="cs-card">
+            <div class="appt-date">
+              <span class="ad-day">{{ dayNum(a.scheduled_at) }}</span>
+              <span class="ad-mon">{{ monthShort(a.scheduled_at) }}</span>
+            </div>
+            <div class="appt-main">
+              <p class="nm-row-title">{{ longWhen(a.scheduled_at) }}</p>
+              <p class="nm-row-sub">{{ a.type_label }}, {{ a.duration_minutes }} min{{ a.amount ? `, ${peso(a.amount)}` : '' }}</p>
+            </div>
+            <div class="appt-end">
+              <span class="nm-pill" :class="APPT_PILL[a.status]">{{ a.status === 'pending' ? 'Needs your confirmation' : 'Confirmed' }}</span>
+              <span v-if="a.payment" class="nm-pill" :class="a.payment === 'paid' ? 'green' : 'muted'">{{ PAY_LABEL[a.payment] || a.payment }}</span>
+              <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="13" /> Join</NuxtLink>
+              <NuxtLink v-else-if="a.status === 'pending'" to="/appointments?tab=requests" class="nm-btn-dark nm-btn-sm">Review booking</NuxtLink>
+            </div>
           </div>
-          <div class="appt-main">
-            <p class="nm-row-title">{{ longWhen(a.scheduled_at) }}</p>
-            <p class="nm-row-sub">{{ a.type_label }} · {{ a.duration_minutes }} min{{ a.amount ? ` · ${peso(a.amount)}` : '' }}</p>
-            <p v-if="a.status === 'cancelled' && a.cancellation_reason" class="nm-row-sub">Cancelled: {{ a.cancellation_reason }}</p>
+        </section>
+
+        <!-- 3. history, as a table -->
+        <section v-if="consults.past.length" class="cs-sec">
+          <h3 class="cs-title">Past consultations</h3>
+          <div class="nm-table-wrap">
+            <table class="nm-table stack cs-table">
+              <thead><tr><th>Date</th><th>Format</th><th>Result</th><th>Payment</th><th>NCP record</th><th><span class="sr-only">Summary</span></th></tr></thead>
+              <tbody>
+                <tr v-for="a in consults.past" :key="a.id">
+                  <td data-label="Date"><strong>{{ shortDate(a.scheduled_at) }}</strong><span class="nm-row-sub cs-time">{{ timeOf(a.scheduled_at) }}</span></td>
+                  <td data-label="Format">{{ a.type_label }}</td>
+                  <td data-label="Result">
+                    <span class="nm-pill" :class="a.status === 'confirmed' ? 'gold' : APPT_PILL[a.status]">{{ a.status === 'confirmed' ? 'Not marked complete' : APPT_LABEL[a.status] }}</span>
+                    <span v-if="a.status === 'cancelled' && a.cancellation_reason" class="nm-row-sub cs-reason">{{ a.cancellation_reason }}</span>
+                  </td>
+                  <td data-label="Payment">{{ a.payment ? (PAY_LABEL[a.payment] || a.payment) : 'None' }}<template v-if="a.amount && a.payment === 'paid'">, {{ peso(a.amount) }}</template></td>
+                  <td data-label="NCP record">
+                    <span v-if="a.status !== 'completed' && !a.ncp_status" class="nm-muted">{{ a.status === 'confirmed' ? 'None yet' : 'Not needed' }}</span>
+                    <span v-else-if="a.ncp_status === 'completed'" class="cs-ok"><Check :size="13" /> Finalized</span>
+                    <span v-else-if="a.ncp_status === 'draft'" class="cs-draft">Draft</span>
+                    <span v-else class="cs-none">None</span>
+                  </td>
+                  <td class="right">
+                    <button v-if="a.status === 'completed'" type="button" class="nm-btn-outline nm-btn-sm" @click="summaryId = a.id"><FileText :size="13" /> Summary</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div class="appt-end">
-            <span class="nm-pill" :class="APPT_PILL[a.status]">{{ APPT_LABEL[a.status] }}</span>
-            <span v-if="a.payment && a.status !== 'cancelled'" class="nm-pill" :class="a.payment === 'paid' ? 'green' : a.payment === 'unpaid' ? 'muted' : 'red'">{{ PAY_LABEL[a.payment] || a.payment }}</span>
-            <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="13" /> Join</NuxtLink>
-            <button v-if="a.status === 'completed'" type="button" class="nm-btn-outline nm-btn-sm" @click="summaryId = a.id"><FileText :size="13" /> Summary</button>
-          </div>
-        </div>
+        </section>
       </div>
 
       <!-- ===================== REMINDERS ===================== -->
@@ -467,6 +486,7 @@
       :patient-name="p?.client.name || ''"
       :mode="ncpModal.mode"
       :record-id="ncpModal.recordId"
+      :appointment-id="ncpModal.appointmentId"
       :can-continue="p?.status === 'active'"
       @close="ncpModal = null"
       @changed="refresh"
@@ -483,12 +503,12 @@
 
 <script setup>
 import {
-  Activity, AlertTriangle, Check, CheckCircle2, FileText, FlaskConical, Info, Lock, MessageSquare, OctagonAlert, Plus, Scale, ShieldAlert, Utensils, Video,
+  AlertTriangle, Check, CheckCircle2, Eye, FileText, Pencil, FlaskConical, Info, Lock, MessageSquare, MoreHorizontal, OctagonAlert, Video,
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
-const { get, post } = useApi()
+const { get } = useApi()
 const now = useNow()
 const relationshipId = route.params.relationshipId
 
@@ -535,8 +555,8 @@ function setTab(k) {
 }
 const TABS = computed(() => [
   { key: 'overview', label: 'Overview' },
-  { key: 'ncp', label: 'NCP Records', count: ncpRecords.value.length || null },
-  { key: 'meal', label: 'Meal Plan' },
+  { key: 'ncp', label: 'NCP records', count: ncpRecords.value.length || null },
+  { key: 'meal', label: 'Meal plan' },
   { key: 'progress', label: 'Progress', count: s.value?.progress.length || null },
   { key: 'labs', label: 'Lab results', count: s.value?.labs.new_results || null },
   { key: 'appointments', label: 'Consultations', count: s.value?.appointments.length || null },
@@ -563,9 +583,15 @@ const SEX = { male: 'Male', female: 'Female' }
 
 const metaLine = computed(() => {
   const c = p.value.client
-  return [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], s.value.health.conditions.join(', ') || null].filter(Boolean).join(' · ')
+  return [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], s.value.health.conditions.join(', ') || null].filter(Boolean).join(', ')
 })
-const list = arr => (arr && arr.length ? arr.join(', ') : '—')
+const list = arr => (arr && arr.length ? arr.join(', ') : 'Not recorded')
+
+// header "More" menu (Discharge): closes on an outside click or Escape
+const moreOpen = ref(false)
+function closeMore(e) { if (e.type === 'click' || e.key === 'Escape') moreOpen.value = false }
+onMounted(() => { document.addEventListener('click', closeMore); document.addEventListener('keydown', closeMore) })
+onUnmounted(() => { document.removeEventListener('click', closeMore); document.removeEventListener('keydown', closeMore) })
 const fmt1 = v => Number(v).toFixed(1)
 const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 
@@ -587,13 +613,24 @@ const mealPlanReady = computed(() => ncpRecords.value.some(r => r.diet_prescript
 
 /* ---------- appointments ---------- */
 const nextAppt = computed(() => [...(s.value?.appointments || [])].filter(a => a.upcoming).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))[0] || null)
+// Consultations tab: coming up / ended but still open / history
+const consults = computed(() => {
+  const all = s.value?.appointments || []
+  return {
+    upcoming: all.filter(a => a.upcoming).reverse(), // soonest first
+    // ended but not marked complete yet: listed with the past ones (Appointments → To complete is where it's done)
+    past: all.filter(a => !a.upcoming),
+  }
+})
+// appointment start time, Philippine time, e.g. 10:00 AM
+const timeOf = v => new Date(v).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
 function canJoin(a) {
   return a.status === 'confirmed' && a.type === 'video' && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
 }
 const PH = { timeZone: 'Asia/Manila' }
 const longWhen = v => new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 const dayNum = v => new Date(v).toLocaleDateString('en-PH', { ...PH, day: 'numeric' })
-const monthShort = v => new Date(v).toLocaleDateString('en-PH', { ...PH, month: 'short' }).toUpperCase()
+const monthShort = v => new Date(v).toLocaleDateString('en-PH', { ...PH, month: 'short' })
 const dayName = iso => new Date(`${iso}T00:00:00`).toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })
 const shortDay = (iso, today) => (today ? 'Today' : new Date(`${iso}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }))
 function clockOf(t) {
@@ -604,15 +641,37 @@ function clockOf(t) {
 /* ---------- NCP (shared NcpRecordModal) ---------- */
 const ncpModal = ref(null)
 const openDraft = computed(() => ncpRecords.value.find(r => r.status === 'draft') || null)
-function openNcpForm() { ncpModal.value = { mode: 'edit', recordId: null } }
+function openNcpForm(appointmentId = null) { ncpModal.value = { mode: 'edit', recordId: null, appointmentId } }
+// The latest completed consultation that has no NCP record yet (the RND didn't write it in the room).
+const unwrittenVisit = computed(() => {
+  const last = (s.value?.appointments || []).find(a => a.status === 'completed') // newest first
+  return last && !last.has_ncp ? last : null
+})
 function viewNcpRecord(r) { ncpModal.value = { mode: 'view', recordId: r.id } }
-function ncpPhaseLabel(r) {
-  if (r.status === 'completed') return r.is_follow_up ? 'Monitoring' : 'Intervention'
-  if (!(r.weight_kg && r.height_cm)) return 'Assessment'
-  if (!r.pes_problem) return 'Diagnosis'
-  if (!r.diet_prescription) return 'Intervention'
-  return r.is_follow_up ? 'Monitoring' : 'Intervention'
+const GOAL_LABEL = { met: 'Met', partially_met: 'Partially met', not_met: 'Not met', ongoing: 'Ongoing' }
+// What finalizing still needs (same list as NcpRecord.finalize_missing()).
+function ncpMissing(r) {
+  return [
+    !r.weight_kg && 'weight', !r.height_cm && 'height', !r.pes_problem && 'PES problem', !r.pes_etiology && 'etiology',
+    !r.pes_signs && 'signs and symptoms', !r.diet_prescription && 'diet prescription', !r.target_kcal && 'target kcal',
+    r.is_follow_up && !r.goal_status && 'goal status',
+  ].filter(Boolean)
 }
+// Oldest first to number the follow-ups and get the weight change since the
+// previous record, then newest first for the timeline (drafts on top).
+const ncpTimeline = computed(() => {
+  const asc = [...ncpRecords.value].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+  let n = 0
+  let prevWeight = null
+  const out = asc.map((r) => {
+    const kindLabel = r.is_follow_up ? `Follow-up #${++n}` : 'Initial record'
+    const w = r.weight_kg != null ? Number(r.weight_kg) : null
+    const weightChange = w != null && prevWeight != null ? w - prevWeight : null
+    if (w != null && r.status === 'completed') prevWeight = w
+    return { ...r, kindLabel, weightChange, missing: ncpMissing(r) }
+  })
+  return out.reverse().sort((a, b) => (a.status === 'completed') - (b.status === 'completed'))
+})
 
 /* ---------- discharge ---------- */
 const summaryId = ref(null) // consultation summary pop-up
@@ -620,45 +679,6 @@ const showDischarge = ref(false)
 function onDischarged() {
   showDischarge.value = false
   load()
-}
-
-/* ---------- record progress ---------- */
-const todayIso = new Date().toLocaleDateString('en-CA', PH)
-const formOpen = ref(false)
-const saving = ref(false)
-const formError = ref('')
-const savedNote = ref(false)
-const blank = () => ({ record_date: todayIso, weight_kg: '', blood_pressure: '', blood_glucose: '', hba1c: '', rnd_notes: '' })
-const form = ref(blank())
-function openForm() {
-  form.value = blank()
-  formError.value = ''
-  savedNote.value = false
-  formOpen.value = true
-}
-async function saveProgress() {
-  formError.value = ''
-  const f = form.value
-  const body = { relationship: Number(relationshipId), record_date: f.record_date }
-  for (const k of ['weight_kg', 'blood_pressure', 'blood_glucose', 'hba1c', 'rnd_notes']) {
-    const v = String(f[k] ?? '').trim()
-    if (v) body[k] = v
-  }
-  if (!['weight_kg', 'blood_pressure', 'blood_glucose', 'hba1c'].some(k => body[k])) {
-    formError.value = 'Enter at least one measurement.'
-    return
-  }
-  saving.value = true
-  try {
-    await post(`/rnd/relationships/${relationshipId}/progress/`, body)
-    formOpen.value = false
-    savedNote.value = true
-    await load()
-  } catch (e) {
-    formError.value = apiError(e, 'Could not save this record.')
-  } finally {
-    saving.value = false
-  }
 }
 
 /* ---------- trends: one chart, switch the measurement ---------- */
@@ -674,7 +694,6 @@ const METRICS = [
   { key: 'lipids', label: 'Lipids', unit: 'mg/dL', decimals: 0 },
 ]
 const LIPIDS = [['total', 'Total cholesterol', /total cholesterol|^cholesterol/i], ['ldl', 'LDL', /\bldl\b/i], ['hdl', 'HDL', /\bhdl\b/i], ['tg', 'Triglycerides', /triglyceride/i]]
-const metric = ref('weight')
 const metricSeries = computed(() => {
   const out = { weight: [{ key: 'w', label: 'Weight', pts: {} }], bmi: [{ key: 'b', label: 'BMI', pts: {} }],
     bp: [{ key: 'sys', label: 'Systolic', pts: {} }, { key: 'dia', label: 'Diastolic', pts: {} }],
@@ -714,46 +733,100 @@ const metricSeries = computed(() => {
   }
   return result
 })
-const trend = computed(() => {
-  const def = METRICS.find(m => m.key === metric.value)
-  const series = metricSeries.value[metric.value].filter(l => l.points.length)
-  if (!series.length || !series.some(l => l.points.length >= 2)) return null
-  const main = series[0].points
-  const change = main.length >= 2 ? main[main.length - 1].value - main[0].value : null
-  return {
-    series, unit: def.unit, decimals: def.decimals, refLines: def.refLines || [], title: `${def.label} trend`,
-    change, changeLabel: `${series.length > 1 ? `${series[0].label.toLowerCase()} ` : ''}since ${shortDate(main[0].date)}`,
+// Every measurement with at least one reading gets a card; the rest are listed
+// by name. Change is first to latest reading of the main line.
+const trends = computed(() => {
+  const shown = []
+  const none = []
+  for (const def of METRICS) {
+    const series = metricSeries.value[def.key].filter(l => l.points.length)
+    if (!series.length) { none.push(def.label === 'BMI' || def.label === 'HbA1c' ? def.label : def.label.toLowerCase()); continue }
+    const main = series[0].points
+    const last = main[main.length - 1]
+    const fmtV = v => `${Number(v).toFixed(def.decimals)}${def.unit ? ` ${def.unit}` : ''}`
+    const latest = def.key === 'bp' && series[1]?.points.length
+      ? `${last.value}/${series[1].points[series[1].points.length - 1].value} mmHg`
+      : series.length > 1 ? `${series.length} values` : fmtV(last.value)
+    let sub = `${shortDate(last.date)}, from the ${last.note}`
+    if (main.length >= 2) {
+      const ch = last.value - main[0].value
+      const sign = ch > 0 ? '+' : ch < 0 ? '−' : ''
+      sub = `${sign}${Math.abs(ch).toFixed(def.decimals)}${def.unit ? ` ${def.unit}` : ''}${series.length > 1 ? ` ${series[0].label.toLowerCase()}` : ''} since ${shortDate(main[0].date)}`
+    }
+    shown.push({ key: def.key, label: def.label, unit: def.unit, decimals: def.decimals, refLines: def.refLines || [],
+      series, latest, sub, hasTrend: series.some(l => l.points.length >= 2) })
   }
+  return { shown, none }
 })
-// open on the first measurement that has a trend
-watch(metricSeries, (ms) => {
-  if (!ms[metric.value].some(l => l.points.length >= 2)) {
-    const first = METRICS.find(m => ms[m.key].some(l => l.points.length >= 2))
-    if (first) metric.value = first.key
-  }
-}, { immediate: true })
 </script>
 
 <style scoped>
 .crumb { font-size: 0.8rem; color: #8a9a8a; margin: 0 0 12px; }
 .crumb a { color: #1f6f46; text-decoration: none; font-weight: 600; }
 
-.patient-banner { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; }
-.pb-left { display: flex; gap: 16px; align-items: center; min-width: 0; }
-.pb-avatar { width: 64px; height: 64px; border-radius: 50%; background: #D4A017; color: #1a3a1a; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.25rem; flex-shrink: 0; object-fit: cover; }
-.pb-info { min-width: 0; }
-.pb-info .nm-banner-title { margin-bottom: 2px; }
-.pb-info .nm-banner-sub { margin: 0 0 8px; }
-.pb-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.pb-chip { font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.14); color: #fff; }
-.pb-chip.active { background: #d8f0e0; color: #1f6f46; }
-.pb-chip.pending { background: #fdf1d6; color: #8a6a1a; }
-.pb-chip.discharged { background: #eceeec; color: #5a6a5a; }
-.pb-chip.allergy { background: #fdf1d6; color: #8a5a00; }
-.pb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pb-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 0.84rem; cursor: pointer; text-decoration: none; font-family: inherit; }
-.pb-btn:hover { background: rgba(255, 255, 255, 0.1); }
-.pb-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #D4A017; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+/* header */
+.patient-head {
+  padding: 20px 22px; margin-bottom: 16px;
+  /* the same dark-green shadow, spread evenly around the whole card */
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
+}
+.ph-top { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ph-who { display: flex; gap: 16px; align-items: center; min-width: 0; }
+.ph-avatar { width: 56px; height: 56px; border-radius: 50%; background: #004D3A; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; object-fit: cover; }
+.ph-info { min-width: 0; }
+.ph-name { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #1a3a1a; margin: 0 0 2px; line-height: 1.2; }
+.ph-meta { font-size: 0.88rem; color: #4a5a4a; margin: 0 0 6px; }
+.ph-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; }
+.ph-pill { font-size: 0.74rem; font-weight: 600; padding: 2px 9px; border-radius: 10px; background: #eceeec; color: #5a6a5a; }
+.ph-pill.active { background: #e2f2e7; color: #1f6f46; }
+.ph-pill.pending { background: #fdf1d6; color: #8a6a1a; }
+.ph-since { font-size: 0.8rem; color: #7a8a7a; }
+.ph-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ph-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.ph-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #D4A017; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.more-wrap { position: relative; }
+.more-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border: 1px solid #d5dad5; border-radius: 8px; background: #fff; color: #4a5a4a; cursor: pointer; }
+.more-btn:hover { background: #f6f8f6; }
+.more-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.more-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 200px; background: #fff; border: 1px solid #e3e8e3; border-radius: 10px; box-shadow: 0 8px 24px rgba(20, 40, 20, 0.12); padding: 6px; z-index: 30; }
+.more-item { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 6px; padding: 9px 10px; font-family: inherit; font-size: 0.86rem; cursor: pointer; color: #1a3a1a; }
+.more-item:hover, .more-item:focus-visible { background: #f6f8f6; outline: none; }
+.more-item.danger { color: #b23b2e; }
+.more-item.danger:hover { background: #fdf0ee; }
+.ph-allergy { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; background: #fdecec; color: #8f2a20; font-size: 0.86rem; line-height: 1.45; }
+.ph-allergy svg { flex-shrink: 0; margin-top: 2px; }
+
+/* every panel on the chart (tabs included, also inside child components like
+   the Lab results tab): the light card shadow; the header keeps the stronger one */
+.nm-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.nm-page .patient-head { box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
+
+/* header = the dashboard's green banner (same gradient as .nm-hero), for one
+   look across the RND's main pages */
+.nm-page .patient-head { background: linear-gradient(135deg, #00382a 0%, #005a42 100%); border: none; color: #fff; }
+.patient-head .ph-avatar { background: #D4A017; color: #1a3a1a; }
+.patient-head .ph-name { color: #fff; }
+.patient-head .ph-meta { color: #cfe0d5; }
+.patient-head .ph-since { color: rgba(255, 255, 255, 0.7); }
+.patient-head .ph-pill { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.patient-head .ph-pill.active { background: rgba(191, 232, 207, 0.18); color: #bfe8cf; }
+.patient-head .ph-pill.pending { background: rgba(212, 160, 23, 0.22); color: #f3d27a; }
+.patient-head .ph-btn, .patient-head .more-btn {
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.35); color: #fff;
+}
+.patient-head .ph-btn:hover, .patient-head .more-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.patient-head .ph-btn:focus-visible, .patient-head .more-btn:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
+/* allergy stays solid red on the green: the most visible thing in the header */
+.patient-head .ph-allergy { background: #fdecec; color: #8f2a20; }
+
+/* overview figures: one panel (same treatment as Earnings, NCP Records, Appointments) */
+.figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; overflow: hidden; margin-bottom: 16px; }
+.fig { border-left: 1px solid #eef1ee; padding: 16px 20px; min-width: 0; }
+.fig:first-child { border-left: none; }
+.fig-label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; margin: 0 0 4px; }
+.fig-value { font-family: 'Playfair Display', serif; font-size: 1.55rem; font-weight: 700; line-height: 1.15; color: #1a3a1a; margin: 0; font-variant-numeric: tabular-nums lining-nums; }
+.fig-note { font-size: 0.76rem; color: #7a8a7a; margin: 4px 0 0; }
+.fig.risk .fig-value { color: #b23b2e; }
 
 .tabs { margin: 0 0 18px; }
 .nm-page > .nm-panel { margin-bottom: 16px; }
@@ -780,11 +853,13 @@ watch(metricSeries, (ms) => {
 
 .pes { margin-top: 12px; }
 .pes p { margin: 0; font-size: 0.86rem; color: #2a3a2a; line-height: 1.55; }
-.k { display: block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 3px; }
-.targets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.targets div { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; }
-.targets strong { font-size: 1rem; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.targets span { font-size: 0.72rem; color: #8a9a8a; }
+.k { display: block; font-size: 0.78rem; font-weight: 600; color: #4a5a4a; margin: 0 0 3px; }
+.targets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 14px; border: 1px solid #eef1ee; border-radius: 10px; background: #fbfcfa; }
+.targets div { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; border-left: 1px solid #eef1ee; }
+.targets div:first-child { border-left: none; }
+.targets strong { font-size: 0.98rem; color: #1a3a1a; font-variant-numeric: tabular-nums; }
+.targets span { font-size: 0.74rem; color: #7a8a7a; }
+.targets-note { font-size: 0.74rem; color: #8a9a8a; margin: 6px 0 0; }
 
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 12px 0 0; }
 .facts.one { grid-template-columns: minmax(0, 1fr); gap: 0; }
@@ -794,7 +869,7 @@ watch(metricSeries, (ms) => {
 .facts dd { margin: 0; font-size: 0.86rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
 .facts.one dd { text-align: right; }
 .facts dd small { font-weight: 500; color: #6a7a6a; }
-.facts dd.warn { color: #8a5a00; }
+.facts dd.warn { color: #a12525; }
 .symptoms { margin: 12px 0 0; font-size: 0.84rem; color: #3a4a3a; line-height: 1.5; }
 .big-when { font-size: 0.96rem; font-weight: 700; color: #1a3a1a; margin: 6px 0 2px; }
 .pills { margin: 8px 0 10px; }
@@ -825,19 +900,9 @@ watch(metricSeries, (ms) => {
 .tip-muted { color: #b9cdbf; }
 
 /* weight chart */
-.chart-figure { text-align: right; flex-shrink: 0; margin-left: auto; }
-.cf-value { display: block; font-size: 1.4rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.cf-sub { font-size: 0.74rem; color: #8a9a8a; }
 .nm-panel-head > div:first-child { flex: 1 1 240px; min-width: 0; }
-.metric-tabs { margin: 0 0 14px; }
-.metric-tabs .nm-tab:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* progress form */
-.progress-form { margin-top: 4px; }
-.pf-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.pf-note { display: block; margin-top: 12px; }
-.pf-note .nm-label { display: flex; align-items: center; gap: 5px; }
-.saved { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 0; font-size: 0.84rem; color: #1f6f46; font-weight: 600; }
 
 /* consultations */
 .appt-row { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
@@ -846,25 +911,77 @@ watch(metricSeries, (ms) => {
 .appt-date { width: 48px; height: 52px; border-radius: 10px; background: #eef3ec; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
 .appt-row.past .appt-date { background: #f4f5f4; }
 .ad-day { font-size: 1.1rem; font-weight: 700; color: #1a3a1a; line-height: 1; }
-.ad-mon { font-size: 0.62rem; font-weight: 700; color: #6a7a6a; letter-spacing: 0.06em; }
+.ad-mon { font-size: 0.72rem; font-weight: 600; color: #6a7a6a; }
 .appt-main { flex: 1; min-width: 180px; }
 .appt-end { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
 @media (max-width: 900px) {
-  .pf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pf-grid label:first-child { grid-column: 1 / -1; }
+  .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fig:nth-child(3) { border-left: none; }
+  .fig:nth-child(n+3) { border-top: 1px solid #eef1ee; }
 }
 @media (max-width: 640px) {
   .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
   .stepper li:nth-child(2)::before { display: none; }
   .targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .facts { grid-template-columns: minmax(0, 1fr); }
-  .pb-actions { width: 100%; }
-  .chart-figure { text-align: left; margin-left: 0; }
-  .mc-bar { width: 10px; }
+  .patient-head { padding: 16px; }
+  .ph-actions { width: 100%; }
+  .ph-actions > .nm-btn-gold { flex: 1 1 100%; justify-content: center; text-align: center; }
+  .ph-actions > .ph-btn { flex: 1 1 0; min-width: 0; justify-content: center; white-space: nowrap; }
+  .fig { padding: 12px 16px; }
+  .fig-value { font-size: 1.25rem; }
+  .targets div:nth-child(3) { border-left: none; }
+  .targets div:nth-child(n+3) { border-top: 1px solid #eef1ee; }
+    .mc-bar { width: 10px; }
   .mc-x span { font-size: 0.6rem; }
 }
 .nowrap { white-space: nowrap; }
+/* consultations tab */
+.cs-sec { margin-top: 18px; }
+.cs-sec:first-of-type { margin-top: 10px; }
+.cs-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
+.cs-card { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid #eef1ee; border-radius: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.cs-time { display: block; }
+.cs-reason { display: block; margin-top: 4px; max-width: 32ch; white-space: normal; }
+.cs-ok { display: inline-flex; align-items: center; gap: 4px; color: #1f7a4d; font-weight: 600; }
+.cs-none { color: #a07400; font-weight: 600; }
+.cs-draft { color: #1f6f46; font-weight: 600; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 1px 8px; font-size: 0.8rem; }
+.cs-table td { vertical-align: top; }
+/* NCP records timeline */
+.ncp-tl { list-style: none; margin: 16px 0 0; padding: 0; }
+.tl-item { position: relative; display: flex; gap: 14px; padding-bottom: 18px; }
+.tl-item:last-child { padding-bottom: 0; }
+.tl-item:not(:last-child)::after { content: ''; position: absolute; left: 6px; top: 18px; bottom: 0; width: 2px; background: #e3e9e4; }
+.tl-dot { width: 14px; height: 14px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; background: #1f8f5c; position: relative; z-index: 1; box-shadow: 0 0 0 3px #fff; }
+.tl-item.draft .tl-dot { background: #fff; border: 2px solid #3f9a6b; }
+.tl-body { flex: 1; min-width: 0; }
+/* unfinished, not a problem: a white card with a dashed green border */
+.tl-item.draft .tl-body { background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 12px 14px; margin-top: -4px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.tl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tl-kind { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.tl-kind.follow { color: #a07400; }
+.tl-date { font-size: 0.8rem; color: #7a8a7a; margin: 2px 0 8px; }
+.tl-k { display: inline-block; min-width: 72px; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; }
+.tl-dx { font-size: 0.88rem; color: #1a3a1a; margin: 0 0 6px; overflow-wrap: anywhere; }
+.tl-facts { display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 0.86rem; color: #1a3a1a; margin: 0; font-variant-numeric: tabular-nums; }
+.tl-facts .tl-k { min-width: 0; margin-right: 8px; }
+.tl-facts small { color: #7a8a7a; }
+.tl-facts small.down { color: #1f7a4d; }
+.tl-missing { font-size: 0.84rem; color: #3a4a3a; margin: 8px 0 0; }
+.tl-missing strong { color: #1a3a1a; }
+.tl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* progress trends: one card per measurement */
+.trend-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.trend-card { border: 1px solid #eef1ee; border-radius: 10px; padding: 14px 16px 10px; min-width: 0; background: #fff; }
+.tc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tc-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.tc-latest { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.tc-sub { font-size: 0.78rem; color: #7a8a7a; margin: 2px 0 8px; }
+.tc-one { font-size: 0.82rem; color: #8a9a8a; margin: 12px 0 6px; }
+.tc-none { font-size: 0.8rem; color: #8a9a8a; margin: 14px 0 0; }
+@media (max-width: 900px) { .trend-grid { grid-template-columns: minmax(0, 1fr); } }
 .self-tag { margin-left: 6px; font-size: 0.62rem; }
 
 .dr-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fdf8e8; border-color: #f0e2b0; }

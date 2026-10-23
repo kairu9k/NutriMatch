@@ -7,18 +7,13 @@
     <div v-if="selectedRelId && !isLoading" class="top-controls no-print">
       <div class="mode-toggle">
         <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="mode = 'view'">
-          <Eye :size="15" /> View Plans
+          <Eye :size="15" /> View plan
         </button>
         <button class="mode-btn" :class="{ active: mode === 'create' }" :disabled="!patients.length" @click="openCreate">
-          <Plus :size="15" /> {{ selectedPlan ? 'Edit Plan' : 'Create Plan' }}
+          <Plus :size="15" /> {{ selectedPlan ? 'Edit plan' : 'Create plan' }}
         </button>
       </div>
 
-      <div v-if="patients.length" class="patient-select">
-        <select class="nm-select" v-model="selectedRelId">
-          <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.name }}</option>
-        </select>
-      </div>
     </div>
 
     <p v-if="errorMessage" class="form-error no-print">{{ errorMessage }}</p>
@@ -37,18 +32,18 @@
     <!-- ================= VIEW PLANS MODE ================= -->
     <div v-else-if="mode === 'view' && !selectedPlan" class="empty-state">
       <p class="empty-title">No meal plan yet for {{ selectedPatientName }}</p>
-      <button class="btn-primary" @click="startNewPlan"><Plus :size="15" /> Create Meal Plan</button>
+      <button class="btn-primary" @click="startNewPlan"><Plus :size="15" /> Create meal plan</button>
     </div>
 
     <div v-else-if="mode === 'view'" class="planning-layout">
       <div class="panel plan-panel print-area">
         <div class="plan-header">
           <div>
-            <h3>Weekly Meal Plan — {{ selectedPatientName }}</h3>
-            <p class="plan-subtitle">{{ planMeta.name }} · <span class="status-text">{{ statusLabel(selectedPlan.status) }}</span></p>
+            <h3>Weekly meal plan for {{ selectedPatientName }}</h3>
+            <p class="plan-subtitle">{{ planMeta.name }}. <span class="status-text">{{ statusLabel(selectedPlan.status) }}</span></p>
           </div>
           <div class="plan-badges">
-            <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
+            <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
             <span class="badge badge-gold">{{ conditionLabel(planMeta.condition) }}</span>
           </div>
         </div>
@@ -69,31 +64,44 @@
         <div v-for="day in printDays" :key="day" class="print-day" :class="{ 'screen-hidden': day !== activeDay }">
           <h4 class="print-only print-day-title">{{ DAY_FULL[day] }}</h4>
           <div class="meal-list">
-            <div class="meal-row" v-for="meal in mealsForDay(day)" :key="meal.type">
-              <div class="meal-info">
-                <div class="meal-label">
-                  <component :is="meal.icon" :size="14" />
-                  {{ meal.type }}<template v-if="meal.time"> · {{ formatTime(meal.time) }}</template>
-                </div>
-                <div class="meal-title">{{ meal.title }}</div>
-                <div class="meal-breakdown">{{ meal.breakdown }}</div>
+            <!-- one small table per meal: food, portion, kcal and macros in lined-up columns -->
+            <section v-for="meal in mealsForDay(day)" :key="meal.type" class="meal-block">
+              <div class="meal-head">
+                <h4 class="meal-name">{{ sentence(meal.type) }}</h4>
+                <span v-if="meal.time" class="meal-time">{{ formatTime(meal.time) }}</span>
+                <span class="meal-kcal">{{ meal.kcal }} kcal</span>
               </div>
-              <div class="meal-kcal">{{ meal.kcal }} kcal</div>
-            </div>
+              <table v-if="meal.foods.length" class="meal-foods">
+                <thead>
+                  <tr><th>Food</th><th>Portion</th><th class="n">kcal</th><th class="n">Carbs</th><th class="n">Protein</th><th class="n">Fat</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(f, i) in meal.foods" :key="i">
+                    <td class="food">{{ f.name }}</td>
+                    <td class="portion">{{ f.portion || '' }}</td>
+                    <td class="n">{{ cell(f.kcal) }}</td>
+                    <td class="n">{{ cell(f.carb) }} g</td>
+                    <td class="n">{{ cell(f.prot) }} g</td>
+                    <td class="n">{{ cell(f.fat) }} g</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-else class="meal-empty">No foods added</p>
+            </section>
           </div>
         </div>
 
         <div v-if="instructions.allergies || instructions.notes" class="instructions-view">
-          <p v-if="instructions.allergies"><strong>Allergies / Restrictions:</strong> {{ instructions.allergies }}</p>
-          <p v-if="instructions.notes"><strong>RND Notes:</strong> {{ instructions.notes }}</p>
+          <p v-if="instructions.allergies"><strong>Allergies and restrictions:</strong> {{ instructions.allergies }}</p>
+          <p v-if="instructions.notes"><strong>Notes from the RND:</strong> {{ instructions.notes }}</p>
         </div>
 
         <div class="plan-actions no-print">
           <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
-          <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print Plan</button>
-          <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit Plan</button>
+          <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print plan</button>
+          <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit plan</button>
           <button class="btn-primary" :disabled="isSending" @click="requestSend(sendToPatient)">
-            <Send :size="15" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to Patient' : 'Send to Patient' }}
+            <Send :size="15" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to patient' : 'Send to patient' }}
           </button>
         </div>
       </div>
@@ -101,30 +109,31 @@
       <!-- RIGHT SIDEBAR -->
       <div class="side-column no-print">
         <div class="panel">
-          <h4 class="side-title">Nutritional Summary</h4>
-          <span class="side-subtitle">{{ DAY_FULL[activeDay] }}</span>
+          <h4 class="side-title">{{ DAY_FULL[activeDay] }}'s totals</h4>
+          <span class="side-subtitle">Against the plan's daily targets</span>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Total Calories</span><span>{{ nutrition.calories.value }} / {{ nutrition.calories.target ?? '—' }} kcal</span></div>
+            <div class="nutrient-top"><span>Calories</span><span>{{ Number(nutrition.calories.value).toLocaleString('en-PH') }} of {{ nutrition.calories.target != null ? Number(nutrition.calories.target).toLocaleString('en-PH') : '—' }} kcal</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.calories) + '%' }"></div></div>
           </div>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Carbohydrates</span><span>{{ nutrition.carbs.value }}g / {{ nutrition.carbs.target ?? '—' }}g</span></div>
+            <div class="nutrient-top"><span>Carbohydrates</span><span>{{ nutrition.carbs.value }} g of {{ nutrition.carbs.target ?? '—' }} g</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-gold" :style="{ width: pct(nutrition.carbs) + '%' }"></div></div>
           </div>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Protein</span><span>{{ nutrition.protein.value }}g / {{ nutrition.protein.target ?? '—' }}g</span></div>
+            <div class="nutrient-top"><span>Protein</span><span>{{ nutrition.protein.value }} g of {{ nutrition.protein.target ?? '—' }} g</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.protein) + '%' }"></div></div>
           </div>
           <div class="nutrient-row">
-            <div class="nutrient-top"><span>Fat</span><span>{{ nutrition.fat.value }}g / {{ nutrition.fat.target ?? '—' }}g</span></div>
+            <div class="nutrient-top"><span>Fat</span><span>{{ nutrition.fat.value }} g of {{ nutrition.fat.target ?? '—' }} g</span></div>
             <div class="nutrient-bar"><div class="nutrient-fill fill-dark" :style="{ width: pct(nutrition.fat) + '%' }"></div></div>
           </div>
+          <p class="exchange-note">FNRI values from the Food Exchange Lists, 4th ed., 2020</p>
         </div>
 
         <div class="panel">
           <div class="side-header-row">
-            <h4 class="side-title">Saved Plans</h4>
-            <button class="link-btn" @click="startNewPlan"><Plus :size="13" /> New Plan</button>
+            <h4 class="side-title">Plans for this patient</h4>
+            <button class="link-btn" @click="startNewPlan"><Plus :size="13" /> New plan</button>
           </div>
           <button
             v-for="p in plans"
@@ -135,24 +144,12 @@
           >
             <div>
               <div class="saved-plan-name">{{ p.name }}</div>
-              <div class="saved-plan-meta">{{ conditionLabel(p.condition) }}<template v-if="p.target_kcal"> · {{ Math.round(p.target_kcal) }} kcal/day</template></div>
+              <div class="saved-plan-meta">{{ conditionLabel(p.condition) }}<template v-if="p.target_kcal">, {{ Math.round(p.target_kcal).toLocaleString('en-PH') }} kcal/day</template></div>
             </div>
-            <span class="active-pill" :class="'pill-' + p.status">{{ p.status.toUpperCase() }}</span>
+            <span class="active-pill" :class="'pill-' + p.status">{{ { draft: 'Draft', active: 'Sent', archived: 'Archived' }[p.status] || p.status }}</span>
           </button>
         </div>
 
-        <div class="panel">
-          <h4 class="side-title">FNRI Exchange Lists</h4>
-          <div class="exchange-tags">
-            <span class="exchange-tag tag-rice">Rice/Bread</span>
-            <span class="exchange-tag tag-veg">Vegetables</span>
-            <span class="exchange-tag tag-fruit">Fruits</span>
-            <span class="exchange-tag tag-meat">Meat/Fish</span>
-            <span class="exchange-tag tag-milk">Milk</span>
-            <span class="exchange-tag tag-fat">Fat</span>
-          </div>
-          <p class="exchange-note">Based on FNRI Food Exchange Lists 4th Ed., 2020</p>
-        </div>
       </div>
     </div>
 
@@ -165,12 +162,12 @@
         <!-- STEP 1: PLAN DETAILS -->
         <div class="panel">
           <h4 v-if="!selectedPlan" class="no-plan-title">No meal plan yet for {{ selectedPatientName }}</h4>
-          <h4 v-else class="side-title">Plan Details</h4>
-          <p v-if="!selectedPlan && ncpTargets" class="macro-note prefill-note">Targets pre-filled from this client's NCP Intervention — adjust if needed.</p>
+          <h4 v-else class="side-title">Plan details</h4>
+          <p v-if="!selectedPlan && ncpTargets" class="macro-note prefill-note">Targets are filled in from this client's NCP Intervention. Adjust them if needed.</p>
 
           <div class="form-row-6">
             <div class="field">
-              <label>Plan Name</label>
+              <label>Plan name</label>
               <input v-model="planMeta.name" type="text" placeholder="e.g., Diabetic-Friendly Plan" />
             </div>
             <div class="field">
@@ -180,7 +177,7 @@
               </select>
             </div>
             <div class="field">
-              <label>Target Calories/day</label>
+              <label>Target calories per day</label>
               <input v-model.number="planMeta.kcalPerDay" type="number" min="0" placeholder="e.g., 1800" />
             </div>
           </div>
@@ -192,7 +189,7 @@
                which are not part of the calorie target. -->
           <div class="targets-section">
             <div class="targets-header">
-              <span class="targets-title">Macronutrient Targets <span class="optional">(optional)</span></span>
+              <span class="targets-title">Macronutrient targets <span class="optional">(optional)</span></span>
             </div>
             <p class="targets-hint">Protein, carbohydrate and fat are the only nutrients that give calories (4 / 4 / 9 kcal per gram), so they make up the calorie target.</p>
             <!-- Fixed rows: only the value is edited (the Macro Tracker reads them by name, in grams). -->
@@ -205,8 +202,8 @@
           </div>
           <div class="targets-section">
             <div class="targets-header">
-              <span class="targets-title">Other Targets <span class="optional">(optional)</span></span>
-              <button type="button" class="targets-add-btn" @click="addTargetRow"><Plus :size="14" /> Add Field</button>
+              <span class="targets-title">Other targets <span class="optional">(optional)</span></span>
+              <button type="button" class="targets-add-btn" @click="addTargetRow"><Plus :size="14" /> Add target</button>
             </div>
             <p class="targets-hint">Not counted in the calorie target, e.g. sodium, fiber, potassium, vitamins. Pick from the list or type your own.</p>
             <div v-for="(row, idx) in otherRows" :key="idx" class="targets-row">
@@ -218,7 +215,7 @@
           </div>
 
           <button v-if="!selectedPlan" class="btn-primary" :disabled="!planMeta.name || !planMeta.kcalPerDay || isSaving" @click="createPlan">
-            {{ isSaving ? 'Creating…' : 'Create Meal Plan' }}
+            {{ isSaving ? 'Creating…' : 'Create meal plan' }}
           </button>
         </div>
 
@@ -238,19 +235,19 @@
 
           <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
             <div class="meal-edit-header">
-              <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ meal.type.toUpperCase() }}</span>
+              <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ sentence(meal.type) }}</span>
               <input v-model="weeklyPlan[activeDay][meal.type].time" type="time" class="meal-time-input" title="Meal time" />
             </div>
 
             <div class="food-table">
               <div class="food-table-head">
                 <span></span>
-                <span>FOOD ITEM</span>
-                <span>PORTION</span>
-                <span>KCAL</span>
-                <span>CARB(G)</span>
-                <span>PROT(G)</span>
-                <span>FAT(G)</span>
+                <span>Food</span>
+                <span>Portion</span>
+                <span>kcal</span>
+                <span>Carbs (g)</span>
+                <span>Protein (g)</span>
+                <span>Fat (g)</span>
               </div>
               <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx" :class="{ usda: item.source === 'usda' }">
                 <button class="remove-btn" title="Remove" @click="removeItem(meal, idx)"><X :size="12" /></button>
@@ -303,7 +300,7 @@
             </div>
 
             <div class="add-food-row">
-              <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add Food Item</button>
+              <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add food</button>
               <button class="btn-add-food usda-btn" @click="usdaMeal = meal"><Search :size="14" /> Add from USDA</button>
             </div>
           </div>
@@ -326,7 +323,7 @@
       <div class="side-column">
         <div class="panel">
           <div class="side-header-row">
-            <h4 class="side-title">Live Preview</h4>
+            <h4 class="side-title">Preview</h4>
             <span v-if="selectedPlan" class="preview-day">{{ DAY_FULL[activeDay] }}</span>
           </div>
 
@@ -358,7 +355,7 @@
 
           <div v-if="selectedPlan && currentDayMeals.some(m => m.items.some(i => i.name))" class="preview-list">
             <div class="preview-item" v-for="meal in currentDayMeals.filter(m => m.items.some(i => i.name))" :key="meal.type" :class="'preview-' + meal.accent">
-              <div class="preview-label"><component :is="meal.icon" :size="13" /> {{ meal.type }}</div>
+              <div class="preview-label"><component :is="meal.icon" :size="13" /> {{ sentence(meal.type) }}</div>
               <div class="preview-food">{{ firstFoodSummary(meal) }}</div>
               <div class="preview-kcal">{{ mealTotal(meal, 'kcal') }} kcal</div>
             </div>
@@ -367,7 +364,7 @@
         </div>
 
         <div v-if="selectedPlan" class="panel">
-          <h4 class="side-title">Macro Tracker</h4>
+          <h4 class="side-title">Day totals</h4>
           <div class="macro-row"><span>Calories</span><span class="macro-value">{{ dayTotal('kcal') }} kcal</span></div>
           <div class="macro-bar"><div class="macro-fill fill-dark" :style="{ width: macroPct('kcal') + '%' }"></div></div>
 
@@ -384,13 +381,13 @@
         </div>
 
         <div v-if="selectedPlan" class="panel">
-          <h4 class="side-title">Special Instructions</h4>
+          <h4 class="side-title">Instructions for the patient</h4>
           <div class="field">
-            <label>Allergies / Restrictions</label>
+            <label>Allergies and restrictions</label>
             <textarea v-model="instructions.allergies" rows="2" placeholder="e.g., No shellfish, low potassium"></textarea>
           </div>
           <div class="field">
-            <label>RND Notes for Patient</label>
+            <label>Notes for the patient</label>
             <textarea v-model="instructions.notes" data-allow-emoji rows="3" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
           </div>
         </div>
@@ -470,7 +467,7 @@ function conditionLabel(value) {
   return CONDITIONS.find(c => c.value === value)?.label || value
 }
 function statusLabel(status) {
-  return { draft: 'Draft — not yet sent', active: 'Active — visible to patient', archived: 'Archived' }[status] || status
+  return { draft: 'Draft, not sent yet', active: 'Sent, the patient can see it', archived: 'Archived' }[status] || status
 }
 
 // Design order Mon→Sun; day_of_week uses Sunday=0 (same as availability).
@@ -1123,8 +1120,7 @@ function mealsForDay(day) {
       icon: mealIcons[type],
       accent: mealAccents[type],
       kcal: round(named.reduce((sum, i) => sum + (Number(i.kcal) || 0), 0)),
-      title: named.map(i => `${i.name}${i.portion ? ` (${i.portion})` : ''}`).join(' + ') || 'No items added',
-      breakdown: named.map(i => `${i.name}: ${i.kcal || 0}kcal | ${i.carb || 0}g carb | ${i.prot || 0}g prot | ${i.fat || 0}g fat`).join(' | ') || '—',
+      foods: named,
     }
   })
 }
@@ -1135,6 +1131,9 @@ const printDays = days
 function round(n) {
   return Math.round(n * 10) / 10
 }
+// a meal-foods cell: 1 decimal, blanks as 0
+const cell = v => round(Number(v) || 0)
+const sentence = t => t.charAt(0) + t.slice(1).toLowerCase() // "Morning Snack" -> "Morning snack"
 function mealTotal(meal, field) {
   return round(meal.items.reduce((sum, i) => sum + (Number(i[field]) || 0), 0))
 }
@@ -1204,11 +1203,13 @@ function formatTime(t) {
 }
 .mode-btn.active { background: #163a1c; color: #fff; border-color: #163a1c; }
 
-.patient-select { position: relative; }
 
 .planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 
 .panel { background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #eceeec; margin-bottom: 20px; }
+/* the light card shadow, on every panel here and in the parts this page shows
+   (patient list, template picker) */
+.meal-planning-page :deep(.panel), .meal-planning-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 
 /* VIEW MODE */
 .plan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
@@ -1226,20 +1227,38 @@ function formatTime(t) {
 .day-tab.active { background: #163a1c; color: #fff; border-color: #163a1c; }
 
 .meal-list { display: flex; flex-direction: column; }
-.meal-row {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  padding: 16px 0; border-bottom: 1px solid #f0f2f0;
+.meal-block { padding: 16px 0; border-bottom: 1px solid #f0f2f0; }
+.meal-block:first-child { padding-top: 4px; }
+.meal-block:last-child { border-bottom: none; }
+.meal-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.meal-name { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.meal-time { font-size: 0.82rem; color: #7a8a7a; font-variant-numeric: tabular-nums; }
+.meal-kcal { margin-left: auto; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.meal-foods { width: 100%; border-collapse: collapse; font-size: 0.84rem; table-layout: fixed; }
+/* same column widths in every meal, so the numbers line up down the day */
+.meal-foods th:nth-child(1) { width: 36%; }
+.meal-foods th:nth-child(2) { width: 24%; }
+.meal-foods th { text-align: left; font-size: 0.74rem; font-weight: 500; color: #8a9a8a; padding: 0 8px 4px 0; }
+.meal-foods td { padding: 6px 8px 6px 0; border-top: 1px solid #f4f6f4; vertical-align: top; color: #3a4a3a; }
+.meal-foods .food { color: #1a3a1a; font-weight: 500; }
+.meal-foods .portion { color: #6a7a6a; }
+.meal-foods .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.meal-foods th.n { padding-right: 8px; }
+.meal-empty { font-size: 0.84rem; color: #9aaa9a; margin: 0; }
+@media (max-width: 640px) {
+  /* phones: food and portion on one line, numbers on the next */
+  .meal-foods thead { display: none; }
+  .meal-foods tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #f4f6f4; padding: 6px 0; }
+  .meal-foods td { border: none; padding: 0; }
+  .meal-foods .food { grid-column: 1 / -1; }
+  .meal-foods .portion { grid-column: 1 / -1; margin-bottom: 4px; }
+  .meal-foods .n { width: auto; text-align: left; font-size: 0.78rem; color: #5a6a5a; }
+  .meal-foods .n:nth-child(3)::after { content: ' kcal'; }
+  .meal-foods .n:nth-child(4)::before { content: 'Carbs '; }
+  .meal-foods .n:nth-child(5)::before { content: 'Protein '; }
+  .meal-foods .n:nth-child(6)::before { content: 'Fat '; }
+  .meal-foods tr { grid-template-columns: 0.8fr 1fr 1.1fr 0.8fr; }
 }
-.meal-row:first-child { padding-top: 0; }
-.meal-row:last-child { border-bottom: none; }
-.meal-info { flex: 1; min-width: 0; }
-.meal-label {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; text-transform: uppercase; margin-bottom: 6px;
-}
-.meal-title { font-size: 0.92rem; font-weight: 600; color: #1a3a1a; margin-bottom: 4px; }
-.meal-breakdown { font-size: 0.75rem; color: #9aaa9a; overflow-wrap: anywhere; }
-.meal-kcal { font-size: 0.85rem; font-weight: 600; color: #3a4a3a; white-space: nowrap; margin-left: 16px; }
 
 .plan-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
 .btn-secondary {
@@ -1285,23 +1304,15 @@ function formatTime(t) {
 }
 .saved-plan-name { font-size: 0.85rem; font-weight: 700; color: #1a3a1a; }
 .saved-plan-meta { font-size: 0.72rem; color: #7a8a7a; margin-top: 2px; }
-.active-pill { background: #163a1c; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
+.active-pill { background: #e6efe0; color: #2e6b3a; font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; }
 
-.exchange-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.exchange-tag { font-size: 0.72rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
-.tag-rice { background: #fdf1d6; color: #b8860b; }
-.tag-veg { background: #e6f4e6; color: #2e7d32; }
-.tag-fruit { background: #fdeadf; color: #d9683f; }
-.tag-meat { background: #fbe1de; color: #c0483a; }
-.tag-milk { background: #e3edfc; color: #3b6fd6; }
-.tag-fat { background: #eef0ee; color: #6a7a6a; }
 .exchange-note { font-size: 0.72rem; color: #9aaa9a; margin-top: 12px; }
 
 /* CREATE MODE — STEP 1 (simplified plan details form) */
 .no-plan-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
 .form-row-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 24px; margin-bottom: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.field label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
+.field label { font-size: 0.8rem; font-weight: 600; color: #3a4a3a; }
 .optional { font-weight: 400; text-transform: none; color: #9aaa9a; }
 .field input, .field textarea {
   border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
@@ -1311,7 +1322,7 @@ function formatTime(t) {
 /* NUTRIENT TARGET ROWS (Measured Variable / Value / Unit) */
 .targets-section { border-top: 1px dashed #e0e5e0; padding-top: 14px; margin-bottom: 14px; }
 .targets-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.targets-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; color: #4a5a4a; text-transform: uppercase; }
+.targets-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; }
 .targets-add-btn {
   display: inline-flex; align-items: center; gap: 4px; border: 1px solid #1f8f5c; color: #1f8f5c;
   background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
@@ -1335,7 +1346,7 @@ function formatTime(t) {
 .preview-summary-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
 .target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
 .target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
-.target-list-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #4a5a4a; margin: 0; }
+.target-list-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .target-list-title span { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9aaa9a; }
 
 .meal-edit-panel { padding: 0; margin-bottom: 18px; } /* no overflow:hidden — the food picker list must show past the card */
@@ -1343,19 +1354,19 @@ function formatTime(t) {
   display: flex; justify-content: space-between; align-items: center;
   background: #eef5ee; padding: 16px 24px; border-radius: 12px 12px 0 0;
 }
-.meal-edit-label { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #1a3a1a; letter-spacing: 0.03em; }
+.meal-edit-label { display: flex; align-items: center; gap: 6px; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; }
 .meal-edit-time { font-size: 0.75rem; color: #7a8a7a; }
 
 .food-table { padding: 20px 24px 4px; }
 .food-table-head, .food-table-row {
   display: grid; grid-template-columns: 24px 2fr 1fr 0.8fr 0.9fr 0.9fr 0.8fr; gap: 12px; align-items: center;
 }
-.food-table-head { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; color: #9aaa9a; padding-bottom: 10px; }
+.food-table-head { font-size: 0.74rem; font-weight: 500; color: #8a9a8a; padding-bottom: 8px; }
 .food-table-head span:first-child { visibility: hidden; }
 .food-table-row { margin-bottom: 12px; }
 .combo { position: relative; min-width: 0; }
 .combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: max(100%, 320px); max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }
-.combo-group { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 6px 8px 2px; }
+.combo-group { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; margin: 6px 8px 2px; }
 .combo-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
 .combo-opt:hover, .combo-opt.on { background: #eef3ec; }
 .combo-meta { font-size: 0.72rem; color: #8a9a8a; white-space: nowrap; }
@@ -1402,10 +1413,7 @@ function formatTime(t) {
 .btn-add-food:hover { background: #f4f8f4; }
 
 .preview-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-.preview-item { border-left: 3px solid #ccc; background: #fafbfa; border-radius: 8px; padding: 12px 14px; }
-.preview-green { border-left-color: #2e9e52; }
-.preview-gold { border-left-color: #D4A017; }
-.preview-blue { border-left-color: #3b6fd6; }
+.preview-item { background: #fafbfa; border: 1px solid #eef1ee; border-radius: 8px; padding: 10px 12px; }
 .preview-label { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; color: #4a5a4a; margin-bottom: 3px; }
 .preview-food { font-size: 0.8rem; color: #1a3a1a; margin-bottom: 3px; }
 .preview-kcal { font-size: 0.72rem; color: #9aaa9a; }
@@ -1476,7 +1484,6 @@ button.saved-plan-card.selected { border-color: #163a1c; }
 @media (max-width: 640px) {
   .top-controls { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
   .mode-toggle { flex-wrap: wrap; }
-  .patient-select, .patient-select select { width: 100%; }
   .panel { padding: 16px; }
   .plan-header { flex-wrap: wrap; gap: 10px; }
   .plan-badges { flex-wrap: wrap; }

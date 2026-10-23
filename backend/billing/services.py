@@ -435,6 +435,7 @@ def expire_unpaid_appointments(**scope):
 
     from communication.services import notify
     from scheduling.models import Appointment
+    from scheduling.services import close_reopened_care_if_idle
 
     from .models import Invoice
 
@@ -450,6 +451,7 @@ def expire_unpaid_appointments(**scope):
         appt.cancellation_reason = NOT_PAID_REASON
         appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
         appt.invoices.filter(status=Invoice.Status.UNPAID).update(status=Invoice.Status.CANCELLED)
+        close_reopened_care_if_idle(appt.relationship)
         for recipient, text in (
             (appt.relationship.client, "Your consultation was cancelled because it wasn't paid before the start time. You can book a new time."),
             (appt.relationship.rnd, f"{appt.relationship.client.full_name}'s consultation was cancelled because it wasn't paid before the start time. The slot is open again."),

@@ -1,52 +1,14 @@
 <template>
   <div class="resources-page">
-    <!-- HERO BANNER -->
-    <section class="hero-banner">
-      <div class="hero-blob"></div>
-      <div class="hero-content">
-        <h1 class="hero-title"><Library :size="22" class="hero-icon" /> Educational Resource Center</h1>
-        <p class="hero-desc">
-          Upload handouts, guides, meal plan templates, and clinical references for your patients.
-          All files are stored securely under your RND account.
-        </p>
-      </div>
-      <div class="hero-actions">
-        <button class="upload-btn" @click="openUploadModal"><Upload :size="15" /> Upload Resource</button>
-      </div>
-    </section>
+    <header class="page-head">
+      <p class="page-intro">Handouts, guides and videos for your patients. Uploading sends nothing; you choose who receives each one.</p>
+      <button class="nm-btn-gold" type="button" @click="openUploadModal"><Upload :size="15" /> Upload resource</button>
+    </header>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
-    <!-- STAT CARDS — real numbers only -->
-    <section class="nm-stat-grid">
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon"><Library :size="17" /></div>
-        <p class="nm-stat-value">{{ stats.total }}</p>
-        <p class="nm-stat-label">My resources</p>
-        <p class="nm-stat-note">{{ stats.active }} active</p>
-      </div>
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon"><Share2 :size="17" /></div>
-        <p class="nm-stat-value">{{ stats.shared }}</p>
-        <p class="nm-stat-label">Shared with clients</p>
-        <p class="nm-stat-note">Resources at least one client can see</p>
-      </div>
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon gold"><Users :size="17" /></div>
-        <p class="nm-stat-value">{{ stats.shares }}</p>
-        <p class="nm-stat-label">Client shares</p>
-        <p class="nm-stat-note">Total across all resources</p>
-      </div>
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon gold"><EyeOff :size="17" /></div>
-        <p class="nm-stat-value">{{ stats.notShared }}</p>
-        <p class="nm-stat-label">Not shared yet</p>
-        <p class="nm-stat-note" :class="{ warn: stats.notShared }">{{ stats.notShared ? 'Choose clients in the panel' : 'Everything is shared' }}</p>
-      </div>
-    </section>
-
     <!-- TOOLBAR -->
-    <div class="nm-toolbar">
+    <div v-if="resources.length" class="nm-toolbar">
       <div class="nm-tabs">
         <button v-for="t in TABS" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" @click="tab = t.key">
           {{ t.label }} <span class="nm-count">{{ countOf(t.key) }}</span>
@@ -60,11 +22,9 @@
 
     <div v-if="isLoading" class="nm-panel"><p class="nm-muted">Loading your resources…</p></div>
 
-    <div v-else-if="!resources.length" class="nm-panel nm-empty">
-      <BookOpen :size="28" />
-      <p>No resources uploaded yet.</p>
-      <p class="nm-hint" style="margin-top: 4px">Upload a guide, video or link, then choose which clients receive it.</p>
-      <button class="nm-btn-gold" style="margin-top: 14px" @click="openUploadModal"><Upload :size="15" /> Upload resource</button>
+    <div v-else-if="!resources.length" class="nm-panel empty-state">
+      <h2 class="empty-title">No resources yet</h2>
+      <p class="empty-text">Upload a PDF, article, video or link. It stays private until you share it with a patient.</p>
     </div>
 
     <div v-else class="review-layout">
@@ -75,7 +35,7 @@
           <span class="type-icon" :class="'t-' + r.type.toLowerCase()"><component :is="iconFor(r.type)" :size="17" /></span>
           <span class="queue-main">
             <span class="queue-name">{{ r.title }}</span>
-            <span class="queue-sub">{{ r.type }} · {{ shortDate(r.created_at) }}</span>
+            <span class="queue-sub">{{ r.type }}, {{ shortDate(r.created_at) }}</span>
           </span>
           <span class="queue-end">
             <span v-if="!r.is_active" class="nm-pill muted">Hidden</span>
@@ -95,7 +55,7 @@
             <span class="type-icon lg" :class="'t-' + selected.type.toLowerCase()"><component :is="iconFor(selected.type)" :size="20" /></span>
             <div style="flex: 1; min-width: 0">
               <h2 class="nm-panel-title detail-title">{{ selected.title }}</h2>
-              <p class="nm-panel-sub">{{ selected.type }} · Uploaded {{ shortDate(selected.created_at) }}</p>
+              <p class="nm-panel-sub">{{ selected.type }}, uploaded {{ shortDate(selected.created_at) }}</p>
             </div>
             <span v-if="!selected.is_active" class="nm-pill muted">Hidden from clients</span>
           </div>
@@ -163,38 +123,24 @@
       </div>
     </div>
 
-    <!-- YOUR TOOLS — links to the app's own clinical tools -->
-    <section class="resource-section">
-      <div class="section-header">
-        <h3 class="section-title">Your tools</h3>
-      </div>
-      <div class="tools-grid">
-        <NuxtLink v-for="t in TOOLS" :key="t.to" :to="t.to" class="nm-panel tool-card">
-          <span class="nm-stat-icon" :class="t.gold ? 'gold' : ''"><component :is="t.icon" :size="17" /></span>
-          <span class="tool-main">
-            <span class="tool-title">{{ t.title }}</span>
-            <span class="tool-desc">{{ t.desc }}</span>
-          </span>
-          <ChevronRight :size="16" class="tool-arrow" />
-        </NuxtLink>
-      </div>
-    </section>
-
     <!-- ================= UPLOAD NEW RESOURCE MODAL ================= -->
     <div v-if="showUploadModal" class="modal-overlay" @click.self="closeUploadModal">
       <div class="modal-box">
-        <h2 class="modal-title">Upload New Resource</h2>
+        <h2 class="modal-title">Upload a resource</h2>
 
-        <label class="field-label">Resource Type</label>
-        <div class="type-selector">
+        <p class="field-label">Type</p>
+        <div class="type-selector" role="radiogroup" aria-label="Type">
           <button
             v-for="t in resourceTypeOptions"
             :key="t.value"
+            type="button"
+            role="radio"
+            :aria-checked="newUpload.type === t.value"
             class="type-option"
             :class="{ active: newUpload.type === t.value }"
             @click="newUpload.type = t.value"
           >
-            <component :is="t.icon" :size="20" />
+            <component :is="t.icon" :size="15" />
             {{ t.label }}
           </button>
         </div>
@@ -204,28 +150,25 @@
         <input v-model="newUpload.title" type="text" class="field-input" placeholder="e.g. Understanding Glycemic Index" />
 
         <label class="field-label">Description <span class="optional">(optional)</span></label>
-        <textarea v-model="newUpload.description" class="field-textarea" rows="3" placeholder="Brief summary for your patients..."></textarea>
+        <textarea v-model="newUpload.description" class="field-textarea" rows="3" placeholder="What it covers, in a sentence or two"></textarea>
 
         <template v-if="newUpload.type === 'Link'">
           <label class="field-label">URL</label>
           <input v-model="newUpload.url" type="url" class="field-input" placeholder="https://..." />
         </template>
         <template v-else>
-          <label class="field-label">Upload File</label>
-          <label class="dropzone">
-            <input type="file" class="dropzone-input" :accept="fileRule.accept" @change="onFileSelected" />
-            <UploadCloud :size="26" class="dropzone-icon" />
-            <span class="dropzone-text">
-              <template v-if="newUpload.fileName">{{ newUpload.fileName }}</template>
-              <template v-else>Drag file here or <strong>browse</strong></template>
-            </span>
-            <span class="dropzone-hint">{{ fileRule.hint }}</span>
+          <p class="field-label">File</p>
+          <label class="file-pick">
+            <input type="file" class="file-input" :accept="fileRule.accept" @change="onFileSelected" />
+            <span class="file-btn">{{ newUpload.fileName ? 'Change file' : 'Choose a file' }}</span>
+            <span class="file-name" :class="{ 'is-empty': !newUpload.fileName }">{{ newUpload.fileName || 'No file chosen' }}</span>
           </label>
+          <p class="file-hint">{{ fileRule.hint }}</p>
         </template>
 
         <p v-if="uploadError" class="form-error">{{ uploadError }}</p>
 
-        <p class="upload-note">Uploading doesn't send it to anyone yet — after it uploads, tick the clients who should receive it.</p>
+        <p class="upload-note">Uploading doesn't send it to anyone. Next, you pick the patients who should receive it.</p>
 
         <div class="modal-actions">
           <button class="modal-cancel-btn" @click="closeUploadModal">Cancel</button>
@@ -233,7 +176,7 @@
             class="modal-upload-btn"
             :disabled="!canSubmit || isSubmitting"
             @click="submitUpload"
-          >{{ isSubmitting ? 'Uploading…' : 'Upload Resource' }}</button>
+          >{{ isSubmitting ? 'Uploading…' : 'Upload' }}</button>
         </div>
       </div>
     </div>
@@ -245,10 +188,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
-  Upload, Search, Library, Eye, ArrowLeft, Download, ExternalLink,
-  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon, Share2,
-  Table2, ClipboardList, HeartPulse, Leaf,
-  UploadCloud, CheckCircle2, EyeOff, Users, ChevronRight
+  Upload, Search, Eye, ArrowLeft, Download, ExternalLink,
+  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon,
+  CheckCircle2, EyeOff, ChevronRight
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
@@ -277,19 +219,6 @@ async function loadResources() {
     isLoading.value = false
   }
 }
-
-/* ---------- STATS ---------- */
-// Only what the app actually records (views/downloads aren't tracked).
-const stats = computed(() => {
-  const list = resources.value
-  return {
-    total: list.length,
-    active: list.filter(r => r.is_active).length,
-    shared: list.filter(r => r.shared_count).length,
-    shares: list.reduce((n, r) => n + (r.shared_count || 0), 0),
-    notShared: list.filter(r => !r.shared_count).length,
-  }
-})
 
 /* ---------- LIST + PANEL ---------- */
 const TABS = [
@@ -361,7 +290,7 @@ const shareSummary = computed(() => {
   const parts = [chosen.value.length ? `${chosen.value.length} selected` : 'Nobody selected']
   if (toAdd.value.length) parts.push(`${toAdd.value.length} will be notified`)
   if (toRemove.value.length) parts.push(`${toRemove.value.length} will lose access`)
-  return parts.join(' · ')
+  return parts.join(', ')
 })
 function toggleAllClients() {
   chosen.value = allSelected.value ? [] : shareRows.value.map(r => r.relationship_id)
@@ -458,7 +387,7 @@ const FILE_RULES = {
 }
 const fileRule = computed(() => {
   const rule = FILE_RULES[newUpload.value.type] || FILE_RULES.PDF
-  return { ...rule, accept: rule.exts.join(','), hint: `${rule.exts.join(', ')} · up to ${rule.maxMb} MB` }
+  return { ...rule, accept: rule.exts.join(','), hint: `${rule.exts.join(', ')}, up to ${rule.maxMb} MB` }
 })
 const uploadError = ref('')
 
@@ -517,7 +446,7 @@ async function submitUpload() {
     tab.value = 'all'
     await loadResources()
     if (created?.id) select(created.id)
-    showToast('Uploaded — now tick the clients who should receive it.')
+    showToast('Uploaded. Now choose who receives it.')
   } catch (error) {
     uploadError.value = error?.data?.non_field_errors?.[0] || error?.data?.url?.[0] || error?.data?.file?.[0] || error?.data?.title?.[0] || 'Could not add this resource. Please try again.'
   } finally {
@@ -528,14 +457,6 @@ async function submitUpload() {
 
 onMounted(loadResources)
 
-
-/* ---------- YOUR TOOLS ---------- */
-const TOOLS = [
-  { title: 'Food Exchange Search', desc: 'FNRI Food Exchange Lists — exchanges, portions and macros.', to: '/food-exchange-search', icon: Table2 },
-  { title: 'Meal Planning', desc: 'Build and send weekly meal plans to your patients.', to: '/meal-planning', icon: Leaf, gold: true },
-  { title: 'NCP Records', desc: 'Assessment, diagnosis, intervention and monitoring notes.', to: '/ncp-records', icon: ClipboardList },
-  { title: 'My Patients', desc: 'Screenings, progress and plans for each patient.', to: '/my-patients', icon: HeartPulse, gold: true },
-]
 </script>
 
 <style scoped>
@@ -543,45 +464,20 @@ const TOOLS = [
 
 .resources-page { font-family: 'Inter', sans-serif; }
 
-/* HERO BANNER */
-.hero-banner {
-  position: relative; overflow: hidden;
-  background: linear-gradient(135deg, #00382a 0%, #005a42 100%);
-  border-radius: 16px; padding: 28px 32px;
-  display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  margin-bottom: 45px; color: #fff;
-}
-.hero-blob { position: absolute; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,0.05); top: -60px; right: 200px; }
-.hero-content { position: relative; z-index: 1; flex: 1; }
-.hero-title { display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif; font-size: 1.3rem; margin: 0 0 8px; }
-.hero-icon { color: #D4A017; }
-.hero-desc { font-size: 0.85rem; color: #cfe0d5; margin: 0; max-width: 560px; line-height: 1.5; }
-.hero-actions { position: relative; z-index: 1; display: flex; gap: 10px; flex-shrink: 0; }
-.upload-btn {
-  display: flex; align-items: center; gap: 6px; background: #D4A017; color: #1a3a1a; border: none;
-  border-radius: 8px; padding: 11px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
-}
+/* PAGE HEAD: one line of context and the one action */
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 22px; }
+.page-intro { font-size: 0.9rem; color: #4a5a4a; line-height: 1.55; margin: 0; max-width: 60ch; }
+.page-head .nm-btn-gold { flex-shrink: 0; }
+
+.empty-state { padding: 40px 32px; }
+.empty-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 6px; }
+.empty-text { font-size: 0.88rem; color: #5a6a5a; line-height: 1.55; margin: 0; max-width: 52ch; }
 
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 20px;
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
-
-/* STAT CARDS */
-
-/* SECTIONS */
-.resource-section { margin: 28px 0 0; }
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.section-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; font-weight: 700; margin: 0; }
-.tools-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.tool-card { display: flex; align-items: center; gap: 14px; text-decoration: none; padding: 16px 18px; }
-.tool-card:hover { border-color: #c7d6ca; background: #fafbfa; }
-.tool-card .nm-stat-icon { margin: 0; flex-shrink: 0; }
-.tool-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.tool-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; }
-.tool-desc { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
-.tool-arrow { color: #b0bab0; flex-shrink: 0; }
 
 /* type icon colors (shared by list + panel) */
 .type-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
@@ -598,8 +494,8 @@ const TOOLS = [
 .queue-item:hover { background: #f7f9f7; }
 .queue-item.active { background: #eef3ec; border-color: #d3e2d6; }
 .queue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.queue-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.queue-sub { font-size: 0.74rem; color: #8a9a8a; }
+.queue-name { font-size: 0.86rem; font-weight: 600; color: #1a3a1a; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.queue-sub { font-size: 0.74rem; color: #8a9a8a; margin-top: 2px; }
 .queue-end { flex-shrink: 0; }
 .queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
 
@@ -619,9 +515,9 @@ const TOOLS = [
 .preview-actions .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 .detail-desc { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 14px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 
-.share-box { margin-top: 18px; background: #fafbfa; border: 1px solid #eceeec; border-radius: 12px; padding: 14px 16px; }
+.share-box { margin-top: 22px; padding-top: 18px; border-top: 1px solid #eef1ee; }
 .share-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.share-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.share-title { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .client-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .client-check { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e3e8e3; border-radius: 10px; padding: 8px 10px; cursor: pointer; min-width: 0; }
 .client-check.on { border-color: #1f8f5c; background: #f2f9f4; }
@@ -633,8 +529,8 @@ const TOOLS = [
 .panel-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9aaa9a; min-height: 300px; font-size: 0.86rem; }
 .panel-placeholder p { margin: 0; }
 
-@media (max-width: 1100px) {
-  .hero-banner { flex-direction: column; align-items: flex-start; }
+@media (max-width: 640px) {
+  .page-head { flex-direction: column; align-items: stretch; }
 }
 /* below 1000px: just the list; a resource opens as a full-screen sheet */
 @media (max-width: 999px) {
@@ -668,24 +564,24 @@ const TOOLS = [
 }
 .field-textarea { resize: vertical; }
 
-.type-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.type-selector { display: inline-flex; gap: 2px; padding: 3px; background: #f1f3f0; border-radius: 9px; margin-bottom: 18px; }
 .type-option {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  border: 1.5px solid #e5e8e5; background: #fff; color: #6a7a6a; border-radius: 10px;
-  padding: 14px 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: none; color: #5a6a5a; border-radius: 7px;
+  padding: 7px 12px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
-.type-option.active { border-color: #D4A017; color: #1a3a1a; background: #fdf8ee; }
+.type-option:hover { color: #1a3a1a; }
+.type-option.active { background: #fff; color: #1a3a1a; box-shadow: 0 1px 2px rgba(20,40,20,0.12); }
+.type-option:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 
-.dropzone {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  background: #eef3ee; border: 1.5px dashed #b8c8b8; border-radius: 10px;
-  padding: 28px 16px; margin-bottom: 18px; cursor: pointer; text-align: center;
-}
-.dropzone-input { display: none; }
-.dropzone-icon { color: #1a5a2a; }
-.dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
-.dropzone-text strong { color: #1a5a2a; text-decoration: underline; }
-.dropzone-hint { font-size: 0.74rem; color: #8a9a8a; }
+.file-pick { position: relative; display: flex; align-items: center; gap: 12px; border: 1px solid #e5e8e5; border-radius: 8px; padding: 6px; cursor: pointer; }
+.file-pick:focus-within { border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31,143,92,0.15); }
+.file-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-btn { flex-shrink: 0; background: #f1f3f0; color: #1a3a1a; border-radius: 6px; padding: 7px 12px; font-size: 0.82rem; font-weight: 600; }
+.file-pick:hover .file-btn { background: #e7ebe6; }
+.file-name { font-size: 0.84rem; color: #2a2a2a; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-name.is-empty { color: #9aaa9a; }
+.file-hint { font-size: 0.76rem; color: #8a9a8a; margin: 6px 0 18px; }
 
 .upload-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; background: #fdf8ee; border: 1px solid #f1e3bd; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
 
@@ -698,9 +594,10 @@ const TOOLS = [
 .modal-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 640px) {
-  .tools-grid, .client-grid { grid-template-columns: minmax(0, 1fr); }
+  .client-grid { grid-template-columns: minmax(0, 1fr); }
   .detail-actions > * { flex: 1; }
-  .type-selector { grid-template-columns: repeat(2, 1fr); }
+  .type-selector { display: flex; }
+  .type-option { flex: 1; justify-content: center; padding: 7px 6px; }
   .modal-box { padding: 22px 18px; }
 }
 </style>

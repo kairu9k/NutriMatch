@@ -18,10 +18,15 @@
       </div>
       <div class="bar-right">
         <span v-if="appt && appt.status === 'confirmed'" class="timer" :class="timerTone">{{ timerText }}</span>
-        <button v-if="isRnd && appt?.status === 'confirmed' && windowState !== 'early'" type="button" class="end-btn" @click="openEnd">
-          <PhoneOff :size="15" /> End &amp; mark complete
+        <!-- RND: once the consultation can start, the only way out is Finish
+             (mark complete / leave for now / no-show) — no plain Exit. -->
+        <button v-if="mustFinish" type="button" class="end-btn" @click="openEnd">
+          <CheckCircle2 :size="15" /> Finish consultation
         </button>
-        <button type="button" class="exit-btn" @click="exitRoom"><ArrowLeft :size="15" /> Exit</button>
+        <button v-else type="button" class="exit-btn" @click="exitRoom">
+          <template v-if="!isRnd && appt?.status === 'confirmed' && windowState === 'open'"><PhoneOff :size="15" /> Leave call</template>
+          <template v-else><ArrowLeft :size="15" /> Leave</template>
+        </button>
       </div>
     </header>
 
@@ -53,11 +58,14 @@
         </div>
         <div v-else-if="windowState === 'closed'" class="state-card">
           <VideoOff :size="28" /><p>This consultation's room has closed.</p>
-          <button v-if="isRnd" type="button" class="link" @click="openEnd">Mark it complete →</button>
+          <button v-if="isRnd" type="button" class="link" @click="openEnd">Finish this consultation →</button>
         </div>
         <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation — meet at the clinic. Use the panel to record notes.</p></div>
         <div v-else-if="!appt.video_session_url" class="state-card"><VideoOff :size="28" /><p>No video room has been set up for this consultation.</p></div>
-        <iframe v-else :src="videoSrc" class="video" title="Video consultation" allow="camera; microphone; fullscreen; display-capture; autoplay" />
+        <!-- Jitsi's embed script, so hanging up can open Finish; the plain
+             frame is the fallback if the script can't load. -->
+        <iframe v-else-if="jitsiFailed" :src="videoSrc" class="video" title="Video consultation" allow="camera; microphone; fullscreen; display-capture; autoplay" />
+        <div v-else ref="videoHost" class="video" />
       </main>
 
       <!-- RND WORK PANEL -->
@@ -105,16 +113,22 @@
                 <span class="log-main">{{ shortDate(l.date) }} · {{ l.meal }} — {{ LOG[l.status] || 'not rated yet' }}<small v-if="l.note">“{{ l.note }}”</small></span>
               </div>
             </section>
-            <section v-if="s.labs && (s.labs.total_results || s.labs.open.length)" class="block">
-              <h3>Lab results</h3>
-              <div v-for="r in s.labs.recent" :key="r.id" class="lab-row">
+            <section class="block">
+              <div class="block-head">
+                <h3>Lab results</h3>
+                <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" /> Request lab tests</button>
+              </div>
+              <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted">None yet.</p>
+              <p v-if="labsSent" class="ok"><CheckCircle2 :size="14" /> Sent — {{ p.client.first_name }} is asked to upload them before your next consultation.</p>
+              <p v-if="labsError" class="nm-field-error">{{ labsError }}</p>
+              <div v-for="r in s.labs?.recent || []" :key="r.id" class="lab-row">
                 <span class="lab-main">
                   {{ r.test_names.join(', ') }} · taken {{ shortDate(r.taken_on) }}<template v-if="r.fasted === 'no'"> · not fasting</template>
                   <small v-if="!r.reviewed_at" class="lab-new">New</small>
                 </span>
                 <button type="button" class="link small" @click="viewLab(r)">View</button>
               </div>
-              <p v-for="r in s.labs.open" :key="`q${r.id}`" class="muted">Requested: {{ r.test_names.join(', ') }} — not uploaded yet</p>
+              <p v-for="r in s.labs?.open || []" :key="`q${r.id}`" class="muted">Requested: {{ r.test_names.join(', ') }} — not uploaded yet</p>
             </section>
             <NuxtLink :to="`/client-detail/${appt.relationship.id}`" target="_blank" class="link small">Open full chart in a new tab ↗</NuxtLink>
           </template>
@@ -125,28 +139,6 @@
                             :appointment-id="appt.id" @changed="refreshSummary" />
           </div>
 
-          <!-- PROGRESS -->
-          <template v-if="s && tab === 'progress'">
-            <form class="prog" @submit.prevent="saveProgress">
-              <p class="muted">Measured during this consultation — saved to {{ p.client.first_name }}'s progress for {{ shortDate(todayIso) }}. BMI is worked out from their screening height.</p>
-              <div class="prog-grid">
-                <label><span>Weight (kg)</span><input v-model="pf.weight_kg" type="number" step="0.1" class="nm-input" :class="{ bad: pfErr.weight_kg }" /><em v-if="pfErr.weight_kg">{{ pfErr.weight_kg }}</em></label>
-                <label><span>Blood pressure</span><input v-model="pf.blood_pressure" type="text" inputmode="numeric" placeholder="120/80" class="nm-input" /></label>
-                <label><span>Fasting glucose (mg/dL)</span><input v-model="pf.blood_glucose" type="number" class="nm-input" :class="{ bad: pfErr.blood_glucose }" /><em v-if="pfErr.blood_glucose">{{ pfErr.blood_glucose }}</em></label>
-                <label><span>HbA1c (%)</span><input v-model="pf.hba1c" type="number" step="0.1" class="nm-input" :class="{ bad: pfErr.hba1c }" /><em v-if="pfErr.hba1c">{{ pfErr.hba1c }}</em></label>
-              </div>
-              <label class="full"><span><Lock :size="12" /> Private note (only you see this)</span><textarea v-model="pf.rnd_notes" data-allow-emoji rows="2" maxlength="2000" class="nm-input" /></label>
-              <p v-if="pfError" class="nm-field-error">{{ pfError }}</p>
-              <p v-if="pfSaved" class="ok"><CheckCircle2 :size="14" /> Saved — {{ p.client.first_name }} can see it on their Progress page.</p>
-              <button type="submit" class="nm-btn-dark" :disabled="pfSaving || Object.keys(pfErr).length > 0">{{ pfSaving ? 'Saving…' : 'Save progress' }}</button>
-            </form>
-            <section v-if="s.progress.length" class="block">
-              <h3>Earlier records</h3>
-              <div v-for="r in s.progress.slice(0, 4)" :key="r.id" class="log">
-                <span class="log-main">{{ shortDate(r.record_date) }} · {{ r.weight_kg != null ? `${fmt1(r.weight_kg)} kg` : '—' }}{{ r.blood_pressure ? ` · BP ${r.blood_pressure}` : '' }}{{ r.blood_glucose != null ? ` · FBS ${r.blood_glucose}` : '' }}</span>
-              </div>
-            </section>
-          </template>
         </div>
       </aside>
 
@@ -184,21 +176,61 @@
       </aside>
     </div>
 
-    <!-- END & MARK COMPLETE -->
-    <div v-if="endOpen" class="overlay" @click.self="!ending && (endOpen = false)">
+    <!-- FINISH CONSULTATION -->
+    <div v-if="endOpen" class="overlay" @click.self="!ending && closeEnd()">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="end-title">
-        <template v-if="!wrap">
-          <h2 id="end-title" class="nm-modal-title">End and mark this consultation complete?</h2>
+        <template v-if="noShowDone">
+          <h2 id="end-title" class="nm-modal-title">Marked as a no-show</h2>
           <p class="nm-modal-text">
-            {{ other.name }} · {{ clock(appt.scheduled_at) }}–{{ clock(endsAt) }}.
-            <template v-if="appt.payment?.status === 'paid'">Your share posts 3 days after today. This can't be undone.</template>
+            The consultation was cancelled and {{ other.firstName }} was told why.
+            <template v-if="appt.payment?.status === 'refund_pending'">Their {{ peso(appt.payment.amount) }} payment goes back to them within 5–7 business days.</template>
           </p>
-          <p v-if="appt.payment && appt.payment.status !== 'paid'" class="nm-field-error">It hasn't been paid, so it can't be completed.</p>
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-dark" @click="leave">Done</button>
+          </div>
+        </template>
+        <template v-else-if="endMode === 'noshow'">
+          <h2 id="end-title" class="nm-modal-title">{{ other.firstName }} didn't show up?</h2>
+          <p class="nm-modal-text">
+            The consultation is cancelled and {{ other.firstName }} sees your reason.
+            <template v-if="appt.payment?.status === 'paid'">Their {{ peso(appt.payment.amount) }} payment is refunded, so there's no payout for this one.</template>
+          </p>
+          <label class="ns-label" for="ns-reason">What happened</label>
+          <textarea id="ns-reason" v-model="noShowReason" rows="3" maxlength="500" class="nm-input ns-text"
+                    placeholder="e.g. I waited 15 minutes in the room and messaged you, but you didn't join." />
+          <p class="ns-hint" :class="{ bad: noShowReason.trim().length > 0 && noShowReason.trim().length < 10 }">At least 10 characters.</p>
           <p v-if="ncpDirty" class="warn"><AlertTriangle :size="14" /> Your NCP form has unsaved changes — they'll be saved as a draft first.</p>
           <p v-if="endError" class="nm-field-error">{{ endError }}</p>
           <div class="nm-modal-actions">
-            <button type="button" class="nm-btn-outline" :disabled="ending" @click="endOpen = false">Not yet</button>
-            <button type="button" class="nm-btn-dark" :disabled="ending || (appt.payment && appt.payment.status !== 'paid')" @click="completeNow">{{ ending ? 'Completing…' : 'Mark complete' }}</button>
+            <button type="button" class="nm-btn-outline" :disabled="ending" @click="endMode = 'choose'; endError = ''">Back</button>
+            <button type="button" class="nm-btn-danger" :disabled="ending || noShowReason.trim().length < 10" @click="markNoShow">{{ ending ? 'Cancelling…' : 'Cancel as no-show' }}</button>
+          </div>
+        </template>
+        <template v-else-if="!wrap">
+          <h2 id="end-title" class="nm-modal-title">Finish this consultation?</h2>
+          <p class="nm-modal-text">{{ other.name }} · {{ clock(appt.scheduled_at) }}–{{ clock(endsAt) }}</p>
+          <p v-if="appt.payment && appt.payment.status !== 'paid'" class="nm-field-error">It hasn't been paid, so it can't be completed.</p>
+          <p v-if="ncpDirty" class="warn"><AlertTriangle :size="14" /> Your NCP form has unsaved changes — they'll be saved as a draft first.</p>
+          <p v-if="endError" class="nm-field-error">{{ endError }}</p>
+          <div class="finish-choices">
+            <button type="button" class="choice main" :disabled="ending || (appt.payment && appt.payment.status !== 'paid')" @click="completeNow">
+              <CheckCircle2 :size="18" />
+              <span><strong>{{ ending ? 'Completing…' : 'It\'s done — mark complete' }}</strong>
+                <small>Your share posts 3 days after today. This can't be undone.</small></span>
+            </button>
+            <button v-if="started" type="button" class="choice" :disabled="ending" @click="endMode = 'noshow'; endError = ''">
+              <UserX :size="18" />
+              <span><strong>{{ other.firstName }} didn't show up</strong>
+                <small>Cancel with a reason — their payment is refunded.</small></span>
+            </button>
+            <button type="button" class="choice" :disabled="ending" @click="leaveForNow">
+              <LogOut :size="18" />
+              <span><strong>I'll come back — leave for now</strong>
+                <small>It stays in To complete. Your payment for it starts only once you mark it complete.</small></span>
+            </button>
+          </div>
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-outline" :disabled="ending" @click="closeEnd">Stay in the room</button>
           </div>
         </template>
         <template v-else>
@@ -228,26 +260,26 @@
         </div>
       </div>
     </div>
+    <RequestLabsModal v-if="labRequest" :relationship-id="appt.relationship.id" :patient-name="other.firstName" :tests="labRequest.tests"
+                      :next-consultation="labRequest.next_consultation" @close="labRequest = null" @sent="onLabsSent" />
     <ConsultationSummaryModal v-if="summaryOpen && appt" :appointment-id="appt.id" :role="isRnd ? 'rnd' : 'client'" @close="summaryOpen = false" />
   </div>
 </template>
 
 <script setup>
-// The consultation room. RND: video + a work panel (Patient · NCP · Progress)
+// The consultation room. RND: video + a work panel (Patient · NCP)
 // and "End & mark complete" with a wrap-up of what's left. Client: video +
 // their RND, the consultation time and their meal-plan targets — never NCP
 // drafts or the RND's notes. Pay-first and the join window are enforced by the
 // API (the client gets the room link only when it's paid and inside the window).
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, LineChart, Lock, PhoneOff, User, VideoOff,
+  AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, FlaskConical, LogOut, PhoneOff, User, UserX, VideoOff,
 } from 'lucide-vue-next'
-import { rangeError } from '~/utils/ncp'
 import { openLabFile } from '~/utils/labs'
 
 const route = useRoute()
-const router = useRouter()
 const auth = useAuthStore()
-const { get, patch, post } = useApi()
+const { get, patch } = useApi()
 const now = useNow(15000)
 const isRnd = computed(() => auth.user?.role === 'rnd')
 // Jitsi otherwise shows whatever name was last typed in this browser; pass the
@@ -292,7 +324,7 @@ onMounted(async () => {
 /* ---------- people / time ---------- */
 const other = computed(() => {
   const u = isRnd.value ? appt.value?.relationship.client : appt.value?.relationship.rnd
-  return { name: u ? `${u.first_name} ${u.last_name}` : '', photo: u?.profile_photo || null }
+  return { name: u ? `${u.first_name} ${u.last_name}` : '', firstName: u?.first_name || '', photo: u?.profile_photo || null }
 })
 const TYPES = { video: 'Video', chat: 'Chat', in_person: 'In person' }
 const typeLabel = computed(() => TYPES[appt.value?.type] || '')
@@ -325,6 +357,10 @@ const timerTone = computed(() => {
   if (now.value > end) return 'over'
   return end - now.value <= 5 * 60000 && now.value >= new Date(appt.value.scheduled_at).getTime() ? 'soon' : ''
 })
+const started = computed(() => !!appt.value && now.value >= new Date(appt.value.scheduled_at).getTime())
+// The RND can't just walk out of a consultation that could have started: they
+// finish it (mark complete, leave for now, or no-show).
+const mustFinish = computed(() => isRnd.value && appt.value?.status === 'confirmed' && windowState.value !== 'early')
 // The client gets the room link only inside the window — fetch it when it opens.
 let refetched = false
 watch(windowState, (state, prev) => {
@@ -335,7 +371,6 @@ watch(windowState, (state, prev) => {
 const RND_TABS = [
   { key: 'patient', label: 'Patient', icon: User },
   { key: 'ncp', label: 'NCP', icon: ClipboardList },
-  { key: 'progress', label: 'Progress', icon: LineChart },
 ]
 const tab = ref('patient')
 const ncpForm = ref(null)
@@ -351,37 +386,32 @@ const fmt1 = v => Number(v).toFixed(1)
 const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 const initials = n => String(n || '').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase()
 
-/* ---------- quick progress ---------- */
-const blankPf = () => ({ weight_kg: '', blood_pressure: '', blood_glucose: '', hba1c: '', rnd_notes: '' })
-const pf = ref(blankPf())
-const pfSaving = ref(false)
-const pfError = ref('')
-const pfSaved = ref(false)
-const pfErr = computed(() => {
-  const e = {}
-  for (const f of ['weight_kg', 'blood_glucose', 'hba1c']) { const x = rangeError(f, pf.value[f]); if (x) e[f] = x }
-  return e
-})
-async function saveProgress() {
-  pfError.value = ''
-  pfSaved.value = false
-  const body = { relationship: appt.value.relationship.id, record_date: todayIso }
-  for (const k of Object.keys(pf.value)) { const v = String(pf.value[k] ?? '').trim(); if (v) body[k] = v }
-  if (!['weight_kg', 'blood_pressure', 'blood_glucose', 'hba1c'].some(k => body[k])) { pfError.value = 'Enter at least one measurement.'; return }
-  pfSaving.value = true
+/* ---------- lab tests (same pop-up as the chart) ---------- */
+// Measurements are typed once, in the NCP Assessment; finalizing it saves
+// them to the patient's progress (no separate Progress tab, 2026-10-23).
+const labRequest = ref(null) // { tests, next_consultation } while the pop-up is open
+const labsLoading = ref(false)
+const labsError = ref('')
+const labsSent = ref(false)
+async function openLabRequest() {
+  labsError.value = ''
+  labsSent.value = false
+  labsLoading.value = true
   try {
-    await post(`/rnd/relationships/${appt.value.relationship.id}/progress/`, body)
-    pf.value = blankPf()
-    pfSaved.value = true
-    progressSavedHere.value = true
-    await refreshSummary()
+    const d = await get(`/rnd/relationships/${appt.value.relationship.id}/labs/`)
+    if (!d.can_request) labsError.value = 'Lab tests can be requested for active patients only.'
+    else labRequest.value = { tests: d.tests, next_consultation: d.next_consultation }
   } catch (e) {
-    pfError.value = apiError(e, 'Could not save this record.')
+    labsError.value = apiError(e, 'Could not open the lab request.')
   } finally {
-    pfSaving.value = false
+    labsLoading.value = false
   }
 }
-const progressSavedHere = ref(false)
+function onLabsSent() {
+  labRequest.value = null
+  labsSent.value = true
+  refreshSummary()
+}
 
 /* ---------- end & mark complete ---------- */
 const summaryOpen = ref(false)
@@ -389,16 +419,54 @@ const endOpen = ref(false)
 const ending = ref(false)
 const endError = ref('')
 const wrap = ref(null)
+const endMode = ref('choose') // choose | noshow
+const noShowReason = ref('')
+const noShowDone = ref(false)
 function openEnd() {
   endError.value = ''
   wrap.value = null
+  endMode.value = 'choose'
   endOpen.value = true
+}
+function closeEnd() {
+  endOpen.value = false
+  pendingTo = null
+}
+async function saveNcpIfDirty() {
+  if (ncpDirty.value && ncpForm.value?.saveDraft) await ncpForm.value.saveDraft()
+}
+// "I'll come back": keep unsaved NCP work as a draft, then go.
+async function leaveForNow() {
+  ending.value = true
+  endError.value = ''
+  try {
+    await saveNcpIfDirty()
+    leave()
+  } catch (e) {
+    endError.value = apiError(e, 'Could not save your NCP draft.')
+  } finally {
+    ending.value = false
+  }
+}
+async function markNoShow() {
+  ending.value = true
+  endError.value = ''
+  try {
+    await saveNcpIfDirty()
+    await patch(`/rnd/appointments/${apptId}/cancel/`, { reason: `No-show: ${noShowReason.value.trim()}` })
+    await loadAppointment()
+    noShowDone.value = true
+  } catch (e) {
+    endError.value = apiError(e, 'Could not cancel this consultation.')
+  } finally {
+    ending.value = false
+  }
 }
 async function completeNow() {
   ending.value = true
   endError.value = ''
   try {
-    if (ncpDirty.value && ncpForm.value?.saveDraft) await ncpForm.value.saveDraft()
+    await saveNcpIfDirty()
     await patch(`/rnd/appointments/${apptId}/complete/`)
     await loadAppointment()
     await refreshSummary()
@@ -406,7 +474,6 @@ async function completeNow() {
     const todo = []
     if (s.value?.ncp_draft_id) todo.push({ text: 'Finish and finalize the NCP record', link: `/client-detail/${rel}?tab=ncp&open=draft` })
     else if (!s.value?.care_plan || s.value.care_plan.encounter_date < todayIso) todo.push({ text: 'Write an NCP record for this visit', link: `/client-detail/${rel}?tab=ncp` })
-    if (!(progressSavedHere.value || s.value?.progress[0]?.record_date === todayIso)) todo.push({ text: 'Record today\'s progress', link: `/client-detail/${rel}?tab=progress` })
     const mp = s.value?.patient.meal_plan
     if (mp?.ready && (!mp.plan || mp.plan.status === 'draft' || mp.outdated)) {
       todo.push({ text: !mp.plan ? 'Create a meal plan' : mp.plan.status === 'draft' ? 'Send the meal plan' : 'Update the meal plan', link: `/meal-planning?relationship=${rel}` })
@@ -421,16 +488,94 @@ async function completeNow() {
 
 /* ---------- leaving ---------- */
 const leaveAsk = ref(false)
+let leaving = false // set once the RND chose how to leave, so the guard lets it through
+let pendingTo = null // where a blocked navigation (Back, a link) was going
 function exitRoom() {
+  if (mustFinish.value) { openEnd(); return }
   if (ncpDirty.value) { leaveAsk.value = true; return }
   leave()
 }
 function leave() {
   leaveAsk.value = false
   endOpen.value = false
-  if (window.history.length > 1) router.back()
-  else navigateTo('/appointments')
+  leaving = true
+  const to = pendingTo
+  pendingTo = null
+  // Not router.back(): the Jitsi frame adds its own history entries, so "back"
+  // can just step inside the frame. Use the app page we came from instead.
+  navigateTo(to || window.history.state?.back || '/appointments')
 }
+// Browser Back, the sidebar or any link: ask the same Finish question first.
+onBeforeRouteLeave((to) => {
+  if (leaving) return true
+  if (mustFinish.value) { pendingTo = to.fullPath; openEnd(); return false }
+  if (ncpDirty.value) { pendingTo = to.fullPath; leaveAsk.value = true; return false }
+  return true
+})
+// Closing or reloading the tab: the browser's own "Leave site?" prompt.
+function onBeforeUnload(e) {
+  if (!leaving && (mustFinish.value || ncpDirty.value)) { e.preventDefault(); e.returnValue = '' }
+}
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
+/* ---------- video (Jitsi embed script) ---------- */
+// Jitsi's external API lets the room notice the RND pressing Jitsi's own red
+// hang-up button — that opens Finish. If the script can't load, the plain
+// frame is used and the Finish button still works.
+const videoHost = ref(null)
+const jitsiFailed = ref(false)
+let jitsi = null
+function loadJitsiScript(origin) {
+  if (window.JitsiMeetExternalAPI) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const tag = document.createElement('script')
+    tag.src = `${origin}/external_api.js`
+    tag.async = true
+    tag.onload = resolve
+    tag.onerror = reject
+    document.head.appendChild(tag)
+  })
+}
+async function mountJitsi(host) {
+  if (jitsi || !host || !appt.value?.video_session_url) return
+  try {
+    const url = new URL(appt.value.video_session_url)
+    await loadJitsiScript(url.origin)
+    if (!videoHost.value) return // the room changed state while loading
+    const u = auth.user
+    jitsi = new window.JitsiMeetExternalAPI(url.host, {
+      roomName: url.pathname.replace(/^\//, ''),
+      parentNode: host,
+      configOverwrite: {
+        disableDeepLinking: true, // phones stay in the browser, no "get the app" page
+        // RND only — the client's hang-up works as normal.
+        ...(isRnd.value ? { buttonsWithNotifyClick: [{ key: 'hangup', preventExecution: true }] } : {}),
+      },
+      width: '100%',
+      height: '100%',
+      userInfo: u ? { displayName: `${u.first_name} ${u.last_name}`.trim() + (isRnd.value ? ', RND' : '') } : undefined,
+    })
+    // Hanging up: Jitsi tells us instead of hanging up itself (hangup is in
+    // buttonsWithNotifyClick), so we leave by disposing, put a fresh join screen
+    // back (no Jitsi end page) and ask the RND to finish. readyToClose covers
+    // a hang-up that still reaches Jitsi's end page.
+    const hungUp = () => {
+      disposeJitsi()
+      if (videoHost.value) mountJitsi(videoHost.value)
+      if (mustFinish.value && !endOpen.value) openEnd()
+    }
+    jitsi.addListener('toolbarButtonClicked', (e) => { if (e?.key === 'hangup') hungUp() })
+    jitsi.addListener('readyToClose', hungUp)
+  } catch {
+    jitsiFailed.value = true
+  }
+}
+function disposeJitsi() {
+  if (jitsi) { jitsi.dispose(); jitsi = null }
+}
+watch(videoHost, (host) => { if (host) mountJitsi(host); else disposeJitsi() })
+onBeforeUnmount(disposeJitsi)
 </script>
 
 <style scoped>
@@ -451,8 +596,8 @@ function leave() {
 .timer.soon { background: #D4A017; color: #1a3a1a; }
 .timer.over { background: #c0392b; }
 .end-btn, .exit-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 7px 14px; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.end-btn { background: #c0392b; color: #fff; border: none; }
-.end-btn:hover { background: #a93226; }
+.end-btn { background: #D4A017; color: #1a3a1a; border: none; }
+.end-btn:hover { background: #e2b02a; }
 .exit-btn { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
 
 .body { flex: 1; display: flex; min-height: 0; }
@@ -481,7 +626,7 @@ function leave() {
 .muted { font-size: 0.8rem; color: #7a8a7a; margin: 0; line-height: 1.5; }
 .muted.small { margin-top: 14px; }
 
-.allergy { display: flex; align-items: center; gap: 6px; background: #fdf1d6; color: #8a5a00; border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; font-weight: 700; margin: 0 0 10px; }
+.allergy { display: flex; align-items: center; gap: 6px; background: #fdecec; color: #a12525; border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; font-weight: 700; margin: 0 0 10px; }
 .note { background: #fff; border: 1px solid #eceeec; border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; font-style: italic; margin: 0 0 12px; display: flex; flex-direction: column; gap: 2px; }
 .note small { font-style: normal; color: #8a9a8a; font-size: 0.7rem; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
@@ -496,6 +641,8 @@ function leave() {
 .facts dt { font-size: 0.74rem; color: #8a9a8a; margin: 0; }
 .facts dd { margin: 0; font-size: 0.8rem; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .block { margin-top: 14px; padding-top: 12px; border-top: 1px solid #eceeec; }
+.block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.block-head .link.small { margin-top: 0; display: inline-flex; align-items: center; gap: 4px; }
 .block h3 { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6a7a6a; margin: 0 0 6px; }
 .txt { font-size: 0.82rem; line-height: 1.5; margin: 0 0 4px; }
 .log { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 0.78rem; }
@@ -505,12 +652,6 @@ function leave() {
 .log-dot.not_followed { background: #c0392b; }
 .log-main small { display: block; color: #7a8a7a; font-style: italic; }
 
-.prog { display: flex; flex-direction: column; gap: 10px; }
-.prog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.prog label { display: flex; flex-direction: column; gap: 4px; font-size: 0.76rem; font-weight: 600; }
-.prog label span { display: inline-flex; align-items: center; gap: 4px; }
-.prog em { font-style: normal; color: #c0392b; font-size: 0.7rem; }
-.nm-input.bad { border-color: #e0a3a3; background: #fffafa; }
 .ok { display: flex; align-items: center; gap: 6px; color: #1f6f46; font-size: 0.8rem; font-weight: 600; margin: 0; }
 
 .client .rnd-card { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
@@ -522,6 +663,22 @@ function leave() {
 .warn { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #8a5a00; background: #fdf6e3; border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
 .todo { margin: 0 0 6px; padding-left: 18px; line-height: 1.9; }
 .ok-icon { color: #1f8f5c; vertical-align: -3px; }
+.finish-choices { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 6px; }
+.choice { display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; background: #fff; border: 1px solid #dfe5df; border-radius: 12px; padding: 12px 14px; font-family: inherit; color: #1a3a1a; cursor: pointer; }
+.choice:hover:not(:disabled) { border-color: #1f6f46; background: #f6faf7; }
+.choice:disabled { opacity: 0.55; cursor: not-allowed; }
+.choice svg { flex-shrink: 0; margin-top: 1px; color: #5a6a5a; }
+.choice span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.choice strong { font-size: 0.9rem; }
+.choice small { font-size: 0.76rem; color: #6a7a6a; line-height: 1.4; }
+.choice.main { background: #14301a; border-color: #14301a; color: #fff; }
+.choice.main svg { color: #D4A017; }
+.choice.main small { color: #c4d6c9; }
+.choice.main:hover:not(:disabled) { background: #1d4426; border-color: #1d4426; }
+.ns-label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+.ns-text { width: 100%; resize: vertical; }
+.ns-hint { font-size: 0.72rem; color: #8a9a8a; margin: 4px 0 10px; }
+.ns-hint.bad { color: #c0392b; }
 
 @media (max-width: 1100px) { .body.rnd .panel { width: 400px; } }
 @media (max-width: 860px) {

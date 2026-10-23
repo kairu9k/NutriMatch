@@ -73,6 +73,26 @@ class PayoutTests(TestCase):
         self.assertEqual(ok.status_code, 200, ok.data)
         self.assertEqual(ok.data["account_number"], "09171234567")
 
+    def test_payout_account_wallets_and_banks(self):
+        put = lambda body: self.rnd_api.put("/api/rnd/payout-account/", {"account_name": "Maria Santos", **body}, format="json")
+        maya = put({"method": "maya", "account_number": "0918 765 4321"})
+        self.assertEqual(maya.status_code, 200, maya.data)
+        self.assertEqual((maya.data["account_number"], maya.data["bank_name"]), ("09187654321", None))
+        self.assertIn("Maya", str(put({"method": "maya", "account_number": "12345"}).data["account_number"]))
+        gotyme = put({"method": "gotyme", "account_number": "012345678901"})
+        self.assertEqual(gotyme.status_code, 200, gotyme.data)
+        self.assertEqual(put({"method": "maribank", "account_number": "abc"}).status_code, 400)
+        bank = put({"method": "bank", "account_number": "001234567890", "bank_name": "BDO Unibank"})
+        self.assertEqual((bank.status_code, bank.data["bank_name"]), (200, "BDO Unibank"))
+        self.assertEqual(put({"method": "paypal", "account_number": "09171234567"}).status_code, 400)
+
+    def test_payout_destination_labels(self):
+        from billing.models import payout_destination
+        self.assertEqual(payout_destination("maya"), "Maya")
+        self.assertEqual(payout_destination("gotyme"), "GoTyme")
+        self.assertEqual(payout_destination("bank", "BPI"), "BPI")
+        self.assertEqual(payout_destination("bank"), "Bank transfer")
+
     def test_release_rules_and_paid_once(self):
         first = self._consult(completed_days_ago=10)
         self._consult(completed_days_ago=8)  # posted total 1,440

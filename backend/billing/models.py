@@ -101,12 +101,29 @@ class PaymentTransaction(models.Model):
 
 
 
+# E-wallets RNDs can be paid to (2026-10-23, user's call). GCash and Maya are
+# paid to an 09 mobile number; GoTyme and MariBank are digital banks with an
+# account number.
+MOBILE_WALLETS = ("gcash", "maya")
+
+
+def payout_destination(method, bank_name=None):
+    """How a payout destination reads to people: "GCash", "Maya", "BDO"…"""
+    if method == "bank":
+        return bank_name or "Bank transfer"
+    return dict(RndPayoutAccount.Method.choices).get(method, method)
+
+
 class RndPayoutAccount(models.Model):
-    """Where an RND gets paid (GCash or bank). Visible to admins, who send the
-    monthly payout outside the app and record its reference."""
+    """Where an RND gets paid: an e-wallet (GCash, Maya, GoTyme, MariBank) or a
+    bank (bank_name). Visible to admins, who send the monthly payout outside
+    the app and record its reference."""
 
     class Method(models.TextChoices):
         GCASH = "gcash", "GCash"
+        MAYA = "maya", "Maya"
+        GOTYME = "gotyme", "GoTyme"
+        MARIBANK = "maribank", "MariBank"
         BANK = "bank", "Bank transfer"
 
     rnd = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payout_account")

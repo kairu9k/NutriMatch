@@ -16,12 +16,17 @@ from .models import Appointment, RndClientRelationship
 
 MIN_REASON = 10
 READ_ONLY_MESSAGE = "This patient was discharged, so their record is read-only."
+NOT_YET_MESSAGE = "This client isn't your patient yet. Confirm their booking first."
 
 
 def ensure_open(relationship):
-    """Refuse changes to a discharged patient's record (NCP, progress, meal plans, messages)."""
+    """Refuse changes to the record (NCP, progress, meal plans, messages)
+    unless care is active: discharged, or not a patient yet — a booking the
+    RND hasn't confirmed, or one that was cancelled (2026-10-23)."""
     if relationship.status == RndClientRelationship.Status.DISCHARGED:
         raise PermissionDenied(READ_ONLY_MESSAGE)
+    if relationship.status == RndClientRelationship.Status.PENDING:
+        raise PermissionDenied(NOT_YET_MESSAGE)
 
 
 def discharge_blockers(relationship):
@@ -35,7 +40,7 @@ def discharge_blockers(relationship):
     elif open_appts.exists():
         blockers.append("Mark their last consultation as complete first.")
     if NcpRecord.objects.filter(relationship=relationship, status=NcpRecord.Status.DRAFT).exists():
-        blockers.append("Finish or delete their NCP draft first.")
+        blockers.append("Finish their NCP draft first.")
     return blockers
 
 

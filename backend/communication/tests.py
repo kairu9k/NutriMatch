@@ -299,6 +299,17 @@ class NotificationDetailTests(TestCase):
         self.assertEqual(rel["message"], self.msg.message)
         self.assertEqual(rel["relationship_id"], self.rel.id)
 
+    def test_relationship_detail_points_at_the_care(self):
+        from .services import notify
+
+        n = notify(self.rnd, "relationship", self.rel.id, "Discharge requested", "C L asked to end care.")
+        rel = self._get(n, self.rnd).data["related"]
+        self.assertEqual(rel["relationship_id"], self.rel.id)
+        self.assertEqual(rel["with"]["name"], self.client_user.full_name)
+        other_rnd = _make_rnd("other.rnd@t.ph")
+        n2 = notify(other_rnd, "relationship", self.rel.id, "x", "y")  # not their patient
+        self.assertIsNone(self._get(n2, other_rnd).data["related"])
+
     def test_other_users_cannot_open_it(self):
         other = _make_client("other@t.ph")
         self.assertEqual(self._get(self.n_appt, other).status_code, 404)

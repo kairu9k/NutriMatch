@@ -226,8 +226,10 @@ class RndNcpDraftListView(generics.ListAPIView):
         return qs.order_by("-updated_at")
 
 
-class RndProgressRecordListCreateView(generics.ListCreateAPIView):
-    """RND logs progress for a specific client relationship."""
+class RndProgressRecordListCreateView(generics.ListAPIView):
+    """A patient's progress records. Read-only since 2026-10-23: progress comes
+    from finalized NCP records (`progress_from_ncp`), measured by the RND at a
+    consultation — no separate, backdatable entry."""
 
     serializer_class = ProgressRecordSerializer
     permission_classes = [IsRnd]
@@ -236,10 +238,6 @@ class RndProgressRecordListCreateView(generics.ListCreateAPIView):
         return ProgressRecord.objects.filter(
             relationship_id=self.kwargs["relationship_id"], relationship__rnd=self.request.user
         ).order_by("-record_date")
-
-    def perform_create(self, serializer):
-        ensure_open(serializer.validated_data["relationship"])
-        _set_bmi(serializer.save(source="rnd"))
 
 
 def _set_bmi(record):
@@ -315,7 +313,10 @@ class ClientAdherenceView(APIView):
         return Response({"weeks": weeks})
 
 
-class NcpRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
+class NcpRecordDetailView(generics.RetrieveUpdateAPIView):
+    # No DELETE (2026-10-23, user's call): a record can only be started from a
+    # consultation, so even a draft is real clinical work from that visit. It
+    # is continued and finalized, never discarded.
     serializer_class = NcpRecordSerializer
     permission_classes = [IsRnd]
 
@@ -329,19 +330,6 @@ class NcpRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("This NCP record is finalized and can no longer be edited.")
         ensure_open(serializer.instance.relationship)
         serializer.save()
-
-    def perform_destroy(self, instance):
-        # Only an unfinished draft can be discarded; a finalized record is
-        # part of the patient's clinical history and stays.
-        from core.models import AuditLog
-
-        if instance.status == NcpRecord.Status.COMPLETED:
-            raise PermissionDenied("This NCP record is finalized and can't be deleted.")
-        AuditLog.objects.create(
-            user=self.request.user, action="ncp_record.deleted", table_name="ncp_records", record_id=instance.id,
-            old_values={"status": instance.status, "relationship_id": instance.relationship_id},
-        )
-        instance.delete()
 
 
 class NcpRecordFinalizeView(generics.UpdateAPIView):
@@ -364,4 +352,29 @@ class NcpRecordFinalizeView(generics.UpdateAPIView):
             )
         record.status = NcpRecord.Status.COMPLETED
         record.save(update_fields=["status", "updated_at"])
+        progress_from_ncp(record)
         return Response(NcpRecordSerializer(record).data)
+
+
+PROGRESS_FIELDS = ("weight_kg", "bmi", "blood_pressure", "blood_glucose", "hba1c")
+
+
+def progress_from_ncp(record):
+    """A finalized NCP record's measurements become that day's progress
+    record — what the client's Progress Tracker shows (2026-10-23, user's call:
+    measurements are typed once, in the NCP Assessment; the RND no longer
+    records progress separately). Measurements only, never notes. An existing
+    RND progress record for that date is updated, not duplicated."""
+    values = {f: getattr(record, f) for f in PROGRESS_FIELDS if getattr(record, f) not in (None, "")}
+    if not values:
+        return None
+    progress = ProgressRecord.objects.filter(
+        relationship=record.relationship, record_date=record.encounter_date, source="rnd",
+    ).first()
+    if progress is None:
+        return ProgressRecord.objects.create(relationship=record.relationship, record_date=record.encounter_date,
+                                             source="rnd", **values)
+    for field, value in values.items():
+        setattr(progress, field, value)
+    progress.save(update_fields=list(values))
+    return progress

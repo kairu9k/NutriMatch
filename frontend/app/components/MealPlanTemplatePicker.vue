@@ -114,7 +114,7 @@ async function generate() {
 .tpl-kcal { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: #1a3a1a; }
 .tpl-kcal input { width: 160px; border: 1px solid #d5dad5; border-radius: 8px; padding: 9px 12px; font-family: inherit; font-size: 0.88rem; }
 .tpl-kcal small { font-weight: 500; color: #8a9a8a; font-size: 0.72rem; }
-.tpl-allergy { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.78rem; font-weight: 600; color: #8a5a00; background: #fdf1d6; border-radius: 8px; padding: 8px 10px; }
+.tpl-allergy { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.78rem; font-weight: 600; color: #a12525; background: #fdecec; border-radius: 8px; padding: 8px 10px; }
 .tpl-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
 .tpl-or { font-size: 0.78rem; color: #8a9a8a; }
 .tpl-btn { background: #14301a; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-family: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; }

@@ -136,6 +136,15 @@ class ClientAppointmentCancelView(APIView):
                 {"detail": f"This appointment is already {appointment.get_status_display().lower()} and can't be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Once a confirmed consultation has started the client can't cancel it
+        # (it's paid — cancelling would ask for a refund for a session that may
+        # have happened). The RND or an admin can still cancel a no-show.
+        if appointment.status == Appointment.Status.CONFIRMED and appointment.scheduled_at <= timezone.now():
+            return Response(
+                {"detail": "This consultation has already started, so it can't be cancelled. "
+                           "If it didn't take place, message your RND or contact NutriMatch support."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         reason = (request.data.get("reason") or "").strip()[:500]
         appointment.status = Appointment.Status.CANCELLED
         appointment.cancellation_reason = reason

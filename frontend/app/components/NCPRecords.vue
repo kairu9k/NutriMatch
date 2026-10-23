@@ -1,14 +1,15 @@
 <template>
   <div class="nm-page">
-    <p class="nm-page-sub">Every NCP record across your patients. Records are written and edited on each patient's chart; this page is for reviewing and printing.</p>
+    <p class="nm-page-sub">Every NCP record across your patients. Records are written during consultations, in the consultation room. This page is for reviewing and printing them.</p>
     <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading NCP records…</p></div>
 
     <template v-else-if="data">
       <!-- SUMMARY (click to filter the worklist / list) -->
-      <div class="summary">
-        <button v-for="s in SUMMARY" :key="s.key" type="button" class="sum-item" :class="{ attn: s.attn && data.summary[s.key], on: focus === s.key }" @click="toggleFocus(s.key)">
-          <strong>{{ data.summary[s.key] }}</strong><span>{{ s.label }}</span>
+      <div class="nm-panel summary" role="group" aria-label="Filter by">
+        <button v-for="s in SUMMARY" :key="s.key" type="button" class="sum-item" :class="{ attn: s.attn && data.summary[s.key], on: focus === s.key }" :aria-pressed="focus === s.key" @click="toggleFocus(s.key)">
+          <span class="sum-label">{{ s.label }}</span>
+          <strong>{{ data.summary[s.key] }}</strong>
         </button>
       </div>
 
@@ -28,7 +29,7 @@
               <div class="wl-main">
                 <p class="nm-row-title">
                   {{ w.patient.name }}
-                  <span v-if="(w.nrs_score ?? 0) >= 3" class="nm-pill red">NRS-2002 {{ w.nrs_score }} · at risk</span>
+                  <span v-if="(w.nrs_score ?? 0) >= 3" class="nm-pill red">At risk, NRS-2002 {{ w.nrs_score }}</span>
                 </p>
                 <p class="nm-row-sub">{{ grp.detail(w) }}</p>
               </div>
@@ -37,14 +38,14 @@
           </div>
         </template>
       </section>
-      <section v-else class="nm-panel all-clear"><CheckCircle2 :size="16" /> Every active patient's NCP is up to date.</section>
+      <p v-else class="all-clear"><CheckCircle2 :size="16" /> Every active patient's NCP is up to date.</p>
 
       <!-- ALL RECORDS -->
       <section class="nm-panel">
         <div class="nm-panel-head">
           <div>
             <h2 class="nm-panel-title">All records</h2>
-            <p class="nm-panel-sub">{{ groups.length }} patient{{ groups.length === 1 ? '' : 's' }} · {{ shown.length }} record{{ shown.length === 1 ? '' : 's' }}{{ shown.length !== data.records.length ? ` (of ${data.records.length})` : '' }}</p>
+            <p class="nm-panel-sub">{{ groups.length }} patient{{ groups.length === 1 ? '' : 's' }}, {{ shown.length }} record{{ shown.length === 1 ? '' : 's' }}{{ shown.length !== data.records.length ? ` of ${data.records.length}` : '' }}</p>
           </div>
         </div>
         <div class="nm-toolbar">
@@ -66,7 +67,7 @@
           </div>
         </div>
 
-        <div v-if="!data.records.length" class="nm-empty"><ClipboardList :size="26" /><p>No NCP records yet. Start one from a patient's chart.</p></div>
+        <p v-if="!data.records.length" class="nm-muted empty-line">No NCP records yet. They're written during consultations, in the consultation room's NCP tab.</p>
         <p v-else-if="!shown.length" class="nm-muted">No records match these filters.</p>
         <div v-if="groups.length" class="plist" role="list">
           <div class="phead" aria-hidden="true">
@@ -98,10 +99,10 @@
                 <span class="tdx">{{ rec.pes_problem || 'No diagnosis yet' }}</span>
                 <span class="tkcal">{{ rec.target_kcal ? `${Math.round(rec.target_kcal).toLocaleString('en-PH')} kcal` : '—' }}</span>
                 <!-- goal status is only rated at a follow-up (Monitoring step) -->
-                <span class="tgoal" :class="{ muted: !rec.goal_status_label && rec.status !== 'draft' }">{{ rec.goal_status_label || (rec.status === 'draft' ? `Draft · ${rec.missing.length} missing` : (rec.is_follow_up ? '—' : 'Set at follow-up')) }}</span>
+                <span class="tgoal" :class="{ muted: !rec.goal_status_label && rec.status !== 'draft' }">{{ rec.goal_status_label || (rec.status === 'draft' ? `Draft, ${rec.missing.length} missing` : (rec.is_follow_up ? '—' : 'Set at follow-up')) }}</span>
                 <span class="tview">View <ChevronRight :size="14" /></span>
               </button>
-              <NuxtLink :to="`/client-detail/${g.relationship_id}?tab=ncp`" class="nm-panel-link chart-link">Open patient chart →</NuxtLink>
+              <NuxtLink :to="`/client-detail/${g.relationship_id}?tab=ncp`" class="nm-panel-link chart-link">Open patient chart</NuxtLink>
             </div>
           </div>
         </div>
@@ -109,6 +110,7 @@
           <span class="nm-muted">Showing {{ (page - 1) * PAGE + 1 }}–{{ Math.min(page * PAGE, groups.length) }} of {{ groups.length }} patients</span>
           <div class="pager-btns">
             <button type="button" class="nm-btn-outline nm-btn-sm" :disabled="page === 1" @click="page--">Previous</button>
+            <span class="pager-num">Page {{ page }} of {{ pageCount }}</span>
             <button type="button" class="nm-btn-outline nm-btn-sm" :disabled="page === pageCount" @click="page++">Next</button>
           </div>
         </div>
@@ -125,7 +127,7 @@
 // and every record as a card; clicking one opens a read-only summary that
 // can be printed. Writing/editing happens on Client Detail (and the room).
 // Old per-patient links (?relationship=) are forwarded to the chart.
-import { CheckCircle2, ChevronRight, ClipboardList, Search } from 'lucide-vue-next'
+import { CheckCircle2, ChevronRight, Search } from 'lucide-vue-next'
 
 const route = useRoute()
 const { get } = useApi()
@@ -159,10 +161,10 @@ onMounted(() => {
 })
 
 const SUMMARY = [
-  { key: 'drafts', label: 'drafts in progress', attn: true },
-  { key: 'no_record', label: 'need an initial record', attn: true },
-  { key: 'follow_up_due', label: 'follow-ups due', attn: true },
-  { key: 'finalized_this_month', label: 'finalized this month' },
+  { key: 'drafts', label: 'Drafts in progress', attn: true },
+  { key: 'no_record', label: 'Need an initial record', attn: true },
+  { key: 'follow_up_due', label: 'Follow-ups due', attn: true },
+  { key: 'finalized_this_month', label: 'Finalized this month' },
 ]
 function toggleFocus(k) {
   focus.value = focus.value === k ? null : k
@@ -174,11 +176,11 @@ const worklistGroups = computed(() => {
   const w = data.value.worklist
   return [
     { key: 'drafts', label: 'Drafts in progress', items: w.drafts, action: 'Continue in chart', link: x => chart(x.relationship_id, '&open=draft'),
-      detail: x => `${x.is_follow_up ? `Follow-up #${x.follow_up_no}` : 'Initial record'} · edited ${dateTime(x.updated_at)}${x.missing.length ? ` · missing ${x.missing.join(', ')}` : ' · ready to finalize'}` },
+      detail: x => `${x.is_follow_up ? `Follow-up #${x.follow_up_no}` : 'Initial record'}, edited ${dateTime(x.updated_at)}. ${x.missing.length ? `Missing: ${x.missing.join(', ')}.` : 'Ready to finalize.'}` },
     { key: 'no_record', label: 'No NCP record yet', items: w.no_record, action: 'Open chart', link: x => chart(x.relationship_id),
-      detail: x => `Screening ${x.screening_date ? shortDate(x.screening_date) : '—'}${x.nrs_risk ? ` · ${x.nrs_risk}` : ''}` },
+      detail: x => `Screened ${x.screening_date ? shortDate(x.screening_date) : 'on an unknown date'}${x.nrs_risk ? `, ${x.nrs_risk.toLowerCase()}` : ''}` },
     { key: 'follow_up_due', label: 'Follow-up due', items: w.follow_up_due, action: 'Open chart', link: x => chart(x.relationship_id),
-      detail: x => `${x.reason} · last record ${shortDate(x.last_record_date)}` },
+      detail: x => `${x.reason}. Last record ${shortDate(x.last_record_date)}.` },
   ]
 })
 const worklistCount = computed(() => worklistGroups.value.reduce((n, g) => n + g.items.length, 0))
@@ -238,18 +240,28 @@ const Avatar = defineComponent({
 <style scoped>
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0 0 16px; }
 .nm-page > .nm-panel { margin-bottom: 16px; }
-.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
-.sum-item { background: #fff; border: 1px solid #eceeec; border-radius: 12px; padding: 12px 14px; display: flex; align-items: baseline; gap: 8px; min-width: 0; cursor: pointer; font-family: inherit; text-align: left; }
-.sum-item strong { font-size: 1.35rem; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.sum-item span { font-size: 0.8rem; color: #6a7a6a; }
-.sum-item.attn { border-color: #f0dca0; background: #fffaf0; }
-.sum-item.attn strong { color: #8a6a00; }
-.sum-item.on { box-shadow: 0 0 0 2px #14301a; }
-.all-clear { display: flex; align-items: center; gap: 8px; color: #1f6f46; font-weight: 600; font-size: 0.88rem; }
+/* panels: the light card shadow (Food Exchange); the summary figures: the
+   stronger one used on the patient chart header and Earnings */
+.nm-page > .nm-panel { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.nm-page > .nm-panel.summary { box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
+/* one panel, four figures that double as filters (same treatment as Earnings) */
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; overflow: hidden; margin-bottom: 16px; }
+.sum-item { position: relative; background: none; border: none; border-left: 1px solid #d9e3dc; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; font-family: inherit; text-align: left; }
+.sum-item:first-child { border-left: none; }
+.sum-item:hover { background: #fafbfa; }
+.sum-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.sum-label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
+.sum-item strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.1; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
+.sum-item.attn strong { color: #a07400; }
+.sum-item.on { background: #f3f7f2; }
+.sum-item.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #1a3a1a; }
+.all-clear { display: flex; align-items: center; gap: 8px; color: #1f6f46; font-weight: 600; font-size: 0.88rem; margin: 0 0 16px; }
+.empty-line { margin: 14px 0 4px; }
+.pager-num { align-self: center; font-size: 0.82rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
 
 .wl-group + .wl-group { margin-top: 14px; }
-.wl-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 2px; }
-.wl-label span { color: #b0bab0; margin-left: 4px; }
+.wl-label { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
+.wl-label span { color: #8a9a8a; font-weight: 500; margin-left: 4px; }
 .wl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
 .wl-label + .wl-row { border-top: none; }
 .wl-main { flex: 1; min-width: 180px; }
@@ -258,7 +270,7 @@ const Avatar = defineComponent({
 .filters { display: flex; gap: 8px; flex-wrap: wrap; }
 .plist { border-top: 1px solid #f0f2f0; }
 .phead, .prow { display: grid; grid-template-columns: 22px minmax(0, 1.3fr) minmax(0, 1.6fr) 110px 110px 120px; gap: 12px; align-items: center; }
-.phead { padding: 10px 8px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; }
+.phead { padding: 10px 8px; font-size: 0.76rem; font-weight: 500; color: #8a9a8a; }
 .pgroup { border-bottom: 1px solid #f0f2f0; }
 .prow { width: 100%; padding: 10px 8px; background: none; border: none; font-family: inherit; text-align: left; cursor: pointer; border-radius: 8px; color: #1a3a1a; }
 .prow:hover, .prow:focus-visible { background: #fafbfa; outline: none; }
@@ -286,7 +298,7 @@ const Avatar = defineComponent({
 .tview { display: inline-flex; align-items: center; justify-content: flex-end; color: #1f6f46; font-weight: 600; }
 .chart-link { display: inline-block; margin: 6px 0 0 10px; }
 .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: 0.82rem; }
-.pager-btns { display: flex; gap: 8px; }
+.pager-btns { display: flex; gap: 10px; }
 
 @media (max-width: 860px) {
   .phead { display: none; }
@@ -309,8 +321,12 @@ const Avatar = defineComponent({
 }
 @media (max-width: 760px) {
   .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sum-item { padding: 12px 16px; }
+  .sum-item:nth-child(3) { border-left: none; }
+  .sum-item:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
+  .sum-item strong { font-size: 1.3rem; }
   .filters, .filters select { width: 100%; }
-  .filters select { flex: 1; min-width: 0; }
+  .filters select { flex: 1 1 100%; min-width: 0; }
   .wl-row .nm-btn-sm { margin-left: 50px; }
 }
 </style>

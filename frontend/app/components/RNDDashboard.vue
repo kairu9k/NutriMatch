@@ -13,7 +13,7 @@
       <div v-if="d" class="nm-upnext">
         <template v-if="d.next_up">
           <div class="nm-upnext-top">
-            <span class="nm-upnext-label">Up next · {{ dayWord(d.next_up.scheduled_at) === 'Today' ? '' : `${dayWord(d.next_up.scheduled_at)}, ` }}{{ clock(d.next_up.scheduled_at) }}</span>
+            <span class="nm-upnext-label">Up next, {{ dayWord(d.next_up.scheduled_at) === 'Today' ? 'today' : dayWord(d.next_up.scheduled_at).replace(/^Tomorrow/, 'tomorrow') }} at {{ clock(d.next_up.scheduled_at) }}</span>
             <span class="nm-upnext-pay" :class="{ unpaid: d.next_up.payment !== 'paid' }">{{ d.next_up.payment === 'paid' ? 'Paid' : 'Not paid yet' }}</span>
           </div>
           <div class="nm-upnext-row">
@@ -27,7 +27,7 @@
             </div>
             <div class="nm-upnext-actions">
               <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="nm-hero-btn primary"><Video :size="16" /> Join now</NuxtLink>
-              <span v-else-if="d.next_up.type !== 'in_person'" class="nm-hero-btn primary waiting"><Video :size="16" /> Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0]} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
+              <span v-else-if="d.next_up.type !== 'in_person'" class="nm-hero-btn primary waiting"><Video :size="16" /> Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0].replace(/^Tomorrow/, 'tomorrow')} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
               <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="nm-hero-btn">Open patient</NuxtLink>
             </div>
           </div>
@@ -40,74 +40,82 @@
       </div>
     </section>
 
-    <!-- setup reminders (kept from before) -->
-    <section v-if="requiredMissing.length" class="nm-note setup">
-      <strong>Finish your profile so clients can book you.</strong> Still to do: {{ requiredMissing.map(m => m.label.toLowerCase()).join('; ') }}.
-      <NuxtLink :to="requiredMissing.length === 1 && requiredMissing[0].key === 'availability' ? '/profile-settings?tab=availability' : '/profile-settings'" class="nm-panel-link">Complete profile →</NuxtLink>
-    </section>
-    <section v-if="needsClinicAddress" class="nm-note setup">
-      <strong>Add your clinic address.</strong> Clients can't book your in-person consultations until it's added.
-      <NuxtLink to="/profile-settings" class="nm-panel-link">Add address →</NuxtLink>
-    </section>
-    <section v-if="d && !d.earnings.has_payout_account" class="nm-note setup">
-      <strong>Add your payout details.</strong> Earnings are sent every 5th to your GCash or bank account<template v-if="Number(d.earnings.pending) + Number(d.earnings.posted) > 0"> — {{ peso(Number(d.earnings.pending) + Number(d.earnings.posted)) }} is waiting</template>.
-      <NuxtLink to="/earnings#payout-details" class="nm-panel-link">Add payout details →</NuxtLink>
-    </section>
-
-    <!-- TO DO -->
-    <section v-if="d" class="todo">
-      <template v-if="todoItems.length">
-        <NuxtLink v-for="t in todoItems" :key="t.key" :to="t.to" class="todo-item">
-          <span class="todo-icon" :class="t.tone"><component :is="t.icon" :size="15" /></span>
-          <span><strong>{{ t.count }}</strong> {{ t.label }}</span>
-          <ChevronRight :size="14" class="todo-chev" />
-        </NuxtLink>
+    <!-- "Needs you": one panel, ranked: patient risks (red), then unfinished setup
+         and records (dashed green mark), then the to-do chips -->
+    <section v-if="d" class="nm-panel needs" aria-label="Needs you">
+      <p v-if="allClear" class="all-clear"><CheckCircle2 :size="16" /> All caught up. Nothing is waiting on you.</p>
+      <template v-else>
+        <ul v-if="riskAlerts.length" class="needs-band">
+          <li v-for="(a, i) in riskAlerts" :key="`risk-${i}`" class="needs-row risk" :style="{ '--i': i }">
+            <component :is="ALERT_ICONS[a.level]" :size="16" class="needs-icon" aria-hidden="true" />
+            <span class="needs-text"><strong>{{ a.client.name }}: {{ noDot(a.title) }}.</strong> {{ a.detail }}</span>
+            <NuxtLink :to="a.link" class="nm-panel-link">{{ a.action }}</NuxtLink>
+          </li>
+        </ul>
+        <ul v-if="hasUnfinished" class="needs-band">
+          <li v-if="requiredMissing.length" class="needs-row unfinished">
+            <span class="needs-text"><strong>Finish your profile so clients can book you.</strong> Still to do: {{ requiredMissing.map(m => m.label.toLowerCase()).join('; ') }}.</span>
+            <NuxtLink :to="requiredMissing.length === 1 && requiredMissing[0].key === 'availability' ? '/profile-settings?tab=availability' : '/profile-settings'" class="nm-panel-link">Complete profile</NuxtLink>
+          </li>
+          <li v-if="needsClinicAddress" class="needs-row unfinished">
+            <span class="needs-text"><strong>Add your clinic address.</strong> Clients can't book your in-person consultations until it's added.</span>
+            <NuxtLink to="/profile-settings" class="nm-panel-link">Add address</NuxtLink>
+          </li>
+          <li v-if="!d.earnings.has_payout_account" class="needs-row unfinished">
+            <span class="needs-text"><strong>Add your payout details.</strong> Earnings are sent every 5th to your e-wallet or bank<template v-if="Number(d.earnings.pending) + Number(d.earnings.posted) > 0">, and {{ peso(Number(d.earnings.pending) + Number(d.earnings.posted)) }} is waiting</template>.</span>
+            <NuxtLink to="/earnings?payout=1" class="nm-panel-link">Add payout details</NuxtLink>
+          </li>
+          <li v-for="(a, i) in infoAlerts" :key="`info-${i}`" class="needs-row unfinished">
+            <span class="needs-text"><strong>{{ a.client.name }}: {{ noDot(a.title) }}.</strong> {{ a.detail }}</span>
+            <NuxtLink :to="a.link" class="nm-panel-link">{{ a.action }}</NuxtLink>
+          </li>
+        </ul>
+        <p v-if="moreAlerts" class="needs-more">
+          {{ moreAlerts }} more patient alert{{ moreAlerts === 1 ? '' : 's' }}.
+          <NuxtLink to="/my-patients?filter=attention" class="nm-panel-link">See all in My Patients</NuxtLink>
+        </p>
+        <div v-if="todoItems.length" class="needs-chips">
+          <NuxtLink v-for="(t, i) in todoItems" :key="t.key" :to="t.to" class="todo-item" :style="{ '--i': i }">
+            <component :is="t.icon" :size="15" class="todo-icon" aria-hidden="true" />
+            <span><strong>{{ t.count }}</strong> {{ t.label }}</span>
+          </NuxtLink>
+        </div>
       </template>
-      <p v-else class="all-clear"><CheckCircle2 :size="16" /> All caught up — nothing waiting on you.</p>
     </section>
 
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading your dashboard…</p></div>
 
     <template v-else-if="d">
-      <div class="nm-stat-grid">
-        <div class="nm-stat-card">
-          <div class="nm-stat-icon"><Users :size="17" /></div>
-          <p class="nm-stat-value">{{ d.stats.active_patients }}</p>
-          <p class="nm-stat-label">Active patients</p>
-          <NuxtLink to="/my-patients" class="nm-stat-note good" style="text-decoration: none">View patients →</NuxtLink>
-        </div>
-        <div class="nm-stat-card">
-          <div class="nm-stat-icon"><CalendarCheck :size="17" /></div>
-          <p class="nm-stat-value">{{ d.stats.sessions_this_week }}</p>
-          <p class="nm-stat-label">Consultations this week</p>
-          <p class="nm-stat-note">{{ todayCount }} today</p>
-        </div>
-        <div class="nm-stat-card">
-          <div class="nm-stat-icon gold"><Utensils :size="17" /></div>
-          <p class="nm-stat-value">{{ d.adherence.pct == null ? '—' : `${d.adherence.pct}%` }}</p>
-          <p class="nm-stat-label">Meal-plan adherence</p>
-          <p class="nm-stat-note" :class="deltaClass">{{ deltaText }}</p>
-        </div>
-        <div class="nm-stat-card">
-          <div class="nm-stat-icon gold"><Wallet :size="17" /></div>
-          <p class="nm-stat-value">{{ peso(d.earnings.posted) }}</p>
-          <p class="nm-stat-label">Ready for the {{ shortDate(d.earnings.next_payout_date) }} payout</p>
-          <p class="nm-stat-note">{{ peso(d.earnings.pending) }} still pending</p>
-        </div>
-      </div>
-
       <div class="nm-grid">
         <div class="nm-col">
+          <!-- bento, same as Appointments: this week's consultations as the big green cell, two rows beside it; sits beside Booking requests -->
+          <div class="nm-panel bento">
+            <NuxtLink to="/appointments?tab=upcoming" class="bento-main">
+              <span class="bento-label">Consultations this week</span>
+              <strong class="bento-big">{{ d.stats.sessions_this_week }}</strong>
+              <span class="bento-note">{{ todayCount }} today</span>
+            </NuxtLink>
+            <div class="bento-rows">
+              <NuxtLink to="/my-patients" class="bento-row">
+                <span>Active patients</span>
+                <strong>{{ d.stats.active_patients }}</strong>
+              </NuxtLink>
+              <NuxtLink to="/meal-planning" class="bento-row">
+                <span>Meal-plan adherence<small>{{ deltaText.toLowerCase() }}</small></span>
+                <strong>{{ d.adherence.pct == null ? '—' : `${d.adherence.pct}%` }}</strong>
+              </NuxtLink>
+            </div>
+          </div>
           <!-- schedule -->
           <div class="nm-panel">
             <div class="nm-panel-head">
               <div>
                 <h2 class="nm-panel-title">Today &amp; the next 7 days</h2>
-                <p class="nm-panel-sub">Confirmed and requested consultations</p>
+                <p class="nm-panel-sub">Confirmed consultations</p>
               </div>
-              <NuxtLink to="/appointments" class="nm-panel-link">Appointments →</NuxtLink>
+              <NuxtLink to="/appointments" class="nm-panel-link">All appointments</NuxtLink>
             </div>
-            <div v-if="!d.schedule.length" class="nm-empty"><CalendarDays :size="26" /><p>Nothing scheduled this week.</p></div>
+            <p v-if="!confirmedSchedule.length" class="nm-muted empty-line">Nothing confirmed for this week.</p>
             <div v-for="group in scheduleByDay" :key="group.key" class="day-group">
               <p class="day-label">{{ group.label }}</p>
               <div v-for="a in group.items" :key="a.id" class="sched-row">
@@ -116,16 +124,18 @@
                 <span v-else class="nm-avatar">{{ nameInitials(a.client.name) }}</span>
                 <span class="sched-main">
                   <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="nm-row-title link">{{ a.client.name }}</NuxtLink>
-                  <span class="nm-row-sub">{{ a.type_label }} · {{ a.duration_minutes }} min</span>
+                  <span class="nm-row-sub">{{ a.type_label }}, {{ a.duration_minutes }} min</span>
                 </span>
                 <span class="sched-end">
-                  <span v-if="a.status === 'pending'" class="nm-pill gold">Needs your confirmation</span>
-                  <span v-else-if="a.payment === 'paid'" class="nm-pill green">Paid</span>
+                  <span v-if="a.payment === 'paid'" class="nm-pill green">Paid</span>
                   <span v-else class="nm-pill muted">Not paid yet</span>
                   <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="13" /> Join</NuxtLink>
                 </span>
               </div>
             </div>
+            <p v-if="d.requests.length" class="req-pointer">
+              {{ d.requests.length }} booking request{{ d.requests.length === 1 ? ' is' : 's are' }} waiting for your answer, under Booking requests.
+            </p>
           </div>
 
           <!-- adherence chart -->
@@ -133,14 +143,14 @@
             <div class="nm-panel-head">
               <div>
                 <h2 class="nm-panel-title">Meal-plan adherence, last 7 days</h2>
-                <p class="nm-panel-sub">Share of planned meals your patients followed (partly followed counts half; unlogged counts as missed).</p>
+                <p class="nm-panel-sub">Share of planned meals your patients followed. Partly followed counts as half, and an unlogged meal counts as missed.</p>
               </div>
               <div v-if="d.adherence.pct != null" class="chart-figure">
                 <span class="cf-value">{{ d.adherence.pct }}%</span>
-                <span class="cf-sub">{{ d.adherence.logged }} of {{ d.adherence.planned }} meals logged<template v-if="d.adherence.waiting"> · {{ d.adherence.waiting }} waiting for your rating</template></span>
+                <span class="cf-sub">{{ d.adherence.logged }} of {{ d.adherence.planned }} meals logged<template v-if="d.adherence.waiting">, {{ d.adherence.waiting }} waiting for your rating</template></span>
               </div>
             </div>
-            <div v-if="!d.adherence.planned" class="nm-empty"><Utensils :size="26" /><p>No meal plans active yet — adherence shows up once patients have a plan.</p></div>
+            <p v-if="!d.adherence.planned" class="nm-muted empty-line">No meal plans active yet. Adherence shows up once patients have a sent plan.</p>
             <div v-else class="chart" role="img" :aria-label="`Meal-plan adherence by day: ${chartSummary}`">
               <div class="chart-plot">
                 <div v-for="t in [100, 50, 0]" :key="t" class="grid" :style="{ bottom: `${t}%` }"><span>{{ t }}%</span></div>
@@ -172,24 +182,6 @@
             </div>
           </div>
 
-          <!-- attention -->
-          <div class="nm-panel">
-            <div class="nm-panel-head">
-              <div>
-                <h2 class="nm-panel-title">Patients needing attention</h2>
-                <p class="nm-panel-sub">Flagged from meal logs, screenings, progress records and NCP drafts.</p>
-              </div>
-            </div>
-            <p v-if="!d.alerts.length" class="all-clear"><CheckCircle2 :size="16" /> No patients need attention right now.</p>
-            <div v-for="(a, i) in d.alerts" :key="i" class="alert" :class="a.level">
-              <span class="alert-icon"><component :is="ALERT_ICONS[a.level]" :size="15" /></span>
-              <div class="alert-main">
-                <p class="nm-row-title">{{ a.client.name }} — {{ a.title }}</p>
-                <p class="nm-row-sub">{{ a.detail }}</p>
-              </div>
-              <NuxtLink :to="a.link" class="nm-btn-outline nm-btn-sm">{{ a.action }}</NuxtLink>
-            </div>
-          </div>
         </div>
 
         <div class="nm-col">
@@ -198,7 +190,7 @@
             <div class="nm-panel-head">
               <div>
                 <h2 class="nm-panel-title">Booking requests</h2>
-                <p class="nm-panel-sub">Confirm before the time passes — the client pays after you confirm.</p>
+                <p class="nm-panel-sub">Confirm before the time passes. The client pays after you confirm.</p>
               </div>
             </div>
             <p v-if="!d.requests.length" class="nm-muted">No requests waiting.</p>
@@ -207,32 +199,9 @@
               <span v-else class="nm-avatar">{{ nameInitials(a.client.name) }}</span>
               <div class="nm-row-main">
                 <p class="nm-row-title">{{ a.client.name }}</p>
-                <p class="nm-row-sub">{{ a.type_label }} · {{ dayWord(a.scheduled_at) }}, {{ clock(a.scheduled_at) }}</p>
+                <p class="nm-row-sub">{{ a.type_label }}, {{ dayWord(a.scheduled_at) }}, {{ clock(a.scheduled_at) }}</p>
               </div>
-              <NuxtLink to="/appointments" class="nm-btn-dark nm-btn-sm">Review</NuxtLink>
-            </div>
-          </div>
-
-          <!-- outcomes -->
-          <div class="nm-panel">
-            <h2 class="nm-panel-title">Patient outcomes</h2>
-            <p class="nm-panel-sub">From your active patients' progress records and NCP follow-ups.</p>
-            <div class="outcomes">
-              <div class="outcome">
-                <span class="o-value">{{ d.outcomes.avg_weight_change_kg == null ? '—' : `${signed(d.outcomes.avg_weight_change_kg)} kg` }}</span>
-                <span class="o-label">Average weight change</span>
-                <span class="o-note">{{ d.outcomes.weight_patients ? `across ${d.outcomes.weight_patients} patient${d.outcomes.weight_patients === 1 ? '' : 's'}` : 'needs 2+ progress records' }}</span>
-              </div>
-              <div class="outcome">
-                <span class="o-value">{{ d.outcomes.bmi_compared ? `${d.outcomes.bmi_improved} of ${d.outcomes.bmi_compared}` : '—' }}</span>
-                <span class="o-label">Improved their BMI</span>
-                <span class="o-note">since their screening</span>
-              </div>
-              <div class="outcome">
-                <span class="o-value">{{ goalsTotal ? `${d.outcomes.goals.met} of ${goalsTotal}` : '—' }}</span>
-                <span class="o-label">Follow-up goals met</span>
-                <span class="o-note">{{ goalsTotal ? `${d.outcomes.goals.partially_met} partly · ${d.outcomes.goals.ongoing} ongoing` : 'from finalized follow-ups' }}</span>
-              </div>
+              <NuxtLink to="/appointments?tab=requests" class="nm-btn-dark nm-btn-sm">Review</NuxtLink>
             </div>
           </div>
 
@@ -240,15 +209,26 @@
           <div class="nm-panel">
             <div class="nm-panel-head">
               <h2 class="nm-panel-title">Earnings</h2>
-              <NuxtLink to="/earnings" class="nm-panel-link">Earnings →</NuxtLink>
+              <NuxtLink to="/earnings" class="nm-panel-link">Open Earnings</NuxtLink>
             </div>
             <div class="money">
-              <p><span>Pending</span><strong>{{ peso(d.earnings.pending) }}</strong></p>
-              <p><span>Posted</span><strong>{{ peso(d.earnings.posted) }}</strong></p>
-              <p><span>Paid out</span><strong>{{ peso(d.earnings.paid_out) }}</strong></p>
+              <p class="sr-only">{{ ringLabel }}</p>
+              <div class="earn-ring" :style="{ background: ringFill }" aria-hidden="true">
+                <div class="earn-hole">
+                  <span class="earn-total">{{ pesoShort(earnTotal) }}</span>
+                  <span class="earn-caption">earned so far</span>
+                </div>
+              </div>
+              <ul class="money-legend">
+                <li v-for="x in earnSlices" :key="x.key">
+                  <span class="swatch" :style="{ background: x.color }" />
+                  <span class="m-label">{{ x.label }}</span>
+                  <strong>{{ peso(x.value) }}</strong>
+                </li>
+              </ul>
             </div>
             <p class="nm-hint">
-              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible"> — needs {{ peso(d.earnings.minimum_payout) }} posted and payout details</template>.
+              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} posted and your payout details</template>.
             </p>
           </div>
 
@@ -259,7 +239,7 @@
             <div v-for="(r, i) in d.reviews" :key="i" class="review">
               <p class="stars">{{ '★'.repeat(r.rating) }}<span>{{ '★'.repeat(5 - r.rating) }}</span></p>
               <p v-if="r.comment" class="review-text">"{{ r.comment }}"</p>
-              <p class="nm-row-sub">{{ r.client }} · {{ shortDate(r.created_at) }}</p>
+              <p class="nm-row-sub">{{ r.client }}, {{ shortDate(r.created_at) }}</p>
             </div>
           </div>
         </div>
@@ -270,7 +250,7 @@
 
 <script setup>
 import {
-  AlertTriangle, CalendarCheck, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, FlaskConical, Info, MessageSquare,
+  AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, FlaskConical, Info, MessageSquare,
   OctagonAlert, Target, Users, Utensils, Video, Wallet,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
@@ -306,6 +286,15 @@ onMounted(async () => {
     setupMissing.value = []
   }
 })
+// patient alerts (critical first, as the API sends them); only the first few up top
+const MAX_ALERTS = 3
+const shownAlerts = computed(() => (d.value?.alerts || []).slice(0, MAX_ALERTS))
+const moreAlerts = computed(() => Math.max((d.value?.alerts || []).length - MAX_ALERTS, 0))
+const noDot = t => String(t || '').replace(/[.\s]+$/, '')
+const riskAlerts = computed(() => shownAlerts.value.filter(a => a.level !== 'info'))
+const infoAlerts = computed(() => shownAlerts.value.filter(a => a.level === 'info'))
+const hasUnfinished = computed(() => !!(requiredMissing.value.length || needsClinicAddress.value || !d.value?.earnings.has_payout_account || infoAlerts.value.length))
+const allClear = computed(() => !riskAlerts.value.length && !hasUnfinished.value && !moreAlerts.value && !todoItems.value.length)
 const requiredMissing = computed(() => setupMissing.value.filter(m => !m.optional))
 const needsClinicAddress = computed(() => setupMissing.value.some(m => m.key === 'clinic_address'))
 
@@ -321,16 +310,15 @@ const todoItems = computed(() => {
   const t = d.value?.todo
   if (!t) return []
   return [
-    { key: 'req', count: t.requests, label: `booking request${t.requests === 1 ? '' : 's'} to confirm`, to: '/appointments', icon: CalendarCheck, tone: 'gold' },
-    { key: 'done', count: t.to_complete, label: `consultation${t.to_complete === 1 ? '' : 's'} to mark complete`, to: '/appointments', icon: ClipboardList, tone: 'gold' },
-    { key: 'ncp', count: t.ncp_drafts, label: `NCP draft${t.ncp_drafts === 1 ? '' : 's'} to finish`, to: '/ncp-records', icon: ClipboardList, tone: '' },
+    { key: 'done', count: t.to_complete, label: `consultation${t.to_complete === 1 ? '' : 's'} to mark complete`, to: '/appointments?tab=to_complete', icon: ClipboardList },
+    { key: 'ncp', count: t.ncp_drafts, label: `NCP draft${t.ncp_drafts === 1 ? '' : 's'} to finish`, to: '/ncp-records', icon: ClipboardList },
     { key: 'plan', count: t.need_meal_plan, label: `patient${t.need_meal_plan === 1 ? '' : 's'} ready for a meal plan`,
-      to: t.need_meal_plan_first ? `/meal-planning?relationship=${t.need_meal_plan_first}` : '/meal-planning', icon: Target, tone: '' },
+      to: t.need_meal_plan_first ? `/meal-planning?relationship=${t.need_meal_plan_first}` : '/meal-planning', icon: Target },
     { key: 'logs', count: t.meal_logs_to_review, label: `meal log${t.meal_logs_to_review === 1 ? '' : 's'} to rate`,
-      to: t.meal_logs_to_review_first ? `/client-detail/${t.meal_logs_to_review_first}?tab=meal` : '/my-patients', icon: Utensils, tone: 'gold' },
+      to: t.meal_logs_to_review_first ? `/client-detail/${t.meal_logs_to_review_first}?tab=meal` : '/my-patients', icon: Utensils },
     { key: 'labs', count: t.lab_results_to_review, label: `lab result${t.lab_results_to_review === 1 ? '' : 's'} to review`,
-      to: t.lab_results_to_review_first ? `/client-detail/${t.lab_results_to_review_first}?tab=labs` : '/my-patients', icon: FlaskConical, tone: 'gold' },
-    { key: 'msg', count: t.unread_messages, label: `unread message${t.unread_messages === 1 ? '' : 's'}`, to: '/messages', icon: MessageSquare, tone: '' },
+      to: t.lab_results_to_review_first ? `/client-detail/${t.lab_results_to_review_first}?tab=labs` : '/my-patients', icon: FlaskConical },
+    { key: 'msg', count: t.unread_messages, label: `unread message${t.unread_messages === 1 ? '' : 's'}`, to: '/messages', icon: MessageSquare },
   ].filter(i => i.count > 0)
 })
 
@@ -358,12 +346,14 @@ const summaryLine = computed(() => {
     }
     return `${count} You're done with them for the day.`
   }
-  if (next) return `No consultations today. Your next one is ${dayWord(next.scheduled_at, true)} at ${clock(next.scheduled_at)}.`
+  if (next) return `No consultations today. Your next one is ${dayWord(next.scheduled_at, true).replace(/^Tomorrow/, 'tomorrow')} at ${clock(next.scheduled_at)}.`
   return 'No consultations coming up. Your schedule is clear.'
 })
+// The schedule shows only what's confirmed; requests live in Booking requests.
+const confirmedSchedule = computed(() => (d.value?.schedule || []).filter(a => a.status === 'confirmed'))
 const scheduleByDay = computed(() => {
   const groups = []
-  for (const a of d.value?.schedule || []) {
+  for (const a of confirmedSchedule.value) {
     const key = phDate(a.scheduled_at)
     let g = groups.find(x => x.key === key)
     if (!g) groups.push(g = { key, label: dayWord(a.scheduled_at, true), items: [] })
@@ -379,12 +369,34 @@ const deltaText = computed(() => {
   const diff = a.pct - a.previous_pct
   return diff === 0 ? 'Same as the week before' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} pts vs the week before`
 })
-const deltaClass = computed(() => {
-  const a = d.value?.adherence
-  if (!a || a.pct == null || a.previous_pct == null) return ''
-  return a.pct > a.previous_pct ? 'good' : a.pct < a.previous_pct ? 'warn' : ''
+/* earnings ring: pending, posted, paid out, light to dark green as the money moves */
+const earnSlices = computed(() => {
+  const e = d.value?.earnings || {}
+  return [
+    { key: 'pending', label: 'Pending', value: Number(e.pending) || 0, color: '#cfe6d8' },
+    { key: 'posted', label: 'Posted', value: Number(e.posted) || 0, color: '#7cc09c' },
+    { key: 'paid', label: 'Paid out', value: Number(e.paid_out) || 0, color: '#1f8f5c' },
+  ]
 })
-const goalsTotal = computed(() => Object.values(d.value?.outcomes.goals || {}).reduce((n, x) => n + x, 0))
+const earnTotal = computed(() => earnSlices.value.reduce((n, x) => n + x.value, 0))
+// the ring is a CSS conic gradient: each state takes its share of the circle
+const ringFill = computed(() => {
+  const total = earnTotal.value
+  if (!total) return '#eef1ee'
+  let at = 0
+  const stops = earnSlices.value.filter(x => x.value > 0).map((x) => {
+    const from = at
+    at += (x.value / total) * 360
+    return `${x.color} ${from}deg ${at}deg`
+  })
+  return `conic-gradient(${stops.join(', ')})`
+})
+const ringLabel = computed(() => `${peso(earnTotal.value)} earned so far: ${earnSlices.value.map(x => `${x.label} ${peso(x.value)}`).join(', ')}`)
+function pesoShort(n) {
+  if (n >= 1e6) return `₱${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M`
+  if (n >= 1e5) return `₱${Math.round(n / 1e3)}k`
+  return `₱${Math.round(n).toLocaleString('en-PH')}`
+}
 
 function canJoin(a) {
   return a.status === 'confirmed' && a.type === 'video' && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
@@ -409,7 +421,6 @@ function colLabel(day, i) {
   return day.followed_pct == null ? `${name}: no meals planned` : `${name}: ${day.followed_pct}% followed, ${day.logged} of ${day.planned} meals logged`
 }
 const chartSummary = computed(() => (d.value?.adherence.days || []).map((x, i) => `${i === 6 ? 'today' : weekday(x.date)} ${x.followed_pct ?? 'none'}`).join(', '))
-const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 function nameInitials(name) {
   const parts = String(name || '').split(' ').filter(Boolean)
   return userInitials(parts[0], parts[parts.length - 1])
@@ -417,18 +428,11 @@ function nameInitials(name) {
 </script>
 
 <style scoped>
-.setup { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 
-.todo { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
-.todo-item { display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #eceeec; border-radius: 12px; padding: 10px 14px; text-decoration: none; color: #1a3a1a; font-size: 0.84rem; }
-.todo-item:hover { border-color: #c7d6ca; }
-.todo-icon { width: 28px; height: 28px; border-radius: 8px; background: #eef3ec; color: #1e4a26; display: flex; align-items: center; justify-content: center; }
-.todo-icon.gold { background: #fdf1d6; color: #b8860b; }
-.todo-chev { color: #b0bab0; }
 .all-clear { display: flex; align-items: center; gap: 8px; color: #1f6f46; font-size: 0.86rem; font-weight: 600; margin: 0; }
 
 .day-group + .day-group { margin-top: 14px; }
-.day-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 4px; }
+.day-label { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
 .sched-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
 .sched-time { width: 66px; font-size: 0.84rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .sched-main { flex: 1; min-width: 140px; display: flex; flex-direction: column; }
@@ -464,24 +468,85 @@ function nameInitials(name) {
    table keeps its full size and stretches the page below the layout. */
 .sr-only { position: absolute; display: block; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* attention */
-.alert { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
-.alert:first-of-type { border-top: none; }
-.alert-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
-.alert.critical .alert-icon { background: #fdecec; color: #a12525; }
-.alert.warning .alert-icon { background: #fdf1d6; color: #b8860b; }
-.alert-main { flex: 1; min-width: 180px; }
-
-/* outcomes / money / reviews */
-.outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
-.outcome { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.o-value { font-size: 1.15rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.o-label { font-size: 0.76rem; font-weight: 600; color: #4a5a4a; }
-.o-note { font-size: 0.7rem; color: #9aaa9a; }
-.money { margin-top: 10px; }
-.money p { display: flex; justify-content: space-between; margin: 0; padding: 8px 0; border-top: 1px solid #f0f2f0; font-size: 0.86rem; color: #4a5a4a; }
-.money p:first-child { border-top: none; }
-.money strong { color: #1a3a1a; font-variant-numeric: tabular-nums; }
+/* money / reviews */
+/* bento (same as Appointments): green cell + three divided rows */
+.bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); padding: 0; overflow: hidden; }
+.bento a { color: inherit; text-decoration: none; }
+.bento a:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.bento-main { display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 14px 20px; background: linear-gradient(135deg, #00382a 0%, #005a42 100%); }
+.bento .bento-main { color: #fff; }
+.bento .bento-main:hover { background: linear-gradient(135deg, #00402f 0%, #00684c 100%); }
+.bento .bento-main:focus-visible { outline: 2px solid #f3d27a; outline-offset: -3px; }
+.bento-label { font-size: 0.84rem; font-weight: 600; color: #e2c25e; }
+.bento-big { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums lining-nums; }
+.bento-note { font-size: 0.8rem; color: #cfe0d5; }
+.bento-rows { display: flex; flex-direction: column; background: #fbfcfa; }
+.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 20px; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
+.bento-row:hover { background: #f4f7f4; }
+.bento .bento-row + .bento-row { border-top: 1px solid #d9e3dc; }
+.bento-row small { display: inline; font-size: 0.74rem; font-weight: 400; color: #7a8a7a; margin-left: 6px; }
+.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.empty-line { margin: 12px 0 4px; }
+/* "Needs you" panel */
+.needs { padding: 0; overflow: hidden; margin-bottom: 20px; }
+.needs .all-clear { padding: 14px 20px; }
+.needs-band { list-style: none; margin: 0; padding: 0; }
+.needs > * + * { border-top: 1px solid #d9e3dc; }
+.needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
+.needs-row + .needs-row { border-top: 1px solid #eef1ee; }
+.needs-row strong { color: #1a3a1a; }
+.needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.needs-row .nm-panel-link { flex-shrink: 0; white-space: nowrap; }
+/* a patient risk: red, never quiet (patient safety) */
+.needs-row.risk { background: #fdf3f2; }
+.needs-row.risk strong { color: #a12525; }
+.needs-icon { flex-shrink: 0; color: #c0392b; }
+/* unfinished: the app's dashed green mark */
+.needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
+.needs-more { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 0; padding: 10px 20px; font-size: 0.82rem; color: #6a7a6a; }
+.needs-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px; background: #fbfcfa; }
+.todo-item { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #d9e3dc; border-radius: 999px; padding: 6px 12px; text-decoration: none; color: #3a4a3a; font-size: 0.82rem; }
+.todo-item:hover { border-color: #3f9a6b; color: #1a3a1a; }
+.todo-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.todo-item strong { color: #1a3a1a; }
+.todo-icon { color: #3f9a6b; }
+/* one opening moment, about 3 seconds, then still: the panel drops in (no
+   glow on the panel itself, only the items move): the red
+   lines and dashed-green lines each glow three times, the chips pop in and glow */
+@media (prefers-reduced-motion: no-preference) {
+  .needs { animation: nm-drop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
+  .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
+  .needs-row.unfinished::before { animation: nm-march 3s linear 0.45s 1; }
+  .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
+  .needs-chips .todo-item { animation: nm-nudge 0.5s ease-out both, nm-chip-glow 1s ease-in-out 3; animation-delay: calc(0.6s + var(--i, 0) * 90ms), 0.45s; }
+}
+@keyframes nm-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
+@keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
+@keyframes nm-chip-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: 0 0 0 3px rgba(63, 154, 107, 0.25), 0 0 12px rgba(63, 154, 107, 0.35); } }
+@keyframes nm-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+@keyframes nm-march { from { border-left-color: #3f9a6b; opacity: 1; } 25% { opacity: 0.35; } 50% { opacity: 1; } 75% { opacity: 0.35; } to { opacity: 1; } }
+@keyframes nm-nudge { 0% { transform: translateY(4px); opacity: 0; } 60% { transform: translateY(-2px); opacity: 1; } 100% { transform: none; opacity: 1; } }
+.req-pointer { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #f0f2f0; font-size: 0.82rem; color: #6a7a6a; }
+/* the light card shadow on panels; the banner gets the stronger one */
+.nm-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+@media (max-width: 640px) {
+  .bento { grid-template-columns: minmax(0, 1fr); }
+  .bento-main { padding: 12px 16px; }
+  .bento-big { font-size: 1.9rem; }
+  .bento-row { padding: 8px 16px; }
+  .bento-row small { display: block; margin-left: 0; }
+}
+.money { display: grid; grid-template-columns: 108px minmax(0, 1fr); align-items: center; gap: 18px; margin-top: 14px; }
+.earn-ring { width: 108px; height: 108px; border-radius: 50%; display: grid; place-items: center; }
+.earn-hole { width: 88px; height: 88px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.earn-total { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.earn-caption { font-size: 0.68rem; color: #8a9a8a; }
+.money-legend { list-style: none; margin: 0; padding: 0; min-width: 0; }
+.money-legend li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.84rem; color: #6a7a6a; }
+.swatch { width: 8px; height: 8px; border-radius: 50%; }
+.money-legend strong { color: #1a3a1a; font-weight: 600; font-variant-numeric: tabular-nums; }
 .review { padding: 12px 0 0; margin-top: 12px; border-top: 1px solid #f0f2f0; }
 .review:first-of-type { border-top: none; margin-top: 6px; }
 .stars { margin: 0; color: #D4A017; letter-spacing: 1px; font-size: 0.86rem; }
@@ -489,8 +554,10 @@ function nameInitials(name) {
 .review-text { font-size: 0.84rem; color: #3a4a3a; margin: 4px 0; line-height: 1.5; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
-  .outcomes { grid-template-columns: minmax(0, 1fr); }
-  .todo-item { width: 100%; }
+  .needs-row { flex-wrap: wrap; padding: 12px 16px; }
+  .needs-row .nm-panel-link { flex-basis: 100%; padding-left: 28px; }
+  .needs-row.unfinished .nm-panel-link { padding-left: 21px; }
+  .needs-chips, .needs-more { padding-left: 16px; padding-right: 16px; }
   .sched-end { width: 100%; padding-left: 78px; }
   .chart-figure { text-align: left; }
 }
@@ -504,7 +571,7 @@ function nameInitials(name) {
   color: #fff;
 }
 
-/* "UP NEXT · MON, OCT 19, 3:00 PM" label */
+/* "Up next, tomorrow at 3:00 PM" label */
 .nm-upnext-label { color: #f0c15b; }
 
 /* Text inside the card */

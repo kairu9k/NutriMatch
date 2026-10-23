@@ -169,7 +169,9 @@ def send_payout_email(payout):
     from accounts.emails import send_notice_email
 
     count = payout.invoices.count()
-    method = "GCash" if payout.method == "gcash" else (payout.bank_name or "Bank transfer")
+    from .models import payout_destination
+
+    method = payout_destination(payout.method, payout.bank_name)
     send_notice_email(
         payout.rnd,
         subject=f"Your NutriMatch payout of ₱{payout.amount:,.2f} was sent",

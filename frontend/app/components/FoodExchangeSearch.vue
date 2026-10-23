@@ -20,31 +20,35 @@
     <template v-if="source === 'usda'">
       <p v-if="usdaError" class="form-error">{{ usdaError }}</p>
       <p v-else-if="usdaLoading" class="placeholder-text">Searching USDA…</p>
-      <p v-else-if="search.trim().length < 2" class="placeholder-text">Type at least 2 letters to search.</p>
-      <p v-else-if="!usdaResults.length" class="empty-text">No USDA foods match "{{ search.trim() }}".</p>
-      <div v-else class="item-grid">
-        <div v-for="f in usdaResults" :key="f.fdc_id" class="item-card">
-          <div class="item-top">
-            <span class="category-pill usda-pill">USDA · {{ f.data_type }}</span>
+      <p v-else-if="usdaSearching && !usdaResults.length" class="empty-text">No USDA foods match "{{ search.trim() }}".</p>
+      <template v-else-if="usdaShown.length">
+        <p class="result-count">{{ usdaSearching ? `${usdaResults.length} USDA food${usdaResults.length === 1 ? '' : 's'} for "${search.trim()}"` : 'Common foods not on the FNRI list. Search for anything else.' }}</p>
+        <div class="item-grid">
+          <div v-for="f in usdaShown" :key="f.fdc_id" class="item-card">
+            <div class="item-top">
+              <span class="category-pill usda-pill">USDA, {{ f.data_type }}</span>
+            </div>
+            <h3 class="item-name">{{ f.name }}</h3>
+            <p class="item-measure">Per 100 g, FDC {{ f.fdc_id }}</p>
+            <div class="macro-row">
+              <div><span>kcal</span><strong>{{ fmt(f.per_100g.kcal) }}</strong></div>
+              <div><span>Carbs</span><strong>{{ fmt(f.per_100g.carbs_g) }} g</strong></div>
+              <div><span>Protein</span><strong>{{ fmt(f.per_100g.protein_g) }} g</strong></div>
+              <div><span>Fat</span><strong>{{ fmt(f.per_100g.fat_g) }} g</strong></div>
+            </div>
+            <p class="item-notes">{{ minerals(f.per_100g) }}</p>
           </div>
-          <h3 class="item-name">{{ f.name }}</h3>
-          <p class="item-measure">Per 100 g · FDC #{{ f.fdc_id }}</p>
-          <div class="macro-row">
-            <div><span>kcal</span><strong>{{ fmt(f.per_100g.kcal) }}</strong></div>
-            <div><span>Carbs</span><strong>{{ fmt(f.per_100g.carbs_g) }} g</strong></div>
-            <div><span>Protein</span><strong>{{ fmt(f.per_100g.protein_g) }} g</strong></div>
-            <div><span>Fat</span><strong>{{ fmt(f.per_100g.fat_g) }} g</strong></div>
-          </div>
-          <p class="item-notes">{{ minerals(f.per_100g) }}</p>
         </div>
-      </div>
+      </template>
+      <p v-else-if="usdaCommonLoading" class="placeholder-text">Loading common foods…</p>
+      <p v-else class="placeholder-text">Type at least 2 letters to search.</p>
     </template>
 
     <template v-else>
     <div v-if="categories.length" class="filter-row">
       <div class="category-select-wrap">
         <select v-model="categorySelectValue" class="nm-select category-select">
-          <option value="all">All Categories</option>
+          <option value="all">All food groups</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
       </div>
@@ -60,32 +64,47 @@
     <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
     <template v-else-if="items.length">
+      <p v-if="filteredItems.length" class="result-count">
+        {{ filteredItems.length === items.length ? `${items.length} foods` : `${filteredItems.length} of ${items.length} foods` }}<template v-if="pageCount > 1">, showing {{ (page - 1) * PER_PAGE + 1 }}–{{ Math.min(page * PER_PAGE, filteredItems.length) }}</template>
+      </p>
       <div v-if="filteredItems.length" class="item-grid">
-        <div v-for="item in filteredItems" :key="item.id" class="item-card">
+        <div v-for="item in pagedItems" :key="item.id" class="item-card">
           <div class="item-top">
             <span class="category-pill" :style="{ background: item.category.color + '22', color: item.category.color }">
               {{ item.category.name }}
             </span>
-            <span v-if="item.is_free_food" class="free-pill">Free Food</span>
+            <span v-if="item.is_free_food" class="free-pill">Free food</span>
           </div>
           <h3 class="item-name">{{ item.name }}</h3>
           <p v-if="item.local_name" class="item-local">{{ item.local_name }}</p>
-          <p class="item-measure">{{ item.household_measure || '—' }}<span v-if="item.ep_grams"> · {{ item.ep_grams }}g</span></p>
+          <p class="item-measure">{{ item.household_measure || 'No household measure' }}<span v-if="item.ep_grams">, {{ grams(item.ep_grams) }} g</span></p>
+          <div class="macro-row" :title="`One ${item.category.name.toLowerCase()} exchange`">
+            <div><span>kcal</span><strong>{{ fmt(item.category.kcal_per_exchange) }}</strong></div>
+            <div><span>Carbs</span><strong>{{ fmt(item.category.carbs_g ?? 0) }} g</strong></div>
+            <div><span>Protein</span><strong>{{ fmt(item.category.protein_g ?? 0) }} g</strong></div>
+            <div><span>Fat</span><strong>{{ fmt(item.category.fat_g ?? 0) }} g</strong></div>
+          </div>
 
           <div class="flag-row">
-            <span v-if="!item.ok_for_diabetes" class="flag-pill warn">Not for Diabetes</span>
-            <span v-if="!item.ok_for_hypertension" class="flag-pill warn">Not for Hypertension</span>
-            <span v-if="!item.ok_for_renal" class="flag-pill warn">Not for Renal</span>
-            <span v-if="item.is_high_sodium" class="flag-pill neutral">High Sodium</span>
-            <span v-if="item.is_high_potassium" class="flag-pill neutral">High Potassium</span>
-            <span v-if="item.is_high_fiber" class="flag-pill good">High Fiber</span>
+            <span v-if="!item.ok_for_diabetes" class="flag-pill warn">Not for diabetes</span>
+            <span v-if="!item.ok_for_hypertension" class="flag-pill warn">Not for hypertension</span>
+            <span v-if="!item.ok_for_renal" class="flag-pill warn">Not for kidney disease</span>
+            <span v-if="item.is_high_sodium" class="flag-pill neutral">High sodium</span>
+            <span v-if="item.is_high_potassium" class="flag-pill neutral">High potassium</span>
+            <span v-if="item.is_high_fiber" class="flag-pill good">High fiber</span>
             <span v-if="item.is_low_gi" class="flag-pill good">Low GI</span>
           </div>
 
           <p v-if="item.notes" class="item-notes">{{ item.notes }}</p>
         </div>
       </div>
-      <p v-else class="empty-text">No foods match your search and filters.</p>
+      <div v-if="pageCount > 1" class="pager">
+        <button type="button" class="nm-btn-outline nm-btn-sm" :disabled="page === 1" @click="goPage(page - 1)">Previous</button>
+        <span class="pager-num">Page {{ page }} of {{ pageCount }}</span>
+        <button type="button" class="nm-btn-outline nm-btn-sm" :disabled="page === pageCount" @click="goPage(page + 1)">Next</button>
+      </div>
+      <p v-if="!filteredItems.length" class="empty-text">No foods match your search and filters.</p>
+      <p class="fine-print">Values are per exchange, from the FNRI Food Exchange List. "Suits" means FNRI lists it for that condition; check portions and the patient's other conditions.</p>
     </template>
 
     <div v-else class="empty-state">
@@ -120,10 +139,12 @@ const categorySelectValue = computed({
   set: (val) => { activeCategory.value = val === 'all' ? null : Number(val) },
 })
 
+// FNRI marks a food as suitable for a condition; "safe" overclaimed that
+// (portion and the patient's other conditions still matter).
 const safetyFilters = [
-  { key: 'ok_for_diabetes', label: 'Diabetes-safe' },
-  { key: 'ok_for_hypertension', label: 'Hypertension-safe' },
-  { key: 'ok_for_renal', label: 'Renal-safe' },
+  { key: 'ok_for_diabetes', label: 'Suits diabetes' },
+  { key: 'ok_for_hypertension', label: 'Suits hypertension' },
+  { key: 'ok_for_renal', label: 'Suits kidney disease' },
 ]
 const safety = reactive({ ok_for_diabetes: false, ok_for_hypertension: false, ok_for_renal: false })
 
@@ -138,6 +159,17 @@ const filteredItems = computed(() => {
     return true
   })
 })
+
+// 24 foods per page (a full 3-column grid); back to page 1 when the filters change.
+const PER_PAGE = 24
+const page = ref(1)
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / PER_PAGE)))
+const pagedItems = computed(() => filteredItems.value.slice((page.value - 1) * PER_PAGE, page.value * PER_PAGE))
+watch([search, activeCategory, () => ({ ...safety })], () => { page.value = 1 }, { deep: true })
+function goPage(n) {
+  page.value = n
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 async function loadData() {
   isLoading.value = true
@@ -165,6 +197,37 @@ const usdaLoading = ref(false)
 const usdaError = ref('')
 let usdaTimer = null
 let usdaSeq = 0
+// Before a search the USDA tab shows common foods that aren't on the FNRI
+// list (each lookup is cached on the server for 30 days).
+// [search, preferred USDA name]: plain reference foods, not dishes like
+// "almond butter" or "avocado dressing".
+const USDA_COMMON = [
+  ['oats rolled dry', 'Cereals, oats, regular and quick'], ['quinoa cooked', 'Quinoa, cooked'],
+  ['salmon atlantic raw', 'Fish, salmon, Atlantic'], ['almonds raw', 'Nuts, almonds, whole, raw'],
+  ['yogurt greek plain nonfat', 'Yogurt, Greek, plain, nonfat'], ['avocados raw', 'Avocados, raw'],
+  ['tofu raw firm', 'Tofu, raw, firm'], ['chia seeds dried', 'Seeds, chia seeds, dried'],
+  ['oil olive salad or cooking', 'Oil, olive, salad or cooking'], ['lentils cooked boiled', 'Lentils, mature seeds, cooked, boiled, without salt'],
+]
+const REFERENCE = ['Foundation', 'SR Legacy']
+const pick = (list, name) => list.find(f => f.name.startsWith(name)) || list.find(f => REFERENCE.includes(f.data_type)) || list[0]
+const usdaCommon = ref([])
+const usdaCommonLoading = ref(false)
+const usdaSearching = computed(() => search.value.trim().length >= 2)
+const usdaShown = computed(() => (usdaSearching.value ? usdaResults.value : usdaCommon.value))
+async function loadUsdaCommon() {
+  if (usdaCommon.value.length || usdaCommonLoading.value) return
+  usdaCommonLoading.value = true
+  // Five at a time: ten parallel first-time lookups made USDA time some out.
+  const found = []
+  for (let i = 0; i < USDA_COMMON.length; i += 5) {
+    found.push(...await Promise.all(USDA_COMMON.slice(i, i + 5).map(([q, name]) =>
+      get(`/usda/foods/?q=${encodeURIComponent(q)}`).then(d => pick(d.results, name)).catch(() => null))))
+  }
+  usdaCommon.value = found.filter(Boolean)
+  usdaCommonLoading.value = false
+}
+watch(source, (v) => { if (v === 'usda') loadUsdaCommon() })
+
 watch([search, source], () => {
   clearTimeout(usdaTimer)
   if (source.value !== 'usda') return
@@ -184,13 +247,15 @@ watch([search, source], () => {
     }
   }, 400)
 })
-function fmt(v) { return v == null ? '—' : Math.round(v * 10) / 10 }
+function fmt(v) { return v == null ? '—' : Math.round(Number(v) * 10) / 10 }
+// "45.00" -> "45", "12.50" -> "12.5"
+function grams(v) { return String(Number(v)) }
 function minerals(p) {
   const parts = [
     p.fiber_g != null && `Fiber ${fmt(p.fiber_g)} g`, p.sodium_mg != null && `Sodium ${fmt(p.sodium_mg)} mg`,
     p.potassium_mg != null && `Potassium ${fmt(p.potassium_mg)} mg`, p.phosphorus_mg != null && `Phosphorus ${fmt(p.phosphorus_mg)} mg`,
   ].filter(Boolean)
-  return parts.join(' · ')
+  return parts.join(', ')
 }
 </script>
 
@@ -221,9 +286,13 @@ function minerals(p) {
 .source-tab.on { background: #fff; color: #1a3a1a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
 .usda-pill { background: #eef1f8; color: #34508a; }
 .source-tab .short { display: none; }
-.macro-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: #f7f9f7; border-radius: 10px; padding: 8px 10px; }
-.macro-row span { display: block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a9a8a; }
-.macro-row strong { font-size: 0.86rem; color: #1a3a1a; }
+.macro-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: #f7f9f7; border-radius: 10px; padding: 8px 10px; margin-bottom: 12px; }
+.macro-row span { display: block; font-size: 0.72rem; color: #7a8a7a; }
+.macro-row strong { font-size: 0.88rem; color: #1a3a1a; font-variant-numeric: tabular-nums; }
+.result-count { font-size: 0.84rem; color: #5a6a5a; margin: 0 0 12px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 22px; }
+.pager-num { font-size: 0.84rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
+.fine-print { font-size: 0.76rem; color: #8a9a8a; line-height: 1.5; margin: 22px 0 0; max-width: 80ch; }
 
 .filter-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .category-select-wrap { position: relative; }
@@ -241,19 +310,18 @@ function minerals(p) {
 .item-card {
   background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 18px 20px;
   display: flex; flex-direction: column;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  /* a lighter version of the header shadow: many cards side by side */
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
+  transition: border-color 0.15s ease;
 }
-.item-card:hover {
-  border-color: #1f8f5c;
-  box-shadow: 0 4px 14px rgba(31,143,92,0.1);
-}
+.item-card:hover { border-color: #1f8f5c; }
 .item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .category-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
 .free-pill { font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: #e6efe0; color: #3a6b3a; }
 
 .item-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 2px; overflow-wrap: anywhere; }
 .item-local { font-size: 0.85rem; color: #8a9a8a; font-style: italic; margin: 0 0 8px; }
-.item-measure { font-size: 0.85rem; color: #4a5a4a; margin: 0 0 12px; }
+.item-measure { font-size: 0.85rem; color: #4a5a4a; margin: 0 0 10px; }
 
 .flag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .flag-pill { font-size: 0.68rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; }

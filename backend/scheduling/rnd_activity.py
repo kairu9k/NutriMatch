@@ -11,10 +11,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsRnd
+from billing.models import payout_destination
 
 PER_SOURCE = 150  # newest of each kind — plenty for a history page
 LIMIT = 400
-METHOD_LABELS = {"gcash": "GCash", "bank": "bank account"}
 
 
 def _when(dt):
@@ -98,7 +98,7 @@ def build_activity(rnd):
 
     for pay in Payout.objects.filter(rnd=rnd).order_by("-released_at")[:PER_SOURCE]:
         items.append({"key": f"y{pay.id}", "type": "payout", "at": pay.released_at,
-                      "title": f"Payout of ₱{pay.amount:,.2f} sent to your {METHOD_LABELS.get(pay.method, pay.method)}",
+                      "title": f"Payout of ₱{pay.amount:,.2f} sent to your {payout_destination(pay.method, pay.bank_name)}",
                       "detail": f"Reference {pay.reference}", "link": "/earnings"})
 
     items = [i for i in items if i["at"]]

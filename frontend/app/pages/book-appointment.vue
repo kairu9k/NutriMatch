@@ -1,7 +1,12 @@
 <template>
-  <BookAppointment />
+  <div></div>
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'Book Appointment' })
+// The old booking page. Clients book from an RND's profile (Find an RND) now.
+import { useAuthStore } from '~/stores/auth'
+
+definePageMeta({ layout: 'dashboard' })
+const auth = useAuthStore()
+navigateTo(auth.user?.role === 'client' ? '/find-rnd' : auth.user?.role === 'admin' ? '/admin-dashboard' : '/rnd-dashboard', { replace: true })
 </script>

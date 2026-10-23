@@ -28,7 +28,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'Can I cancel, and will I get a refund?',
-      a: 'You can cancel a pending or confirmed consultation from My Appointments. If you already paid, you get the full amount back within 5–7 business days. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet — the link works for 3 days.',
+      a: 'You can cancel a pending or confirmed consultation from My Appointments any time before it starts — once it has started it can no longer be cancelled (if it did not take place, message your RND or contact support). If you already paid, you get the full amount back within 5–7 business days. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet — the link works for 3 days.',
     },
     {
       q: 'Where do I find my meal plan and log my meals?',

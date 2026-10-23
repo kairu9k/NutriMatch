@@ -80,20 +80,28 @@ def current_rnd_relationship(client, exclude_rnd_id=None):
 
 
 def close_reopened_care_if_idle(relationship):
-    """A discharged client who books again reopens the care as *pending*. If
-    that booking is then declined or cancelled and nothing else is waiting,
-    the care goes back to discharged — so chat stays closed (2026-10-15)."""
+    """Run after a booking is cancelled, declined or expired, once nothing
+    else is waiting:
+
+    - a discharged client who booked again goes back to discharged, so chat
+      stays closed (2026-10-15);
+    - care where no consultation was ever completed goes back to *pending*
+      (2026-10-23) — the client isn't the RND's patient: they leave My
+      Patients, the chart is read-only and they can book another RND."""
     from django.utils import timezone
 
     from .models import Appointment, RndClientRelationship
 
     relationship.refresh_from_db()
-    if relationship.status != RndClientRelationship.Status.PENDING or not relationship.discharge_reason:
+    appts = relationship.appointments
+    if appts.filter(status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED]).exists():
         return
-    waiting = relationship.appointments.filter(
-        status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
-    ).exists()
-    if not waiting:
+    if relationship.status == RndClientRelationship.Status.PENDING and relationship.discharge_reason:
         relationship.status = RndClientRelationship.Status.DISCHARGED
         relationship.ended_at = timezone.now()
         relationship.save(update_fields=["status", "ended_at", "updated_at"])
+    elif (relationship.status == RndClientRelationship.Status.ACTIVE
+          and not appts.filter(status=Appointment.Status.COMPLETED).exists()):
+        relationship.status = RndClientRelationship.Status.PENDING
+        relationship.started_at = None
+        relationship.save(update_fields=["status", "started_at", "updated_at"])

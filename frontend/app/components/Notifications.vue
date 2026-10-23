@@ -5,7 +5,7 @@
         <p class="page-sub">Stay up to date on appointments, messages, and invoices.</p>
       </div>
       <button v-if="unreadCount > 0" class="mark-all-btn" type="button" :disabled="isMarkingAll" @click="markAllRead">
-        {{ isMarkingAll ? 'Marking…' : 'Mark All as Read' }}
+        {{ isMarkingAll ? 'Marking…' : 'Mark all as read' }}
       </button>
     </div>
 
@@ -26,10 +26,11 @@
           <component :is="iconFor(n.notifiable_type)" :size="18" />
         </div>
         <div class="notif-body">
-          <p class="notif-text"><strong>{{ n.subject }}</strong> — {{ n.content }}</p>
+          <p class="notif-subject">{{ n.subject }}</p>
+          <p v-if="n.content" class="notif-text">{{ n.content }}</p>
           <p v-if="n.meal_log" class="notif-log-row">
             <span class="notif-log-status" :class="`log-${n.meal_log.status}`">{{ n.meal_log.status_label }}</span>
-            <span class="notif-log-link">View log →</span>
+            <span class="notif-log-link">View log</span>
           </p>
           <span class="notif-time">{{ timeAgo(n.created_at) }}</span>
         </div>
@@ -37,9 +38,8 @@
     </div>
 
     <div v-else class="empty-state">
-      <div class="empty-icon"><Bell :size="28" /></div>
       <p class="empty-title">No notifications yet</p>
-      <p class="empty-desc">You'll see updates here about appointments, messages, and invoices.</p>
+      <p class="empty-desc">Updates about your consultations, payments and care show up here.</p>
     </div>
 
     <MealLogPopup v-if="openMealLog" :meal-log-id="openMealLog.id" :initial="openMealLog" @close="openMealLog = null" />
@@ -184,7 +184,9 @@ live.onLive('reconnect', loadNotifications)
 .log-null { background: #eceeec; color: #5a6a5a; }
 .log-not_followed { background: #fbe1de; color: #c0483a; }
 .notif-log-link { font-size: 0.76rem; font-weight: 700; color: #1f8f5c; }
-.notif-text { font-size: 0.88rem; color: #2a3a2a; margin: 0 0 4px; line-height: 1.5; }
+.notif-subject { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
+.notif-text { font-size: 0.86rem; color: #4a5a4a; margin: 0 0 4px; line-height: 1.5; }
+.surface { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .notif-time { font-size: 0.74rem; color: #9aaa9a; }
 
 .empty-state {

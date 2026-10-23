@@ -24,13 +24,15 @@
       @mouseleave="collapseSidebar"
     >
       <div class="sidebar-top">
-        <NuxtLink :to="dashboardPath" class="sidebar-brand home-link" aria-label="NutriMatch — go to dashboard" @click="goHome">
+        <NuxtLink :to="dashboardPath" class="sidebar-brand home-link" aria-label="NutriMatch, go to dashboard" @click="goHome">
           <img src="/resources/nutrimatchlogo.png" alt="" class="logo-mark" />
-          <span v-if="expanded" class="logo-text">Nutri<span class="logo-match">Match</span></span>
+          <span v-if="expanded" class="brand-words">
+            <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
+            <span class="brand-tagline">Clinical Nutrition System</span>
+            <!-- which portal you're in -->
+            <span v-if="portalLabel" class="portal-line">{{ portalLabel }}</span>
+          </span>
         </NuxtLink>
-        <span v-if="expanded" class="brand-tagline">Clinical Nutrition System</span>
-        <div v-if="expanded" class="portal-badge"><span class="portal-dot"></span>{{ portalLabel }}</div>
-        <div v-if="expanded" class="sidebar-divider"></div>
       </div>
 
       <!-- NAV + ACCOUNT FOOTER — gated on auth.hydrated: auth.user only exists
@@ -41,53 +43,55 @@
            producing a genuinely broken mixed render rather than a clean one. -->
       <template v-if="auth.hydrated">
         <nav class="sidebar-nav">
-          <template v-for="group in navGroups" :key="group.label">
-            <p v-if="expanded" class="nav-group-label">{{ group.label }}</p>
+          <div v-for="(group, gi) in navGroups" :key="gi" class="nav-group">
+            <p v-if="group.label && expanded" class="nav-group-label">{{ group.label }}</p>
             <NuxtLink
               v-for="item in group.items"
               :key="item.label"
               :to="item.to"
               class="nav-item"
-              :class="{ active: route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to + '/')) }"
+              :class="{ active: isActive(item) }"
+              :aria-current="isActive(item) ? 'page' : null"
+              :aria-label="!expanded ? item.label : null"
               :title="!expanded ? item.label : null"
               @click="isSidebarOpen = false"
             >
-              <component :is="item.icon" class="nav-icon" :size="17" />
+              <component :is="item.icon" class="nav-icon" :size="18" />
               <span v-if="expanded" class="nav-label">{{ item.label }}</span>
               <span v-if="item.badge && expanded" class="nav-badge">{{ item.badge }}</span>
               <span v-else-if="item.badge && !expanded" class="nav-badge-dot"></span>
             </NuxtLink>
-          </template>
+          </div>
         </nav>
 
         <div class="sidebar-account">
-          <button class="account-trigger" type="button" @click.stop="showAccountMenu = !showAccountMenu" :title="!expanded ? displayName : null">
+          <button class="account-trigger" type="button" :aria-expanded="showAccountMenu" aria-label="Account menu" @click.stop="showAccountMenu = !showAccountMenu" :title="!expanded ? displayName : null">
             <img v-if="auth.user?.profile_photo" :src="auth.user.profile_photo" alt="" class="account-avatar account-avatar-img" />
             <div v-else class="account-avatar">{{ userInitials }}</div>
             <div v-if="expanded" class="account-info">
-              <p class="account-name">{{ displayName }}</p>
-              <p class="account-role">{{ isRnd ? 'RND' : roleLabel }}</p>
+              <p class="account-name">{{ fullName }}</p>
+              <p class="account-role">{{ isRnd ? (auth.rndProfile?.specialization || 'RND') : roleLabel }}</p>
             </div>
             <component v-if="expanded" :is="showAccountMenu ? ChevronUp : ChevronDown" class="account-chevron" :size="15" />
           </button>
 
           <div v-if="showAccountMenu" class="account-menu" :class="{ 'account-menu-collapsed': !expanded }">
             <NuxtLink v-if="auth.user?.role !== 'admin'" to="/profile-settings" class="account-menu-item" @click="showAccountMenu = false">
-              <UserCog :size="15" /> <span v-if="expanded">Profile Settings</span>
+              <UserCog :size="15" /> <span v-if="expanded">Profile settings</span>
             </NuxtLink>
             <template v-else>
               <NuxtLink to="/admin-profile" class="account-menu-item" @click="showAccountMenu = false">
-                <UserCog :size="15" /> <span v-if="expanded">My Profile</span>
+                <UserCog :size="15" /> <span v-if="expanded">My profile</span>
               </NuxtLink>
               <NuxtLink to="/system-settings" class="account-menu-item" @click="showAccountMenu = false">
-                <Settings :size="15" /> <span v-if="expanded">System Settings</span>
+                <Settings :size="15" /> <span v-if="expanded">System settings</span>
               </NuxtLink>
             </template>
             <button v-if="welcomeRole" class="account-menu-item" type="button" @click="openWelcome">
               <Sparkles :size="15" /> <span v-if="expanded">How NutriMatch works</span>
             </button>
             <button class="account-menu-item logout" type="button" @click="handleLogout">
-              <LogOut :size="15" /> <span v-if="expanded">Sign Out</span>
+              <LogOut :size="15" /> <span v-if="expanded">Sign out</span>
             </button>
           </div>
         </div>
@@ -107,7 +111,7 @@
              and the dashboard's Needs attention list (user's call, 2026-10-12). -->
         <div v-if="auth.user?.role !== 'admin'" class="topbar-actions">
           <button class="icon-btn" type="button" :aria-label="unreadMessages.total ? `Messages, ${unreadMessages.total} unread` : 'Messages'" @click="navigateTo('/messages')">
-            <MessageSquare :size="17" />
+            <MessageSquare :size="20" />
             <!-- Same yellow dot as the bell (NotificationDropdown.vue). -->
             <span v-if="unreadMessages.total" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gold border-2 border-cream animate-pop"></span>
           </button>
@@ -171,18 +175,15 @@ function goHome() {
   if (route.path === dashboardPath.value) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 const roleLabel = computed(() => (auth.user?.role === 'client' ? 'Client' : 'Admin'))
-const portalLabel = computed(() => (isRnd.value ? 'RND Portal' : roleLabel.value + ' Portal'))
+const portalLabel = computed(() => ({ rnd: 'RND PORTAL', client: 'CLIENT PORTAL', admin: 'ADMIN PORTAL' })[auth.user?.role] || '')
+const fullName = computed(() => (auth.user ? `${auth.user.first_name} ${auth.user.last_name}`.trim() : ''))
+const isActive = item => route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to + '/'))
 
 const displayName = computed(() => {
   if (!auth.user) return ''
   const name = `${auth.user.first_name} ${auth.user.last_name}`.trim()
   return isRnd.value ? `RND ${name}` : name
 })
-
-const rndProfile = computed(() => ({
-  specialty: auth.rndProfile?.specialization || 'Specialist',
-  prc: auth.rndProfile?.prc_license_number || '—'
-}))
 
 const userInitials = computed(() =>
   displayName.value
@@ -219,6 +220,7 @@ async function loadBadgeCounts() {
   }
 }
 
+
 watch(() => auth.hydrated, (hydrated) => { if (hydrated) loadBadgeCounts() }, { immediate: true })
 
 // Unread chat on the Messages icon (chat isn't in the bell): on load, on
@@ -234,7 +236,10 @@ watch(() => [auth.hydrated, auth.user?.id, auth.user?.role], ([hydrated]) => {
   if (hydrated && hasChat()) live.start()
   else live.stop()
 }, { immediate: true })
-live.onLive('message', () => refreshUnreadMessages())
+live.onLive('message', () => { refreshUnreadMessages(); sound.play() })
+// a short chime for new notifications and messages (off switch in Profile Settings → Notifications)
+const sound = useNotificationSound()
+live.onLive('notification', () => sound.play())
 live.onLive('reconnect', () => { if (hasChat()) refreshUnreadMessages() })
 
 let unreadTimer = null
@@ -257,7 +262,7 @@ watch(() => route.path, () => { if (auth.user?.role === 'client') loadBadgeCount
 // link) instead of a dedicated page.
 const rndNavGroups = computed(() => [
   {
-    label: 'MAIN',
+    label: null,
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', to: '/rnd-dashboard' },
       { icon: Users, label: 'My Patients', to: '/my-patients' },
@@ -265,7 +270,7 @@ const rndNavGroups = computed(() => [
     ],
   },
   {
-    label: 'CLINICAL',
+    label: 'Clinical',
     items: [
       { icon: LineChart, label: 'NCP Records', to: '/ncp-records' },
       { icon: Target, label: 'Meal Plans', to: '/meal-planning' },
@@ -273,14 +278,9 @@ const rndNavGroups = computed(() => [
     ],
   },
   {
-    label: 'RESOURCES',
+    label: 'Practice',
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-upload' },
-    ],
-  },
-  {
-    label: 'MONEY',
-    items: [
       { icon: Wallet, label: 'Earnings', to: '/earnings' },
     ],
   },
@@ -291,13 +291,13 @@ const rndNavGroups = computed(() => [
 // Grouping/order ported from feature/client's sidebar design.
 const clientNavGroups = computed(() => [
   {
-    label: 'OVERVIEW',
+    label: null,
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', to: '/client-dashboard' },
     ],
   },
   {
-    label: 'HEALTH',
+    label: 'Health',
     items: [
       { icon: CalendarCheck, label: 'Appointments', to: '/appointments' },
       { icon: Target, label: 'My Meal Plan', to: '/meal-plan-view' },
@@ -306,13 +306,13 @@ const clientNavGroups = computed(() => [
     ],
   },
   {
-    label: 'CLINICAL',
+    label: 'Care team',
     items: [
       { icon: SearchIcon, label: 'Find an RND', to: '/find-rnd' },
     ],
   },
   {
-    label: 'CONNECT',
+    label: 'Library & billing',
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-library' },
       { icon: Receipt, label: 'Billing & Invoice', to: '/invoices-billing' },
@@ -339,9 +339,9 @@ async function loadAdminCounts() {
 }
 watch(() => [auth.hydrated, route.path], ([hydrated]) => { if (hydrated) loadAdminCounts() }, { immediate: true })
 const adminNavGroups = computed(() => [
-  { label: 'OVERVIEW', items: [{ icon: LayoutDashboard, label: 'Dashboard', to: '/admin-dashboard' }] },
+  { label: null, items: [{ icon: LayoutDashboard, label: 'Dashboard', to: '/admin-dashboard' }] },
   {
-    label: 'PEOPLE',
+    label: 'People',
     items: [
       { icon: ShieldCheck, label: 'RND Applications', to: '/rnd-verification', badge: adminCounts.value.pending || null },
       { icon: Users, label: 'Users', to: '/users' },
@@ -350,14 +350,14 @@ const adminNavGroups = computed(() => [
     ],
   },
   {
-    label: 'MONEY',
+    label: 'Money',
     items: [
       { icon: Receipt, label: 'Billing & Commission', to: '/billing-commission', badge: adminCounts.value.refunds || null },
       { icon: Wallet, label: 'Payouts', to: '/payouts', badge: adminCounts.value.payouts || null },
     ],
   },
   {
-    label: 'SYSTEM',
+    label: 'System',
     items: [
       { icon: ScrollText, label: 'Audit Logs', to: '/audit-logs' },
       { icon: BarChart3, label: 'Platform Reports', to: '/platform-reports' },
@@ -436,77 +436,86 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
    viewport, independent of the nav's own scroll region. */
 .sidebar {
   width: 76px; flex-shrink: 0; background: #004D3A; color: #fff;
-  padding: 14px 14px 28px; height: 100vh; position: sticky; top: 0; z-index: 40;
+  padding: 16px 14px 16px; height: 100vh; position: sticky; top: 0; z-index: 40;
   display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
   transition: width 0.2s ease, padding 0.2s ease;
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .sidebar::-webkit-scrollbar { display: none; }
-.sidebar:not(.collapsed) { width: 260px; padding: 14px 22px 28px; }
+.sidebar:not(.collapsed) { width: 260px; padding: 16px 22px 16px; }
 
-.sidebar-top { margin-bottom: 18px; flex-shrink: 0; position: relative; }
-.sidebar-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+/* a hairline separates the logo from the pages (same line as above the account) */
+.sidebar-top { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; position: relative; }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 6px; }
+.brand-words { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.brand-tagline { font-size: 0.74rem; font-weight: 500; color: #8fae9f; white-space: nowrap; margin-top: 2px; letter-spacing: 0.01em; }
+.portal-line { margin-top: 5px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: #e2c25e; white-space: nowrap; }
 .home-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; }
 .home-link:focus-visible { outline: 2px solid #D4A017; outline-offset: 3px; }
-.sidebar.collapsed .sidebar-brand { justify-content: center; margin-bottom: 16px; }
-.logo-mark { width: 40px; height: 40px; flex-shrink: 0; object-fit: contain; }
-.sidebar.collapsed .logo-mark { width: 32px; height: 32px; }
-.logo-text { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 0; }
+.logo-mark { width: 48px; height: 48px; flex-shrink: 0; object-fit: contain; }
+.sidebar.collapsed .logo-mark { width: 38px; height: 38px; }
+.logo-text { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.005em; }
 .logo-match { color: #D4A017; }
-.brand-tagline { display: block; font-size: 0.55rem; letter-spacing: 0.16em; color: #8fae9f; text-transform: uppercase; margin: 0 0 16px; font-weight: 600; white-space: nowrap; }
-.portal-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: rgba(0,0,0,0.18); color: #D4A017;
-  border: 1px solid #D4A017;
-  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em;
-  padding: 5px 15px; border-radius: 20px; text-transform: uppercase;
-  white-space: nowrap;
-}
-.portal-dot { width: 5px; height: 5px; border-radius: 50%; background: #D4A017; flex-shrink: 0; }
-.sidebar-divider { border-bottom: 1px solid rgba(255,255,255,0.15); margin-top: 22px; }
 
-/* Nav sizes to its own content and scrolls only if it overflows. */
+/* Nav sizes to its own content and scrolls only if it overflows. Groups are
+   separated by space, with a quiet label when expanded. */
 .sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; scrollbar-width: none; -ms-overflow-style: none; }
 .sidebar-nav::-webkit-scrollbar { display: none; }
-.nav-group-label { font-size: 0.65rem; letter-spacing: 0.12em; color: #5a7a5a; margin: 24px 0 10px; padding-left: 12px; white-space: nowrap; }
-.nav-group-label:first-child { margin-top: 6px; }
+/* The nav reaches the sidebar's edges (its own overflow would clip the
+   active bar otherwise), with the padding given back inside. */
+.sidebar-nav { margin: 0 -22px; padding: 0 22px; }
+.sidebar.collapsed .sidebar-nav { margin: 0 -14px; padding: 0 14px; }
+.nav-group { display: flex; flex-direction: column; gap: 6px; }
+.nav-group + .nav-group { margin-top: 32px; }
+.sidebar.collapsed .nav-group + .nav-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.nav-group-label { font-size: 0.72rem; font-weight: 500; color: #7f9f8f; margin: 0 0 4px; padding: 0 12px; white-space: nowrap; }
+
 .nav-item {
-  display: flex; align-items: center; gap: 11px; padding: 10px; border-radius: 8px;
-  color: #9fb5a3; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.15s;
-  position: relative; text-decoration: none;
-  width: 100%; background: none; border: none; text-align: left; font-family: inherit;
-  white-space: nowrap; overflow: hidden; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 8px;
+  color: #b3c7bb; font-size: 0.9rem; font-weight: 500; cursor: pointer;
+  position: relative; text-decoration: none; white-space: nowrap;
+  transition: background-color 0.12s, color 0.12s;
 }
-.sidebar.collapsed .nav-item { justify-content: center; padding: 8px 0; gap: 0; }
-.nav-item:hover { background: rgba(255,255,255,0.05); }
-.nav-item.active {
-  background: #3a5a3a; color: #fff; font-weight: 700;
-  border-left: 3px solid #D4A017; padding-left: 7px;
+.sidebar.collapsed .nav-item { justify-content: center; padding: 0; gap: 0; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item:focus-visible { outline: 2px solid #D4A017; outline-offset: -2px; }
+.nav-item.active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 600; }
+/* The one accent: a gold bar on the sidebar's own edge, same place collapsed or open. */
+.nav-item.active::before {
+  content: ''; position: absolute; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0;
+  background: #D4A017; left: -22px;
 }
-.sidebar.collapsed .nav-item.active { padding-left: 0; border-left: none; border-radius: 8px; }
+.sidebar.collapsed .nav-item.active::before { left: -14px; }
+.nav-icon { flex-shrink: 0; color: #8fae9f; transition: color 0.12s; }
+.nav-item:hover .nav-icon { color: #dbe8df; }
 .nav-item.active .nav-icon { color: #D4A017; }
-.nav-icon { flex-shrink: 0; }
-.nav-label { flex: 1; }
-.nav-badge { background: #D4A017; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; flex-shrink: 0; }
-.nav-badge-dot { position: absolute; top: 8px; right: 14px; width: 7px; height: 7px; border-radius: 50%; background: #D4A017; }
+.nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.nav-badge {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #D4A017; color: #1a3a1a; font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.nav-badge-dot { position: absolute; top: 8px; right: 14px; width: 7px; height: 7px; border-radius: 50%; background: #D4A017; box-shadow: 0 0 0 2px #004D3A; }
 
 /* ACCOUNT SECTION */
-.sidebar-account { flex-shrink: 0; position: relative; margin-top: 12px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sidebar-account { flex-shrink: 0; position: relative; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
 .account-trigger {
   display: flex; align-items: center; gap: 10px; width: 100%;
-  background: none; border: none; cursor: pointer; padding: 6px 4px; border-radius: 8px;
+  background: none; border: none; cursor: pointer; padding: 8px 6px; border-radius: 8px; font-family: inherit;
 }
-.sidebar.collapsed .account-trigger { justify-content: center; padding: 6px 0; }
-.account-trigger:hover { background: rgba(255,255,255,0.05); }
+.sidebar.collapsed .account-trigger { justify-content: center; padding: 8px 0; }
+.account-trigger:hover { background: rgba(255,255,255,0.06); }
+.account-trigger:focus-visible { outline: 2px solid #D4A017; outline-offset: -2px; }
 .account-avatar {
-  width: 36px; height: 36px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
 }
 .account-avatar-img { object-fit: cover; background: #00382a; }
-.account-info { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; }
-.account-name { font-size: 0.86rem; font-weight: 700; color: #fff; margin: 0; overflow: hidden; text-overflow: ellipsis; }
-.account-role { font-size: 0.72rem; color: #9ab89a; margin: 0; }
-.account-chevron { color: #9ab89a; flex-shrink: 0; }
+.account-info { flex: 1; min-width: 0; text-align: left; white-space: nowrap; }
+.account-name { font-size: 0.86rem; font-weight: 600; color: #fff; margin: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.account-role { font-size: 0.74rem; color: #8fae9f; margin: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.account-chevron { color: #8fae9f; flex-shrink: 0; }
 
 .account-menu {
   position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
@@ -533,10 +542,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .topbar-date { font-size: 0.8rem; color: #8a9a8a; }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 .icon-btn {
-  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e5e8e5;
-  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #4a5a4a;
-  position: relative;
+  width: 40px; height: 40px; border-radius: 8px; border: 1px solid rgba(0,77,58,0.15);
+  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #004D3A;
+  position: relative; transition: background-color 0.12s;
 }
+.icon-btn:hover { background: rgba(0,77,58,0.05); }
+.icon-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 .content { flex: 1; padding: 24px 40px 32px; }
 
@@ -573,7 +584,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   .sidebar {
     position: fixed;
     top: 0; left: 0;
-    width: 260px !important; padding: 14px 22px 28px !important;
+    width: 260px !important; padding: 16px 22px 16px !important;
     /* dvh = the visible screen (100vh also counts the area behind a phone's
        address bar, which hid the account section at the bottom). */
     height: 100vh; height: 100dvh;
@@ -586,6 +597,9 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.2); }
   /* One scroll area on phones: the whole menu scrolls, not a list inside it. */
   .sidebar-nav { flex: none; overflow: visible; }
+  /* Account stays at the bottom of the drawer, like on desktop (it still
+     scrolls with the menu when the screen is too short). */
+  .sidebar-account { margin-top: auto; }
 
   .sidebar-overlay {
     display: block;

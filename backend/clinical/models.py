@@ -150,8 +150,9 @@ class NcpRecord(models.Model):
 
 
 class ProgressRecord(models.Model):
-    """RND-authored per-date checkpoint. bmi is not RND-entered — it's
-    auto-computed server-side (see RndProgressRecordListCreateView) from
+    """Per-date checkpoint. Since 2026-10-23 the RND's come from finalized NCP
+    records (clinical.views.progress_from_ncp, the NCP's own BMI); older rows
+    were typed in directly. For those, bmi was auto-computed server-side from
     weight_kg plus height_cm off the client's most recent
     PreConsultationScreening, using clinical.services.calculate_bmi (same
     WHO Asia-Pacific formula used everywhere else). Left null if the

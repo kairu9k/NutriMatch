@@ -5,9 +5,8 @@
         <div class="nd-head">
           <div class="nd-icon" :class="tone"><component :is="icon" :size="18" /></div>
           <div class="nd-head-text">
-            <p class="nm-section-title" style="margin: 0 0 2px">{{ TYPE_LABELS[note.notifiable_type] || 'Notification' }}</p>
             <h3 class="nm-modal-title" style="margin: 0">{{ note.subject || 'Notification' }}</h3>
-            <p class="nd-time">{{ dateTime(note.created_at) }} · {{ timeAgo(note.created_at) }}</p>
+            <p class="nd-time">{{ TYPE_LABELS[note.notifiable_type] || 'Notification' }}, {{ dateTime(note.created_at) }}, {{ timeAgo(note.created_at) }}</p>
           </div>
           <button class="nd-close" aria-label="Close" @click="emit('close')"><X :size="18" /></button>
         </div>
@@ -18,11 +17,10 @@
         <p v-else-if="error" class="nm-field-error">{{ error }}</p>
  
         <template v-else-if="related">
-          <p class="nm-section-title">Details</p>
 
           <!-- the full message -->
           <div v-if="type === 'message'" class="nd-quote">
-            <p class="nd-quote-from">{{ related.sender }} · {{ dateTime(related.created_at) }}</p>
+            <p class="nd-quote-from">{{ related.sender }}, {{ dateTime(related.created_at) }}</p>
             <p class="nd-quote-text">{{ related.message }}</p>
           </div>
 
@@ -30,10 +28,10 @@
             <template v-if="type === 'appointment'">
               <div><dt>{{ withLabel }}</dt><dd>{{ related.with.name }}</dd></div>
               <div><dt>Date &amp; time</dt><dd>{{ dateTime(related.scheduled_at) }}</dd></div>
-              <div><dt>Length</dt><dd>{{ related.duration_minutes || 60 }} min · {{ MODE_LABELS[related.type] || related.type }}</dd></div>
+              <div><dt>Length</dt><dd>{{ related.duration_minutes || 60 }} min, {{ (MODE_LABELS[related.type] || related.type || '').toLowerCase() }}</dd></div>
               <div><dt>Status</dt><dd><span class="nm-pill" :class="APPT_PILLS[related.status] || 'muted'">{{ APPT_LABELS[related.status] || related.status }}</span></dd></div>
               <div v-if="related.cancellation_reason"><dt>Reason</dt><dd>{{ related.cancellation_reason }}</dd></div>
-              <div v-if="related.invoice"><dt>Payment</dt><dd>{{ peso(related.invoice.amount) }} · {{ INVOICE_LABELS[related.invoice.status] || related.invoice.status }}</dd></div>
+              <div v-if="related.invoice"><dt>Payment</dt><dd>{{ peso(related.invoice.amount) }}, {{ (INVOICE_LABELS[related.invoice.status] || related.invoice.status || '').toLowerCase() }}</dd></div>
             </template>
 
             <template v-else-if="type === 'invoice'">
@@ -41,7 +39,7 @@
               <div><dt>{{ withLabel }}</dt><dd>{{ related.with.name }}</dd></div>
               <div><dt>Amount</dt><dd><strong>{{ peso(related.amount) }}</strong></dd></div>
               <div><dt>Status</dt><dd><span class="nm-pill" :class="INVOICE_PILLS[related.status] || 'muted'">{{ INVOICE_LABELS[related.status] || related.status }}</span></dd></div>
-              <div v-if="related.paid_at"><dt>Paid</dt><dd>{{ dateTime(related.paid_at) }}<template v-if="related.payment_method"> · {{ METHOD_LABELS[related.payment_method] || related.payment_method }}</template></dd></div>
+              <div v-if="related.paid_at"><dt>Paid</dt><dd>{{ dateTime(related.paid_at) }}<template v-if="related.payment_method">, {{ METHOD_LABELS[related.payment_method] || related.payment_method }}</template></dd></div>
               <div v-if="related.appointment"><dt>Consultation</dt><dd>{{ dateTime(related.appointment.scheduled_at) }}</dd></div>
             </template>
 
@@ -83,7 +81,7 @@
 
             <template v-else-if="type === 'payout'">
               <div><dt>Amount</dt><dd><strong>{{ peso(related.amount) }}</strong></dd></div>
-              <div><dt>Sent via</dt><dd>{{ related.method === 'gcash' ? 'GCash' : 'Bank transfer' }}</dd></div>
+              <div><dt>Sent to</dt><dd>{{ payoutVia(related.method, related.bank_name) }}</dd></div>
               <div><dt>Reference</dt><dd class="mono">{{ related.reference }}</dd></div>
               <div><dt>Released</dt><dd>{{ dateTime(related.released_at) }}</dd></div>
             </template>
@@ -94,9 +92,8 @@
           The {{ (TYPE_LABELS[note.notifiable_type] || 'item').toLowerCase() }} this notification was about is no longer available.
         </p>
 
-        <div class="nm-modal-actions">
-          <button class="nm-btn-outline" @click="emit('close')">Close</button>
-          <button v-if="link" class="nm-btn-dark" @click="go">{{ link.label }} <ArrowRight :size="14" /></button>
+        <div v-if="link" class="nm-modal-actions">
+          <button class="nm-btn-dark" @click="go">{{ link.label }}</button>
         </div>
       </div>
     </div>
@@ -104,7 +101,8 @@
 </template>
 
 <script setup>
-import { AlarmClock, ArrowRight, Bell, BookOpen, CalendarCheck, FlaskConical, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake, Headset } from 'lucide-vue-next'
+import { payoutVia } from '~/utils/payout'
+import { AlarmClock, Bell, BookOpen, CalendarCheck, FlaskConical, MessageSquare, Receipt, Utensils, Wallet, X, HeartHandshake, Headset } from 'lucide-vue-next'
 
 // Full detail of one notification + a button to the page it's about.
 // `notification` is the list row (shown right away); the related record is
@@ -139,6 +137,8 @@ const role = computed(() => auth.user?.role)
 const withLabel = computed(() => (related.value?.with?.role === 'rnd' ? 'Dietitian' : 'Client'))
 
 // Where "Go to …" leads, per role.
+// which Appointments tab an RND lands on for a booking notification
+const RND_APPT_TAB = { pending: 'requests', confirmed: 'upcoming', completed: 'history', cancelled: 'history' }
 const link = computed(() => {
   const r = related.value
   const t = type.value
@@ -161,11 +161,12 @@ const link = computed(() => {
   const messages = { label: 'Open conversation', to: { path: '/messages', query: r?.relationship_id ? { relationship: r.relationship_id } : {} } }
   if (role.value === 'rnd') {
     return {
-      appointment: { label: 'Open Appointments', to: '/appointments' },
+      appointment: { label: 'Open Appointments', to: { path: '/appointments', query: { tab: RND_APPT_TAB[r.status] || 'upcoming' } } },
       invoice: { label: 'View earnings', to: '/earnings' },
       payout: { label: 'View earnings', to: '/earnings' },
       message: messages,
-      meal_plan: { label: 'Open Meal Plans', to: '/meal-planning' },
+      meal_plan: { label: 'Open meal plan', to: { path: '/meal-planning', query: r.relationship_id ? { relationship: r.relationship_id } : {} } },
+      relationship: { label: 'Open patient chart', to: `/client-detail/${r.relationship_id}` },
       lab_result: { label: 'Open lab results', to: `/client-detail/${r.relationship_id}?tab=labs` },
     }[t] || null
   }
@@ -222,9 +223,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .nd-icon.info { background: #e8f0fb; color: #2c5c9a; }
 .nd-icon.good { background: #e6f4ea; color: #2e7d32; }
 .nd-time { font-size: 0.76rem; color: #8a9a8a; margin: 4px 0 0; }
-.nd-close { background: none; border: none; color: #8a9a8a; cursor: pointer; padding: 4px; }
+.nd-close { background: none; border: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
+.nd-close:hover { background: #f2f5f2; color: #1a3a1a; }
+.nd-close:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
+.nd-content + .nd-rows, .nd-content + .nd-quote { margin-top: 14px; }
 .nd-content { font-size: 0.88rem; color: #2a3a2a; line-height: 1.55; margin: 16px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
-.nd-rows { margin: 0; border: 1px solid #eceeec; border-radius: 10px; padding: 2px 14px; }
+.nd-rows { margin: 14px 0 0; border: 1px solid #d9e3dc; border-radius: 10px; padding: 2px 14px; }
 .nd-rows > div { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; font-size: 0.84rem; }
 .nd-rows > div + div { border-top: 1px solid #f0f2f0; }
 .nd-rows dt { color: #8a9a8a; font-weight: 500; flex-shrink: 0; }

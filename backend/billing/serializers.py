@@ -226,11 +226,18 @@ class RndPayoutAccountSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         import re
 
+        from .models import MOBILE_WALLETS, payout_destination
+
         method = attrs.get("method", getattr(self.instance, "method", None))
         number = (attrs.get("account_number", getattr(self.instance, "account_number", "")) or "").replace(" ", "")
-        if method == "gcash":
+
+        if method in MOBILE_WALLETS:
             if not re.fullmatch(r"09\d{9}", number):
-                raise serializers.ValidationError({"account_number": ["Enter the 11-digit GCash number, e.g. 09171234567."]})
+                raise serializers.ValidationError({"account_number": [f"Enter the 11-digit {payout_destination(method)} number, e.g. 09171234567."]})
+            attrs["bank_name"] = None
+        elif method in ("gotyme", "maribank"):
+            if not re.fullmatch(r"\d{6,20}", number):
+                raise serializers.ValidationError({"account_number": [f"Enter the {payout_destination(method)} account number (digits only)."]})
             attrs["bank_name"] = None
         elif method == "bank":
             if not re.fullmatch(r"\d{6,20}", number):

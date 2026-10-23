@@ -5,7 +5,7 @@
       <header class="ncp-head">
         <div class="ncp-title-wrap">
           <h2 id="ncp-title" class="ncp-title">Nutrition Care Process</h2>
-          <p class="ncp-sub">{{ patientName }} · {{ subtitle }}</p>
+          <p class="ncp-sub">{{ patientName }}, <strong class="ncp-kind" :class="{ follow: isFollowUp }">{{ isFollowUp ? 'follow-up record' : 'initial record' }}</strong>, {{ subtitle }}</p>
         </div>
         <div class="ncp-head-right">
           <span v-if="!isReadOnly" class="save-state" :class="saveStateClass">{{ saveStateText }}</span>
@@ -27,8 +27,8 @@
 
         <div class="ncp-body">
           <div class="ncp-form">
-            <p v-if="isFinalized" class="banner lock"><Lock :size="15" /> Finalized {{ dateTime(record.updated_at) }} — part of the patient's permanent record.</p>
-            <p v-else-if="isReadOnly" class="banner"><Lock :size="15" /> Viewing an unfinished record (read-only).</p>
+            <p v-if="isFinalized" class="banner lock"><Lock :size="15" /> Finalized {{ dateTime(record.updated_at) }}. Part of the patient's permanent record.</p>
+            <p v-else-if="isReadOnly" class="banner"><Lock :size="15" /> Viewing an unfinished record. It's read-only here.</p>
             <p v-if="saveError" class="nm-error">{{ saveError }}</p>
 
             <button v-if="!inline" type="button" class="strip-toggle" @click="stripOpen = !stripOpen">
@@ -37,8 +37,8 @@
 
             <!-- ASSESSMENT -->
             <section v-if="stepKey === 'assessment'">
-              <p class="phase">Phase 1 · Nutrition assessment</p>
-              <p v-if="prefilled && !isReadOnly" class="hint-box"><Sparkles :size="14" /> Measurements are pre-filled from their latest records — check them with the patient and update what changed.</p>
+              <header class="step-head"><h3 class="step-title">Nutrition assessment</h3><p class="step-desc">Where the patient is today: measurements, labs and how they eat.</p></header>
+              <p v-if="prefilled && !isReadOnly" class="hint-box"><Info :size="14" /> Measurements are filled in from their latest records. Check them with the patient and update what changed.</p>
               <div class="grid g3">
                 <Field label="Height (cm)" required :hint="srcHint('height_cm')" :error="errors.height_cm">
                   <input v-model="a.height_cm" type="number" :min="L.height_cm.min" :max="L.height_cm.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
@@ -47,7 +47,7 @@
                   <input v-model="a.weight_kg" type="number" :min="L.weight_kg.min" :max="L.weight_kg.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
                 </Field>
                 <div class="computed">
-                  <span class="k">BMI · WHO Asia-Pacific</span>
+                  <span class="k">BMI, WHO Asia-Pacific</span>
                   <strong>{{ liveBmi ?? '—' }}</strong>
                   <span class="c-sub">{{ liveBmi ? bmiClass(liveBmi) : (errors.weight_kg || errors.height_cm) ? 'Check height and weight' : 'Enter height and weight' }}</span>
                 </div>
@@ -76,12 +76,12 @@
                   </p>
                 </Field>
               </div>
-              <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine… — pick from the list or type your own." />
+              <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine and more. Pick from the list or type your own." />
               <Field label="Lab notes">
                 <textarea v-model="a.lab_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
                 <p v-if="ctx.labs?.total_results && !isReadOnly" class="lab-link">
-                  <FlaskConical :size="13" /> {{ ctx.labs.total_results }} lab result{{ ctx.labs.total_results === 1 ? '' : 's' }} uploaded<template v-if="ctx.labs.new_results"> ({{ ctx.labs.new_results }} new)</template> ·
-                  <NuxtLink :to="`/client-detail/${relationshipId}?tab=labs`" target="_blank">View ↗</NuxtLink>
+                  <FlaskConical :size="13" /> {{ ctx.labs.total_results }} lab result{{ ctx.labs.total_results === 1 ? '' : 's' }} uploaded<template v-if="ctx.labs.new_results"> ({{ ctx.labs.new_results }} new)</template>.
+                  <NuxtLink :to="`/client-detail/${relationshipId}?tab=labs`" target="_blank">View them in a new tab</NuxtLink>
                 </p>
               </Field>
               <Field label="Assessment notes">
@@ -91,8 +91,8 @@
 
             <!-- DIAGNOSIS -->
             <section v-else-if="stepKey === 'diagnosis'">
-              <p class="phase">Phase 2 · Nutrition diagnosis (PES statement)</p>
-              <p v-if="carried && !isReadOnly" class="hint-box"><Sparkles :size="14" /> Carried over from the {{ shortDate(ctx.previous.encounter_date) }} record — edit what changed.</p>
+              <header class="step-head"><h3 class="step-title">Nutrition diagnosis</h3><p class="step-desc">Name the nutrition problem as a PES statement: the problem, its cause and the signs that show it.</p></header>
+              <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Edit what changed.</p>
               <Field label="Problem (P)" required group hint="Pick a standard nutrition diagnosis, or type your own.">
                 <div class="combo" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter="pickActive" @keydown.esc="pesOpen = false">
                   <input v-model="d.pes_problem" type="text" class="nm-input" :maxlength="TMAX.pes_problem" :disabled="isReadOnly" placeholder="Search, e.g. carbohydrate" aria-label="PES problem"
@@ -107,10 +107,10 @@
                   </div>
                 </div>
               </Field>
-              <Field label="Etiology — related to (E)" required>
+              <Field label="Etiology: related to (E)" required>
                 <textarea v-model="d.pes_etiology" class="nm-input" :maxlength="TMAX.pes_etiology" rows="2" placeholder="e.g. frequent large servings of white rice and sweetened drinks" :disabled="isReadOnly"></textarea>
               </Field>
-              <Field label="Signs & symptoms — as evidenced by (S)" required>
+              <Field label="Signs and symptoms: as evidenced by (S)" required>
                 <textarea v-model="d.pes_signs" class="nm-input" :maxlength="TMAX.pes_signs" rows="2" placeholder="e.g. FBS 148 mg/dL, HbA1c 7.9%, diet recall of 4 cups rice/day" :disabled="isReadOnly"></textarea>
               </Field>
               <div class="pes-preview">
@@ -121,15 +121,15 @@
 
             <!-- INTERVENTION -->
             <section v-else-if="stepKey === 'intervention'">
-              <p class="phase">Phase 3 · Nutrition intervention</p>
-              <p v-if="carried && !isReadOnly" class="hint-box"><Sparkles :size="14" /> Targets carried over from the {{ shortDate(ctx.previous.encounter_date) }} record — adjust as needed.</p>
+              <header class="step-head"><h3 class="step-title">Nutrition intervention</h3><p class="step-desc">What you prescribe: the energy and macro targets, and the diet itself.</p></header>
+              <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Targets carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Adjust them as needed.</p>
               <div v-if="ctx.screening?.tdee_kcal" class="energy">
                 <div><span class="k">BMR (Mifflin-St Jeor)</span><strong>{{ whole(ctx.screening.bmr_kcal) }} kcal</strong></div>
-                <div><span class="k">TDEE · {{ ctx.screening.activity_level }}</span><strong>{{ whole(ctx.screening.tdee_kcal) }} kcal</strong></div>
+                <div><span class="k">TDEE, {{ String(ctx.screening.activity_level).toLowerCase() }}</span><strong>{{ whole(ctx.screening.tdee_kcal) }} kcal</strong></div>
                 <p class="c-sub">BMR and TDEE from their screening of {{ shortDate(ctx.screening.date) }}.</p>
               </div>
               <div class="grid g4">
-                <Field label="Target kcal / day" required :error="errors.target_kcal">
+                <Field label="Target kcal per day" required :error="errors.target_kcal">
                   <input v-model="i.target_kcal" type="number" :min="L.target_kcal.min" :max="L.target_kcal.max" step="10" class="nm-input" :disabled="isReadOnly" />
                 </Field>
                 <Field label="Carbs (g)" :hint="macroHint('carb')" :error="errors.target_carb_g">
@@ -147,7 +147,7 @@
                 <span v-else>Add carbs, protein and fat in grams, or use a standard split.</span>
                 <button v-if="!isReadOnly && Number(i.target_kcal)" type="button" class="nm-panel-link" @click="applySplit">Suggest 50 / 20 / 30 split</button>
               </div>
-              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity… — pick from the list or type your own." />
+              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity and more. Pick from the list or type your own." />
               <Field label="Diet prescription" required>
                 <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="3" placeholder="e.g. 1500 kcal low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
               </Field>
@@ -158,15 +158,15 @@
 
             <!-- MONITORING (follow-ups) -->
             <section v-else-if="stepKey === 'monitoring'">
-              <p class="phase">Phase 4 · Monitoring &amp; evaluation</p>
+              <header class="step-head"><h3 class="step-title">Monitoring and evaluation</h3><p class="step-desc">How the patient did against the goals from their last record.</p></header>
               <div v-if="ctx.previous" class="prev-box">
                 <span class="k">Goals from the {{ shortDate(ctx.previous.encounter_date) }} record</span>
                 <p v-if="ctx.previous.pes_problem"><strong>{{ ctx.previous.pes_problem }}</strong><template v-if="ctx.previous.pes_etiology"> related to {{ ctx.previous.pes_etiology }}</template>.</p>
                 <p v-if="ctx.previous.diet_prescription">{{ ctx.previous.diet_prescription }}</p>
                 <p v-if="ctx.previous.target_kcal" class="c-sub">Target {{ whole(ctx.previous.target_kcal) }} kcal/day</p>
                 <div class="since">
-                  <div><span class="k">Weight since then</span><strong>{{ ctx.previous.weight_change_kg != null ? `${signed(ctx.previous.weight_change_kg)} kg` : '—' }}</strong></div>
-                  <div><span class="k">Meal-plan adherence · 7 days</span><strong>{{ ctx.adherence?.pct != null ? `${ctx.adherence.pct}%` : '—' }}</strong></div>
+                  <div><span class="k">Weight since then</span><strong>{{ ctx.previous.weight_change_kg != null ? `${signed(ctx.previous.weight_change_kg)} kg` : 'Not measured' }}</strong></div>
+                  <div><span class="k">7-day meal-plan adherence</span><strong>{{ ctx.adherence?.pct != null ? `${ctx.adherence.pct}%` : 'No meal plan yet' }}</strong></div>
                 </div>
               </div>
               <Field label="Were those goals met?" required group>
@@ -181,32 +181,32 @@
 
             <!-- REVIEW -->
             <section v-else-if="stepKey === 'review'">
-              <p class="phase">{{ isReadOnly ? 'Summary' : 'Review & finalize' }}</p>
+              <header class="step-head"><h3 class="step-title">{{ isReadOnly ? 'Summary' : 'Review and finalize' }}</h3><p class="step-desc">{{ isReadOnly ? 'The record as it was saved.' : 'Check the record before you finalize it. A finalized record can\'t be changed.' }}</p></header>
               <div v-if="!isReadOnly && missing.length" class="missing">
                 <p><AlertTriangle :size="15" /> Still needed before you can finalize:</p>
-                <ul><li v-for="x in missing" :key="x.label">{{ x.label }} <button type="button" class="nm-panel-link" @click="tab = x.step">Fix →</button></li></ul>
+                <ul><li v-for="x in missing" :key="x.label">{{ x.label }} <button type="button" class="nm-panel-link" @click="tab = x.step">Fix</button></li></ul>
               </div>
               <dl class="summary">
                 <div><dt>Measurements</dt><dd>{{ measureLine }}</dd></div>
                 <div v-if="assessExtraLine"><dt>Other measurements</dt><dd>{{ assessExtraLine }}</dd></div>
-                <div><dt>Diagnosis</dt><dd>{{ d.pes_problem ? pesSentence : '—' }}</dd></div>
-                <div><dt>Prescription</dt><dd>{{ i.diet_prescription || '—' }}</dd></div>
-                <div><dt>Targets</dt><dd>{{ targetLine }}</dd></div>
+                <div><dt>Diagnosis</dt><dd :class="{ empty: !d.pes_problem }">{{ d.pes_problem ? pesSentence : 'Not filled in' }}</dd></div>
+                <div><dt>Prescription</dt><dd :class="{ empty: !i.diet_prescription }">{{ i.diet_prescription || 'Not filled in' }}</dd></div>
+                <div><dt>Targets</dt><dd :class="{ empty: !filled(i.target_kcal) }">{{ targetLine }}</dd></div>
                 <div v-if="interventionExtraLine"><dt>Other targets</dt><dd>{{ interventionExtraLine }}</dd></div>
-                <div v-if="showMonitoring"><dt>Goal status</dt><dd>{{ GOALS.find(g => g.value === m.goal_status)?.label || '—' }}</dd></div>
+                <div v-if="showMonitoring"><dt>Goal status</dt><dd :class="{ empty: !m.goal_status }">{{ GOALS.find(g => g.value === m.goal_status)?.label || 'Not rated' }}</dd></div>
               </dl>
               <template v-if="isFinalized">
                 <p class="done"><CheckCircle2 :size="16" /> This record is finalized.</p>
-                <NuxtLink v-if="!inline" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm" @click="emit('close')">Create / update meal plan →</NuxtLink>
+                <NuxtLink v-if="!inline" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm" @click="emit('close')">Create or update the meal plan</NuxtLink>
               </template>
-              <p v-else-if="!isReadOnly && !missing.length" class="nm-hint">Everything required is filled in. Finalizing makes this record permanent — it can't be edited afterwards.</p>
+              <p v-else-if="!isReadOnly && !missing.length" class="nm-hint">Everything required is filled in. Finalizing makes this record permanent, so it can't be edited afterwards.</p>
             </section>
           </div>
 
           <!-- PATIENT STRIP -->
           <aside v-if="!inline || showStripInline" class="strip" :class="{ open: stripOpen }">
             <p class="strip-name">{{ ctx.patient?.name }}</p>
-            <p class="c-sub">{{ [ctx.patient?.age != null ? `${ctx.patient.age} y/o` : null, SEX[ctx.patient?.sex]].filter(Boolean).join(' · ') }}</p>
+            <p class="c-sub">{{ [ctx.patient?.age != null ? `${ctx.patient.age} y/o` : null, SEX[ctx.patient?.sex]].filter(Boolean).join(', ') }}</p>
             <p v-if="ctx.patient?.allergies.length" class="allergy"><AlertTriangle :size="13" /> Allergy: {{ ctx.patient.allergies.join(', ') }}</p>
             <dl class="strip-facts">
               <div><dt>Conditions</dt><dd>{{ list(ctx.patient?.conditions) }}</dd></div>
@@ -214,22 +214,25 @@
               <div v-if="ctx.patient?.religion"><dt>Religion</dt><dd>{{ ctx.patient.religion }}</dd></div>
               <div><dt>Goals</dt><dd>{{ list(ctx.patient?.health_goals) }}</dd></div>
             </dl>
-            <template v-if="ctx.screening">
-              <p class="strip-k">Screening · {{ shortDate(ctx.screening.date) }}</p>
-              <dl class="strip-facts">
-                <div><dt>BMI</dt><dd>{{ ctx.screening.bmi ?? '—' }} <small>{{ ctx.screening.bmi_category }}</small></dd></div>
-                <div><dt>NRS-2002</dt><dd :class="{ risk: (ctx.screening.nrs_score ?? 0) >= 3 }">{{ ctx.screening.nrs_score ?? '—' }} <small>{{ ctx.screening.nrs_risk }}</small></dd></div>
-                <div><dt>TDEE</dt><dd>{{ whole(ctx.screening.tdee_kcal) }} kcal</dd></div>
-                <div v-if="ctx.screening.symptoms"><dt>Symptoms</dt><dd>{{ ctx.screening.symptoms }}</dd></div>
+            <!-- the screening is the baseline progress is measured from, so it stands out -->
+            <section v-if="ctx.screening" class="baseline" aria-label="Screening baseline">
+              <p class="bl-title">Screening baseline</p>
+              <p class="bl-sub">{{ shortDate(ctx.screening.date) }}. The starting point progress is measured from.</p>
+              <dl class="bl-grid">
+                <div><dt>BMI</dt><dd>{{ ctx.screening.bmi ?? '—' }}</dd><small>{{ ctx.screening.bmi_category }}</small></div>
+                <div :class="{ risk: (ctx.screening.nrs_score ?? 0) >= 3 }"><dt>NRS-2002</dt><dd>{{ ctx.screening.nrs_score ?? '—' }}</dd><small>{{ ctx.screening.nrs_risk }}</small></div>
+                <div><dt>TDEE</dt><dd>{{ whole(ctx.screening.tdee_kcal) }}</dd><small>kcal/day</small></div>
+                <div><dt>BMR</dt><dd>{{ whole(ctx.screening.bmr_kcal) }}</dd><small>kcal/day</small></div>
               </dl>
-            </template>
+              <p v-if="ctx.screening.symptoms" class="bl-sym"><strong>Symptoms:</strong> {{ ctx.screening.symptoms }}</p>
+            </section>
             <template v-if="ctx.meal_plan">
               <p class="strip-k">Current meal plan</p>
-              <p class="c-sub">{{ ctx.meal_plan.name }}{{ ctx.meal_plan.target_kcal ? ` · ${whole(ctx.meal_plan.target_kcal)} kcal` : '' }}</p>
+              <p class="c-sub">{{ ctx.meal_plan.name }}{{ ctx.meal_plan.target_kcal ? `, ${whole(ctx.meal_plan.target_kcal)} kcal` : '' }}</p>
             </template>
             <template v-if="ctx.adherence">
-              <p class="strip-k">Adherence · 7 days</p>
-              <p class="c-sub">{{ ctx.adherence.pct != null ? `${ctx.adherence.pct}% · ${ctx.adherence.logged} of ${ctx.adherence.planned} meals logged` : 'Nothing due yet' }}</p>
+              <p class="strip-k">7-day adherence</p>
+              <p class="c-sub">{{ ctx.adherence.pct != null ? `${ctx.adherence.pct}%, ${ctx.adherence.logged} of ${ctx.adherence.planned} meals logged` : 'Nothing due yet' }}</p>
             </template>
           </aside>
         </div>
@@ -289,7 +292,7 @@
 // Nothing saves on its own: "Save draft" saves whatever is filled, and
 // "Finalize record" (Review step, with a confirmation) locks it. Required
 // fields mirror NcpRecord.finalize_missing() on the API.
-import { AlertTriangle, Check, CheckCircle2, FlaskConical, Info, Lock, Save, Sparkles, X } from 'lucide-vue-next'
+import { AlertTriangle, Check, CheckCircle2, FlaskConical, Info, Lock, Save, X } from 'lucide-vue-next'
 import {
   KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, bpCategory, extraRowErrors, glucoseCategory, hba1cCategory, macroKcal,
   rangeError, suggestMacros,
@@ -351,10 +354,7 @@ const stepKeys = computed(() => ['assessment', 'diagnosis', 'intervention', ...(
 const STEP_NAMES = { assessment: 'Assessment', diagnosis: 'Diagnosis', intervention: 'Intervention', monitoring: 'Monitoring', review: 'Review' }
 const steps = computed(() => stepKeys.value.map(k => (k === 'review' && isReadOnly.value ? 'Summary' : STEP_NAMES[k])))
 const stepKey = computed(() => stepKeys.value[tab.value])
-const subtitle = computed(() => {
-  const kind = isFollowUp.value ? 'Follow-up record' : 'Initial record'
-  return record.value?.created_at ? `${kind} · started ${dateTime(record.value.created_at)}` : `${kind} · new`
-})
+const subtitle = computed(() => (record.value?.created_at ? `started ${dateTime(record.value.created_at)}` : 'new'))
 const GOALS = [
   { value: 'met', label: 'Met' }, { value: 'partially_met', label: 'Partially met' },
   { value: 'not_met', label: 'Not met' }, { value: 'ongoing', label: 'Ongoing' },
@@ -516,18 +516,18 @@ const measureLine = computed(() => [
   liveBmi.value ? `BMI ${liveBmi.value} (${bmiClass(liveBmi.value)})` : null,
   filled(a.value.bp_systolic) ? `BP ${a.value.bp_systolic}/${a.value.bp_diastolic}` : null,
   filled(a.value.blood_glucose) ? `FBS ${a.value.blood_glucose} mg/dL` : null, filled(a.value.hba1c) ? `HbA1c ${a.value.hba1c}%` : null,
-].filter(Boolean).join(' · ') || '—')
+].filter(Boolean).join(', ') || 'Not filled in')
 const targetLine = computed(() => {
   const t = i.value
-  if (!filled(t.target_kcal)) return '—'
+  if (!filled(t.target_kcal)) return 'Not filled in'
   const macros = [filled(t.target_carb_g) ? `${t.target_carb_g} g carbs` : null, filled(t.target_protein_g) ? `${t.target_protein_g} g protein` : null, filled(t.target_fat_g) ? `${t.target_fat_g} g fat` : null].filter(Boolean)
-  return `${whole(t.target_kcal)} kcal/day${macros.length ? ` · ${macros.join(', ')}` : ''}`
+  return `${whole(t.target_kcal)} kcal/day${macros.length ? `: ${macros.join(', ')}` : ''}`
 })
 // "+ Add Field" rows, e.g. "Sodium 1500 mg"; half-filled rows are left out.
 const extraLine = rows => rows
   .filter(r => r.label?.trim() && filled(r.value))
   .map(r => `${r.label.trim()} ${r.value}${r.unit?.trim() ? ` ${r.unit.trim()}` : ''}`)
-  .join(' · ')
+  .join(', ')
 const assessExtraLine = computed(() => extraLine(a.value.extra))
 const interventionExtraLine = computed(() => extraLine(i.value.extra))
 
@@ -657,7 +657,7 @@ async function load() {
 onMounted(load)
 
 /* ---------- helpers ---------- */
-const list = l => (l?.length ? l.join(', ') : '—')
+const list = l => (l?.length ? l.join(', ') : 'Not recorded')
 const whole = v => (v == null || v === '' ? '—' : Math.round(Number(v)).toLocaleString('en-PH'))
 const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 function ncpError(e, fallback) {
@@ -673,13 +673,20 @@ function ncpError(e, fallback) {
 .ncp { position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 1080px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); overflow: hidden; }
 .ncp.is-inline { max-width: none; max-height: none; height: 100%; box-shadow: none; border: 1px solid #eceeec; }
 .ncp-inline { height: 100%; }
-.ncp.is-inline .steps { flex-wrap: wrap; overflow: visible; padding: 8px 14px; }
+/* In the consultation room's narrow panel the steps share one row: dot above
+   the name, equal columns (4 steps, 5 on a follow-up) — no wrapping. */
+.ncp.is-inline .steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; overflow: visible; padding: 8px 10px; }
+.ncp.is-inline .step { flex-direction: column; justify-content: center; gap: 4px; padding: 6px 2px; border-radius: 12px; font-size: 0.72rem; min-width: 0; }
+.ncp.is-inline .step-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ncp.is-inline .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ncp.is-inline .ncp-head, .ncp.is-inline .ncp-form, .ncp.is-inline .ncp-foot { padding-left: 16px; padding-right: 16px; }
 .pad { padding: 20px 24px; }
 
 .ncp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 24px 12px; border-bottom: 1px solid #f0f2f0; }
 .ncp-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin: 0; }
 .ncp-sub { font-size: 0.8rem; color: #8a9a8a; margin: 2px 0 0; }
+.ncp-kind { font-weight: 700; color: #3d4a3d; }
+.ncp-kind.follow { color: #b8860b; }
 .ncp-head-right { display: flex; align-items: center; gap: 10px; }
 .save-state { font-size: 0.74rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; }
 .save-state.dirty { color: #9a6a00; }
@@ -700,16 +707,26 @@ function ncpError(e, fallback) {
 .ncp-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; flex: 1; min-height: 0; }
 .ncp.is-inline .ncp-body { grid-template-columns: minmax(0, 1fr); }
 .ncp-form { padding: 18px 24px 24px; overflow-y: auto; min-width: 0; }
-.phase { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8860b; margin: 0 0 12px; }
+/* step heading: what the step is for (the step bar already numbers them) */
+.step-head { margin: 0 0 16px; }
+.step-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
+.step-desc { font-size: 0.84rem; color: #5a6a5a; margin: 0; line-height: 1.5; }
+.summary dd.empty { color: #9aaa9a; font-weight: 500; }
 .banner { display: flex; align-items: center; gap: 8px; background: #f4f6f4; border-radius: 8px; padding: 9px 12px; font-size: 0.82rem; color: #4a5a4a; margin: 0 0 14px; }
 .banner.lock { background: #e3f3ea; color: #1f6f46; }
 .hint-box { display: flex; gap: 8px; align-items: flex-start; background: #f3f8f4; border: 1px solid #dcebe0; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; color: #2f5f3f; margin: 0 0 14px; }
 .strip-toggle { display: none; }
 
-.grid { display: grid; gap: 12px; margin-bottom: 4px; }
+.grid { display: grid; column-gap: 12px; row-gap: 0; margin-bottom: 4px; } /* rows are spaced by each field's margin (they span 4 subgrid rows) */
 .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 :deep(.field) { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; min-width: 0; }
+/* Fields side by side share label / input / hint rows, so the inputs line up
+   even when one label wraps to two lines ("Blood pressure (mmHg)"). */
+.grid > :deep(*) { grid-row: span 4; } /* label · control · category · hint */
+.grid > :deep(.field) { display: grid; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
+.grid > :deep(.field > * + *) { margin-top: 5px; } /* spacing only where there's content, so empty rows add nothing */
+.grid > :deep(.field > .field-label) { align-self: end; }
 :deep(.field-label) { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; position: relative; }
 /* ⓘ beside a label; the bubble stays within the field's width so it never runs off the modal. */
 :deep(.info-tip) { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: #8a9a8a; cursor: help; border-radius: 50%; }
@@ -741,16 +758,16 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .lab-link a:hover { text-decoration: underline; }
 .m-cat { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 0; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
 .m-cat.ok { background: #eaf5ee; color: #1f6b43; }
-.m-cat.warn { background: #fdf3dc; color: #8a5a00; }
+.m-cat.warn { background: #fdecec; color: #a12525; }
 .m-cat.danger { background: #fdecea; color: #b42318; }
 .computed { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px; }
 .computed strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-.k { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; }
+.k { font-size: 0.76rem; font-weight: 600; color: #6a7a6a; }
 .c-sub { font-size: 0.74rem; color: #8a9a8a; margin: 0; }
 
 .combo { position: relative; }
 .combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }
-.combo-group { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 6px 8px 2px; }
+.combo-group { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; margin: 6px 8px 2px; }
 .combo-opt { display: block; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
 .combo-opt:hover, .combo-opt.on { background: #eef3ec; }
 .pes-preview, .prev-box, .energy { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; }
@@ -768,8 +785,9 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .goal.on { background: #14301a; border-color: #14301a; color: #fff; }
 
 
-.missing { background: #fdf6e3; border: 1px solid #f0dca0; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #7a5a00; }
-.missing p { display: flex; gap: 6px; align-items: center; margin: 0 0 4px; font-weight: 600; }
+/* what finalizing still needs = unfinished work: white with a dashed green border, like an NCP draft */
+.missing { background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #2a3a2a; }
+.missing p { display: flex; gap: 6px; align-items: center; margin: 0 0 4px; font-weight: 700; color: #1a3a1a; }
 .missing ul { margin: 0; padding-left: 20px; line-height: 1.8; }
 .summary { margin: 0 0 14px; }
 .summary div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-top: 1px solid #f0f2f0; }
@@ -780,9 +798,22 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 
 .strip { border-left: 1px solid #f0f2f0; background: #fbfcfb; padding: 18px 18px 24px; overflow-y: auto; }
 .strip-name { font-weight: 700; margin: 0; font-size: 0.95rem; }
-.allergy { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; font-size: 0.78rem; font-weight: 600; color: #8a5a00; background: #fdf1d6; border-radius: 8px; padding: 6px 8px; }
-.strip-k { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 16px 0 6px; }
+.allergy { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; font-size: 0.78rem; font-weight: 600; color: #a12525; background: #fdecec; border-radius: 8px; padding: 6px 8px; }
+.strip-k { font-size: 0.82rem; font-weight: 700; color: #1a3a1a; margin: 16px 0 6px; }
 .strip-facts { margin: 10px 0 0; }
+/* screening baseline card */
+.baseline { margin: 16px 0 4px; padding: 12px 14px; border-radius: 10px; background: #f1f8f3; border: 1px solid #d6e8dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.bl-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.bl-sub { font-size: 0.74rem; color: #5a7a64; margin: 2px 0 10px; }
+.bl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; margin: 0; }
+.bl-grid div { display: flex; flex-direction: column; min-width: 0; }
+.bl-grid dt { font-size: 0.72rem; font-weight: 600; color: #4a6a54; margin: 0; }
+.bl-grid dd { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; margin: 0; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; }
+.bl-grid small { font-size: 0.72rem; color: #5a7a64; }
+.bl-grid .risk dd { color: #b23b2e; }
+.bl-sym { font-size: 0.78rem; color: #3a4a3a; margin: 10px 0 0; overflow-wrap: anywhere; }
+/* information boxes in the form: the light card shadow */
+.computed, .energy, .pes-preview, .prev-box, .missing { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .strip-facts div { padding: 5px 0; }
 .strip-facts dt { font-size: 0.7rem; color: #8a9a8a; margin: 0; }
 .strip-facts dd { margin: 0; font-size: 0.82rem; font-weight: 600; overflow-wrap: anywhere; }

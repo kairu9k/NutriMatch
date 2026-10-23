@@ -19,11 +19,11 @@
         <div class="lr-req-main">
           <p class="lr-req-title">{{ r.test_names.join(', ') }}</p>
           <p class="lr-req-meta">
-            Requested {{ labDay(r.created_at) }} ·
+            Requested {{ labDay(r.created_at) }},
             {{ r.needed_before ? `needed before ${labDayTime(r.needed_before)}` : 'needed before their next consultation' }}
-            <template v-if="r.uploaded_tests.length"> · {{ r.uploaded_tests.length }} of {{ r.tests.length }} uploaded</template>
+            <template v-if="r.uploaded_tests.length">, {{ r.uploaded_tests.length }} of {{ r.tests.length }} uploaded</template>
           </p>
-          <p v-if="r.note" class="lr-req-note">“{{ r.note }}”</p>
+          <p v-if="r.note" class="lr-req-note">{{ r.note }}</p>
         </div>
         <span class="nm-pill gold">Waiting for patient</span>
         <button v-if="canEdit" type="button" class="nm-btn-outline nm-btn-sm" :disabled="cancelling === r.id" @click="cancel(r)">Cancel request</button>
@@ -39,13 +39,11 @@
         <div class="lr-res-main">
           <p class="lr-res-title">{{ r.test_names.join(', ') }}</p>
           <p class="lr-res-meta">
-            Taken {{ labDate(r.taken_on) }}<template v-if="FASTED_LABEL[r.fasted]"> · {{ FASTED_LABEL[r.fasted] }}</template>
-            <template v-if="consultGap(r)"> · {{ consultGap(r) }}</template>
-            · uploaded {{ labDay(r.uploaded_at) }}
+            Taken {{ labDate(r.taken_on) }}<template v-if="FASTED_LABEL[r.fasted]">, {{ FASTED_LABEL[r.fasted].toLowerCase() }}</template><template v-if="consultGap(r)">, {{ consultGap(r) }}</template>. Uploaded {{ labDay(r.uploaded_at) }}.
           </p>
           <p v-if="r.flags.old || r.flags.not_fasting" class="lr-flags">
-            <span v-if="r.flags.old"><AlertTriangle :size="12" /> Older than 30 days — consider repeating</span>
-            <span v-if="r.flags.not_fasting"><AlertTriangle :size="12" /> Not a fasting sample — don't compare with the fasting glucose cut-offs</span>
+            <span v-if="r.flags.old"><AlertTriangle :size="12" /> Older than 30 days. Consider repeating it.</span>
+            <span v-if="r.flags.not_fasting"><AlertTriangle :size="12" /> Not a fasting sample. Don't compare it with the fasting glucose cut-offs.</span>
           </p>
         </div>
         <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed' : 'New' }}</span>
@@ -140,11 +138,12 @@ defineExpose({ openRequestForm: () => { requestOpen.value = true } })
 .nm-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .nm-panel-head button { display: inline-flex; align-items: center; gap: 6px; }
 
-.lr-req { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #f1e2b5; background: #fdf8ea; border-radius: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+/* open request = unfinished (same as an NCP draft): white card, dashed green border */
+.lr-req { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px dashed #3f9a6b; background: #fff; border-radius: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .lr-req-main { flex: 1; min-width: 200px; }
 .lr-req-title { font-weight: 700; font-size: 0.88rem; color: #1a3a1a; margin: 0; }
-.lr-req-meta { font-size: 0.76rem; color: #7a6a3a; margin: 3px 0 0; }
-.lr-req-note { font-size: 0.78rem; color: #5a5a4a; margin: 5px 0 0; font-style: italic; overflow-wrap: anywhere; }
+.lr-req-meta { font-size: 0.78rem; color: #6a7a6a; margin: 3px 0 0; }
+.lr-req-note { font-size: 0.8rem; color: #4a5a4a; margin: 6px 0 0; padding-left: 10px; border-left: 2px solid #e3e9e4; overflow-wrap: anywhere; }
 
 .lr-res { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
 .lr-icon { width: 36px; height: 36px; border-radius: 10px; background: #eef3ee; color: #2f6b4f; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -153,7 +152,7 @@ defineExpose({ openRequestForm: () => { requestOpen.value = true } })
 .lr-res-title { font-weight: 600; font-size: 0.88rem; color: #1a3a1a; margin: 0; }
 .lr-res-meta { font-size: 0.76rem; color: #7a8a7a; margin: 2px 0 0; }
 .lr-flags { display: flex; flex-direction: column; gap: 2px; margin: 5px 0 0; }
-.lr-flags span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; color: #8a5a00; }
+.lr-flags span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 600; color: #a12525; }
 .lr-res button { display: inline-flex; align-items: center; gap: 5px; }
 @media (max-width: 600px) {
   .lr-res button, .lr-req button { flex: 1; justify-content: center; }

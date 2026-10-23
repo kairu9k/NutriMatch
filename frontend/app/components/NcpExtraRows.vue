@@ -63,7 +63,7 @@ function onUnit(row, e) {
 .field-hint { font-size: 0.72rem; color: #8a9a8a; margin: 0; }
 .add { display: inline-flex; align-items: center; gap: 3px; }
 .extra-cols, .extra-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.7fr) minmax(0, 0.7fr) 28px; gap: 6px; }
-.extra-cols span { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9aaa9a; }
+.extra-cols span { font-size: 0.74rem; font-weight: 500; color: #7a8a7a; }
 .extra-row-wrap { margin-top: 6px; }
 .nm-input.bad { border-color: #e0a3a3; background: #fffafa; }
 .row-err { font-size: 0.72rem; color: #c0392b; margin: 3px 0 0; }

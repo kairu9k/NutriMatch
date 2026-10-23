@@ -236,6 +236,16 @@
         <!-- Change password right here (POST /api/auth/me/password/): current
              password + a new one with the sign-up rules; a confirmation email
              goes out. Sign out lives in the account menu. -->
+        <template v-else-if="activeTab === 'notifications'">
+          <div class="tab-panel-header">
+            <div>
+              <h3 class="tab-panel-title">Notifications</h3>
+              <p class="tab-panel-sub">How NutriMatch gets your attention while it's open.</p>
+            </div>
+          </div>
+          <NotificationSoundToggle />
+        </template>
+
         <template v-else-if="activeTab === 'security'">
           <div class="tab-panel-header">
             <div>
@@ -338,7 +348,7 @@ import {
   Briefcase, BadgeCheck,
   CalendarClock, X, Languages, Shield, History, Printer, ClipboardList,
   CalendarCheck, FileText, UtensilsCrossed, UserRound, Star, Wallet,
-  Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2
+  Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2, Bell
 } from 'lucide-vue-next'
 import { formatPhone, rndPhoneError } from '~/utils/phone'
 
@@ -350,6 +360,7 @@ const tabs = [
   { key: 'professional', label: 'Professional Profile', icon: Briefcase },
   { key: 'availability', label: 'Availability', icon: CalendarClock },
   { key: 'languages', label: 'Languages', icon: Languages },
+  { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'security', label: 'Security', icon: Shield },
   { key: 'reviews', label: 'Reviews', icon: Star },
   { key: 'history', label: 'History', icon: History },
