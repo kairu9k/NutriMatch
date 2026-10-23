@@ -837,8 +837,9 @@ function phClock(iso) {
 .needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
 .needs-btn { flex-shrink: 0; white-space: nowrap; font-size: 0.82rem; font-weight: 600; text-decoration: none; color: #0a4a37; border: 1px solid #0a4a37; border-radius: 8px; padding: 6px 12px; background: #fff; }
 .needs-btn:hover { background: #f4f7f5; }
-.needs-btn.urgent { background: #c0392b; border-color: #c0392b; color: #fff; }
-.needs-btn.urgent:hover { background: #a12f23; }
+/* red marks the warning (row + icon); the action itself is the usual dark green */
+.needs-btn.urgent { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.needs-btn.urgent:hover { background: #00382a; }
 .needs-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 /* one opening moment, about 3 seconds: the panel drops in, then each red and
    dashed-green line glows three times (only the items, not the panel) */
