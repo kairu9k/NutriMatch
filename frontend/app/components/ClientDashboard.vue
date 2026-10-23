@@ -26,18 +26,14 @@
               <span class="nm-upnext-label">Up next</span>
               <span class="up-status" :class="upNext.state"><span class="up-dot" aria-hidden="true" />{{ upNext.pill }}</span>
             </div>
-            <p class="up-time">{{ upNext.time }}</p>
-            <p class="up-when">{{ upNext.day }}, {{ countdown }}</p>
-            <div class="up-who">
-              <img v-if="upNext.photo" :src="upNext.photo" alt="" class="nm-upnext-avatar" />
-              <span v-else class="nm-upnext-avatar">{{ upNext.initials }}</span>
-              <div class="nm-upnext-name-wrap">
-                <p class="nm-upnext-name">RND {{ upNext.name }}</p>
-                <p class="nm-upnext-format">{{ upNext.format }}</p>
+            <!-- same shape as the empty card: text left, the one button centred on the right -->
+            <div class="up-empty">
+              <div class="up-empty-text">
+                <p class="up-time">{{ upNext.time }}</p>
+                <p class="up-when">{{ whenLine }}</p>
+                <p class="up-with">With RND {{ upNext.name }}, {{ upNext.format.toLowerCase() }}</p>
               </div>
-            </div>
-            <div v-if="nextStep.action" class="nm-upnext-actions">
-              <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
+              <NuxtLink v-if="nextStep.action" :to="nextStep.to" class="nm-hero-btn primary up-empty-btn">
                 <Video v-if="/Join/.test(nextStep.action)" :size="16" aria-hidden="true" />{{ nextStep.action }}
               </NuxtLink>
             </div>
@@ -500,16 +496,18 @@ const upNext = computed(() => {
   }
 })
 
-// "in 19 hours", "in 12 min", "now": ticks every 30 s (composables/useNow.js)
+// Under the time: a countdown only on the day itself ("Today, in 5 hours",
+// "Starts in 12 min"); other days just say the day. Ticks every 30 s.
 const tick = useNow()
-const countdown = computed(() => {
-  if (!upNext.value) return ''
-  const mins = Math.round((upNext.value.startsAt - tick.value) / 60000)
-  if (mins <= 0) return 'starting now'
-  if (mins < 60) return `in ${mins} min`
+const whenLine = computed(() => {
+  const u = upNext.value
+  if (!u) return ''
+  const mins = Math.round((u.startsAt - tick.value) / 60000)
+  if (mins <= 0) return 'Starting now'
+  if (mins < 60) return `Starts in ${mins} min`
+  if (u.day !== 'Today') return u.day
   const hrs = Math.round(mins / 60)
-  if (hrs < 48) return `in ${hrs} hour${hrs === 1 ? '' : 's'}`
-  return `in ${Math.round(hrs / 24)} days`
+  return `Today, in ${hrs} hour${hrs === 1 ? '' : 's'}`
 })
 
 // The card when nothing is booked: one short headline, one line of context.
@@ -1038,6 +1036,7 @@ function phClock(iso) {
 .up-time { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; line-height: 1.05; color: #fff; margin: 12px 0 2px; font-variant-numeric: lining-nums; }
 .up-time.small { font-size: 28px; }
 .up-when { font-size: 14px; color: rgba(255, 255, 255, 0.78); margin: 0; }
+.up-with { font-size: 13px; color: rgba(255, 255, 255, 0.7); margin: 2px 0 0; overflow-wrap: anywhere; }
 .up-who { display: flex; align-items: center; gap: 12px; min-width: 0; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
 .up .nm-upnext-actions { margin-top: 14px; }
 .up-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; }
