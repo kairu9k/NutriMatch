@@ -26,13 +26,13 @@
           <input type="file" :accept="LAB_ACCEPT" class="sr-only" @change="addFiles" />
           <Plus :size="14" /> Browse files
         </label>
-        <p class="nm-hint">PDF · JPG · PNG — up to {{ LAB_MAX_MB }} MB each{{ replace ? '' : `, ${LAB_MAX_FILES} files at a time` }}.</p>
+        <p class="nm-hint">PDF, JPG or PNG, up to {{ LAB_MAX_MB }} MB each{{ replace ? '' : `, ${LAB_MAX_FILES} files at a time` }}.</p>
 
         <!-- request -->
         <template v-if="requests.length && !replace">
           <label class="nm-label" for="lu-req">Which request is this for?</label>
           <select id="lu-req" v-model="requestId" class="nm-select block">
-            <option v-for="r in requests" :key="r.id" :value="r.id">{{ r.test_names.join(', ') }} · requested {{ labDay(r.created_at) }}</option>
+            <option v-for="r in requests" :key="r.id" :value="r.id">{{ r.test_names.join(', ') }}, requested {{ labDay(r.created_at) }}</option>
             <option :value="null">Not for a request (results I already have)</option>
           </select>
         </template>
@@ -175,7 +175,7 @@ async function submit() {
 .lu-remove:hover { color: #c0392b; }
 .lu-add { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: #00382a; border: 1px dashed #9fb8a8; border-radius: 8px; padding: 8px 12px; cursor: pointer; background: #f4f8f5; }
 .lu-add:hover { background: #eaf2ec; }
-.lu-add:focus-within { outline: 2px solid #D4A017; outline-offset: 2px; }
+.lu-add:focus-within { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .nm-hint { margin: 6px 0 14px; }
 .nm-select.block { margin-bottom: 14px; }
 .lu-fieldset { border: none; padding: 0; margin: 0 0 14px; }

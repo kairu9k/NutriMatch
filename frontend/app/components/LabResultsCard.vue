@@ -18,16 +18,16 @@
       <input type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="onPick" />
       <CloudUpload :size="28" class="lab-drop-icon" />
       <span class="lab-drop-text"><span class="desk">Browse files</span><span class="phone">Choose a file or take a photo</span></span>
-      <span class="lab-drop-hint">PDF · JPG · PNG — max {{ LAB_MAX_MB }} MB</span>
+      <span class="lab-drop-hint">PDF, JPG or PNG, up to {{ LAB_MAX_MB }} MB</span>
     </label>
     <p v-if="pickError" class="nm-field-error" role="alert">{{ pickError }}</p>
-    <p v-if="done" class="lab-done" role="status"><CheckCircle2 :size="14" /> Uploaded — your RND can see it now.</p>
+    <p v-if="done" class="lab-done" role="status"><CheckCircle2 :size="14" /> Uploaded. Your RND can see it now.</p>
 
     <ul v-if="recent.length" class="lab-recent">
       <li v-for="r in recent" :key="r.id">
         <FileText :size="14" />
-        <span class="lab-recent-name">{{ r.test_names.join(', ') }} · {{ labDate(r.taken_on) }}</span>
-        <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed ✓' : 'Waiting for your RND' }}</span>
+        <span class="lab-recent-name">{{ r.test_names.join(', ') }}, {{ labDate(r.taken_on) }}</span>
+        <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed' : 'Waiting for your RND' }}</span>
       </li>
     </ul>
 
@@ -76,14 +76,14 @@ async function onUploaded() {
 </script>
 
 <style scoped>
-.panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
+.panel { background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 22px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .panel-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0; }
 .panel-link { font-size: 0.78rem; color: #1f8f5c; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .panel-link:hover { text-decoration: underline; }
 
 
-.lab-request { background: #fdf6e3; border: 1px solid #f1e2b5; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.lab-request { background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
 .lab-request-title { display: flex; align-items: flex-start; gap: 6px; font-size: 0.84rem; font-weight: 700; color: #6b4e00; margin: 0; }
 .lab-request-title svg { flex-shrink: 0; margin-top: 2px; }
 .lab-request-due { font-size: 0.78rem; color: #8a6a10; margin: 3px 0 0 21px; font-weight: 600; }
@@ -92,7 +92,7 @@ async function onUploaded() {
 
 .lab-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 20px 12px; border: 2px dashed #b7cbbd; border-radius: 12px; background: #f2f7f3; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
 .lab-drop:hover { background: #e9f2ec; border-color: #8fb19b; }
-.lab-drop:focus-within { outline: 2px solid #D4A017; outline-offset: 2px; }
+.lab-drop:focus-within { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .lab-drop-icon { color: #2f6b4f; }
 .lab-drop-text { font-size: 0.86rem; font-weight: 700; color: #00382a; }
 .lab-drop-text .phone { display: none; }
