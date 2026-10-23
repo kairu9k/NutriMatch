@@ -401,7 +401,7 @@ async function completeNow() {
 </script>
 
 <style scoped>
-.head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.head { display: flex; justify-content: flex-start; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; margin: 0 0 14px; }
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 .head .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 
