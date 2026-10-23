@@ -175,7 +175,7 @@ def _notify_admins(ticket, subject, content):
 def _notify_user(ticket, reply):
     notify(recipient=ticket.user, notifiable_type="support", notifiable_id=ticket.id,
            subject="NutriMatch Support replied",
-           content=f"Re: {ticket.subject} (SR-{ticket.id:04d}) — {reply.body[:160]}")
+           content=f"Re: {ticket.subject} (SR-{ticket.id:04d}): {reply.body[:160]}")
 
     def send():
         from accounts.emails import send_notice_email

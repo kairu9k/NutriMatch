@@ -3,7 +3,7 @@
     <div class="nm-modal-overlay" @click.self="emit('close')">
       <div class="nm-modal nd-box" role="dialog" aria-modal="true" :aria-label="note.subject || 'Notification'">
         <div class="nd-head">
-          <div class="nd-icon" :class="tone"><component :is="icon" :size="18" /></div>
+          <div class="nd-icon" :class="tone"><component :is="icon" :size="18" aria-hidden="true" /></div>
           <div class="nd-head-text">
             <h3 class="nm-modal-title" style="margin: 0">{{ note.subject || 'Notification' }}</h3>
             <p class="nd-time">{{ TYPE_LABELS[note.notifiable_type] || 'Notification' }}, {{ dateTime(note.created_at) }}, {{ timeAgo(note.created_at) }}</p>
@@ -122,17 +122,18 @@ const error = ref('')
 
 const TYPE_LABELS = { appointment: 'Appointment', invoice: 'Invoice', message: 'Message', meal_plan: 'Meal plan', meal_log: 'Meal log', payout: 'Payout', resource: 'Resource', reminder: 'Reminder', relationship: 'Care plan', support: 'Support request', lab_request: 'Lab request', lab_result: 'Lab result' }
 const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake, support: Headset, lab_request: FlaskConical, lab_result: FlaskConical }
-const TONES = { appointment: 'gold', invoice: 'warn', message: 'info', payout: 'good', reminder: 'gold', lab_request: 'gold', lab_result: 'gold' }
+// Green for everything; payments gold (a notice), like the Notifications page.
+const TONES = { invoice: 'gold' }
 const APPT_LABELS = { pending: 'Awaiting confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
-const APPT_PILLS = { pending: 'gold', confirmed: 'green', completed: 'blue', cancelled: 'muted' }
-const INVOICE_LABELS = { unpaid: 'Awaiting payment', paid: 'Paid', refund_pending: 'Refund pending', refunded: 'Refunded', cancelled: 'Voided' }
-const INVOICE_PILLS = { unpaid: 'gold', paid: 'green', refund_pending: 'red', refunded: 'blue', cancelled: 'muted' }
+const APPT_PILLS = { pending: 'gold', confirmed: 'green', completed: 'green', cancelled: 'muted' }
+const INVOICE_LABELS = { unpaid: 'Awaiting payment', paid: 'Paid', refund_pending: 'Refund in progress', refunded: 'Refunded', cancelled: 'Voided' }
+const INVOICE_PILLS = { unpaid: 'gold', paid: 'green', refund_pending: 'gold', refunded: 'muted', cancelled: 'muted' }
 const METHOD_LABELS = { card: 'Card', gcash: 'GCash', maya: 'Maya', qrph: 'QR Ph', bank_transfer: 'Bank transfer', cash: 'Cash', other: 'Other' }
 const PLAN_LABELS = { draft: 'Draft', active: 'Active', archived: 'Archived' }
 const RESOURCE_LABELS = { pdf: 'PDF', video: 'Video', article: 'Article', link: 'Link' }
 
 const icon = computed(() => ICONS[type.value] || Bell)
-const tone = computed(() => TONES[type.value] || '')
+const tone = computed(() => TONES[type.value] || 'green')
 const role = computed(() => auth.user?.role)
 const withLabel = computed(() => (related.value?.with?.role === 'rnd' ? 'Dietitian' : 'Client'))
 
@@ -219,9 +220,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .nd-head-text { flex: 1; min-width: 0; }
 .nd-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #eef3ee; color: #1a3a1a; flex-shrink: 0; }
 .nd-icon.gold { background: #fbf3dc; color: #a37a0b; }
-.nd-icon.warn { background: #fdf0e6; color: #b5651d; }
-.nd-icon.info { background: #e8f0fb; color: #2c5c9a; }
-.nd-icon.good { background: #e6f4ea; color: #2e7d32; }
+.nd-icon.green { background: #e3efe7; color: #0a4a37; }
 .nd-time { font-size: 0.76rem; color: #8a9a8a; margin: 4px 0 0; }
 .nd-close { background: none; border: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
 .nd-close:hover { background: #f2f5f2; color: #1a3a1a; }

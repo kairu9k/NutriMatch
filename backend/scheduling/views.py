@@ -286,7 +286,7 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             recipient=appointment.relationship.client,
             notifiable_type="invoice",
             notifiable_id=invoice.id,
-            subject="Appointment confirmed — payment due",
+            subject="Appointment confirmed, payment due",
             content=(
                 f"RND {appointment.relationship.rnd.full_name} confirmed your "
                 f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
@@ -342,7 +342,7 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
             subject="Your consultation summary is ready",
             content=(
                 f"{request.user.full_name} marked your consultation on {format_ph_datetime(appointment.scheduled_at)} "
-                "as complete. Open it in My Appointments → History to see your summary."
+                "as complete. Open My Appointments, then History, to see your summary."
             ),
         )
         return response

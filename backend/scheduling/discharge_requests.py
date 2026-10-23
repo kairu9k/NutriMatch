@@ -163,7 +163,7 @@ class ClientDischargeRequestView(APIView):
         notify(recipient=rel.rnd, notifiable_type="relationship", notifiable_id=rel.id,
                subject="Discharge requested",
                content=(f"{request.user.full_name} asked to end their care ({info['reason_label']}). "
-                        f"Discharge them by {_ph_date(info['ends_at'])} with a closing note — after that it ends automatically."))
+                        f"Discharge them by {_ph_date(info['ends_at'])} with a closing note. After that it ends automatically."))
         return Response({"discharge_request": info}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):

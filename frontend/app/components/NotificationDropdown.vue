@@ -110,14 +110,14 @@ onUnmounted(() => clearInterval(fallbackTimer))
     <Transition name="dropdown">
       <div
         v-if="open"
-        class="notif-panel absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-forest/10 z-50 overflow-hidden origin-top-right"
+        class="notif-panel absolute right-0 mt-2 w-96 bg-white rounded-xl border border-forest/10 z-50 overflow-hidden origin-top-right"
         :style="{ '--panel-top': `${panelTop}px` }"
       >
         <div class="flex items-center justify-between px-5 py-4 border-b border-forest/10">
           <p class="font-display text-lg text-forest whitespace-nowrap">
             Notifications <span class="text-sm font-sans bg-forest text-white rounded-full px-2 py-0.5 ml-1">{{ unreadCount }}</span>
           </p>
-          <button class="text-xs text-forest/60 hover:text-forest transition-colors whitespace-nowrap" @click="markAllRead">Mark all read</button>
+          <button v-if="unreadCount" type="button" class="nm-btn-soft nm-btn-sm" @click="markAllRead">Mark all read</button>
         </div>
 
         <div v-if="isLoading" class="px-5 py-8 text-center text-sm text-forest/40">Loading…</div>
@@ -146,7 +146,7 @@ onUnmounted(() => clearInterval(fallbackTimer))
               </p>
               <p class="text-xs text-forest/50 mt-0.5">{{ timeAgo(n.created_at) }}</p>
             </div>
-            <span v-if="!n.is_read" class="w-2 h-2 rounded-full bg-emerald-700 mt-1.5 shrink-0"></span>
+            <span v-if="!n.is_read" class="w-2 h-2 rounded-full bg-gold mt-1.5 shrink-0" aria-label="Unread"></span>
           </div>
         </TransitionGroup>
       </div>
@@ -159,7 +159,7 @@ onUnmounted(() => clearInterval(fallbackTimer))
 
 <style scoped>
 /* the app's green-tinted shadow instead of a grey one */
-.notif-panel { box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 12px 32px -8px rgba(0, 77, 58, 0.28); }
+.notif-panel { box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
 @media (max-width: 639px) {
   .notif-panel {
     position: fixed;
