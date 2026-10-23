@@ -1,6 +1,8 @@
 from django.urls import path
 
-from .labs import ClientLabFileView, ClientLabResultView, ClientLabsView, RndLabFileView, RndLabRequestCancelView, RndLabsView
+from .labs import (
+    ClientLabFileView, ClientLabResultView, ClientLabsView, RndLabFileView, RndLabRequestCancelView, RndLabResultReviewView, RndLabsView,
+)
 from .ncp_context import NcpContextView
 from .ncp_overview import NcpOverviewView
 from .views import (
@@ -41,6 +43,7 @@ urlpatterns = [
     path("rnd/relationships/<int:relationship_id>/labs/", RndLabsView.as_view(), name="rnd_labs"),
     path("rnd/lab-requests/<int:pk>/", RndLabRequestCancelView.as_view(), name="rnd_lab_request_cancel"),
     path("rnd/lab-results/<int:pk>/file/", RndLabFileView.as_view(), name="rnd_lab_file"),
+    path("rnd/lab-results/<int:pk>/review/", RndLabResultReviewView.as_view(), name="rnd_lab_review"),
     path("client/labs/", ClientLabsView.as_view(), name="client_labs"),
     path("client/lab-results/<int:pk>/", ClientLabResultView.as_view(), name="client_lab_result"),
     path("client/lab-results/<int:pk>/file/", ClientLabFileView.as_view(), name="client_lab_file"),

@@ -55,9 +55,10 @@
               Taken {{ labDate(r.taken_on) }}<template v-if="FASTED_LABEL[r.fasted]">, <span :class="{ 'not-fasting': notFastingGlucose(r) }">{{ FASTED_LABEL[r.fasted] }}</span></template>,
               {{ r.file_name }} ({{ fileSize(r.file_size) }})
             </p>
+            <p v-if="r.declined_at" class="res-warn"><AlertTriangle :size="13" aria-hidden="true" /> Your RND sent this back: {{ r.decline_reason }} Use Replace to upload it again.</p>
             <p v-if="notFastingGlucose(r)" class="res-warn"><AlertTriangle :size="13" aria-hidden="true" /> Glucose taken while not fasting reads high. Your RND may ask you to repeat it after 8 hours without food.</p>
           </div>
-          <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed' : 'Waiting for your RND' }}</span>
+          <span class="nm-pill" :class="r.reviewed_at ? 'green' : r.declined_at ? 'red' : 'gold'">{{ r.reviewed_at ? 'Accepted' : r.declined_at ? 'Upload again' : 'Waiting for your RND' }}</span>
           <div class="res-actions">
             <button type="button" class="nm-btn-soft nm-btn-sm" @click="view(r)"><Eye :size="13" aria-hidden="true" /> View</button>
             <template v-if="!r.reviewed_at">
@@ -66,7 +67,7 @@
             </template>
           </div>
         </div>
-        <p v-if="data.results.some(r => r.reviewed_at)" class="nm-hint">Results your RND has reviewed are part of your record and can't be changed.</p>
+        <p v-if="data.results.some(r => r.reviewed_at)" class="nm-hint">Results your RND accepted are part of your record and can't be changed.</p>
       </section>
     </template>
 

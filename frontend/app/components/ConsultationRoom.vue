@@ -124,7 +124,7 @@
               <div v-for="r in s.labs?.recent || []" :key="r.id" class="lab-row">
                 <span class="lab-main">
                   {{ r.test_names.join(', ') }}, taken {{ shortDate(r.taken_on) }}<template v-if="r.fasted === 'no'">, not fasting</template>
-                  <small v-if="!r.reviewed_at" class="lab-new">New</small>
+                  <small v-if="!r.reviewed_at && !r.declined_at" class="lab-new">New</small>
                 </span>
                 <button type="button" class="link small" @click="viewLab(r)">View</button>
               </div>
@@ -264,8 +264,8 @@
                       :next-consultation="labRequest.next_consultation" @close="labRequest = null" @sent="onLabsSent" />
     <ConsultationSummaryModal v-if="summaryOpen && appt" :appointment-id="appt.id" :role="isRnd ? 'rnd' : 'client'" @close="summaryOpen = false" />
       <LabFileModal
-      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName"
-      @close="viewing = null" @opened="onViewed"
+      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName" :review-path="viewing.reviewPath"
+      @close="viewing = null" @opened="onViewed" @reviewed="onReviewed"
     />
   </div>
 </template>
@@ -310,11 +310,12 @@ async function refreshSummary() {
 // Opening a lab file (in a pop-up) marks it reviewed, so refresh the "New" tags after.
 const viewing = ref(null)
 function viewLab(r) {
-  viewing.value = { path: `/rnd/lab-results/${r.id}/file/`, title: (r.test_names || []).join(', ') || 'Lab result', sub: r.taken_on ? `Taken ${labDate(r.taken_on)}` : '', fileName: r.file_name, wasNew: !r.reviewed_at }
+  const open = !r.reviewed_at && !r.declined_at
+  viewing.value = { path: `/rnd/lab-results/${r.id}/file/`, title: (r.test_names || []).join(', ') || 'Lab result', sub: r.taken_on ? `Taken ${labDate(r.taken_on)}` : '', fileName: r.file_name,
+                    reviewPath: open ? `/rnd/lab-results/${r.id}/review/` : '' }
 }
-function onViewed() {
-  if (viewing.value?.wasNew) refreshSummary()
-}
+function onViewed() {}
+function onReviewed() { refreshSummary() }
 onMounted(async () => {
   try {
     await loadAppointment()

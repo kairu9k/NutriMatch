@@ -27,7 +27,7 @@
       <li v-for="r in recent" :key="r.id">
         <FileText :size="14" />
         <span class="lab-recent-name">{{ r.test_names.join(', ') }}, {{ labDate(r.taken_on) }}</span>
-        <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed' : 'Waiting for your RND' }}</span>
+        <span class="nm-pill" :class="r.reviewed_at ? 'green' : r.declined_at ? 'red' : 'gold'">{{ r.reviewed_at ? 'Accepted' : r.declined_at ? 'Upload again' : 'Waiting for your RND' }}</span>
       </li>
     </ul>
 

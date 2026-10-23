@@ -231,7 +231,11 @@ class LabResult(models.Model):
     file_size = models.PositiveIntegerField(default=0)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    reviewed_at = models.DateTimeField(null=True, blank=True)  # first opened by the RND; then permanent
+    # The RND accepts a result (then it's permanent) or declines it with a
+    # reason, so the client uploads it again (2026-10-24, user's call).
+    reviewed_at = models.DateTimeField(null=True, blank=True)  # accepted by the RND
+    declined_at = models.DateTimeField(null=True, blank=True)
+    decline_reason = models.TextField(blank=True, default="")
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
 
     class Meta:

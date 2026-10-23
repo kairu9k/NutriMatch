@@ -26,9 +26,28 @@
           <iframe v-else :src="url" :title="title" class="lf-frame" />
         </div>
 
+        <!-- RND: decline needs a reason the patient will see -->
+        <div v-if="declining" class="lf-decline">
+          <label for="lf-reason" class="lf-label">Why are you sending it back?</label>
+          <textarea id="lf-reason" v-model="reason" data-allow-emoji rows="2" maxlength="500" class="lf-input"
+                    placeholder="e.g. The photo is too blurry to read. Please upload a clearer one." />
+          <p v-if="reviewError" class="lf-error" role="alert">{{ reviewError }}</p>
+        </div>
+        <p v-else-if="reviewError" class="lf-error lf-error-row" role="alert">{{ reviewError }}</p>
+
         <footer class="lf-foot">
-          <button type="button" class="nm-btn-soft" @click="emit('close')">Close</button>
-          <a v-if="state === 'ready'" :href="url" :download="fileName || 'lab-result'" class="nm-btn-dark"><Download :size="14" aria-hidden="true" /> Download</a>
+          <template v-if="canReview && declining">
+            <button type="button" class="nm-btn-soft" :disabled="saving" @click="declining = false">Back</button>
+            <button type="button" class="nm-btn-danger solid" :disabled="saving || reason.trim().length < 10" @click="review('decline')">{{ saving ? 'Sending…' : 'Decline and ask again' }}</button>
+          </template>
+          <template v-else>
+            <button type="button" class="nm-btn-soft" @click="emit('close')">Close</button>
+            <a v-if="state === 'ready'" :href="url" :download="fileName || 'lab-result'" class="nm-btn-soft"><Download :size="14" aria-hidden="true" /> Download</a>
+            <template v-if="canReview">
+              <button type="button" class="nm-btn-danger solid" :disabled="saving || state !== 'ready'" @click="declining = true">Decline</button>
+              <button type="button" class="nm-btn-dark" :disabled="saving || state !== 'ready'" @click="review('accept')">{{ saving ? 'Saving…' : 'Accept' }}</button>
+            </template>
+          </template>
         </footer>
       </div>
     </div>
@@ -43,10 +62,31 @@ const props = defineProps({
   title: { type: String, default: 'Lab result' },
   sub: { type: String, default: '' },
   fileName: { type: String, default: '' },
+  // RND only: POST here to accept or decline (null = view only)
+  reviewPath: { type: String, default: '' },
 })
-// `opened` once the file loaded (the RND side refreshes "reviewed" after it)
-const emit = defineEmits(['close', 'opened'])
-const { get } = useApi()
+// `opened` once the file loaded; `reviewed` with the updated result after Accept / Decline
+const emit = defineEmits(['close', 'opened', 'reviewed'])
+const { get, post } = useApi()
+
+const canReview = computed(() => Boolean(props.reviewPath))
+const declining = ref(false)
+const reason = ref('')
+const saving = ref(false)
+const reviewError = ref('')
+async function review(action) {
+  saving.value = true
+  reviewError.value = ''
+  try {
+    const res = await post(props.reviewPath, action === 'decline' ? { action, reason: reason.value.trim() } : { action })
+    emit('reviewed', res)
+    emit('close')
+  } catch (e) {
+    reviewError.value = e?.data?.reason?.[0] || e?.data?.reason || e?.data?.detail || 'Could not save. Please try again.'
+  } finally {
+    saving.value = false
+  }
+}
 
 const state = ref('loading')
 const url = ref('')
@@ -93,7 +133,13 @@ onBeforeUnmount(() => {
 .lf-spin { color: #3f9a6b; animation: lf-spin 0.9s linear infinite; }
 @keyframes lf-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lf-spin { animation: none; } }
-.lf-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid #d9e3dc; }
+.lf-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; padding: 12px 20px; border-top: 1px solid #d9e3dc; }
+.lf-decline { padding: 12px 20px 0; border-top: 1px solid #d9e3dc; }
+.lf-label { display: block; font-size: 0.84rem; font-weight: 600; margin: 0 0 6px; }
+.lf-input { width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 9px 12px; font-family: inherit; font-size: 0.86rem; color: #1a3a1a; resize: vertical; box-sizing: border-box; }
+.lf-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
+.lf-error { font-size: 0.8rem; color: #a12525; margin: 6px 0 0; }
+.lf-error-row { padding: 0 20px; }
 @media (max-width: 640px) {
   .lf-overlay { padding: 0; }
   .lf { max-width: none; height: 100%; border-radius: 0; }

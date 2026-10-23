@@ -104,14 +104,36 @@ class LabResultsTests(TestCase):
         self.assertEqual(summary["labs"]["new_results"], 2)
         self.assertEqual(self.rnd_api.get("/api/rnd/dashboard/").data["todo"]["lab_results_to_review"], 2)
 
-        # Opening the file marks it reviewed and is audit-logged; then the client can't delete it.
+        # Opening the file is audit-logged but doesn't accept it.
         resp = self.rnd_api.get(f"/api/rnd/lab-results/{first['id']}/file/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "application/pdf")
         self.assertEqual(resp["Cache-Control"], "no-store")
-        self.assertIsNotNone(LabResult.objects.get(pk=first["id"]).reviewed_at)
+        self.assertIsNone(LabResult.objects.get(pk=first["id"]).reviewed_at)
         self.assertTrue(AuditLog.objects.filter(action="lab_result.viewed", record_id=first["id"], user=self.rnd).exists())
+        # Accept: final, the client can't delete it, and it's no longer "new".
+        ok = self.rnd_api.post(f"/api/rnd/lab-results/{first['id']}/review/", {"action": "accept"}, format="json")
+        self.assertEqual(ok.status_code, 200, ok.data)
+        self.assertIsNotNone(LabResult.objects.get(pk=first["id"]).reviewed_at)
         self.assertEqual(self.client_api.delete(f"/api/client/lab-results/{first['id']}/").status_code, 403)
+        self.assertEqual(self.rnd_api.get("/api/rnd/dashboard/").data["todo"]["lab_results_to_review"], 1)
+        self.assertEqual(self.rnd_api.post(f"/api/rnd/lab-results/{first['id']}/review/", {"action": "decline", "reason": "Too late to decline this"}, format="json").status_code, 400)
+
+    def test_decline_sends_it_back(self):
+        req_id = self.request_labs(tests=["fbs"]).data["id"]
+        res_id = self.upload(request_id=req_id).data["results"][0]["id"]
+        self.assertEqual(LabRequest.objects.get(pk=req_id).status, "completed")
+        url = f"/api/rnd/lab-results/{res_id}/review/"
+        self.assertEqual(self.rnd_api.post(url, {"action": "decline", "reason": "blurry"}, format="json").status_code, 400)  # reason too short
+        resp = self.rnd_api.post(url, {"action": "decline", "reason": "The photo is too blurry to read."}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["decline_reason"], "The photo is too blurry to read.")
+        self.assertEqual(LabRequest.objects.get(pk=req_id).status, "open")  # the test counts as missing again
+        self.assertTrue(NotificationLog.objects.filter(recipient=self.c, notifiable_type="lab_result").exists())
+        self.assertTrue(AuditLog.objects.filter(action="lab_result.declined", record_id=res_id).exists())
+        self.assertEqual(self.rnd_api.get("/api/rnd/dashboard/").data["todo"]["lab_results_to_review"], 0)
+        # the client can still remove the declined one
+        self.assertEqual(self.client_api.delete(f"/api/client/lab-results/{res_id}/").status_code, 204)
 
     def test_delete_before_review_reopens_request(self):
         req_id = self.request_labs(tests=["fbs"]).data["id"]

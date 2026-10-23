@@ -71,7 +71,7 @@ def build_patient_rows(rnd, now=None, rel_id=None, care=None):
     from clinical.models import LabResult
 
     new_labs = {}
-    for rid in LabResult.objects.filter(relationship__in=rels, reviewed_at__isnull=True).values_list("relationship_id", flat=True):
+    for rid in LabResult.objects.filter(relationship__in=rels, reviewed_at__isnull=True, declined_at__isnull=True).values_list("relationship_id", flat=True):
         new_labs[rid] = new_labs.get(rid, 0) + 1
 
     rows = []

@@ -213,6 +213,8 @@ def result_payload(res, now=None):
         "file_size": res.file_size,
         "uploaded_at": res.uploaded_at,
         "reviewed_at": res.reviewed_at,
+        "declined_at": res.declined_at,
+        "decline_reason": res.decline_reason,
         "consultation_at": appt.scheduled_at if appt else None,
         "days_before_consultation": days_before,
         "flags": {
@@ -224,11 +226,11 @@ def result_payload(res, now=None):
 
 def refresh_request_status(req):
     """A request is completed once every requested test has an upload (and
-    reopens if an unreviewed upload is deleted)."""
+    reopens if an unreviewed upload is deleted or the RND declines one)."""
     if req.status == LabRequest.Status.CANCELLED:
         return
     covered = set()
-    for r in req.results.all():
+    for r in req.results.filter(declined_at__isnull=True):
         covered.update(r.tests)
     done = set(req.tests) <= covered
     if done and req.status == LabRequest.Status.OPEN:
@@ -375,18 +377,55 @@ class RndLabRequestCancelView(APIView):
 
 
 class RndLabFileView(APIView):
-    """Streams the file to the treating RND, marks it reviewed the first time
-    and records every view (RA 10173). Discharged patients stay viewable."""
+    """Streams the file to the treating RND and records every view (RA 10173).
+    Opening it doesn't accept it: the RND presses Accept or Decline
+    (RndLabResultReviewView). Discharged patients stay viewable."""
 
     permission_classes = [IsRnd]
 
     def get(self, request, pk):
         res = get_object_or_404(LabResult.objects.select_related("relationship"), pk=pk, relationship__rnd=request.user)
-        if res.reviewed_at is None:
-            res.reviewed_at, res.reviewed_by = timezone.now(), request.user
-            res.save(update_fields=["reviewed_at", "reviewed_by"])
         audit(request, "lab_result.viewed", res)
         return file_response(res)
+
+
+class RndLabResultReviewView(APIView):
+    """POST {action: accept} marks the result reviewed (final for the client);
+    {action: decline, reason ≥ 10} sends it back so the client uploads it
+    again (the client is notified and the request reopens). An accepted
+    result can't be declined later."""
+
+    permission_classes = [IsRnd]
+
+    def post(self, request, pk):
+        from communication.services import notify
+
+        res = get_object_or_404(LabResult.objects.select_related("relationship__client", "request"), pk=pk, relationship__rnd=request.user)
+        if res.reviewed_at:
+            raise ValidationError({"detail": "You already accepted this result."})
+        action = (request.data.get("action") or "").strip()
+        names = ", ".join(test_names(res.tests, res.other_tests))
+        if action == "accept":
+            res.reviewed_at, res.reviewed_by = timezone.now(), request.user
+            res.declined_at, res.decline_reason = None, ""
+            res.save(update_fields=["reviewed_at", "reviewed_by", "declined_at", "decline_reason"])
+            audit(request, "lab_result.accepted", res)
+            notify(res.relationship.client, "lab_result", res.id, "Lab result accepted",
+                   f"RND {request.user.full_name} accepted your lab result: {names}.")
+        elif action == "decline":
+            reason = (request.data.get("reason") or "").strip()
+            if len(reason) < 10:
+                raise ValidationError({"reason": "Tell the patient why, in at least 10 characters."})
+            res.declined_at, res.decline_reason = timezone.now(), reason[:500]
+            res.save(update_fields=["declined_at", "decline_reason"])
+            audit(request, "lab_result.declined", res, {"reason": reason[:500]})
+            if res.request:
+                refresh_request_status(res.request)
+            notify(res.relationship.client, "lab_result", res.id, "Please upload your lab result again",
+                   f"RND {request.user.full_name} couldn't use your lab result ({names}): {reason[:500]}")
+        else:
+            raise ValidationError({"action": "Use accept or decline."})
+        return Response(result_payload(res))
 
 
 # --------------------------------------------------------------- client views
@@ -501,6 +540,6 @@ def rnd_lab_counts(relationship):
     """For the chart / room / dashboards: open requests and unreviewed uploads."""
     return {
         "open_requests": relationship.lab_requests.filter(status=LabRequest.Status.OPEN).count(),
-        "new_results": relationship.lab_results.filter(reviewed_at__isnull=True).count(),
+        "new_results": relationship.lab_results.filter(reviewed_at__isnull=True, declined_at__isnull=True).count(),
         "total_results": relationship.lab_results.count(),
     }

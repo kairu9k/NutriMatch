@@ -97,7 +97,7 @@ def build_dashboard(rnd, now=None):
     # Lab results uploaded but not opened yet (any patient, even discharged).
     from clinical.models import LabResult
 
-    labs_to_review = list(LabResult.objects.filter(relationship__rnd=rnd, reviewed_at__isnull=True)
+    labs_to_review = list(LabResult.objects.filter(relationship__rnd=rnd, reviewed_at__isnull=True, declined_at__isnull=True)
                           .values_list("relationship_id", flat=True))
     alerts =[a for rel in rels for a in care.alerts(rel)]
     order = {"critical": 0, "warning": 1, "info": 2}

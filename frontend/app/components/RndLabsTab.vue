@@ -34,7 +34,7 @@
       </p>
 
       <!-- results -->
-      <div v-for="r in data.results" :key="r.id" class="lr-res" :class="{ new: !r.reviewed_at }">
+      <div v-for="r in data.results" :key="r.id" class="lr-res" :class="{ new: !r.reviewed_at && !r.declined_at }">
         <span class="lr-icon"><FileText :size="17" /></span>
         <div class="lr-res-main">
           <p class="lr-res-title">{{ r.test_names.join(', ') }}</p>
@@ -45,9 +45,10 @@
             <span v-if="r.flags.old"><AlertTriangle :size="12" /> Older than 30 days. Consider repeating it.</span>
             <span v-if="r.flags.not_fasting"><AlertTriangle :size="12" /> Not a fasting sample. Don't compare it with the fasting glucose cut-offs.</span>
           </p>
+          <p v-if="r.declined_at" class="lr-declined">You declined it: {{ r.decline_reason }}</p>
         </div>
-        <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed' : 'New' }}</span>
-        <button type="button" class="nm-btn-soft nm-btn-sm" @click="view(r)"><Eye :size="13" /> View</button>
+        <span class="nm-pill" :class="r.reviewed_at ? 'green' : r.declined_at ? 'red' : 'gold'">{{ r.reviewed_at ? 'Accepted' : r.declined_at ? 'Declined' : 'To review' }}</span>
+        <button type="button" class="nm-btn-soft nm-btn-sm" @click="view(r)"><Eye :size="13" aria-hidden="true" /> {{ !r.reviewed_at && !r.declined_at ? 'Open to review' : 'View' }}</button>
       </div>
     </template>
 
@@ -57,8 +58,8 @@
     />
     <div v-if="toast" class="nm-toast" role="status">{{ toast }}</div>
       <LabFileModal
-      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName"
-      @close="viewing = null" @opened="onViewed"
+      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName" :review-path="viewing.reviewPath"
+      @close="viewing = null" @opened="onViewed" @reviewed="onReviewed"
     />
   </div>
 </template>
@@ -129,10 +130,13 @@ async function cancel(r) {
 // opens in a pop-up on the page; opening marks it reviewed, so refresh after
 const viewing = ref(null)
 function view(r) {
-  viewing.value = { path: `/rnd/lab-results/${r.id}/file/`, title: r.test_names.join(', '), sub: `Taken ${labDate(r.taken_on)}, ${r.file_name}`, fileName: r.file_name, wasNew: !r.reviewed_at }
+  const open = !r.reviewed_at && !r.declined_at
+  viewing.value = { path: `/rnd/lab-results/${r.id}/file/`, title: r.test_names.join(', '), sub: `Taken ${labDate(r.taken_on)}, ${r.file_name}`, fileName: r.file_name,
+                    reviewPath: open ? `/rnd/lab-results/${r.id}/review/` : '' }
 }
-async function onViewed() {
-  if (!viewing.value?.wasNew) return
+function onViewed() {}
+async function onReviewed(res) {
+  flash(res.reviewed_at ? 'Accepted. It\'s now part of the record.' : 'Declined. The patient was asked to upload it again.')
   await load()
   emit('changed')
 }
@@ -163,4 +167,5 @@ defineExpose({ openRequestForm: () => { requestOpen.value = true } })
 @media (max-width: 600px) {
   .lr-res button, .lr-req button { flex: 1; justify-content: center; }
 }
+.lr-declined { font-size: 0.8rem; color: #8a1f14; margin: 4px 0 0; overflow-wrap: anywhere; }
 </style>
