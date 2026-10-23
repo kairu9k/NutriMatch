@@ -87,7 +87,7 @@
               <p class="share-title">Shared with</p>
               <button v-if="shareRows.length > 1" class="nm-panel-link" @click="toggleAllClients">{{ allSelected ? 'Clear all' : 'Select all' }}</button>
             </div>
-            <p v-if="!selected.is_active" class="nm-note" style="margin: 0 0 10px">It's hidden, so clients can't see it even if it's shared. Show it again to give them access.</p>
+            <p v-if="!selected.is_active" class="nm-note plain-note" style="margin: 0 0 10px">It's hidden, so clients can't see it even if it's shared. Show it again to give them access.</p>
             <p v-if="shareLoading" class="nm-muted">Loading your clients…</p>
             <p v-else-if="shareError" class="nm-error">{{ shareError }}</p>
             <p v-else-if="!shareRows.length" class="nm-muted">You don't have any active clients yet — once an appointment is confirmed you can share resources with them.</p>

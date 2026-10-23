@@ -4,9 +4,9 @@
       <div class="cs" role="dialog" aria-modal="true" aria-labelledby="cs-title">
         <header class="cs-head">
           <div>
-            <p class="kind">Consultation summary</p>
-            <h2 id="cs-title" class="cs-title">{{ s ? longWhen(s.appointment.scheduled_at) : 'Loading…' }}</h2>
-            <p v-if="s" class="sub">{{ s.appointment.type_label }} · {{ s.appointment.duration_minutes }} min · {{ role === 'client' ? `with ${s.rnd.name}, RND` : s.client.name }}</p>
+            <h2 id="cs-title" class="cs-title">Consultation summary</h2>
+            <p v-if="s" class="sub">{{ longWhen(s.appointment.scheduled_at) }}, {{ s.appointment.type_label.toLowerCase() }}, {{ s.appointment.duration_minutes }} min, {{ role === 'client' ? `with ${s.rnd.name}, RND` : s.client.name }}</p>
+            <p v-else class="sub">Loading…</p>
           </div>
           <button type="button" class="icon-x" aria-label="Close" @click="emit('close')"><X :size="18" /></button>
         </header>
@@ -15,9 +15,9 @@
           <p v-if="error" class="nm-error">{{ error }}</p>
           <p v-else-if="!s" class="nm-muted">Loading summary…</p>
           <template v-else>
-            <p v-if="s.ncp_pending" class="note"><Clock :size="14" /> {{ s.rnd.name.split(' ')[0] }} is still finishing your care plan from this visit — it will show here once it's finalized.</p>
-            <p v-else-if="role === 'rnd' && s.care_plan?.status === 'draft'" class="note"><AlertTriangle :size="14" /> This visit's NCP record is still a draft — the client won't see the diagnosis or plan until you finalize it.</p>
-            <p v-else-if="role === 'rnd' && s.no_ncp" class="note"><AlertTriangle :size="14" /> No NCP record is linked to this visit, so only the measurements show.</p>
+            <p v-if="s.ncp_pending" class="note"><Clock :size="14" aria-hidden="true" /> {{ s.rnd.name.split(' ')[0] }} is still finishing your care plan from this visit. It shows here once it's finalized.</p>
+            <p v-else-if="role === 'rnd' && s.care_plan?.status === 'draft'" class="note"><PenLine :size="14" aria-hidden="true" /> This visit's NCP record is still a draft. The client won't see the diagnosis or plan until you finalize it.</p>
+            <p v-else-if="role === 'rnd' && s.no_ncp" class="note"><PenLine :size="14" aria-hidden="true" /> No NCP record is linked to this visit yet, so only the measurements show.</p>
 
             <section>
               <h3>Measurements</h3>
@@ -67,13 +67,13 @@
             <section>
               <h3>Next steps</h3>
               <ul class="list">
-                <li v-if="s.meal_plan">Meal plan: <strong>{{ s.meal_plan.name }}</strong>{{ s.meal_plan.target_kcal ? ` (${whole(s.meal_plan.target_kcal)} kcal a day)` : '' }}{{ role === 'client' ? ' — log your meals in My Meal Plan.' : '' }}</li>
+                <li v-if="s.meal_plan">Meal plan: <strong>{{ s.meal_plan.name }}</strong>{{ s.meal_plan.target_kcal ? ` (${whole(s.meal_plan.target_kcal)} kcal a day)` : '' }}{{ role === 'client' ? '. Log your meals in My Meal Plan.' : '' }}</li>
                 <li v-if="s.next_appointment">Next consultation: <strong>{{ longWhen(s.next_appointment.scheduled_at) }}</strong> ({{ s.next_appointment.type_label }}{{ s.next_appointment.status === 'pending' ? ', waiting for confirmation' : '' }})</li>
-                <li v-else>{{ role === 'client' ? 'No follow-up booked yet — book one from Find an RND or My Appointments.' : 'No follow-up booked yet.' }}</li>
+                <li v-else>{{ role === 'client' ? 'No follow-up booked yet. Book one from Find an RND or My Appointments.' : 'No follow-up booked yet.' }}</li>
               </ul>
             </section>
 
-            <p class="sig">{{ s.rnd.name }}, RND{{ s.rnd.prc_license_number ? ` · PRC No. ${s.rnd.prc_license_number}` : '' }}</p>
+            <p class="sig">{{ s.rnd.name }}, RND{{ s.rnd.prc_license_number ? `, PRC No. ${s.rnd.prc_license_number}` : '' }}</p>
           </template>
         </div>
 
@@ -91,7 +91,7 @@
 // The summary of one completed consultation — the client's version (finalized
 // NCP content only, no RND-only notes) or the RND's (drafts flagged, clinical
 // notes included). Built live by scheduling/consultation_summary.py.
-import { AlertTriangle, Clock, Lock, Printer, X } from 'lucide-vue-next'
+import { Clock, Lock, PenLine, Printer, X } from 'lucide-vue-next'
 
 const props = defineProps({
   appointmentId: { type: [String, Number], required: true },
@@ -123,7 +123,7 @@ function print() {
   const rows = []
   if (m) {
     if (m.weight_kg != null) rows.push(['Weight', `${fmt(m.weight_kg)} kg${x.weight_change ? ` (${signed(x.weight_change.kg)} kg since ${shortDate(x.weight_change.since)})` : ''}`])
-    if (m.bmi != null) rows.push(['BMI', `${fmt(m.bmi)} · ${m.bmi_class}`])
+    if (m.bmi != null) rows.push(['BMI', `${fmt(m.bmi)}, ${m.bmi_class}`])
     if (m.blood_pressure) rows.push(['Blood pressure', `${m.blood_pressure} mmHg`])
     if (m.blood_glucose != null) rows.push(['Fasting glucose', `${Math.round(m.blood_glucose)} mg/dL`])
     if (m.hba1c != null) rows.push(['HbA1c', `${fmt(m.hba1c)}%`])
@@ -155,35 +155,41 @@ function print() {
       ['Consultation', `${x.appointment.type_label}, ${x.appointment.duration_minutes} minutes`],
     ],
     sections,
-    foot: 'Confidential health information — handle according to the Data Privacy Act of 2012 (RA 10173). Generated by NutriMatch.',
+    foot: 'Confidential health information. Handle according to the Data Privacy Act of 2012 (RA 10173). Generated by NutriMatch.',
   })
-  printError.value = ok ? '' : 'Your browser blocked the print window — allow pop-ups for this site and try again.'
+  printError.value = ok ? '' : 'Your browser blocked the print window. Allow pop-ups for this site and try again.'
 }
 </script>
 
 <style scoped>
-.cs { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); overflow: hidden; }
-.cs-head { display: flex; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; border-bottom: 1px solid #f0f2f0; }
-.kind { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b8860b; margin: 0 0 2px; }
-.cs-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; margin: 0; }
-.sub { font-size: 0.8rem; color: #8a9a8a; margin: 2px 0 0; }
-.icon-x { border: none; background: none; color: #6a7a6a; cursor: pointer; padding: 2px; border-radius: 6px; display: flex; align-self: flex-start; }
+.cs { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 16px 40px -12px rgba(0, 77, 58, 0.35); overflow: hidden; }
+.cs-head { display: flex; justify-content: space-between; gap: 12px; padding: 20px 22px 14px; border-bottom: 1px solid #d9e3dc; }
+.cs-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; margin: 0; }
+.sub { font-size: 0.82rem; color: #6a7a6a; margin: 4px 0 0; }
+.icon-x { border: none; background: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; align-self: flex-start; flex-shrink: 0; }
+.icon-x:hover { background: #f2f5f2; color: #1a3a1a; }
+.icon-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .cs-body { padding: 14px 22px 18px; overflow-y: auto; }
-.note { display: flex; gap: 6px; align-items: flex-start; background: #fdf6e3; color: #7a5a00; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; margin: 0 0 10px; }
-section { padding: 12px 0; border-top: 1px solid #f0f2f0; }
+.note { display: flex; gap: 8px; align-items: flex-start; background: #fff; border: 1.5px dashed #3f9a6b; color: #1f4a30; border-radius: 10px; padding: 9px 12px; font-size: 0.82rem; line-height: 1.45; margin: 0 0 12px; }
+.note svg { flex-shrink: 0; margin-top: 2px; color: #3f9a6b; }
+section { padding: 14px 0; border-top: 1px solid #d9e3dc; }
 section:first-of-type { border-top: none; }
-h3 { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6a7a6a; margin: 0 0 8px; }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.stats div { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; min-width: 0; }
-.stats span { font-size: 0.68rem; color: #8a9a8a; }
-.stats strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+h3 { display: flex; align-items: center; gap: 6px; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
+/* figures: one divided panel, like the rest of the app */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.stats div { padding: 10px 12px; display: flex; flex-direction: column; min-width: 0; border-left: 1px solid #d9e3dc; }
+.stats div:nth-child(3n+1) { border-left: none; }
+.stats div:nth-child(n+4) { border-top: 1px solid #d9e3dc; }
+.stats span { font-size: 0.74rem; font-weight: 600; color: #4a5a4a; }
+.stats strong { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-variant-numeric: tabular-nums lining-nums; }
 .stats small { font-size: 0.7rem; color: #8a9a8a; }
 .src { font-size: 0.72rem; color: #9aaa9a; margin: 6px 0 0; }
 .txt { font-size: 0.86rem; line-height: 1.55; margin: 0 0 8px; overflow-wrap: anywhere; }
-.k { display: block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin-bottom: 2px; }
+.k { display: block; font-size: 0.78rem; font-weight: 600; color: #4a5a4a; margin-bottom: 2px; }
 .advice { background: #f3f8f4; border-radius: 8px; padding: 8px 10px; }
-.targets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 8px; }
-.targets div { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; }
+.targets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 4px 0 8px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.targets div { padding: 8px 10px; display: flex; flex-direction: column; border-left: 1px solid #d9e3dc; min-width: 0; }
+.targets div:first-child { border-left: none; }
 .targets strong { font-variant-numeric: tabular-nums; }
 .targets span { font-size: 0.7rem; color: #8a9a8a; }
 .list { margin: 0; padding-left: 18px; font-size: 0.84rem; line-height: 1.8; }
@@ -195,5 +201,8 @@ h3 { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; font-weigh
 @media (max-width: 560px) {
   .cs { max-height: 100vh; height: 100%; border-radius: 0; }
   .stats, .targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats div, .targets div { border-left: 1px solid #d9e3dc; border-top: none; }
+  .stats div:nth-child(odd), .targets div:nth-child(odd) { border-left: none; }
+  .stats div:nth-child(n+3), .targets div:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
 }
 </style>

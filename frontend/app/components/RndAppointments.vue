@@ -9,7 +9,7 @@
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading appointments…</p></div>
 
     <template v-else-if="board">
-      <div v-if="patientFilter" class="nm-note filter-note">
+      <div v-if="patientFilter" class="nm-note plain-note filter-note">
         Showing only <strong>{{ patientFilterName }}</strong>.
         <NuxtLink to="/appointments" class="nm-panel-link">Show everyone</NuxtLink>
       </div>
@@ -167,7 +167,7 @@
             </dl>
             <p class="nm-hint">Confirming sends {{ review.appt.client.first_name }} an invoice for your fee. If it's still unpaid at the start time, the booking is cancelled and the slot opens again.</p>
           </template>
-          <p v-else class="nm-note">They haven't submitted a pre-consultation screening yet, so this booking can't be confirmed.</p>
+          <p v-else class="nm-note todo-note">They haven't submitted a pre-consultation screening yet, so this booking can't be confirmed.</p>
           <p v-if="review.actionError" class="nm-field-error">{{ review.actionError }}</p>
           <div class="nm-modal-actions">
             <button type="button" class="nm-btn-outline" @click="openReason(review.appt, 'decline')">Decline</button>

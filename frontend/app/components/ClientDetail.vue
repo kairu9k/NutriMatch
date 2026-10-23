@@ -54,12 +54,12 @@
         <button type="button" class="nm-btn-dark" @click="showDischarge = true">Discharge now</button>
       </section>
 
-      <section v-if="p.status === 'discharged'" class="nm-note">
+      <section v-if="p.status === 'discharged'" class="nm-note plain-note">
         <strong>Discharged{{ p.ended_at ? ` on ${shortDate(p.ended_at)}` : '' }}.</strong>
         This record is read-only.<template v-if="p.discharge_reason"> Reason: "{{ p.discharge_reason }}"</template>
         If {{ p.client.first_name }} books you again, it reopens when you confirm the booking.
       </section>
-      <section v-else-if="p.status === 'pending'" class="nm-note">
+      <section v-else-if="p.status === 'pending'" class="nm-note todo-note">
         <strong>New booking.</strong> {{ p.client.first_name }} becomes your patient once you confirm their booking.
         <NuxtLink to="/appointments?tab=requests" class="nm-panel-link">Review booking</NuxtLink>
       </section>
@@ -298,7 +298,7 @@
               </NuxtLink>
             </template>
           </div>
-          <p v-if="p.status === 'active' && !mealPlanReady && !s.meal_plan" class="nm-note" style="margin: 0">Finish the NCP Intervention (diet prescription and target calories) before creating a meal plan.</p>
+          <p v-if="p.status === 'active' && !mealPlanReady && !s.meal_plan" class="nm-note todo-note" style="margin: 0">Finish the NCP Intervention (diet prescription and target calories) before creating a meal plan.</p>
           <div v-if="s.meal_plan?.target_kcal" class="targets">
             <div><span>Calories</span><strong>{{ Math.round(s.meal_plan.target_kcal).toLocaleString('en-PH') }} kcal</strong></div>
             <div v-if="s.meal_plan.target_carb_g"><span>Carbs</span><strong>{{ Math.round(s.meal_plan.target_carb_g) }} g</strong></div>

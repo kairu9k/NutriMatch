@@ -18,7 +18,7 @@
         <p v-else-if="error" class="nm-error">{{ error }}</p>
         <template v-else-if="r">
           <p v-if="row.appointment" class="linked"><CalendarCheck :size="14" /> Written for the {{ row.appointment.type_label.toLowerCase() }} consultation on {{ longWhen(row.appointment.scheduled_at) }}</p>
-          <p v-if="row.status === 'draft'" class="draft-note"><AlertTriangle :size="14" /> Unfinished — still needs {{ row.missing.join(', ') || 'a final check' }}.</p>
+          <p v-if="row.status === 'draft'" class="draft-note"><PenLine :size="14" aria-hidden="true" /> Unfinished. It still needs {{ row.missing.join(', ') || 'a final check' }}.</p>
 
           <section>
             <h3>1. Assessment</h3>
@@ -70,7 +70,7 @@
 <script setup>
 // Read-only summary of one NCP record (NCP Records page). Records are
 // written on the patient chart, never here; finalized ones can be printed.
-import { AlertTriangle, CalendarCheck, Printer, X } from 'lucide-vue-next'
+import { CalendarCheck, PenLine, Printer, X } from 'lucide-vue-next'
 import { bmiClass, bpLabel, glucoseCategory, hba1cCategory } from '~/utils/ncp'
 
 const withCat = (text, cat) => (cat ? `${text}, ${cat.label}` : text)
@@ -168,7 +168,8 @@ function print() {
 .sum-body { padding: 16px 22px 20px; overflow-y: auto; }
 .linked, .draft-note { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; }
 .linked { background: #f3f8f4; color: #2f5f3f; }
-.draft-note { background: #fdf6e3; color: #7a5a00; }
+.draft-note { background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; color: #1f4a30; }
+.draft-note svg { flex-shrink: 0; color: #3f9a6b; }
 section { padding: 12px 0; border-top: 1px solid #f0f2f0; }
 section:first-of-type { border-top: none; }
 h3 { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }

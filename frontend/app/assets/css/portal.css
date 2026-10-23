@@ -151,6 +151,11 @@
 .nm-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px; }
 .nm-success { background: #e3f3ea; border: 1px solid #bfe3cd; color: #1f6f46; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px; }
 .nm-note { background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: #6a5a2a; line-height: 1.5; margin: 0 0 16px; }
+/* something still to do (a booking to confirm, a step to finish): the app's dashed green */
+.nm-note.todo-note { background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; color: #1f4a30; }
+.nm-note.todo-note strong { color: #1a3a1a; }
+/* plain information (care ended, a filter is on, an item is hidden): quiet grey */
+.nm-note.plain-note { background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; color: #4a5a4a; }
 .nm-muted { color: #8a9a8a; font-size: 0.85rem; margin: 0; }
 .nm-empty { text-align: center; color: #9aaa9a; font-size: 0.86rem; padding: 26px 12px; }
 .nm-empty p { margin: 0; }
