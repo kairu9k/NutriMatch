@@ -501,16 +501,16 @@ onMounted(loadMealPlans)
 .dropzone-inline:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .dropzone-input { display: none; }
 
+/* the photo: full width, landscape; its name and buttons sit underneath */
 .photo-preview {
-  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
-  background: #f7f9f7; border: 1px solid #dfe7df; border-radius: 10px; padding: 10px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px;
 }
 .photo-thumb {
-  flex-shrink: 0; width: 112px; height: 112px; padding: 0; border: none; border-radius: 8px;
+  display: block; width: 100%; aspect-ratio: 16 / 9; padding: 0; border: 1px solid #d9e3dc; border-radius: 10px;
   overflow: hidden; cursor: zoom-in; background: #e8ede8;
 }
+.photo-thumb:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.photo-thumb:focus-visible { outline: 2px solid #D4A017; outline-offset: 2px; }
 .photo-meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .photo-name { font-size: 0.85rem; font-weight: 600; color: #1a3a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .photo-sub { font-size: 0.76rem; color: #8a6d10; }
