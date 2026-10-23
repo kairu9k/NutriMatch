@@ -42,8 +42,6 @@ h1, h2, h3, .font-display {
 .switch input:checked + .track { background-color: #0b3d2e; }
 .switch input:checked + .track .thumb { transform: translateX(18px); }
 
-.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: #d9d4b8; border-radius: 999px; }
 
 /* ---------- Page transition (route change) ---------- */
 .page-enter-active,
