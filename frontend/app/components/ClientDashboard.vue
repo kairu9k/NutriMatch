@@ -17,32 +17,45 @@
           <h1 class="nm-hero-title">Hi {{ auth.user?.first_name }}, welcome back.</h1>
           <p class="nm-hero-sub">{{ nextStep.text }}</p>
         </div>
-        <div class="nm-upnext">
+        <!-- UP NEXT: the time is the one big thing; the RND under a thin line;
+             the status is a dot and a word. A button shows only when there's
+             something to do right here (join, view a waiting booking). -->
+        <div class="nm-upnext up">
           <template v-if="upNext">
-            <div class="nm-upnext-top">
-              <span class="nm-upnext-label">Up next, {{ upNext.when }}</span>
-              <span class="nm-upnext-pay" :class="{ unpaid: upNext.pill !== 'Paid', big: !nextStep.action }">{{ upNext.pill }}</span>
+            <div class="up-top">
+              <span class="nm-upnext-label">Up next</span>
+              <span class="up-status" :class="upNext.state"><span class="up-dot" aria-hidden="true" />{{ upNext.pill }}</span>
             </div>
-            <div class="nm-upnext-row">
-              <div class="nm-upnext-who">
-                <img v-if="upNext.photo" :src="upNext.photo" alt="" class="nm-upnext-avatar" />
-                <span v-else class="nm-upnext-avatar">{{ upNext.initials }}</span>
-                <div class="nm-upnext-name-wrap">
-                  <p class="nm-upnext-name">RND {{ upNext.name }}</p>
-                  <p class="nm-upnext-format">{{ upNext.format }}</p>
-                </div>
+            <p class="up-time">{{ upNext.time }}</p>
+            <p class="up-when">{{ upNext.day }}, {{ countdown }}</p>
+            <div class="up-who">
+              <img v-if="upNext.photo" :src="upNext.photo" alt="" class="nm-upnext-avatar" />
+              <span v-else class="nm-upnext-avatar">{{ upNext.initials }}</span>
+              <div class="nm-upnext-name-wrap">
+                <p class="nm-upnext-name">RND {{ upNext.name }}</p>
+                <p class="nm-upnext-format">{{ upNext.format }}</p>
               </div>
-              <div v-if="nextStep.action" class="nm-upnext-actions">
-                <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
-                  <Video v-if="/Join/.test(nextStep.action)" :size="16" />{{ nextStep.action }}
-                </NuxtLink>
-                <NuxtLink v-if="nextStep.to !== '/appointments'" to="/appointments" class="nm-hero-btn">View appointment</NuxtLink>
-              </div>
+            </div>
+            <div v-if="nextStep.action" class="nm-upnext-actions">
+              <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
+                <Video v-if="/Join/.test(nextStep.action)" :size="16" aria-hidden="true" />{{ nextStep.action }}
+              </NuxtLink>
             </div>
           </template>
           <template v-else>
-            <p class="nm-upnext-label">{{ nextStep.eyebrow }}</p>
-            <p class="nm-upnext-empty">{{ nextStep.short }}</p>
+            <div class="up-top">
+              <span class="nm-upnext-label">{{ nextStep.eyebrow }}</span>
+            </div>
+            <p class="up-time small">{{ emptyCard.headline }}</p>
+            <p class="up-when">{{ emptyCard.sub }}</p>
+            <div v-if="careRnd" class="up-who">
+              <img v-if="careRnd.photo" :src="careRnd.photo" alt="" class="nm-upnext-avatar" />
+              <span v-else class="nm-upnext-avatar">{{ careRnd.initials }}</span>
+              <div class="nm-upnext-name-wrap">
+                <p class="nm-upnext-name">RND {{ careRnd.name }}</p>
+                <p class="nm-upnext-format">{{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}</p>
+              </div>
+            </div>
             <div class="nm-upnext-actions"><NuxtLink :to="nextStep.to" class="nm-hero-btn primary">{{ nextStep.action }}</NuxtLink></div>
           </template>
         </div>
@@ -473,14 +486,52 @@ const upNext = computed(() => {
   const name = `${rnd.first_name || ''} ${rnd.last_name || ''}`.trim()
   const sameDay = new Date(a.scheduled_at).toDateString() === new Date().toDateString()
   const day = sameDay ? '' : `${new Date(a.scheduled_at).toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })}, `
+  const d = new Date(a.scheduled_at)
+  const dayWord = sameDay ? 'Today'
+    : d.toDateString() === new Date(Date.now() + 86400000).toDateString() ? 'Tomorrow'
+      : d.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'short', day: 'numeric' })
+  const state = a.status === 'pending' ? 'waiting' : a.payment?.status === 'paid' ? 'paid' : 'unpaid'
   return {
     when: `${day}${formatTime(a.scheduled_at)}`,
-    pill: a.status === 'pending' ? 'Waiting to confirm' : a.payment?.status === 'paid' ? 'Paid' : 'Not paid yet',
+    time: formatTime(a.scheduled_at),
+    day: dayWord,
+    startsAt: d.getTime(),
+    state,
+    pill: { waiting: 'Waiting for your RND', paid: 'Paid', unpaid: 'Not paid yet' }[state],
     name,
     initials: `${rnd.first_name?.[0] || ''}${rnd.last_name?.[0] || ''}`.toUpperCase(),
     photo: rnd.profile_photo || (careRnd.value?.id === rnd.id ? careRnd.value.photo : ''),
-    format: `${APPT_TYPES[a.type] || ''} consultation`.trim(),
+    format: `${APPT_TYPES[a.type] || ''} consultation, ${a.duration_minutes || 60} min`.trim(),
   }
+})
+
+// "in 19 hours", "in 12 min", "now": ticks every 30 s (composables/useNow.js)
+const tick = useNow()
+const countdown = computed(() => {
+  if (!upNext.value) return ''
+  const mins = Math.round((upNext.value.startsAt - tick.value) / 60000)
+  if (mins <= 0) return 'starting now'
+  if (mins < 60) return `in ${mins} min`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 48) return `in ${hrs} hour${hrs === 1 ? '' : 's'}`
+  return `in ${Math.round(hrs / 24)} days`
+})
+
+// The card when nothing is booked: one short headline, one line of context.
+const lastVisit = computed(() => appointments.value
+  .filter(a => a.status === 'completed')
+  .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at))[0] || null)
+const emptyCard = computed(() => {
+  if (!screening.value) return { headline: 'Health screening', sub: 'About a minute. Your RND needs it before you meet.' }
+  if (!activeRelationship.value && expiredRequest.value) return { headline: 'Booking expired', sub: 'Your last request passed before it was confirmed.' }
+  if (activeRelationship.value) {
+    const v = lastVisit.value
+    if (!v) return { headline: 'Nothing booked', sub: 'Book your next consultation when you\'re ready.' }
+    const days = Math.max(0, Math.round((Date.now() - new Date(v.scheduled_at)) / 86400000))
+    const ago = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
+    return { headline: 'Nothing booked', sub: `Your last consultation was ${formatShortDate(v.scheduled_at)}, ${ago}.` }
+  }
+  return { headline: 'Find your RND', sub: 'Pick a licensed RND and book your first consultation.' }
 })
 
 /* ---------- Next step (banner) ---------- */
@@ -979,8 +1030,25 @@ function phClock(iso) {
 .nm-upnext-pay { background: rgba(255, 255, 255, 0.16); color: #fff; }
 .nm-upnext-pay.unpaid { background: rgba(240, 193, 91, 0.2); color: #f0c15b; }
 
-/* the pill is the only status when the card has no button: a bit bigger */
-.nm-upnext-pay.big { font-size: 13px; padding: 6px 14px; }
+/* UP NEXT card: the time is the big thing */
+.up { gap: 0; }
+.up-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.up-status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.up-dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; flex-shrink: 0; }
+.up-status.unpaid { color: #f0c15b; }
+.up-status.unpaid .up-dot { background: #f0c15b; box-shadow: 0 0 0 3px rgba(240, 193, 91, 0.22); }
+.up-status.paid { color: #9be3bd; }
+.up-status.paid .up-dot { background: #4ade80; }
+.up-status.waiting { color: #fff; }
+.up-time { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; line-height: 1.05; color: #fff; margin: 12px 0 2px; font-variant-numeric: lining-nums; }
+.up-time.small { font-size: 28px; }
+.up-when { font-size: 14px; color: rgba(255, 255, 255, 0.78); margin: 0; }
+.up-who { display: flex; align-items: center; gap: 12px; min-width: 0; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
+.up .nm-upnext-actions { margin-top: 14px; }
+@media (max-width: 640px) {
+  .up-time { font-size: 32px; }
+  .up-time.small { font-size: 24px; }
+}
 
 /* Buttons */
 .nm-upnext .nm-hero-btn {
