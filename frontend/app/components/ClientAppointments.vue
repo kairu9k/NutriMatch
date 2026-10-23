@@ -558,6 +558,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .appt-hint.hint-due { color: #1f4a30; background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 9px 12px; }
 .modal-note { font-size: 0.82rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; margin: -6px 0 14px; line-height: 1.5; }
 .appt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #d9e3dc; }
+/* every button in the row the same height */
+.appt-actions > .btn-dark, .appt-actions > .outline-btn, .appt-actions > .ghost-danger-btn { height: 36px; padding-top: 0; padding-bottom: 0; line-height: 1; }
 
 /* status: a dot and a word */
 .dot-status { display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 600; color: #4a5a4a; white-space: nowrap; }
