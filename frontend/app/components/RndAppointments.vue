@@ -425,7 +425,7 @@ async function completeNow() {
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 .head .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 
-.bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); padding: 0; overflow: hidden; margin-bottom: 16px;
+.bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); padding: 0; overflow: hidden; margin-bottom: 16px; max-width: 620px;
   box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
 .bento button { font-family: inherit; text-align: left; background: none; border: none; color: inherit; cursor: pointer; }
 .bento button:hover { background: #fafbfa; }
