@@ -384,6 +384,8 @@ class ClientMealLogSaveView(APIView):
         from .photos import MealPhotoError, destroy_meal_photo, upload_meal_photo
 
         photo = request.data.get("photo")
+        # remove_photo=true takes the saved photo off the log (a new photo wins)
+        remove_photo = str(request.data.get("remove_photo", "")).lower() in ("1", "true", "yes")
         photo_fields = {}
         old_photo = (instance.photo_public_id, instance.photo_url) if instance else (None, None)
         if photo is not None:
@@ -392,11 +394,14 @@ class ClientMealLogSaveView(APIView):
             except MealPhotoError as exc:
                 raise serializers.ValidationError({"photo": [str(exc)]})
             photo_fields = {"photo_public_id": public_id, "photo_format": fmt, "photo_url": None}
-        has_photo = bool(photo_fields) or bool(instance and instance.has_photo)
+        elif remove_photo and instance and instance.has_photo:
+            photo_fields = {"photo_public_id": None, "photo_format": None, "photo_url": None}
+        has_photo = bool(photo_fields.get("photo_public_id")) or (not photo_fields and bool(instance and instance.has_photo))
 
         note = (serializer.validated_data.get("reason_notes", instance.reason_notes if instance else "") or "").strip()
         if not has_photo and not note:
-            raise serializers.ValidationError({"detail": "Add a photo or a note about what you ate."})
+            raise serializers.ValidationError({"detail": "Add a photo or a note about what you ate. Write a note before removing the photo."
+                                               if remove_photo else "Add a photo or a note about what you ate."})
 
         from scheduling.patient_insights import ph_tz
 
@@ -408,8 +413,8 @@ class ClientMealLogSaveView(APIView):
         )
 
         if photo_fields and old_photo[0]:
-            # The replaced private photo is deleted (a legacy public one is
-            # left to make_meal_photos_private).
+            # The replaced or removed private photo is deleted (a legacy public
+            # one is left to make_meal_photos_private).
             from django.db import transaction
 
             transaction.on_commit(lambda pid=old_photo[0]: destroy_meal_photo(pid))

@@ -4,12 +4,6 @@
     <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
     <template v-else-if="plan">
-      <!-- your allergies first, always open -->
-      <div v-if="myAllergies.length" class="allergy-panel" role="note">
-        <AlertTriangle :size="18" aria-hidden="true" />
-        <p><strong>Your food allergies: {{ myAllergies.join(', ') }}.</strong> A food in your plan that may contain one is marked in red. Don't eat it, and message your RND.</p>
-      </div>
-
       <!-- PLAN CARD: name, the targets as a bento, and the RND's notes in the same card -->
       <section class="plan-card">
         <div class="plan-head">
@@ -41,6 +35,12 @@
           <span v-for="t in otherTargets" :key="t.label" class="other-target-chip">{{ t.label }}: {{ t.value }}{{ t.unit ? ` ${t.unit}` : '' }}</span>
         </div>
       </section>
+
+      <!-- your allergies, right under the plan, always open -->
+      <div v-if="myAllergies.length" class="allergy-panel" role="note">
+        <AlertTriangle :size="18" aria-hidden="true" />
+        <p><strong>Your food allergies: {{ myAllergies.join(', ') }}.</strong> A food in your plan that may contain one is marked in red. Don't eat it, and message your RND.</p>
+      </div>
 
       <template v-if="todaysMeals.length">
         <p class="today-label">Today, {{ todayLabel }}</p>
@@ -104,7 +104,7 @@
                   <span v-if="logForm.photoFile" class="photo-sub">Not saved yet. Press Save to send it.</span>
                   <div class="photo-actions">
                     <button type="button" class="photo-btn" @click="photoInput?.click()">Change photo</button>
-                    <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" /> Remove</button>
+                    <button type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" aria-hidden="true" /> Remove</button>
                   </div>
                 </div>
               </div>
@@ -112,6 +112,7 @@
                 <UploadCloud :size="20" class="dropzone-icon" />
                 <span class="dropzone-text">Upload a photo of what you ate</span>
               </button>
+              <p v-if="logForm.removeSaved" class="photo-sub">Your saved photo will be removed when you press Save.</p>
               <p v-if="photoError" class="form-error inline">{{ photoError }}</p>
 
               <Teleport to="body">
@@ -244,15 +245,16 @@ function logFor(mealId) {
 }
 const activeLog = computed(() => activeMeal.value ? logFor(activeMeal.value.id) : null)
 
-const logForm = reactive({ reasonNotes: '', photoFile: null, photoName: '' })
-// Save shows once there's something new: a photo, or a note different from the saved one.
-const canSaveLog = computed(() => !!logForm.photoFile
+const logForm = reactive({ reasonNotes: '', photoFile: null, photoName: '', removeSaved: false })
+// Save shows once there's something new: a photo, a removed photo, or a changed note.
+const canSaveLog = computed(() => !!logForm.photoFile || logForm.removeSaved
   || (logForm.reasonNotes.trim() && logForm.reasonNotes.trim() !== (activeLog.value?.reason_notes || '').trim()))
 
 function resetLogForm() {
   const existing = activeLog.value
   logForm.reasonNotes = existing?.reason_notes || ''
   removePhoto()
+  logForm.removeSaved = false
   viewerOpen.value = false
 }
 watch(activeMealIndex, resetLogForm)
@@ -264,7 +266,7 @@ const photoInput = ref(null)
 const selectedUrl = ref('')
 const photoError = ref('')
 const viewerOpen = ref(false)
-const photoPreview = computed(() => selectedUrl.value || activeLog.value?.photo_url || '')
+const photoPreview = computed(() => selectedUrl.value || (logForm.removeSaved ? '' : activeLog.value?.photo_url) || '')
 
 function onPhotoSelected(e) {
   const file = e.target.files?.[0]
@@ -279,8 +281,12 @@ function onPhotoSelected(e) {
   selectedUrl.value = URL.createObjectURL(file)
   logForm.photoFile = file
   logForm.photoName = file.name
+  logForm.removeSaved = false
 }
+// Remove: drops a photo chosen but not saved; with none chosen, marks the
+// saved photo to be removed on Save (remove_photo=true).
 function removePhoto() {
+  if (!logForm.photoFile && activeLog.value?.photo_url) logForm.removeSaved = true
   if (selectedUrl.value) URL.revokeObjectURL(selectedUrl.value)
   selectedUrl.value = ''
   photoError.value = ''
@@ -332,6 +338,7 @@ async function saveMealLog() {
     form.append('log_date', todayIso)
     form.append('reason_notes', logForm.reasonNotes.trim())
     if (logForm.photoFile) form.append('photo', logForm.photoFile)
+    else if (logForm.removeSaved) form.append('remove_photo', 'true')
 
     const saved = await post(`/client/meals/${activeMeal.value.id}/log/`, form)
     const idx = todaysLogs.value.findIndex(l => l.meal_plan_meal === activeMeal.value.id)

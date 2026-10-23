@@ -73,6 +73,22 @@ class PrivateMealPhotoTests(TestCase):
         self.assertEqual(destroy.call_args.args[0], "meal-logs-private/first")
         self.assertEqual(destroy.call_args.kwargs["type"], "authenticated")
 
+    def test_a_saved_photo_can_be_removed_when_a_note_stays(self):
+        resp, _ = self._log_photo("meal-logs-private/only")
+        url = f"/api/client/meals/{self.meal.id}/log/"
+        # photo only, no note: removing it would leave an empty log
+        resp = self.api.post(url, {"remove_photo": "true"}, format="multipart")
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(MealLog.objects.get(meal_plan_meal=self.meal).photo_public_id)
+        with mock.patch("cloudinary.uploader.destroy") as destroy, self.captureOnCommitCallbacks(execute=True):
+            resp = self.api.post(url, {"remove_photo": "true", "reason_notes": "Half the rice"}, format="multipart")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        log = MealLog.objects.get(meal_plan_meal=self.meal)
+        self.assertEqual((log.photo_public_id, log.photo_url, log.reason_notes), (None, None, "Half the rice"))
+        self.assertIsNone(resp.data["photo_url"])
+        destroy.assert_called_once()
+        self.assertEqual(destroy.call_args.args[0], "meal-logs-private/only")
+
     def test_a_non_photo_file_is_refused(self):
         self.api.force_authenticate(self.client_user)
         bad = SimpleUploadedFile("notes.pdf", b"%PDF-1.4", content_type="application/pdf")
