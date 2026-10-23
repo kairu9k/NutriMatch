@@ -305,7 +305,7 @@
             </div>
           </div>
 
-          <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay} · ${usdaMeal.type}`" @close="usdaMeal = null" @pick="addUsdaFood" />
+          <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay}, ${usdaMeal.type}`" :allergies="patientAllergies" :patient-name="patientFirstName" @close="usdaMeal = null" @pick="addUsdaFood" />
 
           <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client — this plan can't be deleted. Edit it and Resend, or send a new plan.</p>
           <p v-else class="sent-lock"><Lock :size="13" /> Draft — only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
