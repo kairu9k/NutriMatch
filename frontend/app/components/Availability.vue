@@ -344,16 +344,16 @@ function formatBlockDate(iso) {
 
 .slot-pill {
   display: flex; align-items: center; gap: 6px;
-  background: #fdf1d6; color: #6a4a00; font-size: 0.82rem; font-weight: 600; font-family: inherit;
+  background: #e3efe7; color: #1e4a26; font-size: 0.82rem; font-weight: 600; font-family: inherit;
   padding: 6px 10px 6px 14px; border-radius: 999px; border: none; cursor: pointer;
 }
-.slot-pill:hover { background: #f9e6b8; }
+.slot-pill:hover { background: #d3e7da; }
 .slot-pill:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .pill-icon-btn {
-  background: none; border: none; color: #b8860b; cursor: pointer;
+  background: none; border: none; color: #3f7a55; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 2px;
 }
-.pill-icon-btn:hover { color: #6a4a00; }
+.pill-icon-btn:hover { color: #1e4a26; }
 
 .slot-edit-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f2f6f3; border-radius: 10px; padding: 6px 10px; }
 .time-input {
@@ -364,8 +364,8 @@ function formatBlockDate(iso) {
 .form-btn {
   border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
-.form-btn.save { background: #D4A017; color: #1a3a1a; }
-.form-btn.save:hover { background: #c4920f; }
+.form-btn.save { background: #0a4a37; color: #fff; }
+.form-btn.save:hover { background: #00382a; }
 .form-btn.cancel { background: none; color: #6a7a6a; }
 .form-btn.cancel:hover { color: #4a5a4a; }
 
