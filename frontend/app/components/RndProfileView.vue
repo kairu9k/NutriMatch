@@ -184,84 +184,90 @@
       </div>
     </template>
 
-    <!-- BOOK APPOINTMENT MODAL -->
+    <!-- BOOK APPOINTMENT MODAL: header, a scrolling body (format, open days,
+         times, notes) and a footer that always shows what's picked + Send. -->
     <div v-if="bookingModalOpen" class="modal-overlay" @click.self="closeBookingModal">
-      <div class="booking-modal-box">
-        <button class="modal-close-btn booking-close" type="button" aria-label="Close" @click="closeBookingModal"><X :size="18" /></button>
+      <div class="booking-modal-box" role="dialog" aria-modal="true" aria-labelledby="bk-title">
+        <header class="bk-head">
+          <div class="bk-head-text">
+            <h2 id="bk-title" class="booking-title">Book a consultation with {{ rnd.user.first_name }}</h2>
+            <p class="booking-sub">{{ rnd.user.first_name }} confirms your request, then you pay before it starts. Times are Philippine time.</p>
+          </div>
+          <button class="bk-x" type="button" aria-label="Close" @click="closeBookingModal"><X :size="18" /></button>
+        </header>
 
-        <div class="booking-left">
-          <h2 class="booking-title">Book a consultation with {{ rnd.user.first_name }}</h2>
-          <p class="booking-sub">Pick a format and a time. {{ fullName }} confirms your booking, then you pay before it starts.</p>
-
-          <div class="booking-section">
-            <h4 class="section-h">Format</h4>
-            <div class="format-row">
+        <div class="bk-body">
+          <div class="bk-format">
+            <div class="seg" role="radiogroup" aria-label="Format">
               <button
                 v-for="f in offeredFormats" :key="f.key"
-                class="format-card" :class="{ active: bookingType === f.key }"
-                type="button"
+                type="button" role="radio" :aria-checked="bookingType === f.key"
+                class="seg-btn" :class="{ active: bookingType === f.key }"
                 @click="bookingType = f.key"
-              >
-                <component :is="f.icon" :size="17" aria-hidden="true" />
-                <span class="format-name">{{ f.label }}</span>
-              </button>
+              ><component :is="f.icon" :size="15" aria-hidden="true" /> {{ f.label }}</button>
             </div>
-            <p v-if="bookingType === 'in_person'" class="address booking-address"><MapPin :size="13" /> {{ rnd.clinic_address }}</p>
+            <p class="bk-fee"><strong>₱{{ formatFee(rnd.consultation_fee) }}</strong>, {{ SESSION_MINUTES }} minutes</p>
           </div>
+          <p v-if="bookingType === 'in_person'" class="address booking-address"><MapPin :size="13" aria-hidden="true" /> {{ rnd.clinic_address }}</p>
 
-          <div class="booking-section">
-            <h4 class="section-h">Date and time</h4>
-            <p class="section-sub">Based on {{ rnd.user.first_name }}'s weekly hours, Philippine time.</p>
-
-            <div class="calendar-head">
-              <span class="calendar-month">{{ viewMonthLabel }}</span>
-              <div class="calendar-nav">
-                <button type="button" aria-label="Previous month" @click="shiftMonth(-1)"><ChevronLeft :size="15" /></button>
-                <button type="button" aria-label="Next month" @click="shiftMonth(1)"><ChevronRight :size="15" /></button>
+          <section class="bk-section" aria-labelledby="bk-day-h">
+            <div class="bk-row-head">
+              <h3 id="bk-day-h" class="section-h">Pick a day</h3>
+              <div v-if="openDays.length > 4" class="strip-nav">
+                <button type="button" aria-label="Earlier days" @click="scrollStrip(-1)"><ChevronLeft :size="15" /></button>
+                <button type="button" aria-label="Later days" @click="scrollStrip(1)"><ChevronRight :size="15" /></button>
               </div>
             </div>
-            <div class="calendar-grid">
-              <span v-for="d in dayHeaders" :key="d" class="calendar-day-header">{{ d }}</span>
+            <div v-if="openDays.length" ref="stripEl" class="day-strip">
               <button
-                v-for="(cell, i) in calendarCells" :key="i"
-                type="button"
-                class="calendar-cell"
-                :class="{ 'out-month': !cell.inMonth, available: cell.available, selected: cell.iso === selectedDateISO, disabled: !cell.available, 'day-off': cell.dayOff }"
-                :disabled="!cell.available"
-                :title="cell.dayOff ? 'Day off' : undefined"
-                :aria-label="cell.dayOff ? `${cell.day}, day off` : undefined"
-                @click="selectDate(cell)"
-              >{{ cell.day }}</button>
+                v-for="d in openDays" :key="d.iso" type="button"
+                class="day-chip" :class="{ selected: d.iso === selectedDateISO }" :data-iso="d.iso"
+                :aria-pressed="d.iso === selectedDateISO" :aria-label="`${d.long}, ${d.open} open`"
+                @click="pickDay(d.iso)"
+              >
+                <span class="dc-wd">{{ d.weekday }}</span>
+                <span class="dc-num">{{ d.day }}</span>
+                <span class="dc-mo">{{ d.month }}</span>
+                <span class="dc-open">{{ d.open }} open</span>
+              </button>
             </div>
-            <p v-if="calendarCells.some(c => c.dayOff)" class="day-off-key"><span class="day-off-swatch" /> Day off: {{ rnd.user.first_name }} isn't taking consultations that day.</p>
+            <p v-else class="nm-note plain-note">{{ rnd.user.first_name }} has no open times in the next 4 weeks. Check back later.</p>
+          </section>
 
-            <div v-if="selectedDateISO" class="time-slot-row">
-              <button
-                v-for="slot in timeSlots" :key="slot.value"
-                type="button"
-                class="time-slot-btn" :class="{ selected: selectedTime === slot.value, taken: slot.taken }"
-                :disabled="slot.taken"
-                :title="slot.taken ? (slot.off ? `${rnd.user.first_name} isn't available at this time` : 'Already booked by another client') : undefined"
-                @click="selectedTime = slot.value"
-              >{{ slot.label }}<span v-if="slot.taken" class="taken-tag">{{ slot.off ? 'Unavailable' : 'Booked' }}</span></button>
-              <p v-if="!timeSlots.length" class="availability-warn">No time slots available this day.</p>
-              <p v-else-if="timeSlots.every(s => s.taken)" class="availability-warn">No open times left this day. Pick another date.</p>
+          <section v-if="selectedDateISO" class="bk-section" aria-labelledby="bk-time-h">
+            <h3 id="bk-time-h" class="section-h">{{ selectedDayLabel }}</h3>
+            <div v-for="g in timeGroups" :key="g.label" class="tg">
+              <span class="tg-label">{{ g.label }}</span>
+              <div class="tg-times">
+                <template v-for="item in g.items" :key="item.value">
+                  <span v-if="item.away" class="t-away">Away {{ item.label }}</span>
+                  <span v-else-if="item.taken" class="t-booked" title="Already booked by another client">{{ item.label }}, booked</span>
+                  <button
+                    v-else type="button" class="t-btn" :class="{ selected: selectedTime === item.value }"
+                    :aria-pressed="selectedTime === item.value" @click="selectedTime = item.value"
+                  >{{ item.label }}</button>
+                </template>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div class="booking-section">
-            <h4 class="section-h">Notes for your RND <span class="optional">(optional)</span></h4>
-            <textarea v-model="bookingNotes" data-allow-emoji rows="3" placeholder="Anything you'd like your RND to know before the session..."></textarea>
-          </div>
-
-          <p v-if="bookingError" class="form-error">{{ bookingError }}</p>
-
-          <button class="confirm-btn" type="button" :disabled="!canConfirmBooking || isBooking" @click="confirmBooking">
-            <BadgeCheck :size="15" aria-hidden="true" /> {{ isBooking ? 'Sending…' : 'Send booking request' }}
-          </button>
-          <p v-if="bookingHint" class="booking-hint">{{ bookingHint }}</p>
-          <p class="submit-note">Once {{ rnd.user.first_name }} confirms, you get an invoice. Pay it before the session starts to join.</p>
+          <section class="bk-section">
+            <label for="bk-notes" class="section-h">Notes for your RND <span class="optional">(optional)</span></label>
+            <textarea id="bk-notes" v-model="bookingNotes" data-allow-emoji rows="2" placeholder="Anything you'd like your RND to know before the session"></textarea>
+          </section>
         </div>
+
+        <footer class="bk-foot">
+          <div class="bk-summary" aria-live="polite">
+            <p v-if="bookingSummary" class="bk-pick">{{ bookingSummary }}</p>
+            <p v-else class="bk-pick muted">{{ bookingHint }}</p>
+            <p v-if="bookingError" class="form-error" role="alert">{{ bookingError }}</p>
+            <p v-else class="bk-after">You get an invoice once {{ rnd.user.first_name }} confirms.</p>
+          </div>
+          <button class="nm-btn-dark bk-send" type="button" :disabled="!canConfirmBooking || isBooking" @click="confirmBooking">
+            {{ isBooking ? 'Sending…' : 'Send booking request' }}
+          </button>
+        </footer>
       </div>
     </div>
   </div>
@@ -436,12 +442,9 @@ const bookingNotes = ref('')
 const isBooking = ref(false)
 const bookingError = ref('')
 
-const CAL_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const dayHeaders = CAL_DAY_NAMES
-
 // Local-calendar-date formatting — Date#toISOString() converts to UTC first,
 // which shifts a local midnight back a day in any UTC+ timezone (e.g. PHT,
-// UTC+8) and silently mis-gates "today" and every calendar cell by one day.
+// UTC+8) and silently mis-gates "today" by one day.
 function toISO(d) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -449,12 +452,6 @@ function toISO(d) {
   return `${y}-${m}-${day}`
 }
 const todayISO = toISO(new Date())
-
-const viewMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
-const viewMonthLabel = computed(() => viewMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))
-function shiftMonth(delta) {
-  viewMonth.value = new Date(viewMonth.value.getFullYear(), viewMonth.value.getMonth() + delta, 1)
-}
 
 // Gated by the RND's real RndAvailabilitySchedule rows (already loaded via
 // loadAvailability), not mock data — a day is bookable only if it has at
@@ -465,36 +462,82 @@ function scheduleForDate(date) {
 // A day is only highlighted if it still has at least one bookable time —
 // otherwise picking it would show no times and Confirm could never enable
 // (e.g. today after the RND's last slot, or hours shorter than a session).
-function isDayAvailable(date) {
-  const iso = toISO(date)
-  if (iso < todayISO) return false
-  return slotsForDate(iso).some(s => !s.taken)
-}
-const calendarCells = computed(() => {
-  const year = viewMonth.value.getFullYear()
-  const month = viewMonth.value.getMonth()
-  const firstOfMonth = new Date(year, month, 1)
-  const startOffset = firstOfMonth.getDay()
-  const gridStart = new Date(year, month, 1 - startOffset)
-  const cells = []
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
-    cells.push({
+// The strip: every day in the next 4 weeks (same lookahead as Next available)
+// that still has an open time. Days off and fully booked days simply aren't in it.
+const LOOKAHEAD_DAYS = 28
+const openDays = computed(() => {
+  const out = []
+  const now = new Date()
+  for (let i = 0; i < LOOKAHEAD_DAYS; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+    const iso = toISO(d)
+    const open = slotsForDate(iso).filter(s => !s.taken).length
+    if (!open) continue
+    out.push({
+      iso, open,
       day: d.getDate(),
-      iso: toISO(d),
-      inMonth: d.getMonth() === month,
-      available: d.getMonth() === month && isDayAvailable(d),
-      dayOff: d.getMonth() === month && toISO(d) >= todayISO && isDayOff(d),
+      weekday: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' }),
+      month: d.toLocaleDateString('en-US', { month: 'short' }),
+      long: d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
     })
   }
-  return cells
+  return out
 })
-
-function selectDate(cell) {
-  if (!cell.available) return
-  selectedDateISO.value = cell.iso
+const stripEl = ref(null)
+function scrollStrip(dir) {
+  const el = stripEl.value
+  if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
+}
+function pickDay(iso) {
+  if (iso === selectedDateISO.value) return
+  selectedDateISO.value = iso
   selectedTime.value = ''
 }
+// Keep the picked day in view (e.g. opened from a Next available time 3 weeks out).
+function revealSelectedDay() {
+  nextTick(() => {
+    const chip = stripEl.value?.querySelector(`[data-iso="${selectedDateISO.value}"]`)
+    if (chip) stripEl.value.scrollLeft = chip.offsetLeft - stripEl.value.offsetLeft - 8
+  })
+}
+const selectedDayLabel = computed(() => (selectedDateISO.value
+  ? new Date(selectedDateISO.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  : ''))
+// Times split into morning / afternoon / evening. Booked times stay visible
+// (greyed); a run of blocked-off hours shows as one "Away 9:00 AM to 12:00 PM".
+const timeGroups = computed(() => {
+  const groups = [
+    { label: 'Morning', test: h => h < 12, items: [] },
+    { label: 'Afternoon', test: h => h >= 12 && h < 17, items: [] },
+    { label: 'Evening', test: h => h >= 17, items: [] },
+  ]
+  // A run of blocked hours stays one item, filed under the part of day it starts in.
+  let run = null
+  for (const slot of timeSlots.value) {
+    if (slot.off) {
+      const endLabel = clockLabel(minutesOf(slot.value) + SESSION_MINUTES)
+      if (run) { run.label = `${run.from} to ${endLabel}`; continue }
+      run = { value: slot.value, away: true, from: slot.label, label: `${slot.label} to ${endLabel}` }
+      groups.find(g => g.test(Number(slot.value.slice(0, 2)))).items.push(run)
+    } else {
+      run = null
+      groups.find(g => g.test(Number(slot.value.slice(0, 2)))).items.push(slot)
+    }
+  }
+  return groups.filter(g => g.items.length)
+})
+function minutesOf(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+function clockLabel(min) {
+  const h = Math.floor(min / 60) % 24
+  const m = min % 60
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+}
+const bookingSummary = computed(() => {
+  if (!selectedDateISO.value || !selectedTime.value) return ''
+  const fmt = offeredFormats.value.find(f => f.key === bookingType.value)?.label || ''
+  const day = new Date(selectedDateISO.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  return `${fmt}, ${day}, ${clockLabel(minutesOf(selectedTime.value))}`
+})
 
 // Bookings are 60 minutes. Start times step every hour from the RND's start
 // time while a full session still fits before their end time (e.g.
@@ -532,8 +575,8 @@ function slotsForDate(iso) {
 }
 
 const bookingHint = computed(() => {
-  if (!selectedDateISO.value) return 'Pick a date to see available times.'
-  if (!selectedTime.value) return 'Pick a time to continue.'
+  if (!selectedDateISO.value) return 'Pick a day to see the open times.'
+  if (!selectedTime.value) return 'Pick a time.'
   return ''
 })
 
@@ -567,36 +610,26 @@ function isSlotTaken(iso, minutes) {
   if (!hits.length) return null
   return hits.some(b => b.kind === 'booked') ? 'booked' : 'time_off'
 }
-// A day the RND blocked off entirely: every start time falls in their time off
-// (whatever was already booked that day).
-function isDayOff(d) {
-  if (!bookedSlots.value.some(b => b.kind === 'time_off')) return false
-  const iso = toISO(d)
-  const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-  const starts = scheduleForDate(d).flatMap(s => {
-    const out = []
-    for (let t = toMinutes(s.start_time); t + SESSION_MINUTES <= toMinutes(s.end_time); t += SLOT_STEP_MINUTES) out.push(t)
-    return out
-  })
-  return starts.length > 0 && starts.every(t => slotHits(iso, t).some(b => b.kind === 'time_off'))
-}
-
-function openBookingModal(slotIso = null) {
-  loadBookedSlots()
+async function openBookingModal(slotIso = null) {
   bookingType.value = offeredFormats.value[0]?.key || 'video'
   selectedDateISO.value = ''
   selectedTime.value = ''
   bookingNotes.value = ''
   bookingError.value = ''
-  viewMonth.value = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   if (slotIso) {
-    // The calendar works in the browser's local time, like the slot list.
+    // The strip works in the browser's local time, like the slot list.
     const d = new Date(slotIso)
     selectedDateISO.value = toISO(d)
     selectedTime.value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-    viewMonth.value = new Date(d.getFullYear(), d.getMonth(), 1)
   }
   bookingModalOpen.value = true
+  await loadBookedSlots()
+  // Nothing picked yet (or that day is now full): start on the first open day.
+  if (!openDays.value.some(d => d.iso === selectedDateISO.value)) {
+    selectedDateISO.value = openDays.value[0]?.iso || ''
+    selectedTime.value = ''
+  }
+  revealSelectedDay()
 }
 function bookSlot(iso) {
   openBookingModal(iso)
@@ -604,6 +637,9 @@ function bookSlot(iso) {
 function closeBookingModal() {
   bookingModalOpen.value = false
 }
+function onBookingKey(e) { if (e.key === 'Escape' && bookingModalOpen.value) closeBookingModal() }
+onMounted(() => window.addEventListener('keydown', onBookingKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onBookingKey))
 
 async function confirmBooking() {
   if (!canConfirmBooking.value) return
@@ -756,73 +792,104 @@ async function confirmBooking() {
 
 /* BOOK APPOINTMENT MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(20,30,20,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-.booking-modal-box { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 640px; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
-.booking-close {
-  position: sticky; top: 14px; float: right; margin-right: 14px; z-index: 5; background: #fff; border: 1px solid #d9e3dc;
-  border-radius: 50%; width: 32px; height: 32px;
+.booking-modal-box {
+  position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 620px; max-height: 92vh; max-height: 92dvh;
+  display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
 }
-.modal-close-btn { border: none; background: none; color: #6a7a6a; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.bk-head { display: flex; align-items: flex-start; gap: 12px; padding: 24px 26px 16px; border-bottom: 1px solid #d9e3dc; }
+.bk-head-text { flex: 1; min-width: 0; }
+.booking-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; line-height: 1.2; }
+.booking-sub { font-size: 0.85rem; color: #4a5a4a; line-height: 1.5; margin: 0; }
+.bk-x { border: none; background: #e3efe7; color: #0a4a37; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.bk-x:hover { background: #d3e6d9; }
+.bk-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
-.booking-left { padding: 30px 32px 34px; }
-.booking-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
-.booking-sub { font-size: 0.87rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 22px; }
-
-.booking-section { margin-bottom: 24px; }
-.section-h { font-family: 'Playfair Display', serif; font-size: 0.98rem; color: #1a3a1a; margin: 0 0 4px; }
+.bk-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 26px 6px; }
+.bk-section { margin-bottom: 22px; }
+.section-h { display: block; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: #1a3a1a; margin: 0 0 10px; }
 .section-h .optional { font-family: 'Inter', sans-serif; font-weight: 400; color: #6a7a6a; font-size: 0.82rem; }
-.section-sub { font-size: 0.8rem; color: #6a7a6a; margin: 0 0 14px; }
 
-.format-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.format-card {
-  flex: 1; min-width: 110px; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  border: 1.5px solid #d9e3dc; background: #fff; border-radius: 12px; padding: 14px 10px; cursor: pointer;
-  color: #4a5a4a; font-family: inherit;
+/* format: a two-option switch, the fee beside it */
+.bk-format { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.seg { display: inline-flex; background: #eef4f0; border: 1px solid #d9e3dc; border-radius: 10px; padding: 3px; gap: 3px; }
+.seg-btn {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 16px; border: none; border-radius: 8px; background: transparent;
+  color: #4a5a4a; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
 }
-.format-card.active { border-color: #0a4a37; background: #e3efe7; color: #1a3a1a; }
-.format-card:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.format-name { font-size: 0.82rem; font-weight: 700; }
+.seg-btn:hover:not(.active) { color: #0a4a37; }
+.seg-btn.active { background: #0a4a37; color: #fff; }
+.seg-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
+.bk-fee { margin: 0; font-size: 0.86rem; color: #4a5a4a; }
+.bk-fee strong { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin-right: 1px; }
+.booking-address { margin: -10px 0 20px; }
 
-.calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.calendar-month { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
-.calendar-nav { display: flex; gap: 5px; }
-.calendar-nav button { width: 30px; height: 30px; border-radius: 8px; border: none; background: #e3efe7; color: #0a4a37; color: #4a5a4a; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.calendar-day-header { text-align: center; font-size: 0.74rem; font-weight: 600; color: #6a7a6a; padding-bottom: 4px; }
-.calendar-cell {
-  aspect-ratio: 1.6 / 1; border: none; border-radius: 7px; background: transparent; color: #c5cdc5; font-size: 0.8rem; cursor: default;
+/* the open-day strip */
+.bk-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bk-row-head .section-h { margin: 0 0 10px; }
+.strip-nav { display: flex; gap: 5px; margin-bottom: 10px; }
+.strip-nav button { width: 30px; height: 30px; border-radius: 8px; border: none; background: #e3efe7; color: #0a4a37; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.strip-nav button:hover { background: #d3e6d9; }
+.strip-nav button:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
+.day-strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 8px; scrollbar-width: none; }
+.day-strip::-webkit-scrollbar { display: none; }
+.day-chip {
+  flex: 0 0 88px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 6px 9px;
+  border: 1px solid #d9e3dc; background: #fff; border-radius: 12px; cursor: pointer; font-family: inherit; color: #1a3a1a;
 }
-.calendar-cell.out-month { visibility: hidden; }
-.calendar-cell.available { background: #d9ecdf; color: #1a3a1a; cursor: pointer; font-weight: 600; }
-.calendar-cell.available:hover { background: #c3e0cc; }
-.calendar-cell.selected { background: #0a4a37; color: #fff; }
-.calendar-cell:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
-.calendar-cell.disabled:not(.out-month) { color: #d5dad5; }
-.calendar-cell.day-off { background: repeating-linear-gradient(135deg, #f1f3f1, #f1f3f1 4px, #e6e9e6 4px, #e6e9e6 8px); color: #9aaa9a; text-decoration: line-through; }
-.day-off-key { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #6a7a6a; margin: 8px 0 0; }
-.day-off-swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; background: repeating-linear-gradient(135deg, #f1f3f1, #f1f3f1 3px, #e6e9e6 3px, #e6e9e6 6px); border: 1px solid #dde3dd; }
+.day-chip:hover:not(.selected) { border-color: #3f9a6b; background: #f2f7f3; }
+.day-chip:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.dc-wd { font-size: 0.76rem; font-weight: 600; color: #4a5a4a; }
+.dc-num { font-family: 'Playfair Display', serif; font-size: 1.45rem; font-weight: 700; line-height: 1.1; font-variant-numeric: lining-nums; }
+.dc-mo { font-size: 0.74rem; color: #6a7a6a; }
+.dc-open { margin-top: 5px; font-size: 0.72rem; font-weight: 600; color: #1f6f46; }
+.day-chip.selected { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.day-chip.selected .dc-wd, .day-chip.selected .dc-mo { color: #cfe0d5; }
+.day-chip.selected .dc-open { color: #9fd0b4; }
 
-.time-slot-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-.time-slot-btn { border: 1px solid #d9e3dc; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 0 16px; min-height: 36px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-.time-slot-btn:hover:not(:disabled) { border-color: #1f8f5c; background: #f2f6f3; }
-.time-slot-btn.selected { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+/* times grouped by part of the day */
+.tg { display: grid; grid-template-columns: 84px 1fr; gap: 8px 12px; align-items: start; padding: 10px 0; border-top: 1px solid #d9e3dc; }
+.tg:first-of-type { border-top: none; padding-top: 0; }
+.tg-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; padding-top: 9px; }
+.tg-times { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.t-btn {
+  min-height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid #b9d4c2; background: #fff; color: #1a3a1a;
+  font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.t-btn:hover:not(.selected) { border-color: #3f9a6b; background: #f2f7f3; }
+.t-btn.selected { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.t-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.t-booked, .t-away { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 8px; background: #f2f4f2; color: #8a9a8a; font-size: 0.82rem; }
+.t-booked { text-decoration: line-through; text-decoration-color: #b5bfb5; }
+
+.bk-section textarea {
+  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 13px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; resize: vertical;
+}
+.bk-section textarea:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
+
+/* the footer: what's picked, and Send */
+.bk-foot { display: flex; align-items: center; gap: 12px 18px; padding: 14px 26px; border-top: 1px solid #d9e3dc; background: #f7faf8; }
+.bk-summary { flex: 1; min-width: 0; }
+.bk-pick { margin: 0; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; }
+.bk-pick.muted { font-weight: 600; color: #4a5a4a; }
+.bk-after { margin: 2px 0 0; font-size: 0.78rem; color: #6a7a6a; }
+.bk-foot .form-error { margin: 4px 0 0; font-size: 0.8rem; color: #a12525; }
+.bk-send { flex-shrink: 0; min-height: 40px; padding: 0 20px; }
+
 /* one RND at a time: plain information */
 .one-rnd { background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.5; }
 .one-rnd p { margin: 0 0 6px; }
-.time-slot-btn.taken { background: #f3f4f3; border-style: dashed; color: #9aaa9a; text-decoration: line-through; cursor: not-allowed; display: inline-flex; align-items: center; gap: 6px; }
-.taken-tag { font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-block; background: #e6e9e6; color: #6a7a6a; border-radius: 6px; padding: 1px 5px; }
-.availability-warn { font-size: 0.8rem; color: #c0392b; background: #fbe5e2; border-radius: 8px; padding: 10px 12px; margin: 4px 0 0; width: 100%; }
 
-.booking-section textarea {
-  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 11px 13px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; resize: vertical;
+@media (max-width: 640px) {
+  .modal-overlay { padding: 0; align-items: stretch; }
+  .booking-modal-box { max-width: none; max-height: none; height: 100%; border-radius: 0; }
+  .bk-head { padding: 18px 16px 14px; }
+  .bk-body { padding: 16px 16px 4px; }
+  .bk-foot { flex-direction: column; align-items: stretch; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .bk-send { width: 100%; }
+  .seg { width: 100%; }
+  .seg-btn { flex: 1; justify-content: center; }
+  .day-chip { flex-basis: 76px; }
+  .tg { grid-template-columns: 1fr; gap: 6px; }
+  .tg-label { padding-top: 0; }
 }
-.booking-section textarea:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
-
-.confirm-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: #0a4a37; color: #fff;
-  border: none; border-radius: 10px; min-height: 44px; padding: 0 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; margin-top: 6px; font-family: inherit;
-}
-.confirm-btn:hover:not(:disabled) { background: #00382a; }
-.confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.booking-hint { text-align: center; font-size: 0.82rem; font-weight: 600; color: #4a5a4a; margin: 10px 0 0; }
-.submit-note { text-align: center; font-size: 0.8rem; color: #6a7a6a; margin: 10px 0 0; }
 </style>
