@@ -42,46 +42,59 @@
         </div>
       </section>
 
-      <!-- TODAY: every meal in one list; tap one to open it and log it -->
-      <section v-if="todaysMeals.length" class="day">
-        <div class="day-head">
-          <h3 class="day-title">Today, {{ todayLabel }}</h3>
-          <span class="day-progress" :aria-label="`${loggedCount} of ${todaysMeals.length} meals logged`">
-            <span class="pips" aria-hidden="true"><span v-for="(m, i) in todaysMeals" :key="m.id" class="pip" :class="{ on: logFor(m.id) }" /></span>
-            {{ loggedCount }} of {{ todaysMeals.length }} logged
-          </span>
+      <template v-if="todaysMeals.length">
+        <p class="today-label">Today, {{ todayLabel }}</p>
+        <div class="meal-tabs">
+          <button
+            v-for="(meal, i) in todaysMeals" :key="meal.id"
+            class="meal-tab" :class="{ active: activeMealIndex === i }"
+            @click="activeMealIndex = i"
+          >
+            <component :is="mealIcon(meal.meal_time)" :size="14" />
+            {{ mealTimeLabel(meal.meal_time) }}
+            <span v-if="logFor(meal.id)" class="tab-status-dot" :class="logFor(meal.id).status === 'followed' ? 'dot-green' : 'dot-gold'" :title="logFor(meal.id).status_label"></span>
+          </button>
         </div>
 
-        <div v-for="(meal, i) in todaysMeals" :key="meal.id" class="meal" :class="{ open: activeMealIndex === i }">
-          <button type="button" class="meal-row" :aria-expanded="activeMealIndex === i" @click="toggleMeal(i)">
-            <span class="meal-time">{{ meal.scheduled_time ? formatClock(meal.scheduled_time) : '' }}</span>
-            <span class="meal-main">
-              <span class="meal-name">{{ mealTimeLabel(meal.meal_time) }}<span v-if="mealHasAllergen(meal)" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> Allergy</span></span>
-              <span class="meal-foods">{{ foodLine(meal) }}</span>
-            </span>
-            <span class="meal-state" :class="mealState(meal).cls"><span class="dot" aria-hidden="true" />{{ mealState(meal).label }}</span>
-            <ChevronDown :size="16" class="chev" aria-hidden="true" />
-          </button>
+        <div class="meal-card">
+          <div class="meal-header">
+            <div>
+              <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
+              <p v-if="activeMeal.scheduled_time" class="meal-scheduled">Planned for {{ formatClock(activeMeal.scheduled_time) }}</p>
+            </div>
+            <!-- The client logs what they ate; the RND rates it. -->
+            <div class="status-col">
+              <span class="status-pill" :class="pillClass(activeLog)">
+                {{ !activeLog ? 'Not logged yet' : activeLog.status ? activeLog.status_label : 'Waiting for your RND to rate it' }}
+              </span>
+              <span v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status">, rated by your RND</template></span>
+            </div>
+          </div>
 
-          <div v-if="activeMealIndex === i" class="meal-open">
+          <div class="meal-body">
             <div class="meal-col">
-              <p class="col-title">Planned <span class="exchange-summary">{{ exchangeSummary(meal) }}</span></p>
-              <ul v-if="meal.food_items.length" class="food-list">
-                <li v-for="item in meal.food_items" :key="item.id" class="food" :class="{ allergen: foodAllergies(item).length }">
-                  <span class="food-name">{{ item.food_name }}</span>
-                  <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} exchange` }}</span>
-                  <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
-                </li>
-              </ul>
+              <span class="col-eyebrow">Planned meal</span>
+              <span class="exchange-summary">{{ exchangeSummary(activeMeal) }}</span>
+              <div v-if="activeMeal.food_items.length" class="food-item-list">
+                <div v-for="item in activeMeal.food_items" :key="item.id" class="planned-item" :class="{ allergen: foodAllergies(item).length }">
+                  <span class="planned-dot"></span>
+                  <div class="planned-text">
+                    <span class="food-name">{{ item.food_name }}</span>
+                    <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} exchange` }}</span>
+                    <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
+                  </div>
+                </div>
+              </div>
               <p v-else class="no-items-note">No specific foods listed for this meal yet.</p>
-              <p v-if="meal.meal_notes" class="meal-note-text"><strong>Note:</strong> {{ meal.meal_notes }}</p>
+              <p v-if="activeMeal.meal_notes" class="meal-note-text"><strong>Note:</strong> {{ activeMeal.meal_notes }}</p>
             </div>
 
-            <div class="meal-col log-col">
-              <p class="col-title">What you ate</p>
-              <p v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status">, rated by your RND</template></p>
+            <div class="meal-col">
+              <span class="col-eyebrow">What you ate</span>
 
-              <input :ref="(el) => { if (el) photoInput = el }" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
+              <input ref="photoInput" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
+              <!-- The chosen photo (not uploaded until Save) or the one already
+                   saved today, shown as a picture; tap it to see it full size. -->
               <div v-if="photoPreview" class="photo-preview">
                 <button type="button" class="photo-thumb" aria-label="View the photo full size" @click="viewerOpen = true">
                   <img :src="photoPreview" :alt="logForm.photoFile ? 'Selected photo of what you ate' : 'Photo you logged for this meal'" />
@@ -91,37 +104,39 @@
                   <span v-if="logForm.photoFile" class="photo-sub">Not saved yet. Press Save to send it.</span>
                   <div class="photo-actions">
                     <button type="button" class="photo-btn" @click="photoInput?.click()">Change photo</button>
-                    <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" aria-hidden="true" /> Remove</button>
+                    <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" /> Remove</button>
                   </div>
                 </div>
               </div>
               <button v-else type="button" class="dropzone-inline" @click="photoInput?.click()">
-                <UploadCloud :size="20" class="dropzone-icon" aria-hidden="true" />
+                <UploadCloud :size="20" class="dropzone-icon" />
                 <span class="dropzone-text">Upload a photo of what you ate</span>
               </button>
               <p v-if="photoError" class="form-error inline">{{ photoError }}</p>
+
+              <Teleport to="body">
+                <div v-if="viewerOpen && photoPreview" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Photo of what you ate" @click.self="viewerOpen = false">
+                  <button type="button" class="viewer-close" aria-label="Close" @click="viewerOpen = false"><X :size="20" /></button>
+                  <img :src="photoPreview" alt="Photo of what you ate, full size" />
+                </div>
+              </Teleport>
 
               <div class="field notes-field">
                 <label for="meal-log-note">Note</label>
                 <textarea id="meal-log-note" data-allow-emoji v-model="logForm.reasonNotes" rows="3" maxlength="1000"
                           placeholder="What did you eat? e.g. Had half the rice and added a banana."></textarea>
               </div>
-              <p class="log-hint">Add a photo, a note or both. Your RND rates how closely it followed your plan.</p>
+              <p class="log-hint">Add a photo, a note or both. The time is saved for you, and your RND rates how closely it followed your plan.</p>
+
               <p v-if="logError" class="form-error inline">{{ logError }}</p>
+
               <button v-if="canSaveLog" class="save-log-btn" :disabled="isSavingLog" @click="saveMealLog">
-                <Save :size="15" aria-hidden="true" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
+                <Save :size="15" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
               </button>
             </div>
           </div>
         </div>
-
-        <Teleport to="body">
-          <div v-if="viewerOpen && photoPreview" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Photo of what you ate" @click.self="viewerOpen = false">
-            <button type="button" class="viewer-close" aria-label="Close" @click="viewerOpen = false"><X :size="20" /></button>
-            <img :src="photoPreview" alt="Photo of what you ate, full size" />
-          </div>
-        </Teleport>
-      </section>
+      </template>
       <div v-else class="empty-note-card">Your plan has no meals scheduled for today ({{ todayLabel }}).</div>
 
       <div class="info-note">
@@ -147,7 +162,7 @@
 <script setup>
 import { phIso, phWeekday } from '~/utils/phTime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle, ChevronDown } from 'lucide-vue-next'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle } from 'lucide-vue-next'
 import { allergyWarnings } from '~/utils/foodWarnings'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
@@ -288,29 +303,6 @@ function foodAllergies(item) {
 
 // Older generated plans were named "… plan — 1,600 kcal": show it with a comma.
 const planName = computed(() => (plan.value?.name || '').replace(' — ', ', '))
-const loggedCount = computed(() => todaysMeals.value.filter(m => logFor(m.id)).length)
-function foodLine(meal) {
-  const names = (meal.food_items || []).map(f => f.food_name.split(' (')[0])
-  if (!names.length) return 'No foods listed'
-  return names.length > 4 ? `${names.slice(0, 4).join(', ')}, +${names.length - 4} more` : names.join(', ')
-}
-function mealHasAllergen(meal) {
-  return (meal.food_items || []).some(f => foodAllergies(f).length)
-}
-function mealState(meal) {
-  const log = logFor(meal.id)
-  if (!log) return { cls: 'none', label: 'Not logged' }
-  return {
-    followed: { cls: 'green', label: 'Followed' },
-    partially_followed: { cls: 'gold', label: 'Partly followed' },
-    not_followed: { cls: 'red', label: 'Not followed' },
-  }[log.status] || { cls: 'gold', label: 'Waiting for your RND' }
-}
-// One meal open at a time; tap it again to close.
-function toggleMeal(i) {
-  activeMealIndex.value = activeMealIndex.value === i ? -1 : i
-}
-
 const completionPct = computed(() => {
   const meals = todaysMeals.value
   if (!meals.length) return 0
@@ -367,7 +359,7 @@ async function loadMealPlans() {
     plans.value = mealPlans
     todaysLogs.value = logs
     myAllergies.value = profile?.health_profile?.allergies || []
-    // open the first meal not logged yet (else the first one)
+    // start on the first meal not logged yet (else the first one)
     const firstOpen = todaysMeals.value.findIndex(m => !logFor(m.id))
     activeMealIndex.value = firstOpen >= 0 ? firstOpen : 0
     resetLogForm()
@@ -435,55 +427,44 @@ onMounted(loadMealPlans)
 .other-targets-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; }
 .other-target-chip { font-size: 0.8rem; color: #1a3a1a; background: #f2f6f3; border: 1px solid #d9e3dc; border-radius: 14px; padding: 4px 12px; }
 
-/* TODAY: one list, one meal open */
-.day { overflow: hidden; margin-bottom: 18px; }
-.day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid #d9e3dc; }
-.day-title { font-family: 'Playfair Display', serif; font-size: 1.08rem; color: #1a3a1a; margin: 0; }
-.day-progress { display: inline-flex; align-items: center; gap: 8px; font-size: 0.84rem; font-weight: 600; color: #1f6f46; }
-.pips { display: inline-flex; gap: 4px; }
-.pip { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #9ec4ad; }
-.pip.on { background: #1f8f5c; border-color: #1f8f5c; }
-
-.meal + .meal { border-top: 1px solid #d9e3dc; }
-.meal-row {
-  display: grid; grid-template-columns: 76px minmax(0, 1fr) auto 18px; align-items: center; gap: 14px;
-  width: 100%; padding: 14px 22px; border: none; background: #fff; text-align: left; font-family: inherit; cursor: pointer;
+/* MEAL TABS */
+.meal-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.meal-tab {
+  display: inline-flex; align-items: center; gap: 7px; border: 1px solid #d9e3dc; background: #fff; font-family: inherit;
+  padding: 10px 18px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: #6a7a6a; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.meal-row:hover { background: #f7faf8; }
-.meal-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.meal.open .meal-row { background: #f2f7f3; }
-.meal-time { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.meal-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.meal-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.95rem; font-weight: 700; color: #1a3a1a; }
-.meal-foods { font-size: 0.8rem; color: #6a7a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meal-state { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; font-weight: 600; color: #6a7a6a; white-space: nowrap; }
-.meal-state .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #a9b8ad; }
-.meal-state.green { color: #1f6f46; }
-.meal-state.green .dot { background: #1f8f5c; border-color: #1f8f5c; }
-.meal-state.gold { color: #8a6400; }
-.meal-state.gold .dot { background: #D4A017; border-color: #D4A017; }
-.meal-state.red { color: #a12525; }
-.meal-state.red .dot { background: #c0392b; border-color: #c0392b; }
-.chev { color: #6a7a6a; transition: transform 0.15s ease; }
-.meal.open .chev { transform: rotate(180deg); }
+.meal-tab:hover:not(.active) { background: #f4f7f5; }
+.meal-tab:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.meal-tab.active { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.tab-status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background-color: #4ade80; }
+.dot-gold { background-color: #D4A017; }
 
-.meal-open { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 6px 22px 20px 112px; background: #f2f7f3; }
+/* MEAL CARD */
+.meal-card { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.meal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 26px; background: #f2f7f3; border-bottom: 1px solid #d9e3dc; }
+.meal-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0; }
+.meal-scheduled { font-size: 0.82rem; color: #6a7a6a; margin: 3px 0 0; }
+.today-label { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 10px; }
+
+.meal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 22px 26px; }
 .meal-col { min-width: 0; }
-.col-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 8px 0 8px; }
-.exchange-summary { font-size: 0.78rem; font-weight: 500; color: #6a7a6a; margin-left: 6px; }
-.logged-at { font-size: 0.78rem; color: #6a7a6a; margin: -4px 0 8px; }
-.log-hint { font-size: 0.78rem; color: #6a7a6a; margin: 8px 0 0; line-height: 1.5; }
+.col-eyebrow { display: block; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin-bottom: 10px; }
+.exchange-summary { display: block; font-size: 0.78rem; color: #6a7a6a; margin: -6px 0 12px; }
 
-.food-list { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; }
-.food { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; padding: 9px 12px; }
-.food + .food { border-top: 1px solid #d9e3dc; }
+.food-item-list { display: flex; flex-direction: column; gap: 10px; }
+.planned-item { display: flex; align-items: center; gap: 12px; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 10px; padding: 13px 16px; }
 /* a food that may contain one of the client's allergens */
-.food.allergen { background: #fdf1ef; box-shadow: inset 3px 0 0 #c0392b; }
-.allergy-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; color: #fff; background: #c0392b; border-radius: 999px; padding: 2px 8px; }
-.food-name { font-size: 0.88rem; color: #1a3a1a; font-weight: 600; }
+.planned-item.allergen { background: #fdf1ef; border: 1.5px solid #c0392b; }
+.planned-item.allergen .planned-dot { background: #c0392b; }
+.planned-text { min-width: 0; }
+.allergy-tag { display: inline-flex; align-items: center; gap: 4px; margin: 4px 0 0 8px; font-size: 0.74rem; font-weight: 700; color: #fff; background: #c0392b; border-radius: 999px; padding: 2px 8px; }
+.planned-dot { width: 8px; height: 8px; border-radius: 50%; background: #D4A017; flex-shrink: 0; }
+.food-name { font-size: 0.9rem; color: #2a3a2a; font-weight: 600; margin-right: 8px; }
 .food-note { color: #6a7a6a; font-size: 0.8rem; }
 .no-items-note { font-size: 0.83rem; color: #6a7a6a; margin: 0; }
-.meal-note-text { font-size: 0.85rem; color: #4a5a4a; margin: 12px 0 0; line-height: 1.5; }
+.meal-note-text { font-size: 0.85rem; color: #4a5a4a; margin: 16px 0 0; line-height: 1.5; }
 .meal-note-text strong { color: #1a3a1a; }
 
 .dropzone-inline {
@@ -580,17 +561,11 @@ onMounted(loadMealPlans)
 
 @media (max-width: 800px) {
   .plan-grid { grid-template-columns: minmax(0, 1fr); }
-  .meal-open { grid-template-columns: minmax(0, 1fr); padding: 6px 16px 18px; gap: 8px; }
+  .meal-body { grid-template-columns: 1fr; padding: 18px 16px; }
+  .meal-header { padding: 16px; }
 }
 @media (max-width: 560px) {
   .plan-card { padding: 16px; }
   .bento-big { font-size: 2rem; }
-  .day-head { padding: 14px 16px; }
-  .meal-row { grid-template-columns: minmax(0, 1fr) 18px; grid-template-areas: "time chev" "main chev" "state chev"; gap: 2px 10px; padding: 12px 16px; }
-  .meal-time { grid-area: time; font-size: 0.8rem; color: #4a5a4a; }
-  .meal-main { grid-area: main; }
-  .meal-state { grid-area: state; margin-top: 4px; }
-  .chev { grid-area: chev; }
 }
-@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 </style>
