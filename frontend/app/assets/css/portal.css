@@ -266,9 +266,9 @@ svg.lucide-triangle-alert { color: #c0392b !important; }
 /* Scrollbars (user's call, 2026-10-24): one thin green style everywhere —
    the page, pop-ups, panels and lists — instead of the browser's grey bar.
    Strips that hide their bar on purpose (scrollbar-width: none) keep it hidden. */
-* { scrollbar-width: thin; scrollbar-color: #3f7a5a transparent; }
+* { scrollbar-width: thin; scrollbar-color: #b9d4c2 transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: #3f7a5a; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
-*::-webkit-scrollbar-thumb:hover { background: #0a4a37; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb { background: #b9d4c2; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: #7fb293; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-corner { background: transparent; }
