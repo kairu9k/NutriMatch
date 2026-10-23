@@ -48,15 +48,25 @@
         </div>
       </section>
 
-      <!-- UNPAID INVOICE -->
-      <NuxtLink v-if="unpaidInvoices.length" to="/invoices-billing" class="notice-row">
-        <Receipt :size="17" class="notice-icon" aria-hidden="true" />
-        <span class="notice-text">
-          You have {{ unpaidInvoices.length === 1 ? 'an unpaid invoice' : `${unpaidInvoices.length} unpaid invoices` }}:
-          <strong>₱{{ unpaidTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</strong>. Pay before your consultation starts.
-        </span>
-        <span class="panel-link">Pay now</span>
-      </NuxtLink>
+      <!-- NEEDS YOU: everything waiting on the client, same panel as the RND
+           dashboard. Red = it goes wrong soon if left (payment due within a day,
+           labs for a consultation within 2 days); dashed green = still to do. -->
+      <section class="needs" aria-label="Needs you">
+        <p v-if="!needsUrgent.length && !needsTodo.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing is waiting on you.</p>
+        <ul v-if="needsUrgent.length" class="needs-band">
+          <li v-for="n in needsUrgent" :key="n.key" class="needs-row risk">
+            <AlertTriangle :size="16" class="needs-icon" aria-hidden="true" />
+            <span class="needs-text"><strong>{{ n.title }}</strong> {{ n.detail }}</span>
+            <NuxtLink :to="n.to" class="needs-btn urgent">{{ n.action }}</NuxtLink>
+          </li>
+        </ul>
+        <ul v-if="needsTodo.length" class="needs-band">
+          <li v-for="n in needsTodo" :key="n.key" class="needs-row unfinished">
+            <span class="needs-text"><strong>{{ n.title }}</strong> {{ n.detail }}</span>
+            <NuxtLink :to="n.to" class="needs-btn">{{ n.action }}</NuxtLink>
+          </li>
+        </ul>
+      </section>
 
       <!-- HEALTH SNAPSHOT -->
       <section class="stat-grid" aria-label="Your health at a glance">
@@ -292,7 +302,7 @@
 import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
+  UtensilsCrossed, AlertTriangle, CheckCircle2, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -311,6 +321,7 @@ const mealPlans = ref([])
 const mealLogs = ref([])
 const invoices = ref([])
 const notifications = ref([])
+const labs = ref(null) // GET /client/labs/: open requests from the RND
 
 const APPT_TYPES = { video: 'Video', chat: 'Chat', in_person: 'In person' }
 const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
@@ -387,7 +398,71 @@ const careRnd = computed(() => {
 
 /* ---------- Billing ---------- */
 const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid'))
-const unpaidTotal = computed(() => unpaidInvoices.value.reduce((sum, i) => sum + Number(i.amount), 0))
+
+/* ---------- Needs you ---------- */
+const HOUR = 3600000
+const peso = v => `₱${Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+function whenShort(iso) {
+  const d = new Date(iso)
+  const day = d.toDateString() === new Date().toDateString() ? 'today'
+    : d.toDateString() === new Date(Date.now() + 24 * HOUR).toDateString() ? 'tomorrow'
+      : d.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric' })
+  return `${day} at ${formatTime(iso)}`
+}
+const openLabRequests = computed(() => (labs.value?.requests || []).filter(r => r.status === 'open'))
+function labsLeft(r) {
+  const done = new Set(r.uploaded_tests || [])
+  const names = r.test_names || []
+  return (r.tests || []).length ? names.filter((_, i) => !done.has(r.tests[i])) : names
+}
+const needsUrgent = computed(() => {
+  const out = []
+  for (const inv of unpaidInvoices.value) {
+    if (!inv.pay_by || new Date(inv.pay_by) - Date.now() > 24 * HOUR) continue
+    out.push({
+      key: `pay${inv.id}`, title: `Pay ${peso(inv.amount)} by ${whenShort(inv.pay_by)}.`,
+      detail: "If it's still unpaid then, your consultation is cancelled.", action: 'Pay now', to: '/invoices-billing',
+    })
+  }
+  for (const r of openLabRequests.value) {
+    if (!r.needed_before || new Date(r.needed_before) - Date.now() > 48 * HOUR) continue
+    out.push({
+      key: `lab${r.id}`, title: `Lab results needed before your consultation ${whenShort(r.needed_before)}.`,
+      detail: `Still to upload: ${labsLeft(r).join(', ')}.`, action: 'Upload', to: '/lab-results',
+    })
+  }
+  return out
+})
+const needsTodo = computed(() => {
+  const out = []
+  const urgent = new Set(needsUrgent.value.map(n => n.key))
+  if (!screening.value) {
+    out.push({ key: 'screening', title: 'Complete your health screening.', detail: 'Your RND needs it before your first consultation. It takes about a minute.', action: 'Start screening', to: '/pre-consultation-screening' })
+  }
+  for (const inv of unpaidInvoices.value) {
+    if (urgent.has(`pay${inv.id}`)) continue
+    out.push({
+      key: `pay${inv.id}`, title: `Pay ${peso(inv.amount)} for your consultation.`,
+      detail: inv.pay_by ? `Pay before ${whenShort(inv.pay_by)}.` : 'Pay before it starts.', action: 'Pay', to: '/invoices-billing',
+    })
+  }
+  for (const r of openLabRequests.value) {
+    if (urgent.has(`lab${r.id}`)) continue
+    out.push({
+      key: `lab${r.id}`, title: `${r.requested_by ? `RND ${r.requested_by}` : 'Your RND'} asked for lab results.`,
+      detail: `${labsLeft(r).join(', ')}${r.needed_before ? `, before ${whenShort(r.needed_before)}` : ''}.`, action: 'Upload', to: '/lab-results',
+    })
+  }
+  if (!activeRelationship.value && expiredRequest.value && !nextAppointment.value) {
+    const rnd = expiredRequest.value.relationship?.rnd
+    out.push({
+      key: 'expired', title: 'Your booking request wasn\'t confirmed in time.',
+      detail: `The ${formatLongDate(expiredRequest.value.scheduled_at)} request${rnd ? ` with RND ${rnd.first_name} ${rnd.last_name}` : ''} has passed. Pick a new time.`,
+      action: 'Book again', to: rnd ? `/rnd-profile-view/${rnd.id}?book=1` : '/find-rnd',
+    })
+  }
+  return out
+})
 
 /* ---------- Banner "Up next" card: the next consultation, if any ---------- */
 const longToday = new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric' })
@@ -591,7 +666,7 @@ async function loadDashboard() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const [appts, rels, latestScreening, progress, plans, logs, invs, notes] = await Promise.all([
+    const [appts, rels, latestScreening, progress, plans, logs, invs, notes, labData] = await Promise.all([
       get('/client/appointments/'),
       get('/client/relationships/'),
       get('/client/screening/latest/').catch(() => null),
@@ -600,7 +675,9 @@ async function loadDashboard() {
       get('/client/meal-logs/').catch(() => []),
       get('/client/invoices/').catch(() => []),
       get('/notifications/').catch(() => []),
+      get('/client/labs/').catch(() => null),
     ])
+    labs.value = labData
     appointments.value = appts
     relationships.value = rels
     screening.value = latestScreening
@@ -701,13 +778,36 @@ function phClock(iso) {
 .empty-note.spaced { margin-bottom: 16px; }
 
 /* UNPAID INVOICE ROW */
-/* an unpaid invoice is something still to do: dashed green */
-.notice-row {
-  display: flex; align-items: center; gap: 12px; background: #fff; border: 1.5px dashed #3f9a6b;
-  border-radius: 12px; padding: 12px 18px; margin: -8px 0 20px; text-decoration: none; color: #1f4a30;
+/* NEEDS YOU (same panel as RNDDashboard.vue) */
+.needs { background: #fff; border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; margin: -4px 0 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.needs > * + * { border-top: 1px solid #d9e3dc; }
+.all-clear { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 20px; font-size: 0.86rem; font-weight: 600; color: #1f6f46; }
+.needs-band { list-style: none; margin: 0; padding: 0; }
+.needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
+.needs-row + .needs-row { border-top: 1px solid #eef1ee; }
+.needs-row strong { color: #1a3a1a; }
+.needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.needs-row.risk { background: #fdf3f2; }
+.needs-row.risk strong { color: #a12525; }
+.needs-icon { flex-shrink: 0; color: #c0392b; }
+.needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
+.needs-btn { flex-shrink: 0; white-space: nowrap; font-size: 0.82rem; font-weight: 600; text-decoration: none; color: #0a4a37; border: 1px solid #0a4a37; border-radius: 8px; padding: 6px 12px; background: #fff; }
+.needs-btn:hover { background: #f4f7f5; }
+.needs-btn.urgent { background: #c0392b; border-color: #c0392b; color: #fff; }
+.needs-btn.urgent:hover { background: #a12f23; }
+.needs-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+/* one opening moment, about 3 seconds: the panel drops in, then each red and
+   dashed-green line glows three times (only the items, not the panel) */
+@media (prefers-reduced-motion: no-preference) {
+  .needs { animation: nm-drop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
+  .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
+  .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
 }
-.notice-icon { flex-shrink: 0; color: #3f9a6b; }
-.notice-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+@keyframes nm-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
+@keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
+@keyframes nm-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
 .notice-text { flex: 1; font-size: 0.85rem; }
 .notice-text strong { color: #1a3a1a; }
 
@@ -850,6 +950,10 @@ function phClock(iso) {
   .stat-value { font-size: 1.35rem; }
   .panel { padding: 18px 16px; }
   .adherence-row { grid-template-columns: 1fr; gap: 8px; }
+  .needs-row { flex-wrap: wrap; padding: 12px 16px; }
+  .needs-text { flex-basis: calc(100% - 40px); }
+  .needs-btn { margin-left: 28px; }
+  .needs-row.unfinished .needs-btn { margin-left: 21px; }
   .macro-source { margin-left: 0; width: 100%; }
 }
 
