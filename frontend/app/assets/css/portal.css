@@ -265,10 +265,15 @@ svg.lucide-triangle-alert { color: #c0392b !important; }
 
 /* Scrollbars (user's call, 2026-10-24): one thin green style everywhere —
    the page, pop-ups, panels and lists — instead of the browser's grey bar.
-   Strips that hide their bar on purpose (scrollbar-width: none) keep it hidden. */
-* { scrollbar-width: thin; scrollbar-color: #b9d4c2 transparent; }
+   Strips that hide their bar on purpose (scrollbar-width: none) keep it hidden.
+   Chrome/Edge/Safari use the ::-webkit-scrollbar rules (Chrome ignores them once
+   scrollbar-width is set), so the bar can stop short of rounded pop-up corners;
+   Firefox gets the standard properties. */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: #b9d4c2 transparent; }
+}
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-track { background: transparent; margin: 12px; }
 *::-webkit-scrollbar-thumb { background: #b9d4c2; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-thumb:hover { background: #7fb293; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-corner { background: transparent; }
