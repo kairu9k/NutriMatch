@@ -46,7 +46,9 @@ def _dow(d):
 class CareData:
     """Batched care facts for a set of one RND's relationships."""
 
-    def __init__(self, rels, now=None):
+    def __init__(self, rels, now=None, log_days=14):
+        # log_days: how far back meal logs are loaded (the dashboard looks at
+        # 7-14 days; the client's Progress Tracker charts 8 weeks)
         from clinical.models import NcpRecord, PreConsultationScreening, ProgressRecord
         from nutrition.models import MealLog, MealPlan, MealPlanMeal
 
@@ -68,7 +70,7 @@ class CareData:
         self.active_plans = {rid: p for rid, p in self.active_plans.items() if p}
 
         self.meals = list(MealPlanMeal.objects.filter(meal_plan__in=self.active_plans.values()).select_related("meal_plan"))
-        logs = MealLog.objects.filter(meal_plan_meal__in=self.meals, log_date__gte=self.today - timedelta(days=13),
+        logs = MealLog.objects.filter(meal_plan_meal__in=self.meals, log_date__gte=self.today - timedelta(days=log_days - 1),
                                       log_date__lte=self.today)
         self.log_map = {(lg.meal_plan_meal_id, lg.log_date): lg for lg in logs}
         self.last_log = {}

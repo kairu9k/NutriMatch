@@ -60,3 +60,15 @@ class SelfLogTests(TestCase):
         self.assertEqual(len(weeks), 8)
         self.assertEqual(weeks[-1]["logged"], 1)
         self.assertEqual(weeks[-1]["planned"], 7)
+
+    def test_older_weeks_count_their_logs(self):
+        # a log four weeks back still counts (the chart covers 8 weeks)
+        rel = RndClientRelationship.objects.create(rnd=self.rnd, client=self.c, status="active")
+        plan = MealPlan.objects.create(relationship=rel, name="P", status="active",
+                                       sent_at=timezone.now() - timezone.timedelta(days=50), first_sent_at=timezone.now() - timezone.timedelta(days=50))
+        meal = MealPlanMeal.objects.create(meal_plan=plan, meal_time="breakfast", scheduled_time=time(0, 1), created_at=None)
+        old_day = timezone.now().astimezone(ph_tz()).date() - timezone.timedelta(days=30)
+        MealLog.objects.create(meal_plan_meal=meal, client=self.c, log_date=old_day, status="followed")
+        weeks = self.api.get("/api/client/adherence/").data["weeks"]
+        self.assertEqual(sum(w["logged"] for w in weeks), 1)
+        self.assertTrue(any(w["pct"] for w in weeks[:-2]))

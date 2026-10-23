@@ -2,13 +2,13 @@
   <div class="tracker-page">
     <div class="page-header">
       <div>
-        <p class="page-sub">Your health journey — the readings your RND records at each consultation.</p>
+        <p class="page-sub">The readings your RND records at each consultation, and how closely you followed your meal plan.</p>
       </div>
       <div class="header-actions">
         <select v-if="records.length" v-model="selectedRange" class="nm-select" aria-label="Date range">
           <option v-for="r in ranges" :key="r.label" :value="r.label">{{ r.label }}</option>
         </select>
-        <button v-if="records.length" type="button" class="nm-btn-soft nm-btn-sm" @click="printReport"><Printer :size="14" /> Print / PDF</button>
+        <button v-if="records.length" type="button" class="nm-btn-soft nm-btn-sm" @click="printReport"><Printer :size="14" aria-hidden="true" /> Print or save as PDF</button>
       </div>
     </div>
 
@@ -17,35 +17,27 @@
     <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
     <template v-if="!isLoading && records.length">
+      <!-- latest readings: one divided panel; the change since the first reading in words -->
       <div class="stat-grid">
         <div class="stat-card">
-          <div class="stat-icon"><Gauge :size="18" /></div>
-          <div class="stat-number">{{ latest.weight_kg ? `${latest.weight_kg} kg` : '—' }}</div>
-          <div class="stat-label">Latest Weight</div>
-          <div v-if="weightDelta !== null" class="stat-delta" :class="weightDelta <= 0 ? 'down' : 'up'">
-            {{ weightDelta <= 0 ? '↓' : '↑' }} {{ Math.abs(weightDelta).toFixed(1) }} kg total
-          </div>
+          <div class="stat-label">Weight</div>
+          <div class="stat-number">{{ latest.weight_kg ? `${num(latest.weight_kg)} kg` : '—' }}</div>
+          <div v-if="weightDelta !== null" class="stat-delta" :class="weightDelta <= 0 ? 'down' : 'up'">{{ changeText(weightDelta, ' kg', 1) }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon"><Activity :size="18" /></div>
-          <div class="stat-number">{{ latest.bmi ?? '—' }}</div>
-          <div class="stat-label">Latest BMI</div>
-          <div v-if="bmiDelta !== null" class="stat-delta" :class="bmiDelta <= 0 ? 'down' : 'up'">
-            {{ bmiDelta <= 0 ? '↓' : '↑' }} {{ Math.abs(bmiDelta).toFixed(1) }} since start
-          </div>
+          <div class="stat-label">BMI</div>
+          <div class="stat-number">{{ latest.bmi != null ? num(latest.bmi) : '—' }}</div>
+          <div v-if="bmiDelta !== null" class="stat-delta" :class="bmiDelta <= 0 ? 'down' : 'up'">{{ changeText(bmiDelta, '', 1) }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon"><HeartPulse :size="18" /></div>
+          <div class="stat-label">Blood pressure</div>
           <div class="stat-number">{{ latest.blood_pressure || '—' }}</div>
-          <div class="stat-label">Blood Pressure</div>
+          <div v-if="latest.blood_pressure" class="stat-delta muted">mmHg</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon"><Droplet :size="18" /></div>
-          <div class="stat-number">{{ latest.blood_glucose ? `${latest.blood_glucose} mg/dL` : '—' }}</div>
-          <div class="stat-label">Fasting Glucose</div>
-          <div v-if="glucoseDelta !== null" class="stat-delta" :class="glucoseDelta <= 0 ? 'down' : 'up'">
-            {{ glucoseDelta <= 0 ? '↓' : '↑' }} {{ Math.abs(glucoseDelta).toFixed(0) }} mg/dL {{ glucoseDelta <= 0 ? 'improved' : '' }}
-          </div>
+          <div class="stat-label">Fasting glucose</div>
+          <div class="stat-number">{{ latest.blood_glucose ? `${num(latest.blood_glucose)}` : '—' }}<span v-if="latest.blood_glucose" class="unit"> mg/dL</span></div>
+          <div v-if="glucoseDelta !== null" class="stat-delta" :class="glucoseDelta <= 0 ? 'down' : 'up'">{{ changeText(glucoseDelta, ' mg/dL', 0) }}</div>
         </div>
       </div>
 
@@ -54,14 +46,14 @@
         <div v-if="adherence.length" class="chart-card">
           <div class="adh-head">
             <div>
-              <h3 class="chart-title flush">How well I followed my meal plan</h3>
-              <p class="adh-sub">Share of planned meals followed each week (partly followed counts half) · goal 80%</p>
+              <h3 class="chart-title flush">How closely you followed your meal plan</h3>
+              <p class="adh-sub">Planned meals followed each week, as rated by your RND. Partly followed counts half. Goal 80%.</p>
             </div>
             <div v-if="thisWeek?.pct != null" class="adh-now"><strong>{{ thisWeek.pct }}%</strong><span>this week</span></div>
           </div>
           <svg class="adh-svg" viewBox="0 0 400 140" role="img" :aria-label="`Weekly meal-plan adherence, this week ${thisWeek?.pct ?? 'no data'} percent`">
             <line x1="0" :y1="adhY(80)" x2="400" :y2="adhY(80)" class="adh-goal" />
-            <text x="398" :y="adhY(80) - 4" text-anchor="end" class="adh-goal-label">80% goal</text>
+            <text x="2" :y="adhY(80) - 4" text-anchor="start" class="adh-goal-label">80% goal</text>
             <line x1="0" :y1="adhY(0)" x2="400" :y2="adhY(0)" class="adh-base" />
             <g v-for="(w, i) in adherence" :key="w.end">
               <rect :x="adhX(i)" :y="adhY(w.pct ?? 0)" :width="adhBarW" :height="Math.max(0, adhY(0) - adhY(w.pct ?? 0))"
@@ -75,15 +67,15 @@
           </svg>
         </div>
         <div v-if="weightSeries.length > 1" class="chart-card">
-          <h3 class="chart-title">Weight Trend (kg)</h3>
+          <h3 class="chart-title">Weight (kg)</h3>
           <TrendLine :points="weightSeries" color="#1a3a1a" />
         </div>
         <div v-if="bmiSeries.length > 1" class="chart-card">
-          <h3 class="chart-title gold">BMI Trend</h3>
+          <h3 class="chart-title">BMI</h3>
           <TrendLine :points="bmiSeries" color="#D4A017" />
         </div>
         <div v-if="systolicSeries.length > 1" class="chart-card">
-          <h3 class="chart-title">Blood Pressure (mmHg)</h3>
+          <h3 class="chart-title">Blood pressure (mmHg)</h3>
           <svg viewBox="0 0 400 120" class="bp-svg" preserveAspectRatio="none">
             <path :d="bpLinePath(systolicSeries)" stroke="#1a3a1a" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
             <circle v-for="(p, i) in bpCoords(systolicSeries)" :key="'s'+i" :cx="p.x" :cy="p.y" r="3.5" fill="#1a3a1a" />
@@ -99,7 +91,7 @@
           </div>
         </div>
         <div v-if="glucoseSeries.length > 1" class="chart-card">
-          <h3 class="chart-title red">Fasting Blood Glucose (mg/dL)</h3>
+          <h3 class="chart-title">Fasting blood glucose (mg/dL)</h3>
           <TrendLine :points="glucoseSeries" color="#c0392b" />
         </div>
         <div v-if="hba1cSeries.length > 1" class="chart-card">
@@ -109,7 +101,7 @@
       </div>
 
       <div class="surface">
-        <h3 class="surface-title">Record History</h3>
+        <h3 class="surface-title">All readings</h3>
         <div class="table-wrap">
           <table class="record-table">
             <thead>
@@ -119,12 +111,12 @@
               <tr v-for="rec in filteredRecords" :key="rec.id">
                 <td>{{ formatDate(rec.record_date) }}<span v-if="rec.client_notes" class="rec-note">{{ rec.client_notes }}</span></td>
                 <td><span class="src" :class="rec.source">{{ rec.source === 'client' ? 'You' : 'RND' }}</span></td>
-                <td>{{ rec.weight_kg ? `${rec.weight_kg} kg` : '—' }}</td>
-                <td>{{ rec.bmi ?? '—' }}</td>
+                <td>{{ rec.weight_kg ? `${num(rec.weight_kg)} kg` : '—' }}</td>
+                <td>{{ rec.bmi != null ? num(rec.bmi) : '—' }}</td>
                 <td>{{ rec.blood_pressure || '—' }}</td>
-                <td>{{ rec.blood_glucose ? `${rec.blood_glucose} mg/dL` : '—' }}</td>
+                <td>{{ rec.blood_glucose ? `${num(rec.blood_glucose)} mg/dL` : '—' }}</td>
                 <td>{{ rec.adherence_pct !== null ? `${rec.adherence_pct}%` : '—' }}</td>
-                <td>{{ rec.hba1c ? `${rec.hba1c}%` : "—" }}</td>
+                <td>{{ rec.hba1c ? `${num(rec.hba1c)}%` : '—' }}</td>
                 <td><button v-if="rec.source === 'client'" type="button" class="rec-x" aria-label="Delete this reading" @click="removeReading(rec)"><X :size="13" /></button></td>
               </tr>
             </tbody>
@@ -142,7 +134,7 @@
 </template>
 
 <script setup>
-import { Gauge, Activity, HeartPulse, Droplet, LineChart, Printer, X } from 'lucide-vue-next'
+import { LineChart, Printer, X } from 'lucide-vue-next'
 import { printDocument } from '~/utils/printDoc'
 
 definePageMeta({ layout: 'dashboard', title: 'Progress Tracker' })
@@ -210,11 +202,11 @@ const records = ref([])
 
 /* ---------- Date range filter ---------- */
 const ranges = [
-  { label: 'Last 3 Months', months: 3 },
-  { label: 'Last 6 Months', months: 6 },
-  { label: 'Last Year', months: 12 },
+  { label: 'Last 3 months', months: 3 },
+  { label: 'Last 6 months', months: 6 },
+  { label: 'Last year', months: 12 },
 ]
-const selectedRange = ref('Last 6 Months')
+const selectedRange = ref('Last 6 months')
 
 const filteredRecords = computed(() => {
   const months = ranges.find(r => r.label === selectedRange.value)?.months || 6
@@ -232,6 +224,15 @@ function deltaFor(field) {
   return Number(withField.at(-1)[field]) - Number(withField[0][field])
 }
 const weightDelta = computed(() => deltaFor('weight_kg'))
+// 64.90 -> 64.9, 106.00 -> 106 (the API sends two decimals)
+const num = v => String(Number(v))
+// "Down 3.1 kg since Aug 1" / "Up 2 mg/dL since Aug 1"
+function changeText(d, unit, dp) {
+  const first = sortedAsc.value[0]
+  const since = first ? ` since ${formatShortDate(first.record_date)}` : ''
+  if (Math.abs(d) < 0.05) return `No change${since}`
+  return `${d < 0 ? 'Down' : 'Up'} ${Math.abs(d).toFixed(dp)}${unit}${since}`
+}
 const bmiDelta = computed(() => deltaFor('bmi'))
 const glucoseDelta = computed(() => deltaFor('blood_glucose'))
 
@@ -316,45 +317,45 @@ onMounted(() => { loadRecords(); loadAdherence() })
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+.placeholder-text { font-size: 0.85rem; color: #6a7a6a; }
 
+/* latest readings: one divided panel */
 .stat-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; background: #fff;
+  border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
 }
-.stat-card { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 18px; }
-.stat-icon {
-  width: 34px; height: 34px; border-radius: 8px; background: #eef3ec; color: #1e4a26;
-  display: flex; align-items: center; justify-content: center; margin-bottom: 10px;
-}
-.stat-number { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; }
-.stat-label { font-size: 0.76rem; color: #8a9a8a; margin-top: 2px; }
-.stat-delta { font-size: 0.74rem; margin-top: 4px; font-weight: 600; }
-.stat-delta.down { color: #3a6b3a; }
-.stat-delta.up { color: #b8860b; }
+.stat-card { padding: 16px 20px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.stat-card:first-child { border-left: none; }
+.stat-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; }
+.stat-number { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin-top: 2px; font-variant-numeric: lining-nums; }
+.stat-number .unit { font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 500; color: #4a5a4a; }
+.stat-delta { font-size: 0.78rem; margin-top: 2px; font-weight: 600; }
+.stat-delta.down { color: #1f6f46; }
+.stat-delta.up { color: #8a6400; }
+.stat-delta.muted { color: #6a7a6a; font-weight: 500; }
 
-.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
-.chart-card { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px; }
-.chart-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: #1a3a1a; margin: 0 0 14px; }
-.chart-title.gold { color: #b8860b; }
-.chart-title.red { color: #c0392b; }
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 18px; }
+.chart-card { background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 20px; min-width: 0; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.chart-card.wide { grid-column: 1 / -1; }
+.chart-title { font-family: 'Playfair Display', serif; font-size: 1.02rem; color: #1a3a1a; margin: 0 0 14px; }
 
 .bp-svg { width: 100%; height: 120px; display: block; overflow: visible; }
-.bp-labels { display: flex; justify-content: space-between; font-size: 0.68rem; color: #9aaa9a; margin-top: 6px; }
+.bp-labels { display: flex; justify-content: space-between; font-size: 0.72rem; color: #6a7a6a; margin-top: 6px; }
 .chart-legend { display: flex; gap: 12px; margin-top: 10px; }
-.legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.74rem; color: #6a7a6a; font-weight: 500; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #4a5a4a; font-weight: 500; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
-.surface { background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 20px; }
+.surface { background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .surface-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 14px; }
 
 .table-wrap { overflow-x: auto; }
 .record-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .record-table th {
-  text-align: left; font-size: 0.7rem; letter-spacing: 0.04em; color: #8a9a8a;
-  padding: 10px 12px; border-bottom: 1px solid #eceeec; font-weight: 700; text-transform: uppercase;
+  text-align: left; font-size: 0.8rem; color: #4a5a4a;
+  padding: 10px 12px; border-bottom: 1px solid #d9e3dc; font-weight: 600;
 }
-.record-table td { padding: 12px; border-bottom: 1px solid #f4f5f2; color: #4a5a4a; white-space: nowrap; }
+.record-table td { padding: 12px; border-bottom: 1px solid #d9e3dc; color: #1a3a1a; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .record-table tr:last-child td { border-bottom: none; }
 
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -362,10 +363,10 @@ onMounted(() => { loadRecords(); loadAdherence() })
 /* Weekly adherence bars — one series, brand green; goal line dashed. */
 .adh-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
 .chart-title.flush { margin: 0; }
-.adh-sub { font-size: 0.74rem; color: #8a9a8a; margin: 3px 0 0; }
+.adh-sub { font-size: 0.8rem; color: #6a7a6a; margin: 3px 0 0; line-height: 1.45; }
 .adh-now { text-align: right; flex-shrink: 0; }
 .adh-now strong { display: block; font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a3a1a; }
-.adh-now span { font-size: 0.72rem; color: #8a9a8a; }
+.adh-now span { font-size: 0.78rem; color: #6a7a6a; }
 .adh-svg { width: 100%; height: 150px; display: block; overflow: visible; }
 .adh-bar { fill: #1f8f5c; }
 .adh-bar.empty { fill: none; }
@@ -374,22 +375,30 @@ onMounted(() => { loadRecords(); loadAdherence() })
 .adh-goal-label { font-size: 9px; fill: #8a6a1a; font-family: 'Inter', sans-serif; }
 .adh-base { stroke: #dfe5df; stroke-width: 1; }
 .adh-val { font-size: 10px; font-weight: 700; fill: #1a3a1a; font-family: 'Inter', sans-serif; }
-.adh-x { font-size: 9px; fill: #8a9a8a; font-family: 'Inter', sans-serif; }
+.adh-x { font-size: 9px; fill: #6a7a6a; font-family: 'Inter', sans-serif; }
 
 /* Record history: who logged it */
-.src { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #eceeec; color: #5a6a5a; }
-.src.client { background: #eef1f8; color: #34508a; }
+.src { font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e3efe7; color: #1e4a26; }
+.src.client { background: #f2f6f3; color: #4a5a4a; }
 .rec-note { display: block; font-size: 0.72rem; color: #8a9a8a; white-space: normal; max-width: 220px; }
 .rec-x { border: none; background: none; color: #9aaa9a; cursor: pointer; padding: 2px; display: flex; }
 .rec-x:hover { color: #c0392b; }
 
+@media (max-width: 760px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-card:nth-child(3) { border-left: none; }
+  .stat-card:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
+  .chart-grid { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 560px) {
   .header-actions { width: 100%; }
   .header-actions > * { flex: 1; }
+  .stat-card { padding: 14px 16px; }
+  .stat-number { font-size: 1.35rem; }
 }
 
 .empty-state {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc;
   padding: 60px 20px; text-align: center;
 }
 .empty-icon {
@@ -397,5 +406,5 @@ onMounted(() => { loadRecords(); loadAdherence() })
   display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; max-width: 400px; margin-left: auto; margin-right: auto; }
+.empty-desc { font-size: 0.85rem; color: #6a7a6a; margin: 0; max-width: 400px; margin-left: auto; margin-right: auto; }
 </style>

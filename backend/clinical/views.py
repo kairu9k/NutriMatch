@@ -303,7 +303,7 @@ class ClientAdherenceView(APIView):
         rels = list(RndClientRelationship.objects.filter(client=request.user, status=RndClientRelationship.Status.ACTIVE))
         if not rels:
             return Response({"weeks": []})
-        care = CareData(rels)
+        care = CareData(rels, log_days=56)  # 8 weeks of logs, not the dashboard's 2
         weeks = []
         for k in range(7, -1, -1):  # oldest first
             planned, logged, score, waiting = care.window(7 * k)
