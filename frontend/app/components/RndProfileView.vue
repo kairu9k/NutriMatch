@@ -12,9 +12,9 @@
         <img v-if="rnd.user.profile_photo" :src="rnd.user.profile_photo" class="hero-avatar" alt="" />
         <span v-else class="hero-avatar initials">{{ userInitials(rnd.user.first_name, rnd.user.last_name) }}</span>
         <div class="hero-main">
-          <span class="hero-badge"><ShieldCheck :size="13" /> PRC-verified<template v-if="rnd.verified_at"> since {{ monthYear(rnd.verified_at) }}</template></span>
+          <span class="hero-badge"><ShieldCheck :size="13" aria-hidden="true" /> PRC verified<template v-if="rnd.verified_at"> since {{ monthYear(rnd.verified_at) }}</template></span>
           <h1 class="hero-name">{{ fullName }}</h1>
-          <p class="hero-spec">{{ rnd.specialization || 'General / Clinical Nutrition' }}<template v-if="rnd.prc_license_number"> · PRC License No. {{ rnd.prc_license_number }}</template></p>
+          <p class="hero-spec">{{ rnd.specialization || 'General and clinical nutrition' }}<template v-if="rnd.prc_license_number">, PRC license no. {{ rnd.prc_license_number }}</template></p>
           <div class="hero-stats">
             <span v-if="rnd.review_count"><Star :size="14" class="gold" /> <strong>{{ rnd.average_rating.toFixed(1) }}</strong> ({{ rnd.review_count }} review{{ rnd.review_count === 1 ? '' : 's' }})</span>
             <span v-else><Star :size="14" /> No reviews yet</span>
@@ -52,7 +52,7 @@
           </div>
 
           <div class="nm-panel">
-            <h2 class="nm-panel-title">Where &amp; how you'll meet</h2>
+            <h2 class="nm-panel-title">Where and how you'll meet</h2>
             <div v-for="f in offeredFormats" :key="f.key" class="nm-row how-row">
               <span class="nm-stat-icon" style="margin: 0"><component :is="f.icon" :size="16" /></span>
               <div class="nm-row-main">
@@ -64,7 +64,7 @@
                 </template>
               </div>
             </div>
-            <p v-if="inPersonWithoutAddress" class="nm-note" style="margin: 12px 0 0">
+            <p v-if="inPersonWithoutAddress" class="nm-note plain-note" style="margin: 12px 0 0">
               {{ rnd.user.first_name }} hasn't added a clinic address yet, so in-person consultations can't be booked for now.
             </p>
           </div>
@@ -108,7 +108,7 @@
                 </div>
               </div>
             </div>
-            <p v-else class="nm-muted" style="margin-top: 12px">No reviews yet — be one of {{ rnd.user.first_name }}'s first patients.</p>
+            <p v-else class="nm-muted" style="margin-top: 12px">No reviews yet. You could be one of {{ rnd.user.first_name }}'s first patients.</p>
           </div>
         </div>
 
@@ -129,7 +129,7 @@
             <!-- One RND at a time: booking someone else waits until the current RND discharges them. -->
             <div v-if="rnd.booking_blocked_by" class="one-rnd">
               <p v-if="rnd.booking_blocked_by.status === 'active'">
-                You're under <strong>RND {{ rnd.booking_blocked_by.name }}</strong>'s care. You can book a different RND once RND {{ rnd.booking_blocked_by.name }} discharges you. Want to switch? <NuxtLink to="/profile-settings?tab=care">Ask to end care</NuxtLink> in Profile Settings → Care Team.
+                You're under <strong>RND {{ rnd.booking_blocked_by.name }}</strong>'s care. You can book a different RND once RND {{ rnd.booking_blocked_by.name }} discharges you. To switch, ask to end your care in Profile Settings, Care team.
               </p>
               <p v-else>
                 You have a booking waiting for <strong>RND {{ rnd.booking_blocked_by.name }}</strong>. Cancel it first if you'd like a different RND.
@@ -147,24 +147,21 @@
             <p v-else class="nm-muted">No open times in the next 4 weeks.</p>
 
             <button class="nm-btn-dark book-btn" type="button" :disabled="!offeredFormats.length || !rnd.next_open_slots.length" @click="openBookingModal()">
-              <CalendarPlus :size="15" /> {{ rnd.next_open_slots.length ? 'See all times & book' : 'No times available' }}
+              <CalendarPlus :size="15" aria-hidden="true" /> {{ rnd.next_open_slots.length ? 'See all times and book' : 'No times available' }}
             </button>
             </template>
 
             <ul class="policy">
-              <li><CreditCard :size="13" /> Pay after {{ rnd.user.first_name }} confirms — before the session starts.</li>
-              <li><RotateCcw :size="13" /> Cancel before it starts and a paid session is refunded.</li>
-              <li><Clock :size="13" /> Your booking is a request until {{ rnd.user.first_name }} confirms it.</li>
+              <li><Clock :size="13" aria-hidden="true" /> Your booking is a request until {{ rnd.user.first_name }} confirms it.</li>
+              <li><CreditCard :size="13" aria-hidden="true" /> Pay after {{ rnd.user.first_name }} confirms, before the session starts.</li>
+              <li><RotateCcw :size="13" aria-hidden="true" /> Cancel before it starts and a paid session is refunded.</li>
             </ul>
 
             <!-- Only for clients who haven't screened yet — the RND can't
                  confirm a first appointment without it. -->
             <div v-if="hasScreening === false" class="info-note">
-              <Info :size="15" />
-              <span>
-                Pre-consultation screening is required before your first appointment can be confirmed.
-                <NuxtLink to="/pre-consultation-screening" class="nm-btn-soft nm-btn-sm">Complete it now</NuxtLink>
-              </span>
+              <p>Complete your health screening first. Your RND needs it before they can confirm your first consultation.</p>
+              <NuxtLink to="/pre-consultation-screening" class="nm-btn-dark nm-btn-sm">Start screening</NuxtLink>
             </div>
           </div>
         </div>
@@ -174,14 +171,14 @@
     <!-- BOOK APPOINTMENT MODAL -->
     <div v-if="bookingModalOpen" class="modal-overlay" @click.self="closeBookingModal">
       <div class="booking-modal-box">
-        <button class="modal-close-btn booking-close" @click="closeBookingModal"><X :size="18" /></button>
+        <button class="modal-close-btn booking-close" type="button" aria-label="Close" @click="closeBookingModal"><X :size="18" /></button>
 
         <div class="booking-left">
-          <h2 class="booking-title">Book Your <em>Consultation</em></h2>
-          <p class="booking-sub">Pick a session format and a time that works — {{ fullName }} will confirm your booking.</p>
+          <h2 class="booking-title">Book a consultation with {{ rnd.user.first_name }}</h2>
+          <p class="booking-sub">Pick a format and a time. {{ fullName }} confirms your booking, then you pay before it starts.</p>
 
           <div class="booking-section">
-            <h4 class="section-h">Session Format</h4>
+            <h4 class="section-h">Format</h4>
             <div class="format-row">
               <button
                 v-for="f in offeredFormats" :key="f.key"
@@ -189,7 +186,7 @@
                 type="button"
                 @click="bookingType = f.key"
               >
-                <component :is="f.icon" :size="17" />
+                <component :is="f.icon" :size="17" aria-hidden="true" />
                 <span class="format-name">{{ f.label }}</span>
               </button>
             </div>
@@ -197,14 +194,14 @@
           </div>
 
           <div class="booking-section">
-            <h4 class="section-h">Pick a Date</h4>
-            <p class="section-sub">Based on {{ rnd.user.first_name }}'s weekly hours.</p>
+            <h4 class="section-h">Date and time</h4>
+            <p class="section-sub">Based on {{ rnd.user.first_name }}'s weekly hours, Philippine time.</p>
 
             <div class="calendar-head">
               <span class="calendar-month">{{ viewMonthLabel }}</span>
               <div class="calendar-nav">
-                <button type="button" @click="shiftMonth(-1)"><ChevronLeft :size="15" /></button>
-                <button type="button" @click="shiftMonth(1)"><ChevronRight :size="15" /></button>
+                <button type="button" aria-label="Previous month" @click="shiftMonth(-1)"><ChevronLeft :size="15" /></button>
+                <button type="button" aria-label="Next month" @click="shiftMonth(1)"><ChevronRight :size="15" /></button>
               </div>
             </div>
             <div class="calendar-grid">
@@ -220,7 +217,7 @@
                 @click="selectDate(cell)"
               >{{ cell.day }}</button>
             </div>
-            <p v-if="calendarCells.some(c => c.dayOff)" class="day-off-key"><span class="day-off-swatch" /> Day off — {{ rnd.user.first_name }} isn't taking consultations that day.</p>
+            <p v-if="calendarCells.some(c => c.dayOff)" class="day-off-key"><span class="day-off-swatch" /> Day off: {{ rnd.user.first_name }} isn't taking consultations that day.</p>
 
             <div v-if="selectedDateISO" class="time-slot-row">
               <button
@@ -232,7 +229,7 @@
                 @click="selectedTime = slot.value"
               >{{ slot.label }}<span v-if="slot.taken" class="taken-tag">{{ slot.off ? 'Unavailable' : 'Booked' }}</span></button>
               <p v-if="!timeSlots.length" class="availability-warn">No time slots available this day.</p>
-              <p v-else-if="timeSlots.every(s => s.taken)" class="availability-warn">No open times left this day — pick another date.</p>
+              <p v-else-if="timeSlots.every(s => s.taken)" class="availability-warn">No open times left this day. Pick another date.</p>
             </div>
           </div>
 
@@ -244,10 +241,10 @@
           <p v-if="bookingError" class="form-error">{{ bookingError }}</p>
 
           <button class="confirm-btn" type="button" :disabled="!canConfirmBooking || isBooking" @click="confirmBooking">
-            <BadgeCheck :size="15" /> {{ isBooking ? 'Booking…' : 'Confirm Booking' }}
+            <BadgeCheck :size="15" aria-hidden="true" /> {{ isBooking ? 'Sending…' : 'Send booking request' }}
           </button>
           <p v-if="bookingHint" class="booking-hint">{{ bookingHint }}</p>
-          <p class="submit-note">Once {{ rnd.user.first_name }} confirms, you'll get an invoice — pay it before the session starts to join.</p>
+          <p class="submit-note">Once {{ rnd.user.first_name }} confirms, you get an invoice. Pay it before the session starts to join.</p>
         </div>
       </div>
     </div>
@@ -256,7 +253,7 @@
 
 <script setup>
 import {
-  BadgeCheck, CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Info, Languages,
+  BadgeCheck, CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Languages,
   MapPin, RotateCcw, ShieldCheck, Star, Users, Video, X,
 } from 'lucide-vue-next'
 
@@ -391,8 +388,8 @@ onMounted(async () => {
 /* ---------- BOOK APPOINTMENT MODAL ---------- */
 const bookingModalOpen = ref(false)
 const formats = [
-  { key: 'video', label: 'Video call', short: 'Video', icon: Video, how: 'Right in your browser — no app to install. The Join button appears in My Appointments 15 minutes before the start, once you\'ve paid.' },
-  { key: 'in_person', label: 'In-person', short: 'In-person', icon: MapPin, how: 'Visit the clinic at your booked time.' },
+  { key: 'video', label: 'Video call', short: 'Video call', icon: Video, how: 'Right in your browser, no app to install. The Join button appears in My Appointments 15 minutes before the start, once you\'ve paid.' },
+  { key: 'in_person', label: 'In person', short: 'In person', icon: MapPin, how: 'Visit the clinic at your booked time.' },
 ]
 // In-person needs a clinic address on file (the API refuses it otherwise).
 const offeredFormats = computed(() => formats.filter(f => rnd.value?.consultation_modes?.includes(f.key)
@@ -607,14 +604,16 @@ async function confirmBooking() {
 * { box-sizing: border-box; }
 
 .profile-page { font-family: 'Inter', sans-serif; }
-.breadcrumb { font-size: 0.8rem; color: #8a9a8a; margin: 0 0 14px; }
-.breadcrumb :deep(a) { color: #1f8f5c; text-decoration: none; font-weight: 600; }
+.breadcrumb { font-size: 0.82rem; color: #6a7a6a; margin: 0 0 14px; }
+.breadcrumb :deep(a) { color: #0a4a37; text-decoration: none; font-weight: 600; }
+.breadcrumb :deep(a:hover) { text-decoration: underline; }
+.profile-page .nm-panel { border-color: #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 
 .hero {
   position: relative; overflow: hidden; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
   background: linear-gradient(135deg, #00382a 0%, #005a42 100%); color: #fff; border-radius: 16px; padding: 28px 30px; margin-bottom: 20px;
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
 }
-.hero::after { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); top: -100px; right: -40px; }
 .hero > * { position: relative; z-index: 1; }
 .hero-avatar { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255, 255, 255, 0.25); flex-shrink: 0; }
 .hero-avatar.initials { display: flex; align-items: center; justify-content: center; background: #D4A017; color: #1a3a1a; font-weight: 700; font-size: 1.8rem; }
@@ -635,18 +634,18 @@ async function confirmBooking() {
 .bio-text { font-size: 0.88rem; color: #4a5a4a; line-height: 1.7; margin: 12px 0 0; white-space: pre-line; }
 .steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; color: #1a3a1a; }
-.step-num { width: 28px; height: 28px; border-radius: 50%; background: #eef3ec; color: #1e4a26; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.82rem; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: #e3efe7; color: #1e4a26; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.82rem; }
 .step-text { display: block; color: #6a7a6a; font-size: 0.8rem; line-height: 1.5; margin-top: 2px; }
 .how-row { align-items: flex-start; }
 .address { display: flex; align-items: flex-start; gap: 6px; font-size: 0.82rem; color: #2a3a2a; margin: 8px 0 4px; line-height: 1.45; }
 .address svg { flex-shrink: 0; margin-top: 2px; color: #1f8f5c; }
 .map-link { display: inline-flex; align-items: center; gap: 4px; }
-.booking-address { background: #f7f9f7; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.booking-address { background: #f2f6f3; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
 
 .avail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 14px; }
-.avail-box { background: #eef6f0; border-radius: 8px; padding: 10px 6px; text-align: center; }
-.avail-box.muted { background: #f7f9f7; }
-.avail-box.muted .avail-day, .avail-box.muted .avail-hours { color: #b0bab0; }
+.avail-box { background: #e3efe7; border-radius: 8px; padding: 10px 6px; text-align: center; }
+.avail-box.muted { background: #f4f6f4; }
+.avail-box.muted .avail-day, .avail-box.muted .avail-hours { color: #8a9a8a; }
 .avail-day { font-size: 0.75rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .avail-hours { font-size: 0.74rem; color: #1f6f46; margin: 3px 0 0; }
 
@@ -669,22 +668,24 @@ async function confirmBooking() {
 .book-text { font-size: 0.84rem; color: #4a5a4a; line-height: 1.5; margin: 10px 0 12px; }
 .book-links { display: flex; gap: 8px; }
 .book-links > * { flex: 1; }
-.divider { border-top: 1px solid #f0f2f0; margin: 18px 0 4px; }
+.divider { border-top: 1px solid #d9e3dc; margin: 18px 0 4px; }
 .book-fee { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: #1a3a1a; margin: 6px 0 0; }
-.book-fee span { font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 500; color: #8a9a8a; }
+.book-fee span { font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 500; color: #6a7a6a; }
 .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.slot { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 1px solid #d3e2d6; background: #f7fbf8; border-radius: 10px; padding: 9px 12px; cursor: pointer; font-family: inherit; text-align: left; }
-.slot:hover { border-color: #1f8f5c; background: #eef6f0; }
+.slot { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 1px solid #d9e3dc; background: #f7faf8; border-radius: 10px; padding: 9px 12px; cursor: pointer; font-family: inherit; text-align: left; }
+.slot:hover { border-color: #1f8f5c; background: #e3efe7; }
+.slot:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .slot-day { font-size: 0.72rem; color: #6a7a6a; font-weight: 600; }
 .slot-time { font-size: 0.88rem; color: #1a3a1a; font-weight: 700; }
-.book-btn { width: 100%; margin-top: 14px; padding: 12px 16px; }
+.book-btn { width: 100%; margin-top: 14px; }
 .policy { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
-.policy li { display: flex; gap: 8px; align-items: flex-start; font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
+.policy li { display: flex; gap: 8px; align-items: flex-start; font-size: 0.8rem; color: #4a5a4a; line-height: 1.45; }
 .policy svg { flex-shrink: 0; margin-top: 2px; color: #1f8f5c; }
-.info-note-link { color: #2a5a8a; font-weight: 700; text-decoration: underline; white-space: nowrap; }
-.info-note { display: flex; gap: 8px; align-items: flex-start; background: #eaf2fb; color: #2a5a8a; border-radius: 10px; padding: 11px 12px; font-size: 0.8rem; line-height: 1.5; margin-top: 16px; }
+/* screening still to do: dashed green */
+.info-note { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; background: #fff; border: 1.5px dashed #3f9a6b; color: #1f4a30; border-radius: 10px; padding: 11px 12px; font-size: 0.82rem; line-height: 1.5; margin-top: 16px; }
+.info-note p { margin: 0; }
 
-.loading-hero { display: flex; gap: 20px; align-items: center; background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 28px; }
+.loading-hero { display: flex; gap: 20px; align-items: center; background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; padding: 28px; }
 .sk { display: block; background: linear-gradient(90deg, #f0f2f0 25%, #e6eae6 50%, #f0f2f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
 .sk-avatar { width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0; }
 .sk-line { height: 14px; margin: 8px 0; }
@@ -705,69 +706,73 @@ async function confirmBooking() {
 
 /* BOOK APPOINTMENT MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(20,30,20,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-.booking-modal-box { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 640px; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; }
+.booking-modal-box { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 640px; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
 .booking-close {
-  position: sticky; top: 14px; float: right; margin-right: 14px; z-index: 5; background: #fff; border: 1px solid #eceeec;
+  position: sticky; top: 14px; float: right; margin-right: 14px; z-index: 5; background: #fff; border: 1px solid #d9e3dc;
   border-radius: 50%; width: 32px; height: 32px;
 }
 .modal-close-btn { border: none; background: none; color: #6a7a6a; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
 .booking-left { padding: 30px 32px 34px; }
 .booking-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
-.booking-title em { color: #D4A017; font-style: italic; }
-.booking-sub { font-size: 0.87rem; color: #6a7a6a; line-height: 1.55; margin: 0 0 22px; }
+.booking-sub { font-size: 0.87rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 22px; }
 
 .booking-section { margin-bottom: 24px; }
 .section-h { font-family: 'Playfair Display', serif; font-size: 0.98rem; color: #1a3a1a; margin: 0 0 4px; }
-.section-h .optional { font-family: 'Inter', sans-serif; font-weight: 400; color: #9aaa9a; font-size: 0.82rem; }
-.section-sub { font-size: 0.8rem; color: #9aaa9a; margin: 0 0 14px; }
+.section-h .optional { font-family: 'Inter', sans-serif; font-weight: 400; color: #6a7a6a; font-size: 0.82rem; }
+.section-sub { font-size: 0.8rem; color: #6a7a6a; margin: 0 0 14px; }
 
 .format-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .format-card {
   flex: 1; min-width: 110px; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  border: 1.5px solid #d5dad5; background: #fff; border-radius: 12px; padding: 14px 10px; cursor: pointer;
-  color: #4a5a4a;
+  border: 1.5px solid #d9e3dc; background: #fff; border-radius: 12px; padding: 14px 10px; cursor: pointer;
+  color: #4a5a4a; font-family: inherit;
 }
-.format-card.active { border-color: #1f8f5c; background: #f0f9f4; color: #1a3a1a; }
+.format-card.active { border-color: #0a4a37; background: #e3efe7; color: #1a3a1a; }
+.format-card:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .format-name { font-size: 0.82rem; font-weight: 700; }
 
 .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .calendar-month { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
 .calendar-nav { display: flex; gap: 5px; }
-.calendar-nav button { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #d5dad5; background: #fff; color: #4a5a4a; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.calendar-nav button { width: 30px; height: 30px; border-radius: 8px; border: none; background: #e3efe7; color: #0a4a37; color: #4a5a4a; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.calendar-day-header { text-align: center; font-size: 0.68rem; font-weight: 700; color: #9aaa9a; padding-bottom: 4px; }
+.calendar-day-header { text-align: center; font-size: 0.74rem; font-weight: 600; color: #6a7a6a; padding-bottom: 4px; }
 .calendar-cell {
   aspect-ratio: 1.6 / 1; border: none; border-radius: 7px; background: transparent; color: #c5cdc5; font-size: 0.8rem; cursor: default;
 }
 .calendar-cell.out-month { visibility: hidden; }
 .calendar-cell.available { background: #d9ecdf; color: #1a3a1a; cursor: pointer; font-weight: 600; }
 .calendar-cell.available:hover { background: #c3e0cc; }
-.calendar-cell.selected { background: #14301a; color: #fff; }
+.calendar-cell.selected { background: #0a4a37; color: #fff; }
+.calendar-cell:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .calendar-cell.disabled:not(.out-month) { color: #d5dad5; }
 .calendar-cell.day-off { background: repeating-linear-gradient(135deg, #f1f3f1, #f1f3f1 4px, #e6e9e6 4px, #e6e9e6 8px); color: #9aaa9a; text-decoration: line-through; }
 .day-off-key { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #6a7a6a; margin: 8px 0 0; }
 .day-off-swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; background: repeating-linear-gradient(135deg, #f1f3f1, #f1f3f1 3px, #e6e9e6 3px, #e6e9e6 6px); border: 1px solid #dde3dd; }
 
 .time-slot-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-.time-slot-btn { border: 1px solid #d5dad5; background: #fff; color: #4a5a4a; border-radius: 8px; padding: 10px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-.time-slot-btn.selected { background: #14301a; border-color: #14301a; color: #fff; }
-.one-rnd { background: #fff8e8; border: 1px solid #f1dca3; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 0.84rem; color: #5a4a1a; line-height: 1.5; }
+.time-slot-btn { border: 1px solid #d9e3dc; background: #fff; color: #1a3a1a; border-radius: 8px; padding: 0 16px; min-height: 36px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+.time-slot-btn:hover:not(:disabled) { border-color: #1f8f5c; background: #f2f6f3; }
+.time-slot-btn.selected { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+/* one RND at a time: plain information */
+.one-rnd { background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.5; }
 .one-rnd p { margin: 0 0 6px; }
 .time-slot-btn.taken { background: #f3f4f3; border-style: dashed; color: #9aaa9a; text-decoration: line-through; cursor: not-allowed; display: inline-flex; align-items: center; gap: 6px; }
-.taken-tag { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none; display: inline-block; background: #e6e9e6; color: #6a7a6a; border-radius: 6px; padding: 1px 5px; }
+.taken-tag { font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-block; background: #e6e9e6; color: #6a7a6a; border-radius: 6px; padding: 1px 5px; }
 .availability-warn { font-size: 0.8rem; color: #c0392b; background: #fbe5e2; border-radius: 8px; padding: 10px 12px; margin: 4px 0 0; width: 100%; }
 
 .booking-section textarea {
-  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 13px; font-size: 0.85rem; font-family: inherit; color: #2a2a2a; resize: vertical;
+  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 11px 13px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; resize: vertical;
 }
+.booking-section textarea:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 
 .confirm-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: #14301a; color: #fff;
-  border: none; border-radius: 10px; padding: 14px; font-weight: 700; font-size: 0.9rem; cursor: pointer; margin-top: 6px;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: #0a4a37; color: #fff;
+  border: none; border-radius: 10px; min-height: 44px; padding: 0 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; margin-top: 6px; font-family: inherit;
 }
-.confirm-btn:hover:not(:disabled) { background: #1c421f; }
+.confirm-btn:hover:not(:disabled) { background: #00382a; }
 .confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.booking-hint { text-align: center; font-size: 0.8rem; font-weight: 600; color: #b8860b; margin: 10px 0 0; }
-.submit-note { text-align: center; font-size: 0.76rem; color: #9aaa9a; margin: 10px 0 0; }
+.booking-hint { text-align: center; font-size: 0.82rem; font-weight: 600; color: #4a5a4a; margin: 10px 0 0; }
+.submit-note { text-align: center; font-size: 0.8rem; color: #6a7a6a; margin: 10px 0 0; }
 </style>
