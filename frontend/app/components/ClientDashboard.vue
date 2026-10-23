@@ -967,8 +967,8 @@ function phClock(iso) {
 .rnd-compact .rnd-name { overflow-wrap: anywhere; }
 .rnd-eyebrow { font-size: 0.76rem; font-weight: 600; color: #4a5a4a; margin: 0 0 1px; }
 .rnd-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.icon-action { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #d9e3dc; display: flex; align-items: center; justify-content: center; color: #1a3a1a; text-decoration: none; }
-.icon-action:hover { background: #f4f7f5; border-color: #9ec4ad; }
+.icon-action { width: 36px; height: 36px; border-radius: 10px; border: none; background: #e3efe7; display: flex; align-items: center; justify-content: center; color: #0a4a37; text-decoration: none; }
+.icon-action:hover { background: #d3e7da; }
 .icon-action:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 /* LATEST SCREENING */
