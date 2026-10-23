@@ -518,9 +518,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .btn-dark:focus-visible, .outline-btn:focus-visible, .ghost-danger-btn:focus-visible, .danger-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .outline-btn.small { padding: 7px 12px; font-size: 0.78rem; }
-/* cancel: a real button, outlined in red, kept apart on the right */
-.ghost-danger-btn { display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #e8b4ae; color: #c0392b; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; padding: 9px 16px; font-family: inherit; margin-left: auto; white-space: nowrap; }
-.ghost-danger-btn:hover:not(:disabled) { background: #fdf1ef; border-color: #c0392b; }
+/* cancel: a solid red button, kept apart on the right */
+.ghost-danger-btn { display: inline-flex; align-items: center; justify-content: center; background: #c0392b; border: 1px solid #c0392b; color: #fff; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; padding: 9px 16px; font-family: inherit; margin-left: auto; white-space: nowrap; }
+.ghost-danger-btn:hover:not(:disabled) { background: #a12f23; border-color: #a12f23; }
 .ghost-danger-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .danger-btn { background: #c0392b; color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-weight: 600; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
 .danger-btn:hover:not(:disabled) { background: #a93226; }
