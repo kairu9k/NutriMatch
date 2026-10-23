@@ -6,7 +6,9 @@
       <div>
         <p class="nm-page-sub">Lab tests your RND asks for, and the results you've uploaded. Only you and your RND can open them.</p>
       </div>
-      <label v-if="data?.has_rnd" class="nm-btn-dark nm-btn-sm upload-btn">
+      <!-- one upload button at a time: with an open request, use the request's
+           own button (its pop-up still offers "Not for a request") -->
+      <label v-if="data?.has_rnd && !openRequests.length" class="nm-btn-dark nm-btn-sm upload-btn">
         <input type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="e => pick(e, null)" />
         <Upload :size="14" aria-hidden="true" /> Upload a result
       </label>
