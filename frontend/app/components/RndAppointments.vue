@@ -9,24 +9,16 @@
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading appointments…</p></div>
 
     <template v-else-if="board">
-      <!-- bento (user's sketch): today as the big cell, three rows beside it -->
-      <div class="nm-panel bento">
-        <button type="button" class="bento-main" @click="setTab('upcoming')">
-          <span class="bento-label">Today</span>
-          <strong class="bento-big">{{ board.summary.today }}</strong>
-          <span class="bento-note">consultation{{ board.summary.today === 1 ? '' : 's' }} today</span>
+      <!-- summary figures, same as NCP Records: one panel, four divided cells -->
+      <div class="nm-panel summary" role="group" aria-label="Summary">
+        <button
+          v-for="c in summaryCells" :key="c.key" type="button" class="sum-item"
+          :class="{ attn: c.attn && board.summary[c.key], on: c.tab === tab && c.key !== 'today' && c.key !== 'this_week' }"
+          @click="setTab(c.tab)"
+        >
+          <span class="sum-label">{{ c.label }}</span>
+          <strong>{{ board.summary[c.key] }}</strong>
         </button>
-        <div class="bento-rows">
-          <button type="button" class="bento-row" @click="setTab('upcoming')">
-            <span>This week</span><strong>{{ board.summary.this_week }}</strong>
-          </button>
-          <button type="button" class="bento-row" :class="{ attn: board.summary.requests }" @click="setTab('requests')">
-            <span>Requests waiting</span><strong>{{ board.summary.requests }}</strong>
-          </button>
-          <button type="button" class="bento-row" :class="{ attn: board.summary.to_complete }" @click="setTab('to_complete')">
-            <span>To mark complete</span><strong>{{ board.summary.to_complete }}</strong>
-          </button>
-        </div>
       </div>
 
       <div v-if="patientFilter" class="nm-note filter-note">
@@ -270,6 +262,12 @@ async function load() {
 }
 
 /* ---------- tabs + ?relationship= filter (from a patient chart) ---------- */
+const summaryCells = [
+  { key: 'today', label: 'Today', tab: 'upcoming' },
+  { key: 'this_week', label: 'This week', tab: 'upcoming' },
+  { key: 'requests', label: 'Requests waiting', tab: 'requests', attn: true },
+  { key: 'to_complete', label: 'To mark complete', tab: 'to_complete', attn: true },
+]
 const TABS = [
   { key: 'requests', label: 'Requests' },
   { key: 'upcoming', label: 'Upcoming' },
@@ -425,29 +423,17 @@ async function completeNow() {
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 .head .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 
-.bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); padding: 0; overflow: hidden; margin-bottom: 16px; max-width: 620px;
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; overflow: hidden; margin-bottom: 16px;
   box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
-.bento button { font-family: inherit; text-align: left; background: none; border: none; color: inherit; cursor: pointer; }
-.bento button:hover { background: #fafbfa; }
-.bento button:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.bento-main { display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 14px 20px; border-right: 1px solid #eef1ee; }
-.bento-label { font-size: 0.84rem; font-weight: 600; color: #4a5a4a; }
-.bento-big { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; line-height: 1.1; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
-.bento-note { font-size: 0.8rem; color: #7a8a7a; }
-/* the big cell = the green banner of the dashboard / Earnings; the rows stay light */
-.bento .bento-main { background: linear-gradient(135deg, #00382a 0%, #005a42 100%); border-right: none; color: #fff; }
-.bento .bento-main:hover { background: linear-gradient(135deg, #00402f 0%, #00684c 100%); }
-.bento .bento-main:focus-visible { outline: 2px solid #f3d27a; outline-offset: -3px; }
-.bento-main .bento-label { color: #e2c25e; }
-.bento-main .bento-big { color: #fff; }
-.bento-main .bento-note { color: #cfe0d5; }
-.bento-rows { background: #fbfcfa; }
-.bento-rows { display: flex; flex-direction: column; }
-.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 20px; border-top: 1px solid #d9e3dc; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
-/* stronger than '.bento button { border: none }' above, which was hiding these */
-.bento .bento-row + .bento-row { border-top: 1px solid #d9e3dc; }
-.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
-.bento-row.attn strong { color: #a07400; }
+.sum-item { position: relative; background: none; border: none; border-left: 1px solid #d9e3dc; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; font-family: inherit; text-align: left; color: inherit; }
+.sum-item:first-child { border-left: none; }
+.sum-item:hover { background: #fafbfa; }
+.sum-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.sum-label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
+.sum-item strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.1; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
+.sum-item.attn strong { color: #a07400; }
+.sum-item.on { background: #f3f7f2; }
+.sum-item.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #1a3a1a; }
 .appt-list { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .filter-note { margin-bottom: 14px; }
 
@@ -504,11 +490,12 @@ async function completeNow() {
 .results span { font-size: 0.7rem; color: #6a7a6a; }
 
 @media (max-width: 760px) {
-  .bento { grid-template-columns: minmax(0, 1fr); }
-  .bento-main { border-right: none; padding: 12px 16px; }
-  .bento-big { font-size: 1.9rem; }
-  .bento-row { padding: 8px 16px; }
-            .row { flex-wrap: wrap; }
+  .row { flex-wrap: wrap; }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sum-item { padding: 12px 16px; }
+  .sum-item:nth-child(3) { border-left: none; }
+  .sum-item:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
+  .sum-item strong { font-size: 1.3rem; }
   .row-actions { width: 100%; justify-content: flex-start; padding-left: 60px; }
   .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
