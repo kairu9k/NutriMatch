@@ -4,13 +4,12 @@
     <div class="conv-pane">
       <div class="conv-pane-header">
         <h2 class="conv-title">Conversations</h2>
-        <span class="compliance-badge"><Lock :size="11" /> RA 10173</span>
       </div>
 
       <div class="search-row">
         <div class="search-wrap">
           <Search :size="16" class="search-icon" />
-          <input v-model="searchQuery" type="text" class="search-input" placeholder="Search conversations..." />
+          <input v-model="searchQuery" type="text" class="search-input" placeholder="Search by name" aria-label="Search conversations" />
         </div>
       </div>
 
@@ -26,12 +25,11 @@
           :class="{ active: activeConversationId === conv.id }"
           @click="openConversation(conv.id)"
         >
-          <div class="conv-avatar-wrap">
-            <div class="conv-avatar" :style="{ background: conv.avatarColor }">{{ conv.initials }}</div>
-          </div>
+          <img v-if="conv.photo" :src="conv.photo" alt="" class="conv-avatar" />
+          <span v-else class="conv-avatar">{{ conv.initials }}</span>
           <div class="conv-body">
             <div class="conv-top">
-              <span class="conv-name">{{ conv.name }}<span v-if="conv.ended" class="conv-ended">Ended</span><span v-else-if="conv.waiting" class="conv-ended">Waiting</span></span>
+              <span class="conv-name">{{ conv.name }}<span v-if="conv.ended" class="conv-tag">Ended</span><span v-else-if="conv.waiting" class="conv-tag waiting">Waiting</span></span>
               <span class="conv-time">{{ conv.lastMessageAt }}</span>
             </div>
             <div class="conv-bottom">
@@ -58,44 +56,46 @@
             <button class="back-btn" type="button" aria-label="Back to conversations" @click="mobileChatOpen = false">
               <ArrowLeft :size="18" />
             </button>
-            <div class="chat-avatar" :style="{ background: activeConversation.avatarColor }">{{ activeConversation.initials }}</div>
+            <img v-if="activeConversation.photo" :src="activeConversation.photo" alt="" class="chat-avatar" />
+            <span v-else class="chat-avatar">{{ activeConversation.initials }}</span>
             <div class="chat-who-text">
               <p class="chat-name">{{ activeConversation.name }}</p>
-              <p class="chat-sub">RA 10173-compliant</p>
+              <p class="chat-sub">{{ authStore.user?.role === 'rnd' ? 'Your patient' : 'Your RND' }}<template v-if="activeConversation.ended">, care ended</template></p>
             </div>
           </div>
           <div class="chat-header-right">
-            <span class="online-status" :class="{ 'status-offline': !isConnected }"><span class="status-dot" /> {{ isConnected ? 'Live' : 'Auto-refreshing' }}</span>
+            <span class="online-status" :class="{ 'status-offline': !isConnected }" :title="isConnected ? 'New messages appear instantly' : 'Checking for new messages every few seconds'"><span class="status-dot" /> {{ isConnected ? 'Live' : 'Reconnecting' }}</span>
           </div>
         </div>
 
         <div class="chat-body" ref="chatBodyEl">
-          <div v-if="loadingMessages" class="date-divider"><span>Loading…</span></div>
-          <div v-else-if="!activeMessages.length" class="date-divider"><span>No messages yet — say hello</span></div>
+          <p v-if="loadingMessages" class="chat-note">Loading messages…</p>
+          <p v-else-if="!activeMessages.length" class="chat-note">No messages yet. Say hello to {{ activeConversation.firstName }}.</p>
 
-          <div
-            v-for="msg in activeMessages"
-            :key="msg.id"
-            class="msg-block"
-            :class="msg.sender.id === authStore.user?.id ? 'msg-block-me' : 'msg-block-them'"
-          >
-            <span class="msg-sender">{{ msg.sender.id === authStore.user?.id ? 'You' : activeConversation.name }}</span>
-            <div class="msg-bubble" :class="msg.sender.id === authStore.user?.id ? 'bubble-me' : 'bubble-them'">
-              {{ msg.message }}
+          <!-- grouped by day; one sender's back-to-back messages sit together -->
+          <section v-for="day in messageDays" :key="day.key" class="day">
+            <p class="day-label"><span>{{ day.label }}</span></p>
+            <div
+              v-for="msg in day.items"
+              :key="msg.id"
+              class="msg-block"
+              :class="[mine(msg) ? 'msg-block-me' : 'msg-block-them', { cont: msg.cont }]"
+            >
+              <div class="msg-bubble" :class="mine(msg) ? 'bubble-me' : 'bubble-them'">{{ msg.message }}</div>
+              <span v-if="!msg.nextSame" class="msg-time">{{ formatTime(msg.created_at) }}</span>
             </div>
-            <span class="msg-time">{{ formatTime(msg.created_at) }}</span>
-          </div>
+          </section>
         </div>
 
         <p v-if="sendError" class="chat-error">{{ sendError }}</p>
         <p v-if="activeConversation.ended" class="chat-ended">This care has ended, so the conversation is read-only. Book a new consultation to message again.</p>
-        <p v-else-if="activeConversation.waiting" class="chat-ended">{{ authStore.user?.role === 'rnd' ? `You can message ${activeConversation.firstName} once you confirm their booking.` : `You can message ${activeConversation.firstName} once they confirm your booking.` }}</p>
+        <p v-else-if="activeConversation.waiting" class="chat-ended waiting">{{ authStore.user?.role === 'rnd' ? `You can message ${activeConversation.firstName} once you confirm their booking.` : `You can message ${activeConversation.firstName} once they confirm your booking.` }}</p>
         <div v-else class="chat-input-row">
           <input
             v-model="draft"
             type="text"
             class="chat-input" data-allow-emoji
-            placeholder="Type a message..."
+            :placeholder="`Message ${activeConversation.firstName}`"
             @keyup.enter="sendMessage"
           />
           <button class="send-btn" type="button" aria-label="Send message" @click="sendMessage">
@@ -105,9 +105,8 @@
       </template>
 
       <div v-else class="chat-empty">
-        <div class="empty-icon"><MessageCircle :size="28" /></div>
-        <p class="empty-title">Select a conversation</p>
-        <p class="empty-desc">Choose a conversation on the left to start chatting.</p>
+        <p class="empty-title">No conversation open</p>
+        <p class="empty-desc">Pick someone from the list to read and reply.</p>
       </div>
     </div>
   </div>
@@ -115,7 +114,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { ArrowLeft, Search, Send, MessageCircle, Lock } from 'lucide-vue-next'
+import { ArrowLeft, Search, Send } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'dashboard', title: 'Messages' })
@@ -125,10 +124,6 @@ const authStore = useAuthStore()
 const route = useRoute()
 const config = useRuntimeConfig()
 
-const AVATAR_COLORS = ['#1a3a1a', '#D4A017', '#3a6b3a', '#8a5a2a', '#5a3a8a']
-function colorFor(id) {
-  return AVATAR_COLORS[id % AVATAR_COLORS.length]
-}
 function initialsFor(first, last) {
   return `${(first || '?')[0] ?? ''}${(last || '')[0] ?? ''}`.toUpperCase()
 }
@@ -162,9 +157,9 @@ const conversations = computed(() => {
       waiting: rel.status === 'pending',
       firstName: other.first_name,
       initials: initialsFor(other.first_name, other.last_name),
-      avatarColor: colorFor(other.id),
+      photo: other.profile_photo || '',
       lastMessage: preview ? preview.message : 'No messages yet',
-      lastMessageAt: preview ? formatTime(preview.created_at) : '',
+      lastMessageAt: preview ? listTime(preview.created_at) : '',
       lastMessageTs: preview ? preview.created_at : rel.created_at,
     }
   }).sort((a, b) => new Date(b.lastMessageTs) - new Date(a.lastMessageTs))
@@ -192,6 +187,38 @@ function markActiveRead() {
   if (id && document.visibilityState === 'visible') markRead(id)
 }
 const isFromOther = m => m?.sender?.id !== authStore.user?.id
+const mine = m => m?.sender?.id === authStore.user?.id
+
+// Philippine dates (the ph-time plugin makes toLocale* default to Asia/Manila)
+const dayKey = iso => new Date(iso).toLocaleDateString('en-CA')
+function dayName(iso) {
+  const k = dayKey(iso)
+  if (k === dayKey(Date.now())) return 'Today'
+  if (k === dayKey(Date.now() - 86400000)) return 'Yesterday'
+  return new Date(iso).toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+// the list shows the time for today's messages, else the day
+function listTime(iso) {
+  const d = dayName(iso)
+  if (d === 'Today') return formatTime(iso)
+  return d === 'Yesterday' ? d : new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+}
+const GROUP_MS = 5 * 60 * 1000 // same sender within 5 minutes = one group
+const messageDays = computed(() => {
+  const days = []
+  const list = activeMessages.value
+  list.forEach((m, i) => {
+    const key = dayKey(m.created_at)
+    let day = days[days.length - 1]
+    if (!day || day.key !== key) days.push(day = { key, label: dayName(m.created_at), items: [] })
+    const prev = list[i - 1]
+    const next = list[i + 1]
+    const same = (a, b) => a && b && a.sender.id === b.sender.id && dayKey(a.created_at) === dayKey(b.created_at)
+      && Math.abs(new Date(b.created_at) - new Date(a.created_at)) < GROUP_MS
+    day.items.push({ ...m, cont: same(prev, m), nextSame: same(m, next) })
+  })
+  return days
+})
 
 function formatTime(iso) {
   if (!iso) return ''
@@ -412,124 +439,103 @@ onUnmounted(() => {
      so neither the messages nor the list can scroll. */
   grid-template-rows: minmax(0, 1fr);
   height: calc(100vh - 140px); min-height: 560px;
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec; overflow: hidden;
+  background: #fff; border-radius: 12px; border: 1px solid #d9e3dc; overflow: hidden;
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
 }
 
 /* CONVERSATION LIST */
-.conv-pane { border-right: 1px solid #eceeec; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-
-.conv-pane-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 14px; }
+.conv-pane { border-right: 1px solid #d9e3dc; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #fbfcfa; }
+.conv-pane-header { padding: 18px 16px 12px; }
 .conv-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
-.compliance-badge {
-  display: flex; align-items: center; gap: 4px; background: #f0f2ef; color: #6a7a6a;
-  font-size: 0.68rem; font-weight: 700; padding: 4px 9px; border-radius: 12px; white-space: nowrap;
-}
 
-.search-row { display: flex; align-items: center; gap: 8px; padding: 0 16px 16px; }
-.search-wrap { position: relative; flex: 1; }
-.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9aaa9a; }
+.search-row { padding: 0 16px 14px; border-bottom: 1px solid #d9e3dc; }
+.search-wrap { position: relative; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #8a9a8a; }
 .search-input {
-  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px 10px 36px;
-  font-size: 0.85rem; font-family: inherit; color: #2a2a2a;
+  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 9px 12px 9px 36px; background: #fff;
+  font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
 }
-.search-input:focus { outline: none; border-color: #D4A017; }
+.search-input:focus { outline: none; border-color: #3f9a6b; box-shadow: 0 0 0 3px rgba(63, 154, 107, 0.15); }
 
 .conv-list { flex: 1; min-height: 0; overflow-y: auto; }
 .conv-item {
-  width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
-  padding: 14px 16px; border: none; border-bottom: 1px solid #f3f4f0; background: #fff; cursor: pointer;
-  border-left: 3px solid transparent;
+  position: relative; width: 100%; display: flex; align-items: flex-start; gap: 12px; text-align: left;
+  padding: 13px 16px; border: none; border-bottom: 1px solid #eef1ee; background: none; cursor: pointer; font-family: inherit;
 }
-.conv-item.active { background: #f4f2e9; border-left-color: #D4A017; }
-.conv-avatar-wrap { position: relative; flex-shrink: 0; }
-.conv-avatar {
-  width: 36px; height: 36px; border-radius: 50%; color: #fff;
-  display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700;
+.conv-item:hover { background: #f4f7f4; }
+.conv-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.conv-item.active { background: #fff; }
+.conv-item.active::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: #1f8f5c; }
+.conv-avatar, .chat-avatar {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+  background: #e3efe7; color: #1e4a26; display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 700;
 }
 .conv-body { flex: 1; min-width: 0; }
-.conv-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.conv-name { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
-.conv-ended { margin-left: 6px; font-size: 0.62rem; font-weight: 700; color: #7a6a4a; background: #f3eee2; border-radius: 6px; padding: 1px 6px; vertical-align: 1px; }
-.chat-ended { margin: 0; padding: 14px 84px 14px 22px; background: #fafbfa; border-top: 1px solid #eceeec; font-size: 0.8rem; color: #6a7a6a; }
-.conv-time { font-size: 0.72rem; color: #9aaa9a; flex-shrink: 0; }
-.conv-preview {
-  font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.conv-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.conv-name { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-tag { margin-left: 6px; font-size: 0.68rem; font-weight: 600; color: #5a6a5a; background: #eceeec; border-radius: 6px; padding: 1px 6px; vertical-align: 1px; }
+.conv-tag.waiting { color: #1f6f46; background: #fff; border: 1px dashed #3f9a6b; }
+.conv-time { font-size: 0.72rem; color: #8a9a8a; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .conv-bottom { display: flex; align-items: center; gap: 8px; }
-.conv-bottom .conv-preview { flex: 1; min-width: 0; }
+.conv-preview { flex: 1; min-width: 0; font-size: 0.8rem; color: #7a8a7a; margin: 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conv-preview.unread { color: #1a3a1a; font-weight: 600; }
 .conv-unread { flex-shrink: 0; margin-top: 3px; }
-
 .conv-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
 
 /* CHAT PANEL */
 .chat-pane { display: flex; flex-direction: column; background: #fff; min-width: 0; min-height: 0; }
-
-.chat-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 22px; background: #fff; border-bottom: 1px solid #eceeec;
-}
+.chat-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px; border-bottom: 1px solid #d9e3dc; }
 .chat-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .chat-who-text { min-width: 0; }
 .back-btn { display: none; }
-.chat-avatar {
-  width: 38px; height: 38px; border-radius: 50%; color: #fff;
-  display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
-}
-.chat-name { font-size: 0.94rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.chat-sub { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
-.chat-header-right { display: flex; align-items: center; gap: 14px; }
-.online-status { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: #2e9e52; }
-.online-status.status-offline { color: #9aaa9a; }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #2e9e52; }
-.status-offline .status-dot { background: #d5dad5; }
+.chat-name { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.chat-sub { font-size: 0.78rem; color: #7a8a7a; margin: 1px 0 0; }
+.online-status { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #1f8f5c; white-space: nowrap; }
+.online-status.status-offline { color: #8a9a8a; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #1f8f5c; }
+.status-offline .status-dot { background: #c9d2cb; }
 
-.chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px; background: #fff; }
-.date-divider { text-align: center; margin-bottom: 20px; }
-.date-divider span {
-  font-size: 0.72rem; letter-spacing: 0.06em; color: #9aaa9a; text-transform: uppercase;
-}
+.chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 28px 20px; }
+.chat-note { text-align: center; font-size: 0.84rem; color: #7a8a7a; margin: 28px 0; }
+/* the day sits on a hairline, like a page break in a chart */
+.day-label { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; }
+.day-label::before, .day-label::after { content: ''; flex: 1; border-top: 1px solid #d9e3dc; }
 
-.msg-block { display: flex; flex-direction: column; margin-bottom: 20px; max-width: 60%; }
+.msg-block { display: flex; flex-direction: column; margin-top: 12px; max-width: 62%; }
+.msg-block.cont { margin-top: 3px; }
 .msg-block-them { align-items: flex-start; }
 .msg-block-me { align-items: flex-end; margin-left: auto; }
-.msg-sender { font-size: 0.78rem; font-weight: 700; color: #4a5a4a; margin-bottom: 5px; }
+.msg-bubble { padding: 10px 14px; border-radius: 14px; font-size: 0.88rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble-them { background: #f2f6f3; color: #1a2a1a; border: 1px solid #e3ebe5; }
+.bubble-me { background: #0a4a37; color: #fff; }
+/* back-to-back bubbles from one person share a flatter inner corner */
+.msg-block-them.cont .bubble-them { border-top-left-radius: 5px; }
+.msg-block-me.cont .bubble-me { border-top-right-radius: 5px; }
+.msg-time { font-size: 0.7rem; color: #8a9a8a; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
-.msg-bubble { padding: 12px 16px; border-radius: 12px; font-size: 0.86rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.bubble-them { background: #f4f6f4; color: #2a2a2a; }
-.bubble-me { background: #14301a; color: #fff; }
-.msg-time { font-size: 0.72rem; color: #9aaa9a; margin-top: 5px; }
-
-.chat-error { padding: 6px 22px 0; font-size: 0.78rem; color: #b3261e; background: #fff; margin: 0; }
+.chat-error { padding: 6px 22px 0; font-size: 0.8rem; color: #a12525; margin: 0; }
+.chat-ended { margin: 0; padding: 14px 84px 14px 22px; background: #fafbfa; border-top: 1px solid #d9e3dc; font-size: 0.82rem; color: #5a6a5a; }
+.chat-ended.waiting { background: #fff; border-top: 1.5px dashed #3f9a6b; color: #1f4a30; }
 
 /* Right padding leaves room for the floating Help & Support button
    (SupportWidget, bottom right), which otherwise covers Send. */
-.chat-input-row {
-  display: flex; align-items: center; gap: 10px; padding: 16px 84px 16px 22px;
-  background: #fff; border-top: 1px solid #eceeec;
-}
+.chat-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 84px 14px 22px; border-top: 1px solid #d9e3dc; }
 .chat-input {
-  flex: 1; border: 1px solid #d5dad5; border-radius: 20px; padding: 11px 16px;
-  font-size: 0.86rem; font-family: inherit; color: #2a2a2a;
+  flex: 1; min-width: 0; border: 1px solid #d9e3dc; border-radius: 22px; padding: 11px 16px;
+  font-size: 0.88rem; font-family: inherit; color: #1a3a1a; background: #fff;
 }
-.chat-input:focus { outline: none; border-color: #D4A017; }
-.chat-input:disabled { background: #f4f2e9; }
+.chat-input:focus { outline: none; border-color: #3f9a6b; box-shadow: 0 0 0 3px rgba(63, 154, 107, 0.15); }
 .send-btn {
-  width: 38px; height: 38px; border-radius: 50%; border: none; background: #14301a; color: #fff;
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: #0a4a37; color: #fff;
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
-.send-btn:disabled { opacity: 0.5; cursor: default; }
+.send-btn:hover { background: #00382a; }
+.send-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
-.chat-empty {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-}
-.empty-icon {
-  width: 56px; height: 56px; border-radius: 50%; background: #eef3ec; color: #1e4a26;
-  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
-}
+.chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.84rem; color: #8a9a8a; margin: 0; }
+.empty-desc { font-size: 0.84rem; color: #7a8a7a; margin: 0; }
 
 /* TABLET / PHONE — under the layout's 900px breakpoint the page scrolls as a
    whole, so size the chat to the screen minus the two top bars + padding. */
@@ -557,11 +563,12 @@ onUnmounted(() => {
   .chat-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .online-status { font-size: 0.76rem; }
 
-  .chat-body { padding: 16px 14px; }
-  .msg-block { max-width: 85%; margin-bottom: 14px; }
-  .msg-bubble { padding: 10px 13px; }
+  .chat-body { padding: 6px 14px 16px; }
+  .msg-block { max-width: 85%; }
+  .msg-bubble { padding: 9px 12px; }
 
   .chat-error { padding: 6px 14px 0; }
+  .chat-ended { padding: 12px 76px 12px 14px; }
   .chat-input-row { padding: 10px 76px 10px 12px; gap: 8px; }
   /* 16px stops iOS Safari from zooming in when the input is focused */
   .chat-input, .search-input { font-size: 16px; }
