@@ -42,21 +42,16 @@
               </NuxtLink>
             </div>
           </template>
+          <!-- nothing booked: headline on the left, the one button top right -->
           <template v-else>
-            <div class="up-top">
-              <span class="nm-upnext-label">{{ nextStep.eyebrow }}</span>
-            </div>
-            <p class="up-time small">{{ emptyCard.headline }}</p>
-            <p class="up-when">{{ emptyCard.sub }}</p>
-            <div v-if="careRnd" class="up-who">
-              <img v-if="careRnd.photo" :src="careRnd.photo" alt="" class="nm-upnext-avatar" />
-              <span v-else class="nm-upnext-avatar">{{ careRnd.initials }}</span>
-              <div class="nm-upnext-name-wrap">
-                <p class="nm-upnext-name">RND {{ careRnd.name }}</p>
-                <p class="nm-upnext-format">{{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}</p>
+            <div class="up-empty">
+              <div class="up-empty-text">
+                <span class="nm-upnext-label">{{ nextStep.eyebrow }}</span>
+                <p class="up-time small">{{ emptyCard.headline }}</p>
+                <p class="up-when">{{ emptyCard.sub }}</p>
               </div>
+              <NuxtLink :to="nextStep.to" class="nm-hero-btn primary up-empty-btn">{{ nextStep.action }}</NuxtLink>
             </div>
-            <div class="nm-upnext-actions"><NuxtLink :to="nextStep.to" class="nm-hero-btn primary">{{ nextStep.action }}</NuxtLink></div>
           </template>
         </div>
       </section>
@@ -1045,9 +1040,14 @@ function phClock(iso) {
 .up-when { font-size: 14px; color: rgba(255, 255, 255, 0.78); margin: 0; }
 .up-who { display: flex; align-items: center; gap: 12px; min-width: 0; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
 .up .nm-upnext-actions { margin-top: 14px; }
+.up-empty { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 16px; }
+.up-empty-text { min-width: 0; }
+.up-empty-btn { flex-shrink: 0; }
 @media (max-width: 640px) {
   .up-time { font-size: 32px; }
   .up-time.small { font-size: 24px; }
+  .up-empty { flex-direction: column; }
+  .up-empty-btn { width: 100%; }
 }
 
 /* Buttons */
