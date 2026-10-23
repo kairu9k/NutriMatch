@@ -3,6 +3,7 @@
 
 from datetime import datetime, time, timedelta
 
+from django.db.models import Avg, Count
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -130,6 +131,9 @@ def build_dashboard(rnd, now=None):
     reviews = [{"rating": r.rating, "comment": r.comment, "client": f"{r.client.first_name} {r.client.last_name[:1]}.".strip(),
                 "created_at": r.created_at}
                for r in Review.objects.filter(rnd=rnd, is_public=True).select_related("client").order_by("-created_at")[:3]]
+    # same average clients see on Find an RND (public reviews only)
+    agg = Review.objects.filter(rnd=rnd, is_public=True).aggregate(avg=Avg("rating"), count=Count("id"))
+    rating = {"average": round(agg["avg"], 1) if agg["avg"] is not None else None, "count": agg["count"]}
 
     return {
         "generated_at": now,
@@ -151,6 +155,7 @@ def build_dashboard(rnd, now=None):
         "outcomes": outcomes,
         "earnings": {k: e[k] for k in ("pending", "posted", "paid_out", "next_payout_date", "eligible", "has_payout_account", "minimum_payout")},
         "reviews": reviews,
+        "rating": rating,
     }
 
 

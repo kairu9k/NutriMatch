@@ -5,14 +5,14 @@
   <Teleport to="body">
     <div class="nm-modal-overlay" @click.self="emit('close')">
       <div class="nm-modal sr-box" role="dialog" aria-modal="true" :aria-label="`Share ${resource.title}`">
-        <h3 class="nm-modal-title">Share Resource</h3>
-        <p class="nm-modal-text">Choose which of your clients receive <strong>{{ resource.title }}</strong>. They'll be notified and can view or download it from their Resources page.</p>
+        <h3 class="nm-modal-title">Share resource</h3>
+        <p class="nm-modal-text">Choose which of your clients receive <strong>{{ resource.title }}</strong>. They get a notification and can view or download it from their Resources page.</p>
 
         <p v-if="loading" class="nm-muted">Loading your clients…</p>
         <p v-else-if="loadError" class="nm-field-error">{{ loadError }}</p>
 
         <div v-else-if="!rows.length" class="nm-empty">
-          <Users :size="26" />
+          <Users :size="26" aria-hidden="true" />
           <p>You don't have any confirmed clients yet.</p>
           <p class="nm-hint">Clients appear here once you confirm their first booking.</p>
         </div>
@@ -20,8 +20,8 @@
         <template v-else>
           <div class="sr-tools">
             <div class="nm-search sr-search">
-              <Search :size="15" />
-              <input v-model="search" type="text" placeholder="Search clients…" />
+              <Search :size="15" aria-hidden="true" />
+              <input v-model="search" type="search" placeholder="Search by name or email" aria-label="Search clients" />
             </div>
             <button type="button" class="sr-link" @click="toggleAll">{{ allVisibleSelected ? 'Clear all' : 'Select all' }}</button>
           </div>
@@ -55,7 +55,7 @@
             class="nm-btn-dark"
             :disabled="saving || !hasChanges"
             @click="save"
-          ><Share2 :size="14" /> {{ saving ? 'Saving…' : 'Save' }}</button>
+          ><Share2 :size="14" aria-hidden="true" /> {{ saving ? 'Saving…' : 'Save sharing' }}</button>
         </div>
       </div>
     </div>
@@ -97,7 +97,7 @@ const summary = computed(() => {
   const parts = [n ? `${n} client${n > 1 ? 's' : ''} selected` : 'No clients selected']
   if (toAdd.value.length) parts.push(`${toAdd.value.length} will be notified`)
   if (toRemove.value.length) parts.push(`${toRemove.value.length} will lose access`)
-  return parts.join(' · ')
+  return parts.join(', ')
 })
 
 function initials(name) {
@@ -149,16 +149,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .sr-box { max-width: 500px; }
 .sr-tools { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .sr-search { max-width: none; min-width: 0; }
-.sr-link { background: none; border: none; color: #1a3a1a; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: underline; white-space: nowrap; font-family: inherit; padding: 0; }
+.sr-link { background: none; border: none; color: #0a4a37; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: underline; white-space: nowrap; font-family: inherit; padding: 0; }
 
-.sr-list { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid #eceeec; border-radius: 10px; max-height: 300px; overflow-y: auto; }
-.sr-list li + li { border-top: 1px solid #f2f4f2; }
+.sr-list { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid #d9e3dc; border-radius: 10px; max-height: 300px; overflow-y: auto; }
+.sr-list li + li { border-top: 1px solid #d9e3dc; }
 .sr-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; }
-.sr-row:hover { background: #f7f9f7; }
-.sr-row input { width: 16px; height: 16px; accent-color: #163a1c; flex-shrink: 0; cursor: pointer; }
+.sr-row:hover { background: #f4f7f5; }
+.sr-row:has(input:checked) { background: #f2f8f4; }
+.sr-row:has(input:focus-visible) { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.sr-row input { width: 16px; height: 16px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
 .sr-avatar { width: 32px; height: 32px; font-size: 0.72rem; }
+span.sr-avatar { background: #e3efe7; color: #1e4a26; }
 .sr-name { flex: 1; min-width: 0; font-size: 0.86rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
-.sr-email { display: block; font-size: 0.74rem; font-weight: 400; color: #8a9a8a; }
+.sr-email { display: block; font-size: 0.76rem; font-weight: 400; color: #6a7a6a; }
 .sr-none { padding: 14px; }
 
 @media (max-width: 640px) {

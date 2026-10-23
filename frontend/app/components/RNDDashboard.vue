@@ -200,6 +200,7 @@
               <div class="nm-row-main">
                 <p class="nm-row-title">{{ a.client.name }}</p>
                 <p class="nm-row-sub">{{ a.type_label }}, {{ dayWord(a.scheduled_at) }}, {{ clock(a.scheduled_at) }}</p>
+                <p class="req-soon" :class="{ urgent: hoursUntil(a.scheduled_at) < SOON_HOURS }">{{ startsIn(a.scheduled_at) }}</p>
               </div>
               <NuxtLink to="/appointments?tab=requests" class="nm-btn-dark nm-btn-sm">Review</NuxtLink>
             </div>
@@ -234,7 +235,14 @@
 
           <!-- reviews -->
           <div class="nm-panel">
-            <h2 class="nm-panel-title">Latest reviews</h2>
+            <div class="nm-panel-head">
+              <h2 class="nm-panel-title">Latest reviews</h2>
+              <NuxtLink v-if="d.rating?.count" to="/reviews" class="overall" :aria-label="`Average ${d.rating.average} out of 5 from ${d.rating.count} reviews. Open Reviews`">
+                <span class="overall-star" aria-hidden="true">★</span>
+                <strong>{{ d.rating.average.toFixed(1) }}</strong>
+                <span>from {{ d.rating.count }} review{{ d.rating.count === 1 ? '' : 's' }}</span>
+              </NuxtLink>
+            </div>
             <p v-if="!d.reviews.length" class="nm-muted" style="margin-top: 10px">No reviews yet.</p>
             <div v-for="(r, i) in d.reviews" :key="i" class="review">
               <p class="stars">{{ '★'.repeat(r.rating) }}<span>{{ '★'.repeat(5 - r.rating) }}</span></p>
@@ -404,6 +412,19 @@ function canJoin(a) {
 function clock(v) {
   return new Date(v).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' })
 }
+// Booking requests: how soon each starts. Under SOON_HOURS it turns red,
+// because an unconfirmed request lapses once its time passes.
+const SOON_HOURS = 6
+function hoursUntil(v) {
+  return (new Date(v).getTime() - now.value) / 3600000
+}
+function startsIn(v) {
+  const h = hoursUntil(v)
+  if (h < 1) return `Starts in ${Math.max(1, Math.round(h * 60))} min`
+  if (h < 24) return `Starts in ${Math.round(h)} hour${Math.round(h) === 1 ? '' : 's'}`
+  const days = Math.round(h / 24)
+  return `Starts in ${days} day${days === 1 ? '' : 's'}`
+}
 function dayWord(v, long = false) {
   const day = phDate(v)
   if (day === todayIso) return 'Today'
@@ -547,7 +568,14 @@ function nameInitials(name) {
 .money-legend li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.84rem; color: #6a7a6a; }
 .swatch { width: 8px; height: 8px; border-radius: 50%; }
 .money-legend strong { color: #1a3a1a; font-weight: 600; font-variant-numeric: tabular-nums; }
-.review { padding: 12px 0 0; margin-top: 12px; border-top: 1px solid #f0f2f0; }
+.req-soon { font-size: 0.76rem; font-weight: 600; color: #1e4a26; margin: 2px 0 0; }
+.req-soon.urgent { color: #c0392b; }
+.overall { display: inline-flex; align-items: baseline; gap: 4px; font-size: 0.8rem; color: #4a5a4a; text-decoration: none; white-space: nowrap; }
+.overall strong { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; }
+.overall-star { color: #D4A017; }
+.overall:hover span:last-child { text-decoration: underline; }
+.overall:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; border-radius: 4px; }
+.review { padding: 12px 0 0; margin-top: 12px; border-top: 1px solid #d9e3dc; }
 .review:first-of-type { border-top: none; margin-top: 6px; }
 .stars { margin: 0; color: #D4A017; letter-spacing: 1px; font-size: 0.86rem; }
 .stars span { color: #e3e6e3; }

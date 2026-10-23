@@ -13,7 +13,7 @@ from clinical.models import PreConsultationScreening, ProgressRecord
 from core.test_utils import approve_rnd, onboard_client
 from nutrition.models import MealLog, MealPlan, MealPlanMeal
 
-from .models import Appointment, RndClientRelationship
+from .models import Appointment, Review, RndClientRelationship
 from .rnd_dashboard import build_dashboard
 
 PH = ZoneInfo("Asia/Manila")
@@ -31,6 +31,14 @@ class RndDashboardTests(TestCase):
 
     def _log(self, days_ago, status="followed"):
         MealLog.objects.create(meal_plan_meal=self.meal, client=self.c, log_date=(self.now - timedelta(days=days_ago)).date(), status=status)
+
+    def test_rating_averages_public_reviews_only(self):
+        self.assertEqual(build_dashboard(self.rnd, self.now)["rating"], {"average": None, "count": 0})
+        for i, (stars, public) in enumerate([(5, True), (4, True), (1, False)]):
+            appt = Appointment.objects.create(relationship=self.rel, scheduled_at=self.now - timedelta(days=i + 1),
+                                              duration_minutes=60, type="video", status="completed")
+            Review.objects.create(appointment=appt, client=self.c, rnd=self.rnd, rating=stars, is_public=public)
+        self.assertEqual(build_dashboard(self.rnd, self.now)["rating"], {"average": 4.5, "count": 2})
 
     def test_adherence_counts_planned_meals(self):
         self._log(0)
