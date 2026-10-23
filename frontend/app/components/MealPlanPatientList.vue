@@ -55,7 +55,9 @@
                 <span v-else class="sub">Not on a plan</span>
               </td>
               <td class="act">
-                <NuxtLink v-if="g.key === 'not_ready'" :to="`/client-detail/${p.id}?tab=ncp`" class="nm-btn-outline nm-btn-sm">Open NCP</NuxtLink>
+                <!-- consultation still ahead: the NCP (and then the plan) comes after it -->
+                <NuxtLink v-if="g.key === 'not_ready' && p.stage?.next_step?.key === 'video_call'" :to="p.stage.next_step.link" class="nm-btn-outline nm-btn-sm">{{ p.stage.next_step.label }}</NuxtLink>
+                <NuxtLink v-else-if="g.key === 'not_ready'" :to="`/client-detail/${p.id}?tab=ncp`" class="nm-btn-outline nm-btn-sm">Open NCP</NuxtLink>
                 <button v-else type="button" class="nm-btn-sm" :class="g.primary ? 'nm-btn-dark' : 'nm-btn-outline'" @click="emit('pick', p.id)">{{ g.action }}</button>
               </td>
             </tr>
@@ -106,7 +108,7 @@ const DEFS = [
   { key: 'on_plan', label: 'On a plan', tone: 'green', action: 'Open',
     why: 'The patient is following a sent plan.' },
   { key: 'not_ready', label: 'Not ready yet', tone: 'muted',
-    why: 'Finish the NCP Intervention first: diet prescription and target kcal.' },
+    why: 'A plan needs the NCP Intervention (diet prescription and target kcal), written at or after their consultation.' },
 ]
 function planLine(p) {
   const plan = p.meal_plan.plan

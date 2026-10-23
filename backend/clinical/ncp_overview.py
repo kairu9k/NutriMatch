@@ -118,8 +118,11 @@ def build_ncp_overview(rnd, now=None):
             drafts.append({**base, "record_id": draft.id, "is_follow_up": follow, "follow_up_no": no,
                            "updated_at": draft.updated_at, "missing": missing_for(draft, follow)})
         elif not finals:
-            if rel.client_id in screenings:
-                no_record.append(base)
+            # An NCP record starts from a consultation, so a newly confirmed
+            # patient isn't listed until a consultation is done without one.
+            visits = [a for a in completed.get(rel.id, []) if a.id not in linked_appts]
+            if visits:
+                no_record.append({**base, "visit_date": visits[-1].scheduled_at})
         else:
             last = max(finals, key=lambda r: (r.encounter_date, r.created_at))
             days = (today - last.encounter_date).days

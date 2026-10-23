@@ -29,9 +29,16 @@ class NcpOverviewTests(TestCase):
     def _final(self, rel, days_ago, **kw):
         return NcpRecord.objects.create(relationship=rel, status="completed", encounter_date=self.today - timedelta(days=days_ago), **kw)
 
+    def _visit(self, rel, days_ago=1):
+        return Appointment.objects.create(relationship=rel, type="video", status="completed", scheduled_at=timezone.now() - timedelta(days=days_ago))
+
     def test_worklist_rules(self):
         new = self._patient("new@o.ph")
+        self._visit(new)
         risky = self._patient("risk@o.ph", nrs=4)
+        self._visit(risky)
+        booked = self._patient("bkd@o.ph")  # confirmed, consultation not held yet: no record expected
+        Appointment.objects.create(relationship=booked, type="video", status="confirmed", scheduled_at=timezone.now() + timedelta(days=1))
         old = self._patient("old@o.ph")
         self._final(old, 30)
         recent = self._patient("rec@o.ph")
@@ -44,7 +51,8 @@ class NcpOverviewTests(TestCase):
 
         d = build_ncp_overview(self.rnd)
         w = d["worklist"]
-        self.assertEqual([x["relationship_id"] for x in w["no_record"]], [risky.id, new.id])  # at-risk first
+        self.assertEqual([x["relationship_id"] for x in w["no_record"]], [risky.id, new.id])  # at-risk first, not the booked one
+        self.assertIsNotNone(w["no_record"][0]["visit_date"])
         due = {x["relationship_id"]: x["reason"] for x in w["follow_up_due"]}
         self.assertEqual(set(due), {old.id, unrec.id})
         self.assertIn("30 days", due[old.id])

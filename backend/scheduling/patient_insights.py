@@ -92,19 +92,22 @@ class CareData:
         seen = set(Appointment.objects.filter(relationship_id__in=rel_ids, status=Appointment.Status.COMPLETED)
                    .values_list("relationship_id", flat=True))
         self.video_ahead = {}
-        for a in (Appointment.objects.filter(relationship_id__in=rel_ids, type=Appointment.Type.VIDEO,
+        # video or in-person: either way the NCP is written at that first consultation
+        for a in (Appointment.objects.filter(relationship_id__in=rel_ids,
+                                             type__in=[Appointment.Type.VIDEO, Appointment.Type.IN_PERSON],
                                              status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED])
                   .exclude(relationship_id__in=seen).order_by("scheduled_at")):
             if a.scheduled_at + timedelta(minutes=a.duration_minutes or 60) > self.now:
                 self.video_ahead.setdefault(a.relationship_id, a)
 
     def video_call_step(self, rel):
-        """(key, label, link) pointing at the first video call, or None."""
+        """(key, label, link) pointing at the first consultation still ahead, or None."""
         a = self.video_ahead.get(rel.id)
         if not a:
             return None
         d = a.scheduled_at.astimezone(self.ph)
-        return ("video_call", f"Video call {d:%b} {d.day}", f"/appointments?tab=upcoming&relationship={rel.id}")
+        kind = "In-person visit" if a.type == "in_person" else "Video call"
+        return ("video_call", f"{kind} {d:%b} {d.day}", f"/appointments?tab=upcoming&relationship={rel.id}")
 
     # ------------------------------------------------------------ adherence
     def day_stats(self, d, rel_id=None):
@@ -197,7 +200,7 @@ class CareData:
         }
         rid = rel.id
         if rel.status == "pending":
-            step = ("review_booking", "Review booking", "/appointments")
+            step = ("review_booking", "Review booking", "/appointments?tab=requests")
         elif rel.status == "discharged":
             step = ("view", "View record", f"/client-detail/{rid}")
         elif draft:

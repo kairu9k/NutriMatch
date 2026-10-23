@@ -177,8 +177,8 @@ const worklistGroups = computed(() => {
   return [
     { key: 'drafts', label: 'Drafts in progress', items: w.drafts, action: 'Continue in chart', link: x => chart(x.relationship_id, '&open=draft'),
       detail: x => `${x.is_follow_up ? `Follow-up #${x.follow_up_no}` : 'Initial record'}, edited ${dateTime(x.updated_at)}. ${x.missing.length ? `Missing: ${x.missing.join(', ')}.` : 'Ready to finalize.'}` },
-    { key: 'no_record', label: 'No NCP record yet', items: w.no_record, action: 'Open chart', link: x => chart(x.relationship_id),
-      detail: x => `Screened ${x.screening_date ? shortDate(x.screening_date) : 'on an unknown date'}${x.nrs_risk ? `, ${x.nrs_risk.toLowerCase()}` : ''}` },
+    { key: 'no_record', label: 'Consultation done, no NCP record yet', items: w.no_record, action: 'Write record', link: x => chart(x.relationship_id),
+      detail: x => `Consultation on ${shortDate(x.visit_date)}${x.nrs_risk ? `, screened ${x.nrs_risk.toLowerCase()}` : ''}.` },
     { key: 'follow_up_due', label: 'Follow-up due', items: w.follow_up_due, action: 'Open chart', link: x => chart(x.relationship_id),
       detail: x => `${x.reason}. Last record ${shortDate(x.last_record_date)}.` },
   ]
