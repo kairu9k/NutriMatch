@@ -1040,13 +1040,13 @@ function phClock(iso) {
 .up-when { font-size: 14px; color: rgba(255, 255, 255, 0.78); margin: 0; }
 .up-who { display: flex; align-items: center; gap: 12px; min-width: 0; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
 .up .nm-upnext-actions { margin-top: 14px; }
-.up-empty { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 16px; }
+.up-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; }
 .up-empty-text { min-width: 0; }
 .up-empty-btn { flex-shrink: 0; }
 @media (max-width: 640px) {
   .up-time { font-size: 32px; }
   .up-time.small { font-size: 24px; }
-  .up-empty { flex-direction: column; }
+  .up-empty { flex-direction: column; align-items: stretch; }
   .up-empty-btn { width: 100%; }
 }
 
