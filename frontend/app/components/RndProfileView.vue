@@ -7,30 +7,46 @@
     <template v-else-if="rnd">
       <p class="breadcrumb"><NuxtLink to="/find-rnd">Find an RND</NuxtLink> / {{ fullName }}</p>
 
-      <!-- hero -->
+      <!-- hero: who they are and what it costs on top, the four figures in one divided strip below -->
       <section class="hero">
-        <img v-if="rnd.user.profile_photo" :src="rnd.user.profile_photo" class="hero-avatar" alt="" />
-        <span v-else class="hero-avatar initials">{{ userInitials(rnd.user.first_name, rnd.user.last_name) }}</span>
-        <div class="hero-main">
-          <span class="hero-badge"><ShieldCheck :size="13" aria-hidden="true" /> PRC verified<template v-if="rnd.verified_at"> since {{ monthYear(rnd.verified_at) }}</template></span>
-          <h1 class="hero-name">{{ fullName }}</h1>
-          <p class="hero-spec">{{ rnd.specialization || 'General and clinical nutrition' }}<template v-if="rnd.prc_license_number">, PRC license no. {{ rnd.prc_license_number }}</template></p>
-          <div class="hero-stats">
-            <span v-if="rnd.review_count"><Star :size="14" class="gold" /> <strong>{{ rnd.average_rating.toFixed(1) }}</strong> ({{ rnd.review_count }} review{{ rnd.review_count === 1 ? '' : 's' }})</span>
-            <span v-else><Star :size="14" /> No reviews yet</span>
-            <span><CalendarCheck :size="14" /> <strong>{{ rnd.consultations_completed }}</strong> consultation{{ rnd.consultations_completed === 1 ? '' : 's' }} done</span>
-            <span><Users :size="14" /> <strong>{{ rnd.active_patients }}</strong> active patient{{ rnd.active_patients === 1 ? '' : 's' }}</span>
-            <span><Clock :size="14" /> On NutriMatch since {{ monthYear(rnd.member_since) }}</span>
+        <div class="hero-top">
+          <img v-if="rnd.user.profile_photo" :src="rnd.user.profile_photo" class="hero-avatar" alt="" />
+          <span v-else class="hero-avatar initials">{{ userInitials(rnd.user.first_name, rnd.user.last_name) }}</span>
+          <div class="hero-main">
+            <h1 class="hero-name">
+              {{ fullName }}
+              <span class="verified" :title="verifiedTitle" tabindex="0" :aria-label="verifiedTitle"><BadgeCheck :size="20" aria-hidden="true" /></span>
+            </h1>
+            <p class="hero-spec">{{ rnd.specialization || 'General and clinical nutrition' }}</p>
+            <p v-if="rnd.languages?.length" class="hero-line" :title="languageNames.join(', ')"><Languages :size="14" aria-hidden="true" /> {{ languagesText }}</p>
+            <p v-if="offeredFormats.length" class="hero-line"><component :is="offeredFormats[0].icon" :size="14" aria-hidden="true" /> {{ formatsText }}</p>
           </div>
-          <div class="hero-chips">
-            <span v-for="l in rnd.languages" :key="l.code" class="hero-chip"><Languages :size="12" /> {{ l.language_name }}</span>
-            <span v-for="f in offeredFormats" :key="f.key" class="hero-chip"><component :is="f.icon" :size="12" /> {{ f.short }}</span>
+          <div class="hero-fee">
+            <p class="fee-amount">₱{{ formatFee(rnd.consultation_fee) }}</p>
+            <p class="fee-unit">per {{ SESSION_MINUTES }}-minute session</p>
+            <button v-if="!rnd.booking_blocked_by && offeredFormats.length && rnd.next_open_slots.length" type="button" class="hero-book" @click="openBookingModal()">
+              <CalendarPlus :size="15" aria-hidden="true" /> Book
+            </button>
           </div>
         </div>
-        <div class="hero-fee">
-          <p class="fee-amount">₱{{ formatFee(rnd.consultation_fee) }}</p>
-          <p class="fee-unit">per {{ SESSION_MINUTES }}-minute session</p>
-        </div>
+        <dl class="hero-figs">
+          <div class="hfig">
+            <dt>{{ rnd.review_count ? `${rnd.review_count} review${rnd.review_count === 1 ? '' : 's'}` : 'No reviews yet' }}</dt>
+            <dd><Star v-if="rnd.review_count" :size="16" class="gold" aria-hidden="true" />{{ rnd.review_count ? rnd.average_rating.toFixed(1) : '—' }}</dd>
+          </div>
+          <div class="hfig">
+            <dt>consultation{{ rnd.consultations_completed === 1 ? '' : 's' }} done</dt>
+            <dd>{{ rnd.consultations_completed }}</dd>
+          </div>
+          <div class="hfig">
+            <dt>active patient{{ rnd.active_patients === 1 ? '' : 's' }}</dt>
+            <dd>{{ rnd.active_patients }}</dd>
+          </div>
+          <div class="hfig">
+            <dt>on NutriMatch since</dt>
+            <dd>{{ monthYear(rnd.member_since) }}</dd>
+          </div>
+        </dl>
       </section>
 
       <div class="nm-grid">
@@ -253,8 +269,8 @@
 
 <script setup>
 import {
-  BadgeCheck, CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Languages,
-  MapPin, RotateCcw, ShieldCheck, Star, Users, Video, X,
+  BadgeCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Languages,
+  MapPin, RotateCcw, Star, Video, X,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -302,6 +318,24 @@ function formatFee(fee) {
 }
 
 const fullName = computed(() => (rnd.value ? `${rnd.value.user.first_name} ${rnd.value.user.last_name}` : ''))
+// Hero sentences: languages ("Speaks English, Filipino, Bisaya and 3 more"),
+// formats + city ("Video call or in person, Davao City"), PRC details on the check.
+const languageNames = computed(() => (rnd.value?.languages || []).map(l => l.language_name.replace(/ \(.*\)/, '')))
+const languagesText = computed(() => {
+  const n = languageNames.value
+  if (n.length <= 3) return `Speaks ${n.length > 1 ? `${n.slice(0, -1).join(', ')} and ${n.at(-1)}` : n[0]}`
+  return `Speaks ${n.slice(0, 3).join(', ')} and ${n.length - 3} more`
+})
+const formatsText = computed(() => {
+  const labels = offeredFormats.value.map((f, i) => (i ? f.label.toLowerCase() : f.label))
+  const city = offeredFormats.value.some(f => f.key === 'in_person') ? (rnd.value?.clinic_address || '').split(',').pop().trim() : ''
+  return `${labels.join(' or ')}${city ? `, ${city}` : ''}`
+})
+const verifiedTitle = computed(() => {
+  const r = rnd.value
+  if (!r) return ''
+  return `PRC verified${r.verified_at ? ` since ${monthYear(r.verified_at)}` : ''}${r.prc_license_number ? `, license no. ${r.prc_license_number}` : ''}`
+})
 const mapUrl = computed(() => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rnd.value?.clinic_address || '')}`)
 const CARE_STEPS = [
   { title: 'Health screening', text: 'A short form about your height, weight and health so your RND comes prepared.' },
@@ -610,26 +644,35 @@ async function confirmBooking() {
 .profile-page .nm-panel { border-color: #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 
 .hero {
-  position: relative; overflow: hidden; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
-  background: linear-gradient(135deg, #00382a 0%, #005a42 100%); color: #fff; border-radius: 16px; padding: 28px 30px; margin-bottom: 20px;
+  background: linear-gradient(135deg, #00382a 0%, #005a42 100%); color: #fff; border-radius: 16px; margin-bottom: 20px; overflow: hidden;
   box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
 }
-.hero > * { position: relative; z-index: 1; }
-.hero-avatar { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255, 255, 255, 0.25); flex-shrink: 0; }
-.hero-avatar.initials { display: flex; align-items: center; justify-content: center; background: #D4A017; color: #1a3a1a; font-weight: 700; font-size: 1.8rem; }
-.hero-main { flex: 1; min-width: 240px; }
-.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.22); color: #D4A017; font-size: 0.72rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; }
-.hero-name { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 10px 0 4px; color: #fff; }
-.hero-spec { font-size: 0.88rem; color: #cfe0d5; margin: 0; }
-.hero-stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0; font-size: 0.82rem; color: #e3eee7; }
-.hero-stats span { display: inline-flex; align-items: center; gap: 6px; }
-.hero-stats strong { color: #fff; }
+.hero-top { display: flex; gap: 22px; align-items: center; padding: 26px 28px 22px; }
+.hero-avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255, 255, 255, 0.25); flex-shrink: 0; }
+.hero-avatar.initials { display: flex; align-items: center; justify-content: center; background: #D4A017; color: #1a3a1a; font-weight: 700; font-size: 1.7rem; }
+.hero-main { flex: 1; min-width: 0; }
+.hero-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: 'Playfair Display', serif; font-size: 1.8rem; line-height: 1.15; margin: 0 0 4px; color: #fff; }
+.verified { display: inline-flex; color: #7fd7a8; cursor: help; border-radius: 50%; }
+.verified:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.hero-spec { font-size: 0.92rem; color: #e3eee7; margin: 0 0 10px; }
+.hero-line { display: flex; align-items: center; gap: 7px; font-size: 0.86rem; color: #cfe0d5; margin: 4px 0 0; }
+.hero-line svg { flex-shrink: 0; color: #9fd0b4; }
 .gold { color: #D4A017; fill: #D4A017; }
-.hero-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-.hero-chip { display: inline-flex; align-items: center; gap: 5px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 14px; padding: 4px 11px; font-size: 0.74rem; }
-.hero-fee { text-align: right; }
-.fee-amount { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; margin: 0; }
-.fee-unit { font-size: 0.76rem; color: #a9c0a9; margin: 2px 0 0; }
+.hero-fee { text-align: right; flex-shrink: 0; }
+.fee-amount { font-family: 'Playfair Display', serif; font-size: 1.9rem; font-weight: 700; margin: 0; line-height: 1; }
+.fee-unit { font-size: 0.78rem; color: #cfe0d5; margin: 4px 0 10px; }
+.hero-book {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 22px; border-radius: 10px;
+  background: #f2b61f; border: none; color: #0a4a37; font-family: inherit; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+}
+.hero-book:hover { background: #e0a410; }
+.hero-book:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* the four figures: one divided strip along the bottom of the banner */
+.hero-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-top: 1px solid rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.12); }
+.hfig { display: flex; flex-direction: column-reverse; padding: 12px 20px; border-left: 1px solid rgba(255, 255, 255, 0.16); min-width: 0; }
+.hfig:first-child { border-left: none; }
+.hfig dd { display: flex; align-items: center; gap: 5px; margin: 0; font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: #fff; font-variant-numeric: lining-nums; }
+.hfig dt { font-size: 0.78rem; color: #cfe0d5; }
 
 .bio-text { font-size: 0.88rem; color: #4a5a4a; line-height: 1.7; margin: 12px 0 0; white-space: pre-line; }
 .steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -696,10 +739,17 @@ async function confirmBooking() {
   .side { position: static; }
 }
 @media (max-width: 640px) {
-  .hero { padding: 22px 18px; gap: 16px; }
-  .hero-avatar { width: 76px; height: 76px; }
+  .hero-top { flex-wrap: wrap; padding: 20px 18px 18px; gap: 14px; }
+  .hero-avatar { width: 72px; height: 72px; }
   .hero-name { font-size: 1.4rem; }
-  .hero-fee { text-align: left; width: 100%; }
+  .hero-main { flex-basis: calc(100% - 90px); }
+  .hero-fee { width: 100%; text-align: left; display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; }
+  .fee-unit { margin: 0; flex: 1; }
+  .hero-book { width: 100%; }
+  .hero-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hfig:nth-child(3) { border-left: none; }
+  .hfig:nth-child(n+3) { border-top: 1px solid rgba(255, 255, 255, 0.16); }
+  .hfig { padding: 10px 16px; }
   .steps { grid-template-columns: 1fr; }
   .avail-grid { grid-template-columns: repeat(4, 1fr); }
 }
