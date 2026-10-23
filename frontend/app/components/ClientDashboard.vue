@@ -21,7 +21,7 @@
           <template v-if="upNext">
             <div class="nm-upnext-top">
               <span class="nm-upnext-label">Up next, {{ upNext.when }}</span>
-              <span class="nm-upnext-pay" :class="{ unpaid: upNext.pill !== 'Paid' }">{{ upNext.pill }}</span>
+              <span class="nm-upnext-pay" :class="{ unpaid: upNext.pill !== 'Paid', big: !nextStep.action }">{{ upNext.pill }}</span>
             </div>
             <div class="nm-upnext-row">
               <div class="nm-upnext-who">
@@ -32,7 +32,7 @@
                   <p class="nm-upnext-format">{{ upNext.format }}</p>
                 </div>
               </div>
-              <div class="nm-upnext-actions">
+              <div v-if="nextStep.action" class="nm-upnext-actions">
                 <NuxtLink :to="nextStep.to" class="nm-hero-btn primary">
                   <Video v-if="/Join/.test(nextStep.action)" :size="16" />{{ nextStep.action }}
                 </NuxtLink>
@@ -501,7 +501,7 @@ const nextStep = computed(() => {
     return {
       eyebrow: 'Payment due',
       text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} before then to start it. Unpaid bookings are cancelled at the start time.`,
-      action: 'View appointment', to: '/appointments', // paying lives in Needs you
+      action: null, to: '/appointments', // no button here: paying lives in Needs you, the status pill says it
     }
   }
   if (appt?.status === 'confirmed') {
@@ -978,6 +978,9 @@ function phClock(iso) {
 .nm-upnext-avatar { background: rgba(255, 255, 255, 0.18); color: #fff; }
 .nm-upnext-pay { background: rgba(255, 255, 255, 0.16); color: #fff; }
 .nm-upnext-pay.unpaid { background: rgba(240, 193, 91, 0.2); color: #f0c15b; }
+
+/* the pill is the only status when the card has no button: a bit bigger */
+.nm-upnext-pay.big { font-size: 13px; padding: 6px 14px; }
 
 /* Buttons */
 .nm-upnext .nm-hero-btn {
