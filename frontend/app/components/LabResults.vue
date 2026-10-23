@@ -78,13 +78,17 @@
       v-if="replacing && data" :tests="data.tests" :replace="replacing"
       @close="replacing = null" @uploaded="afterUpload"
     />
+    <LabFileModal
+      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName"
+      @close="viewing = null" 
+    />
     <div v-if="toast" class="nm-toast" role="status">{{ toast }}</div>
   </div>
 </template>
 
 <script setup>
 import { AlertTriangle, Eye, FileText, FlaskConical, RefreshCw, Trash2, Upload } from 'lucide-vue-next'
-import { FASTED_LABEL, LAB_ACCEPT, fileSize, labDate, labDay, neededBefore, openLabFile, splitLabFiles } from '~/utils/labs'
+import { FASTED_LABEL, LAB_ACCEPT, fileSize, labDate, labDay, neededBefore, splitLabFiles } from '~/utils/labs'
 
 const { get, del } = useApi()
 const data = ref(null)
@@ -135,8 +139,10 @@ async function afterUpload() {
   await load()
 }
 
-async function view(r) {
-  if (!(await openLabFile(get, `/client/lab-results/${r.id}/file/`))) flash('Could not open the file. Please try again.')
+// opens in a pop-up on the page (LabFileModal), not a new tab
+const viewing = ref(null)
+function view(r) {
+  viewing.value = { path: `/client/lab-results/${r.id}/file/`, title: r.test_names.join(', '), sub: `Taken ${labDate(r.taken_on)}, ${r.file_name}`, fileName: r.file_name }
 }
 
 async function remove(r) {

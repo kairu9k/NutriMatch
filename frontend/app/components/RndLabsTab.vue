@@ -47,7 +47,7 @@
           </p>
         </div>
         <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed' : 'New' }}</span>
-        <button type="button" class="nm-btn-outline nm-btn-sm" @click="view(r)"><Eye :size="13" /> View</button>
+        <button type="button" class="nm-btn-soft nm-btn-sm" @click="view(r)"><Eye :size="13" /> View</button>
       </div>
     </template>
 
@@ -56,12 +56,16 @@
       :next-consultation="data.next_consultation" @close="requestOpen = false" @sent="onSent"
     />
     <div v-if="toast" class="nm-toast" role="status">{{ toast }}</div>
+      <LabFileModal
+      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName"
+      @close="viewing = null" @opened="onViewed"
+    />
   </div>
 </template>
 
 <script setup>
 import { AlertTriangle, Eye, FileText, FlaskConical } from 'lucide-vue-next'
-import { FASTED_LABEL, consultGap, labDate, labDay, labDayTime, openLabFile } from '~/utils/labs'
+import { FASTED_LABEL, consultGap, labDate, labDay, labDayTime } from '~/utils/labs'
 
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
@@ -122,13 +126,15 @@ async function cancel(r) {
   }
 }
 
-async function view(r) {
-  const ok = await openLabFile(get, `/rnd/lab-results/${r.id}/file/`)
-  if (!ok) return flash('Could not open the file. Please try again.')
-  if (!r.reviewed_at) {
-    await load()
-    emit('changed')
-  }
+// opens in a pop-up on the page; opening marks it reviewed, so refresh after
+const viewing = ref(null)
+function view(r) {
+  viewing.value = { path: `/rnd/lab-results/${r.id}/file/`, title: r.test_names.join(', '), sub: `Taken ${labDate(r.taken_on)}, ${r.file_name}`, fileName: r.file_name, wasNew: !r.reviewed_at }
+}
+async function onViewed() {
+  if (!viewing.value?.wasNew) return
+  await load()
+  emit('changed')
 }
 
 defineExpose({ openRequestForm: () => { requestOpen.value = true } })

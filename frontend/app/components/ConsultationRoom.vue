@@ -263,6 +263,10 @@
     <RequestLabsModal v-if="labRequest" :relationship-id="appt.relationship.id" :patient-name="other.firstName" :tests="labRequest.tests"
                       :next-consultation="labRequest.next_consultation" @close="labRequest = null" @sent="onLabsSent" />
     <ConsultationSummaryModal v-if="summaryOpen && appt" :appointment-id="appt.id" :role="isRnd ? 'rnd' : 'client'" @close="summaryOpen = false" />
+      <LabFileModal
+      v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName"
+      @close="viewing = null" @opened="onViewed"
+    />
   </div>
 </template>
 
@@ -273,7 +277,7 @@
 // drafts or the RND's notes. Pay-first and the join window are enforced by the
 // API (the client gets the room link only when it's paid and inside the window).
 import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, User, UserX, VideoOff } from 'lucide-vue-next'
-import { openLabFile } from '~/utils/labs'
+import { labDate } from '~/utils/labs'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -303,9 +307,13 @@ async function refreshSummary() {
   if (!isRnd.value || !appt.value) return
   s.value = await get(`/rnd/relationships/${appt.value.relationship.id}/summary/`).catch(() => s.value)
 }
-// Opening a lab file marks it reviewed, so refresh the "New" tags after.
-async function viewLab(r) {
-  if ((await openLabFile(get, `/rnd/lab-results/${r.id}/file/`)) && !r.reviewed_at) refreshSummary()
+// Opening a lab file (in a pop-up) marks it reviewed, so refresh the "New" tags after.
+const viewing = ref(null)
+function viewLab(r) {
+  viewing.value = { path: `/rnd/lab-results/${r.id}/file/`, title: (r.test_names || []).join(', ') || 'Lab result', sub: r.taken_on ? `Taken ${labDate(r.taken_on)}` : '', fileName: r.file_name, wasNew: !r.reviewed_at }
+}
+function onViewed() {
+  if (viewing.value?.wasNew) refreshSummary()
 }
 onMounted(async () => {
   try {
