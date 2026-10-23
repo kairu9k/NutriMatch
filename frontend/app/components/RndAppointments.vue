@@ -9,18 +9,6 @@
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading appointments…</p></div>
 
     <template v-else-if="board">
-      <!-- summary figures, same as NCP Records: one panel, four divided cells -->
-      <div class="nm-panel summary" role="group" aria-label="Summary">
-        <button
-          v-for="c in summaryCells" :key="c.key" type="button" class="sum-item"
-          :class="{ attn: c.attn && board.summary[c.key], on: c.tab === tab && c.key !== 'today' && c.key !== 'this_week' }"
-          @click="setTab(c.tab)"
-        >
-          <span class="sum-label">{{ c.label }}</span>
-          <strong>{{ board.summary[c.key] }}</strong>
-        </button>
-      </div>
-
       <div v-if="patientFilter" class="nm-note filter-note">
         Showing only <strong>{{ patientFilterName }}</strong>.
         <NuxtLink to="/appointments" class="nm-panel-link">Show everyone</NuxtLink>
@@ -262,12 +250,6 @@ async function load() {
 }
 
 /* ---------- tabs + ?relationship= filter (from a patient chart) ---------- */
-const summaryCells = [
-  { key: 'today', label: 'Today', tab: 'upcoming' },
-  { key: 'this_week', label: 'This week', tab: 'upcoming' },
-  { key: 'requests', label: 'Requests waiting', tab: 'requests', attn: true },
-  { key: 'to_complete', label: 'To mark complete', tab: 'to_complete', attn: true },
-]
 const TABS = [
   { key: 'requests', label: 'Requests' },
   { key: 'upcoming', label: 'Upcoming' },
@@ -423,17 +405,6 @@ async function completeNow() {
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 .head .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 
-.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; overflow: hidden; margin-bottom: 16px;
-  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
-.sum-item { position: relative; background: none; border: none; border-left: 1px solid #d9e3dc; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; font-family: inherit; text-align: left; color: inherit; }
-.sum-item:first-child { border-left: none; }
-.sum-item:hover { background: #fafbfa; }
-.sum-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.sum-label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
-.sum-item strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.1; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
-.sum-item.attn strong { color: #a07400; }
-.sum-item.on { background: #f3f7f2; }
-.sum-item.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #1a3a1a; }
 .appt-list { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .filter-note { margin-bottom: 14px; }
 
@@ -491,11 +462,6 @@ async function completeNow() {
 
 @media (max-width: 760px) {
   .row { flex-wrap: wrap; }
-  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .sum-item { padding: 12px 16px; }
-  .sum-item:nth-child(3) { border-left: none; }
-  .sum-item:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
-  .sum-item strong { font-size: 1.3rem; }
   .row-actions { width: 100%; justify-content: flex-start; padding-left: 60px; }
   .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
