@@ -18,7 +18,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'When and how do I pay?',
-      a: 'Pay any time after your RND confirms and before the consultation starts — on Billing & Invoice or from My Appointments. GCash, Maya, cards and QR Ph work through PayMongo. A consultation that is still unpaid when it starts is cancelled automatically.',
+      a: 'Pay any time after your RND confirms and before the consultation starts, on Billing & Invoice or from My Appointments. GCash, Maya, cards and QR Ph work through PayMongo. A consultation that is still unpaid when it starts is cancelled automatically.',
       link: { label: 'Billing & Invoice', to: '/invoices-billing' },
     },
     {
@@ -28,11 +28,11 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'Can I cancel, and will I get a refund?',
-      a: 'You can cancel a pending or confirmed consultation from My Appointments any time before it starts — once it has started it can no longer be cancelled (if it did not take place, message your RND or contact support). If you already paid, you get the full amount back within 5–7 business days. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet — the link works for 3 days.',
+      a: 'You can cancel a pending or confirmed consultation from My Appointments any time before it starts. Once it has started it can’t be cancelled; if it didn’t take place, message your RND or contact support. If you already paid, you get the full amount back within 5–7 business days. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
     },
     {
       q: 'Where do I find my meal plan and log my meals?',
-      a: 'My Meal Plan shows the plan your RND sent. Log each meal there (followed, partly followed or not followed, with an optional photo) — your RND sees your logs.',
+      a: 'My Meal Plan shows the plan your RND sent. Log each meal there with a photo, a note or both. Your RND looks at each log and marks how closely it followed the plan.',
       link: { label: 'My Meal Plan', to: '/meal-plan-view' },
     },
     {
@@ -49,7 +49,7 @@ export const SUPPORT_FAQ = {
   rnd: [
     {
       q: 'How do I confirm or decline a booking?',
-      a: 'New bookings are under Appointments → Requests, with the patient’s screening summary. Confirm to issue the invoice; declining needs a short reason, which the patient sees.',
+      a: 'New bookings are on the Requests tab of Appointments, with the patient’s screening summary. Confirming issues the invoice. Declining needs a short reason, which the patient sees.',
       link: { label: 'Appointments', to: '/appointments?tab=requests' },
     },
     {
@@ -63,22 +63,22 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'How do I write and finalize an NCP record?',
-      a: 'Open the patient’s chart → NCP Records (or the NCP tab in the consultation room). Save a draft any time; Finalize is on the Review step once the required fields are in. A finalized record can’t be edited.',
+      a: 'Start it in the consultation room, on the NCP tab. Save a draft any time and continue it later from the patient’s chart. Finalize is on the Review step once the required fields are in. A finalized record can’t be edited.',
       link: { label: 'My Patients', to: '/my-patients' },
     },
     {
       q: 'How do I request lab tests?',
-      a: 'Open the patient’s chart → Request lab tests, tick the tests and add a note. They’re needed before the patient’s next consultation. Uploads appear in the chart’s Lab results tab (and in the consultation room) as soon as the patient sends them; opening one marks it reviewed. Type the values into the NCP record yourself.',
+      a: 'In the patient’s chart, press Request lab tests, tick the tests and add a note. They’re needed before the patient’s next consultation. Uploads appear in the chart’s Lab results tab (and in the consultation room) as soon as the patient sends them; opening one marks it reviewed. Type the values into the NCP record yourself.',
       link: { label: 'My Patients', to: '/my-patients' },
     },
     {
       q: 'How do I send a meal plan?',
-      a: 'Meal Plans → pick the patient → start from a diet template or build the week yourself (FNRI foods, or USDA foods by grams), then Send to patient.',
-      link: { label: 'Meal Plans', to: '/meal-planning' },
+      a: 'Open Meal Planning and pick the patient. Start from a diet template or build the week yourself (FNRI foods, or USDA foods by grams), then send it to the patient.',
+      link: { label: 'Meal Planning', to: '/meal-planning' },
     },
     {
       q: 'How do I change my availability or fee?',
-      a: 'Profile Settings → Professional Profile and Availability. Patients only see open times inside your weekly hours.',
+      a: 'In Profile Settings, change your fee under Professional profile (press Edit profile) and your hours under Availability. Patients only see open times inside your weekly hours.',
       link: { label: 'Profile Settings', to: '/profile-settings' },
     },
   ],
