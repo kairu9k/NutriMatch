@@ -8,7 +8,7 @@
        
         <p class="page-sub">Your upcoming consultations and past visits.</p>
       </div>
-      <NuxtLink :to="bookLink" class="btn-dark"><CalendarPlus :size="15" /> Book a Consultation</NuxtLink>
+      <NuxtLink :to="bookLink" class="btn-dark"><CalendarPlus :size="15" aria-hidden="true" /> Book a consultation</NuxtLink>
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -23,7 +23,7 @@
           <CalendarDays :size="24" class="empty-icon" />
           <p>No upcoming consultations.</p>
           <p class="empty-sub">{{ activeRnd ? `Book a follow-up with RND ${activeRnd.first_name} ${activeRnd.last_name} when you're ready.` : 'Find an RND and book your first consultation.' }}</p>
-          <NuxtLink :to="bookLink" class="outline-btn">{{ activeRnd ? 'Book a Consultation' : 'Find an RND' }}</NuxtLink>
+          <NuxtLink :to="bookLink" class="outline-btn">{{ activeRnd ? 'Book a consultation' : 'Find an RND' }}</NuxtLink>
         </div>
 
         <article v-for="appt in upcoming" :key="appt.id" class="panel appt-card">
@@ -63,14 +63,14 @@
               >
                 <CreditCard :size="14" /> {{ payingId === appt.payment.invoice_id ? 'Opening checkout…' : `Pay ₱${money(appt.payment.amount)}` }}
               </button>
-              <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="btn-dark"><Video :size="14" /> Join Video Call</NuxtLink>
+              <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="btn-dark"><Video :size="14" aria-hidden="true" /> Join video call</NuxtLink>
               <!-- Join window: opens 15 min before the start (see join_opens_at). -->
               <button v-if="appt.opensLater" class="btn-dark" type="button" disabled :title="`Opens ${appt.opensLabel}`">
                 <Video :size="14" /> Join opens {{ appt.opensLabel }}
               </button>
               <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" /> Message RND</NuxtLink>
               <button v-if="appt.canCancel" class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
-                {{ appt.status === 'pending' ? 'Cancel Request' : 'Cancel' }}
+                {{ appt.status === 'pending' ? 'Cancel request' : 'Cancel' }}
               </button>
             </div>
             <p v-if="actionError[appt.id]" class="inline-error">{{ actionError[appt.id] }}</p>
@@ -110,7 +110,7 @@
                 RND {{ appt.rnd.name }}
                 <span class="status-pill" :class="appt.statusClass">{{ appt.statusLabel }}</span>
               </p>
-              <p class="history-meta">{{ appt.timeRange }} · {{ appt.typeLabel }}</p>
+              <p class="history-meta">{{ appt.timeRange }}, {{ appt.typeLabel.toLowerCase() }}</p>
               <p v-if="appt.status === 'cancelled' && appt.cancellationReason" class="history-meta">Reason: {{ appt.cancellationReason }}</p>
               <p v-if="appt.hint" class="history-meta">{{ appt.hint }}</p>
               <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
@@ -118,7 +118,7 @@
               <div v-if="appt.payment || appt.review" class="history-extras">
                 <template v-if="appt.payment">
                   <span v-if="appt.payment.status === 'paid'" class="status-pill pill-green"><CheckCircle2 :size="12" /> Paid ₱{{ money(appt.payment.amount) }}</span>
-                  <NuxtLink v-else-if="appt.payment.status === 'unpaid'" to="/invoices-billing" class="status-pill pill-gold pill-link">Unpaid ₱{{ money(appt.payment.amount) }} · Pay now →</NuxtLink>
+                  <NuxtLink v-else-if="appt.payment.status === 'unpaid'" to="/invoices-billing" class="status-pill pill-gold pill-link">Unpaid ₱{{ money(appt.payment.amount) }}, pay now</NuxtLink>
                   <span v-else-if="appt.payment.status === 'refund_pending'" class="status-pill pill-gold">Refund pending ₱{{ money(appt.payment.amount) }}</span>
                   <span v-else-if="appt.payment.status === 'refunded'" class="status-pill pill-muted">Refunded ₱{{ money(appt.payment.amount) }}</span>
                 </template>
@@ -130,8 +130,8 @@
             </div>
             <div class="history-actions">
               <button v-if="appt.status === 'completed'" class="outline-btn small" type="button" @click="summaryId = appt.id"><FileText :size="13" /> View summary</button>
-              <button v-if="appt.status === 'completed' && !appt.review" class="outline-btn small" type="button" @click="openReview(appt)"><Star :size="13" /> Leave a Review</button>
-              <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}?book=1`" class="outline-btn small"><RotateCcw :size="13" /> Book Again</NuxtLink>
+              <button v-if="appt.status === 'completed' && !appt.review" class="outline-btn small" type="button" @click="openReview(appt)"><Star :size="13" aria-hidden="true" /> Leave a review</button>
+              <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}?book=1`" class="outline-btn small"><RotateCcw :size="13" aria-hidden="true" /> Book again</NuxtLink>
             </div>
           </div>
         </div>
@@ -149,14 +149,14 @@
         <p v-if="cancelTarget.payment?.status === 'paid'" class="modal-note">
           You paid ₱{{ money(cancelTarget.payment.amount) }} for this consultation. {{ refundMessage(money(cancelTarget.payment.amount), cancelTarget.payment.method) }}
         </p>
-        <p v-else-if="cancelTarget.payment?.status === 'unpaid'" class="modal-note">Its unpaid invoice will be voided — nothing to pay.</p>
+        <p v-else-if="cancelTarget.payment?.status === 'unpaid'" class="modal-note">Its unpaid invoice is voided, so there's nothing to pay.</p>
         <label class="field-label" for="cancel-reason">Reason <span class="optional">(optional)</span></label>
         <textarea id="cancel-reason" v-model="cancelReason" rows="3" maxlength="500" class="field-input" placeholder="Let your RND know why…"></textarea>
         <p class="char-count">{{ cancelReason.length }}/500</p>
         <p v-if="cancelError" class="inline-error">{{ cancelError }}</p>
         <div class="modal-actions">
-          <button class="outline-btn" type="button" :disabled="isCancelling" @click="closeCancel">Keep It</button>
-          <button class="danger-btn" type="button" :disabled="isCancelling" @click="confirmCancel">{{ isCancelling ? 'Cancelling…' : 'Yes, Cancel' }}</button>
+          <button class="outline-btn" type="button" :disabled="isCancelling" @click="closeCancel">Keep it</button>
+          <button class="danger-btn" type="button" :disabled="isCancelling" @click="confirmCancel">{{ isCancelling ? 'Cancelling…' : 'Yes, cancel' }}</button>
         </div>
       </div>
     </div>
@@ -180,8 +180,8 @@
         <p class="char-count">{{ reviewText.length }}/1000</p>
         <p v-if="reviewError" class="inline-error">{{ reviewError }}</p>
         <div class="modal-actions">
-          <button class="outline-btn" type="button" :disabled="isSubmittingReview" @click="closeReview">Not Now</button>
-          <button class="btn-dark" type="button" :disabled="isSubmittingReview || !reviewStars" @click="submitReview">{{ isSubmittingReview ? 'Submitting…' : 'Submit Review' }}</button>
+          <button class="outline-btn" type="button" :disabled="isSubmittingReview" @click="closeReview">Not now</button>
+          <button class="btn-dark" type="button" :disabled="isSubmittingReview || !reviewStars" @click="submitReview">{{ isSubmittingReview ? 'Posting…' : 'Post review' }}</button>
         </div>
       </div>
     </div>
@@ -214,7 +214,7 @@ const rndProfiles = ref({}) // rnd user id -> /client/rnds/<id>/ payload
 const TYPES = {
   video: { label: 'Video call', icon: Video },
   chat: { label: 'Chat', icon: MessageCircle },
-  in_person: { label: 'In-person', icon: MapPin },
+  in_person: { label: 'In person', icon: MapPin },
 }
 const STAR_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' }
 
@@ -256,7 +256,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
   if (a.status === 'confirmed' && !isOver && payment?.status === 'unpaid') phase = 'payment_due'
 
   const STATUS = {
-    pending: ['Awaiting confirmation', 'pill-gold'],
+    pending: ['Waiting for your RND', 'pill-gold'],
     payment_due: ['Payment due', 'pill-gold'],
     confirmed: ['Confirmed', 'pill-green'],
     completed: ['Completed', 'pill-muted'],
@@ -269,7 +269,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
   let hint = ''
   if (phase === 'pending') hint = `Waiting for RND ${rndUser.first_name} to confirm. You'll be asked to pay once they do.`
   else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} before ${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(start)} to start your consultation. If it isn't paid by then, the booking is cancelled and the slot is released.`
-  else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)} — 15 minutes before the start.`
+  else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)}, 15 minutes before the start.`
   else if (phase === 'confirmed' && a.type === 'video') hint = a.video_session_url ? 'Your video room is open. You can join now.' : 'Your RND is setting up the video room.'
   else if (phase === 'confirmed' && a.type === 'in_person') hint = 'Message your RND if you need the clinic address or directions.'
   else if (phase === 'expired') hint = 'The time passed before your RND confirmed this request.'
@@ -289,7 +289,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
       photo: profile?.user?.profile_photo || '',
       specialization: profile?.specialization || '',
     },
-    month: start.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+    month: start.toLocaleDateString('en-US', { month: 'short' }),
     day: start.getDate(),
     year: start.getFullYear(),
     weekday: start.toLocaleDateString('en-US', { weekday: 'short' }),
@@ -383,7 +383,7 @@ function payNow(appt) {
   pay(appt.payment.invoice_id, {
     onPaid() {
       load()
-      showToast('Payment received — your consultation is all set.')
+      showToast('Payment received. Your consultation is all set.')
     },
     onClosed: load,
   })
@@ -468,7 +468,7 @@ async function submitReview() {
     })
     reviewTarget.value = null
     await load()
-    showToast('Thanks — your review was posted.')
+    showToast('Thanks. Your review is posted.')
   } catch (error) {
     const data = error?.data || {}
     reviewError.value = data.appointment?.[0] || data.rating?.[0] || data.non_field_errors?.[0] || data.detail || 'Could not submit your review. Please try again.'
@@ -496,32 +496,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
 .form-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px; }
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
-.empty-note { font-size: 0.85rem; color: #9aaa9a; margin: 0; padding: 6px 0; }
+.placeholder-text { font-size: 0.85rem; color: #6a7a6a; }
+.empty-note { font-size: 0.85rem; color: #6a7a6a; margin: 0; padding: 6px 0; }
 .inline-error { font-size: 0.8rem; color: #a12525; margin: 8px 0 0; }
 
 .section { margin-bottom: 28px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .section-head .section-title { margin: 0; }
 .section-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
-.count { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 700; color: #6a7a6a; background: #eceeec; border-radius: 999px; padding: 2px 9px; }
+.count { font-family: 'Inter', sans-serif; font-size: 0.74rem; font-weight: 700; color: #1e4a26; background: #e3efe7; border-radius: 999px; padding: 2px 9px; }
 
-.panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
+.panel { background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 22px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 
 /* BUTTONS */
 .btn-dark {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0;
-  background: #163a1c; color: #fff; border: none; text-decoration: none; font-family: inherit;
+  background: #0a4a37; color: #fff; border: none; text-decoration: none; font-family: inherit;
   padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-.btn-dark:hover:not(:disabled) { background: #0f2a14; }
+.btn-dark:hover:not(:disabled) { background: #00382a; }
 .btn-dark:disabled { opacity: 0.5; cursor: not-allowed; }
 .outline-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0;
-  border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px; text-decoration: none; font-family: inherit;
+  border: 1px solid #d9e3dc; background: #fff; color: #0a4a37; border-radius: 8px; text-decoration: none; font-family: inherit;
   padding: 9px 16px; font-weight: 600; font-size: 0.82rem; cursor: pointer; white-space: nowrap;
 }
-.outline-btn:hover:not(:disabled) { background: #f7f9f7; }
+.outline-btn:hover:not(:disabled) { background: #f4f7f5; }
+.btn-dark:focus-visible, .outline-btn:focus-visible, .ghost-danger-btn:focus-visible, .danger-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .outline-btn.small { padding: 7px 12px; font-size: 0.78rem; }
 .ghost-danger-btn { background: none; border: none; color: #c0392b; font-weight: 600; font-size: 0.82rem; cursor: pointer; padding: 9px 6px; font-family: inherit; margin-left: auto; }
@@ -535,15 +536,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
 .pill-green { background: #e3f3ea; color: #1f8f5c; }
 .pill-gold { background: #fdf1d6; color: #b8860b; }
-.pill-muted { background: #eceeec; color: #6a7a6a; }
+.pill-muted { background: #eef2ef; color: #4a5a4a; }
 .pill-red { background: #fdecec; color: #a12525; }
 .pill-link { text-decoration: none; }
 .pill-link:hover { text-decoration: underline; }
 
 /* EMPTY */
-.empty-state { text-align: center; color: #9aaa9a; font-size: 0.86rem; padding: 28px 20px; }
+.empty-state { text-align: center; color: #6a7a6a; font-size: 0.86rem; padding: 28px 20px; }
 .empty-state p { margin: 0; }
-.empty-icon { display: block; margin: 0 auto 8px; color: #c5d0c5; }
+.empty-icon { display: block; margin: 0 auto 8px; color: #9ec4ad; }
 .empty-sub { font-size: 0.8rem; margin: 4px 0 14px !important; line-height: 1.5; }
 
 /* UPCOMING CARD */
@@ -552,9 +553,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   width: 68px; flex-shrink: 0; align-self: flex-start; border-radius: 12px; background: #eef3ec; color: #1e4a26;
   display: flex; flex-direction: column; align-items: center; padding: 10px 0;
 }
-.date-mon { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; }
+.date-mon { font-size: 0.78rem; font-weight: 700; }
 .date-day { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; }
-.date-dow { font-size: 0.7rem; color: #6a7a6a; }
+.date-dow { font-size: 0.74rem; color: #4a5a4a; }
 .appt-body { flex: 1; min-width: 0; }
 .appt-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .rnd-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -563,48 +564,50 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .rnd-text { min-width: 0; }
 .rnd-name { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; text-decoration: none; }
 .rnd-name:hover { text-decoration: underline; }
-.rnd-spec { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
+.rnd-spec { font-size: 0.8rem; color: #6a7a6a; margin: 2px 0 0; }
 .appt-facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0; }
 .fact { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #1a3a1a; font-weight: 500; }
 .fact svg { color: #6a7a6a; }
 .appt-notes { font-size: 0.82rem; color: #4a5a4a; margin: 10px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
-.appt-notes span { color: #8a9a8a; }
-.appt-hint { font-size: 0.8rem; color: #8a9a8a; margin: 8px 0 0; line-height: 1.5; }
-.appt-hint.hint-due { color: #8a6a10; background: #fdf6e3; border-radius: 8px; padding: 8px 12px; }
+.appt-notes span { color: #6a7a6a; }
+.appt-hint { font-size: 0.82rem; color: #4a5a4a; margin: 8px 0 0; line-height: 1.5; }
+/* payment still to make: the app's dashed green for "to do" */
+.appt-hint.hint-due { color: #1f4a30; background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 9px 12px; }
 .pill-stack { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.modal-note { font-size: 0.82rem; color: #8a6a10; background: #fdf6e3; border-radius: 8px; padding: 8px 12px; margin: -6px 0 14px; line-height: 1.5; }
-.appt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f0f2f0; }
+.modal-note { font-size: 0.82rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; margin: -6px 0 14px; line-height: 1.5; }
+.appt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #d9e3dc; }
 
 /* HISTORY */
-.filter-tabs { display: inline-flex; gap: 4px; background: #f4f5f3; border-radius: 999px; padding: 3px; flex-wrap: wrap; }
+.filter-tabs { display: inline-flex; gap: 4px; background: #f2f6f3; border-radius: 999px; padding: 3px; flex-wrap: wrap; }
 .filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
-.filter-tab.active { background: #14301a; color: #fff; }
+.filter-tab.active { background: #0a4a37; color: #fff; }
+.filter-tab:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .tab-count { font-size: 0.68rem; opacity: 0.75; }
 .history-panel { padding: 6px 22px; }
-.history-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-top: 1px solid #f0f2f0; }
+.history-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-top: 1px solid #d9e3dc; }
 .history-row:first-of-type { border-top: none; }
 .history-date { width: 56px; flex-shrink: 0; text-align: center; }
 .h-day { display: block; font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; }
-.h-mon { display: block; font-size: 0.68rem; color: #4a5a4a; font-weight: 700; letter-spacing: 0.06em; }
-.h-year { display: block; font-size: 0.66rem; color: #9aaa9a; }
+.h-mon { display: block; font-size: 0.76rem; color: #4a5a4a; font-weight: 700; }
+.h-year { display: block; font-size: 0.72rem; color: #6a7a6a; }
 .history-info { flex: 1; min-width: 0; }
 .history-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.history-meta { font-size: 0.79rem; color: #8a9a8a; margin: 3px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
+.history-meta { font-size: 0.8rem; color: #6a7a6a; margin: 3px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
 .history-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
 .review-stars { display: inline-flex; align-items: center; gap: 2px; }
-.review-label { font-size: 0.72rem; color: #8a9a8a; margin-left: 6px; }
+.review-label { font-size: 0.76rem; color: #6a7a6a; margin-left: 6px; }
 .history-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex-shrink: 0; }
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(10, 25, 15, 0.45); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
-.modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+.modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
 .modal-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0 0 8px; }
 .modal-text { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 16px; }
 .field-label { display: block; font-size: 0.8rem; font-weight: 600; color: #1a3a1a; margin: 0 0 6px; }
-.optional { font-weight: 400; color: #9aaa9a; }
-.field-input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; resize: vertical; }
-.field-input:focus { outline: none; border-color: #D4A017; }
-.char-count { font-size: 0.72rem; color: #9aaa9a; text-align: right; margin: 4px 0 0; }
+.optional { font-weight: 400; color: #6a7a6a; }
+.field-input { width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; font-family: inherit; color: #1a3a1a; resize: vertical; }
+.field-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
+.char-count { font-size: 0.74rem; color: #6a7a6a; text-align: right; margin: 4px 0 0; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .star-row { display: flex; align-items: center; gap: 2px; margin: 0 0 16px; }
 .star-btn { background: none; border: none; padding: 2px; cursor: pointer; display: flex; border-radius: 6px; }
@@ -615,7 +618,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 400;
   display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.18); white-space: nowrap;
+  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); white-space: nowrap;
 }
 .toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
 .toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
@@ -637,5 +640,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   .history-actions > * { flex: 1; }
   .toast { white-space: normal; max-width: calc(100% - 32px); }
 }
-.refund-note { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: #fdf8e8; border: 1px solid #f0e2b0; color: #6a5410; font-size: 0.78rem; line-height: 1.45; }
+.refund-note { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: #f4f6f4; border: 1px solid #d9e3dc; color: #4a5a4a; font-size: 0.8rem; line-height: 1.45; }
 </style>
