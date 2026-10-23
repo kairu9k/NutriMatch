@@ -4,30 +4,35 @@
     <div v-if="isLoading" class="placeholder-text">Loading…</div>
 
     <template v-else-if="plan">
-      <div class="targets-card">
-        <div class="targets-header">
-          <div>
-            <h3 class="targets-title">{{ plan.name }}</h3>
-            <p class="targets-sub">{{ conditionLabel }}, from your RND</p>
-          </div>
-          <span class="progress-pill">{{ completionPct }}% followed today</span>
+      <!-- your allergies first, always open -->
+      <div v-if="myAllergies.length" class="allergy-panel" role="note">
+        <AlertTriangle :size="18" aria-hidden="true" />
+        <p><strong>Your food allergies: {{ myAllergies.join(', ') }}.</strong> A food in your plan that may contain one is marked in red. Don't eat it, and message your RND.</p>
+      </div>
+
+      <!-- PLAN CARD: name, the targets as a bento, and the RND's notes in the same card -->
+      <section class="plan-card">
+        <div class="plan-head">
+          <h3 class="plan-name">{{ planName }}</h3>
+          <p class="plan-sub">{{ conditionLabel }}, from your RND</p>
         </div>
-        <div class="targets-grid">
-          <div class="target-box">
-            <p class="target-label">Calories</p>
-            <p class="target-value">{{ plan.target_kcal ? Math.round(plan.target_kcal).toLocaleString() : '—' }}</p>
+        <div class="plan-grid" :class="{ 'no-notes': !(plan.notes || plan.allergies_restrictions) }">
+          <div class="bento">
+            <div class="bento-main">
+              <span class="bento-label">Calories a day</span>
+              <span class="bento-big">{{ plan.target_kcal ? Math.round(plan.target_kcal).toLocaleString() : '—' }}</span>
+              <span class="bento-unit">kcal</span>
+            </div>
+            <div class="bento-rows">
+              <div class="bento-row"><span>Carbs</span><strong class="gold">{{ plan.target_carb_g ? `${Math.round(plan.target_carb_g)} g` : '—' }}</strong></div>
+              <div class="bento-row"><span>Protein</span><strong class="green">{{ plan.target_protein_g ? `${Math.round(plan.target_protein_g)} g` : '—' }}</strong></div>
+              <div class="bento-row"><span>Fat</span><strong class="brown">{{ plan.target_fat_g ? `${Math.round(plan.target_fat_g)} g` : '—' }}</strong></div>
+            </div>
           </div>
-          <div class="target-box">
-            <p class="target-label">Carbs</p>
-            <p class="target-value gold">{{ plan.target_carb_g ? Math.round(plan.target_carb_g) + 'g' : '—' }}</p>
-          </div>
-          <div class="target-box">
-            <p class="target-label">Protein</p>
-            <p class="target-value green">{{ plan.target_protein_g ? Math.round(plan.target_protein_g) + 'g' : '—' }}</p>
-          </div>
-          <div class="target-box">
-            <p class="target-label">Fat</p>
-            <p class="target-value brown">{{ plan.target_fat_g ? Math.round(plan.target_fat_g) + 'g' : '—' }}</p>
+          <div v-if="plan.notes || plan.allergies_restrictions" class="plan-notes">
+            <p class="notes-title">Notes from your RND</p>
+            <p v-if="plan.allergies_restrictions" class="notes-text"><strong>Allergies and restrictions:</strong> {{ plan.allergies_restrictions }}</p>
+            <p v-if="plan.notes" class="notes-text">{{ plan.notes }}</p>
           </div>
         </div>
         <!-- Any other targets the RND added (fiber, sodium, ...) -->
@@ -35,72 +40,48 @@
           <span class="other-targets-label">Other targets:</span>
           <span v-for="t in otherTargets" :key="t.label" class="other-target-chip">{{ t.label }}: {{ t.value }}{{ t.unit ? ` ${t.unit}` : '' }}</span>
         </div>
-      </div>
+      </section>
 
-      <div v-if="myAllergies.length" class="allergy-panel" role="note">
-        <AlertTriangle :size="18" aria-hidden="true" />
-        <p><strong>Your food allergies: {{ myAllergies.join(', ') }}.</strong> A food in your plan that may contain one is marked in red. Don't eat it, and message your RND.</p>
-      </div>
-
-      <div v-if="plan.notes || plan.allergies_restrictions" class="notes-panel">
-        <p class="notes-title">Notes from your RND</p>
-        <p v-if="plan.allergies_restrictions" class="notes-text"><strong>Allergies and restrictions:</strong> {{ plan.allergies_restrictions }}</p>
-        <p v-if="plan.notes" class="notes-text">{{ plan.notes }}</p>
-      </div>
-
-      <template v-if="todaysMeals.length">
-        <p class="today-label">Today, {{ todayLabel }}</p>
-        <div class="meal-tabs">
-          <button
-            v-for="(meal, i) in todaysMeals" :key="meal.id"
-            class="meal-tab" :class="{ active: activeMealIndex === i }"
-            @click="activeMealIndex = i"
-          >
-            <component :is="mealIcon(meal.meal_time)" :size="14" />
-            {{ mealTimeLabel(meal.meal_time) }}
-            <span v-if="logFor(meal.id)" class="tab-status-dot" :class="logFor(meal.id).status === 'followed' ? 'dot-green' : 'dot-gold'" :title="logFor(meal.id).status_label"></span>
-          </button>
+      <!-- TODAY: every meal in one list; tap one to open it and log it -->
+      <section v-if="todaysMeals.length" class="day">
+        <div class="day-head">
+          <h3 class="day-title">Today, {{ todayLabel }}</h3>
+          <span class="day-progress" :aria-label="`${loggedCount} of ${todaysMeals.length} meals logged`">
+            <span class="pips" aria-hidden="true"><span v-for="(m, i) in todaysMeals" :key="m.id" class="pip" :class="{ on: logFor(m.id) }" /></span>
+            {{ loggedCount }} of {{ todaysMeals.length }} logged
+          </span>
         </div>
 
-        <div class="meal-card">
-          <div class="meal-header">
-            <div>
-              <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
-              <p v-if="activeMeal.scheduled_time" class="meal-scheduled">Planned for {{ formatClock(activeMeal.scheduled_time) }}</p>
-            </div>
-            <!-- The client logs what they ate; the RND rates it. -->
-            <div class="status-col">
-              <span class="status-pill" :class="pillClass(activeLog)">
-                {{ !activeLog ? 'Not logged yet' : activeLog.status ? activeLog.status_label : 'Waiting for your RND to rate it' }}
-              </span>
-              <span v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status">, rated by your RND</template></span>
-            </div>
-          </div>
+        <div v-for="(meal, i) in todaysMeals" :key="meal.id" class="meal" :class="{ open: activeMealIndex === i }">
+          <button type="button" class="meal-row" :aria-expanded="activeMealIndex === i" @click="toggleMeal(i)">
+            <span class="meal-time">{{ meal.scheduled_time ? formatClock(meal.scheduled_time) : '' }}</span>
+            <span class="meal-main">
+              <span class="meal-name">{{ mealTimeLabel(meal.meal_time) }}<span v-if="mealHasAllergen(meal)" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> Allergy</span></span>
+              <span class="meal-foods">{{ foodLine(meal) }}</span>
+            </span>
+            <span class="meal-state" :class="mealState(meal).cls"><span class="dot" aria-hidden="true" />{{ mealState(meal).label }}</span>
+            <ChevronDown :size="16" class="chev" aria-hidden="true" />
+          </button>
 
-          <div class="meal-body">
+          <div v-if="activeMealIndex === i" class="meal-open">
             <div class="meal-col">
-              <span class="col-eyebrow">Planned meal</span>
-              <span class="exchange-summary">{{ exchangeSummary(activeMeal) }}</span>
-              <div v-if="activeMeal.food_items.length" class="food-item-list">
-                <div v-for="item in activeMeal.food_items" :key="item.id" class="planned-item" :class="{ allergen: foodAllergies(item).length }">
-                  <span class="planned-dot"></span>
-                  <div class="planned-text">
-                    <span class="food-name">{{ item.food_name }}</span>
-                    <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} exchange` }}</span>
-                    <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
-                  </div>
-                </div>
-              </div>
+              <p class="col-title">Planned <span class="exchange-summary">{{ exchangeSummary(meal) }}</span></p>
+              <ul v-if="meal.food_items.length" class="food-list">
+                <li v-for="item in meal.food_items" :key="item.id" class="food" :class="{ allergen: foodAllergies(item).length }">
+                  <span class="food-name">{{ item.food_name }}</span>
+                  <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} exchange` }}</span>
+                  <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
+                </li>
+              </ul>
               <p v-else class="no-items-note">No specific foods listed for this meal yet.</p>
-              <p v-if="activeMeal.meal_notes" class="meal-note-text"><strong>Note:</strong> {{ activeMeal.meal_notes }}</p>
+              <p v-if="meal.meal_notes" class="meal-note-text"><strong>Note:</strong> {{ meal.meal_notes }}</p>
             </div>
 
-            <div class="meal-col">
-              <span class="col-eyebrow">What you ate</span>
+            <div class="meal-col log-col">
+              <p class="col-title">What you ate</p>
+              <p v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status">, rated by your RND</template></p>
 
-              <input ref="photoInput" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
-              <!-- The chosen photo (not uploaded until Save) or the one already
-                   saved today, shown as a picture; tap it to see it full size. -->
+              <input :ref="(el) => { if (el) photoInput = el }" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
               <div v-if="photoPreview" class="photo-preview">
                 <button type="button" class="photo-thumb" aria-label="View the photo full size" @click="viewerOpen = true">
                   <img :src="photoPreview" :alt="logForm.photoFile ? 'Selected photo of what you ate' : 'Photo you logged for this meal'" />
@@ -110,43 +91,41 @@
                   <span v-if="logForm.photoFile" class="photo-sub">Not saved yet. Press Save to send it.</span>
                   <div class="photo-actions">
                     <button type="button" class="photo-btn" @click="photoInput?.click()">Change photo</button>
-                    <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" /> Remove</button>
+                    <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" aria-hidden="true" /> Remove</button>
                   </div>
                 </div>
               </div>
               <button v-else type="button" class="dropzone-inline" @click="photoInput?.click()">
-                <UploadCloud :size="20" class="dropzone-icon" />
+                <UploadCloud :size="20" class="dropzone-icon" aria-hidden="true" />
                 <span class="dropzone-text">Upload a photo of what you ate</span>
               </button>
               <p v-if="photoError" class="form-error inline">{{ photoError }}</p>
-
-              <Teleport to="body">
-                <div v-if="viewerOpen && photoPreview" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Photo of what you ate" @click.self="viewerOpen = false">
-                  <button type="button" class="viewer-close" aria-label="Close" @click="viewerOpen = false"><X :size="20" /></button>
-                  <img :src="photoPreview" alt="Photo of what you ate, full size" />
-                </div>
-              </Teleport>
 
               <div class="field notes-field">
                 <label for="meal-log-note">Note</label>
                 <textarea id="meal-log-note" data-allow-emoji v-model="logForm.reasonNotes" rows="3" maxlength="1000"
                           placeholder="What did you eat? e.g. Had half the rice and added a banana."></textarea>
               </div>
-              <p class="log-hint">Add a photo, a note or both. The time is saved for you, and your RND rates how closely it followed your plan.</p>
-
+              <p class="log-hint">Add a photo, a note or both. Your RND rates how closely it followed your plan.</p>
               <p v-if="logError" class="form-error inline">{{ logError }}</p>
-
               <button v-if="canSaveLog" class="save-log-btn" :disabled="isSavingLog" @click="saveMealLog">
-                <Save :size="15" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
+                <Save :size="15" aria-hidden="true" /> {{ isSavingLog ? 'Saving…' : 'Save' }}
               </button>
             </div>
           </div>
         </div>
-      </template>
+
+        <Teleport to="body">
+          <div v-if="viewerOpen && photoPreview" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Photo of what you ate" @click.self="viewerOpen = false">
+            <button type="button" class="viewer-close" aria-label="Close" @click="viewerOpen = false"><X :size="20" /></button>
+            <img :src="photoPreview" alt="Photo of what you ate, full size" />
+          </div>
+        </Teleport>
+      </section>
       <div v-else class="empty-note-card">Your plan has no meals scheduled for today ({{ todayLabel }}).</div>
 
       <div class="info-note">
-        <Info :size="16" />
+        <Info :size="16" aria-hidden="true" />
         <p>Portions follow the FNRI Food Exchange Lists. Your RND may change them at a follow-up consultation, and sees every meal you log.</p>
       </div>
     </template>
@@ -168,7 +147,7 @@
 <script setup>
 import { phIso, phWeekday } from '~/utils/phTime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle } from 'lucide-vue-next'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle, ChevronDown } from 'lucide-vue-next'
 import { allergyWarnings } from '~/utils/foodWarnings'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
@@ -307,6 +286,31 @@ function foodAllergies(item) {
   return allergyWarnings(item.food_name, myAllergies.value)
 }
 
+// Older generated plans were named "… plan — 1,600 kcal": show it with a comma.
+const planName = computed(() => (plan.value?.name || '').replace(' — ', ', '))
+const loggedCount = computed(() => todaysMeals.value.filter(m => logFor(m.id)).length)
+function foodLine(meal) {
+  const names = (meal.food_items || []).map(f => f.food_name.split(' (')[0])
+  if (!names.length) return 'No foods listed'
+  return names.length > 4 ? `${names.slice(0, 4).join(', ')}, +${names.length - 4} more` : names.join(', ')
+}
+function mealHasAllergen(meal) {
+  return (meal.food_items || []).some(f => foodAllergies(f).length)
+}
+function mealState(meal) {
+  const log = logFor(meal.id)
+  if (!log) return { cls: 'none', label: 'Not logged' }
+  return {
+    followed: { cls: 'green', label: 'Followed' },
+    partially_followed: { cls: 'gold', label: 'Partly followed' },
+    not_followed: { cls: 'red', label: 'Not followed' },
+  }[log.status] || { cls: 'gold', label: 'Waiting for your RND' }
+}
+// One meal open at a time; tap it again to close.
+function toggleMeal(i) {
+  activeMealIndex.value = activeMealIndex.value === i ? -1 : i
+}
+
 const completionPct = computed(() => {
   const meals = todaysMeals.value
   if (!meals.length) return 0
@@ -363,6 +367,9 @@ async function loadMealPlans() {
     plans.value = mealPlans
     todaysLogs.value = logs
     myAllergies.value = profile?.health_profile?.allergies || []
+    // open the first meal not logged yet (else the first one)
+    const firstOpen = todaysMeals.value.findIndex(m => !logFor(m.id))
+    activeMealIndex.value = firstOpen >= 0 ? firstOpen : 0
     resetLogForm()
   } catch {
     errorMessage.value = 'Could not load your meal plan. Please try again later.'
@@ -394,84 +401,99 @@ onMounted(loadMealPlans)
 .logged-at { font-size: 0.76rem; color: #6a7a6a; }
 .log-hint { font-size: 0.78rem; color: #6a7a6a; margin: 8px 0 0; line-height: 1.5; }
 
-/* TARGETS CARD */
-.targets-card { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; padding: 26px 28px; margin-bottom: 22px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.targets-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
-.targets-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; margin: 0 0 5px; }
-.targets-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
-.progress-pill { font-size: 0.82rem; font-weight: 700; background: #e3f3ea; color: #1f8f5c; padding: 6px 15px; border-radius: 999px; white-space: nowrap; }
-
-/* daily targets: one divided panel */
-.targets-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 22px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
-.other-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 18px; }
-.other-targets-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; }
-.other-target-chip { font-size: 0.8rem; color: #1a3a1a; background: #f2f6f3; border: 1px solid #d9e3dc; border-radius: 14px; padding: 4px 12px; }
-.target-box { padding: 16px 18px; border-left: 1px solid #d9e3dc; min-width: 0; }
-.target-box:first-child { border-left: none; }
-.target-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; margin: 0 0 6px; }
-.target-value { font-family: 'Playfair Display', serif; font-size: 1.65rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.target-value.gold { color: #D4A017; }
-.target-value.green { color: #1f8f5c; }
-.target-value.brown { color: #b8860b; }
-
-/* YOUR ALLERGIES: always red */
-.allergy-panel { display: flex; gap: 10px; align-items: flex-start; background: #fdf1ef; border: 1.5px solid #c0392b; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; color: #8a1f14; }
+/* YOUR ALLERGIES: always red, always first */
+.allergy-panel { display: flex; gap: 10px; align-items: flex-start; background: #fdf1ef; border: 1.5px solid #c0392b; border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; color: #8a1f14; }
 .allergy-panel svg { flex-shrink: 0; margin-top: 2px; color: #c0392b; }
 .allergy-panel p { margin: 0; font-size: 0.88rem; line-height: 1.5; }
 
-/* NOTES PANEL */
-.notes-panel { background: #fdf1d6; border-left: 4px solid #D4A017; border-radius: 12px; padding: 20px 24px; margin-bottom: 22px; }
-.notes-title { font-weight: 700; color: #b8860b; font-size: 0.92rem; margin: 0 0 8px; }
-.notes-text { font-size: 0.9rem; color: #5a5240; line-height: 1.6; margin: 0; }
+.card-shadow, .plan-card, .day { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 
-/* MEAL TABS */
-.meal-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-.meal-tab {
-  display: inline-flex; align-items: center; gap: 7px; border: 1px solid #d9e3dc; background: #fff; font-family: inherit;
-  padding: 10px 18px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: #6a7a6a; cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+/* PLAN CARD: name, bento targets, RND notes */
+.plan-card { padding: 20px 22px; margin-bottom: 18px; }
+.plan-head { margin-bottom: 14px; }
+.plan-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 3px; }
+.plan-sub { font-size: 0.86rem; color: #6a7a6a; margin: 0; }
+.plan-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; }
+.plan-grid.no-notes { grid-template-columns: minmax(0, 1fr); }
+.bento { display: grid; grid-template-columns: minmax(130px, 0.9fr) minmax(0, 1fr); border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; }
+.bento-main { display: flex; flex-direction: column; justify-content: center; padding: 16px 18px; color: #fff; background: linear-gradient(135deg, #00382a 0%, #005a42 100%); }
+.bento-label { font-size: 0.82rem; font-weight: 600; color: #e2c25e; }
+.bento-big { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 700; line-height: 1.05; margin-top: 4px; font-variant-numeric: lining-nums; }
+.bento-unit { font-size: 0.82rem; color: rgba(255, 255, 255, 0.75); }
+.bento-rows { display: flex; flex-direction: column; }
+.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-top: 1px solid #d9e3dc; font-size: 0.86rem; font-weight: 600; color: #4a5a4a; }
+.bento-row:first-child { border-top: none; }
+.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; font-variant-numeric: lining-nums; }
+.bento-row strong.gold { color: #D4A017; }
+.bento-row strong.green { color: #1f8f5c; }
+.bento-row strong.brown { color: #b8860b; }
+.plan-notes { background: #fdf6e3; border-left: 3px solid #D4A017; border-radius: 12px; padding: 14px 16px; min-width: 0; max-height: 220px; overflow-y: auto; }
+.notes-title { font-weight: 700; color: #b8860b; font-size: 0.88rem; margin: 0 0 6px; }
+.notes-text { font-size: 0.86rem; color: #5a5240; line-height: 1.55; margin: 0 0 6px; overflow-wrap: anywhere; }
+.notes-text:last-child { margin-bottom: 0; }
+.other-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 0; }
+.other-targets-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; }
+.other-target-chip { font-size: 0.8rem; color: #1a3a1a; background: #f2f6f3; border: 1px solid #d9e3dc; border-radius: 14px; padding: 4px 12px; }
+
+/* TODAY: one list, one meal open */
+.day { overflow: hidden; margin-bottom: 18px; }
+.day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid #d9e3dc; }
+.day-title { font-family: 'Playfair Display', serif; font-size: 1.08rem; color: #1a3a1a; margin: 0; }
+.day-progress { display: inline-flex; align-items: center; gap: 8px; font-size: 0.84rem; font-weight: 600; color: #1f6f46; }
+.pips { display: inline-flex; gap: 4px; }
+.pip { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #9ec4ad; }
+.pip.on { background: #1f8f5c; border-color: #1f8f5c; }
+
+.meal + .meal { border-top: 1px solid #d9e3dc; }
+.meal-row {
+  display: grid; grid-template-columns: 76px minmax(0, 1fr) auto 18px; align-items: center; gap: 14px;
+  width: 100%; padding: 14px 22px; border: none; background: #fff; text-align: left; font-family: inherit; cursor: pointer;
 }
-.meal-tab:hover:not(.active) { background: #f4f7f5; }
-.meal-tab:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.meal-tab.active { background: #0a4a37; border-color: #0a4a37; color: #fff; }
-.tab-status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.dot-green { background-color: #4ade80; }
-.dot-gold { background-color: #D4A017; }
+.meal-row:hover { background: #f7faf8; }
+.meal-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.meal.open .meal-row { background: #f2f7f3; }
+.meal-time { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums; }
+.meal-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.meal-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.95rem; font-weight: 700; color: #1a3a1a; }
+.meal-foods { font-size: 0.8rem; color: #6a7a6a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meal-state { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; font-weight: 600; color: #6a7a6a; white-space: nowrap; }
+.meal-state .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #a9b8ad; }
+.meal-state.green { color: #1f6f46; }
+.meal-state.green .dot { background: #1f8f5c; border-color: #1f8f5c; }
+.meal-state.gold { color: #8a6400; }
+.meal-state.gold .dot { background: #D4A017; border-color: #D4A017; }
+.meal-state.red { color: #a12525; }
+.meal-state.red .dot { background: #c0392b; border-color: #c0392b; }
+.chev { color: #6a7a6a; transition: transform 0.15s ease; }
+.meal.open .chev { transform: rotate(180deg); }
 
-/* MEAL CARD */
-.meal-card { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.meal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 26px; background: #f2f7f3; border-bottom: 1px solid #d9e3dc; }
-.meal-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0; }
-.meal-scheduled { font-size: 0.82rem; color: #6a7a6a; margin: 3px 0 0; }
-.today-label { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 10px; }
-
-.meal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 22px 26px; }
+.meal-open { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 6px 22px 20px 112px; background: #f2f7f3; }
 .meal-col { min-width: 0; }
-.col-eyebrow { display: block; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin-bottom: 10px; }
-.exchange-summary { display: block; font-size: 0.78rem; color: #6a7a6a; margin: -6px 0 12px; }
+.col-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 8px 0 8px; }
+.exchange-summary { font-size: 0.78rem; font-weight: 500; color: #6a7a6a; margin-left: 6px; }
+.logged-at { font-size: 0.78rem; color: #6a7a6a; margin: -4px 0 8px; }
+.log-hint { font-size: 0.78rem; color: #6a7a6a; margin: 8px 0 0; line-height: 1.5; }
 
-.food-item-list { display: flex; flex-direction: column; gap: 10px; }
-.planned-item { display: flex; align-items: center; gap: 12px; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 10px; padding: 13px 16px; }
+.food-list { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; }
+.food { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; padding: 9px 12px; }
+.food + .food { border-top: 1px solid #d9e3dc; }
 /* a food that may contain one of the client's allergens */
-.planned-item.allergen { background: #fdf1ef; border: 1.5px solid #c0392b; }
-.planned-item.allergen .planned-dot { background: #c0392b; }
-.planned-text { min-width: 0; }
-.allergy-tag { display: inline-flex; align-items: center; gap: 4px; margin: 4px 0 0 8px; font-size: 0.74rem; font-weight: 700; color: #fff; background: #c0392b; border-radius: 999px; padding: 2px 8px; }
-.planned-dot { width: 8px; height: 8px; border-radius: 50%; background: #D4A017; flex-shrink: 0; }
-.food-name { font-size: 0.9rem; color: #2a3a2a; font-weight: 600; margin-right: 8px; }
+.food.allergen { background: #fdf1ef; box-shadow: inset 3px 0 0 #c0392b; }
+.allergy-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; color: #fff; background: #c0392b; border-radius: 999px; padding: 2px 8px; }
+.food-name { font-size: 0.88rem; color: #1a3a1a; font-weight: 600; }
 .food-note { color: #6a7a6a; font-size: 0.8rem; }
 .no-items-note { font-size: 0.83rem; color: #6a7a6a; margin: 0; }
-.meal-note-text { font-size: 0.85rem; color: #4a5a4a; margin: 16px 0 0; line-height: 1.5; }
+.meal-note-text { font-size: 0.85rem; color: #4a5a4a; margin: 12px 0 0; line-height: 1.5; }
 .meal-note-text strong { color: #1a3a1a; }
 
 .dropzone-inline {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  background: #f7f9f7; border: 1.5px dashed #b8c8b8; border-radius: 10px;
+  background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px;
   min-height: 76px; padding: 16px; cursor: pointer; margin-bottom: 14px; text-align: center;
   width: 100%; font-family: inherit;
 }
 .dropzone-inline:hover { border-color: #1a5a2a; }
-.dropzone-inline:focus-visible { outline: 2px solid #D4A017; outline-offset: 2px; }
+.dropzone-inline:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .dropzone-input { display: none; }
 
 .photo-preview {
@@ -513,7 +535,7 @@ onMounted(loadMealPlans)
 
 .notes-field { margin-top: 14px; }
 .notes-field textarea {
-  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; resize: vertical;
+  background: #fff; width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; resize: vertical;
 }
 .notes-field textarea:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 
@@ -557,11 +579,18 @@ onMounted(loadMealPlans)
 .toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 @media (max-width: 800px) {
-  .targets-grid { grid-template-columns: repeat(2, 1fr); }
-  .targets-header { flex-direction: column; gap: 8px; }
-  .targets-card { padding: 20px 18px; }
-  .target-box:nth-child(3) { border-left: none; }
-  .target-box:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
-  .meal-body { grid-template-columns: 1fr; }
+  .plan-grid { grid-template-columns: minmax(0, 1fr); }
+  .meal-open { grid-template-columns: minmax(0, 1fr); padding: 6px 16px 18px; gap: 8px; }
 }
+@media (max-width: 560px) {
+  .plan-card { padding: 16px; }
+  .bento-big { font-size: 2rem; }
+  .day-head { padding: 14px 16px; }
+  .meal-row { grid-template-columns: minmax(0, 1fr) 18px; grid-template-areas: "time chev" "main chev" "state chev"; gap: 2px 10px; padding: 12px 16px; }
+  .meal-time { grid-area: time; font-size: 0.8rem; color: #4a5a4a; }
+  .meal-main { grid-area: main; }
+  .meal-state { grid-area: state; margin-top: 4px; }
+  .chev { grid-area: chev; }
+}
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 </style>
