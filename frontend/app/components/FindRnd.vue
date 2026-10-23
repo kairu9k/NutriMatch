@@ -9,7 +9,7 @@
           <Search :size="15" />
           <input v-model="search" type="search" placeholder="Search by name" />
         </div>
-        <button class="nm-btn-outline filters-toggle" type="button" @click="showFilters = !showFilters">
+        <button class="nm-btn-soft filters-toggle" type="button" @click="showFilters = !showFilters">
           <SlidersHorizontal :size="15" /> Filters<span v-if="activeFilterCount"> ({{ activeFilterCount }})</span>
         </button>
       </div>
@@ -47,11 +47,11 @@
       <p class="nm-muted">
         <template v-if="loading">Finding RNDs…</template>
         <template v-else>{{ rnds.length }} RND{{ rnds.length === 1 ? '' : 's' }} available</template>
-        <template v-if="activeFilterCount || search"> · <button class="nm-panel-link" @click="clearFilters">Clear filters</button></template>
+        <template v-if="activeFilterCount || search"> <button class="nm-btn-soft nm-btn-sm" @click="clearFilters">Clear filters</button></template>
       </p>
     </div>
 
-    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+    <p v-if="error" class="nm-error">{{ error }} <button class="nm-btn-soft nm-btn-sm" @click="load">Try again</button></p>
 
     <!-- skeletons -->
     <div v-if="loading" class="rnd-grid">
@@ -64,7 +64,7 @@
     <div v-else-if="!rnds.length && !error" class="nm-panel nm-empty">
       <SearchX :size="28" />
       <p>No RNDs match these filters.</p>
-      <button class="nm-btn-outline" style="margin-top: 12px" @click="clearFilters">Clear filters</button>
+      <button class="nm-btn-soft" style="margin-top: 12px" @click="clearFilters">Clear filters</button>
     </div>
 
     <div v-else class="rnd-grid">
@@ -103,7 +103,7 @@
 
         <div class="card-foot">
           <div class="card-actions">
-            <NuxtLink :to="`/rnd-profile-view/${rnd.user.id}`" class="nm-btn-outline">View profile</NuxtLink>
+            <NuxtLink :to="`/rnd-profile-view/${rnd.user.id}`" class="nm-btn-soft">View profile</NuxtLink>
             <NuxtLink v-if="rnd.next_open_slots.length && !rnd.booking_blocked_by" :to="`/rnd-profile-view/${rnd.user.id}?book=1`" class="nm-btn-dark">Book</NuxtLink>
           </div>
         </div>
@@ -111,9 +111,9 @@
     </div>
 
     <div v-if="!loading && pageCount > 1" class="pagination">
-      <button class="nm-btn-outline nm-btn-sm" :disabled="page === 1" @click="page--"><ChevronLeft :size="14" /> Previous</button>
+      <button class="nm-btn-soft nm-btn-sm" :disabled="page === 1" @click="page--"><ChevronLeft :size="14" /> Previous</button>
       <span class="nm-muted">Page {{ page }} of {{ pageCount }}</span>
-      <button class="nm-btn-outline nm-btn-sm" :disabled="page === pageCount" @click="page++">Next <ChevronRight :size="14" /></button>
+      <button class="nm-btn-soft nm-btn-sm" :disabled="page === pageCount" @click="page++">Next <ChevronRight :size="14" /></button>
     </div>
   </div>
 </template>

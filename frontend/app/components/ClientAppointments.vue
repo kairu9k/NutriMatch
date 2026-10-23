@@ -8,7 +8,7 @@
        
         <p class="page-sub">Your upcoming consultations and past visits.</p>
       </div>
-      <NuxtLink :to="bookLink" class="btn-dark"><CalendarPlus :size="15" aria-hidden="true" /> Book a consultation</NuxtLink>
+      <NuxtLink :to="bookLink" class="nm-btn-dark"><CalendarPlus :size="15" aria-hidden="true" /> Book a consultation</NuxtLink>
     </div>
 
     <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -23,7 +23,7 @@
           <CalendarDays :size="24" class="empty-icon" />
           <p>No upcoming consultations.</p>
           <p class="empty-sub">{{ activeRnd ? `Book a follow-up with RND ${activeRnd.first_name} ${activeRnd.last_name} when you're ready.` : 'Find an RND and book your first consultation.' }}</p>
-          <NuxtLink :to="bookLink" class="outline-btn">{{ activeRnd ? 'Book a consultation' : 'Find an RND' }}</NuxtLink>
+          <NuxtLink :to="bookLink" class="nm-btn-soft">{{ activeRnd ? 'Book a consultation' : 'Find an RND' }}</NuxtLink>
         </div>
 
         <article v-for="appt in upcoming" :key="appt.id" class="panel up-card">
@@ -43,18 +43,18 @@
 
           <div class="appt-actions">
             <button
-              v-if="appt.phase === 'payment_due'" class="btn-dark" type="button"
+              v-if="appt.phase === 'payment_due'" class="nm-btn-dark" type="button"
               :disabled="payingId === appt.payment.invoice_id" @click="payNow(appt)"
             >
               <CreditCard :size="14" aria-hidden="true" /> {{ payingId === appt.payment.invoice_id ? 'Opening checkout…' : `Pay ₱${money(appt.payment.amount)}` }}
             </button>
-            <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="btn-dark"><Video :size="14" aria-hidden="true" /> Join video call</NuxtLink>
+            <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="nm-btn-dark"><Video :size="14" aria-hidden="true" /> Join video call</NuxtLink>
             <!-- Join window: opens 15 min before the start (see join_opens_at). -->
-            <button v-if="appt.opensLater" class="btn-dark" type="button" disabled :title="`Opens ${appt.opensLabel}`">
+            <button v-if="appt.opensLater" class="nm-btn-dark" type="button" disabled :title="`Opens ${appt.opensLabel}`">
               <Video :size="14" aria-hidden="true" /> Join opens {{ appt.opensLabel }}
             </button>
-            <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" aria-hidden="true" /> Message RND</NuxtLink>
-            <button v-if="appt.canCancel" class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
+            <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="nm-btn-soft"><MessageSquare :size="14" aria-hidden="true" /> Message RND</NuxtLink>
+            <button v-if="appt.canCancel" class="nm-btn-danger solid cancel-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
               {{ appt.status === 'pending' ? 'Cancel request' : 'Cancel' }}
             </button>
           </div>
@@ -94,8 +94,8 @@
                 <p v-if="appt.hint" class="h-sub">{{ appt.hint }}</p>
                 <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
                 <p v-if="appt.status === 'completed'" class="h-links">
-                  <button type="button" class="text-link" @click="summaryId = appt.id">View summary</button>
-                  <button v-if="!appt.review" type="button" class="text-link" @click="openReview(appt)">Leave a review</button>
+                  <button type="button" class="nm-btn-soft nm-btn-sm" @click="summaryId = appt.id">View summary</button>
+                  <button v-if="!appt.review" type="button" class="nm-btn-soft nm-btn-sm" @click="openReview(appt)">Leave a review</button>
                 </p>
               </div>
               <div class="h-side">
@@ -133,8 +133,8 @@
         <p class="char-count">{{ cancelReason.length }}/500</p>
         <p v-if="cancelError" class="inline-error">{{ cancelError }}</p>
         <div class="modal-actions">
-          <button class="outline-btn" type="button" :disabled="isCancelling" @click="closeCancel">Keep it</button>
-          <button class="danger-btn" type="button" :disabled="isCancelling" @click="confirmCancel">{{ isCancelling ? 'Cancelling…' : 'Yes, cancel' }}</button>
+          <button class="nm-btn-soft" type="button" :disabled="isCancelling" @click="closeCancel">Keep it</button>
+          <button class="nm-btn-danger solid" type="button" :disabled="isCancelling" @click="confirmCancel">{{ isCancelling ? 'Cancelling…' : 'Yes, cancel' }}</button>
         </div>
       </div>
     </div>
@@ -158,8 +158,8 @@
         <p class="char-count">{{ reviewText.length }}/1000</p>
         <p v-if="reviewError" class="inline-error">{{ reviewError }}</p>
         <div class="modal-actions">
-          <button class="outline-btn" type="button" :disabled="isSubmittingReview" @click="closeReview">Not now</button>
-          <button class="btn-dark" type="button" :disabled="isSubmittingReview || !reviewStars" @click="submitReview">{{ isSubmittingReview ? 'Posting…' : 'Post review' }}</button>
+          <button class="nm-btn-soft" type="button" :disabled="isSubmittingReview" @click="closeReview">Not now</button>
+          <button class="nm-btn-dark" type="button" :disabled="isSubmittingReview || !reviewStars" @click="submitReview">{{ isSubmittingReview ? 'Posting…' : 'Post review' }}</button>
         </div>
       </div>
     </div>
@@ -559,7 +559,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .modal-note { font-size: 0.82rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; margin: -6px 0 14px; line-height: 1.5; }
 .appt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #d9e3dc; }
 /* every button in the row the same height */
-.appt-actions > .btn-dark, .appt-actions > .outline-btn, .appt-actions > .ghost-danger-btn { height: 36px; padding-top: 0; padding-bottom: 0; line-height: 1; }
+.cancel-btn { margin-left: auto; }
 
 /* status: a dot and a word */
 .dot-status { display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 600; color: #4a5a4a; white-space: nowrap; }
@@ -620,13 +620,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 @media (max-width: 640px) {
   .page-header { flex-direction: column; }
-  .page-header .btn-dark { width: 100%; }
+  .page-header .nm-btn-dark { width: 100%; }
   .page-title { font-size: 1.4rem; }
   .panel { padding: 18px 16px; }
   .up-head { flex-direction: column-reverse; gap: 8px; }
   .up-time { font-size: 1.7rem; }
-  .appt-actions > .btn-dark, .appt-actions > .outline-btn { flex: 1; }
-  .ghost-danger-btn { margin-left: 0; width: 100%; text-align: center; }
+  .appt-actions > .nm-btn-dark, .appt-actions > .nm-btn-soft { flex: 1; }
+  .cancel-btn { margin-left: 0; width: 100%; }
   .history-panel { padding: 4px 16px; }
   .h-row { grid-template-columns: minmax(0, 1fr) auto; }
   .h-main { grid-column: 1 / -1; grid-row: 2; }

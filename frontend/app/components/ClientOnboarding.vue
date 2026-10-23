@@ -40,7 +40,7 @@
           <ShieldCheck :size="15" /> Safe ang health information mo — sa RND mo lang ito ise-share, ayon sa Data Privacy Act of 2012 (RA 10173).
         </p>
         <div class="actions">
-          <button class="btn-dark" type="button" @click="go('about')">Tara, simulan na natin <ArrowRight :size="15" /></button>
+          <button class="nm-btn-dark" type="button" @click="go('about')">Tara, simulan na natin <ArrowRight :size="15" /></button>
         </div>
       </section>
 
@@ -79,8 +79,8 @@
         </div>
         <p v-if="saveError" class="form-error">{{ saveError }}</p>
         <div class="actions">
-          <button class="outline-btn" type="button" @click="go('welcome')">Back</button>
-          <button class="btn-dark" type="button" :disabled="isSaving" @click="saveAbout">{{ isSaving ? 'Saving…' : 'Continue' }} <ArrowRight :size="15" /></button>
+          <button class="nm-btn-soft" type="button" @click="go('welcome')">Back</button>
+          <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveAbout">{{ isSaving ? 'Saving…' : 'Continue' }} <ArrowRight :size="15" /></button>
         </div>
       </section>
 
@@ -117,7 +117,7 @@
             </div>
             <div class="add-row">
               <input v-model="newAllergy" type="text" maxlength="60" placeholder="Other allergy, e.g. Mango" @keydown.enter.prevent="addAllergy()" />
-              <button class="outline-btn small" type="button" :disabled="!newAllergy.trim()" @click="addAllergy()">Add</button>
+              <button class="nm-btn-soft nm-btn-sm" type="button" :disabled="!newAllergy.trim()" @click="addAllergy()">Add</button>
             </div>
           </template>
           <p v-if="healthErrors.allergies" class="field-error">{{ healthErrors.allergies }}</p>
@@ -131,7 +131,7 @@
           </div>
           <div class="add-row">
             <input v-model="newDiet" type="text" maxlength="60" placeholder="Other restriction, e.g. No spicy food" @keydown.enter.prevent="addDiet()" />
-            <button class="outline-btn small" type="button" :disabled="!newDiet.trim()" @click="addDiet()">Add</button>
+            <button class="nm-btn-soft nm-btn-sm" type="button" :disabled="!newDiet.trim()" @click="addDiet()">Add</button>
           </div>
         </fieldset>
 
@@ -154,14 +154,14 @@
           </div>
           <div class="add-row">
             <input v-model="newGoal" type="text" maxlength="60" placeholder="Other goal, e.g. Improve energy" @keydown.enter.prevent="addGoal()" />
-            <button class="outline-btn small" type="button" :disabled="!newGoal.trim()" @click="addGoal()">Add</button>
+            <button class="nm-btn-soft nm-btn-sm" type="button" :disabled="!newGoal.trim()" @click="addGoal()">Add</button>
           </div>
         </fieldset>
 
         <p v-if="saveError" class="form-error">{{ saveError }}</p>
         <div class="actions">
-          <button class="outline-btn" type="button" @click="go('about')">Back</button>
-          <button class="btn-dark" type="button" :disabled="isSaving" @click="saveHealth">{{ isSaving ? 'Saving…' : 'Continue' }} <ArrowRight :size="15" /></button>
+          <button class="nm-btn-soft" type="button" @click="go('about')">Back</button>
+          <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveHealth">{{ isSaving ? 'Saving…' : 'Continue' }} <ArrowRight :size="15" /></button>
         </div>
       </section>
 
@@ -172,18 +172,18 @@
           <h1 class="title">Your screening is on file</h1>
           <p class="lead">Recorded {{ screeningDate }}. It's your starting point and can't be changed. New readings go in the Progress Tracker.</p>
           <div class="actions">
-            <button class="outline-btn" type="button" @click="redoScreening = true">View it</button>
-            <button class="btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
+            <button class="nm-btn-soft" type="button" @click="redoScreening = true">View it</button>
+            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
           </div>
         </template>
         <template v-else>
           <PreConsultationScreening embedded @completed="onScreened" />
           <div v-if="screeningDone" class="actions">
-            <button class="outline-btn" type="button" @click="go('health')">Back</button>
-            <button class="btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
+            <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
+            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
           </div>
           <div v-else class="actions">
-            <button class="outline-btn" type="button" @click="go('health')">Back</button>
+            <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
           </div>
         </template>
         <p v-if="finishError" class="form-error">{{ finishError }}</p>
@@ -420,8 +420,9 @@ onMounted(async () => {
 .brand-logo { width: 30px; height: 30px; object-fit: contain; }
 .brand-text { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: #fff; }
 .brand-gold { color: #D4A017; }
-.link-btn { background: none; border: none; color: #cfe0d5; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-.link-btn:hover { color: #fff; text-decoration: underline; }
+.link-btn { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.14); border: none; color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+.link-btn:hover { background: rgba(255, 255, 255, 0.24); }
+.link-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .onb-main { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
 .onb-steps { list-style: none; padding: 0; margin: 0 0 20px; display: flex; gap: 55px; }

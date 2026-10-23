@@ -45,7 +45,7 @@
         </div>
         <div class="due-end">
           <p class="due-amount">{{ peso(inv.amount) }}</p>
-          <button class="nm-btn-gold" :disabled="payingId === inv.id" @click="payInvoice(inv)">
+          <button class="nm-btn-dark" :disabled="payingId === inv.id" @click="payInvoice(inv)">
             <CreditCard :size="15" /> {{ payingId === inv.id ? 'Opening…' : 'Pay now' }}
           </button>
           <p class="methods">GCash · Maya · Card · QR Ph</p>
@@ -92,8 +92,8 @@
                 <span class="nm-row-sub" style="display: block">{{ statusDetail(inv) }}</span>
               </td>
               <td class="nm-num">
-                <button v-if="inv.status === 'unpaid' && inv.pay_by" class="nm-btn-gold nm-btn-sm" :disabled="payingId === inv.id" @click.stop="payInvoice(inv)">Pay</button>
-                <button v-else-if="inv.receipt" class="nm-btn-outline nm-btn-sm" @click.stop="open(inv)"><FileText :size="13" /> Receipt</button>
+                <button v-if="inv.status === 'unpaid' && inv.pay_by" class="nm-btn-dark nm-btn-sm" :disabled="payingId === inv.id" @click.stop="payInvoice(inv)">Pay</button>
+                <button v-else-if="inv.receipt" class="nm-btn-soft nm-btn-sm" @click.stop="open(inv)"><FileText :size="13" /> Receipt</button>
               </td>
             </tr>
           </tbody>
@@ -143,10 +143,10 @@
 
         <div class="nm-modal-actions">
           <template v-if="current.receipt">
-            <button class="nm-btn-outline" :disabled="resending" @click="resend(current)"><Mail :size="14" /> {{ resending ? 'Sending…' : 'Resend receipt' }}</button>
+            <button class="nm-btn-soft" :disabled="resending" @click="resend(current)"><Mail :size="14" /> {{ resending ? 'Sending…' : 'Resend receipt' }}</button>
             <button class="nm-btn-dark" @click="printReceipt(current)"><Printer :size="14" /> Download / print</button>
           </template>
-          <button v-else-if="current.status === 'unpaid' && current.pay_by" class="nm-btn-gold" :disabled="payingId === current.id" @click="payInvoice(current)"><CreditCard :size="14" /> Pay now</button>
+          <button v-else-if="current.status === 'unpaid' && current.pay_by" class="nm-btn-dark" :disabled="payingId === current.id" @click="payInvoice(current)"><CreditCard :size="14" /> Pay now</button>
         </div>
         <p v-if="current.receipt" class="nm-hint" style="text-align: right">The receipt was emailed to you when you paid — resend it if you can't find it.</p>
       </div>

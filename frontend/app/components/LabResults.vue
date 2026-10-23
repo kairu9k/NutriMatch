@@ -12,7 +12,7 @@
       </label>
     </header>
 
-    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+    <p v-if="error" class="nm-error">{{ error }} <button class="nm-btn-soft nm-btn-sm" @click="load">Try again</button></p>
     <p v-if="pickError" class="nm-error" role="alert">{{ pickError }}</p>
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading…</p></div>
 
@@ -34,7 +34,7 @@
             <p class="req-meta">Requested by RND {{ r.requested_by }} on {{ labDay(r.created_at) }}<template v-if="r.uploaded_tests.length"> · {{ r.uploaded_tests.length }} of {{ r.tests.length }} uploaded</template></p>
             <p v-if="r.note" class="req-note">“{{ r.note }}”</p>
           </div>
-          <label class="nm-btn-gold nm-btn-sm upload-btn">
+          <label class="nm-btn-dark nm-btn-sm upload-btn">
             <input type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="e => pick(e, r.id)" />
             <Upload :size="14" /> Upload result
           </label>
@@ -56,10 +56,10 @@
           </div>
           <span class="nm-pill" :class="r.reviewed_at ? 'green' : 'gold'">{{ r.reviewed_at ? 'Reviewed ✓' : 'Waiting for your RND' }}</span>
           <div class="res-actions">
-            <button type="button" class="nm-btn-outline nm-btn-sm" @click="view(r)"><Eye :size="13" /> View</button>
+            <button type="button" class="nm-btn-soft nm-btn-sm" @click="view(r)"><Eye :size="13" /> View</button>
             <template v-if="!r.reviewed_at">
-              <button type="button" class="nm-btn-outline nm-btn-sm" @click="replacing = r"><RefreshCw :size="13" /> Replace</button>
-              <button type="button" class="nm-btn-outline nm-btn-sm danger" :disabled="deleting === r.id" @click="remove(r)"><Trash2 :size="13" /> Delete</button>
+              <button type="button" class="nm-btn-soft nm-btn-sm" @click="replacing = r"><RefreshCw :size="13" /> Replace</button>
+              <button type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="deleting === r.id" @click="remove(r)"><Trash2 :size="13" /> Delete</button>
             </template>
           </div>
         </div>
@@ -151,7 +151,7 @@ async function remove(r) {
 <style scoped>
 .nm-page-header { align-items: center; }
 .upload-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
-.upload-btn:focus-within { outline: 2px solid #D4A017; outline-offset: 2px; }
+.upload-btn:focus-within { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .nm-empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; color: #2f6b4f; }
 .nm-empty p { margin: 0; color: #1a3a1a; }
 

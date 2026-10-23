@@ -146,9 +146,10 @@ live.onLive('reconnect', loadNotifications)
 .page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
 .mark-all-btn {
-  border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px;
-  padding: 9px 16px; font-size: 0.83rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  border: none; background: #e3efe7; color: #0a4a37; border-radius: 8px; font-family: inherit;
+  padding: 0 16px; min-height: 36px; font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
+.mark-all-btn:hover:not(:disabled) { background: #d3e7da; }
 .mark-all-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .form-error {
@@ -183,7 +184,7 @@ live.onLive('reconnect', loadNotifications)
 .log-partially_followed { background: #fdf1d6; color: #b8860b; }
 .log-null { background: #eceeec; color: #5a6a5a; }
 .log-not_followed { background: #fbe1de; color: #c0483a; }
-.notif-log-link { font-size: 0.76rem; font-weight: 700; color: #1f8f5c; }
+.notif-log-link { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 8px; background: #e3efe7; font-size: 0.76rem; font-weight: 600; color: #0a4a37; }
 .notif-subject { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
 .notif-text { font-size: 0.86rem; color: #4a5a4a; margin: 0 0 4px; line-height: 1.5; }
 .surface { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }

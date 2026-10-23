@@ -103,8 +103,8 @@
                   <span class="photo-name">{{ logForm.photoFile ? logForm.photoName : 'Saved photo' }}</span>
                   <span v-if="logForm.photoFile" class="photo-sub">Not saved yet. Press Save to send it.</span>
                   <div class="photo-actions">
-                    <button type="button" class="photo-btn" @click="photoInput?.click()">Change photo</button>
-                    <button type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" aria-hidden="true" /> Remove</button>
+                    <button type="button" class="nm-btn-soft nm-btn-sm" @click="photoInput?.click()">Change photo</button>
+                    <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="removePhoto"><X :size="13" aria-hidden="true" /> Remove</button>
                   </div>
                 </div>
               </div>
@@ -529,7 +529,7 @@ onMounted(loadMealPlans)
 
 .save-log-btn {
   display: inline-flex; align-items: center; gap: 7px; background: #0a4a37; color: #fff; border: none; font-family: inherit;
-  border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 0.85rem; cursor: pointer; margin-top: 16px;
+  border-radius: 8px; padding: 0 18px; min-height: 36px; font-weight: 600; font-size: 0.85rem; cursor: pointer; margin-top: 16px;
 }
 .save-log-btn:hover { background: #00382a; }
 .save-log-btn:disabled { opacity: 0.6; cursor: not-allowed; }

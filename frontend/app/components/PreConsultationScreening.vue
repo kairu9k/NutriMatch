@@ -169,8 +169,8 @@
           <p class="complete-title"><CheckCircle2 :size="16" /> Screening Complete</p>
           <p class="complete-text">This summary has been shared with your RND, who will review it before your consultation.</p>
           <p class="complete-text">{{ hasActiveRnd ? 'You can head to Appointments to book your next consultation.' : 'You can now proceed to find your RND and book a consultation.' }}</p>
-          <NuxtLink v-if="hasActiveRnd" to="/appointments" class="find-rnd-btn">Go to Appointments <ArrowRight :size="15" /></NuxtLink>
-          <NuxtLink v-else to="/find-rnd" class="find-rnd-btn">Find an RND <ArrowRight :size="15" /></NuxtLink>
+          <NuxtLink v-if="hasActiveRnd" to="/appointments" class="find-rnd-btn">Go to Appointments</NuxtLink>
+          <NuxtLink v-else to="/find-rnd" class="find-rnd-btn">Find an RND</NuxtLink>
         </div>
       </template>
     </div>
@@ -184,7 +184,7 @@
 </template>
 
 <script setup>
-import { CheckCircle2, ArrowRight, Info, Lock, X } from 'lucide-vue-next'
+import { CheckCircle2, Info, Lock, X } from 'lucide-vue-next'
 import { parseSymptoms, symptomGroups } from '~/utils/screening'
 
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
@@ -505,7 +505,7 @@ onMounted(async () => {
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
 
-.compute-btn { width: 100%; background: #14301a; color: #fff; border: none; border-radius: 999px; padding: 15px; font-weight: 700; font-size: 0.94rem; cursor: pointer; }
+.compute-btn { width: 100%; background: #0a4a37; color: #fff; border: none; border-radius: 999px; padding: 15px; font-weight: 700; font-size: 0.94rem; cursor: pointer; }
 .compute-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .results-panel { background: #e3f3ea; border-radius: 12px; padding: 20px 22px; margin-top: 22px; }

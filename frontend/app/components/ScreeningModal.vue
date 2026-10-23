@@ -8,7 +8,7 @@
         <button type="button" class="scr-x" aria-label="Close" @click="emit('close')"><X :size="18" /></button>
         <PreConsultationScreening embedded />
         <div class="scr-foot">
-          <button type="button" class="nm-btn-outline" @click="emit('close')">Close</button>
+          <button type="button" class="nm-btn-soft" @click="emit('close')">Close</button>
         </div>
       </div>
     </div>

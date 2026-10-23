@@ -4,7 +4,7 @@
   <div v-if="data?.has_rnd" class="panel lab-card" :class="{ requested: openRequests.length }">
     <div class="panel-header-row">
       <h3 class="panel-title flush">Upload Lab Results</h3>
-      <NuxtLink to="/lab-results" class="panel-link">All lab results →</NuxtLink>
+      <NuxtLink to="/lab-results" class="nm-btn-soft nm-btn-sm">All lab results</NuxtLink>
     </div>
 
     <div v-for="r in openRequests" :key="r.id" class="lab-request">

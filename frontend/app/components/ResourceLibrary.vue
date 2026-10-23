@@ -1,7 +1,7 @@
 <template>
   <div class="nm-page">
     <p class="nm-page-sub intro">Guides, videos and links your RND shared with you, to help you follow your plan.</p>
-    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+    <p v-if="error" class="nm-error">{{ error }} <button class="nm-btn-soft nm-btn-sm" @click="load">Try again</button></p>
 
     <div v-if="resources.length" class="nm-toolbar">
       <div class="nm-tabs">
@@ -77,7 +77,7 @@
 
         <div class="nm-modal-actions">
           <template v-if="current.file_path">
-            <a :href="current.file_path" target="_blank" rel="noopener noreferrer" class="nm-btn-outline"><ExternalLink :size="14" /> Open in new tab</a>
+            <a :href="current.file_path" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" /> Open in new tab</a>
             <a :href="current.download_url || current.file_path" class="nm-btn-dark"><Download :size="14" /> Download</a>
           </template>
           <a v-else-if="current.url" :href="current.url" target="_blank" rel="noopener noreferrer" class="nm-btn-dark"><ExternalLink :size="14" /> Open link</a>

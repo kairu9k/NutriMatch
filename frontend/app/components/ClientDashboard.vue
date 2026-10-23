@@ -111,7 +111,7 @@
                 <h3 class="panel-title flush">Today's meal plan</h3>
                 <p v-if="activePlan" class="panel-sub">{{ weekdayLabel }}, {{ activePlan.name || 'your meal plan' }}</p>
               </div>
-              <NuxtLink v-if="activePlan" to="/meal-plan-view" class="panel-link">Log meals</NuxtLink>
+              <NuxtLink v-if="activePlan" to="/meal-plan-view" class="nm-btn-soft nm-btn-sm">Log meals</NuxtLink>
             </div>
 
             <template v-if="activePlan">
@@ -186,11 +186,11 @@
               <p class="screening-summary-text">
                 Recorded {{ formatLongDate(screening.created_at) }}, {{ Number(screening.height_cm) }} cm, {{ Number(screening.weight_kg) }} kg
               </p>
-              <button type="button" class="block-btn" @click="screeningOpen = true">View screening</button>
+              <button type="button" class="nm-btn-soft block-wide" @click="screeningOpen = true">View screening</button>
             </template>
             <template v-else>
               <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete screening</NuxtLink>
+              <NuxtLink to="/pre-consultation-screening" class="nm-btn-dark block-wide">Complete screening</NuxtLink>
             </template>
           </div>
 
@@ -233,7 +233,7 @@
                 <h3 class="panel-title flush">My tasks</h3>
                 <p v-if="taskCount" class="panel-sub">{{ doneCount }} of {{ taskCount }} done today</p>
               </div>
-              <button type="button" class="panel-link as-btn" @click="addOpen = !addOpen"><Plus :size="13" /> Add a task</button>
+              <button type="button" class="nm-btn-soft nm-btn-sm" @click="addOpen = !addOpen"><Plus :size="13" aria-hidden="true" /> Add a task</button>
             </div>
 
             <form v-if="addOpen" class="add-task" @submit.prevent="addTask">
@@ -281,7 +281,7 @@
           <div class="panel">
             <div class="panel-header-row">
               <h3 class="panel-title flush">Recent activity</h3>
-              <NuxtLink v-if="notifications.length" to="/notifications" class="panel-link">View all</NuxtLink>
+              <NuxtLink v-if="notifications.length" to="/notifications" class="nm-btn-soft nm-btn-sm">View all</NuxtLink>
             </div>
             <div v-for="n in recentActivity" :key="n.id" class="activity-row">
               <span class="activity-dot" :class="{ unread: !n.is_read }"></span>
@@ -836,7 +836,7 @@ function phClock(iso) {
 .needs-icon { flex-shrink: 0; color: #c0392b; }
 .needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
 /* every action here is the usual dark green; red only marks the warning (row + icon) */
-.needs-btn { flex-shrink: 0; white-space: nowrap; font-size: 0.82rem; font-weight: 600; text-decoration: none; color: #fff; border: 1px solid #0a4a37; border-radius: 8px; padding: 6px 14px; background: #0a4a37; }
+.needs-btn { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 32px; white-space: nowrap; font-size: 0.82rem; font-weight: 600; text-decoration: none; color: #fff; border: 1px solid #0a4a37; border-radius: 8px; padding: 0 14px; background: #0a4a37; }
 .needs-btn:hover { background: #00382a; }
 .needs-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 /* one opening moment, about 3 seconds: the panel drops in, then each red and
@@ -923,6 +923,7 @@ function phClock(iso) {
 .block-btn:hover { background: #f4f7f5; }
 .block-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .btn-row { display: flex; gap: 10px; }
+.block-wide { width: 100%; }
 
 /* TODAY'S MEAL PLAN */
 .macro-strip {

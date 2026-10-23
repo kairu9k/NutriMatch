@@ -65,7 +65,7 @@
 
         <p v-if="error" class="nm-error" role="alert">{{ error }}</p>
         <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-outline" :disabled="saving" @click="emit('close')">Cancel</button>
+          <button type="button" class="nm-btn-soft" :disabled="saving" @click="emit('close')">Cancel</button>
           <button type="submit" class="nm-btn-dark" :disabled="saving">{{ saving ? 'Uploading…' : 'Upload' }}</button>
         </div>
       </form>

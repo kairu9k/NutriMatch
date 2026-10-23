@@ -8,7 +8,7 @@
         <select v-if="records.length" v-model="selectedRange" class="nm-select" aria-label="Date range">
           <option v-for="r in ranges" :key="r.label" :value="r.label">{{ r.label }}</option>
         </select>
-        <button v-if="records.length" type="button" class="nm-btn-outline nm-btn-sm" @click="printReport"><Printer :size="14" /> Print / PDF</button>
+        <button v-if="records.length" type="button" class="nm-btn-soft nm-btn-sm" @click="printReport"><Printer :size="14" /> Print / PDF</button>
       </div>
     </div>
 

@@ -34,12 +34,12 @@
         <template v-if="activeTab === 'personal'">
           <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" :editable="isEditing" @photo-changed="fireToast">
             <template #actions>
-              <button v-if="!isEditing" class="btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
+              <button v-if="!isEditing" class="nm-btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
                 <Pencil :size="15" /> Edit Profile
               </button>
               <template v-else>
-                <button class="outline-btn" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
-                <button class="btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
+                <button class="nm-btn-soft" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
+                <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
                   <Check :size="15" /> {{ isSaving ? 'Saving…' : 'Save Changes' }}
                 </button>
               </template>
@@ -147,7 +147,7 @@
               <h3 class="tab-panel-title">Health Profile</h3>
               <p class="tab-panel-sub">Your screening on file — the starting point your progress is measured from.</p>
             </div>
-            <button class="outline-btn" type="button" @click="screeningOpen = true">View Screening</button>
+            <button class="nm-btn-soft" type="button" @click="screeningOpen = true">View screening</button>
           </div>
 
           <div v-if="screening" class="stat-grid-3">
@@ -171,7 +171,7 @@
 
           <p class="field-hint health-note">
             Your primary health condition is under
-            <button class="link-btn" type="button" @click="activeTab = 'personal'">Personal Info</button>.
+            <button class="nm-btn-soft nm-btn-sm" type="button" @click="activeTab = 'personal'">Personal info</button>.
           </p>
         </template>
 
@@ -193,7 +193,7 @@
                 <p v-if="careRnd.review_count" class="rnd-rating">★ {{ Number(careRnd.average_rating).toFixed(1) }} ({{ careRnd.review_count }} review{{ careRnd.review_count === 1 ? '' : 's' }})</p>
               </div>
             </div>
-            <button class="outline-btn" type="button" @click="navigateTo('/messages')">Send a Message</button>
+            <button class="nm-btn-soft" type="button" @click="navigateTo('/messages')">Send a message</button>
           </div>
 
           <!-- Ending care (2026-10-19): one RND at a time, so the client can ask
@@ -209,14 +209,14 @@
                 Your records stay in your account.
               </p>
               <p v-if="drError" class="field-error">{{ drError }}</p>
-              <button class="outline-btn" type="button" :disabled="drBusy" @click="withdrawDischarge">{{ drBusy ? 'Saving…' : 'Keep my RND' }}</button>
+              <button class="nm-btn-soft" type="button" :disabled="drBusy" @click="withdrawDischarge">{{ drBusy ? 'Saving…' : 'Keep my RND' }}</button>
             </div>
             <div v-else class="setting-row">
               <div>
                 <p class="setting-label">End care with this RND</p>
                 <p class="setting-detail">Want to switch RNDs or finished your care? Ask to end it — your RND gets {{ DR_DAYS }} days to close it, then it ends automatically.</p>
               </div>
-              <button class="outline-btn" type="button" @click="openDischarge">Request discharge</button>
+              <button class="nm-btn-soft" type="button" @click="openDischarge">Request discharge</button>
             </div>
           </template>
           <div v-else class="setting-row">
@@ -224,7 +224,7 @@
               <p class="setting-label">No RND yet</p>
               <p class="setting-detail">You're not connected with an RND yet.</p>
             </div>
-            <button class="outline-btn" type="button" @click="navigateTo('/find-rnd')">Find an RND</button>
+            <button class="nm-btn-soft" type="button" @click="navigateTo('/find-rnd')">Find an RND</button>
           </div>
         </template>
 
@@ -262,7 +262,7 @@
             <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
             <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
             <div class="pw-actions">
-              <button type="submit" class="save-btn" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change Password' }}</button>
+              <button type="submit" class="nm-btn-dark" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change password' }}</button>
               <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
             </div>
             <p class="setting-detail">We'll email you to confirm the change.</p>
@@ -332,7 +332,7 @@
               <p class="setting-detail">Your health data is only shared with your assigned RND under RA 10173 (Data Privacy Act of 2012).</p>
             </div>
             <!-- TODO: no data-export endpoint exists yet. -->
-            <button class="outline-btn" type="button" disabled title="Coming soon">Download My Data</button>
+            <button class="nm-btn-soft" type="button" disabled title="Coming soon">Download my data</button>
           </div>
         </template>
 
@@ -343,7 +343,7 @@
               <h3 class="tab-panel-title">Your Activity</h3>
               <p class="tab-panel-sub">Every screening, appointment, and meal log on your account.</p>
             </div>
-            <button class="outline-btn print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
+            <button class="nm-btn-soft print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
           </div>
 
           <div class="filter-tabs">
@@ -403,11 +403,11 @@
           <p v-if="drFieldErrors.note" class="field-error">{{ drFieldErrors.note }}</p>
         </div>
         <p v-if="drError" class="field-error">{{ drError }}
-          <NuxtLink v-if="/upcoming consultation/i.test(drError)" to="/appointments" class="dr-link">Open My Appointments</NuxtLink>
+          <NuxtLink v-if="/upcoming consultation/i.test(drError)" to="/appointments" class="nm-btn-soft nm-btn-sm dr-link">Open My Appointments</NuxtLink>
         </p>
         <div class="dr-actions">
-          <button class="outline-btn" type="button" :disabled="drBusy" @click="drOpen = false">Keep my RND</button>
-          <button class="save-btn" type="button" :disabled="drBusy || !dr.reason || (dr.reason === 'other' && !dr.note.trim())" @click="requestDischarge">
+          <button class="nm-btn-soft" type="button" :disabled="drBusy" @click="drOpen = false">Keep my RND</button>
+          <button class="nm-btn-dark" type="button" :disabled="drBusy || !dr.reason || (dr.reason === 'other' && !dr.note.trim())" @click="requestDischarge">
             {{ drBusy ? 'Sending…' : 'Request discharge' }}
           </button>
         </div>
@@ -1079,6 +1079,6 @@ onMounted(async () => {
 .dr-heading { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; }
 .dr-points { margin: 0; padding-left: 18px; font-size: 0.82rem; color: #4a5a4a; line-height: 1.6; }
 .dr-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-.dr-link { margin-left: 6px; color: #1a3a1a; font-weight: 700; text-decoration: underline; }
+.dr-link { margin-left: 6px; }
 .optional-tag { font-weight: 500; color: #8a9a8a; margin-left: 4px; }
 </style>

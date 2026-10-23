@@ -60,7 +60,7 @@
                 <p class="nm-row-sub">{{ f.how }}</p>
                 <template v-if="f.key === 'in_person'">
                   <p class="address"><MapPin :size="13" /> {{ rnd.clinic_address }}</p>
-                  <a :href="mapUrl" target="_blank" rel="noopener" class="nm-panel-link map-link">Open in Google Maps <ExternalLink :size="11" /></a>
+                  <a :href="mapUrl" target="_blank" rel="noopener" class="nm-btn-soft nm-btn-sm map-link">Open in Google Maps <ExternalLink :size="12" aria-hidden="true" /></a>
                 </template>
               </div>
             </div>
@@ -119,8 +119,8 @@
               <span class="nm-pill green">Your RND</span>
               <p class="book-text">You're already seeing {{ rnd.user.first_name }}. Your appointments and messages are in one place.</p>
               <div class="book-links">
-                <NuxtLink to="/appointments" class="nm-btn-outline">My appointments</NuxtLink>
-                <NuxtLink to="/messages" class="nm-btn-outline">Messages</NuxtLink>
+                <NuxtLink to="/appointments" class="nm-btn-soft">My appointments</NuxtLink>
+                <NuxtLink to="/messages" class="nm-btn-soft">Messages</NuxtLink>
               </div>
               <div class="divider" />
             </template>
@@ -134,7 +134,7 @@
               <p v-else>
                 You have a booking waiting for <strong>RND {{ rnd.booking_blocked_by.name }}</strong>. Cancel it first if you'd like a different RND.
               </p>
-              <NuxtLink :to="`/rnd-profile-view/${rnd.booking_blocked_by.rnd_id}`" class="nm-panel-link">Go to RND {{ rnd.booking_blocked_by.name }} →</NuxtLink>
+              <NuxtLink :to="`/rnd-profile-view/${rnd.booking_blocked_by.rnd_id}`" class="nm-btn-soft nm-btn-sm">Go to RND {{ rnd.booking_blocked_by.name }}</NuxtLink>
             </div>
             <template v-else>
             <p class="nm-section-title" style="margin-top: 14px">Next open times</p>
@@ -163,7 +163,7 @@
               <Info :size="15" />
               <span>
                 Pre-consultation screening is required before your first appointment can be confirmed.
-                <NuxtLink to="/pre-consultation-screening" class="info-note-link">Complete it now →</NuxtLink>
+                <NuxtLink to="/pre-consultation-screening" class="nm-btn-soft nm-btn-sm">Complete it now</NuxtLink>
               </span>
             </div>
           </div>

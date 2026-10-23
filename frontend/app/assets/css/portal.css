@@ -86,12 +86,18 @@
 .nm-pill.blue { background: #e3edf7; color: #2f6fa8; }
 
 /* buttons */
-.nm-btn-dark, .nm-btn-outline, .nm-btn-danger, .nm-btn-gold {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; padding: 9px 16px;
-  font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; font-family: inherit;
+/* Buttons (user's rule, 2026-10-24): every button is filled and one height per
+   row. Green = do something (nm-btn-dark), light green = secondary
+   (nm-btn-soft), red = destructive (nm-btn-danger solid). Gold is for notices
+   and brand, not actions (nm-btn-gold only sits on the dark green banner). */
+.nm-btn-dark, .nm-btn-outline, .nm-btn-danger, .nm-btn-gold, .nm-btn-soft {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; padding: 0 16px; min-height: 36px;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; font-family: inherit; line-height: 1.2;
 }
-.nm-btn-dark { background: #163a1c; color: #fff; border: none; }
-.nm-btn-dark:hover:not(:disabled) { background: #0f2a14; }
+.nm-btn-dark { background: #0a4a37; color: #fff; border: none; }
+.nm-btn-dark:hover:not(:disabled) { background: #00382a; }
+.nm-btn-soft { background: #e3efe7; color: #0a4a37; border: none; }
+.nm-btn-soft:hover:not(:disabled) { background: #d3e7da; }
 .nm-btn-gold { background: #D4A017; color: #1a3a1a; border: none; font-weight: 700; }
 .nm-btn-gold:hover:not(:disabled) { background: #e0ae22; }
 .nm-btn-outline { background: #fff; color: #1a3a1a; border: 1px solid #d5dad5; }
@@ -100,8 +106,9 @@
 .nm-btn-danger:hover:not(:disabled) { background: #fdecec; }
 .nm-btn-danger.solid { background: #c0392b; color: #fff; border-color: #c0392b; }
 .nm-btn-danger.solid:hover:not(:disabled) { background: #a93226; }
-.nm-btn-dark:disabled, .nm-btn-outline:disabled, .nm-btn-danger:disabled, .nm-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
-.nm-btn-sm { padding: 6px 12px; font-size: 0.77rem; }
+.nm-btn-dark:disabled, .nm-btn-outline:disabled, .nm-btn-danger:disabled, .nm-btn-gold:disabled, .nm-btn-soft:disabled { opacity: 0.5; cursor: not-allowed; }
+.nm-btn-dark:focus-visible, .nm-btn-outline:focus-visible, .nm-btn-danger:focus-visible, .nm-btn-gold:focus-visible, .nm-btn-soft:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.nm-btn-sm { padding: 0 12px; min-height: 32px; font-size: 0.78rem; }
 
 /* tabs + toolbar */
 .nm-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }

@@ -77,6 +77,7 @@ Three roles: **client**, **RND**, **admin**.
 - **Structure:** figures in one divided panel (cells split by `#d9e3dc` lines), not rows of small boxes; numbered markers only for real sequences; motion only to draw attention to one thing, inside `prefers-reduced-motion: no-preference`.
 - **Allergies are never quiet:** any food picker or plan view that knows the patient's allergies shows matches in red (`utils/foodWarnings.js allergyWarnings`).
 - **Edit pages** (Profile Settings) are read-only until **Edit profile**, with Cancel / Save changes at the bottom.
+- **Buttons (user's rule, 2026-10-24):** every button is **filled** and buttons in a row share **one height** (36px, `nm-btn-sm` 32px). **Green = do something** (`nm-btn-dark`, `#0a4a37`, Pay/Upload/Save/Book on every page); **light green = secondary** (`nm-btn-soft`, `#e3efe7` + dark green text: Back, Close, View, Print…); **red = destructive** (`nm-btn-danger solid`: Cancel, Delete, Remove). **Gold is for notices and brand, not actions** (status labels/dots like Payment due, stars, logo, banner date); the only gold button is one sitting on the dark green banner. No outlined or text-only action buttons, no "→".
 - Don't name a Tailwind utility as a class (`ring`, `shadow`, `border`…) in scoped CSS — Tailwind styles it too (the blue ring around the dashboard earnings chart).
 
 ## Working conventions
