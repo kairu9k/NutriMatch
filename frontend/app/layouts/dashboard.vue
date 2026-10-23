@@ -278,7 +278,7 @@ const rndNavGroups = computed(() => [
     ],
   },
   {
-    label: 'Practice',
+    label: 'Business',
     items: [
       { icon: FileText, label: 'Resources', to: '/resource-upload' },
       { icon: Wallet, label: 'Earnings', to: '/earnings' },
