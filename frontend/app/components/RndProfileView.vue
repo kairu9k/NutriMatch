@@ -212,26 +212,30 @@
 
           <section class="bk-section" aria-labelledby="bk-day-h">
             <div class="bk-row-head">
-              <h3 id="bk-day-h" class="section-h">Pick a day</h3>
-              <div v-if="openDays.length > 4" class="strip-nav">
-                <button type="button" aria-label="Earlier days" @click="scrollStrip(-1)"><ChevronLeft :size="15" /></button>
-                <button type="button" aria-label="Later days" @click="scrollStrip(1)"><ChevronRight :size="15" /></button>
+              <h3 id="bk-day-h" class="section-h">{{ viewMonthLabel }}</h3>
+              <div class="strip-nav">
+                <button type="button" aria-label="Previous month" :disabled="!canGoBack" @click="shiftMonth(-1)"><ChevronLeft :size="15" /></button>
+                <button type="button" aria-label="Next month" @click="shiftMonth(1)"><ChevronRight :size="15" /></button>
               </div>
             </div>
-            <div v-if="openDays.length" ref="stripEl" class="day-strip">
-              <button
-                v-for="d in openDays" :key="d.iso" type="button"
-                class="day-chip" :class="{ selected: d.iso === selectedDateISO }" :data-iso="d.iso"
-                :aria-pressed="d.iso === selectedDateISO" :aria-label="`${d.long}, ${d.open} open`"
-                @click="pickDay(d.iso)"
-              >
-                <span class="dc-wd">{{ d.weekday }}</span>
-                <span class="dc-num">{{ d.day }}</span>
-                <span class="dc-mo">{{ d.month }}</span>
-                <span class="dc-open">{{ d.open }} open</span>
-              </button>
+            <div class="cal">
+              <span v-for="d in dayHeaders" :key="d" class="cal-wd" aria-hidden="true">{{ d }}</span>
+              <template v-for="cell in calendarCells" :key="cell.iso">
+                <span v-if="!cell.inMonth" class="cal-cell out" aria-hidden="true" />
+                <button
+                  v-else type="button" class="cal-cell"
+                  :class="{ open: cell.open, selected: cell.iso === selectedDateISO, today: cell.iso === todayISO, off: cell.dayOff, full: cell.full }"
+                  :disabled="!cell.open" :aria-pressed="cell.iso === selectedDateISO" :aria-label="cell.aria"
+                  @click="pickDay(cell.iso)"
+                >
+                  <span class="cal-num">{{ cell.day }}</span>
+                  <span v-if="cell.open" class="cal-note">{{ cell.open }} open</span>
+                  <span v-else-if="cell.dayOff" class="cal-note">Day off</span>
+                  <span v-else-if="cell.full" class="cal-note">Full</span>
+                </button>
+              </template>
             </div>
-            <p v-else class="nm-note plain-note">{{ rnd.user.first_name }} has no open times in the next 4 weeks. Check back later.</p>
+            <p v-if="!calendarCells.some(c => c.open)" class="nm-note plain-note cal-empty">No open times in {{ viewMonthLabel }}. Try the next month.</p>
           </section>
 
           <section v-if="selectedDateISO" class="bk-section" aria-labelledby="bk-time-h">
@@ -462,43 +466,55 @@ function scheduleForDate(date) {
 // A day is only highlighted if it still has at least one bookable time —
 // otherwise picking it would show no times and Confirm could never enable
 // (e.g. today after the RND's last slot, or hours shorter than a session).
-// The strip: every day in the next 4 weeks (same lookahead as Next available)
-// that still has an open time. Days off and fully booked days simply aren't in it.
-const LOOKAHEAD_DAYS = 28
-const openDays = computed(() => {
-  const out = []
+// The month calendar. A day is green with its count while it still has an open
+// time; past days and days without hours are faint; a day the RND blocked off
+// is striped "Day off", a day with every time taken says "Full".
+const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const viewMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const viewMonthLabel = computed(() => viewMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))
+const canGoBack = computed(() => {
   const now = new Date()
-  for (let i = 0; i < LOOKAHEAD_DAYS; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+  return viewMonth.value > new Date(now.getFullYear(), now.getMonth(), 1)
+})
+function shiftMonth(delta) {
+  viewMonth.value = new Date(viewMonth.value.getFullYear(), viewMonth.value.getMonth() + delta, 1)
+}
+const calendarCells = computed(() => {
+  const year = viewMonth.value.getFullYear()
+  const month = viewMonth.value.getMonth()
+  const gridStart = new Date(year, month, 1 - new Date(year, month, 1).getDay())
+  const weeks = Math.ceil((new Date(year, month, 1).getDay() + new Date(year, month + 1, 0).getDate()) / 7)
+  const cells = []
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
     const iso = toISO(d)
-    const open = slotsForDate(iso).filter(s => !s.taken).length
-    if (!open) continue
-    out.push({
-      iso, open,
-      day: d.getDate(),
-      weekday: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' }),
-      month: d.toLocaleDateString('en-US', { month: 'short' }),
-      long: d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+    const inMonth = d.getMonth() === month
+    const future = iso >= todayISO
+    const slots = inMonth && future ? slotsForDate(iso) : []
+    const open = slots.filter(t => !t.taken).length
+    const dayOff = !open && slots.length > 0 && slots.every(t => t.off)
+    const full = !open && !dayOff && slots.length > 0
+    const long = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    cells.push({
+      iso, inMonth, open, dayOff, full, day: d.getDate(),
+      aria: open ? `${long}, ${open} open` : dayOff ? `${long}, day off` : full ? `${long}, fully booked` : long,
     })
   }
-  return out
+  return cells
 })
-const stripEl = ref(null)
-function scrollStrip(dir) {
-  const el = stripEl.value
-  if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
-}
 function pickDay(iso) {
   if (iso === selectedDateISO.value) return
   selectedDateISO.value = iso
   selectedTime.value = ''
 }
-// Keep the picked day in view (e.g. opened from a Next available time 3 weeks out).
-function revealSelectedDay() {
-  nextTick(() => {
-    const chip = stripEl.value?.querySelector(`[data-iso="${selectedDateISO.value}"]`)
-    if (chip) stripEl.value.scrollLeft = chip.offsetLeft - stripEl.value.offsetLeft - 8
-  })
+// The first day with an open time, looking up to 60 days ahead.
+function firstOpenDay() {
+  const now = new Date()
+  for (let i = 0; i < 60; i++) {
+    const iso = toISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i))
+    if (slotsForDate(iso).some(t => !t.taken)) return iso
+  }
+  return ''
 }
 const selectedDayLabel = computed(() => (selectedDateISO.value
   ? new Date(selectedDateISO.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -575,7 +591,7 @@ function slotsForDate(iso) {
 }
 
 const bookingHint = computed(() => {
-  if (!selectedDateISO.value) return 'Pick a day to see the open times.'
+  if (!selectedDateISO.value) return 'Pick a green day to see the open times.'
   if (!selectedTime.value) return 'Pick a time.'
   return ''
 })
@@ -625,11 +641,12 @@ async function openBookingModal(slotIso = null) {
   bookingModalOpen.value = true
   await loadBookedSlots()
   // Nothing picked yet (or that day is now full): start on the first open day.
-  if (!openDays.value.some(d => d.iso === selectedDateISO.value)) {
-    selectedDateISO.value = openDays.value[0]?.iso || ''
+  if (!selectedDateISO.value || !slotsForDate(selectedDateISO.value).some(t => !t.taken)) {
+    selectedDateISO.value = firstOpenDay()
     selectedTime.value = ''
   }
-  revealSelectedDay()
+  const shown = selectedDateISO.value ? new Date(selectedDateISO.value + 'T00:00:00') : new Date()
+  viewMonth.value = new Date(shown.getFullYear(), shown.getMonth(), 1)
 }
 function bookSlot(iso) {
   openBookingModal(iso)
@@ -830,21 +847,26 @@ async function confirmBooking() {
 .strip-nav button { width: 30px; height: 30px; border-radius: 8px; border: none; background: #e3efe7; color: #0a4a37; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .strip-nav button:hover { background: #d3e6d9; }
 .strip-nav button:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
-.day-strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 8px; scrollbar-width: none; }
-.day-strip::-webkit-scrollbar { display: none; }
-.day-chip {
-  flex: 0 0 88px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 6px 9px;
-  border: 1px solid #d9e3dc; background: #fff; border-radius: 12px; cursor: pointer; font-family: inherit; color: #1a3a1a;
+.strip-nav button:disabled { opacity: 0.4; cursor: default; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal-wd { text-align: center; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; padding-bottom: 2px; }
+.cal-cell {
+  min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border: 1px solid transparent; border-radius: 9px; background: transparent; color: #b5bfb5; font-family: inherit; padding: 4px 2px;
 }
-.day-chip:hover:not(.selected) { border-color: #3f9a6b; background: #f2f7f3; }
-.day-chip:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.dc-wd { font-size: 0.76rem; font-weight: 600; color: #4a5a4a; }
-.dc-num { font-family: 'Playfair Display', serif; font-size: 1.45rem; font-weight: 700; line-height: 1.1; font-variant-numeric: lining-nums; }
-.dc-mo { font-size: 0.74rem; color: #6a7a6a; }
-.dc-open { margin-top: 5px; font-size: 0.72rem; font-weight: 600; color: #1f6f46; }
-.day-chip.selected { background: #0a4a37; border-color: #0a4a37; color: #fff; }
-.day-chip.selected .dc-wd, .day-chip.selected .dc-mo { color: #cfe0d5; }
-.day-chip.selected .dc-open { color: #9fd0b4; }
+.cal-cell.out { border: none; }
+.cal-num { font-size: 0.9rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
+.cal-note { font-size: 0.66rem; font-weight: 600; white-space: nowrap; }
+.cal-cell.today .cal-num { text-decoration: underline; text-underline-offset: 3px; }
+.cal-cell.open { background: #e3efe7; border-color: #cfe3d6; color: #1a3a1a; cursor: pointer; }
+.cal-cell.open .cal-note { color: #1f6f46; }
+.cal-cell.open:hover:not(.selected) { background: #d3e6d9; border-color: #3f9a6b; }
+.cal-cell.selected { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.cal-cell.selected .cal-note { color: #9fd0b4; }
+.cal-cell:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.cal-cell.off { background: repeating-linear-gradient(135deg, #f3f5f3, #f3f5f3 4px, #e8ebe8 4px, #e8ebe8 8px); color: #8a9a8a; }
+.cal-cell.full { background: #f3f5f3; color: #8a9a8a; }
+.cal-empty { margin: 10px 0 0; }
 
 /* times grouped by part of the day */
 .tg { display: grid; grid-template-columns: 84px 1fr; gap: 8px 12px; align-items: start; padding: 10px 0; border-top: 1px solid #d9e3dc; }
@@ -888,7 +910,9 @@ async function confirmBooking() {
   .bk-send { width: 100%; }
   .seg { width: 100%; }
   .seg-btn { flex: 1; justify-content: center; }
-  .day-chip { flex-basis: 76px; }
+  .cal { gap: 3px; }
+  .cal-cell { min-height: 46px; }
+  .cal-note { font-size: 0.6rem; }
   .tg { grid-template-columns: 1fr; gap: 6px; }
   .tg-label { padding-top: 0; }
 }
