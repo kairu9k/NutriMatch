@@ -168,7 +168,7 @@ async function remove(r) {
 .nm-empty p { margin: 0; color: #1a3a1a; }
 
 /* a request is something still to do: dashed green */
-.req { display: flex; align-items: flex-start; gap: 14px; padding: 14px; border: 1.5px dashed #3f9a6b; background: #fff; border-radius: 12px; margin-top: 10px; }
+.req { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1.5px dashed #3f9a6b; background: #fff; border-radius: 12px; margin-top: 10px; }
 .req-main { flex: 1; min-width: 0; }
 .req-title { display: flex; align-items: flex-start; gap: 6px; font-weight: 700; font-size: 0.9rem; color: #1a3a1a; margin: 0; }
 .req-title svg { flex-shrink: 0; margin-top: 3px; color: #3f9a6b; }
@@ -191,7 +191,7 @@ async function remove(r) {
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (max-width: 600px) {
   .nm-page-header { flex-direction: column; align-items: stretch; gap: 10px; }
-  .req { flex-direction: column; }
+  .req { flex-direction: column; align-items: stretch; }
   .req .upload-btn, .nm-page-header .upload-btn { justify-content: center; }
   .res-actions { width: 100%; }
   .res-actions button { flex: 1; justify-content: center; }
