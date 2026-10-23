@@ -41,7 +41,8 @@
             <button type="button" class="nm-btn-danger solid" :disabled="saving || reason.trim().length < 10" @click="review('decline')">{{ saving ? 'Sending…' : 'Decline and ask again' }}</button>
           </template>
           <template v-else>
-            <button type="button" class="nm-btn-soft" @click="emit('close')">Close</button>
+            <!-- reviewing: the header's × closes, so no second Close button -->
+            <button v-if="!canReview" type="button" class="nm-btn-soft" @click="emit('close')">Close</button>
             <a v-if="state === 'ready'" :href="url" :download="fileName || 'lab-result'" class="nm-btn-soft"><Download :size="14" aria-hidden="true" /> Download</a>
             <template v-if="canReview">
               <button type="button" class="nm-btn-danger solid" :disabled="saving || state !== 'ready'" @click="declining = true">Decline</button>
