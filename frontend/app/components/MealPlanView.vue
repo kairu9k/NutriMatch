@@ -8,9 +8,9 @@
         <div class="targets-header">
           <div>
             <h3 class="targets-title">{{ plan.name }}</h3>
-            <p class="targets-sub">{{ conditionLabel }} · Prescribed by your RND</p>
+            <p class="targets-sub">{{ conditionLabel }}, from your RND</p>
           </div>
-          <span class="progress-pill">{{ completionPct }}% Followed Today</span>
+          <span class="progress-pill">{{ completionPct }}% followed today</span>
         </div>
         <div class="targets-grid">
           <div class="target-box">
@@ -32,19 +32,24 @@
         </div>
         <!-- Any other targets the RND added (fiber, sodium, ...) -->
         <div v-if="otherTargets.length" class="other-targets">
-          <span class="other-targets-label">Other targets</span>
+          <span class="other-targets-label">Other targets:</span>
           <span v-for="t in otherTargets" :key="t.label" class="other-target-chip">{{ t.label }}: {{ t.value }}{{ t.unit ? ` ${t.unit}` : '' }}</span>
         </div>
       </div>
 
+      <div v-if="myAllergies.length" class="allergy-panel" role="note">
+        <AlertTriangle :size="18" aria-hidden="true" />
+        <p><strong>Your food allergies: {{ myAllergies.join(', ') }}.</strong> A food in your plan that may contain one is marked in red. Don't eat it, and message your RND.</p>
+      </div>
+
       <div v-if="plan.notes || plan.allergies_restrictions" class="notes-panel">
-        <p class="notes-title">Your RND's Notes</p>
-        <p v-if="plan.allergies_restrictions" class="notes-text"><strong>Allergies / Restrictions:</strong> {{ plan.allergies_restrictions }}</p>
+        <p class="notes-title">Notes from your RND</p>
+        <p v-if="plan.allergies_restrictions" class="notes-text"><strong>Allergies and restrictions:</strong> {{ plan.allergies_restrictions }}</p>
         <p v-if="plan.notes" class="notes-text">{{ plan.notes }}</p>
       </div>
 
       <template v-if="todaysMeals.length">
-        <p class="today-label">Today · {{ todayLabel }}</p>
+        <p class="today-label">Today, {{ todayLabel }}</p>
         <div class="meal-tabs">
           <button
             v-for="(meal, i) in todaysMeals" :key="meal.id"
@@ -61,27 +66,28 @@
           <div class="meal-header">
             <div>
               <h3 class="meal-name">{{ mealTimeLabel(activeMeal.meal_time) }}</h3>
-              <p v-if="activeMeal.scheduled_time" class="meal-scheduled">Scheduled Time: {{ formatClock(activeMeal.scheduled_time) }}</p>
+              <p v-if="activeMeal.scheduled_time" class="meal-scheduled">Planned for {{ formatClock(activeMeal.scheduled_time) }}</p>
             </div>
             <!-- The client logs what they ate; the RND rates it. -->
             <div class="status-col">
               <span class="status-pill" :class="pillClass(activeLog)">
                 {{ !activeLog ? 'Not logged yet' : activeLog.status ? activeLog.status_label : 'Waiting for your RND to rate it' }}
               </span>
-              <span v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status"> · rated by your RND</template></span>
+              <span v-if="activeLog?.time_logged" class="logged-at">Logged at {{ formatClock(activeLog.time_logged) }}<template v-if="activeLog.status">, rated by your RND</template></span>
             </div>
           </div>
 
           <div class="meal-body">
             <div class="meal-col">
-              <span class="col-eyebrow">Planned Meal</span>
+              <span class="col-eyebrow">Planned meal</span>
               <span class="exchange-summary">{{ exchangeSummary(activeMeal) }}</span>
               <div v-if="activeMeal.food_items.length" class="food-item-list">
-                <div v-for="item in activeMeal.food_items" :key="item.id" class="planned-item">
+                <div v-for="item in activeMeal.food_items" :key="item.id" class="planned-item" :class="{ allergen: foodAllergies(item).length }">
                   <span class="planned-dot"></span>
-                  <div>
+                  <div class="planned-text">
                     <span class="food-name">{{ item.food_name }}</span>
-                    <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} Exchange` }}</span>
+                    <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} exchange` }}</span>
+                    <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
                   </div>
                 </div>
               </div>
@@ -90,7 +96,7 @@
             </div>
 
             <div class="meal-col">
-              <span class="col-eyebrow">Actual Food Intake</span>
+              <span class="col-eyebrow">What you ate</span>
 
               <input ref="photoInput" type="file" accept="image/*" class="dropzone-input" @change="onPhotoSelected" />
               <!-- The chosen photo (not uploaded until Save) or the one already
@@ -101,7 +107,7 @@
                 </button>
                 <div class="photo-meta">
                   <span class="photo-name">{{ logForm.photoFile ? logForm.photoName : 'Saved photo' }}</span>
-                  <span v-if="logForm.photoFile" class="photo-sub">Not saved yet — press Save to send it</span>
+                  <span v-if="logForm.photoFile" class="photo-sub">Not saved yet. Press Save to send it.</span>
                   <div class="photo-actions">
                     <button type="button" class="photo-btn" @click="photoInput?.click()">Change photo</button>
                     <button v-if="logForm.photoFile" type="button" class="photo-btn remove" @click="removePhoto"><X :size="13" /> Remove</button>
@@ -126,7 +132,7 @@
                 <textarea id="meal-log-note" data-allow-emoji v-model="logForm.reasonNotes" rows="3" maxlength="1000"
                           placeholder="What did you eat? e.g. Had half the rice and added a banana."></textarea>
               </div>
-              <p class="log-hint">Add a photo, a note or both. The time is saved automatically, and your RND will rate how well it followed your plan.</p>
+              <p class="log-hint">Add a photo, a note or both. The time is saved for you, and your RND rates how closely it followed your plan.</p>
 
               <p v-if="logError" class="form-error inline">{{ logError }}</p>
 
@@ -141,14 +147,14 @@
 
       <div class="info-note">
         <Info :size="16" />
-        <p>Exchange amounts are based on the FNRI Food Exchange Lists. Your RND may adjust portions during follow-up consultations based on your progress. Your meal logs are sent directly to your RND.</p>
+        <p>Portions follow the FNRI Food Exchange Lists. Your RND may change them at a follow-up consultation, and sees every meal you log.</p>
       </div>
     </template>
 
     <div v-else class="empty-state">
       <div class="empty-icon"><ClipboardList :size="28" /></div>
       <p class="empty-title">No meal plan yet</p>
-      <p class="empty-desc">Your RND will create a personalized meal plan for you as part of your care journey.</p>
+      <p class="empty-desc">Your RND makes your meal plan after your consultation. It shows here, meal by meal.</p>
     </div>
 
     <Transition name="toast-fade">
@@ -162,7 +168,8 @@
 <script setup>
 import { phIso, phWeekday } from '~/utils/phTime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X } from 'lucide-vue-next'
+import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle } from 'lucide-vue-next'
+import { allergyWarnings } from '~/utils/foodWarnings'
 
 definePageMeta({ layout: 'dashboard', title: 'My Meal Plan' })
 
@@ -183,15 +190,15 @@ const todayLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'lo
 const plan = computed(() => plans.value.find(p => p.status === 'active') || null)
 
 const CONDITION_LABELS = {
-  diabetes: 'Diabetes Mellitus', hypertension: 'Hypertension', renal: 'Renal Condition',
-  weight_loss: 'Weight Loss', weight_gain: 'Weight Gain', general: 'General',
+  diabetes: 'Diabetes mellitus', hypertension: 'Hypertension', renal: 'Renal condition',
+  weight_loss: 'Weight loss', weight_gain: 'Weight gain', general: 'General',
 }
 const conditionLabel = computed(() => CONDITION_LABELS[plan.value?.condition] || plan.value?.condition)
 
 const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
 const MEAL_LABELS = {
-  breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch',
-  pm_snack: 'PM Snack', dinner: 'Dinner', bedtime_snack: 'Bedtime Snack',
+  breakfast: 'Breakfast', am_snack: 'Morning snack', lunch: 'Lunch',
+  pm_snack: 'Afternoon snack', dinner: 'Dinner', bedtime_snack: 'Bedtime snack',
 }
 const MEAL_ICONS = { breakfast: Sunrise, am_snack: Coffee, lunch: Sun, pm_snack: Coffee, dinner: Moon, bedtime_snack: Moon }
 
@@ -211,12 +218,12 @@ function mealIcon(time) {
 }
 function exchangeSummary(meal) {
   const parts = []
-  const map = { rice_exchanges: 'Rice', meat_exchanges: 'Meat', vegetable_exchanges: 'Veg', fruit_exchanges: 'Fruit', milk_exchanges: 'Milk', fat_exchanges: 'Fat', sugar_exchanges: 'Sugar' }
+  const map = { rice_exchanges: 'rice', meat_exchanges: 'meat', vegetable_exchanges: 'vegetable', fruit_exchanges: 'fruit', milk_exchanges: 'milk', fat_exchanges: 'fat', sugar_exchanges: 'sugar' }
   for (const [field, label] of Object.entries(map)) {
     const value = Number(meal[field])
     if (value > 0) parts.push(`${value} ${label}`)
   }
-  return parts.join(' · ') || 'No exchanges set'
+  return parts.join(', ') || 'No exchanges set'
 }
 
 // Plans are per weekday; meals with no day (older plans) apply every day.
@@ -293,6 +300,13 @@ onUnmounted(() => {
   if (selectedUrl.value) URL.revokeObjectURL(selectedUrl.value)
 })
 
+// The client's own recorded allergies: shown in red, and on every food that
+// may match (same word list the RND's editor uses, utils/foodWarnings.js).
+const myAllergies = ref([])
+function foodAllergies(item) {
+  return allergyWarnings(item.food_name, myAllergies.value)
+}
+
 const completionPct = computed(() => {
   const meals = todaysMeals.value
   if (!meals.length) return 0
@@ -329,7 +343,7 @@ async function saveMealLog() {
     else todaysLogs.value.push(saved)
     resetLogForm() // show the saved photo/note (the watcher only sees a new list)
 
-    fireToast(`${mealTimeLabel(activeMeal.value.meal_time)} log saved & sent to your RND!`)
+    fireToast(`${mealTimeLabel(activeMeal.value.meal_time)} log saved and sent to your RND.`)
   } catch (error) {
     logError.value = error?.data?.detail || 'Could not save this log. Please try again.'
   } finally {
@@ -341,12 +355,14 @@ async function loadMealPlans() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const [mealPlans, logs] = await Promise.all([
+    const [mealPlans, logs, profile] = await Promise.all([
       get('/client/meal-plans/'),
       get(`/client/meal-logs/?date=${todayIso}`),
+      get('/client/profile/').catch(() => null),
     ])
     plans.value = mealPlans
     todaysLogs.value = logs
+    myAllergies.value = profile?.health_profile?.allergies || []
     resetLogForm()
   } catch {
     errorMessage.value = 'Could not load your meal plan. Please try again later.'
@@ -367,71 +383,84 @@ onMounted(loadMealPlans)
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
 .form-error.inline { margin: 14px 0 0; }
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+.placeholder-text { font-size: 0.85rem; color: #6a7a6a; }
 
 .status-pill { font-size: 0.76rem; font-weight: 700; padding: 5px 14px; border-radius: 14px; white-space: nowrap; }
 .pill-green { background: #e3f3ea; color: #1f8f5c; }
-.pill-muted { background: #eceeec; color: #7a8a7a; }
+.pill-muted { background: #eef2ef; color: #4a5a4a; }
 .pill-gold { background: #fbf3dc; color: #a07a10; }
 .pill-red { background: #fbe1de; color: #c0483a; }
 .status-col { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
-.logged-at { font-size: 0.74rem; color: #8a9a8a; }
-.log-hint { font-size: 0.76rem; color: #8a9a8a; margin: 8px 0 0; line-height: 1.5; }
+.logged-at { font-size: 0.76rem; color: #6a7a6a; }
+.log-hint { font-size: 0.78rem; color: #6a7a6a; margin: 8px 0 0; line-height: 1.5; }
 
 /* TARGETS CARD */
-.targets-card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 26px 28px; margin-bottom: 22px; }
+.targets-card { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; padding: 26px 28px; margin-bottom: 22px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .targets-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
 .targets-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; margin: 0 0 5px; }
 .targets-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 .progress-pill { font-size: 0.82rem; font-weight: 700; background: #e3f3ea; color: #1f8f5c; padding: 6px 15px; border-radius: 999px; white-space: nowrap; }
 
-.targets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+/* daily targets: one divided panel */
+.targets-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 22px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
 .other-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 18px; }
-.other-targets-label { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: #9aaa9a; font-weight: 700; }
-.other-target-chip { font-size: 0.8rem; color: #1a3a1a; background: #f2f5f2; border-radius: 14px; padding: 4px 12px; }
-.target-box { background: #f7f9f7; border: 1px solid #eceeec; border-radius: 12px; padding: 18px; }
-.target-label { font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; color: #9aaa9a; font-weight: 700; margin: 0 0 8px; }
+.other-targets-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; }
+.other-target-chip { font-size: 0.8rem; color: #1a3a1a; background: #f2f6f3; border: 1px solid #d9e3dc; border-radius: 14px; padding: 4px 12px; }
+.target-box { padding: 16px 18px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.target-box:first-child { border-left: none; }
+.target-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; margin: 0 0 6px; }
 .target-value { font-family: 'Playfair Display', serif; font-size: 1.65rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .target-value.gold { color: #D4A017; }
 .target-value.green { color: #1f8f5c; }
 .target-value.brown { color: #b8860b; }
 
+/* YOUR ALLERGIES: always red */
+.allergy-panel { display: flex; gap: 10px; align-items: flex-start; background: #fdf1ef; border: 1.5px solid #c0392b; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; color: #8a1f14; }
+.allergy-panel svg { flex-shrink: 0; margin-top: 2px; color: #c0392b; }
+.allergy-panel p { margin: 0; font-size: 0.88rem; line-height: 1.5; }
+
 /* NOTES PANEL */
 .notes-panel { background: #fdf1d6; border-left: 4px solid #D4A017; border-radius: 12px; padding: 20px 24px; margin-bottom: 22px; }
-.notes-title { font-weight: 700; color: #b8860b; font-size: 0.92rem; letter-spacing: 0.03em; margin: 0 0 8px; }
+.notes-title { font-weight: 700; color: #b8860b; font-size: 0.92rem; margin: 0 0 8px; }
 .notes-text { font-size: 0.9rem; color: #5a5240; line-height: 1.6; margin: 0; }
 
 /* MEAL TABS */
 .meal-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
 .meal-tab {
-  display: inline-flex; align-items: center; gap: 7px; border: 1px solid #eceeec; background: #fff;
+  display: inline-flex; align-items: center; gap: 7px; border: 1px solid #d9e3dc; background: #fff; font-family: inherit;
   padding: 10px 18px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: #6a7a6a; cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.meal-tab:hover:not(.active) { background: #f7f9f7; }
-.meal-tab.active { background: #14301a; border-color: #14301a; color: #fff; }
+.meal-tab:hover:not(.active) { background: #f4f7f5; }
+.meal-tab:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.meal-tab.active { background: #0a4a37; border-color: #0a4a37; color: #fff; }
 .tab-status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-green { background-color: #4ade80; }
 .dot-gold { background-color: #D4A017; }
 
 /* MEAL CARD */
-.meal-card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
-.meal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 26px; background: #f2f7f3; }
+.meal-card { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.meal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 26px; background: #f2f7f3; border-bottom: 1px solid #d9e3dc; }
 .meal-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0; }
-.meal-scheduled { font-size: 0.82rem; color: #9aaa9a; margin: 3px 0 0; }
-.today-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; color: #6a7a6a; text-transform: uppercase; margin: 0 0 10px; }
+.meal-scheduled { font-size: 0.82rem; color: #6a7a6a; margin: 3px 0 0; }
+.today-label { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 10px; }
 
 .meal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 22px 26px; }
 .meal-col { min-width: 0; }
-.col-eyebrow { display: block; font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; color: #1e4a26; margin-bottom: 12px; }
-.exchange-summary { display: block; font-size: 0.76rem; color: #9aaa9a; margin: -8px 0 12px; }
+.col-eyebrow { display: block; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin-bottom: 10px; }
+.exchange-summary { display: block; font-size: 0.78rem; color: #6a7a6a; margin: -6px 0 12px; }
 
 .food-item-list { display: flex; flex-direction: column; gap: 10px; }
-.planned-item { display: flex; align-items: center; gap: 12px; background: #f7f9f7; border: 1px solid #eceeec; border-radius: 10px; padding: 13px 16px; }
+.planned-item { display: flex; align-items: center; gap: 12px; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 10px; padding: 13px 16px; }
+/* a food that may contain one of the client's allergens */
+.planned-item.allergen { background: #fdf1ef; border: 1.5px solid #c0392b; }
+.planned-item.allergen .planned-dot { background: #c0392b; }
+.planned-text { min-width: 0; }
+.allergy-tag { display: inline-flex; align-items: center; gap: 4px; margin: 4px 0 0 8px; font-size: 0.74rem; font-weight: 700; color: #fff; background: #c0392b; border-radius: 999px; padding: 2px 8px; }
 .planned-dot { width: 8px; height: 8px; border-radius: 50%; background: #D4A017; flex-shrink: 0; }
 .food-name { font-size: 0.9rem; color: #2a3a2a; font-weight: 600; margin-right: 8px; }
-.food-note { color: #9aaa9a; font-size: 0.78rem; }
-.no-items-note { font-size: 0.83rem; color: #9aaa9a; margin: 0; }
+.food-note { color: #6a7a6a; font-size: 0.8rem; }
+.no-items-note { font-size: 0.83rem; color: #6a7a6a; margin: 0; }
 .meal-note-text { font-size: 0.85rem; color: #4a5a4a; margin: 16px 0 0; line-height: 1.5; }
 .meal-note-text strong { color: #1a3a1a; }
 
@@ -480,23 +509,24 @@ onMounted(loadMealPlans)
 }
 .dropzone-icon { color: #1a5a2a; flex-shrink: 0; }
 .dropzone-text { font-size: 0.85rem; color: #4a5a4a; }
-.field label { display: block; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; color: #9aaa9a; margin-bottom: 7px; }
+.field label { display: block; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; margin-bottom: 6px; }
 
 .notes-field { margin-top: 14px; }
 .notes-field textarea {
-  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #2a2a2a; resize: vertical;
+  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; resize: vertical;
 }
+.notes-field textarea:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 
 .save-log-btn {
-  display: inline-flex; align-items: center; gap: 7px; background: #14301a; color: #fff; border: none;
-  border-radius: 8px; padding: 10px 18px; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-top: 16px;
+  display: inline-flex; align-items: center; gap: 7px; background: #0a4a37; color: #fff; border: none; font-family: inherit;
+  border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 0.85rem; cursor: pointer; margin-top: 16px;
 }
-.save-log-btn:hover { background: #1c421f; }
+.save-log-btn:hover { background: #00382a; }
 .save-log-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .empty-note-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 24px; text-align: center;
-  font-size: 0.85rem; color: #9aaa9a; margin-bottom: 20px;
+  background: #fff; border-radius: 12px; border: 1px solid #d9e3dc; padding: 24px; text-align: center;
+  font-size: 0.85rem; color: #6a7a6a; margin-bottom: 20px;
 }
 
 .info-note {
@@ -506,7 +536,7 @@ onMounted(loadMealPlans)
 .info-note p { font-size: 0.83rem; color: #4a5a4a; margin: 0; line-height: 1.6; }
 
 .empty-state {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  background: #fff; border-radius: 12px; border: 1px solid #d9e3dc;
   padding: 60px 20px; text-align: center;
 }
 .empty-icon {
@@ -514,13 +544,13 @@ onMounted(loadMealPlans)
   display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
-.empty-desc { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
+.empty-desc { font-size: 0.85rem; color: #6a7a6a; margin: 0; }
 
 /* TOAST */
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
   display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
   white-space: nowrap;
 }
 .toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
@@ -528,6 +558,10 @@ onMounted(loadMealPlans)
 
 @media (max-width: 800px) {
   .targets-grid { grid-template-columns: repeat(2, 1fr); }
+  .targets-header { flex-direction: column; gap: 8px; }
+  .targets-card { padding: 20px 18px; }
+  .target-box:nth-child(3) { border-left: none; }
+  .target-box:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
   .meal-body { grid-template-columns: 1fr; }
 }
 </style>

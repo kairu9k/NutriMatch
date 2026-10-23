@@ -20,7 +20,7 @@
         <div class="nm-upnext">
           <template v-if="upNext">
             <div class="nm-upnext-top">
-              <span class="nm-upnext-label">Up next · {{ upNext.when }}</span>
+              <span class="nm-upnext-label">Up next, {{ upNext.when }}</span>
               <span class="nm-upnext-pay" :class="{ unpaid: upNext.pill !== 'Paid' }">{{ upNext.pill }}</span>
             </div>
             <div class="nm-upnext-row">
@@ -50,24 +50,22 @@
 
       <!-- UNPAID INVOICE -->
       <NuxtLink v-if="unpaidInvoices.length" to="/invoices-billing" class="notice-row">
-        <div class="stat-icon icon-gold"><Receipt :size="17" /></div>
+        <Receipt :size="17" class="notice-icon" aria-hidden="true" />
         <span class="notice-text">
-          You have {{ unpaidInvoices.length === 1 ? 'an unpaid invoice' : `${unpaidInvoices.length} unpaid invoices` }}
-          — <strong>₱{{ unpaidTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</strong>
+          You have {{ unpaidInvoices.length === 1 ? 'an unpaid invoice' : `${unpaidInvoices.length} unpaid invoices` }}:
+          <strong>₱{{ unpaidTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</strong>. Pay before your consultation starts.
         </span>
-        <span class="panel-link">Pay now →</span>
+        <span class="panel-link">Pay now</span>
       </NuxtLink>
 
       <!-- HEALTH SNAPSHOT -->
-      <section class="stat-grid">
+      <section class="stat-grid" aria-label="Your health at a glance">
         <div class="stat-card">
-          <div class="stat-top"><div class="stat-icon"><Activity :size="17" /></div></div>
           <p class="stat-value">{{ screening ? Number(screening.bmi).toFixed(1) : '—' }}</p>
-          <p class="stat-label">Current BMI</p>
+          <p class="stat-label">BMI</p>
           <p class="stat-delta" :class="screening ? bmiTone : 'neutral'">{{ screening?.bmi_category ?? 'Not yet screened' }}</p>
         </div>
         <div class="stat-card">
-          <div class="stat-top"><div class="stat-icon icon-gold"><Flame :size="17" /></div></div>
           <p class="stat-value">
             {{ calorieTarget.value ? calorieTarget.value.toLocaleString() : '—' }}
             <span v-if="calorieTarget.value" class="unit">kcal</span>
@@ -76,17 +74,15 @@
           <p class="stat-delta neutral">{{ calorieTarget.note }}</p>
         </div>
         <div class="stat-card">
-          <div class="stat-top"><div class="stat-icon"><ClipboardCheck :size="17" /></div></div>
           <p class="stat-value">{{ screening?.nrs_score ?? '—' }}</p>
-          <p class="stat-label">NRS-2002 Score</p>
+          <p class="stat-label">NRS-2002 score</p>
           <p class="stat-delta" :class="screening ? nrsTone : 'neutral'">{{ screening ? nrsRiskLabel : 'Pending screening' }}</p>
         </div>
         <div class="stat-card">
-          <div class="stat-top"><div class="stat-icon"><CalendarDays :size="17" /></div></div>
           <p class="stat-value">{{ nextAppointment ? formatShortDate(nextAppointment.scheduled_at) : '—' }}</p>
-          <p class="stat-label">Next Appointment</p>
+          <p class="stat-label">Next consultation</p>
           <p v-if="nextAppointment" class="stat-delta" :class="nextAppointment.status === 'pending' ? 'warn' : 'neutral'">
-            {{ formatTime(nextAppointment.scheduled_at) }} · {{ APPT_TYPES[nextAppointment.type] || nextAppointment.type }}{{ nextAppointment.status === 'pending' ? ' · awaiting confirmation' : '' }}
+            {{ formatTime(nextAppointment.scheduled_at) }}, {{ (APPT_TYPES[nextAppointment.type] || nextAppointment.type).toLowerCase() }}{{ nextAppointment.status === 'pending' ? ', waiting for your RND to confirm' : '' }}
           </p>
           <p v-else class="stat-delta neutral">Nothing booked yet</p>
         </div>
@@ -98,10 +94,10 @@
           <div class="panel">
             <div class="panel-header-row">
               <div>
-                <h3 class="panel-title flush">Today's Meal Plan</h3>
-                <p v-if="activePlan" class="panel-sub">{{ weekdayLabel }} · {{ activePlan.name || 'Your meal plan' }}</p>
+                <h3 class="panel-title flush">Today's meal plan</h3>
+                <p v-if="activePlan" class="panel-sub">{{ weekdayLabel }}, {{ activePlan.name || 'your meal plan' }}</p>
               </div>
-              <NuxtLink v-if="activePlan" to="/meal-plan-view" class="panel-link">Log meals →</NuxtLink>
+              <NuxtLink v-if="activePlan" to="/meal-plan-view" class="panel-link">Log meals</NuxtLink>
             </div>
 
             <template v-if="activePlan">
@@ -119,7 +115,7 @@
                   <div class="meal-info">
                     <p class="meal-name">{{ MEAL_LABELS[meal.meal_time] || meal.meal_time }}</p>
                     <p class="meal-detail">
-                      <template v-if="meal.scheduled_time">{{ formatClock(meal.scheduled_time) }} · </template>
+                      <template v-if="meal.scheduled_time">{{ formatClock(meal.scheduled_time) }}, </template>
                       {{ mealFoodsLabel(meal) }}
                     </p>
                   </div>
@@ -151,7 +147,7 @@
           <!-- WEIGHT PROGRESS -->
           <div class="panel">
             <div class="panel-header-row">
-              <h3 class="panel-title flush">Weight Progress (kg)</h3>
+              <h3 class="panel-title flush">Weight progress (kg)</h3>
               <span v-if="weightHistory.length > 1" class="panel-meta">{{ weightDeltaLabel }}</span>
             </div>
             <div v-if="weightHistory.length" class="weight-chart">
@@ -166,21 +162,21 @@
                 </g>
               </svg>
             </div>
-            <p v-else class="empty-note">No weight history yet — this starts from your screening and fills in as you or your RND record your progress.</p>
+            <p v-else class="empty-note">No weight history yet. It starts from your screening and fills in after each consultation.</p>
           </div>
 
           <!-- LATEST SCREENING -->
           <div class="panel">
-            <h3 class="panel-title">Your Screening</h3>
+            <h3 class="panel-title">Your screening</h3>
             <template v-if="screening">
               <p class="screening-summary-text">
-                Recorded {{ formatLongDate(screening.created_at) }} · {{ Number(screening.height_cm) }} cm · {{ Number(screening.weight_kg) }} kg
+                Recorded {{ formatLongDate(screening.created_at) }}, {{ Number(screening.height_cm) }} cm, {{ Number(screening.weight_kg) }} kg
               </p>
-              <button type="button" class="block-btn" @click="screeningOpen = true">View Screening</button>
+              <button type="button" class="block-btn" @click="screeningOpen = true">View screening</button>
             </template>
             <template v-else>
               <p class="screening-summary-text">Your RND needs this before your first consultation. It takes about a minute.</p>
-              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete Screening</NuxtLink>
+              <NuxtLink to="/pre-consultation-screening" class="block-btn">Complete screening</NuxtLink>
             </template>
           </div>
 
@@ -197,7 +193,7 @@
                 <p class="rnd-eyebrow">Your RND</p>
                 <p class="rnd-name">RND {{ careRnd.name }}</p>
                 <p class="rnd-specialty">
-                  {{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}<template v-if="careRnd.reviewCount"> · ★ {{ careRnd.rating }}</template>
+                  {{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}<template v-if="careRnd.reviewCount">, ★ {{ careRnd.rating }}</template>
                 </p>
                 <p v-if="careRnd.pending" class="rnd-pending">Waiting to confirm your first booking</p>
               </div>
@@ -270,8 +266,8 @@
           <!-- RECENT ACTIVITY (real notifications) -->
           <div class="panel">
             <div class="panel-header-row">
-              <h3 class="panel-title flush">Recent Activity</h3>
-              <NuxtLink v-if="notifications.length" to="/notifications" class="panel-link">View all →</NuxtLink>
+              <h3 class="panel-title flush">Recent activity</h3>
+              <NuxtLink v-if="notifications.length" to="/notifications" class="panel-link">View all</NuxtLink>
             </div>
             <div v-for="n in recentActivity" :key="n.id" class="activity-row">
               <span class="activity-dot" :class="{ unread: !n.is_read }"></span>
@@ -280,7 +276,7 @@
                 <p class="activity-time">{{ timeAgo(n.created_at) }}</p>
               </div>
             </div>
-            <p v-if="!recentActivity.length" class="empty-note">Nothing yet — updates about your bookings, meal plans and payments show up here.</p>
+            <p v-if="!recentActivity.length" class="empty-note">Nothing yet. Updates about your bookings, meal plans and payments show up here.</p>
           </div>
 
           
@@ -296,7 +292,7 @@
 import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  Activity, Flame, ClipboardCheck, CalendarDays, Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
+  Receipt, UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -316,9 +312,9 @@ const mealLogs = ref([])
 const invoices = ref([])
 const notifications = ref([])
 
-const APPT_TYPES = { video: 'Video', chat: 'Chat', in_person: 'In-person' }
+const APPT_TYPES = { video: 'Video', chat: 'Chat', in_person: 'In person' }
 const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'bedtime_snack']
-const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch', pm_snack: 'PM Snack', dinner: 'Dinner', bedtime_snack: 'Bedtime Snack' }
+const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'Morning snack', lunch: 'Lunch', pm_snack: 'Afternoon snack', dinner: 'Dinner', bedtime_snack: 'Bedtime snack' }
 const MEAL_ICONS = { breakfast: Sunrise, am_snack: Coffee, lunch: Sun, pm_snack: Coffee, dinner: Moon, bedtime_snack: Moon }
 const LOG_LABELS = { followed: 'Followed', partially_followed: 'Partly followed', not_followed: 'Not followed' }
 
@@ -418,18 +414,18 @@ const nextStep = computed(() => {
   const rndName = careRnd.value ? `RND ${careRnd.value.name}` : 'your RND'
   if (!screening.value) {
     return {
-      eyebrow: 'YOUR NEXT STEP',
+      eyebrow: 'Your next step',
       text: 'Complete your health screening. It takes about a minute and gives your RND your BMI, calorie needs and nutrition risk before you meet.',
-      short: 'Your health screening — about a minute.',
-      action: 'Start Screening', to: '/pre-consultation-screening',
+      short: 'Your health screening. It takes about a minute.',
+      action: 'Start screening', to: '/pre-consultation-screening',
     }
   }
   // Pay before the consultation (unpaid ones are cancelled at the start time).
   if (appt?.status === 'confirmed' && appt.payment?.status === 'unpaid') {
     const amount = Number(appt.payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })
     return {
-      eyebrow: 'PAYMENT DUE',
-      text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} before then to start it — unpaid bookings are cancelled at the start time.`,
+      eyebrow: 'Payment due',
+      text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} before then to start it. Unpaid bookings are cancelled at the start time.`,
       action: `Pay ₱${amount}`, to: '/appointments',
     }
   }
@@ -439,41 +435,41 @@ const nextStep = computed(() => {
     const canJoin = (appt.type === 'video' && appt.video_session_url)
       || (appt.type === 'chat' && appt.payment?.status === 'paid' && Date.now() >= new Date(appt.join_opens_at) && Date.now() <= new Date(appt.join_closes_at))
     return {
-      eyebrow: 'UPCOMING CONSULTATION',
+      eyebrow: 'Upcoming consultation',
       text: `${APPT_TYPES[appt.type] || ''} consultation with ${rndName} on ${when}.`,
-      action: canJoin ? (appt.type === 'chat' ? 'Join Chat' : 'Join Video Call') : 'View Appointment',
+      action: canJoin ? (appt.type === 'chat' ? 'Join chat' : 'Join video call') : 'View appointment',
       to: canJoin ? `/consultation-room/${appt.id}` : '/appointments',
     }
   }
   if (appt?.status === 'pending') {
     return {
-      eyebrow: 'WAITING FOR CONFIRMATION',
+      eyebrow: 'Waiting for your RND',
       text: `Your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} booking is waiting for ${rndName} to confirm. We'll notify you as soon as they do.`,
-      action: 'View Booking', to: '/appointments',
+      action: 'View booking', to: '/appointments',
     }
   }
   // A booking request whose time passed before the RND confirmed it.
   if (!activeRelationship.value && expiredRequest.value) {
     const rnd = expiredRequest.value.relationship?.rnd
     return {
-      eyebrow: 'BOOKING NOT CONFIRMED',
+      eyebrow: 'Booking not confirmed',
       text: `Your ${formatLongDate(expiredRequest.value.scheduled_at)} booking request${rnd ? ` with RND ${rnd.first_name} ${rnd.last_name}` : ''} wasn't confirmed before its time passed. Pick a new time, or choose another RND.`,
       short: 'Your last booking request expired. Pick a new time.',
-      action: 'Book a New Time', to: rnd ? `/rnd-profile-view/${rnd.id}?book=1` : '/find-rnd',
+      action: 'Book a new time', to: rnd ? `/rnd-profile-view/${rnd.id}?book=1` : '/find-rnd',
     }
   }
   if (activeRelationship.value) {
     return {
-      eyebrow: 'STAY ON TRACK',
+      eyebrow: 'Stay on track',
       text: activePlan.value
         ? `You don't have an upcoming consultation with ${rndName}. Keep logging your meals, and book a follow-up when you're ready.`
         : `You don't have an upcoming consultation with ${rndName}. Book one to continue your care.`,
       short: `No consultation booked with ${rndName}.`,
-      action: 'Book a Consultation', to: `/rnd-profile-view/${activeRelationship.value.rnd.id}?book=1`,
+      action: 'Book a consultation', to: `/rnd-profile-view/${activeRelationship.value.rnd.id}?book=1`,
     }
   }
   return {
-    eyebrow: 'YOUR NEXT STEP',
+    eyebrow: 'Your next step',
     text: 'Your screening is done. Find a licensed RND who fits your needs and book your first consultation.',
     short: 'Find an RND and book your first consultation.',
     action: 'Find an RND', to: '/find-rnd',
@@ -481,7 +477,7 @@ const nextStep = computed(() => {
 })
 
 /* ---------- Screening badges ---------- */
-const nrsRiskLabel = computed(() => ({ no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[screening.value?.nrs_risk] || ''))
+const nrsRiskLabel = computed(() => ({ no_risk: 'No risk', at_risk: 'At risk', high_risk: 'High risk' }[screening.value?.nrs_risk] || ''))
 const nrsTone = computed(() => ({ no_risk: 'good', at_risk: 'warn', high_risk: 'bad' }[screening.value?.nrs_risk] || 'neutral'))
 const bmiTone = computed(() => ((screening.value?.bmi_category || '').toLowerCase().includes('normal') ? 'good' : 'warn'))
 
@@ -492,12 +488,12 @@ const activePlan = computed(() => mealPlans.value.find(p => p.status === 'active
 // The RND's target when there's a plan; otherwise the screening's estimate.
 const calorieTarget = computed(() => {
   if (activePlan.value?.target_kcal) {
-    return { value: Math.round(Number(activePlan.value.target_kcal)), label: 'Daily Calorie Target', note: 'Set by your RND in your meal plan' }
+    return { value: Math.round(Number(activePlan.value.target_kcal)), label: 'Daily calorie target', note: 'Set by your RND in your meal plan' }
   }
   if (screening.value?.tdee_kcal) {
-    return { value: Math.round(Number(screening.value.tdee_kcal)), label: 'Estimated Daily Needs (TDEE)', note: 'Your RND will set your actual target' }
+    return { value: Math.round(Number(screening.value.tdee_kcal)), label: 'Estimated daily needs (TDEE)', note: 'Your RND sets your actual target' }
   }
-  return { value: null, label: 'Daily Calorie Target', note: 'Complete your screening first' }
+  return { value: null, label: 'Daily calorie target', note: 'Complete your screening first' }
 })
 const planMacros = computed(() => {
   const p = activePlan.value
@@ -700,29 +696,34 @@ function phClock(iso) {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
-.empty-note { font-size: 0.85rem; color: #9aaa9a; margin: 0; line-height: 1.5; }
+.placeholder-text { font-size: 0.85rem; color: #6a7a6a; }
+.empty-note { font-size: 0.85rem; color: #6a7a6a; margin: 0; line-height: 1.5; }
 .empty-note.spaced { margin-bottom: 16px; }
 
 /* UNPAID INVOICE ROW */
+/* an unpaid invoice is something still to do: dashed green */
 .notice-row {
-  display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #eceeec;
-  border-radius: 14px; padding: 14px 20px; margin: -8px 0 20px; text-decoration: none; color: #4a5a4a;
+  display: flex; align-items: center; gap: 12px; background: #fff; border: 1.5px dashed #3f9a6b;
+  border-radius: 12px; padding: 12px 18px; margin: -8px 0 20px; text-decoration: none; color: #1f4a30;
 }
-.notice-row .stat-icon { flex-shrink: 0; }
+.notice-icon { flex-shrink: 0; color: #3f9a6b; }
+.notice-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .notice-text { flex: 1; font-size: 0.85rem; }
 .notice-text strong { color: #1a3a1a; }
 
 /* STAT CARDS */
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #eceeec; min-width: 0; }
-.stat-top { margin-bottom: 12px; }
-.stat-icon { width: 34px; height: 34px; border-radius: 9px; background: #eef3ec; display: flex; align-items: center; justify-content: center; color: #1e4a26; }
-.stat-icon.icon-gold { background: #fdf1d6; color: #b8860b; }
-.stat-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.stat-label { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 8px; }
+/* health figures: one divided panel, like the RND dashboard */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 20px; background: #fff;
+  border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
+}
+.stat-card { padding: 18px 20px; min-width: 0; border-left: 1px solid #d9e3dc; }
+.stat-card:first-child { border-left: none; }
+.stat-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; margin: 0; font-variant-numeric: lining-nums; }
+.stat-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; margin: 2px 0 6px; }
 .stat-delta { font-size: 0.75rem; margin: 0; line-height: 1.4; }
-.stat-delta.neutral { color: #8a9a8a; }
+.stat-delta.neutral { color: #6a7a6a; }
 .stat-delta.good { color: #1f8f5c; font-weight: 600; }
 .stat-delta.warn { color: #b8860b; font-weight: 600; }
 .stat-delta.bad { color: #c0392b; font-weight: 600; }
@@ -730,17 +731,17 @@ function phClock(iso) {
 /* GRID + PANELS */
 .dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
 .dash-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; }
-.today-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f0; text-decoration: none; color: inherit; }
+.panel { background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 22px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.today-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #d9e3dc; text-decoration: none; color: inherit; }
 .panel-header-row + .today-row { margin-top: 12px; border-top: none; }
 .today-row.done { opacity: 0.55; }
 .today-row.done .today-title { text-decoration: line-through; }
 .today-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
 .today-icon.k-reminder { background: #fdf1d6; color: #b8860b; }
-.today-icon.k-appointment { background: #e3edf7; color: #2f6fa8; }
+.today-icon.k-appointment { background: #e3efe7; color: #1e4a26; }
 .today-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .today-title { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
-.today-detail { font-size: 0.72rem; color: #8a9a8a; }
+.today-detail { font-size: 0.76rem; color: #6a7a6a; }
 .today-time { font-size: 0.76rem; font-weight: 700; color: #4a5a4a; white-space: nowrap; }
 .today-row.task { cursor: pointer; }
 .task-check { width: 20px; height: 20px; margin: 0 5px; flex-shrink: 0; accent-color: #1f8f5c; cursor: pointer; }
@@ -750,7 +751,7 @@ function phClock(iso) {
 .task-x { border: none; background: none; color: #9aaa9a; cursor: pointer; padding: 2px; display: flex; }
 .task-x:hover { color: #c0392b; }
 .as-btn { background: none; border: none; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 3px; padding: 0; }
-.add-task { display: flex; flex-direction: column; gap: 8px; background: #f7f9f7; border: 1px solid #eceeec; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.add-task { display: flex; flex-direction: column; gap: 8px; background: #f4f8f5; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
 .add-task .nm-input { min-height: 40px; }
 .add-task-row { display: flex; gap: 8px; }
 .add-task-row .nm-input { flex: 1; min-width: 0; }
@@ -758,9 +759,9 @@ function phClock(iso) {
 .add-error { font-size: 0.74rem; color: #a12525; margin: 0; }
 .panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
 .panel-title.flush { margin: 0; }
-.panel-sub { font-size: 0.78rem; color: #8a9a8a; margin: 3px 0 0; }
+.panel-sub { font-size: 0.8rem; color: #6a7a6a; margin: 3px 0 0; }
 .panel-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.panel-link { font-size: 0.78rem; color: #1f8f5c; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.panel-link { font-size: 0.8rem; color: #0a4a37; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .panel-link:hover { text-decoration: underline; }
 .panel-meta { font-size: 0.78rem; color: #6a7a6a; font-weight: 600; white-space: nowrap; }
 
@@ -768,38 +769,39 @@ function phClock(iso) {
 .status-pill { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
 .pill-green { background: #e3f3ea; color: #1f8f5c; }
 .pill-gold { background: #fdf1d6; color: #b8860b; }
-.pill-muted { background: #eceeec; color: #8a9a8a; }
+.pill-muted { background: #eef2ef; color: #4a5a4a; }
 .badge-danger { background: #fdecec; color: #a12525; }
 
 /* BUTTON — the RND dashboard's outlined block button */
 .block-btn {
-  display: block; width: 100%; text-align: center; background: #fff; border: 1px solid #1a3a1a; color: #1a3a1a;
-  border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.85rem; font-family: inherit; cursor: pointer; text-decoration: none;
+  display: block; width: 100%; text-align: center; background: #fff; border: 1px solid #0a4a37; color: #0a4a37;
+  border-radius: 8px; padding: 10px; font-weight: 600; font-size: 0.85rem; font-family: inherit; cursor: pointer; text-decoration: none;
 }
-.block-btn:hover { background: #f7f9f7; }
+.block-btn:hover { background: #f4f7f5; }
+.block-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .btn-row { display: flex; gap: 10px; }
 
 /* TODAY'S MEAL PLAN */
 .macro-strip {
   display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline;
-  background: #f7f9f7; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #4a5a4a;
+  background: #f4f8f5; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #4a5a4a;
 }
 .macro-strip strong { color: #1a3a1a; }
-.macro-source { font-size: 0.72rem; color: #9aaa9a; margin-left: auto; }
+.macro-source { font-size: 0.76rem; color: #6a7a6a; margin-left: auto; }
 .meal-list { list-style: none; margin: 0; padding: 0; }
-.meal-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #f0f2f0; }
+.meal-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #d9e3dc; }
 .meal-row:first-child { border-top: none; padding-top: 0; }
 .meal-icon { width: 32px; height: 32px; border-radius: 9px; background: #eef3ec; color: #1e4a26; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .meal-info { flex: 1; min-width: 0; }
 .meal-name { font-size: 0.87rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.meal-detail { font-size: 0.76rem; color: #8a9a8a; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.adherence-row { display: grid; grid-template-columns: auto 1fr; gap: 18px; border-top: 1px solid #f0f2f0; margin-top: 12px; padding-top: 14px; }
+.meal-detail { font-size: 0.78rem; color: #6a7a6a; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adherence-row { display: grid; grid-template-columns: auto 1fr; gap: 18px; border-top: 1px solid #d9e3dc; margin-top: 12px; padding-top: 14px; }
 .adherence-item { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .adherence-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.adherence-label { font-size: 0.76rem; color: #8a9a8a; margin: 0; }
-.empty-state { text-align: center; padding: 18px 10px; color: #9aaa9a; font-size: 0.85rem; }
+.adherence-label { font-size: 0.78rem; color: #6a7a6a; margin: 0; }
+.empty-state { text-align: center; padding: 18px 10px; color: #6a7a6a; font-size: 0.85rem; }
 .empty-state p { margin: 0; }
-.empty-icon { color: #c5d0c5; margin-bottom: 8px; }
+.empty-icon { color: #9ec4ad; margin-bottom: 8px; }
 .empty-sub { font-size: 0.78rem; margin-top: 4px !important; line-height: 1.5; }
 
 /* WEIGHT CHART */
@@ -811,7 +813,7 @@ function phClock(iso) {
 .rnd-avatar-img { object-fit: cover; }
 .rnd-text { min-width: 0; }
 .rnd-name { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.rnd-specialty { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
+.rnd-specialty { font-size: 0.8rem; color: #6a7a6a; margin: 2px 0 0; }
 .rnd-rating { font-size: 0.78rem; color: #b8860b; font-weight: 600; margin: 2px 0 0; }
 .rnd-pending { font-size: 0.76rem; color: #b8860b; margin: 4px 0 0; }
 /* Compact "Your RND" card at the top of the right column. */
@@ -819,30 +821,32 @@ function phClock(iso) {
 .rnd-compact .rnd-avatar { width: 44px; height: 44px; font-size: 0.85rem; }
 .rnd-compact .rnd-text { flex: 1; min-width: 0; }
 .rnd-compact .rnd-name { overflow-wrap: anywhere; }
-.rnd-eyebrow { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8860b; margin: 0 0 1px; }
+.rnd-eyebrow { font-size: 0.76rem; font-weight: 600; color: #4a5a4a; margin: 0 0 1px; }
 .rnd-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.icon-action { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #dde3dd; display: flex; align-items: center; justify-content: center; color: #1a3a1a; text-decoration: none; }
-.icon-action:hover { background: #f4f8f4; border-color: #b9d3be; }
+.icon-action { width: 36px; height: 36px; border-radius: 10px; border: 1px solid #d9e3dc; display: flex; align-items: center; justify-content: center; color: #1a3a1a; text-decoration: none; }
+.icon-action:hover { background: #f4f7f5; border-color: #9ec4ad; }
+.icon-action:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 /* LATEST SCREENING */
 .screening-summary-text { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 16px; line-height: 1.5; }
 
 /* RECENT ACTIVITY */
-.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f0; }
+.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #d9e3dc; }
 .activity-row:first-of-type { border-top: none; padding-top: 0; }
 .activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; background: #c5d0c5; }
 .activity-dot.unread { background: #D4A017; }
 .activity-text { min-width: 0; }
 .activity-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
-.activity-time { font-size: 0.72rem; color: #9aaa9a; margin: 2px 0 0; }
+.activity-time { font-size: 0.76rem; color: #6a7a6a; margin: 2px 0 0; }
 
 @media (max-width: 1100px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-card:nth-child(3) { border-left: none; }
+  .stat-card:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
   .dash-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .stat-grid { gap: 12px; }
-  .stat-card { padding: 16px; }
+  .stat-card { padding: 14px 16px; }
   .stat-value { font-size: 1.35rem; }
   .panel { padding: 18px 16px; }
   .adherence-row { grid-template-columns: 1fr; gap: 8px; }

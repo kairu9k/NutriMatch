@@ -22,6 +22,14 @@ MEAL_WINDOW = timedelta(hours=2)    # remind during the 2 hours after a planned 
 STALE_AFTER = timedelta(days=1)     # an RND reminder this overdue is skipped, not sent late
 
 
+
+# Plain words for a meal in reminder text ("Log your morning snack", not "am snack").
+MEAL_WORDS = {"am_snack": "morning snack", "pm_snack": "afternoon snack", "bedtime_snack": "bedtime snack"}
+
+
+def meal_words(meal_time):
+    return MEAL_WORDS.get(meal_time, meal_time.replace("_", " "))
+
 def ph_tz():
     from scheduling.serializers import PH_TZ
 
@@ -217,11 +225,11 @@ def run_due_reminders(now=None, client=None):
         c = meal.meal_plan.relationship.client
         if not pref_for(c).meal_logging:
             continue
-        label = meal.get_meal_time_display()
-        content = f"Time for {label.lower()}! Log what you ate so your RND can follow your progress."
-        if _claim(f"meal:{meal.id}:{today.isoformat()}", client=c, title=f"Log your {label.lower()}", message=content,
+        label = meal_words(meal.meal_time)
+        content = f"Time for {label}! Log what you ate so your RND can follow your progress."
+        if _claim(f"meal:{meal.id}:{today.isoformat()}", client=c, title=f"Log your {label}", message=content,
                   type=Reminder.Type.MEAL_LOG, send_at=at):
-            _deliver(c, pref_for(c), subject=f"Log your {label.lower()}", content=content, notifiable_type="meal_plan",
+            _deliver(c, pref_for(c), subject=f"Log your {label}", content=content, notifiable_type="meal_plan",
                      notifiable_id=meal.meal_plan_id, link="/meal-plan-view", link_label="Log my meal")
             sent += 1
 
@@ -320,7 +328,7 @@ def today_items(client, now=None):
     logged = set(MealLog.objects.filter(log_date=today, meal_plan_meal__in=meals).values_list("meal_plan_meal_id", flat=True))
     for m in meals:
         items.append({"kind": "meal", "at": datetime.combine(today, m.scheduled_time, tzinfo=ph),
-                      "title": f"Log your {m.get_meal_time_display().lower()}", "detail": "Logged" if m.id in logged else "",
+                      "title": f"Log your {meal_words(m.meal_time)}", "detail": "Logged" if m.id in logged else "",
                       "done": m.id in logged, "link": "/meal-plan-view"})
 
     # Tasks (RND-set or the client's own) due today — still to come, or already
