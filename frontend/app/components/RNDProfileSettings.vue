@@ -5,8 +5,8 @@
         <p class="page-sub">Manage your professional profile, credentials, and preferences.</p>
       </div>
       <span v-if="personalInfo.prcVerified" class="verified-pill">
-        <BadgeCheck :size="14" />
-        PRC Verified
+        <BadgeCheck :size="14" aria-hidden="true" />
+        PRC verified
       </span>
     </div>
 
@@ -34,12 +34,12 @@
           <ProfileIdentityHeader :name="identityName" :subtitle="identitySubtitle" @photo-changed="fireToast">
             <template #actions>
               <button v-if="!isEditing" class="btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
-                <Pencil :size="15" /> Edit Profile
+                <Pencil :size="15" /> Edit profile
               </button>
               <template v-else>
                 <button class="outline-btn" type="button" :disabled="isSavingProfile" @click="cancelEdit">Cancel</button>
                 <button class="btn-dark" type="button" :disabled="isSavingProfile" @click="saveChanges">
-                  <Check :size="15" /> {{ isSavingProfile ? 'Saving…' : 'Save Changes' }}
+                  <Check :size="15" /> {{ isSavingProfile ? 'Saving…' : 'Save changes' }}
                 </button>
               </template>
             </template>
@@ -48,48 +48,48 @@
           <!-- READ-ONLY VIEW -->
           <template v-if="!isEditing">
             <dl class="info-grid">
-              <div class="info-item"><dt>First Name</dt><dd>{{ personalInfo.firstName || '—' }}</dd></div>
-              <div class="info-item"><dt>Last Name</dt><dd>{{ personalInfo.lastName || '—' }}</dd></div>
-              <div class="info-item"><dt>Email Address</dt><dd>{{ personalInfo.email || '—' }}</dd></div>
-              <div class="info-item"><dt>Mobile Number</dt><dd :class="{ muted: !personalInfo.phone }">{{ formatPhone(personalInfo.phone) || 'Not provided' }}</dd></div>
+              <div class="info-item"><dt>First name</dt><dd :class="{ muted: !personalInfo.firstName }">{{ personalInfo.firstName || 'Not provided' }}</dd></div>
+              <div class="info-item"><dt>Last name</dt><dd :class="{ muted: !personalInfo.lastName }">{{ personalInfo.lastName || 'Not provided' }}</dd></div>
+              <div class="info-item"><dt>Email address</dt><dd>{{ personalInfo.email }}</dd></div>
+              <div class="info-item"><dt>Mobile number</dt><dd :class="{ muted: !personalInfo.phone }">{{ formatPhone(personalInfo.phone) || 'Not provided' }}</dd></div>
             </dl>
           </template>
 
           <!-- EDIT FORM -->
           <div v-else class="form-grid">
             <div class="field">
-              <label class="field-label" for="rp-first">First Name</label>
+              <label class="field-label" for="rp-first">First name</label>
               <input id="rp-first" v-model="personalInfo.firstName" type="text" class="field-input" :class="{ invalid: fieldErrors.firstName }" maxlength="150" />
               <p v-if="fieldErrors.firstName" class="field-error">{{ fieldErrors.firstName }}</p>
             </div>
             <div class="field">
-              <label class="field-label" for="rp-last">Last Name</label>
+              <label class="field-label" for="rp-last">Last name</label>
               <input id="rp-last" v-model="personalInfo.lastName" type="text" class="field-input" :class="{ invalid: fieldErrors.lastName }" maxlength="150" />
               <p v-if="fieldErrors.lastName" class="field-error">{{ fieldErrors.lastName }}</p>
             </div>
             <div class="field">
-              <label class="field-label">Email Address</label>
+              <label class="field-label">Email address</label>
               <input :value="personalInfo.email" type="email" class="field-input" disabled />
               <p class="field-hint">Email can't be changed here.</p>
             </div>
             <div class="field">
-              <label class="field-label" for="rp-phone">Mobile Number</label>
+              <label class="field-label" for="rp-phone">Mobile number</label>
               <PhoneInput id="rp-phone" v-model="personalInfo.phone" label="mobile number" rnd :error="fieldErrors.phone" />
-              <p v-if="!fieldErrors.phone" class="field-hint">Required — a Philippine mobile number. Not shown to clients.</p>
+              <p v-if="!fieldErrors.phone" class="field-hint">Required. A Philippine mobile number, never shown to clients.</p>
             </div>
           </div>
 
           <!-- PRC LICENSE — always read-only: set at registration, checked by the admin -->
           <div class="prc-section">
             <div class="prc-header">
-              <span class="field-label prc-title"><Lock :size="13" /> PRC License</span>
+              <span class="field-label prc-title"><Lock :size="13" aria-hidden="true" /> PRC license</span>
               <span class="prc-status" :class="personalInfo.prcVerified ? 'prc-verified' : 'prc-pending'">
-                {{ personalInfo.prcVerified ? 'Verified' : 'Pending admin verification' }}
+                {{ personalInfo.prcVerified ? 'Verified' : 'Waiting for the admin to check' }}
               </span>
             </div>
             <dl class="info-grid">
-              <div class="info-item"><dt>PRC License Number</dt><dd :class="{ muted: !personalInfo.prcNumber }">{{ personalInfo.prcNumber || 'Not provided' }}</dd></div>
-              <div class="info-item"><dt>Verified On</dt><dd :class="{ muted: !personalInfo.prcVerifiedOn }">{{ personalInfo.prcVerifiedOn || 'Not yet verified' }}</dd></div>
+              <div class="info-item"><dt>License number</dt><dd :class="{ muted: !personalInfo.prcNumber }">{{ personalInfo.prcNumber || 'Not provided' }}</dd></div>
+              <div class="info-item"><dt>Verified on</dt><dd :class="{ muted: !personalInfo.prcVerifiedOn }">{{ personalInfo.prcVerifiedOn || 'Not yet verified' }}</dd></div>
               <div class="info-item"><dt>Specialization</dt><dd :class="{ muted: !personalInfo.specialization }">{{ personalInfo.specialization || 'Not set' }}</dd></div>
             </dl>
             <a v-if="personalInfo.prcPhotoUrl" :href="personalInfo.prcPhotoUrl" target="_blank" rel="noopener" class="prc-photo-link">
@@ -103,7 +103,7 @@
               <p class="newclients-label">Taking new clients</p>
               <p class="field-hint">{{ personalInfo.acceptingNewClients
                 ? 'New clients can find and book you. Turn it off when your schedule is full.'
-                : 'Hidden from new clients on Find an RND — your current patients can still book you.' }}</p>
+                : 'Hidden from new clients on Find an RND. Your current patients can still book you.' }}</p>
             </div>
             <label class="toggle">
               <input type="checkbox" :checked="personalInfo.acceptingNewClients" :disabled="savingNewClients" aria-label="Taking new clients" @change="toggleNewClients($event.target.checked)" />
@@ -114,17 +114,17 @@
           <!-- READ-ONLY: bio / fee / formats -->
           <dl v-if="!isEditing" class="info-stack">
             <div class="info-item">
-              <dt>Professional Bio</dt>
+              <dt>Professional bio</dt>
               <dd :class="{ muted: !personalInfo.bio }" class="bio-text">{{ personalInfo.bio || 'Not provided' }}</dd>
             </div>
             <div class="info-item">
-              <dt>Consultation Fee</dt>
+              <dt>Consultation fee</dt>
               <dd :class="{ muted: personalInfo.consultationFee === '' }">
                 {{ personalInfo.consultationFee === '' ? 'Not set' : `₱${Number(personalInfo.consultationFee).toLocaleString()} per session` }}
               </dd>
             </div>
             <div class="info-item">
-              <dt>Consultation Formats</dt>
+              <dt>Consultation formats</dt>
               <dd>
                 <span v-if="!personalInfo.consultationModes.length" class="muted">None offered</span>
                 <span v-for="m in MODE_OPTIONS.filter(o => personalInfo.consultationModes.includes(o.value))" :key="m.value" class="mode-chip">
@@ -133,9 +133,9 @@
               </dd>
             </div>
             <div v-if="personalInfo.consultationModes.includes('in_person')" class="info-item">
-              <dt>Clinic Address</dt>
+              <dt>Clinic address</dt>
               <dd :class="{ muted: !personalInfo.clinicAddress }">
-                {{ personalInfo.clinicAddress || 'Not added yet — clients can\'t book in-person consultations until you add it.' }}
+                {{ personalInfo.clinicAddress || 'Not added yet. Clients can\'t book in-person consultations until you add it.' }}
               </dd>
             </div>
           </dl>
@@ -143,7 +143,7 @@
           <template v-else>
             <div class="field field-bio">
               <div class="bio-label-row">
-                <label class="field-label" for="rp-bio">Professional Bio</label>
+                <label class="field-label" for="rp-bio">Professional bio</label>
                 <span class="bio-count" :class="{ 'bio-count-warn': personalInfo.bio.length > 500 }">{{ personalInfo.bio.length }}/500</span>
               </div>
               <textarea
@@ -158,7 +158,7 @@
             </div>
 
             <div class="field field-bio fee-field">
-              <label class="field-label" for="rp-fee">Consultation Fee</label>
+              <label class="field-label" for="rp-fee">Consultation fee</label>
               <div class="fee-input-wrap">
                 <span class="fee-prefix">₱</span>
                 <input id="rp-fee" v-model="personalInfo.consultationFee" type="number" min="100" step="50" class="field-input fee-input" placeholder="e.g. 750" />
@@ -168,7 +168,7 @@
             </div>
 
             <div class="field field-bio">
-              <label class="field-label">Consultation Formats</label>
+              <label class="field-label">Consultation formats</label>
               <div class="mode-options">
                 <label v-for="m in MODE_OPTIONS" :key="m.value" class="mode-option" :class="{ checked: personalInfo.consultationModes.includes(m.value) }">
                   <input v-model="personalInfo.consultationModes" type="checkbox" :value="m.value" />
@@ -179,11 +179,11 @@
             </div>
 
             <div v-if="personalInfo.consultationModes.includes('in_person')" class="field field-bio">
-              <label class="field-label" for="rp-address">Clinic Address</label>
+              <label class="field-label" for="rp-address">Clinic address</label>
               <input id="rp-address" v-model="personalInfo.clinicAddress" type="text" class="field-input" :class="{ invalid: fieldErrors.clinicAddress }"
                 maxlength="255" placeholder="e.g. 2F Bajada Medical Bldg, J.P. Laurel Ave, Bajada, Davao City" />
               <p v-if="fieldErrors.clinicAddress" class="field-error">{{ fieldErrors.clinicAddress }}</p>
-              <p v-else class="field-hint">Where clients go for in-person consultations — shown on your profile.</p>
+              <p v-else class="field-hint">Where clients go for in-person consultations. It's shown on your profile.</p>
             </div>
           </template>
 
@@ -224,7 +224,7 @@
 
           <div class="language-add-row">
             <select v-model="newLanguage" class="nm-select language-select">
-              <option value="">Add a language...</option>
+              <option value="">Pick a language</option>
               <option v-for="opt in availableLanguageOptions" :key="opt.code" :value="opt.code">{{ opt.name }}</option>
             </select>
             <button class="save-btn" type="button" :disabled="!newLanguage" @click="addLanguage">Add</button>
@@ -276,7 +276,7 @@
             <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
             <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
             <div class="pw-actions">
-              <button type="submit" class="save-btn" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change Password' }}</button>
+              <button type="submit" class="save-btn" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change password' }}</button>
               <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
             </div>
             <p class="field-hint">We'll email you to confirm the change.</p>
@@ -287,7 +287,7 @@
         <template v-else-if="activeTab === 'reviews'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Patient Reviews</h3>
+              <h3 class="tab-panel-title">Reviews</h3>
               <p class="tab-panel-sub">What your patients say after their consultations.</p>
             </div>
           </div>
@@ -298,7 +298,7 @@
         <template v-else-if="activeTab === 'history'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Your Activity</h3>
+              <h3 class="tab-panel-title">Your activity</h3>
               <p class="tab-panel-sub">Your consultations, NCP records, meal plans, patients, reviews and payouts.</p>
             </div>
             <button class="outline-btn print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
@@ -317,7 +317,7 @@
           </div>
           <template v-else>
             <NuxtLink v-for="entry in filteredHistory" :key="entry.key" :to="entry.link" class="entry-row">
-              <div class="entry-icon" :class="HISTORY_KINDS[entry.type]?.cls"><component :is="HISTORY_KINDS[entry.type]?.icon || ClipboardList" :size="16" /></div>
+              <div class="entry-icon" aria-hidden="true"><component :is="HISTORY_KINDS[entry.type]?.icon || ClipboardList" :size="16" /></div>
               <div class="entry-info">
                 <p class="entry-title">{{ entry.title }}</p>
                 <p v-if="entry.detail" class="entry-detail">{{ entry.detail }}</p>
@@ -357,7 +357,7 @@ const { get, patch, post, put } = useApi()
 definePageMeta({ layout: 'dashboard', title: 'Profile Settings' })
 
 const tabs = [
-  { key: 'professional', label: 'Professional Profile', icon: Briefcase },
+  { key: 'professional', label: 'Professional profile', icon: Briefcase },
   { key: 'availability', label: 'Availability', icon: CalendarClock },
   { key: 'languages', label: 'Languages', icon: Languages },
   { key: 'notifications', label: 'Notifications', icon: Bell },
@@ -379,12 +379,12 @@ const auth = useAuthStore()
 
 const MODE_OPTIONS = [
   { value: 'video', label: 'Video', icon: Video },
-  { value: 'in_person', label: 'In-Person', icon: Users },
+  { value: 'in_person', label: 'In person', icon: Users },
 ]
 
 const personalInfo = ref({
   firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
-  consultationModes: [], clinicAddress: '', initials: '', avatarColor: '#D4A017',
+  consultationModes: [], clinicAddress: '', initials: '', avatarColor: '#1e4a26',
   prcVerified: false, prcNumber: '', prcVerifiedOn: '', prcPhotoUrl: '',
   specialization: '', acceptingNewClients: true,
 })
@@ -401,7 +401,7 @@ const identitySubtitle = computed(() => {
   const since = auth.user?.created_at
     ? new Date(auth.user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : ''
-  return [personalInfo.value.email, since && `Member since ${since}`].filter(Boolean).join(' · ')
+  return [personalInfo.value.email, since && `Member since ${since}`].filter(Boolean).join(', ')
 })
 
 function startEdit() {
@@ -417,9 +417,9 @@ function cancelEdit() {
 }
 
 const toastVisible = ref(false)
-const toastMessage = ref('Profile updated!')
+const toastMessage = ref('Profile saved')
 let toastTimer = null
-function fireToast(message = 'Profile updated!') {
+function fireToast(message = 'Profile saved') {
   toastMessage.value = message
   toastVisible.value = true
   clearTimeout(toastTimer)
@@ -497,7 +497,7 @@ function addLanguage() {
 }
 function removeLanguage(lang) {
   if (languages.value.length === 1) {
-    languageError.value = 'Keep at least one language — clients filter RNDs by language.'
+    languageError.value = 'Keep at least one language. Clients filter RNDs by language.'
     return
   }
   saveLanguages(languages.value.filter(l => l.code !== lang.code).map(l => l.code))
@@ -522,8 +522,8 @@ async function saveChanges() {
   }
   const address = (personalInfo.value.clinicAddress || '').trim()
   if (personalInfo.value.consultationModes.includes('in_person')) {
-    if (!address) fieldErrors.clinicAddress = 'Add your clinic address — clients need to know where to go.'
-    else if (address.length < 10) fieldErrors.clinicAddress = 'Enter the full address — building, street, barangay and city.'
+    if (!address) fieldErrors.clinicAddress = 'Add your clinic address so clients know where to go.'
+    else if (address.length < 10) fieldErrors.clinicAddress = 'Enter the full address: building, street, barangay and city.'
     if (fieldErrors.clinicAddress) return
   }
   const fee = personalInfo.value.consultationFee
@@ -567,18 +567,18 @@ async function saveChanges() {
 
 /* ---------- HISTORY ---------- */
 const HISTORY_KINDS = {
-  consultation: { icon: CalendarCheck, cls: 'icon-gold' },
-  ncp: { icon: FileText, cls: 'icon-blue' },
-  meal_plan: { icon: UtensilsCrossed, cls: 'icon-green' },
-  patient: { icon: UserRound, cls: 'icon-blue' },
-  review: { icon: Star, cls: 'icon-gold' },
-  payout: { icon: Wallet, cls: 'icon-green' },
+  consultation: { icon: CalendarCheck },
+  ncp: { icon: FileText },
+  meal_plan: { icon: UtensilsCrossed },
+  patient: { icon: UserRound },
+  review: { icon: Star },
+  payout: { icon: Wallet },
 }
 const HISTORY_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'consultation', label: 'Consultations' },
-  { key: 'ncp', label: 'NCP Records' },
-  { key: 'meal_plan', label: 'Meal Plans' },
+  { key: 'ncp', label: 'NCP records' },
+  { key: 'meal_plan', label: 'Meal plans' },
   { key: 'patient', label: 'Patients' },
   { key: 'review', label: 'Reviews' },
   { key: 'payout', label: 'Payouts' },
@@ -650,7 +650,7 @@ async function changePassword() {
     await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
     Object.assign(pw, { current: '', next: '', confirm: '' })
     showPw.value = false
-    fireToast('Password changed — we emailed you a confirmation.')
+    fireToast('Password changed. We emailed you a confirmation.')
   } catch (e) {
     const d = e?.data || {}
     const out = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
@@ -686,55 +686,59 @@ onMounted(showActiveTab)
 
 .verified-pill {
   display: inline-flex; align-items: center; gap: 6px;
-  background: #e6efe0; color: #3a6b3a; font-size: 0.78rem; font-weight: 700;
-  padding: 7px 14px; border-radius: 20px; white-space: nowrap;
+  background: #e3efe7; color: #1e4a26; font-size: 0.8rem; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap;
 }
 
 /* LAYOUT */
 .profile-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
 
 .tab-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
-  padding: 10px; display: flex; flex-direction: column; gap: 2px;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc;
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
+  padding: 8px; display: flex; flex-direction: column; gap: 2px;
 }
 .tab-item {
   display: flex; align-items: center; gap: 10px; text-align: left;
   border: none; background: none; border-radius: 8px; padding: 12px 14px;
   font-size: 0.88rem; font-weight: 600; color: #4a5a4a; cursor: pointer;
 }
-.tab-item.active { background: #eef3ec; color: #1a3a1a; }
+.tab-item:hover { background: #f4f7f5; }
+.tab-item.active { background: #e3efe7; color: #0a4a37; }
+.tab-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
 
 .panel-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 28px;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 28px;
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
 }
 
 /* Buttons + read-only view — same as ClientProfileSettings.vue. */
 .btn-dark {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  background: #163a1c; color: #fff; border: none;
+  background: #0a4a37; color: #fff; border: none;
   padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
   white-space: nowrap; font-family: inherit;
 }
-.btn-dark:hover:not(:disabled) { background: #0f2a14; }
+.btn-dark:hover:not(:disabled) { background: #00382a; }
 .btn-dark:disabled { opacity: 0.5; cursor: not-allowed; }
 .outline-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0;
-  border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px;
+  border: 1px solid #d9e3dc; background: #fff; color: #1a3a1a; border-radius: 8px;
   padding: 9px 16px; font-weight: 600; font-size: 0.82rem; cursor: pointer; white-space: nowrap; font-family: inherit;
 }
-.outline-btn:hover:not(:disabled) { background: #f7f9f7; }
+.outline-btn:hover:not(:disabled) { background: #f4f7f5; }
 .outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin: 0 0 24px; }
 .info-stack { margin: 0 0 8px; }
-.info-item { padding: 14px 0; border-top: 1px solid #f0f2f0; min-width: 0; }
+.info-item { padding: 14px 0; border-top: 1px solid #d9e3dc; min-width: 0; }
 .info-grid .info-item:nth-child(-n + 2), .info-stack .info-item:first-child { border-top: none; padding-top: 0; }
-.info-item dt { font-size: 0.76rem; font-weight: 600; color: #8a9a8a; margin: 0 0 4px; }
+.info-item dt { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; margin: 0 0 4px; }
 .info-item dd { font-size: 0.92rem; font-weight: 500; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
-.info-item dd.muted, .info-item .muted { color: #aab5aa; font-weight: 400; }
+.info-item dd.muted, .info-item .muted { color: #8a9a8a; font-weight: 400; }
 .bio-text { white-space: pre-line; line-height: 1.55; font-weight: 400 !important; }
 .mode-chip {
   display: inline-flex; align-items: center; gap: 6px; margin: 2px 8px 2px 0;
-  background: #f0f9f4; border: 1px solid #cfe8da; color: #1a3a1a; border-radius: 999px;
+  background: #e3efe7; border: none; color: #1e4a26; border-radius: 999px;
   padding: 5px 12px; font-size: 0.8rem; font-weight: 600;
 }
 .field-error { font-size: 0.76rem; color: #c0392b; margin: 4px 0 0; }
@@ -744,7 +748,7 @@ onMounted(showActiveTab)
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
   display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
   white-space: nowrap;
 }
 .toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
@@ -756,10 +760,10 @@ onMounted(showActiveTab)
 .field-label { display: block; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; margin: 0 0 8px; }
 .optional { font-weight: 400; color: #9aaa9a; }
 .field-input {
-  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 12px 14px;
-  font-size: 0.88rem; color: #2a2a2a; font-family: inherit;
+  width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 12px 14px;
+  font-size: 0.88rem; color: #1a3a1a; font-family: inherit; background: #fff;
 }
-.field-input:focus { outline: none; border-color: #D4A017; }
+.field-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 
 .field-bio { margin-bottom: 24px; }
 .bio-label-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
@@ -767,45 +771,46 @@ onMounted(showActiveTab)
 .bio-count { font-size: 0.74rem; color: #9aaa9a; }
 .bio-count-warn { color: #c0483a; font-weight: 600; }
 .bio-textarea { resize: vertical; min-height: 90px; line-height: 1.55; font-family: inherit; }
-.field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
+.field-hint { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; margin: 6px 0 0; }
 .field-input:disabled { background: #f4f5f3; color: #8a9a8a; }
 
-.prc-section { border: 1px solid #e5e8e5; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; background: #fafbfa; }
+.prc-section { border: 1px solid #d9e3dc; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; background: #fff; }
 .prc-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .prc-title { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
-.prc-status { font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
-.prc-verified { background: #e3f3ea; color: #1f8f5c; }
-.prc-pending { background: #fdf1d6; color: #b8860b; }
+.prc-status { font-size: 0.76rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.prc-verified { background: #e3efe7; color: #1e4a26; }
+.prc-pending { background: #fff; border: 1.5px dashed #3f9a6b; color: #1f4a30; }
 .prc-section .form-grid { margin-bottom: 12px; }
 .prc-photo-link {
   display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600;
-  color: #1f8f5c; text-decoration: none; border: 1px solid #1f8f5c; border-radius: 8px; padding: 7px 12px;
+  color: #0a4a37; text-decoration: none; border: 1px solid #d9e3dc; border-radius: 8px; padding: 7px 12px;
 }
-.prc-photo-link:hover { background: #e3f3ea; }
+.prc-photo-link:hover { background: #f4f7f5; }
 .fee-input-wrap { display: flex; align-items: center; gap: 8px; max-width: 320px; margin-top: 8px; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
 .fee-input { flex: 1; min-width: 0; }
 .fee-suffix { font-size: 0.8rem; color: #9aaa9a; white-space: nowrap; }
 .mode-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .mode-option {
-  display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid #d5dad5; border-radius: 10px;
+  display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid #d9e3dc; border-radius: 10px;
   padding: 9px 14px; font-size: 0.84rem; font-weight: 600; color: #4a5a4a; cursor: pointer; background: #fff;
 }
 .mode-option input { accent-color: #1f8f5c; margin: 0; }
-.mode-option.checked { border-color: #1f8f5c; background: #f0f9f4; color: #1a3a1a; }
+.mode-option.checked { border-color: #1f8f5c; background: #e3efe7; color: #1a3a1a; }
 .profile-error { font-size: 0.82rem; color: #a12525; margin: 0 0 12px; }
 .profile-saved { font-size: 0.82rem; color: #1f8f5c; font-weight: 600; margin: 0 0 12px; }
 
 .save-btn {
   display: flex; align-items: center; gap: 6px;
-  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
-  padding: 12px 22px; font-weight: 700; font-size: 0.88rem; cursor: pointer; white-space: nowrap;
+  background: #0a4a37; color: #fff; border: none; border-radius: 8px;
+  padding: 11px 20px; font-weight: 600; font-size: 0.86rem; cursor: pointer; white-space: nowrap; font-family: inherit;
 }
+.save-btn:hover:not(:disabled) { background: #00382a; }
 .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* LANGUAGES (nested inside Professional Profile) */
 .language-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.language-pill { display: flex; align-items: center; gap: 6px; background: #e6f4e6; color: #1a5a2a; font-size: 0.8rem; font-weight: 600; padding: 6px 10px 6px 14px; border-radius: 20px; }
+.language-pill { display: flex; align-items: center; gap: 6px; background: #e3efe7; color: #1e4a26; font-size: 0.8rem; font-weight: 600; padding: 6px 10px 6px 14px; border-radius: 20px; }
 .language-add-row { display: flex; gap: 10px; align-items: center; }
 .language-select { max-width: 260px; cursor: pointer; }
 
@@ -818,49 +823,11 @@ onMounted(showActiveTab)
 /* SHARED TAB PANEL HEADER */
 .tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
 .tab-panel-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 4px; }
-.tab-panel-sub { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
-.empty-note { font-size: 0.85rem; color: #9aaa9a; text-align: center; padding: 30px 0; }
+.tab-panel-sub { font-size: 0.85rem; color: #6a7a6a; margin: 0; }
+.empty-note { font-size: 0.85rem; color: #6a7a6a; margin: 0 0 16px; padding: 12px 14px; border: 1.5px dashed #3f9a6b; border-radius: 10px; }
 
-.mini-stat-icon {
-  width: 30px; height: 30px; border-radius: 8px; background: #eef1ee;
-  display: flex; align-items: center; justify-content: center; color: #4a5a4a; margin-bottom: 10px;
-}
-
-
-
-
-/* AVAILABILITY TAB */
-.day-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
-.day-row { background: #fafbfa; border-radius: 10px; border: 1px solid #f0f2f0; padding: 14px 18px; display: flex; align-items: center; gap: 16px; }
-.day-row-blocked { background: #fafafa; }
-.day-name { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; width: 100px; flex-shrink: 0; }
-.day-name-blocked { color: #9aaa9a; font-weight: 600; }
-.day-content { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; }
-.slot-pill { display: flex; align-items: center; gap: 6px; background: #e6f4e6; color: #1a5a2a; font-size: 0.8rem; font-weight: 600; padding: 6px 10px 6px 14px; border-radius: 20px; }
 .pill-icon-btn { background: none; border: none; color: #4a8a5a; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; }
 .pill-icon-btn:hover { color: #1a5a2a; }
-.blocked-pill { background: #fbe1de; color: #c0483a; font-size: 0.78rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; }
-.day-action-link { background: none; border: none; color: #1a6a2a; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-.day-row-blocked .day-action-link { color: #9aaa9a; }
-.day-action-link:hover { text-decoration: underline; }
-
-.block-panel { background: #eef3ee; border-radius: 10px; padding: 20px; border-top: none; margin-top: 20px; }
-.block-header { display: flex; gap: 12px; margin-bottom: 18px; }
-.block-icon { color: #1a3a1a; flex-shrink: 0; margin-top: 2px; }
-.block-desc { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; margin: 0; max-width: 640px; }
-.block-form { display: grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap: 12px; align-items: end; margin-bottom: 14px; }
-.field-wide { grid-column: auto; }
-.block-btn { padding: 12px 20px; }
-.blocked-list { display: flex; flex-direction: column; gap: 8px; }
-.blocked-item { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; }
-.blocked-dates { font-weight: 700; color: #1a3a1a; }
-.blocked-reason { color: #7a8a7a; flex: 1; }
-.remove-block-btn { background: none; border: none; color: #9aaa9a; cursor: pointer; display: flex; }
-.remove-block-btn:hover { color: #c0483a; }
-
-@media (max-width: 1100px) {
-  .block-form { grid-template-columns: 1fr; }
-}
 
 /* MOBILE — same as the client settings page (ClientProfileSettings.vue):
    tabs become a sideways-scrolling strip above the panel. */
@@ -876,13 +843,13 @@ onMounted(showActiveTab)
   .page-title { font-size: 1.4rem; }
   .panel-card { padding: 20px 16px; }
   .form-grid, .info-grid { grid-template-columns: 1fr; }
-  .info-grid .info-item:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 14px; }
+  .info-grid .info-item:nth-child(2) { border-top: 1px solid #d9e3dc; padding-top: 14px; }
   .tab-panel-header { flex-direction: column; }
   .language-add-row { flex-wrap: wrap; }
 }
 
 /* Taking new clients */
-.newclients-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 20px; padding: 14px 16px; border: 1px solid #e5e8e5; border-radius: 12px; background: #fff; }
+.newclients-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 20px; padding: 14px 16px; border: 1px solid #d9e3dc; border-radius: 12px; background: #fff; }
 .newclients-row .field-hint { margin: 2px 0 0; }
 .newclients-label { margin: 0; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
 .toggle { position: relative; flex-shrink: 0; width: 42px; height: 24px; cursor: pointer; }
@@ -903,26 +870,23 @@ onMounted(showActiveTab)
 .pw-dot { width: 6px; height: 6px; border-radius: 50%; border: 1px solid #b0bab0; margin: 0 3px; }
 .pw-show { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #4a5a4a; cursor: pointer; }
 .pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.pw-forgot { font-size: 0.82rem; color: #1a3a1a; font-weight: 600; text-decoration: underline; }
+.pw-forgot { font-size: 0.82rem; color: #0a4a37; font-weight: 600; text-decoration: underline; }
 @media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
 
 /* History — mirrors ClientProfileSettings.vue */
-.filter-tabs { display: inline-flex; gap: 4px; background: #f4f5f3; border-radius: 999px; padding: 3px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-tabs { display: inline-flex; gap: 4px; background: #f2f6f3; border-radius: 999px; padding: 3px; margin-bottom: 14px; flex-wrap: wrap; }
 .filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; cursor: pointer; font-family: inherit; }
-.filter-tab.active { background: #14301a; color: #fff; }
-.entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #f0f2f0; text-decoration: none; color: inherit; }
+.filter-tab.active { background: #0a4a37; color: #fff; }
+.entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #d9e3dc; text-decoration: none; color: inherit; }
 .entry-row:hover .entry-title { text-decoration: underline; }
-.entry-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.icon-blue { background: #e3ecf7; color: #2a5a8a; }
-.icon-gold { background: #fdf1d6; color: #b8860b; }
-.icon-green { background: #e3f3ea; color: #1f8f5c; }
+.entry-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #e3efe7; color: #1e4a26; }
 .entry-info { flex: 1; min-width: 0; }
 .entry-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
-.entry-detail { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; overflow-wrap: anywhere; }
-.entry-time { font-size: 0.74rem; color: #9aaa9a; white-space: nowrap; }
-.empty-state { padding: 30px; text-align: center; color: #9aaa9a; font-size: 0.85rem; }
+.entry-detail { font-size: 0.78rem; color: #6a7a6a; margin: 2px 0 0; overflow-wrap: anywhere; }
+.entry-time { font-size: 0.76rem; color: #6a7a6a; white-space: nowrap; }
+.empty-state { padding: 30px; text-align: center; color: #6a7a6a; font-size: 0.85rem; }
 .empty-state p { margin: 0; }
-.empty-icon { color: #d5dad5; margin-bottom: 8px; }
+.empty-icon { color: #9ec4ad; margin-bottom: 8px; }
 .empty-sub { font-size: 0.78rem; margin-top: 4px !important; }
 .print-btn { display: inline-flex; align-items: center; gap: 6px; }
 @media (max-width: 640px) {

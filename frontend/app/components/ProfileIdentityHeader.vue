@@ -25,10 +25,9 @@
           {{ isUploading ? 'Uploading…' : photoUrl ? 'Change photo' : 'Upload photo' }}
         </button>
         <template v-if="photoUrl && !isUploading">
-          <span class="dot">·</span>
           <button class="photo-link danger" type="button" @click="removePhoto">Remove</button>
         </template>
-        <span class="photo-hint">JPG, PNG or WEBP · max 2 MB</span>
+        <span class="photo-hint">JPG, PNG or WEBP, up to 2 MB</span>
       </p>
       <p v-if="photoError" class="photo-error">{{ photoError }}</p>
     </div>
@@ -110,13 +109,13 @@ async function removePhoto() {
 .identity-row { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .avatar-circle {
-  width: 56px; height: 56px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
+  width: 56px; height: 56px; border-radius: 50%; background: #e3efe7; color: #1e4a26;
   display: flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 700;
 }
 .avatar-img { object-fit: cover; display: block; background: #eef1ee; }
 .avatar-camera {
   position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%;
-  border: 2px solid #fff; background: #163a1c; color: #fff; cursor: pointer;
+  border: 2px solid #fff; background: #0a4a37; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .avatar-camera:disabled { opacity: 0.7; cursor: wait; }
@@ -124,14 +123,13 @@ async function removePhoto() {
 
 .identity-text { flex: 1; min-width: 0; }
 .identity-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.identity-sub { font-size: 0.78rem; color: #9aaa9a; margin: 4px 0 0; overflow-wrap: anywhere; }
-.photo-links { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 0; font-size: 0.78rem; }
-.photo-link { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: #1f8f5c; cursor: pointer; }
+.identity-sub { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 0; overflow-wrap: anywhere; }
+.photo-links { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; margin: 6px 0 0; font-size: 0.78rem; }
+.photo-link { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: #0a4a37; cursor: pointer; }
 .photo-link:hover { text-decoration: underline; }
 .photo-link:disabled { color: #9aaa9a; cursor: wait; }
 .photo-link.danger { color: #c0392b; }
-.dot { color: #c5cec5; }
-.photo-hint { color: #aab5aa; margin-left: 4px; }
+.photo-hint { color: #8a9a8a; }
 .photo-error { font-size: 0.76rem; color: #c0392b; margin: 4px 0 0; }
 .identity-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; margin-left: auto; }
 .identity-actions:empty { display: none; }

@@ -3,7 +3,7 @@
     <!-- PAGE HEADER (hidden when embedded in Profile Settings, which has its own) -->
     <div v-if="!embedded" class="page-header">
       <div>
-        <h1 class="page-title">Weekly Availability</h1>
+        <h1 class="page-title">Weekly availability</h1>
         <p class="page-subtitle">Set the hours clients can book consultations with you.</p>
       </div>
     </div>
@@ -19,14 +19,14 @@
             <template v-for="slot in day.slots" :key="slot.id">
               <div v-if="editingId === slot.id" class="slot-edit-form">
                 <input v-model="editForm.start_time" type="time" class="time-input" />
-                <span class="time-sep">–</span>
+                <span class="time-sep">to</span>
                 <input v-model="editForm.end_time" type="time" class="time-input" />
                 <button class="form-btn save" @click="saveEdit(slot)">Save</button>
                 <button class="form-btn cancel" @click="cancelEdit">Cancel</button>
               </div>
               <button v-else class="slot-pill" type="button" @click="startEdit(slot)">
                 {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}
-                <span class="pill-icon-btn" @click.stop="removeSlot(slot)"><X :size="13" /></span>
+                <span class="pill-icon-btn" role="button" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
               </button>
             </template>
           </template>
@@ -34,14 +34,14 @@
 
           <div v-if="addingDay === day.dayIndex" class="slot-edit-form">
             <input v-model="addForm.start_time" type="time" class="time-input" />
-            <span class="time-sep">–</span>
+            <span class="time-sep">to</span>
             <input v-model="addForm.end_time" type="time" class="time-input" />
             <button class="form-btn save" @click="confirmAddSlot(day.dayIndex)">Add</button>
             <button class="form-btn cancel" @click="addingDay = null">Cancel</button>
           </div>
         </div>
 
-        <button v-if="addingDay !== day.dayIndex" class="day-action-link" @click="startAddSlot(day.dayIndex)">+ Add Slot</button>
+        <button v-if="addingDay !== day.dayIndex" class="day-action-link" @click="startAddSlot(day.dayIndex)"><Plus :size="14" aria-hidden="true" /> Add hours</button>
       </div>
     </div>
 
@@ -51,10 +51,10 @@
          (RndTimeOff, /api/rnd/time-off/). Clients can't book it. -->
     <div class="block-panel">
       <div class="block-header">
-        <CalendarOff :size="18" class="block-icon" />
+        <CalendarOff :size="18" class="block-icon" aria-hidden="true" />
         <div>
-          <h3 class="block-title">Block Time Off</h3>
-          <p class="block-desc">Block whole days or part of a day — holidays, leave, a seminar afternoon. Clients can't book that time. Consultations already booked in it aren't cancelled automatically.</p>
+          <h3 class="block-title">Block time off</h3>
+          <p class="block-desc">Block whole days or part of a day, like a holiday, leave or a seminar afternoon. Clients can't book that time. Consultations already booked in it stay booked.</p>
         </div>
       </div>
 
@@ -96,15 +96,15 @@
       </div>
       <p v-if="blockRuleError || blockError" class="save-error" role="alert">{{ blockRuleError || blockError }}</p>
       <div v-if="conflicts.length" class="conflicts" role="status">
-        <p><strong>You already have {{ conflicts.length }} consultation{{ conflicts.length === 1 ? '' : 's' }} in this time.</strong> They weren't cancelled — cancel or reschedule them from Appointments.</p>
-        <ul><li v-for="c in conflicts" :key="c.id">{{ when(c.scheduled_at) }} · {{ c.client_name }} · {{ c.type_label }}</li></ul>
-        <NuxtLink to="/appointments" class="nm-panel-link">Go to Appointments →</NuxtLink>
+        <p><strong>You already have {{ conflicts.length }} consultation{{ conflicts.length === 1 ? '' : 's' }} in this time.</strong> They weren't cancelled. Cancel or move them from Appointments.</p>
+        <ul><li v-for="c in conflicts" :key="c.id">{{ when(c.scheduled_at) }}, {{ c.client_name }}, {{ c.type_label.toLowerCase() }}</li></ul>
+        <NuxtLink to="/appointments?tab=upcoming" class="nm-panel-link">Open Appointments</NuxtLink>
       </div>
 
       <div v-if="blocks.length" class="blocked-list">
         <div v-for="b in blocks" :key="b.id" class="blocked-item">
-          <span class="blocked-dates">{{ formatBlockDate(b.start_date) }}<template v-if="b.end_date !== b.start_date"> – {{ formatBlockDate(b.end_date) }}</template></span>
-          <span class="blocked-time">{{ b.whole_day ? 'Whole day' : `${formatTime(b.start_time)} – ${formatTime(b.end_time)}` }}</span>
+          <span class="blocked-dates">{{ formatBlockDate(b.start_date) }}<template v-if="b.end_date !== b.start_date"> to {{ formatBlockDate(b.end_date) }}</template></span>
+          <span class="blocked-time">{{ b.whole_day ? 'Whole day' : `${formatTime(b.start_time)} to ${formatTime(b.end_time)}` }}</span>
           <span class="blocked-reason">{{ b.reason }}</span>
           <button class="remove-block-btn" :aria-label="`Remove time off on ${formatBlockDate(b.start_date)}`" @click="removeBlock(b)"><X :size="14" /></button>
         </div>
@@ -117,7 +117,7 @@
 <script setup>
 import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
-import { X, CalendarOff } from 'lucide-vue-next'
+import { X, CalendarOff, Plus } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Availability' })
 
@@ -263,7 +263,7 @@ function hoursOn(iso) {
 const blockRuleError = computed(() => {
   const b = newBlock.value
   if (!b.from || loading.value) return ''
-  if (!slots.value.length) return 'Add your weekly availability first — there are no hours to block yet.'
+  if (!slots.value.length) return 'Add your weekly hours first. There are no hours to block yet.'
   const to = b.to && b.to > b.from ? b.to : b.from
   const covers = iso => {
     const hours = hoursOn(iso)
@@ -327,14 +327,16 @@ function formatBlockDate(iso) {
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
 .page-title { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: #1a3a1a; margin: 0 0 4px; }
-.page-subtitle { font-size: 0.88rem; color: #8a9a8a; margin: 0; }
+.page-subtitle { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
 
-.day-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-
-.day-row {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
-  padding: 16px 20px; display: flex; align-items: center; gap: 16px;
+/* the week: one panel, a divider between days */
+.day-list {
+  display: flex; flex-direction: column; margin-bottom: 24px; background: #fff;
+  border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden;
 }
+
+.day-row { padding: 14px 18px; display: flex; align-items: center; gap: 16px; border-top: 1px solid #d9e3dc; }
+.day-row:first-child { border-top: none; }
 
 .day-name { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; width: 100px; flex-shrink: 0; }
 
@@ -342,43 +344,44 @@ function formatBlockDate(iso) {
 
 .slot-pill {
   display: flex; align-items: center; gap: 6px;
-  background: #e6f4e6; color: #1a5a2a; font-size: 0.82rem; font-weight: 600;
-  padding: 6px 10px 6px 14px; border-radius: 20px; border: none; cursor: pointer;
+  background: #e3efe7; color: #1e4a26; font-size: 0.82rem; font-weight: 600; font-family: inherit;
+  padding: 6px 10px 6px 14px; border-radius: 999px; border: none; cursor: pointer;
 }
-.slot-pill:hover { background: #d5ecd5; }
+.slot-pill:hover { background: #d3e7da; }
+.slot-pill:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .pill-icon-btn {
   background: none; border: none; color: #4a8a5a; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 2px;
 }
 .pill-icon-btn:hover { color: #1a5a2a; }
 
-.slot-edit-form { display: flex; align-items: center; gap: 8px; background: #f6f8f4; border-radius: 10px; padding: 6px 10px; }
+.slot-edit-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f2f6f3; border-radius: 10px; padding: 6px 10px; }
 .time-input {
-  border: 1px solid #d5dad5; border-radius: 6px; padding: 5px 8px;
+  border: 1px solid #d9e3dc; border-radius: 6px; padding: 5px 8px; font-family: inherit;
   font-size: 0.82rem; color: #1a3a1a; background: #fff;
 }
-.time-sep { color: #8a9a8a; font-size: 0.82rem; }
+.time-sep { color: #6a7a6a; font-size: 0.82rem; }
 .form-btn {
-  border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
-.form-btn.save { background: #D4A017; color: #1a3a1a; }
-.form-btn.save:hover { background: #c4920f; }
-.form-btn.cancel { background: none; color: #8a9a8a; }
+.form-btn.save { background: #0a4a37; color: #fff; }
+.form-btn.save:hover { background: #00382a; }
+.form-btn.cancel { background: none; color: #6a7a6a; }
 .form-btn.cancel:hover { color: #4a5a4a; }
 
-.empty-note-inline { font-size: 0.82rem; color: #9aaa9a; }
+.empty-note-inline { font-size: 0.82rem; color: #8a9a8a; }
 
 .day-action-link {
-  background: none; border: none; color: #1a6a2a;
-  font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: #0a4a37; font-family: inherit;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; padding: 4px 0;
 }
 .day-action-link:hover { text-decoration: underline; }
 
-.empty-note { font-size: 0.82rem; color: #8a9a8a; margin: 0; }
+.empty-note { font-size: 0.82rem; color: #6a7a6a; margin: 0; }
 .save-error { font-size: 0.82rem; color: #c0483a; margin: 12px 0 0; }
 
 /* BLOCK A DAY OFF */
-.block-panel { background: #eef3ee; border-radius: 12px; padding: 22px; margin-top: 20px; }
+.block-panel { background: #f4f8f5; border: 1px solid #d9e3dc; border-radius: 12px; padding: 22px; margin-top: 20px; }
 .block-header { display: flex; gap: 12px; margin-bottom: 20px; }
 .block-icon { color: #1a3a1a; flex-shrink: 0; margin-top: 2px; }
 .block-title { font-size: 0.98rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
@@ -387,10 +390,11 @@ function formatBlockDate(iso) {
 .block-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; align-items: end; margin-bottom: 16px; }
 .field-wide { grid-column: span 2; }
 .field-label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
-.seg { display: flex; border: 1px solid #dde3dd; border-radius: 8px; overflow: hidden; background: #fff; }
+.seg { display: flex; border: 1px solid #d9e3dc; border-radius: 8px; overflow: hidden; background: #fff; }
 .seg button { flex: 1; border: 0; background: none; padding: 10px 8px; font-family: inherit; font-size: 0.8rem; color: #4a5a4a; cursor: pointer; white-space: nowrap; }
-.seg button.on { background: #1a3a1a; color: #fff; font-weight: 600; }
-.conflicts { background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: #6a5a2a; margin: 0 0 14px; }
+.seg button.on { background: #0a4a37; color: #fff; font-weight: 600; }
+/* a clash with booked consultations is a warning: red */
+.conflicts { background: #fdf1ef; border: 1px solid #f0c8c2; border-radius: 10px; padding: 10px 14px; font-size: 0.82rem; color: #8a2a1e; margin: 0 0 14px; }
 .conflicts p { margin: 0 0 6px; }
 .conflicts ul { margin: 0 0 6px; padding-left: 18px; }
 .blocked-time { color: #1a3a1a; white-space: nowrap; }
@@ -398,29 +402,31 @@ function formatBlockDate(iso) {
 .field label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
 .optional { font-weight: 400; color: #9aaa9a; }
 .field input {
-  border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px;
+  border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px;
   font-size: 0.85rem; font-family: inherit; background: #fff; color: #1a3a1a;
 }
+.field input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 
 .block-btn {
-  background: #fff; border: 1px solid #1a3a1a; color: #1a3a1a;
-  padding: 10px 24px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+  background: #0a4a37; border: none; color: #fff; font-family: inherit;
+  padding: 11px 24px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-.block-btn:hover:not(:disabled) { background: #1a3a1a; color: #fff; }
+.block-btn:hover:not(:disabled) { background: #00382a; }
 .block-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .blocked-list { display: flex; flex-direction: column; gap: 8px; }
 .blocked-item {
   display: flex; align-items: center; gap: 12px;
-  background: #fff; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem;
+  background: #fff; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem;
 }
 .blocked-dates { font-weight: 700; color: #1a3a1a; }
 .blocked-reason { color: #7a8a7a; flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.remove-block-btn { background: none; border: none; color: #9aaa9a; cursor: pointer; display: flex; }
+.remove-block-btn { background: none; border: none; color: #6a7a6a; cursor: pointer; display: flex; padding: 4px; }
 .remove-block-btn:hover { color: #c0483a; }
 
 @media (max-width: 900px) {
-  .day-row { flex-wrap: wrap; }
+  .day-row { flex-wrap: wrap; gap: 8px 16px; }
+  .day-content { flex-basis: 100%; order: 3; }
   .block-form { grid-template-columns: 1fr; }
   .field-wide { grid-column: auto; }
   .blocked-item { flex-wrap: wrap; }
