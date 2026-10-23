@@ -30,34 +30,28 @@
       <!-- PANEL -->
       <div class="panel-card">
         <!-- ============ PERSONAL INFO ============ -->
-        <!-- Read-only until "Edit Profile"; Save/Cancel replace it while editing. -->
+        <!-- Read-only until "Edit profile"; Cancel / Save changes sit at the bottom while editing. -->
         <template v-if="activeTab === 'personal'">
           <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" :editable="isEditing" @photo-changed="fireToast">
             <template #actions>
               <button v-if="!isEditing" class="nm-btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
-                <Pencil :size="15" /> Edit Profile
+                <Pencil :size="15" aria-hidden="true" /> Edit profile
               </button>
-              <template v-else>
-                <button class="nm-btn-soft" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
-                <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
-                  <Check :size="15" /> {{ isSaving ? 'Saving…' : 'Save Changes' }}
-                </button>
-              </template>
             </template>
           </ProfileIdentityHeader>
 
           <!-- READ-ONLY VIEW -->
           <dl v-if="!isEditing" class="info-grid">
-            <div class="info-item"><dt>First Name</dt><dd>{{ form.firstName || '—' }}</dd></div>
-            <div class="info-item"><dt>Last Name</dt><dd>{{ form.lastName || '—' }}</dd></div>
-            <div class="info-item"><dt>Email Address</dt><dd>{{ auth.user?.email || '—' }}</dd></div>
-            <div class="info-item"><dt>Mobile Number</dt><dd :class="{ muted: !form.phone }">{{ formatPhone(form.phone) || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Date of Birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>First name</dt><dd>{{ form.firstName || '—' }}</dd></div>
+            <div class="info-item"><dt>Last name</dt><dd>{{ form.lastName || '—' }}</dd></div>
+            <div class="info-item"><dt>Email address</dt><dd>{{ auth.user?.email || '—' }}</dd></div>
+            <div class="info-item"><dt>Mobile number</dt><dd :class="{ muted: !form.phone }">{{ formatPhone(form.phone) || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Date of birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div>
             <div class="info-item"><dt>Sex</dt><dd :class="{ muted: !form.sex }">{{ sexLabel || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Preferred Language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Primary Health Condition</dt><dd :class="{ muted: !conditionLabel }">{{ conditionLabel || 'None / not sure' }}</dd></div>
-            <div class="info-item"><dt>Food Allergies</dt><dd :class="{ muted: !background.allergiesList.length }">{{ background.allergiesAnswered ? (background.allergiesList.join(', ') || 'None') : 'Not answered yet' }}</dd></div>
-            <div class="info-item"><dt>Dietary Restrictions</dt><dd :class="{ muted: !background.dietList.length }">{{ background.dietList.join(', ') || 'None' }}</dd></div>
+            <div class="info-item"><dt>Preferred language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div>
+            <div class="info-item"><dt>Primary health condition</dt><dd :class="{ muted: !conditionLabel }">{{ conditionLabel || 'None / not sure' }}</dd></div>
+            <div class="info-item"><dt>Food allergies</dt><dd :class="{ muted: !background.allergiesList.length }">{{ background.allergiesAnswered ? (background.allergiesList.join(', ') || 'None') : 'Not answered yet' }}</dd></div>
+            <div class="info-item"><dt>Dietary restrictions</dt><dd :class="{ muted: !background.dietList.length }">{{ background.dietList.join(', ') || 'None' }}</dd></div>
             <div class="info-item"><dt>Religion</dt><dd :class="{ muted: !background.religion }">{{ background.religion || 'Not provided' }}</dd></div>
           </dl>
 
@@ -65,26 +59,26 @@
           <template v-else>
             <div class="form-grid">
               <div class="field">
-                <label class="field-label" for="pi-first">First Name</label>
+                <label class="field-label" for="pi-first">First name</label>
                 <input id="pi-first" v-model="form.firstName" type="text" class="field-input" :class="{ invalid: fieldErrors.firstName }" maxlength="150" />
                 <p v-if="fieldErrors.firstName" class="field-error">{{ fieldErrors.firstName }}</p>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-last">Last Name</label>
+                <label class="field-label" for="pi-last">Last name</label>
                 <input id="pi-last" v-model="form.lastName" type="text" class="field-input" :class="{ invalid: fieldErrors.lastName }" maxlength="150" />
                 <p v-if="fieldErrors.lastName" class="field-error">{{ fieldErrors.lastName }}</p>
               </div>
               <div class="field">
-                <label class="field-label">Email Address</label>
+                <label class="field-label">Email address</label>
                 <input :value="auth.user?.email" type="email" class="field-input" disabled />
                 <p class="field-hint">Email can't be changed here.</p>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-phone">Mobile Number</label>
+                <label class="field-label" for="pi-phone">Mobile number</label>
                 <PhoneInput id="pi-phone" v-model="form.phone" label="mobile number" :error="fieldErrors.phone" />
               </div>
               <div class="field">
-                <label class="field-label" for="pi-dob">Date of Birth</label>
+                <label class="field-label" for="pi-dob">Date of birth</label>
                 <input id="pi-dob" v-model="form.dateOfBirth" type="date" class="field-input" :class="{ invalid: fieldErrors.dateOfBirth }" :max="latestBirthDate" min="1900-01-01" />
                 <p v-if="fieldErrors.dateOfBirth" class="field-error">{{ fieldErrors.dateOfBirth }}</p>
               </div>
@@ -97,14 +91,14 @@
                 </select>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-lang">Preferred Language</label>
+                <label class="field-label" for="pi-lang">Preferred language</label>
                 <select id="pi-lang" v-model="form.languageCode" class="nm-select block">
                   <option value="">Select</option>
                   <option v-for="l in languageOptions" :key="l.code" :value="l.code">{{ l.label }}</option>
                 </select>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-condition">Primary Health Condition</label>
+                <label class="field-label" for="pi-condition">Primary health condition</label>
                 <select id="pi-condition" v-model="conditionChoice" class="nm-select block">
                   <option value="">None / not sure</option>
                   <option v-for="c in CONDITION_OPTIONS" :key="c" :value="c">{{ c }}</option>
@@ -118,12 +112,12 @@
                 <p v-if="fieldErrors.condition" class="field-error">{{ fieldErrors.condition }}</p>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-allergies">Food Allergies</label>
-                <input id="pi-allergies" v-model="background.allergiesText" type="text" maxlength="300" class="field-input" placeholder="e.g. Shrimp, Peanuts — leave empty if none" />
+                <label class="field-label" for="pi-allergies">Food allergies</label>
+                <input id="pi-allergies" v-model="background.allergiesText" type="text" maxlength="300" class="field-input" placeholder="e.g. Shrimp, peanuts. Leave empty if none" />
                 <p class="field-hint">Separate with commas. Your RND plans your meals around these.</p>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-diet">Dietary Restrictions</label>
+                <label class="field-label" for="pi-diet">Dietary restrictions</label>
                 <input id="pi-diet" v-model="background.dietText" type="text" maxlength="300" class="field-input" placeholder="e.g. Halal, Low sodium" />
                 <p class="field-hint">Separate with commas.</p>
               </div>
@@ -138,35 +132,38 @@
           </template>
 
           <p v-if="saveError" class="profile-error">{{ saveError }}</p>
+          <div v-if="isEditing" class="edit-foot">
+            <button class="nm-btn-soft" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
+            <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
+              <Check :size="15" aria-hidden="true" /> {{ isSaving ? 'Saving…' : 'Save changes' }}
+            </button>
+          </div>
         </template>
 
         <!-- ============ HEALTH PROFILE ============ -->
         <template v-else-if="activeTab === 'health'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Health Profile</h3>
-              <p class="tab-panel-sub">Your screening on file — the starting point your progress is measured from.</p>
+              <h3 class="tab-panel-title">Health profile</h3>
+              <p class="tab-panel-sub">Your screening on file. Your progress is measured from it.</p>
             </div>
             <button class="nm-btn-soft" type="button" @click="screeningOpen = true">View screening</button>
           </div>
 
-          <div v-if="screening" class="stat-grid-3">
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><Scale :size="17" /></div>
-              <p class="mini-stat-value">{{ screening.bmi }}</p>
-              <p class="mini-stat-label">BMI · {{ screening.bmi_category }}</p>
+          <dl v-if="screening" class="figs">
+            <div class="fig">
+              <dt>BMI, {{ screening.bmi_category }}</dt>
+              <dd>{{ screening.bmi }}</dd>
             </div>
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><Flame :size="17" /></div>
-              <p class="mini-stat-value">{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal) : '—' }} <span class="mini-stat-unit">kcal</span></p>
-              <p class="mini-stat-label">Daily Target (TDEE)</p>
+            <div class="fig">
+              <dt>Energy needs a day (TDEE)</dt>
+              <dd>{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal).toLocaleString() : '—' }} <span class="fig-unit">kcal</span></dd>
             </div>
-            <div class="mini-stat-card">
-              <div class="mini-stat-icon"><Activity :size="17" /></div>
-              <p class="mini-stat-value">{{ screening.nrs_score ?? '—' }}</p>
-              <p class="mini-stat-label">NRS-2002 · {{ nrsLabel(screening.nrs_risk) }}</p>
+            <div class="fig" :class="{ risk: (screening.nrs_score ?? 0) >= 3 }">
+              <dt>NRS-2002, {{ nrsLabel(screening.nrs_risk) }}</dt>
+              <dd>{{ screening.nrs_score ?? '—' }}</dd>
             </div>
-          </div>
+          </dl>
           <p v-else class="empty-note">No screening on file yet.</p>
 
           <p class="field-hint health-note">
@@ -179,7 +176,7 @@
         <template v-else-if="activeTab === 'care'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Care Team</h3>
+              <h3 class="tab-panel-title">Care team</h3>
               <p class="tab-panel-sub">The RND currently handling your nutrition care.</p>
             </div>
           </div>
@@ -203,7 +200,7 @@
             <div v-if="careRel.discharge_request" class="dr-pending" role="status">
               <p class="dr-title">You asked to end your care</p>
               <p class="dr-text">
-                Asked on {{ drDate(careRel.discharge_request.requested_at) }} — {{ careRel.discharge_request.reason_label }}.
+                Asked on {{ drDate(careRel.discharge_request.requested_at) }}: {{ careRel.discharge_request.reason_label }}.
                 RND {{ careRnd.user.first_name }} can close your care with a final note until
                 <strong>{{ drDate(careRel.discharge_request.ends_at) }}</strong>. After that it ends automatically and you can book any RND.
                 Your records stay in your account.
@@ -214,7 +211,7 @@
             <div v-else class="setting-row">
               <div>
                 <p class="setting-label">End care with this RND</p>
-                <p class="setting-detail">Want to switch RNDs or finished your care? Ask to end it — your RND gets {{ DR_DAYS }} days to close it, then it ends automatically.</p>
+                <p class="setting-detail">Want to switch RNDs or finished your care? Ask to end it. Your RND gets {{ DR_DAYS }} days to close it, then it ends automatically.</p>
               </div>
               <button class="nm-btn-soft" type="button" @click="openDischarge">Request discharge</button>
             </div>
@@ -273,8 +270,8 @@
         <template v-else-if="activeTab === 'notifications'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Notifications &amp; reminders</h3>
-              <p class="tab-panel-sub">NutriMatch reminds you automatically. You always get them in the app — choose which ones, and whether to get emails too.</p>
+              <h3 class="tab-panel-title">Notifications and reminders</h3>
+              <p class="tab-panel-sub">NutriMatch reminds you automatically. You always get them in the app. Choose which ones, and whether to get emails too.</p>
             </div>
           </div>
 
@@ -295,7 +292,7 @@
             <div class="setting-row">
               <div>
                 <p class="setting-label">Also send reminders by email</p>
-                <p class="setting-detail">To {{ auth.user?.email }}. Off by default — in-app notifications are always on.</p>
+                <p class="setting-detail">To {{ auth.user?.email }}. Off by default. In-app notifications are always on.</p>
               </div>
               <label class="toggle">
                 <input :checked="reminderPrefs.email" type="checkbox" @change="savePref('email', $event.target.checked)" />
@@ -305,7 +302,7 @@
             <div class="setting-row">
               <div>
                 <p class="setting-label">Also send reminders by text (SMS)</p>
-                <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Only the important ones: booking confirmed, payment due, your consultation starting in 1 hour, and a cancelled consultation — short texts with no health details.</p>
+                <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Only the important ones: booking confirmed, payment due, your consultation starting in 1 hour, and a cancelled consultation. Short texts with no health details.</p>
                 <p v-else-if="auth.user?.phone" class="setting-detail">SMS reminders are only available for Philippine mobile numbers (+63). Yours is {{ formatPhone(auth.user.phone) }}.</p>
                 <p v-else class="setting-detail">Add your mobile number (e.g. 0917 123 4567) in Personal Info first.</p>
               </div>
@@ -322,7 +319,7 @@
         <template v-else-if="activeTab === 'privacy'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Privacy &amp; Data</h3>
+              <h3 class="tab-panel-title">Privacy and data</h3>
               <p class="tab-panel-sub">How your information is handled.</p>
             </div>
           </div>
@@ -340,7 +337,7 @@
         <template v-else-if="activeTab === 'history'">
           <div class="tab-panel-header">
             <div>
-              <h3 class="tab-panel-title">Your Activity</h3>
+              <h3 class="tab-panel-title">Your activity</h3>
               <p class="tab-panel-sub">Every screening, appointment, and meal log on your account.</p>
             </div>
             <button class="nm-btn-soft print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
@@ -354,7 +351,7 @@
           <div v-else-if="!filteredHistory.length" class="empty-state">
             <ClipboardList :size="26" class="empty-icon" />
             <p>Nothing saved yet.</p>
-            <p class="empty-sub">Complete a screening, book an appointment, or log a meal — it'll show up here.</p>
+            <p class="empty-sub">Complete a screening, book an appointment or log a meal, and it shows up here.</p>
           </div>
           <div v-for="entry in filteredHistory" v-else :key="entry.key" class="entry-row">
             <div class="entry-icon" :class="entry.iconClass"><component :is="entry.icon" :size="16" /></div>
@@ -386,7 +383,7 @@
         <ul class="dr-points">
           <li>Your consultations, meal plans and progress stay in your account (read-only).</li>
           <li>Your meal plan and RND reminders stop when your care ends.</li>
-          <li>You can then book any RND — including RND {{ careRnd?.user.first_name }} again.</li>
+          <li>You can then book any RND, including RND {{ careRnd?.user.first_name }} again.</li>
         </ul>
         <div class="field">
           <label class="field-label" for="dr-reason">Why are you ending care?</label>
@@ -421,7 +418,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   User, HeartPulse, Shield, Bell, FileText, History as HistoryIcon, CheckCircle2,
   Printer, ClipboardList, ShieldCheck, CalendarCheck, UtensilsCrossed,
-  Stethoscope, Scale, Flame, Activity, Pencil, Check,
+  Stethoscope, Pencil, Check,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
@@ -430,12 +427,12 @@ const auth = useAuthStore()
 const { get, patch, post, put, del } = useApi()
 
 const tabs = [
-  { key: 'personal', label: 'Personal Info', icon: User },
-  { key: 'health', label: 'Health Profile', icon: HeartPulse },
-  { key: 'care', label: 'Care Team', icon: Stethoscope },
+  { key: 'personal', label: 'Personal info', icon: User },
+  { key: 'health', label: 'Health profile', icon: HeartPulse },
+  { key: 'care', label: 'Care team', icon: Stethoscope },
   { key: 'security', label: 'Security', icon: Shield },
   { key: 'notifications', label: 'Notifications', icon: Bell },
-  { key: 'privacy', label: 'Privacy & Data', icon: FileText },
+  { key: 'privacy', label: 'Privacy and data', icon: FileText },
   { key: 'history', label: 'History', icon: HistoryIcon },
 ]
 // ?tab=health etc. opens a tab directly, like the RND settings page.
@@ -454,7 +451,7 @@ const loadError = ref('')
 const displayName = computed(() => `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim())
 const initials = computed(() => `${auth.user?.first_name?.[0] || ''}${auth.user?.last_name?.[0] || ''}`.toUpperCase())
 const identitySubtitle = computed(() =>
-  [auth.user?.email, memberSince.value && `Member since ${memberSince.value}`].filter(Boolean).join(' · ')
+  [auth.user?.email, memberSince.value && `Member since ${memberSince.value}`].filter(Boolean).join(', ')
 )
 const memberSince = computed(() =>
   auth.user?.created_at ? new Date(auth.user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''
@@ -634,14 +631,14 @@ function fillCondition(profile) {
 }
 
 function nrsLabel(risk) {
-  return { no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[risk] || ''
+  return { no_risk: 'no risk', at_risk: 'at risk', high_risk: 'high risk' }[risk] || ''
 }
 
 // TODO: mock/local only — no notification-preference field on User/ClientProfile.
 /* ---------- NOTIFICATIONS & REMINDERS ---------- */
 const REMINDER_OPTIONS = [
   { key: 'appointments', label: 'Consultation reminders', detail: '24 hours and 1 hour before each confirmed consultation.' },
-  { key: 'payments', label: 'Payment reminders', detail: "If a consultation is still unpaid the day before — unpaid ones are cancelled at the start time." },
+  { key: 'payments', label: 'Payment reminders', detail: "If a consultation is still unpaid the day before. Unpaid ones are cancelled at the start time." },
   { key: 'meal_logging', label: 'Meal logging reminders', detail: "At each meal time in your meal plan, if you haven't logged that meal yet." },
   { key: 'rnd_reminders', label: 'Reminders from your RND', detail: 'Medication and habit reminders your RND sets for you.' },
 ]
@@ -706,7 +703,7 @@ async function requestDischarge() {
     const res = await post(`/client/relationships/${careRel.value.id}/discharge-request/`, { reason: dr.reason, note: dr.note.trim() })
     careRel.value = { ...careRel.value, discharge_request: res.discharge_request }
     drOpen.value = false
-    fireToast(`Request sent — RND ${careRnd.value.user.first_name} has been told.`)
+    fireToast(`Request sent. RND ${careRnd.value.user.first_name} has been told.`)
   } catch (e) {
     const d = e?.data || {}
     drFieldErrors.reason = Array.isArray(d.reason) ? d.reason[0] : ''
@@ -738,17 +735,17 @@ const historyFilters = [
   { key: 'all', label: 'All' },
   { key: 'screening', label: 'Screenings' },
   { key: 'appointment', label: 'Appointments' },
-  { key: 'mealLog', label: 'Meal Logs' },
+  { key: 'mealLog', label: 'Meal logs' },
 ]
 const historyFilter = ref('all')
 const historyEntries = ref([])
 const isLoadingHistory = ref(false)
 let historyLoaded = false
 
-const APPT_TYPE = { video: 'Video', chat: 'Chat', in_person: 'In-Person' }
+const APPT_TYPE = { video: 'Video', chat: 'Chat', in_person: 'In person' }
 const APPT_STATUS = { pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
 const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch', pm_snack: 'PM Snack', dinner: 'Dinner', bedtime_snack: 'Bedtime Snack' }
-const LOG_STATUS = { followed: 'Followed Plan', partially_followed: 'Partially Followed', not_followed: 'Did Not Follow' }
+const LOG_STATUS = { followed: 'Followed the plan', partially_followed: 'Partly followed', not_followed: 'Did not follow' }
 
 async function loadHistory() {
   isLoadingHistory.value = true
@@ -767,17 +764,17 @@ async function loadHistory() {
       ...screenings.map(s => ({
         key: `s${s.id}`, type: 'screening', at: s.created_at, icon: ShieldCheck, iconClass: 'icon-blue',
         title: 'Health screening completed',
-        detail: `BMI ${s.bmi} (${s.bmi_category}) · NRS-2002 ${s.nrs_score ?? '—'}`,
+        detail: `BMI ${s.bmi} (${s.bmi_category}), NRS-2002 ${s.nrs_score ?? '—'}`,
       })),
       ...appointments.map(a => ({
         key: `a${a.id}`, type: 'appointment', at: a.created_at, icon: CalendarCheck, iconClass: 'icon-gold',
         title: `${APPT_TYPE[a.type] || a.type} appointment with RND ${a.relationship.rnd.first_name} ${a.relationship.rnd.last_name}`,
-        detail: `${APPT_STATUS[a.status] || a.status} · scheduled ${formatTimestamp(a.scheduled_at)}`,
+        detail: `${APPT_STATUS[a.status] || a.status}, scheduled ${formatTimestamp(a.scheduled_at)}`,
       })),
       ...mealLogs.map(l => ({
         key: `m${l.id}`, type: 'mealLog', at: l.updated_at, icon: UtensilsCrossed, iconClass: 'icon-green',
         title: `${MEAL_LABELS[mealTimeById[l.meal_plan_meal]] || 'Meal'} logged`,
-        detail: `${LOG_STATUS[l.status] || 'Waiting for your RND to rate it'} · ${drDate(`${l.log_date}T00:00:00`)}${l.reason_notes ? ` · ${l.reason_notes}` : ''}`,
+        detail: `${LOG_STATUS[l.status] || 'Waiting for your RND to rate it'}, ${drDate(`${l.log_date}T00:00:00`)}${l.reason_notes ? `, ${l.reason_notes}` : ''}`,
       })),
     ].sort((x, y) => new Date(y.at) - new Date(x.at))
     historyLoaded = true
@@ -838,7 +835,7 @@ async function changePassword() {
     await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
     Object.assign(pw, { current: '', next: '', confirm: '' })
     showPw.value = false
-    fireToast('Password changed — we emailed you a confirmation.')
+    fireToast('Password changed. We emailed you a confirmation.')
   } catch (e) {
     const d = e?.data || {}
     const out = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
@@ -967,25 +964,24 @@ onMounted(async () => {
 .tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
 .tab-panel-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 4px; }
 .tab-panel-sub { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
-.sub-panel { border-top: 1px solid #f0f2f0; padding-top: 20px; margin-top: 24px; }
+.sub-panel { border-top: 1px solid #d9e3dc; padding-top: 20px; margin-top: 24px; }
 .sub-panel-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: #1a3a1a; margin: 0 0 16px; }
 .empty-note { font-size: 0.85rem; color: #9aaa9a; text-align: center; padding: 30px 0; margin: 0; }
 
-/* HEALTH STATS */
-.stat-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.mini-stat-card { background: #fafbfa; border-radius: 10px; padding: 16px 18px; border: 1px solid #f0f2f0; }
-.mini-stat-icon {
-  width: 30px; height: 30px; border-radius: 8px; background: #eef1ee;
-  display: flex; align-items: center; justify-content: center; color: #4a5a4a; margin-bottom: 10px;
-}
-.mini-stat-value { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.mini-stat-unit { font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 500; color: #9aaa9a; }
-.mini-stat-label { font-size: 0.75rem; color: #8a9a8a; margin: 3px 0 0; }
+/* HEALTH FIGURES: one divided panel */
+.figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.fig { display: flex; flex-direction: column-reverse; gap: 2px; padding: 14px 18px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.fig:first-child { border-left: none; }
+.fig dt { font-size: 0.8rem; color: #4a5a4a; }
+.fig dd { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: lining-nums; }
+.fig-unit { font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 500; color: #6a7a6a; }
+.fig.risk dd { color: #a12525; }
+.edit-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 16px; border-top: 1px solid #d9e3dc; }
 
 /* SETTING ROWS (security, notifications, privacy, care team) */
 .setting-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
+  background: #fff; border: none; border-top: 1px solid #d9e3dc; border-radius: 0; padding: 16px 0; margin: 0;
 }
 .setting-label { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .setting-detail { font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0; line-height: 1.5; }
@@ -1011,7 +1007,7 @@ onMounted(async () => {
 .filter-tab.active { background: #14301a; color: #fff; }
 .entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #f0f2f0; }
 .entry-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.icon-blue { background: #e3ecf7; color: #2a5a8a; }
+.icon-blue { background: #e3efe7; color: #0a4a37; }
 .icon-gold { background: #fdf1d6; color: #b8860b; }
 .icon-green { background: #e3f3ea; color: #1f8f5c; }
 .entry-info { flex: 1; min-width: 0; }
@@ -1044,7 +1040,11 @@ onMounted(async () => {
   .page-header { flex-direction: column; gap: 10px; }
   .page-title { font-size: 1.4rem; }
   .panel-card { padding: 20px 16px; }
-  .form-grid, .stat-grid-3, .info-grid { grid-template-columns: 1fr; }
+  .form-grid, .info-grid { grid-template-columns: 1fr; }
+  .figs { grid-template-columns: 1fr; }
+  .fig { border-left: none; }
+  .fig + .fig { border-top: 1px solid #d9e3dc; }
+  .edit-foot > * { flex: 1; justify-content: center; }
   .info-item:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 14px; }
   .tab-panel-header, .setting-row { flex-direction: column; align-items: stretch; }
   .outline-btn, .save-btn { justify-content: center; }

@@ -22,11 +22,11 @@
       <p class="identity-name">{{ name }}</p>
       <p class="identity-sub">{{ subtitle }}</p>
       <p v-if="editable" class="photo-links">
-        <button class="photo-link" type="button" :disabled="isUploading" @click="photoInput?.click()">
+        <button class="nm-btn-soft nm-btn-sm" type="button" :disabled="isUploading" @click="photoInput?.click()">
           {{ isUploading ? 'Uploading…' : photoUrl ? 'Change photo' : 'Upload photo' }}
         </button>
         <template v-if="photoUrl && !isUploading">
-          <button class="photo-link danger" type="button" @click="removePhoto">Remove</button>
+          <button class="nm-btn-danger nm-btn-sm" type="button" @click="removePhoto">Remove</button>
         </template>
         <span class="photo-hint">JPG, PNG or WEBP, up to 2 MB</span>
       </p>
@@ -127,11 +127,7 @@ async function removePhoto() {
 .identity-text { flex: 1; min-width: 0; }
 .identity-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .identity-sub { font-size: 0.8rem; color: #6a7a6a; margin: 4px 0 0; overflow-wrap: anywhere; }
-.photo-links { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; margin: 6px 0 0; font-size: 0.78rem; }
-.photo-link { background: none; border: none; padding: 0; font: inherit; font-weight: 600; color: #0a4a37; cursor: pointer; }
-.photo-link:hover { text-decoration: underline; }
-.photo-link:disabled { color: #9aaa9a; cursor: wait; }
-.photo-link.danger { color: #c0392b; }
+.photo-links { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; margin: 8px 0 0; font-size: 0.78rem; }
 .photo-hint { color: #8a9a8a; }
 .photo-error { font-size: 0.76rem; color: #c0392b; margin: 4px 0 0; }
 .identity-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; margin-left: auto; }
