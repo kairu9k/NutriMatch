@@ -36,11 +36,6 @@
         </div>
       </section>
 
-      <!-- your allergies, right under the plan, always open -->
-      <div v-if="myAllergies.length" class="allergy-panel" role="note">
-        <AlertTriangle :size="18" aria-hidden="true" />
-        <p><strong>Your food allergies: {{ myAllergies.join(', ') }}.</strong> A food in your plan that may contain one is marked in red. Don't eat it, and message your RND.</p>
-      </div>
 
       <template v-if="todaysMeals.length">
         <p class="today-label">Today, {{ todayLabel }}</p>
@@ -81,7 +76,7 @@
                   <div class="planned-text">
                     <span class="food-name">{{ item.food_name }}</span>
                     <span class="food-note">{{ item.household_measure || item.notes || `${item.exchanges} exchange` }}</span>
-                    <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
+                    <span v-for="w in foodAllergies(item)" :key="w" class="allergy-tag" :title="`${w}. Don't eat this, and message your RND.`"><AlertTriangle :size="12" aria-hidden="true" /> {{ w }}</span>
                   </div>
                 </div>
               </div>
