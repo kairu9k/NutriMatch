@@ -4,30 +4,27 @@
     <p v-if="error" class="nm-error">{{ error }}</p>
     <p v-if="paidNotice" class="nm-success"><CheckCircle2 :size="15" /> {{ paidNotice }}</p>
 
-    <div class="nm-stat-grid">
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon gold"><Clock :size="17" /></div>
-        <p class="nm-stat-value">{{ peso(dueTotal) }}</p>
-        <p class="nm-stat-label">Due now</p>
-        <p class="nm-stat-note" :class="{ warn: due.length }">{{ due.length ? `${due.length} invoice${due.length === 1 ? '' : 's'} to pay` : 'Nothing to pay' }}</p>
+    <!-- figures: one divided panel -->
+    <div class="figs">
+      <div class="fig">
+        <p class="fig-label">Due now</p>
+        <p class="fig-value">{{ peso(dueTotal) }}</p>
+        <p class="fig-note" :class="{ warn: due.length }">{{ due.length ? `${due.length} invoice${due.length === 1 ? '' : 's'} to pay` : 'Nothing to pay' }}</p>
       </div>
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon"><CheckCircle2 :size="17" /></div>
-        <p class="nm-stat-value">{{ peso(paidThisYear) }}</p>
-        <p class="nm-stat-label">Paid in {{ thisYear }}</p>
-        <p class="nm-stat-note">{{ paidCount }} consultation{{ paidCount === 1 ? '' : 's' }}</p>
+      <div class="fig">
+        <p class="fig-label">Paid in {{ thisYear }}</p>
+        <p class="fig-value">{{ peso(paidThisYear) }}</p>
+        <p class="fig-note">{{ paidCount }} consultation{{ paidCount === 1 ? '' : 's' }}</p>
       </div>
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon gold"><RotateCcw :size="17" /></div>
-        <p class="nm-stat-value">{{ peso(refundTotal) }}</p>
-        <p class="nm-stat-label">Refunds in progress</p>
-        <p class="nm-stat-note">{{ refunding.length ? `Within ${REFUND_WINDOW}` : 'None' }}</p>
+      <div class="fig">
+        <p class="fig-label">Refunds in progress</p>
+        <p class="fig-value">{{ peso(refundTotal) }}</p>
+        <p class="fig-note">{{ refunding.length ? `Within ${REFUND_WINDOW}` : 'None' }}</p>
       </div>
-      <div class="nm-stat-card">
-        <div class="nm-stat-icon"><CalendarClock :size="17" /></div>
-        <p class="nm-stat-value small">{{ nextDeadline ? shortDate(nextDeadline) : '—' }}</p>
-        <p class="nm-stat-label">Next payment deadline</p>
-        <p class="nm-stat-note">{{ nextDeadline ? phTime(nextDeadline) : 'No upcoming payments' }}</p>
+      <div class="fig">
+        <p class="fig-label">Next payment deadline</p>
+        <p class="fig-value">{{ nextDeadline ? shortDate(nextDeadline) : '—' }}</p>
+        <p class="fig-note">{{ nextDeadline ? phTime(nextDeadline) : 'No upcoming payments' }}</p>
       </div>
     </div>
 
@@ -40,15 +37,15 @@
         <span v-else class="nm-avatar">{{ nameInitials(inv.consultation.rnd.name) }}</span>
         <div class="due-main">
           <p class="nm-row-title">{{ inv.consultation.type_label }} with RND {{ inv.consultation.rnd.name }}</p>
-          <p class="nm-row-sub">{{ invNo(inv) }} · {{ when(inv.consultation.scheduled_at) }}</p>
-          <p class="deadline"><AlarmClock :size="13" /> Pay by {{ when(inv.pay_by) }} <span class="left">({{ timeLeft(inv.pay_by) }})</span></p>
+          <p class="nm-row-sub">{{ invNo(inv) }}, {{ when(inv.consultation.scheduled_at) }}</p>
+          <p class="deadline"><AlarmClock :size="13" aria-hidden="true" /> Pay by {{ when(inv.pay_by) }} <span class="left">({{ timeLeft(inv.pay_by) }})</span></p>
         </div>
         <div class="due-end">
           <p class="due-amount">{{ peso(inv.amount) }}</p>
           <button class="nm-btn-dark" :disabled="payingId === inv.id" @click="payInvoice(inv)">
             <CreditCard :size="15" /> {{ payingId === inv.id ? 'Opening…' : 'Pay now' }}
           </button>
-          <p class="methods">GCash · Maya · Card · QR Ph</p>
+          <p class="methods">GCash, Maya, card or QR Ph</p>
         </div>
       </div>
     </div>
@@ -61,8 +58,8 @@
         </button>
       </div>
       <div class="nm-search">
-        <Search :size="15" />
-        <input v-model="search" type="search" placeholder="Search RND or invoice no." />
+        <Search :size="15" aria-hidden="true" />
+        <input v-model="search" type="search" placeholder="Search by RND or invoice number" aria-label="Search invoices" />
       </div>
     </div>
 
@@ -83,7 +80,7 @@
             <tr v-for="inv in filtered" :key="inv.id" class="clickable" @click="open(inv)">
               <td data-label="Invoice"><strong>{{ invNo(inv) }}</strong><span class="nm-row-sub" style="display: block">Issued {{ shortDate(inv.created_at) }}</span></td>
               <td data-label="Consultation">
-                {{ inv.consultation.type_label || 'Consultation' }} · RND {{ inv.consultation.rnd.name }}
+                {{ inv.consultation.type_label || 'Consultation' }} with RND {{ inv.consultation.rnd.name }}
                 <span v-if="inv.consultation.scheduled_at" class="nm-row-sub" style="display: block">{{ when(inv.consultation.scheduled_at) }}</span>
               </td>
               <td data-label="Amount" class="nm-num">{{ peso(inv.amount) }}</td>
@@ -115,7 +112,7 @@
 
         <dl class="nm-dl rm-dl">
           <div><dt>RND</dt><dd>{{ current.consultation.rnd.name }}</dd></div>
-          <div><dt>Consultation</dt><dd>{{ current.consultation.type_label || '—' }}<template v-if="current.consultation.duration_minutes"> · {{ current.consultation.duration_minutes }} min</template></dd></div>
+          <div><dt>Consultation</dt><dd>{{ current.consultation.type_label || '—' }}<template v-if="current.consultation.duration_minutes">, {{ current.consultation.duration_minutes }} min</template></dd></div>
           <div><dt>Scheduled</dt><dd>{{ current.consultation.scheduled_at ? when(current.consultation.scheduled_at) : '—' }}</dd></div>
           <div><dt>Issued</dt><dd>{{ when(current.created_at) }}</dd></div>
           <template v-if="current.receipt">
@@ -130,25 +127,25 @@
         <div v-if="current.refund" class="refund">
           <p class="nm-section-title" style="margin: 0 0 10px">Refund</p>
           <ol class="steps">
-            <li class="on"><span /> Paid · {{ shortDate(current.receipt?.paid_at) }}</li>
-            <li class="on"><span /> Consultation cancelled<template v-if="current.refund.cancelled_at"> · {{ shortDate(current.refund.cancelled_at) }}</template></li>
+            <li class="on"><span /> Paid, {{ shortDate(current.receipt?.paid_at) }}</li>
+            <li class="on"><span /> Consultation cancelled<template v-if="current.refund.cancelled_at">, {{ shortDate(current.refund.cancelled_at) }}</template></li>
             <li :class="{ on: true, now: current.refund.status === 'refund_pending' }"><span /> Refund in progress</li>
-            <li :class="{ on: current.refund.status === 'refunded' }"><span /> Refunded<template v-if="current.refund.refunded_at"> · {{ shortDate(current.refund.refunded_at) }}</template></li>
+            <li :class="{ on: current.refund.status === 'refunded' }"><span /> Refunded<template v-if="current.refund.refunded_at">, {{ shortDate(current.refund.refunded_at) }}</template></li>
           </ol>
           <p v-if="current.refund.status === 'refund_pending'" class="nm-hint">{{ refundMessage(Number(current.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }), current.payment_method) }}</p>
         </div>
-        <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note" style="margin: 14px 0 0">{{ current.consultation.cancellation_reason }}</p>
+        <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note plain-note" style="margin: 14px 0 0">{{ current.consultation.cancellation_reason }}</p>
 
         <div class="rm-total"><span>{{ current.receipt ? 'Total paid' : 'Amount' }}</span><strong>{{ peso(current.amount) }}</strong></div>
 
         <div class="nm-modal-actions">
           <template v-if="current.receipt">
             <button class="nm-btn-soft" :disabled="resending" @click="resend(current)"><Mail :size="14" /> {{ resending ? 'Sending…' : 'Resend receipt' }}</button>
-            <button class="nm-btn-dark" @click="printReceipt(current)"><Printer :size="14" /> Download / print</button>
+            <button class="nm-btn-dark" @click="printReceipt(current)"><Printer :size="14" aria-hidden="true" /> Download or print</button>
           </template>
           <button v-else-if="current.status === 'unpaid' && current.pay_by" class="nm-btn-dark" :disabled="payingId === current.id" @click="payInvoice(current)"><CreditCard :size="14" /> Pay now</button>
         </div>
-        <p v-if="current.receipt" class="nm-hint" style="text-align: right">The receipt was emailed to you when you paid — resend it if you can't find it.</p>
+        <p v-if="current.receipt" class="nm-hint" style="text-align: right">The receipt was emailed to you when you paid. Resend it if you can't find it.</p>
       </div>
     </div>
 
@@ -158,7 +155,7 @@
 
 <script setup>
 import {
-  AlarmClock, CalendarClock, CheckCircle2, Clock, CreditCard, FileText, Mail, Printer, Receipt, RotateCcw, Search, X,
+  AlarmClock, CheckCircle2, CreditCard, FileText, Mail, Printer, Receipt, Search, X,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
@@ -244,7 +241,7 @@ function payInvoice(inv) {
     onPaid(latest) {
       invoices.value = latest
       current.value = null
-      paidNotice.value = `Payment received — ${invNo(inv)} is paid. Your receipt is on its way to your email.`
+      paidNotice.value = `Payment received. ${invNo(inv)} is paid, and your receipt is on its way to your email.`
       load({ quiet: true })
     },
     onClosed() { load({ quiet: true }) },
@@ -275,7 +272,7 @@ function printReceipt(inv) {
     rows: [
       ['Billed to', `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim() || '—'],
       ['RND', inv.consultation.rnd.name],
-      ['Consultation', `${inv.consultation.type_label || 'Consultation'}${inv.consultation.scheduled_at ? ' · ' + when(inv.consultation.scheduled_at) : ''}`],
+      ['Consultation', `${inv.consultation.type_label || 'Consultation'}${inv.consultation.scheduled_at ? ', ' + when(inv.consultation.scheduled_at) : ''}`],
       ['Paid on', when(inv.receipt.paid_at)],
       ['Paid via', paidVia(inv)],
       ...(inv.receipt.reference ? [['Payment reference', inv.receipt.reference]] : []),
@@ -311,7 +308,7 @@ function paidVia(inv) {
 }
 function statusDetail(inv) {
   if (inv.status === 'unpaid') return inv.pay_by ? `Pay by ${shortDate(inv.pay_by)}` : ''
-  if (inv.status === 'paid') return `${shortDate(inv.paid_at)}${inv.payment_method_label ? ' · ' + inv.payment_method_label : ''}`
+  if (inv.status === 'paid') return `${shortDate(inv.paid_at)}${inv.payment_method_label ? ', ' + inv.payment_method_label : ''}`
   if (inv.status === 'refunded') return inv.refund?.refunded_at ? `Refunded ${shortDate(inv.refund.refunded_at)}` : ''
   if (inv.status === 'refund_pending') return 'Consultation cancelled'
   if (inv.status === 'cancelled') return 'Nothing to pay'
@@ -326,34 +323,50 @@ function nameInitials(name) {
 <style scoped>
 .intro { margin: 0 0 16px; }
 .nm-success { display: flex; align-items: center; gap: 8px; }
-.nm-stat-value.small { font-size: 1.25rem; }
-.due-panel { margin-bottom: 20px; border-color: #f0dca8; background: #fffdf7; }
-.due-row { display: flex; gap: 14px; align-items: center; padding: 16px 0 0; margin-top: 14px; border-top: 1px solid #f3ecd8; flex-wrap: wrap; }
+/* figures: one divided panel */
+.figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; background: #fff; border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.fig { padding: 16px 20px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.fig:first-child { border-left: none; }
+.fig-label { font-size: 0.82rem; font-weight: 600; color: #4a5a4a; margin: 0; }
+.fig-value { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: #1a3a1a; margin: 2px 0 0; font-variant-numeric: lining-nums; }
+.fig-note { font-size: 0.78rem; color: #6a7a6a; margin: 2px 0 0; }
+.fig-note.warn { color: #8a6400; font-weight: 600; }
+/* payments still to make: the app's dashed green for "to do" */
+.due-panel { margin-bottom: 20px; border: 1.5px dashed #3f9a6b; background: #fff; }
+.due-row { display: flex; gap: 14px; align-items: center; padding: 16px 0 0; margin-top: 14px; border-top: 1px solid #d9e3dc; flex-wrap: wrap; }
 .due-main { flex: 1; min-width: 220px; }
 .deadline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #a0700b; margin: 6px 0 0; }
 .left { font-weight: 500; color: #b8860b; }
 .due-end { text-align: right; }
 .due-amount { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
-.methods { font-size: 0.7rem; color: #9aaa9a; margin: 5px 0 0; }
+.methods { font-size: 0.76rem; color: #6a7a6a; margin: 5px 0 0; }
 .history-bar { margin-top: 4px; }
 .receipt-modal { max-width: 520px; }
 .rm-head { display: flex; align-items: flex-start; gap: 12px; }
 .rm-head > div { flex: 1; }
-.close-btn { background: none; border: none; color: #8a9a8a; cursor: pointer; padding: 4px; }
+.close-btn { background: none; border: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.close-btn:hover { background: #f2f5f2; }
 .rm-dl { margin-top: 16px; }
 .rm-dl .wide { grid-column: 1 / -1; }
 .mono { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.refund { margin-top: 16px; background: #fafbfa; border: 1px solid #eceeec; border-radius: 12px; padding: 14px 16px; }
+.refund { margin-top: 16px; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 12px; padding: 14px 16px; }
 .steps { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.steps li { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: #9aaa9a; }
-.steps li span { width: 10px; height: 10px; border-radius: 50%; background: #d5dad5; flex-shrink: 0; }
+.steps li { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; color: #6a7a6a; }
+.steps li span { width: 10px; height: 10px; border-radius: 50%; background: #d9e3dc; flex-shrink: 0; }
 .steps li.on { color: #1a3a1a; }
 .steps li.on span { background: #1f8f5c; }
 .steps li.now span { background: #D4A017; box-shadow: 0 0 0 4px rgba(212, 160, 23, 0.2); }
-.rm-total { display: flex; justify-content: space-between; align-items: center; background: #f2f7f3; border-radius: 10px; padding: 12px 16px; margin-top: 16px; font-size: 0.88rem; }
+.rm-total { display: flex; justify-content: space-between; align-items: center; background: #f2f7f3; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 16px; margin-top: 16px; font-size: 0.88rem; }
 .rm-total strong { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #1a3a1a; }
+@media (max-width: 760px) {
+  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fig:nth-child(3) { border-left: none; }
+  .fig:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
+}
 @media (max-width: 640px) {
+  .fig { padding: 14px 16px; }
+  .fig-value { font-size: 1.3rem; }
   .due-end { text-align: left; width: 100%; }
-  .due-end .nm-btn-gold { width: 100%; }
+  .due-end .nm-btn-dark { width: 100%; }
 }
 </style>
