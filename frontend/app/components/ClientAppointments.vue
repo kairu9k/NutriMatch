@@ -26,55 +26,39 @@
           <NuxtLink :to="bookLink" class="outline-btn">{{ activeRnd ? 'Book a consultation' : 'Find an RND' }}</NuxtLink>
         </div>
 
-        <article v-for="appt in upcoming" :key="appt.id" class="panel appt-card">
-          <div class="date-block">
-            <span class="date-mon">{{ appt.month }}</span>
-            <span class="date-day">{{ appt.day }}</span>
-            <span class="date-dow">{{ appt.weekday }}</span>
+        <article v-for="appt in upcoming" :key="appt.id" class="panel up-card">
+          <div class="up-head">
+            <div>
+              <p class="up-day">{{ appt.dayLabel }}</p>
+              <p class="up-time">{{ appt.startClock }} <span class="up-to">to {{ appt.endClock }}</span></p>
+            </div>
+            <span class="dot-status" :class="appt.tone"><span class="dot" aria-hidden="true" />{{ appt.statusLabel }}<template v-if="appt.phase === 'confirmed' && appt.payment?.status === 'paid'">, paid</template></span>
           </div>
+          <p class="up-with">
+            <component :is="appt.typeIcon" :size="15" aria-hidden="true" /> {{ appt.typeLabel }} with
+            <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}`" class="up-rnd">RND {{ appt.rnd.name }}</NuxtLink>
+          </p>
+          <p v-if="appt.notes" class="appt-notes"><span>Your notes:</span> {{ appt.notes }}</p>
+          <p v-if="appt.hint" class="appt-hint" :class="{ 'hint-due': appt.phase === 'payment_due' }">{{ appt.hint }}</p>
 
-          <div class="appt-body">
-            <div class="appt-top">
-              <div class="rnd-line">
-                <img v-if="appt.rnd.photo" :src="appt.rnd.photo" alt="" class="rnd-avatar rnd-avatar-img" />
-                <div v-else class="rnd-avatar">{{ appt.rnd.initials }}</div>
-                <div class="rnd-text">
-                  <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}`" class="rnd-name">RND {{ appt.rnd.name }}</NuxtLink>
-                  <p v-if="appt.rnd.specialization" class="rnd-spec">{{ appt.rnd.specialization }}</p>
-                </div>
-              </div>
-              <div class="pill-stack">
-                <span class="status-pill" :class="appt.statusClass">{{ appt.statusLabel }}</span>
-                <span v-if="appt.phase === 'confirmed' && appt.payment?.status === 'paid'" class="status-pill pill-green"><CheckCircle2 :size="12" /> Paid</span>
-              </div>
-            </div>
-
-            <div class="appt-facts">
-              <span class="fact"><Clock :size="14" /> {{ appt.timeRange }}</span>
-              <span class="fact"><component :is="appt.typeIcon" :size="14" /> {{ appt.typeLabel }}</span>
-            </div>
-            <p v-if="appt.notes" class="appt-notes"><span>Your notes:</span> {{ appt.notes }}</p>
-            <p class="appt-hint" :class="{ 'hint-due': appt.phase === 'payment_due' }">{{ appt.hint }}</p>
-
-            <div class="appt-actions">
-              <button
-                v-if="appt.phase === 'payment_due'" class="btn-dark" type="button"
-                :disabled="payingId === appt.payment.invoice_id" @click="payNow(appt)"
-              >
-                <CreditCard :size="14" /> {{ payingId === appt.payment.invoice_id ? 'Opening checkout…' : `Pay ₱${money(appt.payment.amount)}` }}
-              </button>
-              <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="btn-dark"><Video :size="14" aria-hidden="true" /> Join video call</NuxtLink>
-              <!-- Join window: opens 15 min before the start (see join_opens_at). -->
-              <button v-if="appt.opensLater" class="btn-dark" type="button" disabled :title="`Opens ${appt.opensLabel}`">
-                <Video :size="14" /> Join opens {{ appt.opensLabel }}
-              </button>
-              <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" /> Message RND</NuxtLink>
-              <button v-if="appt.canCancel" class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
-                {{ appt.status === 'pending' ? 'Cancel request' : 'Cancel' }}
-              </button>
-            </div>
-            <p v-if="actionError[appt.id]" class="inline-error">{{ actionError[appt.id] }}</p>
+          <div class="appt-actions">
+            <button
+              v-if="appt.phase === 'payment_due'" class="btn-dark" type="button"
+              :disabled="payingId === appt.payment.invoice_id" @click="payNow(appt)"
+            >
+              <CreditCard :size="14" aria-hidden="true" /> {{ payingId === appt.payment.invoice_id ? 'Opening checkout…' : `Pay ₱${money(appt.payment.amount)}` }}
+            </button>
+            <NuxtLink v-if="appt.canJoinVideo" :to="`/consultation-room/${appt.id}`" class="btn-dark"><Video :size="14" aria-hidden="true" /> Join video call</NuxtLink>
+            <!-- Join window: opens 15 min before the start (see join_opens_at). -->
+            <button v-if="appt.opensLater" class="btn-dark" type="button" disabled :title="`Opens ${appt.opensLabel}`">
+              <Video :size="14" aria-hidden="true" /> Join opens {{ appt.opensLabel }}
+            </button>
+            <NuxtLink v-if="appt.canMessage" :to="`/messages?relationship=${appt.relationshipId}`" class="outline-btn"><MessageSquare :size="14" aria-hidden="true" /> Message RND</NuxtLink>
+            <button v-if="appt.canCancel" class="ghost-danger-btn" type="button" :disabled="busyId === appt.id" @click="openCancel(appt)">
+              {{ appt.status === 'pending' ? 'Cancel request' : 'Cancel' }}
+            </button>
           </div>
+          <p v-if="actionError[appt.id]" class="inline-error">{{ actionError[appt.id] }}</p>
         </article>
       </section>
 
@@ -99,41 +83,35 @@
         </div>
         <div v-else class="panel history-panel">
           <p v-if="!filteredHistory.length" class="empty-note">{{ historyFilters.find(f => f.key === historyFilter).empty }}</p>
-          <div v-for="appt in filteredHistory" :key="appt.id" class="history-row">
-            <div class="history-date">
-              <span class="h-day">{{ appt.day }}</span>
-              <span class="h-mon">{{ appt.month }}</span>
-              <span class="h-year">{{ appt.year }}</span>
-            </div>
-            <div class="history-info">
-              <p class="history-title">
-                RND {{ appt.rnd.name }}
-                <span class="status-pill" :class="appt.statusClass">{{ appt.statusLabel }}</span>
-              </p>
-              <p class="history-meta">{{ appt.timeRange }}, {{ appt.typeLabel.toLowerCase() }}</p>
-              <p v-if="appt.status === 'cancelled' && appt.cancellationReason" class="history-meta">Reason: {{ appt.cancellationReason }}</p>
-              <p v-if="appt.hint" class="history-meta">{{ appt.hint }}</p>
-              <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
-
-              <div v-if="appt.payment || appt.review" class="history-extras">
-                <template v-if="appt.payment">
-                  <span v-if="appt.payment.status === 'paid'" class="status-pill pill-green"><CheckCircle2 :size="12" /> Paid ₱{{ money(appt.payment.amount) }}</span>
-                  <NuxtLink v-else-if="appt.payment.status === 'unpaid'" to="/invoices-billing" class="status-pill pill-gold pill-link">Unpaid ₱{{ money(appt.payment.amount) }}, pay now</NuxtLink>
-                  <span v-else-if="appt.payment.status === 'refund_pending'" class="status-pill pill-gold">Refund pending ₱{{ money(appt.payment.amount) }}</span>
-                  <span v-else-if="appt.payment.status === 'refunded'" class="status-pill pill-muted">Refunded ₱{{ money(appt.payment.amount) }}</span>
-                </template>
+          <template v-for="g in historyGroups" :key="g.label">
+            <h3 class="month-head">{{ g.label }}</h3>
+            <div v-for="appt in g.items" :key="appt.id" class="h-row">
+              <p class="h-date">{{ appt.shortDate }}</p>
+              <div class="h-main">
+                <p class="h-title">{{ appt.typeLabel }}, {{ appt.startClock }}</p>
+                <p class="h-sub">RND {{ appt.rnd.name }}</p>
+                <p v-if="appt.status === 'cancelled' && appt.cancellationReason" class="h-sub">Reason: {{ appt.cancellationReason }}</p>
+                <p v-if="appt.hint" class="h-sub">{{ appt.hint }}</p>
+                <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
+                <p v-if="appt.status === 'completed'" class="h-links">
+                  <button type="button" class="text-link" @click="summaryId = appt.id">View summary</button>
+                  <button v-if="!appt.review" type="button" class="text-link" @click="openReview(appt)">Leave a review</button>
+                </p>
+              </div>
+              <div class="h-side">
+                <span class="dot-status" :class="appt.tone"><span class="dot" aria-hidden="true" />{{ appt.statusLabel }}</span>
                 <span v-if="appt.review" class="review-stars" :aria-label="`You rated ${appt.review.rating} out of 5`">
-                  <Star v-for="n in 5" :key="n" :size="13" :fill="n <= appt.review.rating ? '#D4A017' : 'none'" :color="n <= appt.review.rating ? '#D4A017' : '#d5dad5'" />
-                  <span class="review-label">Your rating</span>
+                  <Star v-for="n in 5" :key="n" :size="13" :fill="n <= appt.review.rating ? '#D4A017' : 'none'" :color="n <= appt.review.rating ? '#D4A017' : '#d5dad5'" aria-hidden="true" />
                 </span>
+                <template v-else-if="appt.payment">
+                  <span v-if="appt.payment.status === 'paid'" class="h-money">Paid ₱{{ money(appt.payment.amount) }}</span>
+                  <NuxtLink v-else-if="appt.payment.status === 'unpaid'" to="/invoices-billing" class="h-money link">Unpaid ₱{{ money(appt.payment.amount) }}, pay now</NuxtLink>
+                  <span v-else-if="appt.payment.status === 'refund_pending'" class="h-money">Refund pending ₱{{ money(appt.payment.amount) }}</span>
+                  <span v-else-if="appt.payment.status === 'refunded'" class="h-money">Refunded ₱{{ money(appt.payment.amount) }}</span>
+                </template>
               </div>
             </div>
-            <div class="history-actions">
-              <button v-if="appt.status === 'completed'" class="outline-btn small" type="button" @click="summaryId = appt.id"><FileText :size="13" /> View summary</button>
-              <button v-if="appt.status === 'completed' && !appt.review" class="outline-btn small" type="button" @click="openReview(appt)"><Star :size="13" aria-hidden="true" /> Leave a review</button>
-              <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}?book=1`" class="outline-btn small"><RotateCcw :size="13" aria-hidden="true" /> Book again</NuxtLink>
-            </div>
-          </div>
+          </template>
         </div>
       </section>
     </template>
@@ -196,9 +174,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
-  CalendarPlus, CalendarDays, Clock, Video, MessageCircle, MessageSquare, MapPin, Star, RotateCcw,
+  CalendarPlus, CalendarDays, Video, MessageCircle, MessageSquare, MapPin, Star,
   CheckCircle2, ClipboardList, CreditCard,
-  FileText,
 } from 'lucide-vue-next'
 
 const { get, patch, post } = useApi()
@@ -295,6 +272,12 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     weekday: start.toLocaleDateString('en-US', { weekday: 'short' }),
     longDate: start.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
     timeRange: `${clock(start)} – ${clock(end)}`,
+    startClock: clock(start),
+    endClock: clock(end),
+    dayLabel: start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    shortDate: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    monthLabel: start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    tone: phase === 'completed' ? 'green' : { 'pill-gold': 'gold', 'pill-green': 'green', 'pill-red': 'red' }[statusClass] || 'grey',
     typeLabel: type.label,
     typeIcon: type.icon,
     notes: (a.notes || '').trim(),
@@ -336,6 +319,16 @@ const historyCounts = computed(() => ({
 const filteredHistory = computed(() =>
   historyFilter.value === 'all' ? history.value : history.value.filter(a => a.phase === historyFilter.value)
 )
+// History under month headings ("October 2026"), newest first.
+const historyGroups = computed(() => {
+  const groups = []
+  for (const a of filteredHistory.value) {
+    const last = groups[groups.length - 1]
+    if (last && last.label === a.monthLabel) last.items.push(a)
+    else groups.push({ label: a.monthLabel, items: [a] })
+  }
+  return groups
+})
 
 /* ---------- Load ---------- */
 async function load() {
@@ -547,56 +540,55 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .empty-icon { display: block; margin: 0 auto 8px; color: #9ec4ad; }
 .empty-sub { font-size: 0.8rem; margin: 4px 0 14px !important; line-height: 1.5; }
 
-/* UPCOMING CARD */
-.appt-card { display: flex; gap: 20px; margin-bottom: 14px; }
-.date-block {
-  width: 68px; flex-shrink: 0; align-self: flex-start; border-radius: 12px; background: #eef3ec; color: #1e4a26;
-  display: flex; flex-direction: column; align-items: center; padding: 10px 0;
-}
-.date-mon { font-size: 0.78rem; font-weight: 700; }
-.date-day { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; }
-.date-dow { font-size: 0.74rem; color: #4a5a4a; }
-.appt-body { flex: 1; min-width: 0; }
-.appt-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.rnd-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.rnd-avatar { width: 40px; height: 40px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
-.rnd-avatar-img { object-fit: cover; }
-.rnd-text { min-width: 0; }
-.rnd-name { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; text-decoration: none; }
-.rnd-name:hover { text-decoration: underline; }
-.rnd-spec { font-size: 0.8rem; color: #6a7a6a; margin: 2px 0 0; }
-.appt-facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0; }
-.fact { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #1a3a1a; font-weight: 500; }
-.fact svg { color: #6a7a6a; }
+/* UPCOMING CARD: the date and time lead */
+.up-card { margin-bottom: 14px; }
+.up-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.up-day { font-size: 0.86rem; font-weight: 600; color: #4a5a4a; margin: 0; }
+.up-time { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; line-height: 1.1; color: #1a3a1a; margin: 2px 0 0; font-variant-numeric: lining-nums; }
+.up-to { font-family: 'Inter', sans-serif; font-size: 0.92rem; font-weight: 500; color: #6a7a6a; }
+.up-with { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.9rem; color: #1a3a1a; margin: 10px 0 0; }
+.up-with svg { color: #3f9a6b; }
+.up-rnd { font-weight: 700; color: #0a4a37; text-decoration: none; }
+.up-rnd:hover { text-decoration: underline; }
 .appt-notes { font-size: 0.82rem; color: #4a5a4a; margin: 10px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
 .appt-notes span { color: #6a7a6a; }
-.appt-hint { font-size: 0.82rem; color: #4a5a4a; margin: 8px 0 0; line-height: 1.5; }
+.appt-hint { font-size: 0.82rem; color: #4a5a4a; margin: 10px 0 0; line-height: 1.5; }
 /* payment still to make: the app's dashed green for "to do" */
 .appt-hint.hint-due { color: #1f4a30; background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 9px 12px; }
-.pill-stack { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .modal-note { font-size: 0.82rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; margin: -6px 0 14px; line-height: 1.5; }
 .appt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #d9e3dc; }
 
-/* HISTORY */
+/* status: a dot and a word */
+.dot-status { display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 600; color: #4a5a4a; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #a9b8ad; flex-shrink: 0; }
+.dot-status.gold { color: #8a6400; }
+.dot-status.gold .dot { background: #D4A017; }
+.dot-status.green { color: #1f6f46; }
+.dot-status.green .dot { background: #1f8f5c; }
+.dot-status.red { color: #a12525; }
+.dot-status.red .dot { background: #c0392b; }
+
+/* HISTORY: month headings, quiet rows */
 .filter-tabs { display: inline-flex; gap: 4px; background: #f2f6f3; border-radius: 999px; padding: 3px; flex-wrap: wrap; }
 .filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
 .filter-tab.active { background: #0a4a37; color: #fff; }
 .filter-tab:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
-.tab-count { font-size: 0.68rem; opacity: 0.75; }
-.history-panel { padding: 6px 22px; }
-.history-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-top: 1px solid #d9e3dc; }
-.history-row:first-of-type { border-top: none; }
-.history-date { width: 56px; flex-shrink: 0; text-align: center; }
-.h-day { display: block; font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; }
-.h-mon { display: block; font-size: 0.76rem; color: #4a5a4a; font-weight: 700; }
-.h-year { display: block; font-size: 0.72rem; color: #6a7a6a; }
-.history-info { flex: 1; min-width: 0; }
-.history-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.history-meta { font-size: 0.8rem; color: #6a7a6a; margin: 3px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
-.history-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.tab-count { font-size: 0.7rem; opacity: 0.75; }
+.history-panel { padding: 6px 22px 10px; }
+.month-head { font-size: 0.86rem; font-weight: 700; color: #4a5a4a; margin: 14px 0 4px; }
+.h-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
+.h-date { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.h-main { min-width: 0; }
+.h-title { font-size: 0.9rem; font-weight: 600; color: #1a3a1a; margin: 0; }
+.h-sub { font-size: 0.8rem; color: #6a7a6a; margin: 2px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
+.h-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 0; }
+.text-link { background: none; border: none; padding: 0; font: inherit; font-size: 0.82rem; font-weight: 600; color: #0a4a37; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.text-link:hover { color: #00382a; }
+.text-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; border-radius: 3px; }
+.h-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.h-money { font-size: 0.8rem; color: #4a5a4a; white-space: nowrap; }
+.h-money.link { color: #0a4a37; font-weight: 600; text-decoration: underline; }
 .review-stars { display: inline-flex; align-items: center; gap: 2px; }
-.review-label { font-size: 0.76rem; color: #6a7a6a; margin-left: 6px; }
-.history-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex-shrink: 0; }
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(10, 25, 15, 0.45); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
@@ -628,16 +620,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   .page-header .btn-dark { width: 100%; }
   .page-title { font-size: 1.4rem; }
   .panel { padding: 18px 16px; }
-  .appt-card { flex-direction: column; gap: 14px; }
-  .date-block { flex-direction: row; gap: 8px; width: auto; padding: 6px 12px; align-items: baseline; }
-  .date-day { font-size: 1.2rem; }
-  .appt-top { flex-direction: column; }
+  .up-head { flex-direction: column-reverse; gap: 8px; }
+  .up-time { font-size: 1.7rem; }
   .appt-actions > .btn-dark, .appt-actions > .outline-btn { flex: 1; }
   .ghost-danger-btn { margin-left: 0; width: 100%; text-align: center; }
   .history-panel { padding: 4px 16px; }
-  .history-row { flex-wrap: wrap; }
-  .history-actions { flex-direction: row; flex-wrap: wrap; width: 100%; padding-left: 0; }
-  .history-actions > * { flex: 1; }
+  .h-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .h-main { grid-column: 1 / -1; grid-row: 2; }
+  .h-side { grid-column: 2; grid-row: 1; }
   .toast { white-space: normal; max-width: calc(100% - 32px); }
 }
 .refund-note { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: #f4f6f4; border: 1px solid #d9e3dc; color: #4a5a4a; font-size: 0.8rem; line-height: 1.45; }
