@@ -36,7 +36,7 @@
         <img v-if="inv.consultation.rnd.profile_photo" :src="inv.consultation.rnd.profile_photo" class="nm-avatar" alt="" />
         <span v-else class="nm-avatar">{{ nameInitials(inv.consultation.rnd.name) }}</span>
         <div class="due-main">
-          <p class="nm-row-title">{{ inv.consultation.type_label }} with RND {{ inv.consultation.rnd.name }}</p>
+          <p class="nm-row-title">{{ typeLabel(inv.consultation.type_label) }} with RND {{ inv.consultation.rnd.name }}</p>
           <p class="nm-row-sub">{{ invNo(inv) }}, {{ when(inv.consultation.scheduled_at) }}</p>
           <p class="deadline"><AlarmClock :size="13" aria-hidden="true" /> Pay by {{ when(inv.pay_by) }} <span class="left">({{ timeLeft(inv.pay_by) }})</span></p>
         </div>
@@ -53,7 +53,7 @@
     <!-- history -->
     <div class="nm-toolbar history-bar">
       <div class="nm-tabs">
-        <button v-for="t in TABS" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" @click="tab = t.key">
+        <button v-for="t in TABS.filter(x => x.key === 'all' || countOf(x.key))" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" @click="tab = t.key">
           {{ t.label }}<span v-if="countOf(t.key)" class="nm-count"> {{ countOf(t.key) }}</span>
         </button>
       </div>
@@ -80,7 +80,7 @@
             <tr v-for="inv in filtered" :key="inv.id" class="clickable" @click="open(inv)">
               <td data-label="Invoice"><strong>{{ invNo(inv) }}</strong><span class="nm-row-sub" style="display: block">Issued {{ shortDate(inv.created_at) }}</span></td>
               <td data-label="Consultation">
-                {{ inv.consultation.type_label || 'Consultation' }} with RND {{ inv.consultation.rnd.name }}
+                {{ typeLabel(inv.consultation.type_label) }} with RND {{ inv.consultation.rnd.name }}
                 <span v-if="inv.consultation.scheduled_at" class="nm-row-sub" style="display: block">{{ when(inv.consultation.scheduled_at) }}</span>
               </td>
               <td data-label="Amount" class="nm-num">{{ peso(inv.amount) }}</td>
@@ -89,13 +89,26 @@
                 <span class="nm-row-sub" style="display: block">{{ statusDetail(inv) }}</span>
               </td>
               <td class="nm-num">
-                <button v-if="inv.status === 'unpaid' && inv.pay_by" class="nm-btn-dark nm-btn-sm" :disabled="payingId === inv.id" @click.stop="payInvoice(inv)">Pay</button>
-                <button v-else-if="inv.receipt" class="nm-btn-soft nm-btn-sm" @click.stop="open(inv)"><FileText :size="13" /> Receipt</button>
+                <button v-if="inv.status === 'unpaid' && inv.pay_by" class="nm-btn-dark nm-btn-sm" :disabled="payingId === inv.id" @click.stop="payInvoice(inv)"><CreditCard :size="13" aria-hidden="true" /> Pay</button>
+                <button v-else-if="inv.receipt" class="nm-btn-soft nm-btn-sm" @click.stop="open(inv)"><FileText :size="13" aria-hidden="true" /> Receipt</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+      <!-- phones: one block per invoice instead of the stacked table -->
+      <ul v-if="!loading && filtered.length" class="inv-list">
+        <li v-for="inv in filtered" :key="inv.id" class="inv-item">
+          <button type="button" class="inv-open" @click="open(inv)">
+            <span class="inv-line"><strong>{{ invNo(inv) }}</strong><strong>{{ peso(inv.amount) }}</strong></span>
+            <span class="inv-what">{{ typeLabel(inv.consultation.type_label) }} with RND {{ inv.consultation.rnd.name }}</span>
+            <span v-if="inv.consultation.scheduled_at" class="inv-sub">{{ when(inv.consultation.scheduled_at) }}</span>
+            <span class="inv-status"><span class="nm-pill" :class="STATUS[inv.status]?.pill">{{ STATUS[inv.status]?.label || inv.status }}</span> <span class="inv-sub">{{ statusDetail(inv) }}</span></span>
+          </button>
+          <button v-if="inv.status === 'unpaid' && inv.pay_by" class="nm-btn-dark nm-btn-sm inv-btn" :disabled="payingId === inv.id" @click="payInvoice(inv)"><CreditCard :size="13" aria-hidden="true" /> Pay</button>
+          <button v-else-if="inv.receipt" class="nm-btn-soft nm-btn-sm inv-btn" @click="open(inv)"><FileText :size="13" aria-hidden="true" /> Receipt</button>
+        </li>
+      </ul>
     </div>
 
     <!-- receipt / details -->
@@ -112,7 +125,7 @@
 
         <dl class="nm-dl rm-dl">
           <div><dt>RND</dt><dd>{{ current.consultation.rnd.name }}</dd></div>
-          <div><dt>Consultation</dt><dd>{{ current.consultation.type_label || '—' }}<template v-if="current.consultation.duration_minutes">, {{ current.consultation.duration_minutes }} min</template></dd></div>
+          <div><dt>Consultation</dt><dd>{{ current.consultation.type_label ? typeLabel(current.consultation.type_label) : '—' }}<template v-if="current.consultation.duration_minutes">, {{ current.consultation.duration_minutes }} min</template></dd></div>
           <div><dt>Scheduled</dt><dd>{{ current.consultation.scheduled_at ? when(current.consultation.scheduled_at) : '—' }}</dd></div>
           <div><dt>Issued</dt><dd>{{ when(current.created_at) }}</dd></div>
           <template v-if="current.receipt">
@@ -134,7 +147,7 @@
           </ol>
           <p v-if="current.refund.status === 'refund_pending'" class="nm-hint">{{ refundMessage(Number(current.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }), current.payment_method) }}</p>
         </div>
-        <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note plain-note" style="margin: 14px 0 0">{{ current.consultation.cancellation_reason }}</p>
+        <p v-if="current.consultation.cancellation_reason && current.status !== 'paid'" class="nm-note plain-note" style="margin: 14px 0 0"><strong>Reason for cancelling:</strong> {{ current.consultation.cancellation_reason }}</p>
 
         <div class="rm-total"><span>{{ current.receipt ? 'Total paid' : 'Amount' }}</span><strong>{{ peso(current.amount) }}</strong></div>
 
@@ -168,8 +181,8 @@ const now = useNow()
 const STATUS = {
   unpaid: { label: 'Awaiting payment', pill: 'gold' },
   paid: { label: 'Paid', pill: 'green' },
-  refund_pending: { label: 'Refund in progress', pill: 'red' },
-  refunded: { label: 'Refunded', pill: 'blue' },
+  refund_pending: { label: 'Refund in progress', pill: 'gold' },
+  refunded: { label: 'Refunded', pill: 'muted' },
   cancelled: { label: 'Voided', pill: 'muted' },
 }
 const TABS = [
@@ -228,6 +241,8 @@ function inTab(i, key) {
   if (key === 'voided') return i.status === 'cancelled'
   return true
 }
+// The server sends "In Person"; the app writes it in sentence case.
+const typeLabel = t => (t ? t.charAt(0) + t.slice(1).toLowerCase() : 'Consultation')
 const countOf = key => invoices.value.filter(i => inTab(i, key)).length
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -272,7 +287,7 @@ function printReceipt(inv) {
     rows: [
       ['Billed to', `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim() || '—'],
       ['RND', inv.consultation.rnd.name],
-      ['Consultation', `${inv.consultation.type_label || 'Consultation'}${inv.consultation.scheduled_at ? ', ' + when(inv.consultation.scheduled_at) : ''}`],
+      ['Consultation', `${typeLabel(inv.consultation.type_label)}${inv.consultation.scheduled_at ? ', ' + when(inv.consultation.scheduled_at) : ''}`],
       ['Paid on', when(inv.receipt.paid_at)],
       ['Paid via', paidVia(inv)],
       ...(inv.receipt.reference ? [['Payment reference', inv.receipt.reference]] : []),
@@ -345,7 +360,22 @@ function nameInitials(name) {
 .rm-head { display: flex; align-items: flex-start; gap: 12px; }
 .rm-head > div { flex: 1; }
 .close-btn { background: none; border: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.close-btn:hover { background: #f2f5f2; }
+.close-btn:hover { background: #f2f5f2; color: #1a3a1a; }
+.close-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
+.inv-list { display: none; list-style: none; margin: 0; padding: 0; }
+.inv-item { padding: 14px 0; border-top: 1px solid #d9e3dc; }
+.inv-item:first-child { border-top: none; padding-top: 0; }
+.inv-open { display: flex; flex-direction: column; gap: 3px; width: 100%; border: none; background: none; padding: 0; text-align: left; font-family: inherit; color: #1a3a1a; cursor: pointer; }
+.inv-open:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; border-radius: 6px; }
+.inv-line { display: flex; justify-content: space-between; gap: 10px; font-size: 0.92rem; }
+.inv-what { font-size: 0.86rem; }
+.inv-sub { font-size: 0.78rem; color: #6a7a6a; }
+.inv-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+.inv-btn { width: 100%; justify-content: center; margin-top: 10px; }
+@media (max-width: 640px) {
+  .nm-table-wrap { display: none; }
+  .inv-list { display: block; }
+}
 .rm-dl { margin-top: 16px; }
 .rm-dl .wide { grid-column: 1 / -1; }
 .mono { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
