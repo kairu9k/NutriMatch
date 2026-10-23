@@ -501,7 +501,7 @@ const nextStep = computed(() => {
     return {
       eyebrow: 'Payment due',
       text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} before then to start it. Unpaid bookings are cancelled at the start time.`,
-      action: `Pay ₱${amount}`, to: '/appointments',
+      action: 'View appointment', to: '/appointments', // paying lives in Needs you
     }
   }
   if (appt?.status === 'confirmed') {
