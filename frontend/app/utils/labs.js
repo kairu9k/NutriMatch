@@ -66,8 +66,17 @@ export const FASTED_LABEL = { yes: 'Fasted 8+ hours', no: 'Not fasting', na: '' 
 
 // Opens a lab file through the API (it's never a public link). The tab is
 // opened first, synchronously, so pop-up blockers allow it.
+// The private file is fetched through the API (it can take a few seconds), so
+// the new tab says so straight away instead of sitting blank, and says so
+// plainly if the file can't be opened.
+function tabMessage(win, title, text) {
+  if (!win) return
+  win.document.title = title
+  win.document.body.innerHTML = `<p style="font-family: Inter, system-ui, sans-serif; color: #1a3a1a; margin: 40px auto; max-width: 420px; text-align: center; line-height: 1.5">${text}</p>`
+}
 export async function openLabFile(get, path) {
   const win = window.open('', '_blank')
+  tabMessage(win, 'Opening your lab result', 'Opening your lab result. This can take a few seconds.')
   try {
     const blob = await get(path, { responseType: 'blob' })
     const url = URL.createObjectURL(blob)
@@ -76,7 +85,7 @@ export async function openLabFile(get, path) {
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
     return true
   } catch {
-    if (win) win.close()
+    tabMessage(win, 'Could not open the file', 'This file could not be opened. Close this tab and try again, or upload it again if the problem stays.')
     return false
   }
 }
