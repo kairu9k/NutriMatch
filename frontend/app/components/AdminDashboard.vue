@@ -137,24 +137,33 @@
       </section>
     </div>
 
-    <!-- NEEDS ATTENTION (pop-up from the banner button): the same rows as the client
-         dashboard's "Pay now" strip. Red = critical, dashed green = the admin's own
-         to-do, grey = for information. -->
+    <!-- NEEDS ATTENTION (pop-up from the strip's button): the admin's own to-do,
+         then what to keep an eye on (the app or the RND handles those). -->
     <div v-if="attnOpen && dash" class="nm-modal-overlay" @click.self="attnOpen = false">
       <div class="nm-modal attn-modal" role="dialog" aria-modal="true" aria-labelledby="attn-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="attnOpen = false"><X :size="18" aria-hidden="true" /></button>
         <h2 id="attn-title" class="nm-modal-title">Needs attention</h2>
-        <section class="needs">
-          <p v-if="!dash.attention.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing needs you right now.</p>
-          <ul v-else class="needs-band">
-            <li v-for="a in attnRows" :key="a.key" class="needs-row" :class="a.tone">
-              <AlertTriangle v-if="a.tone === 'risk'" :size="16" class="needs-icon" aria-hidden="true" />
-              <Info v-else-if="a.tone === 'watch'" :size="16" class="needs-icon info" aria-hidden="true" />
-              <span class="needs-text"><strong>{{ a.title }}.</strong> {{ a.text }}</span>
-              <NuxtLink :to="a.link" :class="a.tone === 'watch' ? 'nm-btn-soft nm-btn-sm' : 'nm-btn-dark nm-btn-sm'" @click="attnOpen = false">{{ a.action }}</NuxtLink>
-            </li>
-          </ul>
-        </section>
+        <h3 class="attn-h">Your to-do</h3>
+        <p v-if="!todoItems.length" class="attn-none">Nothing to do right now.</p>
+        <ul v-else class="attn-list">
+          <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
+            <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
+            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+            <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm" @click="attnOpen = false">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
+          </li>
+        </ul>
+        <h3 class="attn-h">Keep an eye on</h3>
+        <p class="attn-sub">For your information. The app or the RND handles these.</p>
+        <p v-if="!watchItems.length" class="attn-none">Nothing to watch right now.</p>
+        <ul v-else class="attn-list">
+          <li v-for="a in watchItems" :key="a.key" class="attn watch">
+            <Info :size="16" class="attn-icon" aria-hidden="true" />
+            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+            <NuxtLink :to="a.link" class="nm-panel-link" @click="attnOpen = false">View</NuxtLink>
+          </li>
+        </ul>
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-soft" @click="attnOpen = false">Close</button>
         </div>
@@ -189,7 +198,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { AlertTriangle, CheckCircle2, ChevronRight, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -350,7 +359,21 @@ onBeforeUnmount(() => {
 .refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-.attn-modal { max-width: 720px; }
+.attn-modal { max-width: 560px; }
+.attn-list { list-style: none; margin: 0; padding: 0; }
+.attn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
+.attn:first-child { border-top: none; padding-top: 0; }
+.attn-icon { flex-shrink: 0; margin-top: 2px; }
+.attn.todo-item .attn-icon { color: #a37a0b; }
+.attn.watch .attn-icon { color: #6a7a6a; }
+.attn-h { font-size: 0.92rem; font-weight: 700; margin: 4px 0 8px; }
+.attn-h + .attn-list, .attn-sub + .attn-list { margin-bottom: 18px; }
+.attn-sub { font-size: 0.8rem; color: #6a7a6a; margin: -4px 0 10px; }
+.attn-none { margin: 0 0 18px; font-size: 0.84rem; color: #6a7a6a; }
+.attn-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.attn-main strong { font-size: 0.86rem; color: #1a3a1a; }
+.attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
+.attn-people { color: #4a5a4a !important; }
 /* Today in the banner's white card */
 .today-card { padding: 0; gap: 0; overflow: hidden; }
 .today-card .figs { border-top: none; }
@@ -443,6 +466,8 @@ onBeforeUnmount(() => {
   .fig { padding: 12px 12px; }
   .fig strong { font-size: 1.3rem; }
   .needs-row { flex-wrap: wrap; padding: 12px 16px; }
+  .attn { flex-wrap: wrap; }
+  .attn .nm-panel-link { margin-left: 26px; }
   .needs-text { flex-basis: calc(100% - 40px); }
   .needs-row .nm-btn-dark, .needs-row .nm-btn-soft { margin-left: 28px; }
   .needs-row.unfinished .nm-btn-dark { margin-left: 21px; }
