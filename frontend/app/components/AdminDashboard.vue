@@ -332,6 +332,8 @@ onBeforeUnmount(() => {
 /* one 20px gap between every section */
 .admin-dash { display: flex; flex-direction: column; gap: 20px; }
 .admin-dash > * { margin-top: 0; margin-bottom: 0; }
+/* every panel: the client dashboard's green line and light shadow */
+.admin-dash .nm-panel { border-color: #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .updated { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; font-size: 0.8rem; color: #cfe0d5; }
 .refresh {
   display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: none; border-radius: 8px;
@@ -360,7 +362,7 @@ onBeforeUnmount(() => {
 .nm-hero.greet-only { grid-template-columns: minmax(0, 1fr); }
 /* the nine figures fill the panel beside the month comparison */
 .nm-grid { align-items: stretch; }
-.today-panel { padding: 0; overflow: hidden; display: flex; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.today-panel { padding: 0; overflow: hidden; display: flex; }
 .today-panel .figs { flex: 1; border-top: none; grid-auto-rows: 1fr; }
 .today-panel .fig { justify-content: center; padding: 14px 16px; }
 .today-panel .fig strong { font-size: 1.6rem; }
