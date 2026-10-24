@@ -449,7 +449,7 @@
             <table class="nm-table stack cs-table">
               <thead><tr><th>Date</th><th>Format</th><th>Result</th><th>Payment</th><th>NCP record</th><th><span class="sr-only">Summary</span></th></tr></thead>
               <tbody>
-                <tr v-for="a in consults.past" :key="a.id">
+                <tr v-for="a in pagedPast" :key="a.id">
                   <td data-label="Date"><strong>{{ shortDate(a.scheduled_at) }}</strong><span class="nm-row-sub cs-time">{{ timeOf(a.scheduled_at) }}</span></td>
                   <td data-label="Format">{{ a.type_label }}</td>
                   <td data-label="Result">
@@ -470,6 +470,7 @@
               </tbody>
             </table>
           </div>
+          <ListPager v-model:page="pastPage" :pages="pastPages" />
         </section>
       </div>
 
@@ -622,6 +623,8 @@ const consults = computed(() => {
     past: all.filter(a => !a.upcoming),
   }
 })
+const pastConsults = computed(() => consults.value.past)
+const { page: pastPage, pages: pastPages, paged: pagedPast } = usePager(pastConsults, { perPage: 10 })
 // appointment start time, Philippine time, e.g. 10:00 AM
 const timeOf = v => new Date(v).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
 function canJoin(a) {

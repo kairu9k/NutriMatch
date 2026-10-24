@@ -73,6 +73,9 @@
 /* a name or number inside text or a table cell stays a plain link */
 .nm-text-link { color: #1f6f46; font-weight: 600; text-decoration: none; }
 .nm-text-link:hover { text-decoration: underline; }
+/* pager under a list (ListPager.vue): sits on the panel's bottom edge */
+.nm-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #d9e3dc; }
+.nm-pager-num { font-size: 0.84rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
 .nm-section-title { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 18px 0 8px; }
 
 /* rows inside panels */

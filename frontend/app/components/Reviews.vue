@@ -38,7 +38,7 @@
 
     <!-- REVIEW LIST -->
     <div v-if="reviews.length" class="review-list">
-      <div v-for="review in reviews" :key="review.id" class="review-card">
+      <div v-for="review in pagedReviews" :key="review.id" class="review-card">
         <div class="review-top">
           <div class="review-who">
             <div class="review-avatar" :style="{ background: review.avatarColor }">{{ review.initials }}</div>
@@ -60,6 +60,7 @@
         </div>
         <p v-if="review.comment" class="review-comment">"{{ review.comment }}"</p>
       </div>
+      <ListPager v-model:page="reviewPage" :pages="reviewPages" />
     </div>
 
     <!-- EMPTY STATE: no reviews yet -->
@@ -110,6 +111,7 @@ const reviews = computed(() => rawReviews.value.map(r => ({
   comment: r.comment,
   postedAt: new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
 })))
+const { page: reviewPage, pages: reviewPages, paged: pagedReviews } = usePager(reviews)
 
 const summary = computed(() => {
   const total = reviews.value.length

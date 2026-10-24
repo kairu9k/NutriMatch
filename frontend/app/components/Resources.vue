@@ -31,7 +31,7 @@
       <!-- list -->
       <div class="nm-panel queue">
         <p v-if="!filteredResources.length" class="nm-muted" style="padding: 10px">Nothing here.</p>
-        <button v-for="r in filteredResources" :key="r.id" class="queue-item" :class="{ active: selected?.id === r.id }" @click="select(r.id)">
+        <button v-for="r in pagedResources" :key="r.id" class="queue-item" :class="{ active: selected?.id === r.id }" @click="select(r.id)">
           <span class="type-icon" :class="'t-' + r.type.toLowerCase()"><component :is="iconFor(r.type)" :size="17" /></span>
           <span class="queue-main">
             <span class="queue-name">{{ r.title }}</span>
@@ -44,6 +44,7 @@
           </span>
           <ChevronRight :size="16" class="queue-chevron" />
         </button>
+        <ListPager v-model:page="resourcePage" :pages="resourcePages" />
       </div>
 
       <!-- panel (a full-screen sheet on phones) -->
@@ -241,6 +242,7 @@ const filteredResources = computed(() => {
   return resources.value.filter(r => inTab(r, tab.value)
     && (!q || `${r.title} ${r.description || ''}`.toLowerCase().includes(q)))
 })
+const { page: resourcePage, pages: resourcePages, paged: pagedResources } = usePager(filteredResources, { resetOn: () => [tab.value, search.value] })
 
 function iconFor(type) {
   if (type === 'PDF') return FileText

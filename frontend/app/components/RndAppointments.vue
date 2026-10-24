@@ -116,7 +116,7 @@
         <!-- ============ HISTORY ============ -->
         <template v-else>
           <div v-if="!history.length" class="nm-empty"><History :size="26" /><p>{{ search ? 'No consultations match that name.' : 'No past consultations yet.' }}</p></div>
-          <article v-for="a in history" :key="a.id" class="row past">
+          <article v-for="a in pagedHistory" :key="a.id" class="row past">
             <DateBlock :at="a.scheduled_at" tone="muted" />
             <div class="row-main">
               <p class="who">
@@ -131,6 +131,7 @@
               <button type="button" class="nm-btn-outline nm-btn-sm" @click="summaryId = a.id"><FileText :size="14" /> Summary</button>
             </div>
           </article>
+          <ListPager v-model:page="historyPage" :pages="historyPages" />
         </template>
       </div>
     </template>
@@ -281,6 +282,7 @@ const history = computed(() => {
   const q = search.value.trim().toLowerCase()
   return list('history').filter(a => !q || a.client.name.toLowerCase().includes(q))
 })
+const { page: historyPage, pages: historyPages, paged: pagedHistory } = usePager(history, { resetOn: () => [search.value, patientFilter.value] })
 
 /* ---------- time (PH) ---------- */
 const PH = { timeZone: 'Asia/Manila' }

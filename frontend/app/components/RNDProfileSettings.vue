@@ -312,7 +312,7 @@
             <p class="empty-sub">Your consultations, records and meal plans show up here as you work with patients.</p>
           </div>
           <template v-else>
-            <NuxtLink v-for="entry in filteredHistory" :key="entry.key" :to="entry.link" class="entry-row">
+            <NuxtLink v-for="entry in pagedHistory" :key="entry.key" :to="entry.link" class="entry-row">
               <div class="entry-icon" :class="HISTORY_KINDS[entry.type]?.cls" aria-hidden="true"><component :is="HISTORY_KINDS[entry.type]?.icon || ClipboardList" :size="16" /></div>
               <div class="entry-info">
                 <p class="entry-title">{{ entry.title }}</p>
@@ -320,6 +320,7 @@
               </div>
               <span class="entry-time">{{ formatTimestamp(entry.at) }}</span>
             </NuxtLink>
+            <ListPager v-model:page="historyPage" :pages="historyPages" />
           </template>
         </template>
 
@@ -585,6 +586,7 @@ const historyError = ref('')
 let historyLoaded = false
 const filteredHistory = computed(() =>
   historyFilter.value === 'all' ? historyEntries.value : historyEntries.value.filter(e => e.type === historyFilter.value))
+const { page: historyPage, pages: historyPages, paged: pagedHistory } = usePager(filteredHistory, { resetOn: historyFilter })
 async function loadHistory() {
   isLoadingHistory.value = true
   historyError.value = ''

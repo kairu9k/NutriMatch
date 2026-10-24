@@ -53,7 +53,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="p in shown" :key="p.id" :class="{ muted: p.status === 'discharged' }">
+              <tr v-for="p in pagedShown" :key="p.id" :class="{ muted: p.status === 'discharged' }">
                 <td class="who">
                   <PatientIdentity :p="p" />
                 </td>
@@ -69,7 +69,7 @@
 
         <!-- phone: cards -->
         <div v-if="shown.length" class="cards">
-          <article v-for="p in shown" :key="p.id" class="card" :class="{ muted: p.status === 'discharged' }">
+          <article v-for="p in pagedShown" :key="p.id" class="card" :class="{ muted: p.status === 'discharged' }">
             <PatientIdentity :p="p" />
             <div class="card-grid">
               <div><p class="k">Care stage</p><CareStage :p="p" /></div>
@@ -80,6 +80,7 @@
             <div class="card-actions"><RowActions :p="p" /></div>
           </article>
         </div>
+        <ListPager v-model:page="page" :pages="pages" />
       </div>
       <p class="nm-hint">Adherence is the share of planned meals followed in the last 7 days (partly followed counts half, unlogged counts as missed). Weight change is from their screening to the latest progress record.</p>
     </template>
@@ -147,6 +148,7 @@ const shown = computed(() => {
     .filter(p => !q || p.client.name.toLowerCase().includes(q) || (p.condition || '').toLowerCase().includes(q))
     .sort(SORTS[sort.value])
 })
+const { page, pages, paged: pagedShown } = usePager(shown, { resetOn: () => [filter.value, search.value, sort.value] })
 
 /* ---------- small cells, shared by the table and the phone cards ---------- */
 const PH = { timeZone: 'Asia/Manila' }
