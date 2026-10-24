@@ -431,7 +431,6 @@
           <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
           <div class="form-nav">
-            <button type="button" class="btn-back" :disabled="isSubmitting" @click="currentStep = selectedRole === 'rnd' ? 6 : 2">Back</button>
             <button class="btn-primary" :disabled="isSubmitting || !consentGiven" :aria-busy="isSubmitting" @click="submitRegistration">
               <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
               {{ isSubmitting ? (selectedRole === 'rnd' ? 'Submitting…' : 'Creating account…') : (selectedRole === 'rnd' ? 'Submit application' : 'Create account') }}
