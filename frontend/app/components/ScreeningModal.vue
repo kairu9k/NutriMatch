@@ -4,10 +4,11 @@
        once and then can't be changed — see PreConsultationScreening.vue. -->
   <Teleport to="body">
     <div class="nm-modal-overlay" @click.self="emit('close')">
-      <div class="scr-box" role="dialog" aria-modal="true" aria-label="Your pre-consultation screening">
-        <button type="button" class="scr-x" aria-label="Close" @click="emit('close')"><X :size="18" /></button>
+      <div class="nm-modal scr-box" role="dialog" aria-modal="true" aria-labelledby="scr-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="emit('close')"><X :size="18" aria-hidden="true" /></button>
+        <h2 id="scr-title" class="nm-modal-title">Your screening</h2>
         <PreConsultationScreening embedded />
-        <div class="scr-foot">
+        <div class="nm-modal-actions">
           <button type="button" class="nm-btn-soft" @click="emit('close')">Close</button>
         </div>
       </div>
@@ -25,14 +26,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <style scoped>
-.scr-box { position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 26px 28px 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
-.scr-x { position: sticky; top: -14px; float: right; z-index: 3; margin: -14px -16px 0 8px; border: 0; background: #fff; color: #6a7a6a; cursor: pointer; padding: 6px; border-radius: 8px; display: flex; }
-.scr-x:hover { background: #f1f3f1; color: #1a3a1a; }
-.scr-foot { display: flex; justify-content: flex-end; position: sticky; bottom: -20px; z-index: 2; margin: 18px -28px -20px; padding: 14px 28px 16px; border-top: 1px solid #d9e3dc; background: #fff; }
-@media (max-width: 560px) {
+.scr-box { max-width: 640px; }
+/* the pop-up's header already says it */
+.scr-box :deep(.screening-title) { display: none; }
+@media (max-width: 640px) {
   .nm-modal-overlay { padding: 0; }
-  .scr-box { max-width: none; max-height: 100vh; height: 100vh; height: 100dvh; border-radius: 0; padding: 20px 16px; }
-  .scr-foot { margin: 18px -16px -20px; padding: 12px 16px 14px; }
-  .scr-foot > * { flex: 1; }
+  .scr-box { max-width: none; max-height: none; height: 100vh; height: 100dvh; border-radius: 0; }
+  .scr-box .nm-modal-actions > * { flex: 1; }
 }
 </style>

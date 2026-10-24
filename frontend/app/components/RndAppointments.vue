@@ -139,7 +139,7 @@
     <!-- REVIEW & CONFIRM (full screening) -->
     <div v-if="review" class="nm-modal-overlay" @click.self="review = null">
       <div class="nm-modal wide review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
-        <button type="button" class="modal-x" aria-label="Close" @click="review = null"><X :size="18" /></button>
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="review = null"><X :size="18" /></button>
         <h2 id="review-title" class="nm-modal-title">{{ review.appt.client.name }}</h2>
         <p class="nm-modal-text">{{ longWhen(review.appt.scheduled_at) }}, {{ review.appt.type_label.toLowerCase() }}, {{ review.appt.duration_minutes }} min</p>
         <p v-if="review.loading" class="nm-muted">Loading screening…</p>
@@ -181,6 +181,7 @@
     <!-- DECLINE / CANCEL WITH A REASON -->
     <div v-if="reason" class="nm-modal-overlay" @click.self="reason = null">
       <form class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="reason-title" @submit.prevent="submitReason">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="reason = null"><X :size="18" aria-hidden="true" /></button>
         <h2 id="reason-title" class="nm-modal-title">{{ reason.kind === 'decline' ? 'Decline this request?' : 'Cancel this consultation?' }}</h2>
         <p class="nm-modal-text">
           {{ reason.appt.client.name }}, {{ longWhen(reason.appt.scheduled_at) }}.
@@ -205,6 +206,7 @@
     <!-- MARK COMPLETE -->
     <div v-if="completeTarget" class="nm-modal-overlay" @click.self="completeTarget = null">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="completeTarget = null"><X :size="18" aria-hidden="true" /></button>
         <h2 id="complete-title" class="nm-modal-title">Mark this consultation complete?</h2>
         <p class="nm-modal-text">
           {{ completeTarget.client.name }}, {{ longWhen(completeTarget.scheduled_at) }}.
@@ -446,10 +448,6 @@ async function completeNow() {
 /* modals */
 .nm-modal.wide { max-width: 620px; }
 .review-modal { position: relative; }
-.review-modal .nm-modal-title { padding-right: 36px; }
-.modal-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: 8px; color: #6a7a6a; cursor: pointer; }
-.modal-x:hover { background: #f2f5f2; color: #1a3a1a; }
-.modal-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0 0 12px; }
 .facts dt { font-size: 0.72rem; color: #8a9a8a; margin: 0; }
 .facts dd { margin: 0; font-size: 0.85rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }

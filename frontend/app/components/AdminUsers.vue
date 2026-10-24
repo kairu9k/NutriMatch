@@ -8,6 +8,7 @@
     <!-- add admin (POST /api/admin/admins/, accounts/admin_accounts.py) -->
     <div v-if="showAdd" class="nm-modal-overlay" @click.self="showAdd = false">
       <form class="nm-modal" @submit.prevent="addAdmin">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="showAdd = false"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Add an admin</h3>
         <p class="nm-modal-text">They get full admin access. We email them an invite to set their own password with a 6-digit code — no password is sent by email.</p>
         <div class="add-grid">
@@ -108,7 +109,7 @@
 </template>
 
 <script setup>
-import { CheckCircle2, Search, UserPlus, Users } from 'lucide-vue-next'
+import { CheckCircle2, Search, UserPlus, Users, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 

@@ -183,10 +183,38 @@
 .nm-empty p { margin: 0; }
 .nm-empty svg { display: block; margin: 0 auto 8px; color: #c5d0c5; }
 
-/* modals */
-.nm-modal-overlay { position: fixed; inset: 0; background: rgba(10, 25, 15, 0.45); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
-.nm-modal { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 460px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); font-family: 'Inter', sans-serif; color: #1a3a1a; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
-.nm-modal-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; margin: 0 0 8px; }
+/* Pop-ups (user's call, 2026-10-24): every pop-up follows the client booking
+   pop-up. Dimmed page, white box with 18px corners and the green glow; a
+   header (serif title, plain x top right) over a divider; the middle scrolls;
+   the button row stays pinned at the bottom on a light strip. */
+.nm-modal-overlay { position: fixed; inset: 0; background: rgba(20, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 20px; }
+.nm-modal { position: relative; background: #fff; border-radius: 18px; padding: 24px 26px; width: 100%; max-width: 460px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); font-family: 'Inter', sans-serif; color: #1a3a1a; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; }
+.nm-modal-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; line-height: 1.2; color: #1a3a1a; margin: 0 0 8px; }
+/* the header: the title stays at the top while the rest scrolls, with the divider under it */
+.nm-modal .nm-modal-x + .nm-modal-title {
+  position: sticky; top: -24px; z-index: 2; background: #fff;
+  margin: -24px -26px 16px; padding: 24px 26px 16px; border-bottom: 1px solid #d9e3dc;
+}
+/* pop-ups whose header is a row (icon, title + line under it, status, x): same sticky header */
+.nm-modal .nm-modal-head.nm-modal-head {
+  position: sticky; top: -24px; z-index: 2; background: #fff;
+  margin: -24px -26px 16px; padding: 24px 26px 16px; border-bottom: 1px solid #d9e3dc;
+}
+.nm-modal-head .nm-modal-title { margin: 0; }
+.nm-modal-head .nm-modal-text { margin: 4px 0 0; }
+/* the plain x, top right of the header (comes right before the title in the markup) */
+.nm-modal-x {
+  position: sticky; top: -4px; z-index: 3; float: right; margin: -4px -6px 0 12px;
+}
+/* one look for every pop-up's x, whatever the page calls it */
+[role="dialog"] button[aria-label="Close"]:not(.welcome-x):not(.viewer-close):not(.legal-close),
+[role="alertdialog"] button[aria-label="Close"] {
+  width: 32px; height: 32px; padding: 0; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px; background: none; color: #6a7a6a; cursor: pointer;
+}
+[role="dialog"] button[aria-label="Close"]:not(.welcome-x):not(.viewer-close):not(.legal-close):hover,
+[role="alertdialog"] button[aria-label="Close"]:hover { background: #f2f5f2; color: #1a3a1a; }
+[role="dialog"] button[aria-label="Close"]:focus-visible, [role="alertdialog"] button[aria-label="Close"]:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .nm-modal-text { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 16px; }
 .nm-label { display: block; font-size: 0.8rem; font-weight: 600; color: #1a3a1a; margin: 0 0 6px; }
 .nm-input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 10px 12px; font-size: 0.86rem; font-family: inherit; color: #2a2a2a; background: #fff; }
@@ -197,8 +225,17 @@ textarea.nm-input { resize: vertical; line-height: 1.5; }
 /* In a pop-up the button row stays pinned to the bottom while the content above
    scrolls (like the booking pop-up), so Save / Send never sits below the fold. */
 .nm-modal .nm-modal-actions {
-  position: sticky; bottom: -24px; z-index: 2; flex-wrap: wrap; background: #fff;
-  margin: 18px -24px -24px; padding: 14px 24px 18px; border-top: 1px solid #d9e3dc;
+  position: sticky; bottom: -24px; z-index: 2; flex-wrap: wrap; background: #f7faf8;
+  margin: 18px -26px -24px; padding: 14px 26px; border-top: 1px solid #d9e3dc;
+}
+@media (max-width: 640px) {
+  .nm-modal-overlay { padding: 16px; }
+  .nm-modal { padding: 18px 16px; }
+  .nm-modal .nm-modal-x + .nm-modal-title { top: -18px; margin: -18px -16px 14px; padding: 18px 16px 14px; font-size: 1.15rem; }
+  .nm-modal-x { top: -6px; margin: -6px -4px 0 10px; }
+  .nm-modal .nm-modal-head.nm-modal-head { top: -18px; margin: -18px -16px 14px; padding: 18px 16px 14px; }
+  .nm-modal-head .nm-modal-title { font-size: 1.15rem; }
+  .nm-modal .nm-modal-actions { bottom: -18px; margin: 16px -16px -18px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
 }
 
 /* toast */

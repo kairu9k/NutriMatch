@@ -377,9 +377,10 @@
     </Transition>
     <ScreeningModal v-if="screeningOpen" @close="screeningOpen = false" />
 
-    <div v-if="drOpen" class="dr-overlay" @click.self="drOpen = false" @keydown.esc="drOpen = false">
-      <div class="dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-heading">
-        <h3 id="dr-heading" class="dr-heading">Request discharge</h3>
+    <div v-if="drOpen" class="nm-modal-overlay" @click.self="drOpen = false" @keydown.esc="drOpen = false">
+      <div class="nm-modal dr-modal" role="dialog" aria-modal="true" aria-labelledby="dr-heading">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="drOpen = false"><X :size="18" aria-hidden="true" /></button>
+        <h3 id="dr-heading" class="nm-modal-title">Request discharge</h3>
         <p class="dr-text">
           You're asking to end your care with <strong>RND {{ careRnd?.user.first_name }} {{ careRnd?.user.last_name }}</strong>.
           They'll be told right away and have <strong>{{ DR_DAYS }} days</strong> to close your care with a final note.
@@ -407,7 +408,7 @@
         <p v-if="drError" class="field-error">{{ drError }}
           <NuxtLink v-if="/upcoming consultation/i.test(drError)" to="/appointments" class="nm-btn-soft nm-btn-sm dr-link">Open My Appointments</NuxtLink>
         </p>
-        <div class="dr-actions">
+        <div class="nm-modal-actions">
           <button class="nm-btn-soft" type="button" :disabled="drBusy" @click="drOpen = false">Keep my RND</button>
           <button class="nm-btn-dark" type="button" :disabled="drBusy || !dr.reason || (dr.reason === 'other' && !dr.note.trim())" @click="requestDischarge">
             {{ drBusy ? 'Sending…' : 'Request discharge' }}
@@ -420,11 +421,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import {
-  User, HeartPulse, Shield, Bell, FileText, History as HistoryIcon, CheckCircle2,
-  Printer, ClipboardList, ShieldCheck, CalendarCheck, UtensilsCrossed,
-  Stethoscope, Pencil, Check,
-} from 'lucide-vue-next'
+import { Bell, CalendarCheck, Check, CheckCircle2, ClipboardList, FileText, HeartPulse, History as HistoryIcon, Pencil, Printer, Shield, ShieldCheck, Stethoscope, User, UtensilsCrossed, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
 
@@ -1087,11 +1084,9 @@ onMounted(async () => {
 .dr-pending { margin-top: 12px; padding: 14px 16px; border: 1px solid #f0e2b0; border-radius: 12px; background: #fdf8e8; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .dr-title { margin: 0; font-size: 0.9rem; font-weight: 700; color: #6a5410; }
 .dr-text { margin: 0; font-size: 0.84rem; line-height: 1.55; color: #4a5a4a; }
-.dr-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(15, 30, 15, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.dr-modal { width: 100%; max-width: 480px; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
-.dr-heading { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; }
+.dr-modal { max-width: 480px; }
+.dr-modal > * + * { margin-top: 14px; }
 .dr-points { margin: 0; padding-left: 18px; font-size: 0.82rem; color: #4a5a4a; line-height: 1.6; }
-.dr-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; position: sticky; bottom: -22px; z-index: 2; margin: 0 -22px -22px; padding: 14px 22px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 .dr-link { margin-left: 6px; }
 .optional-tag { font-weight: 500; color: #8a9a8a; margin-left: 4px; }
 </style>

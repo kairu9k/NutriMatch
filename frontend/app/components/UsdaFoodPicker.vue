@@ -1,7 +1,7 @@
 <template>
   <div class="nm-modal-overlay" @click.self="emit('close')">
     <div class="nm-modal usda" role="dialog" aria-modal="true" aria-labelledby="usda-title">
-      <div class="head">
+      <div class="head nm-modal-head">
         <div>
           <h3 id="usda-title" class="nm-modal-title">Add a USDA food</h3>
           <p class="nm-modal-text">USDA FoodData Central, for foods the FNRI list doesn't have. Values are per 100 g.<template v-if="mealLabel"> Adding to <strong>{{ mealLabel }}</strong>.</template></p>

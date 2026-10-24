@@ -256,6 +256,7 @@
       <!-- CONFIRM: finalize -->
       <div v-if="confirmFinalize" class="inner-overlay" @click.self="confirmFinalize = false">
         <div class="nm-modal" role="alertdialog" aria-labelledby="fin-title">
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="confirmFinalize = false"><X :size="18" aria-hidden="true" /></button>
           <h3 id="fin-title" class="nm-modal-title">Finalize this NCP record?</h3>
           <p class="nm-modal-text">It becomes part of {{ patientName }}'s permanent record and can't be edited or deleted afterwards. Any changes are saved first.</p>
           <div class="nm-modal-actions">
@@ -268,6 +269,7 @@
       <!-- CONFIRM: unsaved changes -->
       <div v-if="confirmLeave" class="inner-overlay" @click.self="confirmLeave = false">
         <div class="nm-modal" role="alertdialog" aria-labelledby="leave-title">
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="confirmLeave = false"><X :size="18" aria-hidden="true" /></button>
           <h3 id="leave-title" class="nm-modal-title">You have unsaved changes</h3>
           <p class="nm-modal-text">Save them as a draft so you can continue later?</p>
           <div class="nm-modal-actions">
@@ -670,7 +672,7 @@ function ncpError(e, fallback) {
 
 <style scoped>
 .ncp-overlay { z-index: 200; }
-.ncp { position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 1080px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); overflow: hidden; }
+.ncp { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 1080px; max-height: 92dvh; display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); overflow: hidden; }
 .ncp.is-inline { max-width: none; max-height: none; height: 100%; box-shadow: none; border: 1px solid #eceeec; }
 .ncp-inline { height: 100%; }
 /* In the consultation room's narrow panel the steps share one row: dot above
@@ -682,8 +684,8 @@ function ncpError(e, fallback) {
 .ncp.is-inline .ncp-head, .ncp.is-inline .ncp-form, .ncp.is-inline .ncp-foot { padding-left: 16px; padding-right: 16px; }
 .pad { padding: 20px 24px; }
 
-.ncp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 24px 12px; border-bottom: 1px solid #f0f2f0; }
-.ncp-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin: 0; }
+.ncp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 24px 26px 16px; border-bottom: 1px solid #d9e3dc; }
+.ncp-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; margin: 0; font-weight: 700; line-height: 1.2; }
 .ncp-sub { font-size: 0.8rem; color: #8a9a8a; margin: 2px 0 0; }
 .ncp-kind { font-weight: 700; color: #3d4a3d; }
 .ncp-kind.follow { color: #b8860b; }
@@ -691,7 +693,7 @@ function ncpError(e, fallback) {
 .save-state { font-size: 0.74rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; }
 .save-state.dirty { color: #9a6a00; }
 .save-state.ok { color: #1f6f46; }
-.icon-x { border: none; background: none; color: #6a7a6a; cursor: pointer; padding: 4px; border-radius: 6px; display: flex; }
+.icon-x { border: none; background: none; color: #6a7a6a; cursor: pointer; border-radius: 6px; display: flex; }
 .icon-x:hover { background: #f2f5f2; }
 
 .steps { display: flex; gap: 4px; padding: 10px 24px; border-bottom: 1px solid #f0f2f0; overflow-x: auto; }
@@ -820,10 +822,10 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .strip-facts dd small { font-weight: 500; color: #6a7a6a; }
 .strip-facts dd.risk { color: #a12525; }
 
-.ncp-foot { display: flex; justify-content: space-between; gap: 10px; padding: 12px 24px; border-top: 1px solid #f0f2f0; background: #fff; flex-wrap: wrap; }
+.ncp-foot { display: flex; justify-content: space-between; gap: 10px; padding: 14px 26px; border-top: 1px solid #d9e3dc; background: #f7faf8; flex-wrap: wrap; }
 .foot-right { display: flex; gap: 8px; flex-wrap: wrap; }
 .foot-right .nm-btn-outline { display: inline-flex; align-items: center; gap: 6px; }
-.inner-overlay { position: absolute; inset: 0; background: rgba(10, 25, 15, 0.35); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 30; }
+.inner-overlay { position: absolute; inset: 0; background: rgba(20, 30, 20, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 30; }
 
 @media (max-width: 900px) {
   .ncp-body { grid-template-columns: minmax(0, 1fr); }
@@ -834,6 +836,8 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 }
 @media (max-width: 560px) {
   .ncp-head, .steps, .ncp-form, .ncp-foot { padding-left: 16px; padding-right: 16px; }
+  .ncp-head { padding-top: 18px; padding-bottom: 14px; }
+  .ncp-title { font-size: 1.15rem; }
   .g3 { grid-template-columns: minmax(0, 1fr); }
   .goals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summary div { grid-template-columns: minmax(0, 1fr); gap: 2px; }

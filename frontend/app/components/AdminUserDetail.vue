@@ -218,6 +218,7 @@
     <!-- deactivate -->
     <div v-if="showDeactivate" class="nm-modal-overlay" @click.self="showDeactivate = false">
       <div class="nm-modal">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="showDeactivate = false"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Deactivate {{ u.first_name }}'s account?</h3>
         <p class="nm-modal-text">
           They'll be signed out and won't be able to sign in. We'll email them the reason below. You can reactivate the account any time.
@@ -241,6 +242,7 @@
     <!-- edit details -->
     <div v-if="showEdit" class="nm-modal-overlay" @click.self="showEdit = false">
       <form class="nm-modal edit-modal" @submit.prevent="saveEdit">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="showEdit = false"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Edit {{ u.first_name }}'s details</h3>
         <p class="nm-modal-text">For correcting mistakes. The change is saved in the audit log and the user is emailed what changed{{ editForm.email !== u.email ? ' (at both the old and new email)' : '' }}.</p>
         <div class="edit-grid">
@@ -283,7 +285,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Ban, CheckCircle2, FileImage, KeyRound, Pencil, RotateCcw } from 'lucide-vue-next'
+import { ArrowLeft, Ban, CheckCircle2, FileImage, KeyRound, Pencil, RotateCcw, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()

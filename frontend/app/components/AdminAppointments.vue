@@ -105,7 +105,7 @@
     <!-- details -->
     <div v-if="selected" class="nm-modal-overlay" @click.self="selected = null">
       <div class="nm-modal detail">
-        <div class="detail-head">
+        <div class="detail-head nm-modal-head">
           <div>
             <p class="nm-section-title" style="margin: 0 0 4px">Appointment #{{ selected.id }}</p>
             <h3 class="nm-modal-title" style="margin: 0">{{ dayText(selected.scheduled_at, true) }}</h3>
@@ -155,6 +155,7 @@
     <!-- cancel -->
     <div v-if="cancelling" class="nm-modal-overlay" style="z-index: 310" @click.self="busy ? null : (cancelling = false)">
       <div class="nm-modal">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="busy ? null : (cancelling = false)"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Cancel this appointment?</h3>
         <p class="nm-modal-text">
           {{ selected.client.name }} and RND {{ selected.rnd.name }} will both be notified with your reason.

@@ -53,7 +53,7 @@
     <!-- preview -->
     <div v-if="current" class="nm-modal-overlay" @click.self="current = null">
       <div class="nm-modal preview-modal" role="dialog" aria-modal="true" :aria-label="current.title">
-        <div class="pm-head">
+        <div class="pm-head nm-modal-head">
           <span class="type-icon"><component :is="TYPE_ICONS[current.type] || FileText" :size="18" aria-hidden="true" /></span>
           <div style="flex: 1; min-width: 0">
             <h3 class="nm-modal-title" style="margin: 0">{{ current.title }}</h3>

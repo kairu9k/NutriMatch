@@ -114,7 +114,7 @@
     <!-- receipt / details -->
     <div v-if="current" class="nm-modal-overlay" @click.self="current = null">
       <div class="nm-modal receipt-modal" role="dialog" aria-modal="true">
-        <div class="rm-head">
+        <div class="rm-head nm-modal-head">
           <div>
             <p class="nm-section-title" style="margin: 0 0 4px">{{ current.receipt ? 'Receipt' : 'Invoice' }}</p>
             <h3 class="nm-modal-title" style="margin: 0">{{ invNo(current) }}</h3>

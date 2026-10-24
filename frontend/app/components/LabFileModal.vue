@@ -114,14 +114,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lf-overlay { z-index: 400; }
-.lf {
-  background: #fff; border-radius: 16px; width: 100%; max-width: 900px; height: min(88vh, 900px);
-  display: flex; flex-direction: column; overflow: hidden; font-family: 'Inter', sans-serif; color: #1a3a1a;
-  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
-}
-.lf-head { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #d9e3dc; }
+.lf { background: #fff; border-radius: 18px; width: 100%; max-width: 900px; height: min(88vh, 900px); display: flex; flex-direction: column; overflow: hidden; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
+.lf-head { display: flex; align-items: flex-start; gap: 12px; padding: 24px 26px 16px; border-bottom: 1px solid #d9e3dc; }
 .lf-head-text { flex: 1; min-width: 0; }
-.lf-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin: 0; overflow-wrap: anywhere; }
+.lf-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; margin: 0; overflow-wrap: anywhere; font-weight: 700; line-height: 1.2; }
 .lf-sub { font-size: 0.82rem; color: #6a7a6a; margin: 3px 0 0; overflow-wrap: anywhere; }
 .lf-x { border: none; background: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .lf-x:hover { background: #f2f5f2; color: #1a3a1a; }
@@ -134,14 +130,19 @@ onBeforeUnmount(() => {
 .lf-spin { color: #3f9a6b; animation: lf-spin 0.9s linear infinite; }
 @keyframes lf-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lf-spin { animation: none; } }
-.lf-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; padding: 12px 20px; border-top: 1px solid #d9e3dc; }
-.lf-decline { padding: 12px 20px 0; border-top: 1px solid #d9e3dc; }
+.lf-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; padding: 14px 26px; border-top: 1px solid #d9e3dc; background: #f7faf8; }
+.lf-decline { padding: 12px 26px 0; border-top: 1px solid #d9e3dc; }
 .lf-label { display: block; font-size: 0.84rem; font-weight: 600; margin: 0 0 6px; }
 .lf-input { width: 100%; border: 1px solid #d9e3dc; border-radius: 8px; padding: 9px 12px; font-family: inherit; font-size: 0.86rem; color: #1a3a1a; resize: vertical; box-sizing: border-box; }
 .lf-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 .lf-error { font-size: 0.8rem; color: #a12525; margin: 6px 0 0; }
-.lf-error-row { padding: 0 20px; }
+.lf-error-row { padding: 0 26px; }
 @media (max-width: 640px) {
+  .lf-head { padding: 18px 16px 14px; }
+  .lf-title { font-size: 1.15rem; }
+  .lf-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .lf-decline { padding: 12px 16px 0; }
+  .lf-error-row { padding: 0 16px; }
   .lf-overlay { padding: 0; }
   .lf { max-width: none; height: 100%; border-radius: 0; }
   .lf-foot > * { flex: 1; }

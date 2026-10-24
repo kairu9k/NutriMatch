@@ -179,6 +179,7 @@
     <!-- FINISH CONSULTATION -->
     <div v-if="endOpen" class="overlay" @click.self="!ending && closeEnd()">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="end-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="!ending && closeEnd()"><X :size="18" aria-hidden="true" /></button>
         <template v-if="noShowDone">
           <h2 id="end-title" class="nm-modal-title">Marked as a no-show</h2>
           <p class="nm-modal-text">
@@ -251,6 +252,7 @@
     <!-- LEAVE WITH UNSAVED NCP -->
     <div v-if="leaveAsk" class="overlay" @click.self="leaveAsk = false">
       <div class="nm-modal" role="alertdialog" aria-labelledby="leave-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="leaveAsk = false"><X :size="18" aria-hidden="true" /></button>
         <h2 id="leave-title" class="nm-modal-title">Your NCP form has unsaved changes</h2>
         <p class="nm-modal-text">Save them as a draft before leaving the room?</p>
         <div class="nm-modal-actions">
@@ -276,7 +278,7 @@
 // their RND, the consultation time and their meal-plan targets — never NCP
 // drafts or the RND's notes. Pay-first and the join window are enforced by the
 // API (the client gets the room link only when it's paid and inside the window).
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, User, UserX, VideoOff } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, User, UserX, VideoOff, X } from 'lucide-vue-next'
 import { labDate } from '~/utils/labs'
 
 const route = useRoute()
@@ -683,7 +685,7 @@ onBeforeUnmount(disposeJitsi)
 .rnd-name { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0; }
 .check { margin: 0; padding-left: 18px; font-size: 0.8rem; line-height: 1.7; color: #3a4a3a; }
 
-.overlay { position: fixed; inset: 0; background: rgba(5, 15, 10, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 300; }
+.overlay { position: fixed; inset: 0; background: rgba(20, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 300; }
 .unsaved { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #1f4a30; background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 9px 12px; margin: 0 0 12px; }
 .unsaved svg { flex-shrink: 0; color: #3f9a6b; }
 .todo { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }

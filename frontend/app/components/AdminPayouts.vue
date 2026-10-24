@@ -112,6 +112,7 @@
     <!-- release modal -->
     <div v-if="releasing" class="nm-modal-overlay" @click.self="releasing = null">
       <div class="nm-modal">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="releasing = null"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Release {{ peso(releasing.posted) }} to {{ releasing.rnd_name }}</h3>
         <p class="nm-modal-text">
           First send the money yourself, then record it here. The RND gets an email and a notification.
@@ -140,7 +141,7 @@
 
 <script setup>
 import { payoutVia } from '~/utils/payout'
-import { CheckCircle2, Wallet } from 'lucide-vue-next'
+import { CheckCircle2, Wallet, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 

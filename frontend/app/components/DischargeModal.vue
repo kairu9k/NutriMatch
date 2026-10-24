@@ -1,6 +1,7 @@
 <template>
   <div class="nm-modal-overlay" @click.self="$emit('close')">
     <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="discharge-title">
+      <button type="button" class="nm-modal-x" aria-label="Close" @click="$emit('close')"><X :size="18" aria-hidden="true" /></button>
       <h2 id="discharge-title" class="nm-modal-title">Discharge {{ patientName }}?</h2>
       <p v-if="checking" class="nm-modal-text">Checking…</p>
       <template v-else-if="blockers.length">
@@ -34,6 +35,7 @@
 </template>
 
 <script setup>
+import { X } from 'lucide-vue-next'
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
   patientName: { type: String, default: 'this patient' },

@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="nm-modal-overlay" @click.self="emit('close')">
       <div class="nm-modal nd-box" role="dialog" aria-modal="true" :aria-label="note.subject || 'Notification'">
-        <div class="nd-head">
+        <div class="nd-head nm-modal-head">
           <div class="nd-icon" :class="tone"><component :is="icon" :size="18" aria-hidden="true" /></div>
           <div class="nd-head-text">
             <h3 class="nm-modal-title" style="margin: 0">{{ note.subject || 'Notification' }}</h3>

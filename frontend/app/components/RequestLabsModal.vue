@@ -2,6 +2,7 @@
   <Teleport to="body">
     <div class="nm-modal-overlay" @click.self="!saving && emit('close')">
       <form class="nm-modal rl-modal" role="dialog" aria-modal="true" aria-labelledby="rl-title" @submit.prevent="submit">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="!saving && emit('close')"><X :size="18" aria-hidden="true" /></button>
         <h3 id="rl-title" class="nm-modal-title">Request lab tests</h3>
         <p class="nm-modal-text">
           {{ patientName }} is notified and uploads the results from their dashboard.
@@ -34,6 +35,7 @@
 </template>
 
 <script setup>
+import { X } from 'lucide-vue-next'
 import { labDayTime } from '~/utils/labs'
 
 // RND: POST /api/rnd/relationships/<id>/labs/. "Needed before" isn't picked —

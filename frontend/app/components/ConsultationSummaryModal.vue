@@ -162,14 +162,14 @@ function print() {
 </script>
 
 <style scoped>
-.cs { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 16px 40px -12px rgba(0, 77, 58, 0.35); overflow: hidden; }
-.cs-head { display: flex; justify-content: space-between; gap: 12px; padding: 20px 22px 14px; border-bottom: 1px solid #d9e3dc; }
-.cs-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; margin: 0; }
+.cs { background: #fff; border-radius: 18px; width: 100%; max-width: 640px; max-height: 92dvh; display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); overflow: hidden; }
+.cs-head { display: flex; justify-content: space-between; gap: 12px; padding: 24px 26px 16px; border-bottom: 1px solid #d9e3dc; }
+.cs-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; margin: 0; font-weight: 700; line-height: 1.2; }
 .sub { font-size: 0.82rem; color: #6a7a6a; margin: 4px 0 0; }
 .icon-x { border: none; background: none; color: #6a7a6a; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; align-self: flex-start; flex-shrink: 0; }
 .icon-x:hover { background: #f2f5f2; color: #1a3a1a; }
 .icon-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
-.cs-body { padding: 14px 22px 18px; overflow-y: auto; }
+.cs-body { padding: 18px 26px; overflow-y: auto; }
 .note { display: flex; gap: 8px; align-items: flex-start; background: #fff; border: 1.5px dashed #3f9a6b; color: #1f4a30; border-radius: 10px; padding: 9px 12px; font-size: 0.82rem; line-height: 1.45; margin: 0 0 12px; }
 .note svg { flex-shrink: 0; margin-top: 2px; color: #3f9a6b; }
 section { padding: 14px 0; border-top: 1px solid #d9e3dc; }
@@ -195,10 +195,14 @@ h3 { display: flex; align-items: center; gap: 6px; font-size: 0.92rem; font-weig
 .list { margin: 0; padding-left: 18px; font-size: 0.84rem; line-height: 1.8; }
 .private { background: #fafbfa; border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
 .sig { font-size: 0.76rem; color: #8a9a8a; margin: 10px 0 0; }
-.cs-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 22px; border-top: 1px solid #f0f2f0; }
+.cs-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; padding: 14px 26px; border-top: 1px solid #d9e3dc; background: #f7faf8; }
 .cs-foot .nm-field-error { flex-basis: 100%; margin: 0; text-align: right; }
 .cs-foot .nm-btn-dark { display: inline-flex; align-items: center; gap: 6px; }
 @media (max-width: 560px) {
+  .cs-head { padding: 18px 16px 14px; }
+  .cs-title { font-size: 1.15rem; }
+  .cs-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .cs-body { padding: 16px; }
   .cs { max-height: 100vh; height: 100%; border-radius: 0; }
   .stats, .targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats div, .targets div { border-left: 1px solid #d9e3dc; border-top: none; }

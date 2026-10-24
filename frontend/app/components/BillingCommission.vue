@@ -160,7 +160,7 @@
     <!-- INVOICE DETAIL + RECEIPT -->
     <div v-if="selected" class="nm-modal-overlay" @click.self="closeInvoice">
       <div class="nm-modal detail" role="dialog" aria-modal="true" :aria-label="`${invNo(selected)} details`">
-        <div class="detail-head">
+        <div class="detail-head nm-modal-head">
           <div>
             <p class="nm-section-title" style="margin: 0 0 4px">Invoice</p>
             <h3 class="nm-modal-title mono" style="margin: 0">{{ invNo(selected) }}</h3>

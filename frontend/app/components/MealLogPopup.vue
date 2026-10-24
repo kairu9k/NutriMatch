@@ -1,12 +1,14 @@
 <template>
   <Teleport to="body">
-    <div class="ml-overlay" @click.self="emit('close')">
-      <div class="ml-box" role="dialog" aria-modal="true" :aria-label="log ? title : 'Meal log'">
-        <button type="button" class="ml-x" aria-label="Close" @click="emit('close')"><X :size="18" /></button>
-        <div class="ml-header">
-          <h2 class="ml-title">{{ log ? title : 'Meal log' }}</h2>
-          <p class="ml-sub">{{ log ? subLine : 'Loading…' }}</p>
-          <span v-if="log" class="ml-status" :class="`ml-status-${log.status || 'waiting'}`">{{ log.status_label }}</span>
+    <div class="nm-modal-overlay" @click.self="emit('close')">
+      <div class="nm-modal ml-box" role="dialog" aria-modal="true" :aria-label="log ? title : 'Meal log'">
+        <div class="ml-header nm-modal-head">
+          <div class="ml-head-text">
+            <h2 class="ml-title">{{ log ? title : 'Meal log' }}</h2>
+            <p class="ml-sub">{{ log ? subLine : 'Loading…' }}</p>
+            <span v-if="log" class="ml-status" :class="`ml-status-${log.status || 'waiting'}`">{{ log.status_label }}</span>
+          </div>
+          <button type="button" aria-label="Close" @click="emit('close')"><X :size="18" aria-hidden="true" /></button>
         </div>
 
         <p v-if="error" class="ml-error">{{ error }}</p>
@@ -39,7 +41,7 @@
             <MealLogRating :log-id="log.id" :status="log.status" :label="`${log.client_name}'s ${log.meal_label.toLowerCase()}`" @rated="onRated" />
           </section>
 
-          <div class="ml-actions">
+          <div class="nm-modal-actions ml-actions">
             <button class="ml-primary-btn" type="button" @click="openChart">Open patient chart</button>
           </div>
         </template>
@@ -105,20 +107,10 @@ function formatTime(t) {
 <style scoped>
 * { box-sizing: border-box; }
 
-.ml-overlay {
-  position: fixed; inset: 0; background: rgba(20,30,20,0.5);
-  display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px;
-}
-.ml-box {
-  position: relative; background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain;
-  padding: 26px 28px; font-family: 'Inter', sans-serif;
-  box-shadow: 0 0 2px rgba(0, 77, 58, 0.1), 0 16px 40px -12px rgba(0, 77, 58, 0.35);
-}
-.ml-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: 8px; color: #6a7a6a; cursor: pointer; }
-.ml-x:hover { background: #f2f5f2; color: #1a3a1a; }
-.ml-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
-.ml-header { padding: 0 36px 16px 0; border-bottom: 1px solid #d9e3dc; }
-.ml-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #1a3a1a; margin: 0 0 4px; }
+.ml-box { max-width: 520px; }
+.ml-header { display: flex; align-items: flex-start; gap: 12px; }
+.ml-head-text { flex: 1; min-width: 0; }
+.ml-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; line-height: 1.2; color: #1a3a1a; margin: 0 0 4px; }
 .ml-sub { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 10px; }
 .ml-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin-top: 16px; }
 
@@ -143,15 +135,11 @@ function formatTime(t) {
 .ml-measure { color: #7a8a7a; }
 .ml-kcal { color: #7a8a7a; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-.ml-actions { display: flex; position: sticky; bottom: -26px; z-index: 2; margin: 22px -28px -26px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
+.ml-actions { flex-wrap: nowrap; }
 .ml-primary-btn {
   flex: 1; background: #0a4a37; color: #fff; border: none; border-radius: 8px;
   min-height: 40px; padding: 0 20px; font-weight: 600; font-size: 0.86rem; cursor: pointer; font-family: inherit;
 }
 .ml-primary-btn:hover { background: #00382a; }
 .ml-primary-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-@media (max-width: 600px) {
-  .ml-box { padding: 22px 18px; }
-  .ml-actions { bottom: -22px; margin: 18px -18px -22px; padding: 12px 18px 16px; }
-}
 </style>

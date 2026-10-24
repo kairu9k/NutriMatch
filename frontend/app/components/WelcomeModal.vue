@@ -112,10 +112,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
-.welcome-overlay {
-  position: fixed; inset: 0; z-index: 500; background: rgba(6, 26, 16, 0.55); overscroll-behavior: contain;
-  display: flex; align-items: center; justify-content: center; padding: 16px;
-}
+.welcome-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(20, 30, 20, 0.55); overscroll-behavior: contain; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .welcome-card {
   position: relative; width: 100%; max-width: 560px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto;
   overscroll-behavior: contain; -webkit-overflow-scrolling: touch;

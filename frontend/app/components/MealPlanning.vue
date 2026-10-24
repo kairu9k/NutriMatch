@@ -441,6 +441,7 @@
     </div>
     <div v-if="confirmDelete" class="nm-modal-overlay no-print" @click.self="confirmDelete = false">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="confirmDelete = false"><X :size="18" aria-hidden="true" /></button>
         <h3 id="del-title" class="nm-modal-title">Delete this draft?</h3>
         <p class="nm-modal-text">"{{ selectedPlan?.name }}" was never sent to {{ selectedPatientName || 'the patient' }}. Deleting it removes the whole 7-day week, every meal and food in it. This can't be undone.</p>
         <div class="nm-modal-actions">
@@ -451,6 +452,7 @@
     </div>
     <div v-if="sendCheck" class="nm-modal-overlay no-print" @click.self="sendCheck = null">
       <div class="nm-modal send-check" role="dialog" aria-modal="true" aria-labelledby="send-check-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="sendCheck = null"><X :size="18" aria-hidden="true" /></button>
         <h3 id="send-check-title" class="nm-modal-title">{{ isResend ? 'Send the updated plan' : 'Send this plan' }} to {{ selectedPatientName || 'the patient' }}?</h3>
         <p class="send-consequence">
           <Lock :size="14" />

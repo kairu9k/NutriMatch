@@ -186,6 +186,7 @@
     <!-- reject modal -->
     <div v-if="rejecting" class="nm-modal-overlay" @click.self="busy ? null : (rejecting = false)">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="reject-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="busy ? null : (rejecting = false)"><X :size="18" aria-hidden="true" /></button>
         <h3 id="reject-title" class="nm-modal-title">Reject {{ selected.first_name }} {{ selected.last_name }}'s application?</h3>
         <p class="nm-modal-text">We'll email them this reason. They can fix it and apply again with the same email.</p>
         <div class="reason-chips">

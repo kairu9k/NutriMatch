@@ -66,6 +66,7 @@
     <!-- add / edit -->
     <div v-if="form" class="nm-modal-overlay" @click.self="saving ? null : (form = null)">
       <div class="nm-modal">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="saving ? null : (form = null)"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">{{ form.id ? 'Edit reminder' : `New reminder for ${clientFirstName}` }}</h3>
         <div v-if="!form.id" class="templates">
           <button v-for="t in TEMPLATES" :key="t.title" type="button" class="template" @click="useTemplate(t)">{{ t.title }}</button>
@@ -112,6 +113,7 @@
     <!-- delete -->
     <div v-if="confirmDelete" class="nm-modal-overlay" @click.self="confirmDelete = null">
       <div class="nm-modal">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="confirmDelete = null"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Delete "{{ confirmDelete.title }}"?</h3>
         <p class="nm-modal-text">{{ clientFirstName }} won't get it any more. To stop it for a while instead, use Pause.</p>
         <div class="nm-modal-actions">
@@ -126,7 +128,7 @@
 </template>
 
 <script setup>
-import { Check, CheckCircle2, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-vue-next'
+import { Check, CheckCircle2, Pause, Pencil, Play, Plus, Trash2, X } from 'lucide-vue-next'
 
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },

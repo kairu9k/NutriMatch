@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="nm-modal-overlay" @click.self="!saving && emit('close')">
       <form class="nm-modal lu-modal" role="dialog" aria-modal="true" aria-labelledby="lu-title" @submit.prevent="submit">
-        <div class="lu-head">
+        <div class="lu-head nm-modal-head">
           <h3 id="lu-title" class="nm-modal-title">{{ replace ? 'Replace lab result' : 'Upload lab results' }}</h3>
           <button type="button" class="lu-x" aria-label="Close" :disabled="saving" @click="emit('close')"><X :size="18" /></button>
         </div>

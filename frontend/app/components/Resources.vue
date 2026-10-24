@@ -125,9 +125,10 @@
     </div>
 
     <!-- ================= UPLOAD NEW RESOURCE MODAL ================= -->
-    <div v-if="showUploadModal" class="modal-overlay" @click.self="closeUploadModal">
-      <div class="modal-box">
-        <h2 class="modal-title">Upload a resource</h2>
+    <div v-if="showUploadModal" class="nm-modal-overlay" @click.self="closeUploadModal">
+      <div class="nm-modal upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="closeUploadModal"><X :size="18" aria-hidden="true" /></button>
+        <h2 id="upload-title" class="nm-modal-title">Upload a resource</h2>
 
         <p class="field-label">Type</p>
         <div class="type-selector" role="radiogroup" aria-label="Type">
@@ -171,7 +172,7 @@
 
         <p class="upload-note">Uploading doesn't send it to anyone. Next, you pick the patients who should receive it.</p>
 
-        <div class="modal-actions">
+        <div class="nm-modal-actions">
           <button class="nm-btn-soft" type="button" @click="closeUploadModal">Cancel</button>
           <button
             class="nm-btn-dark"
@@ -191,7 +192,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   Upload, Search, Eye, ArrowLeft, Download, ExternalLink,
   BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon,
-  CheckCircle2, EyeOff, ChevronRight
+  CheckCircle2, EyeOff, ChevronRight,
+  X,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
@@ -547,15 +549,7 @@ onMounted(loadResources)
 }
 
 /* ============ UPLOAD NEW RESOURCE MODAL ============ */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(20,30,20,0.5);
-  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
-}
-.modal-box {
-  background: #fff; border-radius: 16px; width: 100%; max-width: 500px;
-  max-height: 90vh; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; padding: 28px;
-}
-.modal-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #1a3a1a; margin: 0 0 20px; }
+.upload-modal { max-width: 500px; }
 
 
 .field-label { display: block; font-size: 0.82rem; font-weight: 600; color: #2a2a2a; margin: 0 0 8px; }
@@ -587,14 +581,11 @@ onMounted(loadResources)
 
 .upload-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; background: #fdf8ee; border: 1px solid #f1e3bd; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
 
-.modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 
 @media (max-width: 640px) {
   .client-grid { grid-template-columns: minmax(0, 1fr); }
   .detail-actions > * { flex: 1; }
   .type-selector { display: flex; }
   .type-option { flex: 1; justify-content: center; padding: 7px 6px; }
-  .modal-box { padding: 22px 18px; }
-  .modal-actions { bottom: -22px; margin: 0 -18px -22px; padding: 12px 18px 16px; }
 }
 </style>

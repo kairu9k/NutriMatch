@@ -137,7 +137,7 @@
     <!-- payout details (opened from the statement's Add / Change) -->
     <div v-if="editing" class="nm-modal-overlay" @click.self="saving ? null : (editing = false)">
       <form class="nm-modal pd-modal" role="dialog" aria-modal="true" aria-labelledby="pd-title" novalidate @submit.prevent="saveAccount">
-        <button type="button" class="modal-x" aria-label="Close" :disabled="saving" @click="editing = false"><X :size="18" /></button>
+        <button type="button" class="nm-modal-x" aria-label="Close" :disabled="saving" @click="editing = false"><X :size="18" /></button>
         <h3 id="pd-title" class="nm-modal-title">{{ account ? 'Change payout details' : 'Add payout details' }}</h3>
         <p class="nm-modal-text">Where NutriMatch sends your earnings on the 5th. Only NutriMatch admins can see these.</p>
         <div class="pd-methods" role="radiogroup" aria-label="Send my earnings by">
@@ -186,7 +186,7 @@
     <!-- invoice detail -->
     <div v-if="row" class="nm-modal-overlay" @click.self="row = null">
       <div class="nm-modal inv" role="dialog" aria-modal="true" :aria-label="`Invoice INV-${pad(row.invoice_id)}`">
-        <div class="inv-head">
+        <div class="inv-head nm-modal-head">
           <div class="inv-who">
             <h3 class="inv-title">{{ row.client_name }}</h3>
             <p class="inv-sub">INV-{{ pad(row.invoice_id) }}, {{ row.consultation_type.toLowerCase() }} consultation{{ row.consultation_at ? ` on ${when(row.consultation_at)}` : '' }}</p>
@@ -217,8 +217,8 @@
 
     <!-- payout detail -->
     <div v-if="payout" class="nm-modal-overlay" @click.self="payout = null">
-      <div class="nm-modal wide-modal">
-        <div class="md-head">
+      <div class="nm-modal wide-modal" role="dialog" aria-modal="true" aria-label="Payout">
+        <div class="md-head nm-modal-head">
           <div>
             <h3 class="inv-title">Payout of {{ peso(payout.amount) }}</h3>
             <p class="inv-sub">Sent {{ shortDate(payout.released_at) }}</p>
@@ -564,13 +564,9 @@ function longDate(v) {
 .bar-val { font-size: 0.66rem; color: #6a7a6a; white-space: nowrap; }
 .bar-label { font-size: 0.74rem; color: #8a9a8a; }
 .pd-modal { position: relative; max-width: 460px; }
-.pd-modal .nm-modal-title { padding-right: 36px; }
 .pd-fields { display: flex; flex-direction: column; gap: 12px; }
 .pd-other { margin-top: 8px; }
 .pd-count { margin: 4px 0 0; font-variant-numeric: tabular-nums; }
-.modal-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: 8px; color: #6a7a6a; cursor: pointer; }
-.modal-x:hover { background: #f2f5f2; color: #1a3a1a; }
-.modal-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .pd-methods { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .pd-method { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #d5dad5; border-radius: 10px; padding: 9px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .pd-method.on { border-color: #1f8f5c; background: #f2f9f4; }
@@ -581,7 +577,7 @@ function longDate(v) {
 .inv { max-width: 460px; }
 .inv-head { display: flex; align-items: flex-start; gap: 12px; }
 .inv-who { flex: 1; min-width: 0; }
-.inv-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; margin: 0 0 4px; }
+.inv-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; line-height: 1.2; color: #1a3a1a; margin: 0 0 4px; }
 .inv-sub { font-size: 0.82rem; color: #6a7a6a; margin: 0; line-height: 1.45; }
 .inv-head .nm-pill { margin-top: 4px; flex-shrink: 0; }
 .inv-money { margin-top: 18px; padding: 4px 0; border-top: 1px solid #eef1ee; border-bottom: 1px solid #eef1ee; }
