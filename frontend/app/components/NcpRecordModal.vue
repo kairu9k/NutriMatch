@@ -699,12 +699,12 @@ function ncpError(e, fallback) {
 .steps { display: flex; gap: 4px; padding: 8px 24px; border-bottom: 1px solid #d9e3dc; overflow-x: auto; }
 .step { display: inline-flex; align-items: center; gap: 6px; border: none; background: none; padding: 5px 11px 5px 5px; border-radius: 999px; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; cursor: pointer; white-space: nowrap; }
 .step:hover { background: #f7f9f7; }
-.step.active { background: #14301a; color: #fff; }
+.step.active { background: #0a4a37; color: #fff; }
 .step-dot { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; background: #eceeec; color: #6a7a6a; }
 .step.done .step-dot { background: #1f8f5c; color: #fff; }
 .step.partial .step-dot { background: #fdf1d6; color: #8a6a00; }
 .step.ready .step-dot { background: #D4A017; color: #1a3a1a; }
-.step.active .step-dot { box-shadow: 0 0 0 2px #14301a, 0 0 0 3px rgba(255, 255, 255, 0.6); }
+.step.active .step-dot { box-shadow: 0 0 0 2px #0a4a37, 0 0 0 3px rgba(255, 255, 255, 0.6); }
 
 .ncp-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; flex: 1; min-height: 0; }
 .ncp.is-inline .ncp-body { grid-template-columns: minmax(0, 1fr); }
