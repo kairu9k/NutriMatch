@@ -232,7 +232,7 @@
 
         <!-- RND STEP 3: PROFESSIONAL PROFILE (stage 5) -->
         <div v-else-if="currentStep === 5">
-          <h2>Your profile</h2>
+          <h2>Public profile</h2>
           <p class="subtitle">Step 3 of {{ steps.length }}. What clients see before they book you.</p>
 
           <form class="details-form" novalidate @submit.prevent="goToConsultation">
@@ -284,7 +284,7 @@
 
         <!-- RND STEP 4: CONSULTATION SETUP (stage 6) -->
         <div v-else-if="currentStep === 6">
-          <h2>Consultations</h2>
+          <h2>Fee and formats</h2>
           <p class="subtitle">Step 4 of {{ steps.length }}. Your fee and how you consult.</p>
 
           <form class="details-form" novalidate @submit.prevent="goToConfirm">
@@ -342,7 +342,7 @@
 
         <!-- STEP 3: CONFIRM -->
         <div v-else-if="currentStep === 3">
-          <h2>{{ selectedRole === 'rnd' ? 'Check your application' : 'Check your details' }}</h2>
+          <h2>{{ selectedRole === 'rnd' ? 'Review and submit' : 'Review and create' }}</h2>
           <p class="subtitle">Step {{ steps.length }} of {{ steps.length }}. Make sure everything is right before you send it.</p>
 
           <div class="confirm-summary">
@@ -698,8 +698,8 @@ const topBack = computed(() => {
     case 1:
     case 2: return { label: 'Back to sign in', to: '/login' }
     case 5: return { label: 'Back to account and license', step: 2 }
-    case 6: return { label: 'Back to your profile', step: 5 }
-    case 3: return rnd ? { label: 'Back to consultations', step: 6 } : { label: 'Back to your details', step: 2 }
+    case 6: return { label: 'Back to public profile', step: 5 }
+    case 3: return rnd ? { label: 'Back to fee and formats', step: 6 } : { label: 'Back to your details', step: 2 }
     default: return null
   }
 })
@@ -845,8 +845,8 @@ const genderToSex = { Male: 'male', Female: 'female' }
 // in); clients keep the short form. Stage numbers: 1 role, 2 details,
 // 5 profile, 6 consultation, 3 confirm, 4 verify email, 7 under review.
 const steps = computed(() => (selectedRole.value === 'rnd'
-  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Your profile' }, { label: 'Consultations' }, { label: 'Check your application' }]
-  : [{ label: 'Choose a role' }, { label: 'Your details' }, { label: 'Check your details' }]))
+  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Public profile' }, { label: 'Fee and formats' }, { label: 'Review and submit' }]
+  : [{ label: 'Choose a role' }, { label: 'Your details' }, { label: 'Review and create' }]))
 const STAGE_ORDER = { patient: [1, 2, 3], rnd: [1, 2, 5, 6, 3] }
 const stageIndex = computed(() => {
   if ([4, 7].includes(currentStep.value)) return steps.value.length // all done
