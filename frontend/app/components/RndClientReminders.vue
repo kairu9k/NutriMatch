@@ -16,8 +16,7 @@
       <p class="empty-title">No reminders yet</p>
       <p class="empty-text">Consultation, payment and meal-logging reminders already go out on their own. Add medication or habit reminders here.</p>
       <div v-if="canEdit" class="starters">
-        <button v-for="t in TEMPLATES" :key="t.title" type="button" class="starter" @click="openForm(); useTemplate(t)">{{ t.title }}</button>
-        <button type="button" class="nm-btn-dark nm-btn-sm" @click="openForm()"><Plus :size="14" /> Write your own</button>
+        <button type="button" class="nm-btn-dark" @click="openForm()"><Plus :size="15" /> Add reminder</button>
       </div>
     </div>
 
@@ -65,11 +64,11 @@
 
     <!-- add / edit -->
     <div v-if="form" class="nm-modal-overlay" @click.self="saving ? null : (form = null)">
-      <div class="nm-modal">
+      <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="rem-form-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="saving ? null : (form = null)"><X :size="18" aria-hidden="true" /></button>
-        <h3 class="nm-modal-title">{{ form.id ? 'Edit reminder' : `New reminder for ${clientFirstName}` }}</h3>
+        <h3 id="rem-form-title" class="nm-modal-title">{{ form.id ? 'Edit reminder' : `New reminder for ${clientFirstName}` }}</h3>
         <div v-if="!form.id" class="templates">
-          <button v-for="t in TEMPLATES" :key="t.title" type="button" class="template" @click="useTemplate(t)">{{ t.title }}</button>
+          <button v-for="t in TEMPLATES" :key="t.title" type="button" class="template" :class="{ on: form.title === t.title }" @click="useTemplate(t)">{{ t.title }}</button>
         </div>
         <label class="nm-label" for="rem-title">Title</label>
         <input id="rem-title" v-model="form.title" class="nm-input" maxlength="255" placeholder="e.g. Take metformin" />
@@ -112,7 +111,7 @@
 
     <!-- delete -->
     <div v-if="confirmDelete" class="nm-modal-overlay" @click.self="confirmDelete = null">
-      <div class="nm-modal">
+      <div class="nm-modal" role="alertdialog" aria-modal="true" aria-label="Delete reminder">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="confirmDelete = null"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Delete "{{ confirmDelete.title }}"?</h3>
         <p class="nm-modal-text">{{ clientFirstName }} won't get it any more. To stop it for a while instead, use Pause.</p>
@@ -280,11 +279,12 @@ function dayLabel(iso) {
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
 .empty-text { font-size: 0.86rem; color: #5a6a5a; margin: 0; max-width: 60ch; line-height: 1.5; }
 .starters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
-.starter { background: #fff; border: 1px solid #d5dad5; border-radius: 16px; padding: 6px 12px; font-size: 0.8rem; color: #1a3a1a; cursor: pointer; font-family: inherit; }
-.starter:hover { border-color: #1f8f5c; }
 .templates { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
-.template { background: #f7f9f7; border: 1px solid #e3e8e3; border-radius: 16px; padding: 6px 12px; font-size: 0.78rem; color: #2a3a2a; cursor: pointer; font-family: inherit; }
-.template:hover { border-color: #1f8f5c; }
+/* quick starts: small filled light green buttons; the one in use turns green */
+.template { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+.template:hover { background: #d3e7da; }
+.template.on { background: #0a4a37; color: #fff; }
+.template:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 .full { width: 100%; }
 @media (max-width: 640px) {
