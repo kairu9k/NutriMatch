@@ -152,6 +152,11 @@ def run_due_reminders(now=None, client=None):
 
     # Care whose discharge request has waited 3 days ends here too.
     process_due_discharge_requests(**({"client": client} if client else {}))
+    if client is None:
+        from billing.services import expire_unanswered_requests
+
+        expire_unanswered_requests()
+        run_rnd_reminders(now)
 
     from .models import Reminder, ReminderPreference
 
@@ -285,6 +290,59 @@ def run_due_reminders(now=None, client=None):
                 r.send_at = nxt
             r.save(update_fields=["is_sent", "send_at", "last_sent_at"])
     return sent
+
+
+def _notify_once(recipient, notifiable_type, notifiable_id, subject, content):
+    """An RND reminder, sent once (keyed on the notification itself)."""
+    from .models import NotificationLog
+    from .services import notify
+
+    if NotificationLog.objects.filter(recipient=recipient, notifiable_type=notifiable_type,
+                                      notifiable_id=notifiable_id, subject=subject).exists():
+        return False
+    notify(recipient=recipient, notifiable_type=notifiable_type, notifiable_id=notifiable_id, subject=subject, content=content)
+    return True
+
+
+def run_rnd_reminders(now=None, rnd=None):
+    """RND side (2026-10-25): a booking request still unanswered within 24 h
+    of its time, and a consultation starting within the hour. In-app only.
+    `rnd` limits it to one RND (the on-open run). Returns how many were sent."""
+    from billing.models import Invoice
+    from scheduling.models import Appointment
+
+    now = now or timezone.now()
+    scope = {"relationship__rnd": rnd} if rnd else {}
+    soon = (Appointment.objects.filter(scheduled_at__gt=now, **scope)
+            .select_related("relationship__client", "relationship__rnd"))
+    sent = 0
+    for appt in soon.filter(status="pending", scheduled_at__lte=now + timedelta(hours=24)):
+        name = appt.relationship.client.full_name
+        sent += _notify_once(appt.relationship.rnd, "appointment", appt.id, "Booking request waiting",
+                             f"{name}'s request for {_when(appt.scheduled_at)} is still waiting. "
+                             "Confirm or decline it before then, or it expires.")
+    for appt in soon.filter(status="confirmed", scheduled_at__lte=now + timedelta(hours=1)):
+        kind = appt.get_type_display().lower()
+        unpaid = appt.invoices.filter(status=Invoice.Status.UNPAID).exists()
+        content = (f"Your {kind} consultation with {appt.relationship.client.full_name} starts at {_clock(appt.scheduled_at)}. "
+                   + ("It isn't paid yet, and it's cancelled automatically if it's still unpaid at the start time."
+                      if unpaid else "You can join from Appointments 15 minutes before it starts."))
+        sent += _notify_once(appt.relationship.rnd, "appointment", appt.id, "Your consultation starts soon", content)
+    return sent
+
+
+def run_for_rnd_throttled(rnd, seconds=60):
+    """The RND's on-open run (notifications, dashboard), at most once a minute."""
+    from django.core.cache import cache
+
+    if cache.add(f"rnd-reminders-run:{rnd.pk}", 1, seconds):
+        try:
+            from billing.services import expire_unanswered_requests
+
+            expire_unanswered_requests(relationship__rnd=rnd)
+            run_rnd_reminders(rnd=rnd)
+        except Exception:
+            logger.exception("Reminder run failed for RND %s", rnd.pk)
 
 
 def run_for_client_throttled(client, seconds=60):

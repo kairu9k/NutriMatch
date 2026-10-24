@@ -450,12 +450,48 @@ def settle_cancelled_appointment(appointment):
     return invoice
 
 
+NOT_ANSWERED_REASON = "The RND didn't respond before the requested time."
+
+
+def expire_unanswered_requests(**scope):
+    """Booking requests the RND never confirmed or declined, whose time has
+    passed, are cancelled (2026-10-25) so the client isn't left waiting: the
+    client is told to book another time, the RND that it lapsed. Runs with
+    expire_unpaid_appointments. Returns how many."""
+    from django.utils import timezone
+
+    from communication.services import notify
+    from scheduling.models import Appointment
+    from scheduling.services import close_reopened_care_if_idle
+    from scheduling.views import format_ph_datetime
+
+    due = (Appointment.objects.filter(status=Appointment.Status.PENDING, scheduled_at__lte=timezone.now(), **scope)
+           .select_related("relationship__client", "relationship__rnd"))
+    count = 0
+    for appt in due:
+        appt.status = Appointment.Status.CANCELLED
+        appt.cancellation_reason = NOT_ANSWERED_REASON
+        appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        close_reopened_care_if_idle(appt.relationship)
+        when = format_ph_datetime(appt.scheduled_at)
+        rnd, client = appt.relationship.rnd, appt.relationship.client
+        notify(recipient=client, notifiable_type="appointment", notifiable_id=appt.id, subject="Booking request expired",
+               content=f"RND {rnd.full_name} didn't respond to your request for {when} before that time. You can book another time.")
+        notify(recipient=rnd, notifiable_type="appointment", notifiable_id=appt.id, subject="Booking request expired",
+               content=f"{client.full_name}'s request for {when} expired because it wasn't confirmed or declined in time.")
+        count += 1
+    return count
+
+
 def expire_unpaid_appointments(**scope):
     """Confirmed appointments whose start time passed while their invoice was
     still unpaid are cancelled ("not paid") and the invoice voided, so the
     slot is released and it can't be paid late. Run lazily wherever
-    appointments/invoices are listed. Returns how many were expired."""
+    appointments/invoices are listed. Returns how many were expired.
+    Unanswered booking requests expire here too (expire_unanswered_requests)."""
     from django.utils import timezone
+
+    expire_unanswered_requests(**scope)
 
     from communication.services import notify
     from scheduling.models import Appointment

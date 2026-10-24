@@ -134,6 +134,10 @@ class NotificationListView(generics.ListAPIView):
             from .reminders import run_for_client_throttled
 
             run_for_client_throttled(self.request.user)
+        elif self.request.user.role == "rnd":
+            from .reminders import run_for_rnd_throttled
+
+            run_for_rnd_throttled(self.request.user)
         # Chat isn't in the bell (it's on the Messages icon) — this also hides
         # "New message" notifications stored before that change.
         return NotificationLog.objects.filter(

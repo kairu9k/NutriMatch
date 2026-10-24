@@ -186,9 +186,14 @@ class CancelledFirstBookingTests(TestCase):
         self.assertIn(rel.id, self.patients())
         Appointment.objects.filter(pk=appt.pk).update(scheduled_at=timezone.now() - timedelta(hours=2))
         self.assert_not_a_patient(rel)
-        # Still on the RND's Requests tab so they can decline it.
+        # It expires (2026-10-25): off the Requests tab, cancelled, both told.
         board = self.r.get("/api/rnd/appointments/board/").data
-        self.assertTrue(any(a["id"] == appt.id and a["time_passed"] for a in board["requests"]))
+        self.assertFalse(any(a["id"] == appt.id for a in board["requests"]))
+        appt.refresh_from_db()
+        self.assertEqual(appt.status, "cancelled")
+        from communication.models import NotificationLog
+
+        self.assertEqual(NotificationLog.objects.filter(notifiable_id=appt.id, subject="Booking request expired").count(), 2)
 
 
 class ClientCancelCutoffTests(TestCase):

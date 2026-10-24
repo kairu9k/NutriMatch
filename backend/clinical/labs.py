@@ -367,6 +367,10 @@ class RndLabRequestCancelView(APIView):
         req.status, req.cancelled_at = LabRequest.Status.CANCELLED, timezone.now()
         req.save(update_fields=["status", "cancelled_at"])
         audit(request, "lab_request.cancelled", req)
+        from communication.services import notify
+
+        notify(req.relationship.client, "lab_request", req.id, "Lab request cancelled",
+               f"RND {req.relationship.rnd.full_name} cancelled the lab tests they asked for. You don't need to upload them.")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

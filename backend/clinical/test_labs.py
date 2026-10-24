@@ -198,4 +198,8 @@ class LabResultsTests(TestCase):
         # Cancelling takes it off the client's list.
         self.assertEqual(self.rnd_api.delete(f"/api/rnd/lab-requests/{req_id}/").status_code, 204)
         self.assertEqual(self.client_api.get("/api/client/labs/").data["requests"], [])
+        from communication.models import NotificationLog
+
+        self.assertTrue(NotificationLog.objects.filter(recipient=self.c, notifiable_type="lab_request", notifiable_id=req_id,
+                                                       subject="Lab request cancelled").exists())
         self.assertEqual([i for i in today_items(self.c) if i["kind"] == "lab"], [])

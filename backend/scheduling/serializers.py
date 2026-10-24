@@ -293,11 +293,20 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         appointment = validated_data["appointment"]
-        return Review.objects.create(
+        review = Review.objects.create(
             client=self.context["request"].user,
             rnd_id=appointment.relationship.rnd_id,
             **validated_data,
         )
+        # The RND hears about it (2026-10-25); the name as on the dashboard, "Ana C."
+        from communication.services import notify
+
+        c = review.client
+        stars = "★" * review.rating
+        notify(recipient=appointment.relationship.rnd, notifiable_type="appointment", notifiable_id=appointment.id,
+               subject="New review",
+               content=f"{c.first_name} {c.last_name[:1]}. left a {review.rating}-star review {stars}" + (f": \"{review.comment}\"" if review.comment else "."))
+        return review
 
 
 class ClientReviewListSerializer(serializers.ModelSerializer):

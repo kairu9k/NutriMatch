@@ -423,17 +423,19 @@ class ClientMealLogSaveView(APIView):
 
             transaction.on_commit(lambda pid=old_photo[0]: destroy_meal_photo(pid))
 
-        rnd = meal.meal_plan.relationship.rnd
-        notify(
-            recipient=rnd,
-            notifiable_type="meal_log",
-            notifiable_id=meal_log.id,
-            subject="Meal log to review",
-            content=(
-                f"{request.user.full_name} logged {meal.get_meal_time_display()} for {log_date}. "
-                "Open it to rate how well it followed the plan."
-            ),
-        )
+        # Only the first time the meal is logged: edits of a log that's still
+        # waiting don't send the RND another notification (2026-10-25).
+        if instance is None:
+            notify(
+                recipient=meal.meal_plan.relationship.rnd,
+                notifiable_type="meal_log",
+                notifiable_id=meal_log.id,
+                subject="Meal log to review",
+                content=(
+                    f"{request.user.full_name} logged {meal.get_meal_time_display()} for {log_date}. "
+                    "Open it to rate how well it followed the plan."
+                ),
+            )
 
         return Response(MealLogSerializer(meal_log).data, status=status.HTTP_200_OK)
 

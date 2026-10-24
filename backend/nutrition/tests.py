@@ -343,6 +343,13 @@ class RndMealLogNotificationTests(TestCase):
         self.assertNotEqual(resp.data["time_logged"], "03:00:00")
         self.log_id = resp.data["id"]
 
+    def test_editing_a_waiting_log_does_not_notify_again(self):
+        from communication.models import NotificationLog
+
+        resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"reason_notes": "All the rice after all"}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(NotificationLog.objects.filter(recipient=self.rnd, notifiable_type="meal_log").count(), 1)
+
     def test_rnd_notification_includes_the_meal_log(self):
         self.client_api.force_authenticate(self.rnd)
         notifications = self.client_api.get("/api/notifications/").data

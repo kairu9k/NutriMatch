@@ -61,12 +61,15 @@ class AdminAppointmentTests(TestCase):
         self.assertEqual(self._ids(f"/api/admin/appointments/?view=all&search={self.done.id}"), [self.done.id])
         self.assertEqual(self._ids("/api/admin/appointments/?view=all&payment=paid"), [self.upcoming.id, self.done.id])
 
-    def test_expired_request_moves_to_past(self):
+    def test_expired_request_is_cancelled(self):
         old = self._appt("pending", timezone.now() - timedelta(days=1))
         self.assertNotIn(old.id, self._ids("/api/admin/appointments/?view=requests"))
-        self.assertIn(old.id, self._ids("/api/admin/appointments/?view=past"))
+        self.assertIn(old.id, self._ids("/api/admin/appointments/?view=cancelled"))
+        # an unanswered request whose time passed expires (2026-10-25): cancelled, nothing left pending
+        old.refresh_from_db()
+        self.assertEqual((old.status, old.cancellation_reason), ("cancelled", "The RND didn't respond before the requested time."))
         data = self.api.get("/api/admin/appointments/summary/").data
-        self.assertEqual((data["requests"], data["expired_requests"]), (1, 1))
+        self.assertEqual((data["requests"], data["expired_requests"]), (1, 0))
 
     def test_summary(self):
         data = self.api.get("/api/admin/appointments/summary/").data
