@@ -145,9 +145,10 @@ function formatTime(t) {
 
 .ml-actions { display: flex; position: sticky; bottom: -26px; z-index: 2; margin: 22px -28px -26px; padding: 14px 28px 18px; border-top: 1px solid #d9e3dc; background: #fff; }
 .ml-primary-btn {
-  flex: 1; background: #14301a; color: #fff; border: none; border-radius: 8px;
-  padding: 12px 20px; font-weight: 700; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+  flex: 1; background: #0a4a37; color: #fff; border: none; border-radius: 8px;
+  min-height: 40px; padding: 0 20px; font-weight: 600; font-size: 0.86rem; cursor: pointer; font-family: inherit;
 }
+.ml-primary-btn:hover { background: #00382a; }
 .ml-primary-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 @media (max-width: 600px) {
   .ml-box { padding: 22px 18px; }

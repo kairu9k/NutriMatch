@@ -502,7 +502,7 @@ onMounted(loadResources)
 .detail { min-width: 0; }
 .detail-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .detail-title { font-size: 1.2rem; overflow-wrap: anywhere; }
-.back-btn { display: none; align-items: center; gap: 6px; background: none; border: none; color: #1f8f5c; font-weight: 600; font-size: 0.84rem; padding: 0; margin-bottom: 14px; cursor: pointer; font-family: inherit; }
+.back-btn { display: none; align-items: center; gap: 6px; background: #e3efe7; border: none; border-radius: 8px; color: #0a4a37; font-weight: 600; font-size: 0.78rem; min-height: 32px; padding: 0 12px; margin-bottom: 14px; cursor: pointer; font-family: inherit; }
 .preview { margin-top: 16px; border: 1px solid #eceeec; border-radius: 12px; overflow: hidden; background: #f7f9f7; }
 .preview-frame { display: block; width: 100%; height: 420px; border: 0; background: #fff; }
 .preview-video { display: block; width: 100%; max-height: 420px; background: #000; }

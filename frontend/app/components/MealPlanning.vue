@@ -360,7 +360,7 @@
             <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
             <button class="btn-secondary" @click="discardChanges">Discard changes</button>
             <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : selectedPlan.status === 'draft' ? 'Save draft' : 'Save changes' }}</button>
-            <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; Send to Patient</button>
+            <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; send to patient</button>
           </div>
         </template>
       </div>
@@ -1289,11 +1289,11 @@ function formatTime(t) {
 
 .mode-toggle { display: flex; gap: 10px; }
 .mode-btn {
-  display: flex; align-items: center; gap: 6px;
-  border: 1px solid #dde3dd; background: #fff; color: #4a5a4a;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2;
+  border: none; background: #e3efe7; color: #0a4a37;
 }
-.mode-btn.active { background: #163a1c; color: #fff; border-color: #163a1c; }
+.mode-btn:hover:not(:disabled):not(.active) { background: #d3e7da; }
+.mode-btn.active { background: #0a4a37; color: #fff; }
 
 
 .planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -1354,24 +1354,24 @@ function formatTime(t) {
 
 .plan-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
 .btn-secondary {
-  display: flex; align-items: center; gap: 6px;
-  border: 1px solid #dde3dd; background: #fff; color: #3a4a3a;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2;
+  border: none; background: #e3efe7; color: #0a4a37;
 }
+.btn-secondary:hover:not(:disabled) { background: #d3e7da; }
 .btn-primary {
-  display: flex; align-items: center; gap: 6px;
-  background: #163a1c; color: #fff; border: none;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2;
+  background: #0a4a37; color: #fff; border: none;
 }
+.btn-primary:hover:not(:disabled) { background: #00382a; }
+.btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-danger:focus-visible, .mode-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-danger {
-  display: flex; align-items: center; gap: 6px; margin-right: auto;
-  border: 1px solid #ecc5c0; background: #fff; color: #b3261e;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2; margin-right: auto;
+  border: none; background: #c0392b; color: #fff;
 }
-.btn-danger:hover { background: #fdf1ef; }
-.btn-danger.solid { background: #b3261e; color: #fff; border-color: #b3261e; margin-right: 0; }
+.btn-danger:hover:not(:disabled) { background: #a93226; }
+.btn-danger.solid { margin-right: 0; }
 .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 .sent-lock { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; font-size: 0.78rem; color: #6a7a6a; }
 
@@ -1433,10 +1433,10 @@ function formatTime(t) {
 .targets-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .targets-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; }
 .targets-add-btn {
-  display: inline-flex; align-items: center; gap: 4px; border: 1px solid #1f8f5c; color: #1f8f5c;
-  background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; border: none; color: #0a4a37; font-family: inherit;
+  background: #e3efe7; border-radius: 8px; min-height: 32px; padding: 0 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
 }
-.targets-add-btn:hover { background: #e3f3ea; }
+.targets-add-btn:hover { background: #d3e7da; }
 .targets-hint { font-size: 0.75rem; color: #8a9a8a; margin: -4px 0 10px; line-height: 1.45; }
 .targets-row { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr auto; gap: 10px; align-items: center; margin-bottom: 8px; }
 .targets-row.locked input[readonly] { background: #f6f8f6; color: #4a5a4a; cursor: default; }
@@ -1446,9 +1446,9 @@ function formatTime(t) {
 }
 .targets-remove-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
-  border: 1px solid #f0d6d6; border-radius: 8px; background: #fff; color: #c0392b; cursor: pointer;
+  border: none; border-radius: 8px; background: #c0392b; color: #fff; cursor: pointer;
 }
-.targets-remove-btn:hover { background: #fbeaea; }
+.targets-remove-btn:hover { background: #a93226; }
 
 /* LIVE PREVIEW (create mode) */
 .preview-summary { margin-bottom: 12px; }

@@ -362,12 +362,14 @@ function formatBlockDate(iso) {
 }
 .time-sep { color: #6a7a6a; font-size: 0.82rem; }
 .form-btn {
-  border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 8px; min-height: 32px; padding: 0 12px;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
+.form-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .form-btn.save { background: #0a4a37; color: #fff; }
 .form-btn.save:hover { background: #00382a; }
-.form-btn.cancel { background: none; color: #6a7a6a; }
-.form-btn.cancel:hover { color: #4a5a4a; }
+.form-btn.cancel { background: #e3efe7; color: #0a4a37; }
+.form-btn.cancel:hover { background: #d3e7da; }
 
 .empty-note-inline { font-size: 0.82rem; color: #8a9a8a; }
 

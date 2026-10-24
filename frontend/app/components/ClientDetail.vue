@@ -785,8 +785,8 @@ const trends = computed(() => {
 .ph-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; }
 .ph-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #D4A017; color: #1a3a1a; font-size: 0.68rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .more-wrap { position: relative; }
-.more-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border: 1px solid #d5dad5; border-radius: 8px; background: #fff; color: #4a5a4a; cursor: pointer; }
-.more-btn:hover { background: #f6f8f6; }
+.more-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37; cursor: pointer; }
+.more-btn:hover { background: #d3e7da; }
 .more-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .more-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 200px; background: #fff; border: 1px solid #e3e8e3; border-radius: 10px; box-shadow: 0 8px 24px rgba(20, 40, 20, 0.12); padding: 6px; z-index: 30; }
 .more-item { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 6px; padding: 9px 10px; font-family: inherit; font-size: 0.86rem; cursor: pointer; color: #1a3a1a; }
@@ -812,9 +812,9 @@ const trends = computed(() => {
 .patient-head .ph-pill.active { background: rgba(191, 232, 207, 0.18); color: #bfe8cf; }
 .patient-head .ph-pill.pending { background: rgba(212, 160, 23, 0.22); color: #f3d27a; }
 .patient-head .ph-btn, .patient-head .more-btn {
-  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.35); color: #fff;
+  background: rgba(255, 255, 255, 0.14); border: none; color: #fff;
 }
-.patient-head .ph-btn:hover, .patient-head .more-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.patient-head .ph-btn:hover, .patient-head .more-btn:hover { background: rgba(255, 255, 255, 0.22); }
 .patient-head .ph-btn:focus-visible, .patient-head .more-btn:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 /* allergy stays solid red on the green: the most visible thing in the header */
 .patient-head .ph-allergy { background: #fdecec; color: #8f2a20; }
