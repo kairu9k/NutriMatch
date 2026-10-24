@@ -31,7 +31,7 @@
     <section v-if="dash" class="needs" aria-label="Needs attention">
       <p v-if="!dash.attention.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing needs you right now.</p>
       <div v-else class="needs-row" :class="attnTone">
-        <AlertTriangle v-if="attnTone === 'risk'" :size="16" class="needs-icon" aria-hidden="true" />
+        <span class="needs-tag" :class="attnTone">{{ attnTone === 'risk' ? 'Urgent' : 'To do' }}</span>
         <span class="needs-text"><strong>{{ attnHeadline }}</strong> {{ attnSummary }}</span>
         <button type="button" class="nm-btn-dark nm-btn-sm" aria-haspopup="dialog" @click="attnOpen = true">Needs attention ({{ dash.attention.length }})</button>
       </div>
@@ -198,7 +198,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { AlertTriangle, CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -404,20 +404,19 @@ onBeforeUnmount(() => {
 .needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .needs-row.risk { background: #fdf3f2; }
 .needs-row.risk strong { color: #a12525; }
-.needs-icon { flex-shrink: 0; color: #c0392b; }
-.needs-icon.info { color: #6a7a6a; }
-.needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
+/* the strip's label: red Urgent while something is critical, else green To do */
+.needs-tag { flex-shrink: 0; padding: 2px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; line-height: 1.5; }
+.needs-tag.risk { background: #f6d9d6; color: #a12525; }
+.needs-tag.unfinished { background: #e3efe7; color: #0a4a37; }
 .needs-row .nm-btn-dark, .needs-row .nm-btn-soft { flex-shrink: 0; white-space: nowrap; }
 .needs-row button.nm-btn-dark { font-family: inherit; cursor: pointer; }
 /* red and dashed rows glow three times when they appear (page load, pop-up) */
 @media (prefers-reduced-motion: no-preference) {
   .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
-  .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
   .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
 }
 @keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
 @keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
-@keyframes nm-shake { 0%, 100% { transform: none; } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
 
 /* overview: three divided columns */
 .overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; overflow: visible; }
@@ -468,8 +467,6 @@ onBeforeUnmount(() => {
   .needs-row { flex-wrap: wrap; padding: 12px 16px; }
   .attn { flex-wrap: wrap; }
   .attn .nm-panel-link { margin-left: 26px; }
-  .needs-text { flex-basis: calc(100% - 40px); }
-  .needs-row .nm-btn-dark, .needs-row .nm-btn-soft { margin-left: 28px; }
-  .needs-row.unfinished .nm-btn-dark { margin-left: 21px; }
+  .needs-text { flex-basis: 100%; }
 }
 </style>
