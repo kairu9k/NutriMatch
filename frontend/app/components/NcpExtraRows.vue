@@ -16,7 +16,7 @@
         <button v-if="!readOnly" type="button" class="row-x" :aria-label="`Remove measurement ${idx + 1}`" @click="rows.splice(idx, 1)"><X :size="14" /></button>
       </div>
       <p v-if="errs[idx].label || errs[idx].value || errs[idx].unit" class="row-err">
-        {{ [errs[idx].label, errs[idx].value, errs[idx].unit].filter(Boolean).join(' · ') }}
+        {{ [errs[idx].label, errs[idx].value, errs[idx].unit].filter(Boolean).join(', ') }}
       </p>
     </div>
   </div>

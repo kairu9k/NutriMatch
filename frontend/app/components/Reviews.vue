@@ -141,7 +141,7 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .summary-row { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; margin-bottom: 24px; }
 
 .score-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
   padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .score-number { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 700; color: #1a3a1a; margin: 0; }
@@ -150,7 +150,7 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 .score-caption { font-size: 0.8rem; color: #8a9a8a; margin: 8px 0 0; }
 
 .breakdown-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
   padding: 22px 26px; display: flex; flex-direction: column; justify-content: center; gap: 10px;
 }
 .breakdown-row { display: flex; align-items: center; gap: 10px; }
@@ -162,7 +162,7 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 /* REVIEW LIST */
 .review-list { display: flex; flex-direction: column; gap: 16px; }
 .review-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 18px 22px;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 18px 22px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
 }
 .review-top { display: flex; align-items: flex-start; justify-content: space-between; }
 .review-who { display: flex; align-items: flex-start; gap: 12px; }
@@ -176,7 +176,7 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
 
 /* EMPTY STATE */
 .empty-state {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
+  background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
   padding: 60px 20px; text-align: center;
 }
 .empty-icon {

@@ -56,7 +56,9 @@
 .nm-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* panels */
-.nm-panel { background: #fff; border-radius: 14px; border: 1px solid #eceeec; padding: 22px; min-width: 0; }
+/* every panel: pale green outline + light green shadow (design rule, 2026-10-25) */
+.nm-panel { background: #fff; border-radius: 14px; border: 1px solid #d9e3dc; padding: 22px; min-width: 0; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.nm-panel .nm-panel, .nm-modal .nm-panel { box-shadow: none; }
 .nm-panel + .nm-panel { margin-top: 0; }
 .nm-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .nm-panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0; }

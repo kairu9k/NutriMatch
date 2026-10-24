@@ -332,8 +332,6 @@ onBeforeUnmount(() => {
 /* one 20px gap between every section */
 .admin-dash { display: flex; flex-direction: column; gap: 20px; }
 .admin-dash > * { margin-top: 0; margin-bottom: 0; }
-/* every panel: the client dashboard's green line and light shadow */
-.admin-dash .nm-panel { border-color: #d9e3dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .updated { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; font-size: 0.8rem; color: #cfe0d5; }
 .refresh {
   display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: none; border-radius: 8px;

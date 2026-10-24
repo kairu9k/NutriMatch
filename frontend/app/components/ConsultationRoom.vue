@@ -126,11 +126,11 @@
                   {{ r.test_names.join(', ') }}, taken {{ shortDate(r.taken_on) }}<template v-if="r.fasted === 'no'">, not fasting</template>
                   <small v-if="!r.reviewed_at && !r.declined_at" class="lab-new">New</small>
                 </span>
-                <button type="button" class="link small" @click="viewLab(r)">View</button>
+                <button type="button" class="link small soft" @click="viewLab(r)">View</button>
               </div>
               <p v-for="r in s.labs?.open || []" :key="`q${r.id}`" class="muted">Requested: {{ r.test_names.join(', ') }}, not uploaded yet</p>
             </section>
-            <NuxtLink :to="`/client-detail/${appt.relationship.id}`" target="_blank" class="link small chart-link"><ExternalLink :size="13" aria-hidden="true" /> Open the full chart in a new tab</NuxtLink>
+            <NuxtLink :to="`/client-detail/${appt.relationship.id}`" target="_blank" class="link small soft chart-link"><ExternalLink :size="13" aria-hidden="true" /> Open the full chart in a new tab</NuxtLink>
           </template>
 
           <!-- NCP (the same form as the chart, inline) -->
@@ -631,6 +631,12 @@ onBeforeUnmount(disposeJitsi)
 .panel .link:hover:not(:disabled) { background: #d3e7da; }
 .panel .link:focus-visible { outline-color: #1f8f5c; }
 .link.small { font-size: 0.78rem; min-height: 32px; padding: 0 12px; margin-top: 12px; }
+/* in the light side panel: dark green action, light green secondary (gold is only for the dark room) */
+.link.small { background: #0a4a37; color: #fff; }
+.link.small:hover:not(:disabled) { background: #00382a; }
+.link.small.soft { background: #e3efe7; color: #0a4a37; }
+.link.small.soft:hover:not(:disabled) { background: #d3e7da; }
+.link.small:focus-visible { outline-color: #1f8f5c; }
 .lab-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; font-size: 0.78rem; }
 .lab-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .lab-row .link.small { margin-top: 0; }
