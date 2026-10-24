@@ -95,3 +95,9 @@
 @media (max-width: 480px) {
   .pw-rules { grid-template-columns: 1fr; }
 }
+
+/* Desktop: the green panel stays in place (one screen tall) while only the
+   form on the right scrolls (user's call, 2026-10-24). */
+@media (min-width: 901px) {
+  .left-panel { position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh; }
+}
