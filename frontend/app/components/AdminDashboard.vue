@@ -8,12 +8,7 @@
         <p class="nm-hero-date">{{ longToday }}</p>
         <h1 class="nm-hero-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
         <p class="nm-hero-sub">{{ summaryLine }}</p>
-        <p class="updated">
-          <span>{{ updatedText }}</span>
-          <button type="button" class="refresh" :disabled="refreshing" aria-label="Refresh the dashboard" @click="load()">
-            <RefreshCw :size="14" :class="{ spin: refreshing }" aria-hidden="true" /> Refresh
-          </button>
-        </p>
+        <p class="updated">{{ updatedText }}</p>
       </div>
     </section>
 
@@ -151,7 +146,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { CircleDot, Info, RefreshCw, X } from 'lucide-vue-next'
+import { CircleDot, Info, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -227,11 +222,9 @@ function changes(log) {
 // Admins have no live connection, so the page reloads itself every minute while
 // it's open and visible, and when you come back to the tab.
 const REFRESH_MS = 60 * 1000
-const refreshing = ref(false)
 const loadedAt = ref(null)
 const now = ref(Date.now())
 async function load() {
-  refreshing.value = true
   try {
     const [s, logs, d] = await Promise.all([
       get('/admin/platform-stats/'),
@@ -244,8 +237,6 @@ async function load() {
     loadedAt.value = Date.now()
   } catch {
     error.value = 'Could not load the dashboard.'
-  } finally {
-    refreshing.value = false
   }
 }
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -293,15 +284,7 @@ onBeforeUnmount(() => {
 /* one 20px gap between every section */
 .admin-dash { display: flex; flex-direction: column; gap: 20px; }
 .admin-dash > * { margin-top: 0; margin-bottom: 0; }
-.updated { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; font-size: 0.8rem; color: #cfe0d5; }
-.refresh {
-  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: none; border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14); color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-}
-.refresh:hover:not(:disabled) { background: rgba(255, 255, 255, 0.22); }
-.refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
-@media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
-@keyframes spin { to { transform: rotate(360deg); } }
+.updated { margin: 2px 0 0; font-size: 0.8rem; color: #cfe0d5; }
 .attn-list { list-style: none; margin: 0; padding: 0; }
 .attn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
 .attn:first-child { border-top: none; padding-top: 0; }
