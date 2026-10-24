@@ -88,6 +88,7 @@
 
     <main class="right-panel">
       <div class="form-wrap">
+        <NuxtLink to="/" class="back-link home-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
         <h2>Sign in</h2>
         <p class="subtitle">Use the email and password you signed up with.</p>
 
@@ -136,7 +137,6 @@
           <button type="submit" class="btn-primary" :disabled="isSubmitting">
             {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
           </button>
-          <NuxtLink to="/" class="back-link home-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
         </form>
 
         <p class="signup-link">
@@ -246,7 +246,7 @@ async function handleAdminLogin() {
 .form-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: -4px; }
 .remember-me { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: #4a5a4a; cursor: pointer; }
 .remember-me input { width: 16px; height: 16px; accent-color: #0a4a37; cursor: pointer; }
-.home-back { align-self: center; }
+.home-back { margin-bottom: 18px; }
 .forgot-link { font-size: 0.82rem; font-weight: 600; color: #0a4a37; text-decoration: underline; text-underline-offset: 2px; }
 .deactivated-box p { margin: 0 0 6px; line-height: 1.5; }
 .deactivated-title { font-weight: 700; }

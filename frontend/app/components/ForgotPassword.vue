@@ -23,9 +23,8 @@
     </aside>
 
     <main class="right-panel">
-      <NuxtLink to="/login" class="back-link"><ArrowLeft :size="14" aria-hidden="true" /> Back to sign in</NuxtLink>
-
       <div class="form-wrap">
+        <NuxtLink to="/login" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to sign in</NuxtLink>
         <!-- 1. ask for a code -->
         <template v-if="step === 'request'">
           <h2>Forgot your password?</h2>
@@ -185,4 +184,5 @@ async function handleConfirm() {
 /* the original headline here was a little smaller */
 .left-content h1 { font-size: clamp(2.8rem, 4vw, 3.2rem); }
 .field-error { font-size: 0.78rem; color: #c0392b; }
+.top-back { margin-bottom: 18px; }
 </style>

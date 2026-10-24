@@ -41,9 +41,8 @@
 
     <!-- RIGHT PANEL -->
     <main class="right-panel">
-      <NuxtLink to="/" class="back-link"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
-
       <div class="form-wrap">
+        <NuxtLink to="/" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
         <!-- STEP 1: CHOOSE ROLE -->
         <div v-if="currentStep === 1">
           <h2>How will you use NutriMatch?</h2>
@@ -1119,6 +1118,7 @@ async function resendCode() {
 .btn-back:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .btn-spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff; animation: btn-spin 0.7s linear infinite; flex-shrink: 0; }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
+.top-back { margin-bottom: 18px; }
 .link-disabled { opacity: 0.45; pointer-events: none; cursor: not-allowed; }
 .form-success { margin-top: 4px; }
 
