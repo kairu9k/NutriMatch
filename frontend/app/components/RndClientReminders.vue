@@ -5,19 +5,16 @@
         <h3 class="nm-panel-title">Tasks and reminders for {{ clientFirstName }}</h3>
         <p class="nm-panel-sub">Medication and habit reminders. {{ clientFirstName }} gets each one as a notification and ticks it off in My tasks. Only you can change them.</p>
       </div>
-      <button v-if="canEdit && reminders.length" class="nm-btn-dark" type="button" @click="openForm()"><Plus :size="15" /> Add reminder</button>
+      <button v-if="canEdit" class="nm-btn-dark" type="button" @click="openForm()"><Plus :size="15" /> Add reminder</button>
     </div>
 
     <p v-if="error" class="nm-error" style="margin-top: 14px">{{ error }}</p>
     <p v-if="loading" class="nm-muted" style="margin-top: 14px">Loading reminders…</p>
 
-    <!-- empty: say what's automatic, offer a start -->
+    <!-- empty: say what's automatic; Add reminder is top right -->
     <div v-else-if="!reminders.length" class="empty">
       <p class="empty-title">No reminders yet</p>
       <p class="empty-text">Consultation, payment and meal-logging reminders already go out on their own. Add medication or habit reminders here.</p>
-      <div v-if="canEdit" class="starters">
-        <button type="button" class="nm-btn-dark" @click="openForm()"><Plus :size="15" /> Add reminder</button>
-      </div>
     </div>
 
     <!-- an agenda: one line per reminder, in time-of-day order -->
@@ -278,7 +275,6 @@ function dayLabel(iso) {
 .empty { margin-top: 18px; }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
 .empty-text { font-size: 0.86rem; color: #5a6a5a; margin: 0; max-width: 60ch; line-height: 1.5; }
-.starters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
 .templates { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
 /* quick starts: small filled light green buttons; the one in use turns green */
 .template { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; }
