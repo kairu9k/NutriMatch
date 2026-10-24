@@ -88,14 +88,13 @@
     <template v-else-if="d">
       <div class="nm-grid">
         <div class="nm-col">
-          <!-- bento, same as Appointments: this week's consultations as the big green cell, two rows beside it; sits beside Booking requests -->
+          <!-- three divided rows (user's call, 2026-10-24); sits beside Booking requests -->
           <div class="nm-panel bento">
-            <NuxtLink to="/appointments?tab=upcoming" class="bento-main">
-              <span class="bento-label">Consultations this week</span>
-              <strong class="bento-big">{{ d.stats.sessions_this_week }}</strong>
-              <span class="bento-note">{{ todayCount }} today</span>
-            </NuxtLink>
             <div class="bento-rows">
+              <NuxtLink to="/appointments?tab=upcoming" class="bento-row">
+                <span>Consultations this week<small>{{ todayCount }} today</small></span>
+                <strong>{{ d.stats.sessions_this_week }}</strong>
+              </NuxtLink>
               <NuxtLink to="/my-patients" class="bento-row">
                 <span>Active patients</span>
                 <strong>{{ d.stats.active_patients }}</strong>
@@ -490,19 +489,12 @@ function nameInitials(name) {
 .sr-only { position: absolute; display: block; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* money / reviews */
-/* bento (same as Appointments): green cell + three divided rows */
-.bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); padding: 0; overflow: hidden; }
+/* three divided rows: this week's consultations, active patients, adherence */
+.bento { padding: 0; overflow: hidden; }
 .bento a { color: inherit; text-decoration: none; }
 .bento a:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.bento-main { display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 14px 20px; background: linear-gradient(135deg, #00382a 0%, #005a42 100%); }
-.bento .bento-main { color: #fff; }
-.bento .bento-main:hover { background: linear-gradient(135deg, #00402f 0%, #00684c 100%); }
-.bento .bento-main:focus-visible { outline: 2px solid #f3d27a; outline-offset: -3px; }
-.bento-label { font-size: 0.84rem; font-weight: 600; color: #e2c25e; }
-.bento-big { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums lining-nums; }
-.bento-note { font-size: 0.8rem; color: #cfe0d5; }
 .bento-rows { display: flex; flex-direction: column; background: #fbfcfa; }
-.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 20px; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
+.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
 .bento-row:hover { background: #f4f7f4; }
 .bento .bento-row + .bento-row { border-top: 1px solid #d9e3dc; }
 .bento-row small { display: inline; font-size: 0.74rem; font-weight: 400; color: #7a8a7a; margin-left: 6px; }
@@ -553,9 +545,6 @@ function nameInitials(name) {
 /* the light card shadow on panels; the banner gets the stronger one */
 .nm-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 @media (max-width: 640px) {
-  .bento { grid-template-columns: minmax(0, 1fr); }
-  .bento-main { padding: 12px 16px; }
-  .bento-big { font-size: 1.9rem; }
   .bento-row { padding: 8px 16px; }
   .bento-row small { display: block; margin-left: 0; }
 }
