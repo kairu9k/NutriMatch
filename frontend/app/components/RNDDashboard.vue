@@ -218,10 +218,7 @@
             <div v-for="m in d.earnings_compare?.metrics || []" :key="m.key" class="cmp">
               <span class="cmp-label">{{ EARN_LABEL[m.key] }}</span>
               <span class="cmp-now">{{ m.key === 'earned' ? peso(m.now) : m.now }}</span>
-              <span class="cmp-delta" :class="m.change_pct != null && m.change_pct > 0 ? 'up' : 'flat'">
-                <template v-if="m.change_pct == null">{{ m.now ? 'New' : 'No change' }}</template>
-                <template v-else><component :is="m.change_pct >= 0 ? TrendingUp : TrendingDown" :size="13" aria-hidden="true" /> {{ m.change_pct > 0 ? '+' : '' }}{{ m.change_pct }}%</template>
-              </span>
+              <ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" :money="m.key === 'earned'" />
               <span class="cmp-before">was {{ m.key === 'earned' ? peso(m.before) : m.before }}</span>
             </div>
             <div class="cmp plain">
@@ -264,7 +261,7 @@
 <script setup>
 import {
   AlertTriangle, CalendarDays, ClipboardList, FlaskConical, Info, MessageSquare,
-  OctagonAlert, Target, TrendingDown, TrendingUp, Users, Utensils, Video, Wallet,
+  OctagonAlert, Target, Users, Utensils, Video, Wallet,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
@@ -544,9 +541,6 @@ function nameInitials(name) {
 .cmp:last-of-type { border-bottom: none; }
 .cmp-label { grid-area: label; font-size: 0.84rem; color: #4a5a4a; }
 .cmp-now { grid-area: now; font-weight: 700; font-size: 0.95rem; text-align: right; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.cmp-delta { grid-area: delta; display: inline-flex; align-items: center; gap: 3px; font-size: 0.74rem; font-weight: 700; border-radius: 10px; padding: 2px 8px; justify-self: end; }
-.cmp-delta.up { background: #e3efe7; color: #0a4a37; }
-.cmp-delta.flat { background: #eef1ee; color: #4a5a4a; }
 .cmp-before { grid-area: before; font-size: 0.74rem; color: #6a7a6a; text-align: right; }
 .req-soon { font-size: 0.76rem; font-weight: 600; color: #1e4a26; margin: 2px 0 0; }
 .req-soon.urgent { color: #c0392b; }
