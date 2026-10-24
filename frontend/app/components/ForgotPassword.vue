@@ -4,19 +4,21 @@
       <div class="circle circle-1"></div>
       <div class="circle circle-2"></div>
       <div class="circle circle-3"></div>
+
       <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
-        <img src="/resources/nutrimatchlogo.png" alt="" class="logo-icon" />
-        <span>Nutri<span class="logo-match">Match</span></span>
+        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-icon" />
+        <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
       </NuxtLink>
 
       <div class="left-content">
-        <h1>Let's get you back in.</h1>
-        <p class="left-desc">We email you a one-time code to make sure it's really you, then you choose a new password.</p>
+        <span class="eyebrow">ACCOUNT RECOVERY</span>
+        <h1>Let's get you<br />back <em class="highlight">in.</em></h1>
+        <p class="left-desc">We'll email a one-time code to verify it's really you before resetting your password.</p>
       </div>
 
       <ul class="trust-badges">
-        <li><ShieldCheck :size="15" aria-hidden="true" /> Codes expire after 15 minutes</li>
-        <li><ShieldCheck :size="15" aria-hidden="true" /> We never ask for your password by email</li>
+        <li><span class="dot"></span> RA 10173 Data Privacy compliant</li>
+        <li><span class="dot"></span> Codes expire after 15 minutes</li>
       </ul>
     </aside>
 
@@ -107,7 +109,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Check, Circle, Eye, EyeOff, Lock, Mail, ShieldCheck, User } from 'lucide-vue-next'
+import { ArrowLeft, Check, Circle, Eye, EyeOff, Lock, Mail, User } from 'lucide-vue-next'
 const auth = useAuthStore()
 
 const step = ref('request')
@@ -180,5 +182,7 @@ async function handleConfirm() {
 .circle-3 { width: 480px; height: 480px; bottom: -190px; left: -130px; }
 
 .auth-form { display: flex; flex-direction: column; gap: 18px; }
+/* the original headline here was a little smaller */
+.left-content h1 { font-size: clamp(2.8rem, 4vw, 3.2rem); }
 .field-error { font-size: 0.78rem; color: #c0392b; }
 </style>

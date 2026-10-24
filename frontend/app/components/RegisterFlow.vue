@@ -5,13 +5,19 @@
       <div class="circle circle-1"></div>
       <div class="circle circle-2"></div>
       <div class="circle circle-3"></div>
+
       <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
-        <img src="/resources/nutrimatchlogo.png" alt="" class="logo-icon" />
-        <span>Nutri<span class="logo-match">Match</span></span>
+        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-img" />
+        <span class="logo-text" style="font-family: 'DM Serif Display', serif; font-weight: 700; font-size: medium;">Nutri<span class="logo-match">Match</span></span>
       </NuxtLink>
 
       <div class="left-content">
-        <h1>{{ selectedRole === 'rnd' ? 'Apply to consult on NutriMatch.' : 'Create your account.' }}</h1>
+        <span class="eyebrow">CREATE ACCOUNT</span>
+        <h1>
+          Join your<br />
+          <em class="highlight">nutrition</em><br />
+          journey today.
+        </h1>
 
         <div class="steps">
           <div
@@ -21,10 +27,13 @@
             :class="{ active: stageIndex === index, done: stageIndex > index }"
           >
             <span class="step-number">
-              <Check v-if="stageIndex > index" :size="15" aria-hidden="true" />
+              <span v-if="stageIndex > index">✓</span>
               <span v-else>{{ index + 1 }}</span>
             </span>
-            <span class="step-title">{{ step.label }}</span>
+            <div class="step-text">
+              <span class="step-label">STEP {{ String(index + 1).padStart(2, '0') }}</span>
+              <span class="step-title">{{ step.label }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -943,17 +952,30 @@ async function resendCode() {
 .circle-2 { width: 350px; height: 350px; bottom: 100px; right: -150px; }
 .circle-3 { width: 450px; height: 450px; bottom: -250px; left: -150px; }
 
-/* LEFT: the steps */
-.steps { display: flex; flex-direction: column; margin-top: 36px; }
-.step { display: flex; align-items: center; gap: 14px; padding-bottom: 22px; position: relative; }
-.step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 34px; width: 1px; height: calc(100% - 36px); background: rgba(255, 255, 255, 0.22); }
+/* the original left panel of sign-up */
+.left-panel { padding: 48px 64px; display: block; }
+.brand { font-size: 1.2rem; }
+.logo-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+.left-content { margin-top: 120px; }
+.eyebrow { letter-spacing: 0.1em; font-weight: 400; }
+.left-content h1 { font-style: normal; font-weight: 700; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: normal; line-height: 1.2; margin: 16px 0 56px; }
+.highlight { font-style: italic; }
+.step-text { display: flex; flex-direction: column; }
+.step-label { font-size: 0.7rem; letter-spacing: 0.08em; color: #7aaa7a; }
+@media (max-width: 900px) { .left-panel { padding: 16px 20px; } }
+.step.done .step-title { color: #D4A017; }
+
+/* LEFT: the steps (original) */
+.steps { display: flex; flex-direction: column; }
+.step { display: flex; gap: 16px; padding-bottom: 32px; position: relative; }
+.step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 32px; width: 1px; height: calc(100% - 32px); background: rgba(255, 255, 255, 0.2); }
 .step-number {
   width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.1); color: #cfe0d5; font-size: 0.85rem; font-weight: 600;
+  background: rgba(255, 255, 255, 0.1); color: #a8c4a8; font-size: 0.85rem; font-weight: 600;
 }
-.step.active .step-number { background: #fff; color: #0a4a37; }
+.step.active .step-number { background: #fff; color: #1a3a1a; }
 .step.done .step-number { background: #D4A017; color: #1a3a1a; }
-.step-title { font-weight: 600; font-size: 0.92rem; color: #cfe0d5; }
+.step-title { font-weight: 600; color: #d8e8d8; }
 .step.active .step-title { color: #fff; }
 
 /* ROLE CARDS */

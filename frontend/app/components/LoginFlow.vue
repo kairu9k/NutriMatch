@@ -64,19 +64,25 @@
       <div class="circle circle-3"></div>
       <div class="circle circle-4"></div>
       <div class="circle circle-5"></div>
+
       <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
-        <img src="/resources/nutrimatchlogo.png" alt="" class="logo-icon" />
-        <span>Nutri<span class="logo-match">Match</span></span>
+        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-icon" />
+        <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
       </NuxtLink>
 
       <div class="left-content">
-        <h1>Welcome back.</h1>
-        <p class="left-desc">Your meal plan, consultations and progress are where you left them.</p>
+        <span class="eyebrow">WELCOME BACK !</span>
+        <h1>
+          Your health<br />
+          journey <em class="highlight">continues</em><br />
+          here.
+        </h1>
+        <p class="left-desc">Access your dashboard, meal plans, and consultation records securely.</p>
       </div>
 
       <ul class="trust-badges">
-        <li><ShieldCheck :size="15" aria-hidden="true" /> Your health records are protected under RA 10173</li>
-        <li><ShieldCheck :size="15" aria-hidden="true" /> Every RND is checked against the PRC registry</li>
+        <li><span class="dot"></span> RA 10173 Data Privacy compliant</li>
+        <li><span class="dot"></span> PRC-verified RNDs only</li>
       </ul>
     </aside>
 
@@ -138,7 +144,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-vue-next'
+import { ArrowLeft, Eye, EyeOff, Lock, User } from 'lucide-vue-next'
 const auth = useAuthStore()
 
 // Admins sign in on their own route (/admin/login → pages/admin/login.vue
