@@ -326,7 +326,31 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
 
         invoice_id = invoice.pk
         transaction.on_commit(lambda: receipts.send_payment_receipts(invoice_id))
+        # Tell the RND the consultation is paid, so it will go ahead (not for a
+        # payment that landed on an already-cancelled one: that's a refund).
+        if appt is not None and invoice.status == Invoice.Status.PAID:
+            transaction.on_commit(lambda: notify_rnd_paid(invoice_id))
     return True
+
+
+def notify_rnd_paid(invoice_id):
+    from communication.services import notify
+    from scheduling.views import format_ph_datetime
+
+    from .models import Invoice
+
+    inv = Invoice.objects.select_related("appointment", "relationship__client", "relationship__rnd").get(pk=invoice_id)
+    appt = inv.appointment
+    notify(
+        recipient=inv.relationship.rnd,
+        notifiable_type="appointment",
+        notifiable_id=appt.id,
+        subject="Consultation paid",
+        content=(
+            f"{inv.relationship.client.full_name} paid ₱{inv.amount:,.2f} for the "
+            f"{appt.get_type_display().lower()} consultation on {format_ph_datetime(appt.scheduled_at)}. It will go ahead as booked."
+        ),
+    )
 
 
 

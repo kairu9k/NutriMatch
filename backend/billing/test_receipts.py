@@ -65,3 +65,27 @@ class ReceiptEmailTests(TestCase):
         self._pay()
         admin_mail = next(m for m in mail.outbox if m.to == ["team@nutrimatch.test"])
         self.assertIn("refund needed", admin_mail.alternatives[0][0])
+
+
+class RndPaidNotificationTests(ReceiptEmailTests):
+    """The RND is told when a consultation is paid (2026-10-25)."""
+
+    def test_rnd_notified_once(self):
+        from communication.models import NotificationLog
+
+        self._pay()
+        notes = NotificationLog.objects.filter(recipient=self.rnd)
+        self.assertEqual(notes.count(), 1)
+        n = notes.get()
+        self.assertEqual((n.subject, n.notifiable_type, n.notifiable_id), ("Consultation paid", "appointment", self.invoice.appointment_id))
+        self.assertIn("Ana Cruz paid ₱800.00", n.content)
+        with self.captureOnCommitCallbacks(execute=True):
+            record_successful_payment(self.invoice, "link_1", PAYLOAD, source="sync")
+        self.assertEqual(notes.count(), 1)
+
+    def test_late_payment_on_cancelled_consultation_not_announced(self):
+        from communication.models import NotificationLog
+
+        Appointment.objects.filter(pk=self.invoice.appointment_id).update(status="cancelled")
+        self._pay()
+        self.assertFalse(NotificationLog.objects.filter(recipient=self.rnd).exists())
