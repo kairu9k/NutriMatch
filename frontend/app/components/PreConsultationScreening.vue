@@ -1,21 +1,27 @@
 <template>
   <div class="screening-page" :class="{ embedded }">
     <div class="panel">
-      <h1 class="screening-title">Pre-Consultation Nutritional Screening</h1>
-      <p class="screening-sub">Your data auto-computes BMI, BMR, TDEE, and NRS-2002 risk score.</p>
+      <h1 class="screening-title">{{ onFile ? 'Your screening' : 'Pre-consultation screening' }}</h1>
+      <p v-if="!onFile" class="screening-sub">Your answers work out your BMI, BMR, TDEE and NRS-2002 score.</p>
 
-      <!-- Taken once, then read-only: it's the starting point weight/BMI change is measured from. -->
-      <div v-if="onFile" class="on-file">
-        <Lock :size="15" />
-        <p>
-          <strong>Your screening from {{ onFileDate }} is on file and can't be changed.</strong>
-          It's the starting point your RND measures your progress against.
-          To record a new weight or other readings, use the
-          <NuxtLink to="/progress-tracker">Progress Tracker</NuxtLink>.
+      <!-- Taken once, then read-only: it's the starting point weight/BMI change is measured from.
+           On file it shows as a short summary instead of the disabled form. -->
+      <template v-if="onFile">
+        <p class="on-file">
+          <Lock :size="14" aria-hidden="true" />
+          <span>Taken {{ onFileDate }}. It's the starting point your progress is measured from, so it can't be changed. New readings show in the <NuxtLink to="/progress-tracker">Progress Tracker</NuxtLink>.</span>
         </p>
-      </div>
+        <dl class="sum-strip">
+          <div><dt>Height</dt><dd>{{ form.height ?? '—' }} <small>cm</small></dd></div>
+          <div><dt>Weight</dt><dd>{{ form.weight ?? '—' }} <small>kg</small></dd></div>
+          <div><dt>Age</dt><dd>{{ form.age ?? '—' }}</dd></div>
+          <div><dt>Sex</dt><dd>{{ sexLabel || '—' }}</dd></div>
+          <div><dt>Activity</dt><dd>{{ ACTIVITY_LABELS[form.activityLevel] || '—' }}</dd></div>
+        </dl>
+        <p class="sum-symptoms"><strong>Symptoms:</strong> {{ savedSymptoms.length ? savedSymptoms.join(', ') : 'None reported' }}</p>
+      </template>
 
-      <fieldset class="form-set" :disabled="onFile">
+      <fieldset v-else class="form-set">
       <div class="form-row-3">
         <div class="field">
           <label for="scr-height">Height (cm)</label>
@@ -467,8 +473,17 @@ onMounted(async () => {
 .panel { background: #fff; border-radius: 16px; border: 1px solid #eceeec; padding: 28px 30px; }
 .screening-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
 .screening-sub { font-size: 0.87rem; color: #9aaa9a; margin: 0 0 24px; }
-.on-file { display: flex; gap: 10px; align-items: flex-start; background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 12px 14px; margin: 0 0 20px; color: #6a5a2a; }
-.on-file p { margin: 0; font-size: 0.84rem; line-height: 1.55; }
+/* on file: a short read-only summary */
+.sum-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.sum-strip > div { display: flex; flex-direction: column-reverse; gap: 2px; padding: 10px 14px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.sum-strip > div:first-child { border-left: none; }
+.sum-strip dt { font-size: 0.76rem; color: #6a7a6a; }
+.sum-strip dd { margin: 0; font-size: 0.95rem; font-weight: 700; color: #1a3a1a; overflow-wrap: anywhere; }
+.sum-strip small { font-size: 0.74rem; font-weight: 500; color: #6a7a6a; }
+.sum-symptoms { font-size: 0.86rem; color: #4a5a4a; line-height: 1.5; margin: 0; }
+.sum-symptoms strong { color: #1a3a1a; }
+.on-file { display: flex; gap: 8px; align-items: flex-start; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 8px; padding: 9px 12px; margin: 0 0 14px; color: #6a7a6a; }
+.on-file span { font-size: 0.82rem; line-height: 1.5; color: #4a5a4a; }
 .on-file a { color: #1f6f46; font-weight: 600; }
 .on-file svg { flex-shrink: 0; margin-top: 2px; }
 .form-set { border: 0; padding: 0; margin: 0; min-width: 0; }
@@ -575,6 +590,9 @@ onMounted(async () => {
 
 @media (max-width: 640px) {
   .panel { padding: 22px 18px; }
+  .sum-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sum-strip > div:nth-child(odd) { border-left: none; }
+  .sum-strip > div:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
   .form-row-3, .results-grid { grid-template-columns: 1fr 1fr; }
   .result-box:nth-child(3) { border-left: none; }
   .result-box:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
