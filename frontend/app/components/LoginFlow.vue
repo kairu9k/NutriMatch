@@ -4,12 +4,8 @@
     <div class="admin-page-circle admin-circle-1"></div>
     <div class="admin-page-circle admin-circle-2"></div>
     <div class="admin-page-circle admin-circle-3"></div>
-    <NuxtLink to="/" class="brand home-link admin-page-brand" aria-label="NutriMatch home">
-      <img src="/resources/nutrimatchlogo.png" alt="" class="logo-icon" />
-      <span>Nutri<span class="logo-match">Match</span></span>
-    </NuxtLink>
-
     <div class="admin-card">
+      <NuxtLink to="/" class="back-link admin-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
       <h1>Admin sign in</h1>
       <p class="admin-subtitle">For the NutriMatch team. Clients and RNDs sign in on the main page.</p>
 
@@ -53,7 +49,6 @@
       </form>
     </div>
 
-    <NuxtLink to="/login" class="back-link on-green"><ArrowLeft :size="14" aria-hidden="true" /> Client and RND sign in</NuxtLink>
   </div>
 
   <!-- CLIENT / RND SIGN IN -->
@@ -263,15 +258,12 @@ async function handleAdminLogin() {
 .admin-circle-2 { width: 380px; height: 380px; bottom: -220px; right: 8%; }
 .admin-circle-3 { width: 460px; height: 460px; bottom: -260px; left: -140px; }
 .admin-login-page > :not(.admin-page-circle) { position: relative; z-index: 2; }
-.admin-page-brand { color: #fff; }
-.admin-card { width: 100%; max-width: 440px; background: #fff; border-radius: 18px; padding: 32px; box-shadow: 0 20px 50px rgba(0, 20, 12, 0.35); }
+.admin-card { width: 100%; max-width: 440px; background: #fff; border-radius: 18px; padding: 36px 36px 44px; box-shadow: 0 20px 50px rgba(0, 20, 12, 0.35); }
+.admin-back { margin-bottom: 28px; }
 .admin-card h1 { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.6rem; line-height: 1.2; margin: 0 0 6px; }
 .admin-subtitle { font-size: 0.9rem; color: #4a5a4a; line-height: 1.5; margin: 0 0 24px; }
 /* the way back sits on the green: see-through white */
-.back-link.on-green { align-self: center; background: rgba(255, 255, 255, 0.14); color: #fff; }
-.back-link.on-green:hover { background: rgba(255, 255, 255, 0.22); }
-.back-link.on-green:focus-visible { outline-color: #f3d27a; }
 @media (max-width: 480px) {
-  .admin-card { padding: 24px 20px; }
+  .admin-card { padding: 28px 20px 32px; }
 }
 </style>
