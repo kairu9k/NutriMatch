@@ -42,7 +42,7 @@
     <!-- RIGHT PANEL -->
     <main class="right-panel">
       <div class="form-wrap">
-        <NuxtLink to="/" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
+        <NuxtLink to="/login" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to sign in</NuxtLink>
         <!-- STEP 1: CHOOSE ROLE -->
         <div v-if="currentStep === 1">
           <h2>How will you use NutriMatch?</h2>
