@@ -95,20 +95,18 @@
     <div v-if="dash">
       <!-- RECENT ADMIN ACTIVITY: click a row for the details -->
       <section class="nm-panel">
-        <div class="nm-panel-head">
-          <div>
-            <h2 class="nm-panel-title">Recent admin activity</h2>
-            <p class="nm-panel-sub">Approvals, account changes, refunds, payouts and settings</p>
-          </div>
-          <NuxtLink to="/audit-logs?scope=admin" class="nm-panel-link">Audit logs</NuxtLink>
+        <div class="nm-panel-head act-head">
+          <h2 class="nm-panel-title">Recent admin activity</h2>
+          <NuxtLink to="/audit-logs?scope=admin" class="nm-btn-soft nm-btn-sm">View all</NuxtLink>
         </div>
-        <div v-if="!activity.length" class="nm-empty"><p>Nothing recorded yet.</p></div>
+        <p v-if="!activity.length" class="act-empty">Nothing yet. Approvals, account changes, refunds and payouts show up here.</p>
+        <!-- same rows as the client dashboard's Recent activity; gold dot = in the last 24 hours -->
         <button v-for="a in activity" :key="a.id" type="button" class="act-row" @click="openLog = a">
-          <span class="nm-row-main">
-            <span class="nm-row-title">{{ auditLabel(a.action) }}</span>
-            <span class="nm-row-sub">{{ a.user ? `${a.user.first_name} ${a.user.last_name}` : 'System' }}, {{ dateTime(a.created_at) }}</span>
+          <span class="act-dot" :class="{ fresh: now - new Date(a.created_at) < DAY_MS }" aria-hidden="true"></span>
+          <span class="act-text">
+            <span class="act-title">{{ auditLabel(a.action) }}</span>
+            <span class="act-time">{{ a.user ? `${a.user.first_name} ${a.user.last_name}` : 'System' }}, {{ timeAgo(a.created_at) }}</span>
           </span>
-          <ChevronRight :size="15" class="act-go" aria-hidden="true" />
         </button>
       </section>
     </div>
@@ -174,7 +172,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { CheckCircle2, CircleDot, Info, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -287,6 +285,18 @@ async function load() {
   } finally {
     refreshing.value = false
   }
+}
+const DAY_MS = 24 * 60 * 60 * 1000
+// "19 min ago", "15 hrs ago", "3 days ago", then the date (as on the client dashboard)
+function timeAgo(iso) {
+  const mins = Math.round((now.value - new Date(iso)) / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs} hr${hrs === 1 ? '' : 's'} ago`
+  const days = Math.round(hrs / 24)
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`
+  return shortDate(iso)
 }
 const updatedText = computed(() => {
   if (!loadedAt.value) return ''
@@ -419,12 +429,17 @@ onBeforeUnmount(() => {
 .cmp-before { grid-area: before; font-size: 0.74rem; color: #6a7a6a; text-align: right; }
 
 /* activity rows open the details pop-up */
-.act-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; border: none; border-top: 1px solid #edf2ee; background: none; text-align: left; font-family: inherit; cursor: pointer; color: inherit; }
-.act-row:first-of-type { border-top: none; }
-.act-row:hover .nm-row-title { color: #0a4a37; text-decoration: underline; }
+.act-head { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #d9e3dc; }
+.act-empty { margin: 0; font-size: 0.85rem; color: #6a7a6a; line-height: 1.5; }
+.act-row { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 0; border: none; border-top: 1px solid #d9e3dc; background: none; text-align: left; font-family: inherit; cursor: pointer; color: inherit; }
+.act-row:first-of-type { border-top: none; padding-top: 0; }
+.act-row:hover .act-title { text-decoration: underline; }
 .act-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; border-radius: 6px; }
-.act-row .nm-row-main { display: flex; flex-direction: column; }
-.act-go { color: #6a7a6a; flex-shrink: 0; }
+.act-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; background: #c5d0c5; }
+.act-dot.fresh { background: #D4A017; }
+.act-text { display: flex; flex-direction: column; min-width: 0; }
+.act-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
+.act-time { font-size: 0.76rem; color: #6a7a6a; margin-top: 2px; }
 .log-facts { margin: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
 .log-facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 14px; font-size: 0.86rem; }
 .log-facts > div + div { border-top: 1px solid #d9e3dc; }
