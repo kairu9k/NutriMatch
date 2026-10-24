@@ -15,9 +15,6 @@
             <RefreshCw :size="14" :class="{ spin: refreshing }" aria-hidden="true" /> Refresh
           </button>
         </p>
-        <button v-if="dash" ref="attnBtn" type="button" class="attn-open" aria-haspopup="true" :aria-expanded="attnOpen" @click.stop="toggleAttn">
-          Needs attention<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template>
-        </button>
       </div>
       <div class="nm-upnext today-card" aria-label="At a glance">
         <div v-if="dash" class="figs nine">
@@ -29,6 +26,19 @@
       </div>
     </section>
 
+    <!-- NEEDS ATTENTION: same strip as the client dashboard's "Pay now" row.
+         Red = critical, dashed green = the admin's own to-do, grey = for information. -->
+    <section v-if="dash" class="needs" aria-label="Needs attention">
+      <p v-if="!dash.attention.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing needs you right now.</p>
+      <ul v-else class="needs-band">
+        <li v-for="a in attnRows" :key="a.key" class="needs-row" :class="a.tone">
+          <AlertTriangle v-if="a.tone === 'risk'" :size="16" class="needs-icon" aria-hidden="true" />
+          <Info v-else-if="a.tone === 'watch'" :size="16" class="needs-icon info" aria-hidden="true" />
+          <span class="needs-text"><strong>{{ a.title }}.</strong> {{ a.text }}</span>
+          <NuxtLink :to="a.link" :class="a.tone === 'watch' ? 'nm-btn-soft nm-btn-sm' : 'nm-btn-dark nm-btn-sm'">{{ a.action }}</NuxtLink>
+        </li>
+      </ul>
+    </section>
 
     <div v-if="dash" class="nm-grid">
       <!-- MONTH VS LAST MONTH -->
@@ -130,44 +140,6 @@
       </section>
     </div>
 
-    <!-- NEEDS ATTENTION: drops down under its button, like the notification bell.
-         Teleported to the page, since the banner clips what overflows it. -->
-    <Teleport to="body">
-      <Transition name="dropdown">
-        <div
-          v-if="attnOpen && dash" class="attn-drop" role="dialog" aria-labelledby="attn-title"
-          :style="{ top: `${dropPos.top}px`, left: `${dropPos.left}px` }" @click.stop
-        >
-          <div class="attn-drop-head">
-            <p id="attn-title" class="attn-drop-title">Needs attention <span class="attn-count">{{ dash.attention.length }}</span></p>
-          </div>
-          <div class="attn-drop-body">
-            <h3 class="attn-h">Your to-do</h3>
-            <p v-if="!todoItems.length" class="attn-none">Nothing to do right now.</p>
-            <ul v-else class="attn-list">
-              <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
-                <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
-                <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-                  <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-                <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm" @click="attnOpen = false">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
-              </li>
-            </ul>
-            <h3 class="attn-h">Keep an eye on</h3>
-            <p class="attn-sub">For your information. The app or the RND handles these.</p>
-            <p v-if="!watchItems.length" class="attn-none">Nothing to watch right now.</p>
-            <ul v-else class="attn-list">
-              <li v-for="a in watchItems" :key="a.key" class="attn watch">
-                <Info :size="16" class="attn-icon" aria-hidden="true" />
-                <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-                  <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-                <NuxtLink :to="a.link" class="nm-panel-link" @click="attnOpen = false">View</NuxtLink>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
     <!-- ACTIVITY DETAILS (pop-up, only when a row is clicked) -->
     <div v-if="openLog" class="nm-modal-overlay" @click.self="openLog = null">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="log-title">
@@ -196,7 +168,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, ChevronRight, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -234,21 +206,14 @@ const TODO_KEYS = ['applications', 'support', 'refunds', 'payouts_due']
 const ACTIONS = { applications: 'Review', support: 'Reply', refunds: 'Send refunds', payouts_due: 'Release' }
 const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_KEYS.includes(a.key)))
 const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
-const attnOpen = ref(false)
-const attnBtn = ref(null)
-const dropPos = ref({ top: 0, left: 0 })
-// Under the button, kept inside the window (full width less 12px each side on phones).
-function placeDrop() {
-  const b = attnBtn.value?.getBoundingClientRect()
-  if (!b) return
-  const width = Math.min(440, window.innerWidth - 24)
-  dropPos.value = { top: b.bottom + 8, left: Math.max(12, Math.min(b.left, window.innerWidth - width - 12)) }
-}
-function toggleAttn() {
-  if (!attnOpen.value) placeDrop()
-  attnOpen.value = !attnOpen.value
-}
-function closeDrop() { attnOpen.value = false }
+// critical first (the API sorts them); the admin's jobs get their action name
+const attnRows = computed(() => (dash.value?.attention || []).map(a => ({
+  ...a,
+  title: a.title.replace(/\.$/, ''),
+  text: a.people.length ? `${a.detail} ${peopleText(a.people)}.` : a.detail,
+  tone: a.level === 'critical' ? 'risk' : TODO_KEYS.includes(a.key) ? 'unfinished' : 'watch',
+  action: ACTIONS[a.key] || (TODO_KEYS.includes(a.key) || a.level === 'critical' ? 'Open' : 'View'),
+})))
 const peopleText = people => people.slice(0, 4).map(p => p.name).join(', ') + (people.length > 4 ? `, and ${people.length - 4} more` : '')
 const todoOpen = computed(() => todoItems.value.length)
 const summaryLine = computed(() => {
@@ -319,7 +284,6 @@ let clock = null
 function onKey(e) {
   if (e.key !== 'Escape') return
   if (openLog.value) openLog.value = null
-  else attnOpen.value = false
 }
 function onVisible() {
   if (document.visibilityState === 'visible' && (!loadedAt.value || Date.now() - loadedAt.value > REFRESH_MS)) load()
@@ -330,18 +294,12 @@ onMounted(() => {
   clock = setInterval(() => { now.value = Date.now() }, 15000)
   document.addEventListener('visibilitychange', onVisible)
   window.addEventListener('keydown', onKey)
-  document.addEventListener('click', closeDrop)
-  window.addEventListener('resize', closeDrop)
-  window.addEventListener('scroll', closeDrop, true)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
   clearInterval(clock)
   document.removeEventListener('visibilitychange', onVisible)
   window.removeEventListener('keydown', onKey)
-  document.removeEventListener('click', closeDrop)
-  window.removeEventListener('resize', closeDrop)
-  window.removeEventListener('scroll', closeDrop, true)
 })
 </script>
 
@@ -358,13 +316,6 @@ onBeforeUnmount(() => {
 .refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* Needs attention: opens the pop-up */
-.attn-open {
-  align-self: flex-start; display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px; margin-top: 4px; border: none;
-  border-radius: 8px; background: #D4A017; color: #1a3a1a; font-family: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer;
-}
-.attn-open:hover { background: #e0ae22; }
-.attn-open:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 /* Today in the banner's white card */
 .today-card { padding: 0; gap: 0; overflow: hidden; }
 .today-card .figs { border-top: none; }
@@ -384,30 +335,31 @@ onBeforeUnmount(() => {
 .fig.red strong { color: #a12525; }
 .fig.gold strong { color: #a37a0b; }
 
-/* needs attention */
-.attn-list { list-style: none; margin: 0; padding: 0; }
-.attn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
-.attn:first-child { border-top: none; padding-top: 0; }
-.attn-icon { flex-shrink: 0; margin-top: 2px; }
-.attn.todo-item .attn-icon { color: #a37a0b; }
-.attn.watch .attn-icon { color: #6a7a6a; }
-.attn-drop {
-  position: fixed; z-index: 400; width: min(440px, calc(100vw - 24px)); background: #fff; border: 1px solid #d9e3dc; border-radius: 12px;
-  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); overflow: hidden; font-family: 'Inter', sans-serif; color: #1a3a1a;
-  transform-origin: top left;
+/* needs attention: same strip as ClientDashboard.vue's "Needs you" */
+.needs { background: #fff; border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.all-clear { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 20px; font-size: 0.86rem; font-weight: 600; color: #1f6f46; }
+.needs-band { list-style: none; margin: 0; padding: 0; }
+.needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
+.needs-row + .needs-row { border-top: 1px solid #eef1ee; }
+.needs-row strong { color: #1a3a1a; }
+.needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.needs-row.risk { background: #fdf3f2; }
+.needs-row.risk strong { color: #a12525; }
+.needs-icon { flex-shrink: 0; color: #c0392b; }
+.needs-icon.info { color: #6a7a6a; }
+.needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
+.needs-row .nm-btn-dark, .needs-row .nm-btn-soft { flex-shrink: 0; white-space: nowrap; }
+/* one opening moment: the strip drops in, red and dashed rows glow three times */
+@media (prefers-reduced-motion: no-preference) {
+  .needs { animation: nm-drop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
+  .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
+  .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
 }
-.attn-drop-head { padding: 14px 18px; border-bottom: 1px solid #d9e3dc; }
-.attn-drop-title { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; }
-.attn-count { margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: #0a4a37; color: #fff; font-family: 'Inter', sans-serif; font-size: 0.74rem; font-weight: 600; vertical-align: 2px; }
-.attn-drop-body { max-height: min(460px, calc(100vh - 220px)); overflow-y: auto; padding: 14px 18px 4px; overscroll-behavior: contain; }
-.attn-h { font-size: 0.92rem; font-weight: 700; margin: 4px 0 8px; }
-.attn-h + .attn-list, .attn-sub + .attn-list { margin-bottom: 18px; }
-.attn-sub { font-size: 0.8rem; color: #6a7a6a; margin: -4px 0 10px; }
-.attn-none { margin: 0 0 18px; font-size: 0.84rem; color: #6a7a6a; }
-.attn-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.attn-main strong { font-size: 0.86rem; color: #1a3a1a; }
-.attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
-.attn-people { color: #4a5a4a !important; }
+@keyframes nm-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
+@keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
+@keyframes nm-shake { 0%, 100% { transform: none; } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
 
 /* overview: three divided columns */
 .overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; overflow: visible; }
@@ -455,7 +407,9 @@ onBeforeUnmount(() => {
 @media (max-width: 560px) {
   .fig { padding: 12px 12px; }
   .fig strong { font-size: 1.3rem; }
-  .attn { flex-wrap: wrap; }
-  .attn .nm-panel-link { margin-left: 26px; }
+  .needs-row { flex-wrap: wrap; padding: 12px 16px; }
+  .needs-text { flex-basis: calc(100% - 40px); }
+  .needs-row .nm-btn-dark, .needs-row .nm-btn-soft { margin-left: 28px; }
+  .needs-row.unfinished .nm-btn-dark { margin-left: 21px; }
 }
 </style>
