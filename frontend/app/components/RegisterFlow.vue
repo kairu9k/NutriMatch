@@ -7,8 +7,8 @@
       <div class="circle circle-3"></div>
 
       <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
-        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-img" />
-        <span class="logo-text" style="font-family: 'DM Serif Display', serif; font-weight: 700; font-size: medium;">Nutri<span class="logo-match">Match</span></span>
+        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-icon" />
+        <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
       </NuxtLink>
 
       <div class="left-content">
@@ -953,8 +953,6 @@ async function resendCode() {
 
 /* the original left panel of sign-up */
 .left-panel { padding: 48px 64px; display: block; }
-.brand { font-size: 1.2rem; }
-.logo-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
 .left-content { margin-top: 120px; }
 .eyebrow { letter-spacing: 0.1em; font-weight: 400; }
 .left-content h1 { font-style: normal; font-weight: 700; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: normal; line-height: 1.2; margin: 16px 0 56px; }
