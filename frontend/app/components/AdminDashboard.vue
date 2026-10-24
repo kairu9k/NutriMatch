@@ -2,9 +2,8 @@
   <div class="nm-page admin-dash">
     <p v-if="error" class="nm-error">{{ error }} <button type="button" class="nm-panel-link" @click="load()">Try again</button></p>
 
-    <!-- BANNER: greeting + summary on the left, the most urgent thing on the right
-         (same banner as the RND dashboard, nm-hero in portal.css) -->
-    <section class="nm-hero">
+    <!-- BANNER: greeting and summary (nm-hero in portal.css, one column here) -->
+    <section class="nm-hero greet-only">
       <div class="nm-hero-greet">
         <p class="nm-hero-date">{{ longToday }}</p>
         <h1 class="nm-hero-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
@@ -15,14 +14,6 @@
             <RefreshCw :size="14" :class="{ spin: refreshing }" aria-hidden="true" /> Refresh
           </button>
         </p>
-      </div>
-      <div class="nm-upnext today-card" aria-label="At a glance">
-        <div v-if="dash" class="figs nine">
-          <NuxtLink v-for="t in todayFigures" :key="t.label" :to="t.link" class="fig" :class="t.tone">
-            <strong>{{ t.value }}</strong><span>{{ t.label }}</span>
-          </NuxtLink>
-        </div>
-        <p v-else class="nm-upnext-empty">Loading…</p>
       </div>
     </section>
 
@@ -57,27 +48,12 @@
         </div>
       </section>
 
-      <!-- RND APPLICATIONS -->
-      <section class="nm-panel">
-        <div class="nm-panel-head">
-          <div>
-            <h2 class="nm-panel-title">RND applications</h2>
-            <p class="nm-panel-sub">Check each PRC license before approving</p>
-          </div>
-          <NuxtLink to="/rnd-verification" class="nm-panel-link">View all</NuxtLink>
-        </div>
-        <div v-if="!pendingRnds.length" class="nm-empty"><ShieldCheck :size="26" aria-hidden="true" /><p>No applications waiting.</p></div>
-        <div v-for="r in pendingRnds.slice(0, 5)" :key="r.id" class="nm-row">
-          <img v-if="r.profile_photo" :src="r.profile_photo" class="nm-avatar" alt="" />
-          <span v-else class="nm-avatar">{{ userInitials(r.first_name, r.last_name) }}</span>
-          <div class="nm-row-main">
-            <p class="nm-row-title">{{ r.first_name }} {{ r.last_name }}</p>
-            <p class="nm-row-sub">{{ [r.specialization, r.prc_license_number && `PRC ${r.prc_license_number}`, `sent ${shortDate(r.submitted_at)}`].filter(Boolean).join(', ') }}</p>
-          </div>
-          <div class="nm-row-end">
-            <span v-if="!r.email_verified_at" class="nm-pill muted">Email not confirmed</span>
-            <NuxtLink :to="`/rnd-verification?open=${r.id}`" class="nm-btn-dark nm-btn-sm">Review</NuxtLink>
-          </div>
+      <!-- AT A GLANCE: nine figures, 3 x 3, each a link -->
+      <section class="nm-panel today-panel" aria-label="At a glance">
+        <div class="figs nine">
+          <NuxtLink v-for="t in todayFigures" :key="t.label" :to="t.link" class="fig" :class="t.tone">
+            <strong>{{ t.value }}</strong><span>{{ t.label }}</span>
+          </NuxtLink>
         </div>
       </section>
     </div>
@@ -198,7 +174,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -206,7 +182,6 @@ const auth = useAuthStore()
 
 const error = ref('')
 const stats = ref({ support_open: 0 })
-const pendingRnds = ref([])
 // GET /api/admin/dashboard/ (core/admin_dashboard.py): today, attention, compare, overview.
 const dash = ref(null)
 const ov = computed(() => dash.value?.overview || null)
@@ -298,15 +273,12 @@ const now = ref(Date.now())
 async function load() {
   refreshing.value = true
   try {
-    const [s, rnds, logs, d] = await Promise.all([
-      get('/admin/platform-stats/'), get('/admin/rnds/'),
+    const [s, logs, d] = await Promise.all([
+      get('/admin/platform-stats/'),
       get('/admin/audit-logs/', { query: { scope: 'admin', page_size: 6 } }), get('/admin/dashboard/'),
     ])
     stats.value = s
     dash.value = d
-    // unfinished sign-ups (email not confirmed) stay hidden: they can't be approved yet
-    pendingRnds.value = rnds.filter(r => r.is_active && r.review_status === 'pending' && r.email_verified_at)
-      .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
     activity.value = (Array.isArray(logs) ? logs : logs?.results || []).slice(0, 6)
     error.value = ''
     loadedAt.value = Date.now()
@@ -375,8 +347,13 @@ onBeforeUnmount(() => {
 .attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
 .attn-people { color: #4a5a4a !important; }
 /* Today in the banner's white card */
-.today-card { padding: 0; gap: 0; overflow: hidden; }
-.today-card .figs { border-top: none; }
+.nm-hero.greet-only { grid-template-columns: minmax(0, 1fr); }
+/* the nine figures fill the panel beside the month comparison */
+.nm-grid { align-items: stretch; }
+.today-panel { padding: 0; overflow: hidden; display: flex; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.today-panel .figs { flex: 1; border-top: none; grid-auto-rows: 1fr; }
+.today-panel .fig { justify-content: center; padding: 14px 16px; }
+.today-panel .fig strong { font-size: 1.6rem; }
 
 /* figures: one divided panel */
 .figs { display: grid; border-top: 1px solid #d9e3dc; }
