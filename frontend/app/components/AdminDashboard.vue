@@ -15,7 +15,7 @@
             <RefreshCw :size="14" :class="{ spin: refreshing }" aria-hidden="true" /> Refresh
           </button>
         </p>
-        <button v-if="dash" type="button" class="attn-open" @click="attnOpen = true">
+        <button v-if="dash" ref="attnBtn" type="button" class="attn-open" aria-haspopup="true" :aria-expanded="attnOpen" @click.stop="toggleAttn">
           Needs attention<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template>
         </button>
       </div>
@@ -130,35 +130,43 @@
       </section>
     </div>
 
-    <!-- EVERYTHING THAT NEEDS AN EYE (pop-up from the to-do card) -->
-    <div v-if="attnOpen && dash" class="nm-modal-overlay" @click.self="attnOpen = false">
-      <div class="nm-modal attn-modal" role="dialog" aria-modal="true" aria-labelledby="attn-title">
-        <button type="button" class="nm-modal-x" aria-label="Close" @click="attnOpen = false"><X :size="18" aria-hidden="true" /></button>
-        <h2 id="attn-title" class="nm-modal-title">Needs attention</h2>
-        <h3 class="attn-h">Your to-do</h3>
-        <p v-if="!todoItems.length" class="nm-muted attn-none">Nothing to do right now.</p>
-        <ul v-else class="attn-list">
-          <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
-            <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
-            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-            <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm" @click="attnOpen = false">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
-          </li>
-        </ul>
-        <h3 class="attn-h">Keep an eye on</h3>
-        <p class="attn-sub">For your information. The app or the RND handles these.</p>
-        <p v-if="!watchItems.length" class="nm-muted attn-none">Nothing to watch right now.</p>
-        <ul v-else class="attn-list">
-          <li v-for="a in watchItems" :key="a.key" class="attn watch">
-            <Info :size="16" class="attn-icon" aria-hidden="true" />
-            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-            <NuxtLink :to="a.link" class="nm-panel-link" @click="attnOpen = false">View</NuxtLink>
-          </li>
-        </ul>
-        <div class="nm-modal-actions"><button type="button" class="nm-btn-soft" @click="attnOpen = false">Close</button></div>
-      </div>
-    </div>
+    <!-- NEEDS ATTENTION: drops down under its button, like the notification bell.
+         Teleported to the page, since the banner clips what overflows it. -->
+    <Teleport to="body">
+      <Transition name="dropdown">
+        <div
+          v-if="attnOpen && dash" class="attn-drop" role="dialog" aria-labelledby="attn-title"
+          :style="{ top: `${dropPos.top}px`, left: `${dropPos.left}px` }" @click.stop
+        >
+          <div class="attn-drop-head">
+            <p id="attn-title" class="attn-drop-title">Needs attention <span class="attn-count">{{ dash.attention.length }}</span></p>
+          </div>
+          <div class="attn-drop-body">
+            <h3 class="attn-h">Your to-do</h3>
+            <p v-if="!todoItems.length" class="attn-none">Nothing to do right now.</p>
+            <ul v-else class="attn-list">
+              <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
+                <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
+                <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+                  <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+                <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm" @click="attnOpen = false">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
+              </li>
+            </ul>
+            <h3 class="attn-h">Keep an eye on</h3>
+            <p class="attn-sub">For your information. The app or the RND handles these.</p>
+            <p v-if="!watchItems.length" class="attn-none">Nothing to watch right now.</p>
+            <ul v-else class="attn-list">
+              <li v-for="a in watchItems" :key="a.key" class="attn watch">
+                <Info :size="16" class="attn-icon" aria-hidden="true" />
+                <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+                  <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+                <NuxtLink :to="a.link" class="nm-panel-link" @click="attnOpen = false">View</NuxtLink>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- ACTIVITY DETAILS (pop-up, only when a row is clicked) -->
     <div v-if="openLog" class="nm-modal-overlay" @click.self="openLog = null">
@@ -227,6 +235,20 @@ const ACTIONS = { applications: 'Review', support: 'Reply', refunds: 'Send refun
 const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_KEYS.includes(a.key)))
 const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
 const attnOpen = ref(false)
+const attnBtn = ref(null)
+const dropPos = ref({ top: 0, left: 0 })
+// Under the button, kept inside the window (full width less 12px each side on phones).
+function placeDrop() {
+  const b = attnBtn.value?.getBoundingClientRect()
+  if (!b) return
+  const width = Math.min(440, window.innerWidth - 24)
+  dropPos.value = { top: b.bottom + 8, left: Math.max(12, Math.min(b.left, window.innerWidth - width - 12)) }
+}
+function toggleAttn() {
+  if (!attnOpen.value) placeDrop()
+  attnOpen.value = !attnOpen.value
+}
+function closeDrop() { attnOpen.value = false }
 const peopleText = people => people.slice(0, 4).map(p => p.name).join(', ') + (people.length > 4 ? `, and ${people.length - 4} more` : '')
 const todoOpen = computed(() => todoItems.value.length)
 const summaryLine = computed(() => {
@@ -308,12 +330,18 @@ onMounted(() => {
   clock = setInterval(() => { now.value = Date.now() }, 15000)
   document.addEventListener('visibilitychange', onVisible)
   window.addEventListener('keydown', onKey)
+  document.addEventListener('click', closeDrop)
+  window.addEventListener('resize', closeDrop)
+  window.addEventListener('scroll', closeDrop, true)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
   clearInterval(clock)
   document.removeEventListener('visibilitychange', onVisible)
   window.removeEventListener('keydown', onKey)
+  document.removeEventListener('click', closeDrop)
+  window.removeEventListener('resize', closeDrop)
+  window.removeEventListener('scroll', closeDrop, true)
 })
 </script>
 
@@ -363,11 +391,19 @@ onBeforeUnmount(() => {
 .attn-icon { flex-shrink: 0; margin-top: 2px; }
 .attn.todo-item .attn-icon { color: #a37a0b; }
 .attn.watch .attn-icon { color: #6a7a6a; }
-.attn-modal { max-width: 560px; }
+.attn-drop {
+  position: fixed; z-index: 400; width: min(440px, calc(100vw - 24px)); background: #fff; border: 1px solid #d9e3dc; border-radius: 12px;
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); overflow: hidden; font-family: 'Inter', sans-serif; color: #1a3a1a;
+  transform-origin: top left;
+}
+.attn-drop-head { padding: 14px 18px; border-bottom: 1px solid #d9e3dc; }
+.attn-drop-title { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; }
+.attn-count { margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: #0a4a37; color: #fff; font-family: 'Inter', sans-serif; font-size: 0.74rem; font-weight: 600; vertical-align: 2px; }
+.attn-drop-body { max-height: min(460px, calc(100vh - 220px)); overflow-y: auto; padding: 14px 18px 4px; overscroll-behavior: contain; }
 .attn-h { font-size: 0.92rem; font-weight: 700; margin: 4px 0 8px; }
 .attn-h + .attn-list, .attn-sub + .attn-list { margin-bottom: 18px; }
 .attn-sub { font-size: 0.8rem; color: #6a7a6a; margin: -4px 0 10px; }
-.attn-none { margin: 0 0 18px; }
+.attn-none { margin: 0 0 18px; font-size: 0.84rem; color: #6a7a6a; }
 .attn-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .attn-main strong { font-size: 0.86rem; color: #1a3a1a; }
 .attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
