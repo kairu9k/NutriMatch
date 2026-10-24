@@ -42,7 +42,7 @@
     <!-- RIGHT PANEL -->
     <main class="right-panel">
       <div class="form-wrap">
-        <NuxtLink v-if="![4, 7].includes(currentStep)" to="/login" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to sign in</NuxtLink>
+        <NuxtLink v-if="[1, 2].includes(currentStep)" to="/login" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to sign in</NuxtLink>
         <!-- STEP 1: CHOOSE ROLE -->
         <div v-if="currentStep === 1">
           <h2>How will you use NutriMatch?</h2>
@@ -466,7 +466,7 @@
           </p>
         </div>
 
-        <p v-if="![4, 7].includes(currentStep)" class="signin-link">
+        <p v-if="[1, 2].includes(currentStep)" class="signin-link">
           Already have an account? <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && navigateTo('/login')">Sign in</a>
         </p>
       </div>
@@ -1078,7 +1078,7 @@ function changeEmail() {
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 13px; border: 1.5px solid #d9e3dc; border-radius: 999px;
   background: #fff; color: #4a5a4a; font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
-.choice-chip input { accent-color: #0a4a37; margin: 0; }
+.choice-chip input { width: 16px; height: 16px; flex-shrink: 0; accent-color: #0a4a37; margin: 0; }
 .choice-chip.checked { border-color: #0a4a37; background: #e3efe7; color: #0a4a37; }
 .fee-wrap { display: flex; align-items: center; gap: 8px; max-width: 280px; }
 .fee-wrap input { flex: 1; min-width: 0; }
