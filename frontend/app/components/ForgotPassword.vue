@@ -184,5 +184,5 @@ async function handleConfirm() {
 /* the original headline here was a little smaller */
 .left-content h1 { font-size: clamp(2.8rem, 4vw, 3.2rem); }
 .field-error { font-size: 0.78rem; color: #c0392b; }
-.top-back { margin-bottom: 18px; }
+.top-back { margin-bottom: 32px; }
 </style>
