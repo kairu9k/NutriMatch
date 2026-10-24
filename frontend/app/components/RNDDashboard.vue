@@ -252,6 +252,23 @@
               <p class="nm-row-sub">{{ r.client }}, {{ shortDate(r.created_at) }}</p>
             </div>
           </div>
+
+          <!-- recent activity: the latest notifications, same rows as the client dashboard
+               (gold dot = unread); chat isn't here, as in the bell -->
+          <div class="nm-panel">
+            <div class="nm-panel-head act-head">
+              <h2 class="nm-panel-title">Recent activity</h2>
+              <NuxtLink v-if="recentActivity.length" to="/notifications" class="nm-btn-soft nm-btn-sm">View all</NuxtLink>
+            </div>
+            <div v-for="n in recentActivity" :key="n.id" class="activity-row">
+              <span class="activity-dot" :class="{ unread: !n.is_read }" aria-hidden="true"></span>
+              <div class="activity-text">
+                <p class="activity-title">{{ n.subject }}</p>
+                <p class="activity-time">{{ timeAgo(n.created_at) }}</p>
+              </div>
+            </div>
+            <p v-if="!recentActivity.length" class="nm-muted">Nothing yet. Booking requests, payments and patient updates show up here.</p>
+          </div>
         </div>
       </div>
     </template>
@@ -278,6 +295,34 @@ const error = ref('')
 const hover = ref(null)
 const setupMissing = ref([])
 
+/* recent activity (the bell's notifications, newest first, live) */
+const notifications = ref([])
+const recentActivity = computed(() => notifications.value.filter(n => n.notifiable_type !== 'message').slice(0, 5))
+async function loadActivity() {
+  try {
+    const notes = await get('/notifications/')
+    notifications.value = Array.isArray(notes) ? notes : notes?.results || []
+  } catch {
+    notifications.value = []
+  }
+}
+const live = useLiveUpdates()
+live.onLive('notification', ({ notification }) => {
+  if (!notifications.value.some(n => n.id === notification.id)) notifications.value = [notification, ...notifications.value]
+})
+live.onLive('reconnect', loadActivity)
+// "19 min ago", "15 hrs ago", "3 days ago", then the date (as on the client dashboard)
+function timeAgo(iso) {
+  const mins = Math.round((now.value - new Date(iso)) / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs} hr${hrs === 1 ? '' : 's'} ago`
+  const days = Math.round(hrs / 24)
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`
+  return shortDate(iso)
+}
+
 async function load() {
   error.value = ''
   try {
@@ -290,6 +335,7 @@ async function load() {
 }
 onMounted(async () => {
   load()
+  loadActivity()
   try {
     setupMissing.value = (await get('/auth/me/onboarding/')).missing || []
   } catch {
@@ -542,6 +588,15 @@ function nameInitials(name) {
 .cmp-label { grid-area: label; font-size: 0.84rem; color: #4a5a4a; }
 .cmp-now { grid-area: now; font-weight: 700; font-size: 0.95rem; text-align: right; color: #1a3a1a; font-variant-numeric: tabular-nums; }
 .cmp-before { grid-area: before; font-size: 0.74rem; color: #6a7a6a; text-align: right; }
+/* recent activity: the client dashboard's rows */
+.act-head { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #d9e3dc; }
+.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #d9e3dc; }
+.act-head + .activity-row { border-top: none; padding-top: 0; }
+.activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; background: #c5d0c5; }
+.activity-dot.unread { background: #D4A017; }
+.activity-text { min-width: 0; }
+.activity-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
+.activity-time { font-size: 0.76rem; color: #6a7a6a; margin: 2px 0 0; }
 .req-soon { font-size: 0.76rem; font-weight: 600; color: #1e4a26; margin: 2px 0 0; }
 .req-soon.urgent { color: #c0392b; }
 .overall { display: inline-flex; align-items: baseline; gap: 4px; font-size: 0.8rem; color: #4a5a4a; text-decoration: none; white-space: nowrap; }
