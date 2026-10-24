@@ -389,7 +389,8 @@ class ResourceSharingTests(TestCase):
         row = self.api.get("/api/client/resources/").data[0]
         self.assertEqual(row["shared_by"]["name"], self.rnd.full_name)
         self.assertIsNotNone(row["shared_at"])
-        self.assertNotIn("shared_count", row)  # how many others got it is the RND's business
+        self.assertNotIn("shared_count", row)
+        self.assertNotIn("shared_with", row)  # how many others got it is the RND's business
 
     def test_uploading_alone_shares_with_nobody(self):
         self._resource()
@@ -442,6 +443,7 @@ class ResourceSharingTests(TestCase):
         self.api.force_authenticate(self.rnd)
         listed = self.api.get("/api/rnd/resources/").data
         self.assertEqual(listed[0]["shared_count"], 1)
+        self.assertEqual([c["relationship_id"] for c in listed[0]["shared_with"]], [self.rel.id])
 
     def test_cannot_share_with_unconfirmed_or_other_rnds_clients(self):
         resource = self._resource()

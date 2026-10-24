@@ -27,100 +27,120 @@
       <p class="empty-text">Upload a PDF, article, video or link. It stays private until you share it with a patient.</p>
     </div>
 
-    <div v-else class="review-layout">
-      <!-- list -->
-      <div class="nm-panel queue">
-        <p v-if="!filteredResources.length" class="nm-muted" style="padding: 10px">Nothing here.</p>
-        <button v-for="r in pagedResources" :key="r.id" class="queue-item" :class="{ active: selected?.id === r.id }" @click="select(r.id)">
-          <span class="type-icon" :class="'t-' + r.type.toLowerCase()"><component :is="iconFor(r.type)" :size="17" /></span>
-          <span class="queue-main">
-            <span class="queue-name">{{ r.title }}</span>
-            <span class="queue-sub">{{ r.type }}, {{ shortDate(r.created_at) }}</span>
-          </span>
-          <span class="queue-end">
-            <span v-if="!r.is_active" class="nm-pill muted">Hidden</span>
-            <span v-else-if="r.shared_count" class="nm-pill green">{{ r.shared_count }} client{{ r.shared_count === 1 ? '' : 's' }}</span>
-            <span v-else class="nm-pill gold">Not shared</span>
-          </span>
-          <ChevronRight :size="16" class="queue-chevron" />
-        </button>
-        <ListPager v-model:page="resourcePage" :pages="resourcePages" />
-      </div>
-
-      <!-- panel (a full-screen sheet on phones) -->
-      <div v-if="selected" ref="panelWrap" class="panel-wrap">
-        <div class="nm-panel detail">
-          <button class="back-btn" @click="selectedId = null"><ArrowLeft :size="15" /> All resources</button>
-
-          <div class="detail-head">
-            <span class="type-icon lg" :class="'t-' + selected.type.toLowerCase()"><component :is="iconFor(selected.type)" :size="20" /></span>
-            <div style="flex: 1; min-width: 0">
-              <h2 class="nm-panel-title detail-title">{{ selected.title }}</h2>
-              <p class="nm-panel-sub">{{ selected.type }}, uploaded {{ shortDate(selected.created_at) }}</p>
-            </div>
-            <span v-if="!selected.is_active" class="nm-pill muted">Hidden from clients</span>
+    <!-- one list: what it is, who has it, Share (Healthie-style library, 2026-10-24) -->
+    <div v-else class="nm-panel lib">
+      <p v-if="!filteredResources.length" class="lib-empty">{{ search ? 'No resources match that search.' : 'Nothing here.' }}</p>
+      <ul v-else class="lib-list">
+        <li v-for="r in pagedResources" :key="r.id" class="lib-row" :class="{ 'is-hidden': !r.is_active }">
+          <span class="type-icon"><component :is="iconFor(r.type)" :size="17" aria-hidden="true" /></span>
+          <div class="lib-main">
+            <button type="button" class="lib-title" @click="openPreview(r)">{{ r.title }}</button>
+            <p class="lib-sub">{{ r.type }}, uploaded {{ shortDate(r.created_at) }}</p>
           </div>
-
-          <!-- preview -->
-          <div class="preview">
-            <iframe v-if="previewKind === 'pdf'" :src="selected.file_path" :title="selected.title" class="preview-frame" />
-            <video v-else-if="previewKind === 'video'" :src="selected.file_path" controls preload="metadata" class="preview-video" />
-            <a v-else-if="previewKind === 'link'" :href="selected.url" target="_blank" rel="noopener" class="preview-link">
-              <LinkIcon :size="18" />
-              <span><strong>Open link</strong><span class="preview-url">{{ selected.url }}</span></span>
-              <ExternalLink :size="15" />
-            </a>
-            <div v-else class="preview-none">
-              <FileText :size="22" />
-              <p>This file type can't be previewed here.</p>
+          <div class="lib-who">
+            <span v-if="!r.is_active" class="nm-pill muted">Hidden from clients</span>
+            <template v-else-if="r.shared_with?.length">
+              <span class="faces" aria-hidden="true">
+                <template v-for="c in r.shared_with.slice(0, 3)" :key="c.relationship_id">
+                  <img v-if="c.photo" :src="c.photo" alt="" class="face" />
+                  <span v-else class="face">{{ nameInitials(c.name) }}</span>
+                </template>
+                <span v-if="r.shared_with.length > 3" class="face more">+{{ r.shared_with.length - 3 }}</span>
+              </span>
+              <span class="who-text" :title="r.shared_with.map(c => c.name).join(', ')">{{ whoText(r) }}</span>
+            </template>
+            <span v-else class="not-shared">Not shared yet</span>
+          </div>
+          <div class="lib-actions">
+            <button type="button" class="nm-btn-soft nm-btn-sm" @click="openShare(r)"><Send :size="13" aria-hidden="true" /> Share</button>
+            <div class="more-wrap">
+              <button
+                type="button" class="more-btn" aria-label="More actions" aria-haspopup="menu" :aria-expanded="menuId === r.id"
+                @click.stop="menuId = menuId === r.id ? null : r.id"
+              ><MoreHorizontal :size="16" aria-hidden="true" /></button>
+              <div v-if="menuId === r.id" class="more-menu" role="menu" @click.stop>
+                <button type="button" role="menuitem" @click="openPreview(r)"><Eye :size="14" aria-hidden="true" /> Preview</button>
+                <a v-if="r.file_path || r.url" role="menuitem" :href="r.file_path || r.url" target="_blank" rel="noopener" @click="menuId = null"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
+                <a v-if="r.download_url" role="menuitem" :href="r.download_url" @click="menuId = null"><Download :size="14" aria-hidden="true" /> Download</a>
+                <button type="button" role="menuitem" :disabled="busyId === r.id" @click="toggleActive(r)">
+                  <template v-if="r.is_active"><EyeOff :size="14" aria-hidden="true" /> Hide from clients</template>
+                  <template v-else><Eye :size="14" aria-hidden="true" /> Show to clients again</template>
+                </button>
+              </div>
             </div>
           </div>
-          <div v-if="selected.file_path" class="preview-actions">
-            <a :href="selected.file_path" target="_blank" rel="noopener" class="nm-panel-link"><ExternalLink :size="13" /> Open in new tab</a>
-            <a v-if="selected.download_url" :href="selected.download_url" class="nm-panel-link"><Download :size="13" /> Download</a>
+        </li>
+      </ul>
+      <ListPager v-model:page="resourcePage" :pages="resourcePages" />
+    </div>
+
+    <!-- PREVIEW -->
+    <div v-if="previewR" class="nm-modal-overlay" @click.self="previewId = null">
+      <div class="nm-modal preview-modal" role="dialog" aria-modal="true" :aria-label="previewR.title">
+        <div class="pv-head nm-modal-head">
+          <span class="type-icon"><component :is="iconFor(previewR.type)" :size="18" aria-hidden="true" /></span>
+          <div class="pv-head-text">
+            <h2 class="nm-modal-title">{{ previewR.title }}</h2>
+            <p class="nm-modal-text">{{ previewR.type }}, uploaded {{ shortDate(previewR.created_at) }}, {{ previewR.is_active ? (previewR.shared_with?.length ? `shared with ${whoText(previewR)}` : 'not shared yet') : 'hidden from clients' }}</p>
           </div>
-
-          <p v-if="selected.description" class="detail-desc">{{ selected.description }}</p>
-
-          <!-- sharing -->
-          <div class="share-box">
-            <div class="share-head">
-              <p class="share-title">Shared with</p>
-              <button v-if="shareRows.length > 1" class="nm-panel-link" @click="toggleAllClients">{{ allSelected ? 'Clear all' : 'Select all' }}</button>
-            </div>
-            <p v-if="!selected.is_active" class="nm-note plain-note" style="margin: 0 0 10px">It's hidden, so clients can't see it even if it's shared. Show it again to give them access.</p>
-            <p v-if="shareLoading" class="nm-muted">Loading your clients…</p>
-            <p v-else-if="shareError" class="nm-error">{{ shareError }}</p>
-            <p v-else-if="!shareRows.length" class="nm-muted">You don't have any active clients yet. Once you confirm an appointment, you can share resources with them.</p>
-            <div v-else class="client-grid">
-              <label v-for="row in shareRows" :key="row.relationship_id" class="client-check" :class="{ on: chosen.includes(row.relationship_id) }">
-                <input v-model="chosen" type="checkbox" :value="row.relationship_id" />
-                <img v-if="row.client.profile_photo" :src="row.client.profile_photo" class="mini-avatar" alt="" />
-                <span v-else class="mini-avatar">{{ nameInitials(row.client.full_name) }}</span>
-                <span class="client-name">{{ row.client.full_name }}</span>
-              </label>
-            </div>
-            <div v-if="shareRows.length" class="share-foot">
-              <span class="nm-hint" style="margin: 0">{{ shareSummary }}</span>
-              <button class="nm-btn-dark nm-btn-sm" :disabled="!shareChanged || shareSaving" @click="saveSharing">
-                {{ shareSaving ? 'Saving…' : 'Save sharing' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="detail-actions">
-            <button v-if="selected.is_active" class="nm-btn-outline" :disabled="busyId === selected.id" @click="toggleActive(selected)">
-              <EyeOff :size="14" /> Hide from clients
-            </button>
-            <button v-else class="nm-btn-dark" :disabled="busyId === selected.id" @click="toggleActive(selected)">
-              <Eye :size="14" /> Show to clients again
-            </button>
+          <button type="button" aria-label="Close" @click="previewId = null"><X :size="18" aria-hidden="true" /></button>
+        </div>
+        <div class="preview">
+          <iframe v-if="previewKind === 'pdf'" :src="previewR.file_path" :title="previewR.title" class="preview-frame" />
+          <video v-else-if="previewKind === 'video'" :src="previewR.file_path" controls preload="metadata" class="preview-video" />
+          <a v-else-if="previewKind === 'link'" :href="previewR.url" target="_blank" rel="noopener" class="preview-link">
+            <LinkIcon :size="18" aria-hidden="true" />
+            <span><strong>Open link</strong><span class="preview-url">{{ previewR.url }}</span></span>
+            <ExternalLink :size="15" aria-hidden="true" />
+          </a>
+          <div v-else class="preview-none">
+            <FileText :size="22" aria-hidden="true" />
+            <p>This file type can't be previewed here. Download it or open it in a new tab.</p>
           </div>
         </div>
+        <p v-if="previewR.description" class="detail-desc">{{ previewR.description }}</p>
+        <div class="nm-modal-actions">
+          <a v-if="previewR.download_url" :href="previewR.download_url" class="nm-btn-soft"><Download :size="14" aria-hidden="true" /> Download</a>
+          <a v-if="previewR.file_path" :href="previewR.file_path" target="_blank" rel="noopener" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
+          <button type="button" class="nm-btn-dark" @click="openShare(previewR)"><Send :size="14" aria-hidden="true" /> Share</button>
+        </div>
       </div>
-      <div v-else class="nm-panel panel-placeholder">
-        <BookOpen :size="28" />
-        <p>Select a resource to preview and share it.</p>
+    </div>
+
+    <!-- SHARE -->
+    <div v-if="shareR" class="nm-modal-overlay" @click.self="closeShare">
+      <div class="nm-modal share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="closeShare"><X :size="18" aria-hidden="true" /></button>
+        <h2 id="share-title" class="nm-modal-title">Share "{{ shareR.title }}"</h2>
+        <p class="nm-modal-text">Patients you tick see it in their Resource Library and get a notification. Untick someone to take it back.</p>
+        <p v-if="!shareR.is_active" class="nm-note plain-note share-note">It's hidden, so patients can't see it even if it's shared. Show it again from the ⋯ menu to give them access.</p>
+        <p v-if="shareLoading" class="nm-muted">Loading your patients…</p>
+        <p v-else-if="shareError && !shareRows.length" class="nm-error">{{ shareError }}</p>
+        <p v-else-if="!shareRows.length" class="nm-muted">You don't have any active patients yet. Once you confirm an appointment, you can share resources with them.</p>
+        <template v-else>
+          <div class="share-tools">
+            <div v-if="shareRows.length > 6" class="nm-search share-search">
+              <Search :size="15" />
+              <input v-model="shareSearch" type="search" placeholder="Search your patients" />
+            </div>
+            <button v-if="shareRows.length > 1" type="button" class="nm-panel-link" @click="toggleAllClients">{{ allSelected ? 'Clear all' : 'Select all' }}</button>
+          </div>
+          <p v-if="!shownShareRows.length" class="nm-muted">No patient matches that name.</p>
+          <div class="client-grid">
+            <label v-for="row in shownShareRows" :key="row.relationship_id" class="client-check" :class="{ on: chosen.includes(row.relationship_id) }">
+              <input v-model="chosen" type="checkbox" :value="row.relationship_id" />
+              <img v-if="row.client.profile_photo" :src="row.client.profile_photo" class="mini-avatar" alt="" />
+              <span v-else class="mini-avatar">{{ nameInitials(row.client.full_name) }}</span>
+              <span class="client-name">{{ row.client.full_name }}</span>
+            </label>
+          </div>
+          <p v-if="shareError" class="nm-error">{{ shareError }}</p>
+        </template>
+        <div class="nm-modal-actions share-actions">
+          <span class="share-summary">{{ shareRows.length ? shareSummary : '' }}</span>
+          <button type="button" class="nm-btn-soft" @click="closeShare">Cancel</button>
+          <button type="button" class="nm-btn-dark" :disabled="!shareChanged || shareSaving" @click="saveSharing">{{ shareSaving ? 'Saving…' : 'Save sharing' }}</button>
+        </div>
       </div>
     </div>
 
@@ -188,12 +208,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  Upload, Search, Eye, ArrowLeft, Download, ExternalLink,
-  BookOpen, FileText, PlayCircle, FileEdit, Link as LinkIcon,
-  CheckCircle2, EyeOff, ChevronRight,
-  X,
+  CheckCircle2, Download, ExternalLink, Eye, EyeOff, FileEdit, FileText,
+  Link as LinkIcon, MoreHorizontal, PlayCircle, Search, Send, Upload, X,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
@@ -223,7 +241,7 @@ async function loadResources() {
   }
 }
 
-/* ---------- LIST + PANEL ---------- */
+/* ---------- LIST ---------- */
 const TABS = [
   { key: 'all', label: 'All' },
   { key: 'shared', label: 'Shared' },
@@ -246,6 +264,7 @@ const filteredResources = computed(() => {
 })
 const { page: resourcePage, pages: resourcePages, paged: pagedResources } = usePager(filteredResources, { resetOn: () => [tab.value, search.value] })
 
+// Every type gets a green icon; the icon itself says which type it is.
 function iconFor(type) {
   if (type === 'PDF') return FileText
   if (type === 'Video') return PlayCircle
@@ -253,24 +272,36 @@ function iconFor(type) {
   if (type === 'Link') return LinkIcon
   return FileText
 }
-
-const selectedId = ref(null)
-const selected = computed(() => resources.value.find(r => r.id === selectedId.value) || null)
-const panelWrap = ref(null)
-const isWide = () => import.meta.client && window.matchMedia('(min-width: 1000px)').matches
-function select(id) {
-  selectedId.value = id
-  nextTick(() => { if (panelWrap.value) panelWrap.value.scrollTop = 0 })
+// "Mia Santos", or "5 patients"
+function whoText(r) {
+  const n = r.shared_with?.length || 0
+  return n === 1 ? r.shared_with[0].name : `${n} patients`
 }
-// On desktop a resource is always open while the list has any.
-watch(filteredResources, (list) => {
-  if (selectedId.value && !list.some(r => r.id === selectedId.value)) selectedId.value = null
-  if (!selectedId.value && isWide() && list.length) select(list[0].id)
-})
 
+// the ⋯ menu on a row
+const menuId = ref(null)
+function closeMenus() { menuId.value = null }
+
+// Reload quietly after a change, so the row's faces and counts follow.
+async function refreshList() {
+  try {
+    const data = await get('/rnd/resources/')
+    resources.value = data.map(r => ({ ...r, type: toDisplayType(r.type) }))
+  } catch {
+    // the list just keeps what it had
+  }
+}
+
+/* ---------- PREVIEW ---------- */
+const previewId = ref(null)
+const previewR = computed(() => resources.value.find(r => r.id === previewId.value) || null)
+function openPreview(r) {
+  menuId.value = null
+  previewId.value = r.id
+}
 // PDF / video play in the page; Word documents can't, so they get a link.
 const previewKind = computed(() => {
-  const r = selected.value
+  const r = previewR.value
   if (!r) return null
   if (r.type === 'Link') return r.url ? 'link' : null
   const path = (r.file_path || '').toLowerCase().split('?')[0]
@@ -279,12 +310,19 @@ const previewKind = computed(() => {
   return null
 })
 
-/* sharing — same API as before: GET who's shared, POST to add, DELETE to remove */
+/* ---------- SHARE: GET who's shared, POST to add, DELETE to remove ---------- */
+const shareId = ref(null)
+const shareR = computed(() => resources.value.find(r => r.id === shareId.value) || null)
 const shareRows = ref([])
 const chosen = ref([])
+const shareSearch = ref('')
 const shareLoading = ref(false)
 const shareSaving = ref(false)
 const shareError = ref('')
+const shownShareRows = computed(() => {
+  const q = shareSearch.value.trim().toLowerCase()
+  return q ? shareRows.value.filter(r => r.client.full_name.toLowerCase().includes(q)) : shareRows.value
+})
 const originallyShared = computed(() => shareRows.value.filter(r => r.shared).map(r => r.relationship_id))
 const toAdd = computed(() => chosen.value.filter(id => !originallyShared.value.includes(id)))
 const toRemove = computed(() => originallyShared.value.filter(id => !chosen.value.includes(id)))
@@ -299,6 +337,15 @@ const shareSummary = computed(() => {
 function toggleAllClients() {
   chosen.value = allSelected.value ? [] : shareRows.value.map(r => r.relationship_id)
 }
+function openShare(r) {
+  menuId.value = null
+  previewId.value = null
+  shareSearch.value = ''
+  shareId.value = r.id
+}
+function closeShare() {
+  if (!shareSaving.value) shareId.value = null
+}
 async function loadSharing(id) {
   shareLoading.value = true
   shareError.value = ''
@@ -306,19 +353,19 @@ async function loadSharing(id) {
   chosen.value = []
   try {
     const rows = await get(`/rnd/resources/${id}/share/`)
-    if (selectedId.value !== id) return
+    if (shareId.value !== id) return
     shareRows.value = rows
     chosen.value = rows.filter(r => r.shared).map(r => r.relationship_id)
   } catch {
-    shareError.value = 'Could not load your clients. Please try again.'
+    shareError.value = 'Could not load your patients. Please try again.'
   } finally {
     shareLoading.value = false
   }
 }
-watch(selectedId, (id) => { if (id) loadSharing(id) })
+watch(shareId, (id) => { if (id) loadSharing(id) })
 
 async function saveSharing() {
-  const r = selected.value
+  const r = shareR.value
   shareSaving.value = true
   shareError.value = ''
   const added = toAdd.value.length
@@ -326,11 +373,12 @@ async function saveSharing() {
   try {
     if (added) await post(`/rnd/resources/${r.id}/share/`, { relationship_ids: toAdd.value })
     for (const id of toRemove.value) await del(`/rnd/resources/${r.id}/share/${id}/`)
-    r.shared_count = chosen.value.length
-    await loadSharing(r.id)
+    await refreshList()
+    shareSaving.value = false
+    shareId.value = null
     const parts = []
-    if (added) parts.push(`Shared with ${added} client${added > 1 ? 's' : ''} (they were notified)`)
-    if (removed) parts.push(`removed from ${removed}`)
+    if (added) parts.push(`Shared with ${added} patient${added > 1 ? 's' : ''}. They were notified`)
+    if (removed) parts.push(`${added ? 'removed' : 'Removed'} from ${removed}`)
     showToast(parts.join(', ') + '.')
   } catch (e) {
     shareError.value = e?.data?.relationship_ids?.[0] || e?.data?.detail || 'Could not update sharing. Please try again.'
@@ -348,11 +396,12 @@ function showToast(text) {
 }
 
 async function toggleActive(r) {
+  menuId.value = null
   busyId.value = r.id
   try {
     await patch(`/rnd/resources/${r.id}/`, { is_active: !r.is_active })
     r.is_active = !r.is_active
-    showToast(r.is_active ? 'Clients you shared it with can see it again.' : 'Hidden. Clients can no longer see it.')
+    showToast(r.is_active ? 'Patients you shared it with can see it again.' : 'Hidden. Patients can no longer see it.')
   } catch {
     errorMessage.value = 'Could not update this resource. Please try again.'
   } finally {
@@ -364,6 +413,22 @@ function nameInitials(name) {
   const parts = String(name || '').split(' ').filter(Boolean)
   return userInitials(parts[0], parts[parts.length - 1])
 }
+
+// Esc closes the ⋯ menu first, then a pop-up; a click anywhere closes the menu.
+function onKey(e) {
+  if (e.key !== 'Escape') return
+  if (menuId.value) menuId.value = null
+  else if (shareId.value) closeShare()
+  else if (previewId.value) previewId.value = null
+}
+onMounted(() => {
+  document.addEventListener('click', closeMenus)
+  window.addEventListener('keydown', onKey)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeMenus)
+  window.removeEventListener('keydown', onKey)
+})
 
 /* ---------- UPLOAD NEW RESOURCE MODAL ---------- */
 const showUploadModal = ref(false)
@@ -449,7 +514,7 @@ async function submitUpload() {
     showUploadModal.value = false
     tab.value = 'all'
     await loadResources()
-    if (created?.id) select(created.id)
+    if (created?.id) openShare(created)
     showToast('Uploaded. Now choose who receives it.')
   } catch (error) {
     uploadError.value = error?.data?.non_field_errors?.[0] || error?.data?.url?.[0] || error?.data?.file?.[0] || error?.data?.title?.[0] || 'Could not add this resource. Please try again.'
@@ -483,69 +548,101 @@ onMounted(loadResources)
 }
 .placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
 
-/* type icon colors (shared by list + panel) */
-.type-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef3ec; color: #1e4a26; }
-.type-icon.lg { width: 46px; height: 46px; border-radius: 11px; }
-.type-icon.t-pdf { background: #fdecec; color: #a13a2f; }
-.type-icon.t-video { background: #e3edf7; color: #2f6fa8; }
-.type-icon.t-link { background: #fdf1d6; color: #b8860b; }
+/* type icon: green for every type, the icon says which */
+.type-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #e3efe7; color: #0a4a37; }
 
-/* LIST + PANEL (same layout as RND Applications) */
-.review-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
-.queue { padding: 10px; position: sticky; top: 84px; max-height: calc(100vh - 140px); overflow-y: auto; }
-.queue-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; color: inherit; }
-.queue-item + .queue-item { margin-top: 2px; }
-.queue-item:hover { background: #f7f9f7; }
-.queue-item.active { background: #eef3ec; border-color: #d3e2d6; }
-.queue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.queue-name { font-size: 0.86rem; font-weight: 600; color: #1a3a1a; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
-.queue-sub { font-size: 0.74rem; color: #8a9a8a; margin-top: 2px; }
-.queue-end { flex-shrink: 0; }
-.queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
+/* THE LIBRARY: one divided list */
+.lib { padding: 0; }
+.lib-empty { margin: 0; padding: 22px; font-size: 0.86rem; color: #6a7a6a; }
+.lib-list { list-style: none; margin: 0; padding: 0; }
+.lib-row {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(150px, 220px) auto; align-items: center; gap: 14px;
+  padding: 14px 20px; border-top: 1px solid #d9e3dc;
+}
+.lib-row:first-child { border-top: none; }
+.lib-row.is-hidden .lib-title, .lib-row.is-hidden .type-icon { opacity: 0.6; }
+.lib-main { min-width: 0; }
+.lib-title {
+  display: block; max-width: 100%; border: none; background: none; padding: 0; font-family: inherit; text-align: left; cursor: pointer;
+  font-size: 0.9rem; font-weight: 600; color: #1a3a1a; line-height: 1.35; overflow-wrap: anywhere;
+}
+.lib-title:hover { color: #0a4a37; text-decoration: underline; }
+.lib-title:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; border-radius: 4px; }
+.lib-sub { margin: 2px 0 0; font-size: 0.78rem; color: #6a7a6a; }
 
-.detail { min-width: 0; }
-.detail-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.detail-title { font-size: 1.2rem; overflow-wrap: anywhere; }
-.back-btn { display: none; align-items: center; gap: 6px; background: #e3efe7; border: none; border-radius: 8px; color: #0a4a37; font-weight: 600; font-size: 0.78rem; min-height: 32px; padding: 0 12px; margin-bottom: 14px; cursor: pointer; font-family: inherit; }
-.preview { margin-top: 16px; border: 1px solid #eceeec; border-radius: 12px; overflow: hidden; background: #f7f9f7; }
-.preview-frame { display: block; width: 100%; height: 420px; border: 0; background: #fff; }
-.preview-video { display: block; width: 100%; max-height: 420px; background: #000; }
+/* who has it: up to three faces, then +n */
+.lib-who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.faces { display: flex; flex-shrink: 0; }
+.face {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; margin-left: -8px; object-fit: cover;
+  display: flex; align-items: center; justify-content: center; background: #0a4a37; color: #fff; font-size: 0.64rem; font-weight: 700;
+}
+.face:first-child { margin-left: 0; }
+.face.more { background: #e3efe7; color: #0a4a37; }
+.who-text { font-size: 0.8rem; color: #4a5a4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* something still to do: dashed green */
+.not-shared { font-size: 0.78rem; font-weight: 600; color: #1f4a30; border: 1.5px dashed #3f9a6b; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+
+.lib-actions { display: flex; align-items: center; gap: 8px; }
+.more-wrap { position: relative; }
+.more-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37; cursor: pointer; }
+.more-btn:hover { background: #d3e7da; }
+.more-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.more-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px; padding: 6px; background: #fff;
+  border: 1px solid #d9e3dc; border-radius: 12px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
+}
+.more-menu > * {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 0 10px; border: none; border-radius: 8px;
+  background: none; font-family: inherit; font-size: 0.84rem; font-weight: 500; color: #1a3a1a; text-decoration: none; cursor: pointer; text-align: left;
+}
+.more-menu > *:hover:not(:disabled) { background: #f2f7f3; }
+.more-menu > *:disabled { opacity: 0.5; cursor: not-allowed; }
+.more-menu > *:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.lib .nm-pager { margin: 0; padding: 12px 20px; }
+
+/* PREVIEW pop-up */
+.preview-modal { max-width: 820px; }
+.pv-head { display: flex; align-items: flex-start; gap: 12px; }
+.pv-head-text { flex: 1; min-width: 0; }
+.pv-head .nm-modal-title { overflow-wrap: anywhere; }
+.preview { border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7f9f7; }
+.preview-frame { display: block; width: 100%; height: 60vh; border: 0; background: #fff; }
+.preview-video { display: block; width: 100%; max-height: 60vh; background: #000; }
 .preview-link { display: flex; align-items: center; gap: 12px; padding: 18px; text-decoration: none; color: #1a3a1a; }
 .preview-link > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 0.88rem; }
-.preview-url { font-size: 0.78rem; color: #1f8f5c; overflow-wrap: anywhere; }
-.preview-none { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 16px; color: #8a9a8a; font-size: 0.84rem; }
+.preview-url { font-size: 0.78rem; color: #1f6f46; overflow-wrap: anywhere; }
+.preview-none { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 16px; color: #6a7a6a; font-size: 0.84rem; text-align: center; }
 .preview-none p { margin: 0; }
-.preview-actions { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
-.preview-actions .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; }
 .detail-desc { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 14px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 
-.share-box { margin-top: 22px; padding-top: 18px; border-top: 1px solid #eef1ee; }
-.share-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.share-title { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+/* SHARE pop-up */
+.share-modal { max-width: 560px; }
+.share-note { margin: 0 0 12px; }
+.share-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; }
+.share-search { flex: 1; }
+.share-tools .nm-panel-link { margin-left: auto; }
 .client-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.client-check { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e3e8e3; border-radius: 10px; padding: 8px 10px; cursor: pointer; min-width: 0; }
+.client-check { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #d9e3dc; border-radius: 10px; padding: 8px 10px; cursor: pointer; min-width: 0; }
 .client-check.on { border-color: #1f8f5c; background: #f2f9f4; }
-.client-check input { width: 16px; height: 16px; accent-color: #163a1c; flex-shrink: 0; }
-.mini-avatar { width: 28px; height: 28px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; object-fit: cover; flex-shrink: 0; }
+.client-check input { width: 16px; height: 16px; accent-color: #0a4a37; flex-shrink: 0; }
+.mini-avatar { width: 28px; height: 28px; border-radius: 50%; background: #0a4a37; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; object-fit: cover; flex-shrink: 0; }
 .client-name { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.share-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.detail-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #f0f2f0; }
-.panel-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9aaa9a; min-height: 300px; font-size: 0.86rem; }
-.panel-placeholder p { margin: 0; }
+.share-actions { align-items: center; }
+.share-summary { margin-right: auto; font-size: 0.8rem; color: #4a5a4a; }
 
 @media (max-width: 640px) {
   .page-head { flex-direction: column; align-items: stretch; }
 }
-/* below 1000px: just the list; a resource opens as a full-screen sheet */
-@media (max-width: 999px) {
-  .review-layout { grid-template-columns: minmax(0, 1fr); }
-  .queue { position: static; max-height: none; }
-  .queue-chevron { display: block; }
-  .queue-item.active { background: none; border-color: transparent; }
-  .panel-placeholder { display: none; }
-  .panel-wrap { position: fixed; inset: 0; z-index: 250; background: #f4f5f3; overflow-y: auto; padding: 16px; }
-  .back-btn { display: inline-flex; }
-  .preview-frame { height: 60vh; }
+/* phones: each row becomes a card, the who-line and buttons under the title */
+@media (max-width: 760px) {
+  .lib-row { grid-template-columns: 36px minmax(0, 1fr); gap: 8px 12px; padding: 14px 16px; }
+  .lib-who { grid-column: 2; }
+  .lib-actions { grid-column: 2; }
+  .lib-actions .nm-btn-soft { flex: 1; justify-content: center; }
+  .lib .nm-pager { padding: 12px 16px; }
+  .preview-frame { height: 55vh; }
+  .share-summary { flex-basis: 100%; }
 }
 
 /* ============ UPLOAD NEW RESOURCE MODAL ============ */
@@ -579,12 +676,11 @@ onMounted(loadResources)
 .file-name.is-empty { color: #9aaa9a; }
 .file-hint { font-size: 0.76rem; color: #8a9a8a; margin: 6px 0 18px; }
 
-.upload-note { font-size: 0.8rem; color: #6a7a6a; line-height: 1.5; background: #fdf8ee; border: 1px solid #f1e3bd; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
+.upload-note { font-size: 0.8rem; color: #4a5a4a; line-height: 1.5; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 8px; padding: 10px 12px; margin: 0 0 20px; }
 
 
 @media (max-width: 640px) {
   .client-grid { grid-template-columns: minmax(0, 1fr); }
-  .detail-actions > * { flex: 1; }
   .type-selector { display: flex; }
   .type-option { flex: 1; justify-content: center; padding: 7px 6px; }
 }

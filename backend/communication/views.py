@@ -1,4 +1,4 @@
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, status
@@ -200,12 +200,17 @@ class NotificationMarkAllReadView(APIView):
 
 def _rnd_resources(user):
     """The RND's own resources, each annotated with how many active clients
-    it's currently shared with."""
+    it's currently shared with, and those clients (`_active_shares`, for the
+    faces on each row of the Resources list)."""
+    active = RndClientRelationship.Status.ACTIVE
     return Resource.objects.filter(uploaded_by=user).annotate(
-        _shared_count=Count(
-            "shares", filter=Q(shares__relationship__status=RndClientRelationship.Status.ACTIVE)
-        )
-    )
+        _shared_count=Count("shares", filter=Q(shares__relationship__status=active))
+    ).prefetch_related(Prefetch(
+        "shares",
+        queryset=ResourceShare.objects.filter(relationship__status=active)
+        .select_related("relationship__client").order_by("-shared_at"),
+        to_attr="_active_shares",
+    ))
 
 
 class RndResourceListCreateView(generics.ListCreateAPIView):

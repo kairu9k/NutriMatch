@@ -80,12 +80,15 @@ class ResourceSerializer(serializers.ModelSerializer):
     # RND views only: how many active clients it's shared with (the view
     # annotates `_shared_count`; a just-created resource has none yet).
     shared_count = serializers.SerializerMethodField()
+    # RND views only: the active clients it's shared with, newest first
+    # (prefetched as `_active_shares` by the view).
+    shared_with = serializers.SerializerMethodField()
 
     class Meta:
         model = Resource
         fields = [
             "id", "title", "description", "type", "file", "file_path", "download_url",
-            "url", "is_active", "created_at", "shared_count",
+            "url", "is_active", "created_at", "shared_count", "shared_with",
         ]
         read_only_fields = ["file_path"]
 
@@ -94,6 +97,16 @@ class ResourceSerializer(serializers.ModelSerializer):
 
     def get_shared_count(self, obj):
         return getattr(obj, "_shared_count", 0)
+
+    def get_shared_with(self, obj):
+        return [
+            {
+                "relationship_id": share.relationship_id,
+                "name": f"{share.relationship.client.first_name} {share.relationship.client.last_name}".strip(),
+                "photo": share.relationship.client.profile_photo,
+            }
+            for share in getattr(obj, "_active_shares", [])
+        ]
 
 
     def validate(self, attrs):
@@ -131,7 +144,7 @@ class ClientResourceSerializer(ResourceSerializer):
     shared_at = serializers.SerializerMethodField()
 
     class Meta(ResourceSerializer.Meta):
-        fields = [f for f in ResourceSerializer.Meta.fields if f != "shared_count"] + ["shared_by", "shared_at"]
+        fields = [f for f in ResourceSerializer.Meta.fields if f not in ("shared_count", "shared_with")] + ["shared_by", "shared_at"]
 
     def _share(self, obj):
         shares = getattr(obj, "_my_shares", None)
