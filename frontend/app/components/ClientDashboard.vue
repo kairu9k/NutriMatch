@@ -237,7 +237,7 @@
             </div>
 
             <form v-if="addOpen" class="add-task" @submit.prevent="addTask">
-              <input v-model="newTask.title" class="nm-input" maxlength="120" placeholder="e.g. Walk for 20 minutes" aria-label="Task" />
+              <input v-model="newTask.title" class="nm-input" maxlength="120" autocomplete="off" placeholder="e.g. Walk for 20 minutes" aria-label="Task" />
               <div class="add-task-row">
                 <input v-model="newTask.time" type="time" class="nm-input" aria-label="Time" />
                 <select v-model="newTask.repeat" class="nm-select" aria-label="Repeat">

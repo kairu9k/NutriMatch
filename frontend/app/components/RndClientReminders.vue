@@ -68,7 +68,7 @@
           <button v-for="t in TEMPLATES" :key="t.title" type="button" class="template" :class="{ on: form.title === t.title }" @click="useTemplate(t)">{{ t.title }}</button>
         </div>
         <label class="nm-label" for="rem-title">Title</label>
-        <input id="rem-title" v-model="form.title" class="nm-input" maxlength="255" placeholder="e.g. Take metformin" />
+        <input id="rem-title" v-model="form.title" class="nm-input" maxlength="255" autocomplete="off" placeholder="e.g. Take metformin" />
         <label class="nm-label" for="rem-msg" style="margin-top: 12px">Message <span class="nm-muted">(optional)</span></label>
         <textarea id="rem-msg" v-model="form.message" class="nm-input" rows="2" maxlength="500" placeholder="e.g. 500 mg after breakfast, with water." />
         <div class="form-grid">

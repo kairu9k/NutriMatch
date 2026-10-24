@@ -169,7 +169,7 @@
 
 
         <label class="field-label">Title</label>
-        <input v-model="newUpload.title" type="text" class="field-input" placeholder="e.g. Understanding Glycemic Index" />
+        <input v-model="newUpload.title" type="text" class="field-input" autocomplete="off" placeholder="e.g. Understanding Glycemic Index" />
 
         <label class="field-label">Description <span class="optional">(optional)</span></label>
         <textarea v-model="newUpload.description" class="field-textarea" rows="3" placeholder="What it covers, in a sentence or two"></textarea>
