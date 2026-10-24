@@ -23,30 +23,28 @@
       <p v-if="loadError" class="form-error">{{ loadError }}</p>
       <div v-else-if="isLoading" class="card"><p class="muted">Loading…</p></div>
 
-      <!-- 1 · WELCOME -->
+      <!-- 1. Welcome -->
       <section v-else-if="step === 'welcome'" class="card">
-        <p class="eyebrow">Welcome sa NutriMatch 💚</p>
         <h1 class="title">Hi {{ auth.user?.first_name }}, sobrang saya namin na nandito ka!</h1>
         <p class="lead">
-          Ang pag-aalaga sa kinakain mo ay isa sa pinakamagandang regalo mo sa sarili mo — at hindi mo kailangang gawin ito mag-isa.
+          Ang pag-aalaga sa kinakain mo ay isa sa pinakamagandang regalo mo sa sarili mo, at hindi mo kailangang gawin ito mag-isa.
           Mga 3 minutes lang ito, at gagamitin ito ng RND mo para paghandaan ang first consultation mo.
         </p>
         <ol class="journey">
-          <li><span class="j-num">1</span><div><strong>Kilalanin ka namin</strong><p>Ang basic details at health background mo — kasama ang food allergies, kung meron.</p></div></li>
+          <li><span class="j-num">1</span><div><strong>Kilalanin ka namin</strong><p>Ang basic details at health background mo, kasama ang food allergies kung meron.</p></div></li>
           <li><span class="j-num">2</span><div><strong>Mabilis na health screening</strong><p>Height, weight, at activity mo, para ma-estimate ang BMI at daily calorie needs mo.</p></div></li>
           <li><span class="j-num">3</span><div><strong>Hanapin ang RND mo at mag-book</strong><p>Pumili ng licensed Registered Nutritionist-Dietitian, magbayad bago ang session, then mag-consult sa video call o in person.</p></div></li>
         </ol>
         <p class="privacy">
-          <ShieldCheck :size="15" /> Safe ang health information mo — sa RND mo lang ito ise-share, ayon sa Data Privacy Act of 2012 (RA 10173).
+          <ShieldCheck :size="15" aria-hidden="true" /> Safe ang health information mo. Sa RND mo lang ito ise-share, ayon sa Data Privacy Act of 2012 (RA 10173).
         </p>
         <div class="actions">
-          <button class="nm-btn-dark" type="button" @click="go('about')">Tara, simulan na natin <ArrowRight :size="15" /></button>
+          <button class="nm-btn-dark" type="button" @click="go('about')">Tara, simulan na natin</button>
         </div>
       </section>
 
-      <!-- 2 · ABOUT YOU -->
+      <!-- 2. About you -->
       <section v-else-if="step === 'about'" class="card">
-        <p class="eyebrow">Step 2 of 4</p>
         <h1 class="title">About you</h1>
         <p class="lead">We use your age and sex to calculate your calorie needs accurately.</p>
         <div class="grid-2">
@@ -63,7 +61,7 @@
               <option value="male">Male</option>
             </select>
             <p v-if="aboutErrors.sex" class="field-error">{{ aboutErrors.sex }}</p>
-            <p v-else class="hint">Biological sex — it changes how calories are calculated.</p>
+            <p v-else class="hint">Biological sex. It changes how calories are calculated.</p>
           </div>
           <div class="field">
             <label for="ob-lang">Preferred language</label>
@@ -80,13 +78,12 @@
         <p v-if="saveError" class="form-error">{{ saveError }}</p>
         <div class="actions">
           <button class="nm-btn-soft" type="button" @click="go('welcome')">Back</button>
-          <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveAbout">{{ isSaving ? 'Saving…' : 'Continue' }} <ArrowRight :size="15" /></button>
+          <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveAbout">{{ isSaving ? 'Saving…' : 'Continue' }}</button>
         </div>
       </section>
 
-      <!-- 3 · HEALTH BACKGROUND -->
+      <!-- 3. Health background -->
       <section v-else-if="step === 'health'" class="card">
-        <p class="eyebrow">Step 3 of 4</p>
         <h1 class="title">Your health background</h1>
         <p class="lead">Your RND reads this before your consultation and plans your meals around it.</p>
 
@@ -161,26 +158,25 @@
         <p v-if="saveError" class="form-error">{{ saveError }}</p>
         <div class="actions">
           <button class="nm-btn-soft" type="button" @click="go('about')">Back</button>
-          <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveHealth">{{ isSaving ? 'Saving…' : 'Continue' }} <ArrowRight :size="15" /></button>
+          <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveHealth">{{ isSaving ? 'Saving…' : 'Continue' }}</button>
         </div>
       </section>
 
-      <!-- 4 · SCREENING -->
+      <!-- 4. Screening -->
       <section v-else-if="step === 'screening'" class="card">
-        <p class="eyebrow">Step 4 of 4</p>
         <template v-if="screeningDone && !redoScreening">
           <h1 class="title">Your screening is on file</h1>
           <p class="lead">Recorded {{ screeningDate }}. It's your starting point and can't be changed. New readings go in the Progress Tracker.</p>
           <div class="actions">
             <button class="nm-btn-soft" type="button" @click="redoScreening = true">View it</button>
-            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
+            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
           </div>
         </template>
         <template v-else>
           <PreConsultationScreening embedded @completed="onScreened" />
           <div v-if="screeningDone" class="actions">
             <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
-            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }} <ArrowRight :size="15" /></button>
+            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
           </div>
           <div v-else class="actions">
             <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
@@ -194,7 +190,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ArrowRight, ShieldCheck } from 'lucide-vue-next'
+import { ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { phoneError } from '~/utils/phone'
 
@@ -282,7 +278,7 @@ function firstError(data, ...keys) {
 async function saveAbout() {
   saveError.value = ''
   aboutErrors.dob = !about.dob ? 'Enter your date of birth.' : about.dob > latestBirthDate.value ? 'You must be at least 18 years old.' : ''
-  aboutErrors.sex = about.sex ? '' : 'Choose one — it changes how your calories are calculated.'
+  aboutErrors.sex = about.sex ? '' : 'Choose one. It changes how your calories are calculated.'
   aboutErrors.phone = phoneError(about.phone)
   if (aboutErrors.dob || aboutErrors.sex || aboutErrors.phone) return
   isSaving.value = true
@@ -309,7 +305,7 @@ async function saveHealth() {
   addDiet()
   addGoal()
   if (health.hasAllergies === null) {
-    healthErrors.allergies = 'Please answer this — your RND needs to know before planning meals.'
+    healthErrors.allergies = 'Please answer this. Your RND needs to know before planning meals.'
     return
   }
   if (health.hasAllergies && !health.allergies.length) {
@@ -433,8 +429,7 @@ onMounted(async () => {
 .onb-step.done .onb-dot { border-color: #D4A017; background: #D4A017; color: #1a3a1a; }
 .onb-step-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.card { background: #fff; border: 1px solid #eceeec; border-radius: 16px; padding: 28px; }
-.eyebrow { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #b8860b; margin: 0 0 6px; }
+.card { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; padding: 28px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .title { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 0 0 8px; line-height: 1.25; }
 .lead { font-size: 1.1rem; color: #4a5a4a; margin: 0 0 22px; line-height: 1.55; }
 .muted { color: #8a9a8a; font-size: 0.88rem; margin: 0; }
@@ -444,14 +439,15 @@ onMounted(async () => {
 .journey strong { font-size: 1.2rem; }
 .journey p { margin: 3px 0 0; font-size: 0.84rem; color: #6a7a6a; line-height: 1.5; }
 .j-num { width: 30px; height: 30px; border-radius: 50%; background: #eef3ec; color: #1e4a26; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.privacy { display: flex; gap: 8px; align-items: flex-start; font-size: 1.0rem; color: #3a6b4a; background: #f0f9f4; border-radius: 10px; padding: 10px 14px; margin: 0 0 4px; line-height: 1.5; }
+.privacy { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px 14px; margin: 0 0 4px; line-height: 1.5; }
 .privacy svg { flex-shrink: 0; margin-top: 2px; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin: 0 0 18px; min-width: 0; border: none; padding: 0; }
 .field label, .field legend { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; padding: 0; margin-bottom: 2px; }
-.req { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #c0392b; background: #fbeaea; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
-.opt { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #6a7a6a; background: #eef1ee; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+.req, .opt { font-size: 0.78rem; font-weight: 500; margin-left: 6px; }
+.req { color: #a12525; }
+.opt { color: #6a7a6a; }
 .field select { width: 100%; min-height: 44px; font-size: 0.9rem; }
 .field input { width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 13px; font-size: 0.9rem; font-family: inherit; color: #1a3a1a; background: #fff; }
 .field input:focus { outline: none; border-color: #1a3a1a; }

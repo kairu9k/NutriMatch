@@ -52,7 +52,7 @@
             :class="{ invalid: shownError('age') }" @blur="touched.age = true"
           />
           <span v-if="ageFromProfile" id="scr-age-note" class="field-hint">
-            From your date of birth · <NuxtLink to="/profile-settings">change it in Profile Settings</NuxtLink>
+            From your date of birth. <NuxtLink to="/profile-settings">Change it in Profile Settings</NuxtLink>
           </span>
           <span v-else-if="shownError('age')" class="field-error">{{ shownError('age') }}</span>
           <span v-else class="field-hint">{{ LIMITS.age.min }}–{{ LIMITS.age.max }} years</span>
@@ -68,7 +68,7 @@
           <template v-if="sexFromProfile">
             <input id="scr-sex" :value="sexLabel" type="text" readonly class="readonly" />
             <span class="field-hint">
-              From your account · <NuxtLink to="/profile-settings">change it in Profile Settings</NuxtLink>
+              From your account. <NuxtLink to="/profile-settings">Change it in Profile Settings</NuxtLink>
             </span>
           </template>
           <template v-else>
@@ -81,7 +81,7 @@
           </template>
         </div>
         <div class="field">
-          <label>Activity Level</label>
+          <label>Activity level</label>
           <select class="nm-select block" v-model="form.activityLevel">
             <option value="" disabled>Select activity level</option>
             <option v-for="level in activityLevels" :key="level.value" :value="level.value">{{ level.label }}</option>
@@ -89,10 +89,10 @@
         </div>
       </div>
 
-      <label class="symptoms-label">Current Symptoms{{ onFile ? '' : ' (select all that apply)' }}</label>
+      <label class="symptoms-label">Current symptoms{{ onFile ? '' : ' (tick all that apply)' }}</label>
       <p v-if="conditionNames.length" class="condition-line">
         Based on your condition: <strong>{{ conditionNames.join(', ') }}</strong>
-        <template v-if="!onFile && !embedded"> · <NuxtLink to="/profile-settings">change it in Profile Settings</NuxtLink></template>
+        <template v-if="!onFile && !embedded">. <NuxtLink to="/profile-settings">Change it in Profile Settings</NuxtLink></template>
       </p>
       <div v-for="g in groups" :key="g.key" class="symptom-group">
         <p class="group-title">{{ g.title }}</p>
@@ -109,13 +109,13 @@
       <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
       <button v-if="!onFile" class="compute-btn" :disabled="!canCompute || isSubmitting" @click="handleCompute">
-        {{ isSubmitting ? 'Computing…' : 'Compute My Health Metrics' }}
+        {{ isSubmitting ? 'Working it out…' : 'Work out my results' }}
       </button>
 
       <template v-if="result">
         <div class="results-panel">
-          <span class="results-eyebrow">Auto-Computed Results (Mifflin-St Jeor · WHO Asia-Pacific)</span>
-          <p class="results-hint"><Info :size="13" /> Tap a result to see what it means.</p>
+          <h3 class="results-eyebrow">Your results</h3>
+          <p class="results-hint"><Info :size="13" aria-hidden="true" /> Worked out with the Mifflin-St Jeor equation and the WHO Asia-Pacific BMI ranges. Tap a result to see what it means.</p>
           <div class="results-grid" role="tablist" aria-label="Screening results">
             <button
               v-for="box in resultBoxes" :key="box.key"
@@ -197,10 +197,10 @@ const { get, post } = useApi()
 // Values match clinical.PreConsultationScreening.ActivityLevel.
 const activityLevels = [
   { value: 'sedentary', label: 'Sedentary' },
-  { value: 'lightly_active', label: 'Lightly Active' },
-  { value: 'moderately_active', label: 'Moderately Active' },
-  { value: 'very_active', label: 'Very Active' },
-  { value: 'extra_active', label: 'Extra Active' },
+  { value: 'lightly_active', label: 'Lightly active' },
+  { value: 'moderately_active', label: 'Moderately active' },
+  { value: 'very_active', label: 'Very active' },
+  { value: 'extra_active', label: 'Extra active' },
 ]
 
 // Symptom checkboxes follow the client's condition (utils/screening.js);
@@ -343,7 +343,7 @@ const resultBoxes = computed(() => {
     { key: 'bmi', label: 'BMI', value: Number(r.bmi).toFixed(1), tag: r.bmi_category, tagClass: bmiTagClass.value },
     { key: 'bmr', label: 'BMR', value: r.bmr_kcal ? Math.round(r.bmr_kcal) : '—', unit: 'kcal/day' },
     { key: 'tdee', label: 'TDEE', value: r.tdee_kcal ? Math.round(r.tdee_kcal) : '—', unit: 'kcal/day' },
-    { key: 'nrs', label: 'NRS-2002', value: `Score: ${r.nrs_score ?? '—'}`, tag: nrsRiskLabel.value, tagClass: nrsTagClass.value },
+    { key: 'nrs', label: 'NRS-2002', value: `${r.nrs_score ?? '—'}`, tag: nrsRiskLabel.value, tagClass: nrsTagClass.value },
   ]
 })
 
@@ -357,21 +357,21 @@ const BMI_SCALE = [
 ]
 // Same bands as calculate_nrs2002().
 const NRS_SCALE = [
-  { key: 'no_risk', label: 'No Risk', range: 'score 0 – 2' },
-  { key: 'at_risk', label: 'At Risk', range: 'score 3 – 4' },
-  { key: 'high_risk', label: 'High Risk', range: 'score 5 and above' },
+  { key: 'no_risk', label: 'No risk', range: 'score 0 – 2' },
+  { key: 'at_risk', label: 'At risk', range: 'score 3 – 4' },
+  { key: 'high_risk', label: 'High risk', range: 'score 5 and above' },
 ]
 
 const explanation = computed(() => {
   const r = result.value
   if (!r || !openMetric.value) return null
-  const activity = ACTIVITY_LABELS[r.activity_level] || 'your activity level'
+  const activity = (ACTIVITY_LABELS[r.activity_level] || 'your activity level').toLowerCase()
   if (openMetric.value === 'bmi') {
     return {
       title: 'BMI', fullName: 'Body Mass Index',
       what: 'A quick check of whether your weight is in a healthy range for your height. It is your weight (kg) divided by your height (m) squared.',
       formula: [{ main: 'BMI = weight (kg) ÷ height (m)²' }],
-      yours: `${Number(r.bmi).toFixed(1)} — ${r.bmi_category}.`,
+      yours: `${Number(r.bmi).toFixed(1)}, ${r.bmi_category}.`,
       scale: BMI_SCALE.map(row => ({ ...row, current: row.label === r.bmi_category })),
       note: 'NutriMatch uses the WHO Asia-Pacific ranges, which are set lower than the global ones because health risks start at a lower BMI for Asian adults. BMI doesn\'t tell muscle from fat, so your RND looks at it together with your other results.',
     }
@@ -379,30 +379,30 @@ const explanation = computed(() => {
   if (openMetric.value === 'bmr') {
     return {
       title: 'BMR', fullName: 'Basal Metabolic Rate',
-      what: 'The calories your body burns at complete rest just to stay alive — breathing, keeping your heart beating, and keeping you warm. It is worked out from your weight, height, age and sex (Mifflin-St Jeor equation).',
+      what: 'The calories your body burns at complete rest just to stay alive: breathing, keeping your heart beating and keeping you warm. It is worked out from your weight, height, age and sex (Mifflin-St Jeor equation).',
       formula: [
         { main: 'Male: BMR = (10 × weight in kg) + (6.25 × height in cm) − (5 × age in years) + 5' },
         { main: 'Female: BMR = (10 × weight in kg) + (6.25 × height in cm) − (5 × age in years) − 161' },
       ],
       yours: r.bmr_kcal
         ? `about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
-        : 'not computed — it needs your age and sex.',
-      note: 'This isn\'t how much you should eat — it\'s the starting point for your TDEE.',
+        : 'not worked out yet. It needs your age and sex.',
+      note: 'This isn\'t how much you should eat. It\'s the starting point for your TDEE.',
     }
   }
   if (openMetric.value === 'tdee') {
     return {
       title: 'TDEE', fullName: 'Total Daily Energy Expenditure',
-      what: 'The total calories you burn in a day, including your daily activity. It is your BMR multiplied by an activity factor (Sedentary ×1.2 up to Extra Active ×1.9).',
+      what: 'The total calories you burn in a day, including your daily activity. It is your BMR multiplied by an activity factor (Sedentary ×1.2 up to Extra active ×1.9).',
       formula: [{
         main: 'TDEE = BMR × activity factor',
         // Non-breaking spaces keep each "Extra Active ×1.9" on one line.
-        sub: activityLevels.map(l => `${l.label} ×${ACTIVITY_FACTORS[l.value]}`.replace(/ /g, ' ')).join(' · '),
+        sub: activityLevels.map(l => `${l.label} ×${ACTIVITY_FACTORS[l.value]}`.replace(/ /g, ' ')).join(', '),
       }],
       yours: r.tdee_kcal
         ? `about ${kcal(r.tdee_kcal)} kcal a day at ${activity}. Eating around this amount keeps your weight about the same.`
-        : 'not computed — it needs your age and sex.',
-      note: 'Your RND uses this to set your daily calorie target in your meal plan — please don\'t start cutting calories on your own based on it.',
+        : 'not worked out yet. It needs your age and sex.',
+      note: 'Your RND uses this to set your daily calorie target in your meal plan. Please don\'t start cutting calories on your own based on it.',
     }
   }
   return {
@@ -410,10 +410,10 @@ const explanation = computed(() => {
     what: 'A standard hospital screening that checks your risk of malnutrition. It looks at your BMI, any weight lost since your last screening, a poor appetite, and health conditions like high blood sugar or a recent hospital stay.',
     formula: [
       { main: 'NRS-2002 score = nutritional status points + disease severity points' },
-      { main: 'Nutritional status (highest that applies):', sub: 'BMI below 18.5 = 3 · weight loss of 5% or more = 2 · poor appetite = 1' },
+      { main: 'Nutritional status (highest that applies):', sub: 'BMI below 18.5 = 3, weight loss of 5% or more = 2, poor appetite = 1' },
       { main: 'Disease severity:', sub: 'elevated blood glucose or recent hospitalization = 1' },
     ],
-    yours: `a score of ${r.nrs_score ?? '—'} — ${nrsRiskLabel.value || 'not scored'}.`,
+    yours: `a score of ${r.nrs_score ?? '—'}, ${nrsRiskLabel.value || 'not scored'}.`,
     scale: NRS_SCALE.map(row => ({ label: row.label, range: row.range, current: row.key === r.nrs_risk })),
     note: 'This is a screening, not a diagnosis. Your RND reviews it before your consultation and will talk you through anything that needs attention.',
   }
@@ -425,7 +425,7 @@ const bmiTagClass = computed(() => {
   if (cat.includes('underweight')) return 'tag-blue'
   return 'tag-gold'
 })
-const nrsRiskLabel = computed(() => ({ no_risk: 'No Risk', at_risk: 'At Risk', high_risk: 'High Risk' }[result.value?.nrs_risk] || ''))
+const nrsRiskLabel = computed(() => ({ no_risk: 'No risk', at_risk: 'At risk', high_risk: 'High risk' }[result.value?.nrs_risk] || ''))
 const nrsTagClass = computed(() => ({ no_risk: 'tag-green', at_risk: 'tag-gold', high_risk: 'tag-red' }[result.value?.nrs_risk] || ''))
 
 onMounted(async () => {
@@ -493,7 +493,7 @@ onMounted(async () => {
 .symptoms-label { display: block; font-size: 0.82rem; font-weight: 600; color: #6a7a6a; margin-bottom: 12px; }
 .symptoms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .symptom-group { margin-bottom: 18px; }
-.group-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #9aaa9a; margin: 0 0 8px; }
+.group-title { font-size: 0.84rem; font-weight: 600; color: #4a5a4a; margin: 0 0 8px; }
 .condition-line { font-size: 0.82rem; color: #6a7a6a; margin: -4px 0 14px; }
 .condition-line strong { color: #1a3a1a; }
 .condition-line a { color: #1f6f46; font-weight: 600; }
@@ -505,21 +505,22 @@ onMounted(async () => {
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
 }
 
-.compute-btn { width: 100%; background: #0a4a37; color: #fff; border: none; border-radius: 999px; padding: 15px; font-weight: 700; font-size: 0.94rem; cursor: pointer; }
+.compute-btn { width: 100%; background: #0a4a37; color: #fff; border: none; border-radius: 10px; padding: 14px; font-weight: 700; font-size: 0.94rem; cursor: pointer; }
 .compute-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .results-panel { background: #e3f3ea; border-radius: 12px; padding: 20px 22px; margin-top: 22px; }
-.results-eyebrow { display: block; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; color: #1f8f5c; margin-bottom: 14px; }
+.results-eyebrow { display: block; font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
 .results-hint { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #3a6b4a; margin: -6px 0 12px; }
-.results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+/* the four results in one divided panel; each cell opens its explanation */
+.results-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
 .result-box {
-  position: relative; background: #fff; border-radius: 10px; padding: 14px; text-align: center;
-  border: 2px solid transparent; cursor: pointer; font-family: inherit; width: 100%;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  position: relative; background: #fff; border-radius: 0; padding: 14px; text-align: center;
+  border: none; border-left: 1px solid #d9e3dc; cursor: pointer; font-family: inherit; width: 100%;
 }
-.result-box:hover { border-color: #b9dcc7; }
-.result-box:focus-visible { outline: none; border-color: #1f8f5c; }
-.result-box.selected { border-color: #1f8f5c; box-shadow: 0 4px 14px rgba(31, 143, 92, 0.15); }
+.result-box:first-child { border-left: none; }
+.result-box:hover { background: #f4f8f5; }
+.result-box:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.result-box.selected { background: #e3efe7; box-shadow: inset 0 -3px 0 #0a4a37; }
 
 .explain-card { background: #fff; border-radius: 10px; padding: 16px 18px; margin-top: 12px; border: 1px solid #cfe8da; }
 .explain-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
@@ -529,7 +530,7 @@ onMounted(async () => {
 .explain-close:hover { color: #1a3a1a; }
 .explain-text { font-size: 0.86rem; color: #3a4a3a; line-height: 1.55; margin: 0 0 8px; }
 .explain-formula { border: 1px solid #e3e8e3; border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; background: #fafbfa; }
-.formula-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a8a; margin: 0 0 4px; }
+.formula-title { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; margin: 0 0 4px; }
 .formula-line { margin: 0 0 4px; line-height: 1.5; }
 .formula-line:last-child { margin-bottom: 0; }
 .formula-main { display: block; font-size: 0.84rem; font-weight: 600; color: #00382a; }
@@ -545,9 +546,9 @@ onMounted(async () => {
 .explain-note { font-size: 0.78rem; color: #6a7a6a; line-height: 1.5; margin: 0; }
 .explain-fade-enter-active, .explain-fade-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
 .explain-fade-enter-from, .explain-fade-leave-to { opacity: 0; transform: translateY(-4px); }
-.result-label { font-size: 0.72rem; color: #9aaa9a; font-weight: 600; margin: 0 0 4px; }
+.result-label { font-size: 0.78rem; color: #4a5a4a; font-weight: 600; margin: 0 0 4px; }
 .result-value { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.result-unit { font-size: 0.72rem; color: #9aaa9a; margin: 3px 0 0; }
+.result-unit { font-size: 0.76rem; color: #6a7a6a; margin: 3px 0 0; }
 .result-tag { font-size: 0.76rem; font-weight: 700; margin: 4px 0 0; }
 .tag-green { color: #1f8f5c; }
 .tag-gold { color: #b8860b; }
@@ -575,6 +576,8 @@ onMounted(async () => {
 @media (max-width: 640px) {
   .panel { padding: 22px 18px; }
   .form-row-3, .results-grid { grid-template-columns: 1fr 1fr; }
+  .result-box:nth-child(3) { border-left: none; }
+  .result-box:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
   .form-row-2, .symptoms-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 420px) {
