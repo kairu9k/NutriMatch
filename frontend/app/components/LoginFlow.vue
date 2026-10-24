@@ -87,8 +87,6 @@
     </aside>
 
     <main class="right-panel">
-      <NuxtLink to="/" class="back-link"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
-
       <div class="form-wrap">
         <h2>Sign in</h2>
         <p class="subtitle">Use the email and password you signed up with.</p>
@@ -103,10 +101,7 @@
           </div>
 
           <div class="field">
-            <div class="label-row">
-              <label for="login-password">Password</label>
-              <NuxtLink to="/forgot-password" class="forgot-link">Forgot password?</NuxtLink>
-            </div>
+            <label for="login-password">Password</label>
             <div class="input-icon-wrap">
               <Lock class="input-icon" aria-hidden="true" />
               <input
@@ -123,6 +118,14 @@
             </div>
           </div>
 
+          <div class="form-options">
+            <label class="remember-me">
+              <input v-model="form.rememberMe" type="checkbox" />
+              Remember me
+            </label>
+            <NuxtLink to="/forgot-password" class="forgot-link">Forgot password?</NuxtLink>
+          </div>
+
           <div v-if="deactivated && !isAdminMode" class="form-error deactivated-box" role="alert">
             <p class="deactivated-title">Your account has been deactivated</p>
             <p>The NutriMatch admin deactivated this account, so you can't sign in right now. If you think this is a mistake, email us to request a review.</p>
@@ -133,6 +136,7 @@
           <button type="submit" class="btn-primary" :disabled="isSubmitting">
             {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
           </button>
+          <NuxtLink to="/" class="back-link home-back"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
         </form>
 
         <p class="signup-link">
@@ -156,6 +160,7 @@ const showPassword = ref(false)
 const form = reactive({
   email: '',
   password: '',
+  rememberMe: true,
 })
 
 const showAdminPassword = ref(false)
@@ -190,7 +195,7 @@ async function handleLogin() {
   deactivated.value = ''
   isSubmitting.value = true
   try {
-    const user = await auth.login(form.email, form.password)
+    const user = await auth.login(form.email, form.password, form.rememberMe)
     if (user.role === 'admin') {
       auth.logout()
       errorMessage.value = 'Admin accounts sign in on the admin sign-in page.'
@@ -237,8 +242,11 @@ async function handleAdminLogin() {
 .circle-5 { width: 180px; height: 180px; top: 40%; right: 12%; }
 
 .auth-form { display: flex; flex-direction: column; gap: 18px; }
-.label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.label-row label { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; }
+/* Remember me on the left, Forgot password? on the right */
+.form-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: -4px; }
+.remember-me { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: #4a5a4a; cursor: pointer; }
+.remember-me input { width: 16px; height: 16px; accent-color: #0a4a37; cursor: pointer; }
+.home-back { align-self: center; }
 .forgot-link { font-size: 0.82rem; font-weight: 600; color: #0a4a37; text-decoration: underline; text-underline-offset: 2px; }
 .deactivated-box p { margin: 0 0 6px; line-height: 1.5; }
 .deactivated-title { font-weight: 700; }

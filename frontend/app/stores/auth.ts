@@ -41,6 +41,9 @@ export const useAuthStore = defineStore('auth', {
     accessToken: null as string | null,
     refreshToken: null as string | null,
     hydrated: false,
+    // "Remember me": true keeps the session in localStorage (survives closing
+    // the browser); false keeps it in sessionStorage (gone when it closes).
+    remember: true,
   }),
 
   getters: {
@@ -53,8 +56,10 @@ export const useAuthStore = defineStore('auth', {
     hydrate() {
       if (this.hydrated || import.meta.server) return
       this.hydrated = true
-      const raw = localStorage.getItem(STORAGE_KEY)
+      const fromLocal = localStorage.getItem(STORAGE_KEY)
+      const raw = fromLocal ?? sessionStorage.getItem(STORAGE_KEY)
       if (!raw) return
+      this.remember = fromLocal !== null
       try {
         const saved = JSON.parse(raw)
         this.user = saved.user ?? null
@@ -63,6 +68,7 @@ export const useAuthStore = defineStore('auth', {
         this.refreshToken = saved.refreshToken ?? null
       } catch {
         localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
       }
       if (this.user?.role === 'rnd' && !this.rndProfile) {
         this.fetchRndProfile().catch(() => {})
@@ -71,7 +77,9 @@ export const useAuthStore = defineStore('auth', {
 
     persist() {
       if (import.meta.server) return
-      localStorage.setItem(
+      const store = this.remember ? localStorage : sessionStorage
+      ;(this.remember ? sessionStorage : localStorage).removeItem(STORAGE_KEY)
+      store.setItem(
         STORAGE_KEY,
         JSON.stringify({
           user: this.user,
@@ -89,9 +97,10 @@ export const useAuthStore = defineStore('auth', {
       this.persist()
     },
 
-    async login(email: string, password: string) {
+    async login(email: string, password: string, remember = true) {
       const { post } = useApi()
       const data = await post<LoginResponse>('/auth/login/', { email, password }, { skipAuth: true })
+      this.remember = remember
       this.setSession(data)
       if (data.user.role === 'rnd') {
         await this.fetchRndProfile().catch(() => {})
@@ -210,7 +219,10 @@ export const useAuthStore = defineStore('auth', {
       this.rndProfile = null
       this.accessToken = null
       this.refreshToken = null
-      if (!import.meta.server) localStorage.removeItem(STORAGE_KEY)
+      if (!import.meta.server) {
+        localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
+      }
     },
   },
 })
