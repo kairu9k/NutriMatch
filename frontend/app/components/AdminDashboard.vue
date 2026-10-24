@@ -15,33 +15,21 @@
             <RefreshCw :size="14" :class="{ spin: refreshing }" aria-hidden="true" /> Refresh
           </button>
         </p>
+        <button v-if="dash" type="button" class="attn-open" @click="attnOpen = true">
+          Needs attention<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template>
+        </button>
       </div>
-      <div class="nm-upnext todo-card">
-        <p class="nm-upnext-label">Your to-do</p>
-        <template v-if="dash">
-          <ul class="todo">
-            <li v-for="t in todoRows" :key="t.key" :class="{ done: !t.count }">
-              <component :is="t.count ? CircleDot : CheckCircle2" :size="16" class="todo-mark" aria-hidden="true" />
-              <span class="todo-text">{{ t.count ? t.text : t.doneText }}</span>
-              <NuxtLink v-if="t.count" :to="t.link" class="nm-hero-btn primary todo-btn">{{ t.action }}</NuxtLink>
-            </li>
-          </ul>
-          <p v-if="!todoOpen" class="todo-clear">All caught up.<template v-if="stats.next_payout_date"> Next payout {{ longDate(stats.next_payout_date) }}.</template></p>
-          <button type="button" class="see-all" @click="attnOpen = true">See everything<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template></button>
-        </template>
+      <div class="nm-upnext today-card" aria-label="Today">
+        <p class="nm-upnext-label">Today</p>
+        <div v-if="dash" class="figs nine">
+          <NuxtLink v-for="t in todayFigures" :key="t.label" :to="t.link" class="fig" :class="t.tone">
+            <strong>{{ t.value }}</strong><span>{{ t.label }}</span>
+          </NuxtLink>
+        </div>
         <p v-else class="nm-upnext-empty">Loading…</p>
       </div>
     </section>
 
-    <!-- TODAY: one divided panel -->
-    <section v-if="dash" class="nm-panel figs-panel" aria-label="Today">
-      <h2 class="nm-panel-title figs-title">Today</h2>
-      <div class="figs nine">
-        <NuxtLink v-for="t in todayFigures" :key="t.label" :to="t.link" class="fig" :class="t.tone">
-          <strong>{{ t.value }}</strong><span>{{ t.label }}</span>
-        </NuxtLink>
-      </div>
-    </section>
 
     <div v-if="dash" class="nm-grid">
       <!-- MONTH VS LAST MONTH -->
@@ -201,7 +189,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -241,18 +229,7 @@ const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_
 const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
 const attnOpen = ref(false)
 const peopleText = people => people.slice(0, 4).map(p => p.name).join(', ') + (people.length > 4 ? `, and ${people.length - 4} more` : '')
-const todoRows = computed(() => {
-  const st = stats.value
-  const n = (v, one, many) => `${v} ${v === 1 ? one : many}`
-  return [
-    { key: 'applications', count: st.pending_verif || 0, text: n(st.pending_verif, 'RND application to review', 'RND applications to review'), doneText: 'No applications waiting', action: 'Review', link: '/rnd-verification' },
-    { key: 'support', count: st.support_open || 0, text: n(st.support_open, 'support request to answer', 'support requests to answer'), doneText: 'Support requests all answered', action: 'Reply', link: '/admin-support' },
-    { key: 'refunds', count: st.refunds_pending || 0, text: n(st.refunds_pending, 'refund to send', 'refunds to send'), doneText: 'No refunds to send', action: 'Send', link: '/billing-commission?tab=refunds' },
-    { key: 'payouts', count: st.payouts_due_count || 0, text: `${peso(st.payouts_due_total)} in payouts to release`, doneText: 'No payouts due', action: 'Release', link: '/payouts' },
-  ]
-})
-const todoOpen = computed(() => todoRows.value.filter(t => t.count).length)
-const longDate = v => new Date(`${v}T00:00:00`).toLocaleDateString('en-PH', { month: 'long', day: 'numeric' })
+const todoOpen = computed(() => todoItems.value.length)
 const summaryLine = computed(() => {
   if (!dash.value) return 'Loading today…'
   const n = todoOpen.value
@@ -354,37 +331,29 @@ onBeforeUnmount(() => {
 .refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* the to-do card in the banner */
-.todo { list-style: none; margin: 0; padding: 0; }
-.todo li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #edf2ee; min-height: 46px; }
-.todo li:first-child { border-top: none; padding-top: 0; }
-.todo-mark { flex-shrink: 0; color: #a37a0b; }
-.todo li.done .todo-mark { color: #1f8f5c; }
-.todo-text { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; }
-.todo li.done .todo-text { font-weight: 500; color: #6a7a6a; }
-.todo-btn { height: 32px; padding: 0 14px; flex-shrink: 0; }
-.todo-clear { margin: 0; font-size: 0.86rem; color: #4a5a4a; }
-.see-all {
-  align-self: flex-start; min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37;
-  font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+/* Needs attention: opens the pop-up */
+.attn-open {
+  align-self: flex-start; display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px; margin-top: 4px; border: none;
+  border-radius: 8px; background: #D4A017; color: #1a3a1a; font-family: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer;
 }
-.see-all:hover { background: #d3e7da; }
-.see-all:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.attn-open:hover { background: #e0ae22; }
+.attn-open:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
+/* Today in the banner's white card */
+.today-card { padding: 16px 0 0; gap: 10px; overflow: hidden; }
+.today-card .nm-upnext-label { padding: 0 18px; }
 
 /* figures: one divided panel */
-.figs-panel { padding: 16px 0 0; overflow: hidden; }
-.figs-title { padding: 0 20px 12px; }
 .figs { display: grid; border-top: 1px solid #d9e3dc; }
 /* 3 x 3, split by lines */
 .figs.nine { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .figs.nine .fig:nth-child(3n + 1) { border-left: none; }
 .figs.nine .fig:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
-.fig { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; text-decoration: none; color: #1a3a1a; min-width: 0; border-left: 1px solid #d9e3dc; }
+.fig { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; text-decoration: none; color: #1a3a1a; min-width: 0; border-left: 1px solid #d9e3dc; }
 .fig:first-child { border-left: none; }
 .fig:hover { background: #f7faf8; }
 .fig:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.fig strong { font-family: 'Playfair Display', serif; font-size: 1.5rem; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; }
-.fig span { font-size: 0.78rem; color: #4a5a4a; line-height: 1.35; }
+.fig strong { font-family: 'Playfair Display', serif; font-size: 1.3rem; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; }
+.fig span { font-size: 0.74rem; color: #4a5a4a; line-height: 1.3; }
 .fig.red strong { color: #a12525; }
 .fig.gold strong { color: #a37a0b; }
 
@@ -451,7 +420,6 @@ onBeforeUnmount(() => {
 @media (max-width: 560px) {
   .fig { padding: 12px 12px; }
   .fig strong { font-size: 1.3rem; }
-  .todo li { flex-wrap: wrap; }
   .attn { flex-wrap: wrap; }
   .attn .nm-panel-link { margin-left: 26px; }
 }
