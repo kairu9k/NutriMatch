@@ -11,10 +11,23 @@ const PUBLIC_PATHS = new Set([
   '/login', '/register', '/forgot-password', '/reset-password', '/admin/login',
 ])
 
+const SIGNED_OUT_ONLY = new Set(['/login', '/register', '/admin/login'])
+const DASHBOARDS: Record<string, string> = { client: '/client-dashboard', rnd: '/rnd-dashboard', admin: '/admin-dashboard' }
+
 export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.server) return
 
   const path = to.path.toLowerCase().replace(/\/+$/, '') || '/'
+
+  // Already signed in: the sign-in and sign-up forms send you to your own
+  // dashboard instead, so nobody signs in over an open session by mistake
+  // (signing in as someone else means signing out first).
+  if (SIGNED_OUT_ONLY.has(path)) {
+    const auth = useAuthStore()
+    auth.hydrate()
+    if (auth.isAuthenticated && auth.user) return navigateTo(DASHBOARDS[auth.user.role] || '/')
+    return
+  }
   if (PUBLIC_PATHS.has(path)) return
 
   const auth = useAuthStore()

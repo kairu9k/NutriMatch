@@ -11,10 +11,7 @@
       <li><NuxtLink to="/contact">Contact</NuxtLink></li>
     </ul>
 
-    <div class="nav-actions">
-      <button class="btn-login" @click="navigateTo('/login')">Log In</button>
-      <button class="btn-get-started" @click="navigateTo('/register')">Get Started</button>
-    </div>
+    <NavAccount />
   </nav>
 </template>
 
@@ -37,20 +34,6 @@
 .nav-links a { color: #c8d8c8; text-decoration: none; font-size: 0.85rem; font-weight: 500; }
 .nav-links a:hover { color: #D4A017; }
 
-.nav-actions { display: flex; gap: 12px; align-items: center; }
-.btn-login {
-  background: transparent; border: 0.5px solid #ffffff; color: #ffffff;
-  padding: 8px 28px; border-radius: 24px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-}
-.btn-login:hover { border-color: #D4A017; color: #D4A017; }
-.btn-get-started {
-  background: #D4A017; border: none; color: #063C2A;
-  padding: 8px 22px; border-radius: 24px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
-}
-.btn-get-started:hover { background: #c4920f; }
-
-.btn-login, .btn-get-started { white-space: nowrap; }
-
 @media (max-width: 900px) {
   .navbar { padding: 0 24px; }
   .nav-links { display: none; }
@@ -61,7 +44,5 @@
   .navbar { padding: 0 16px; height: 64px; }
   .logo-img { width: 34px; height: 30px; }
   .nav-logo { gap: 6px; }
-  .nav-actions { gap: 8px; }
-  .btn-login, .btn-get-started { padding: 8px 14px; }
 }
 </style>

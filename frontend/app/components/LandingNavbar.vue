@@ -19,10 +19,7 @@
       </li>
     </ul>
 
-    <div class="nav-actions">
-      <button class="btn-login" @click="navigateTo('/login')">Sign in</button>
-      <button class="btn-get-started" @click="navigateTo('/register')">Create account</button>
-    </div>
+    <NavAccount />
   </nav>
 </template>
 
@@ -160,24 +157,6 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-.nav-actions { display: flex; gap: 12px; align-items: center; }
-
-.btn-login {
-  background: rgba(255, 255, 255, 0.14); border: none; color: #ffffff;
-  padding: 8px 35px; border-radius: 24px; font-size: 0.70rem;
-  font-weight: 700; cursor: pointer; transition: background 0.2s;
-}
-.btn-login:hover { background: rgba(255, 255, 255, 0.22); }
-
-.btn-get-started {
-  background: #EFBF04; border: none; color: #063C2A;
-  padding: 8px 22px; border-radius: 24px; font-size: 0.70rem;
-  font-weight: 700; cursor: pointer; transition: background 0.2s;
-}
-.btn-get-started:hover {background: #EFBF04; box-shadow: 0 4px 12px rgb(255, 230, 2);}
-
-.btn-login, .btn-get-started { white-space: nowrap; }
-
 @media (max-width: 900px) {
   .navbar { padding: 0 24px; }
   .nav-links { display: none; }
@@ -189,8 +168,5 @@ onBeforeUnmount(() => {
   .navbar { padding: 0 16px; height: 64px; }
   .logo-img { width: 34px; height: 30px; }
   .nav-logo { gap: 6px; }
-  .nav-actions { gap: 8px; }
-  .btn-login { padding: 8px 14px; }
-  .btn-get-started { padding: 8px 14px; }
 }
 </style>
