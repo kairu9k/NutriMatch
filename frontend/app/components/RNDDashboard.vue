@@ -88,7 +88,7 @@
     <template v-else-if="d">
       <div class="nm-grid">
         <div class="nm-col">
-          <!-- three divided rows (user's call, 2026-10-24); sits beside Booking requests -->
+          <!-- three divided columns (user's call, 2026-10-24); sits beside Booking requests -->
           <div class="nm-panel bento">
             <div class="bento-rows">
               <NuxtLink to="/appointments?tab=upcoming" class="bento-row">
@@ -489,16 +489,16 @@ function nameInitials(name) {
 .sr-only { position: absolute; display: block; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* money / reviews */
-/* three divided rows: this week's consultations, active patients, adherence */
+/* three divided columns: this week's consultations, active patients, adherence */
 .bento { padding: 0; overflow: hidden; }
 .bento a { color: inherit; text-decoration: none; }
 .bento a:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.bento-rows { display: flex; flex-direction: column; background: #fbfcfa; }
-.bento-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
+.bento-rows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.bento-row { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 2px; padding: 16px 20px; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
 .bento-row:hover { background: #f4f7f4; }
-.bento .bento-row + .bento-row { border-top: 1px solid #d9e3dc; }
-.bento-row small { display: inline; font-size: 0.74rem; font-weight: 400; color: #7a8a7a; margin-left: 6px; }
-.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.bento .bento-row + .bento-row { border-left: 1px solid #d9e3dc; }
+.bento-row small { display: block; font-size: 0.74rem; font-weight: 400; color: #7a8a7a; margin-top: 1px; }
+.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.15; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
 .empty-line { margin: 12px 0 4px; }
 /* "Needs you" panel */
 .needs { padding: 0; overflow: hidden; margin-bottom: 20px; }
@@ -545,8 +545,8 @@ function nameInitials(name) {
 /* the light card shadow on panels; the banner gets the stronger one */
 .nm-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 @media (max-width: 640px) {
-  .bento-row { padding: 8px 16px; }
-  .bento-row small { display: block; margin-left: 0; }
+  .bento-row { padding: 12px 12px; font-size: 0.78rem; }
+  .bento-row strong { font-size: 1.3rem; }
 }
 .money { display: grid; grid-template-columns: 108px minmax(0, 1fr); align-items: center; gap: 18px; margin-top: 14px; }
 .earn-ring { width: 108px; height: 108px; border-radius: 50%; display: grid; place-items: center; }
