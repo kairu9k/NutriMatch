@@ -55,7 +55,7 @@
         <div v-for="m in dash.compare.metrics" :key="m.key" class="cmp">
           <span class="cmp-label">{{ METRIC_LABEL[m.key] }}</span>
           <span class="cmp-now">{{ money(m) ? peso(m.now) : m.now }}</span>
-          <ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" :money="money(m)" />
+          <ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" />
           <span class="cmp-before">was {{ money(m) ? peso(m.before) : m.before }}</span>
         </div>
       </section>

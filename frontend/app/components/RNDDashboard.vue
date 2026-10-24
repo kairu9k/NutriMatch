@@ -218,7 +218,7 @@
             <div v-for="m in d.earnings_compare?.metrics || []" :key="m.key" class="cmp">
               <span class="cmp-label">{{ EARN_LABEL[m.key] }}</span>
               <span class="cmp-now">{{ m.key === 'earned' ? peso(m.now) : m.now }}</span>
-              <ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" :money="m.key === 'earned'" />
+              <ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" />
               <span class="cmp-before">was {{ m.key === 'earned' ? peso(m.before) : m.before }}</span>
             </div>
             <div class="cmp plain">

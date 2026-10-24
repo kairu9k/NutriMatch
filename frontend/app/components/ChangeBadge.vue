@@ -1,9 +1,9 @@
 <template>
   <!-- The "↗ +60%" badge beside a this-month figure (admin and RND dashboards).
-       Up is green, a drop or no change is plain grey (not a warning). When last
-       month was zero there is no percentage, so it shows the difference instead
-       ("↗ +₱1,440.00", "↗ +2"). -->
-  <span class="change" :class="up ? 'up' : 'flat'">
+       Up is green, a drop or no change is plain grey (not a warning). Shown only
+       when last month has something to compare with (user's call, 2026-10-25):
+       with nothing last month there's no percentage, so no badge. -->
+  <span v-if="Number(before)" class="change" :class="up ? 'up' : 'flat'">
     <component :is="icon" :size="13" aria-hidden="true" /> {{ text }}
   </span>
 </template>
@@ -15,18 +15,12 @@ const props = defineProps({
   now: { type: Number, default: 0 },
   before: { type: Number, default: 0 },
   pct: { type: Number, default: null }, // the API's change_pct (null when before is 0)
-  money: { type: Boolean, default: false },
 })
 
 const diff = computed(() => (Number(props.now) || 0) - (Number(props.before) || 0))
 const up = computed(() => diff.value > 0)
 const icon = computed(() => (diff.value > 0 ? TrendingUp : diff.value < 0 ? TrendingDown : Minus))
-const text = computed(() => {
-  if (!diff.value) return 'No change'
-  if (props.pct != null) return `${props.pct > 0 ? '+' : ''}${props.pct}%`
-  const amount = props.money ? peso(Math.abs(diff.value)) : Math.abs(diff.value)
-  return `${diff.value > 0 ? '+' : '−'}${amount}`
-})
+const text = computed(() => (diff.value ? `${props.pct > 0 ? '+' : ''}${props.pct}%` : 'No change'))
 </script>
 
 <style scoped>
