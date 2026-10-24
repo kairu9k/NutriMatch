@@ -175,7 +175,7 @@ function goHome() {
   if (route.path === dashboardPath.value) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 const roleLabel = computed(() => (auth.user?.role === 'client' ? 'Client' : 'Admin'))
-const portalLabel = computed(() => ({ rnd: 'RND portal', client: 'Client portal', admin: 'Admin portal' })[auth.user?.role] || '')
+const portalLabel = computed(() => ({ rnd: 'RND PORTAL', client: 'CLIENT PORTAL', admin: 'ADMIN PORTAL' })[auth.user?.role] || '')
 const fullName = computed(() => (auth.user ? `${auth.user.first_name} ${auth.user.last_name}`.trim() : ''))
 const isActive = item => route.path === item.to || (item.to !== '/' && route.path.startsWith(item.to + '/'))
 
@@ -449,7 +449,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .sidebar-brand { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 4px; }
 .brand-words { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
 .brand-tagline { font-size: 0.74rem; font-weight: 500; color: #8fae9f; white-space: nowrap; margin-top: 2px; letter-spacing: 0.01em; }
-.portal-line { margin-top: 5px; font-size: 0.8rem; font-weight: 600; color: #e2c25e; white-space: nowrap; }
+.portal-line { margin-top: 5px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: #e2c25e; white-space: nowrap; }
 .home-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; }
 .home-link:focus-visible { outline: 2px solid #D4A017; outline-offset: 3px; }
 .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 0; }
