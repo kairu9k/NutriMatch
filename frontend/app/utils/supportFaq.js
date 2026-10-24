@@ -32,12 +32,12 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'Where do I find my meal plan and log my meals?',
-      a: 'My Meal Plan shows the plan your RND sent. Log each meal there with a photo, a note or both. Your RND looks at each log and marks how closely it followed the plan.',
+      a: 'My Meal Plan shows the plan your RND sent. Log each meal there with a photo, a note or both. Your RND looks at each log and marks how closely it followed the plan. You can change a log until your RND rates it; after that it’s final.',
       link: { label: 'My Meal Plan', to: '/meal-plan-view' },
     },
     {
       q: 'How do I upload my lab results?',
-      a: 'When your RND requests lab tests, it shows on your dashboard and in Lab Results, needed before your next consultation. Choose the file (PDF, JPG or PNG, up to 10 MB) or take a photo, then say which tests it has, the date taken and whether you fasted. Your RND sees it right away. You can also upload results you already have. Only you and your RND can open them.',
+      a: 'When your RND requests lab tests, it shows on your dashboard and in Lab Results, needed before your next consultation. Choose the file (PDF, JPG or PNG, up to 10 MB) or take a photo, then say which tests it has, the date taken and whether you fasted. Your RND sees it right away and accepts it or sends it back with a reason, so you can upload a clearer one. You can replace or delete a result until it’s accepted. You can also upload results you already have. Only you and your RND can open them.',
       link: { label: 'Lab Results', to: '/lab-results' },
     },
     {
@@ -68,7 +68,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'How do I request lab tests?',
-      a: 'In the patient’s chart, press Request lab tests, tick the tests and add a note. They’re needed before the patient’s next consultation. Uploads appear in the chart’s Lab results tab (and in the consultation room) as soon as the patient sends them; opening one marks it reviewed. Type the values into the NCP record yourself.',
+      a: 'In the patient’s chart, press Request lab tests, tick the tests and add a note. They’re needed before the patient’s next consultation. Uploads appear in the chart’s Lab results tab (and in the consultation room) as soon as the patient sends them. Open one to read it, then Accept it or Decline it with a reason the patient sees (they’re asked to upload it again). Type the values into the NCP record yourself.',
       link: { label: 'My Patients', to: '/my-patients' },
     },
     {

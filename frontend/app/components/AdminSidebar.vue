@@ -93,9 +93,9 @@ async function handleSignOut() {
           <span class="text-cream">Nutri</span><span class="text-[#EFBF04]">Match</span>
         </span>
       </div>
-      <p v-if="!isCollapsed" class="text-[9.5px] tracking-[0.18em] text-cream/40 mt-1.5 whitespace-nowrap">CLINICAL NUTRITION SYSTEM</p>
+      <p v-if="!isCollapsed" class="text-[9.5px] text-cream/40 mt-1.5 whitespace-nowrap">Clinical Nutrition System</p>
       <span v-if="!isCollapsed" class="inline-flex items-center gap-1.5 mt-3 text-[10.5px] font-semibold text-[#EFBF04] border border-[#EFBF04]/40 rounded-full px-2.5 py-1 whitespace-nowrap">
-        <span class="w-1.5 h-1.5 rounded-full bg-[#EFBF04]"></span> ADMIN PORTAL
+        <span class="w-1.5 h-1.5 rounded-full bg-[#EFBF04]"></span> Admin portal
       </span>
     </div>
 
