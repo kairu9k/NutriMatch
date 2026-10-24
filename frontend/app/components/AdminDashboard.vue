@@ -19,8 +19,7 @@
           Needs attention<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template>
         </button>
       </div>
-      <div class="nm-upnext today-card" aria-label="Today">
-        <p class="nm-upnext-label">Today</p>
+      <div class="nm-upnext today-card" aria-label="At a glance">
         <div v-if="dash" class="figs nine">
           <NuxtLink v-for="t in todayFigures" :key="t.label" :to="t.link" class="fig" :class="t.tone">
             <strong>{{ t.value }}</strong><span>{{ t.label }}</span>
@@ -339,8 +338,8 @@ onBeforeUnmount(() => {
 .attn-open:hover { background: #e0ae22; }
 .attn-open:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 /* Today in the banner's white card */
-.today-card { padding: 16px 0 0; gap: 10px; overflow: hidden; }
-.today-card .nm-upnext-label { padding: 0 18px; }
+.today-card { padding: 0; gap: 0; overflow: hidden; }
+.today-card .figs { border-top: none; }
 
 /* figures: one divided panel */
 .figs { display: grid; border-top: 1px solid #d9e3dc; }
