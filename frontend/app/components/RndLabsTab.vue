@@ -86,21 +86,22 @@ const toast = ref('')
 
 const openRequests = computed(() => (data.value?.requests || []).filter(r => r.status === 'open'))
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     data.value = await get(`/rnd/relationships/${props.relationshipId}/labs/`)
-    if (props.openRequest) {
+    if (props.openRequest && !quiet) {
       if (data.value.can_request) requestOpen.value = true
       emit('autoOpened')
     }
   } catch {
-    error.value = 'Could not load lab results.'
+    if (!quiet) error.value = 'Could not load lab results.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+useAutoRefresh(() => load({ quiet: true }))
 
 function flash(msg) {
   toast.value = msg

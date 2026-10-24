@@ -383,17 +383,21 @@ function barPct(star) {
   return rnd.value?.review_count ? Math.round((n / rnd.value.review_count) * 100) : 0
 }
 
-async function loadProfile() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadProfile({ quiet = false } = {}) {
+  if (!quiet) {
+    isLoading.value = true
+    errorMessage.value = ''
+  }
   try {
     rnd.value = await get(`/client/rnds/${route.params.id}/`)
   } catch {
-    errorMessage.value = 'Could not load this RND profile. Please try again later.'
+    if (!quiet) errorMessage.value = 'Could not load this RND profile. Please try again later.'
   } finally {
     isLoading.value = false
   }
 }
+// open times stay current (the booking pop-up pauses it while open)
+useAutoRefresh(() => loadProfile({ quiet: true }))
 
 async function loadReviews() {
   isLoadingReviews.value = true

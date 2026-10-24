@@ -106,8 +106,8 @@ const counts = ref({})
 const loading = ref(true)
 const error = ref('')
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     const q = new URLSearchParams({ status: status.value })
     if (search.value.trim()) q.set('search', search.value.trim())
@@ -115,11 +115,24 @@ async function load() {
     tickets.value = data.results
     counts.value = data.counts
   } catch {
-    error.value = 'Could not load support requests.'
+    if (!quiet) error.value = 'Could not load support requests.'
   } finally {
     loading.value = false
   }
 }
+// New requests and user replies show without a reload: the list, and the open
+// thread (its typed reply is kept; a focused reply box pauses this anyway).
+async function refreshAll() {
+  await load({ quiet: true })
+  if (!selectedId.value || busy.value) return
+  const id = selectedId.value
+  const fresh = await get(`/admin/support/tickets/${id}/`).catch(() => null)
+  if (!fresh || selectedId.value !== id) return
+  const grew = (fresh.messages?.length || 0) > (ticket.value?.messages?.length || 0)
+  ticket.value = fresh
+  if (grew) scroll()
+}
+useAutoRefresh(refreshAll)
 let t = null
 watch(search, () => { clearTimeout(t); t = setTimeout(load, 300) })
 watch(status, load)

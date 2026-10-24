@@ -100,17 +100,19 @@ const search = ref('')
 const filter = ref(['active', 'pending', 'attention', 'no_plan', 'discharged', 'all'].includes(route.query.filter) ? route.query.filter : 'active')
 const sort = ref('attention')
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     patients.value = await get('/rnd/patients/')
   } catch {
-    error.value = 'Could not load your patients.'
+    if (!quiet) error.value = 'Could not load your patients.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+// unread chat counts come with the list, so chat refreshes it too
+useAutoRefresh(() => load({ quiet: true }), { messages: true })
 
 const needsPlan = p => p.status === 'active' && p.stage.meal_plan !== 'active'
 const RULES = {

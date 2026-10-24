@@ -282,7 +282,9 @@ function whoText(r) {
 const menuId = ref(null)
 function closeMenus() { menuId.value = null }
 
-// Reload quietly after a change, so the row's faces and counts follow.
+// Reload quietly after a change (and in the background, useAutoRefresh), so
+// the row's faces and counts follow.
+useAutoRefresh(() => refreshList())
 async function refreshList() {
   try {
     const data = await get('/rnd/resources/')

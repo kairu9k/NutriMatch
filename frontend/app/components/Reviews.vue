@@ -94,13 +94,17 @@ function initialsFor(first, last) {
 const rawReviews = ref([])
 const loading = ref(true)
 
-onMounted(async () => {
+async function load() {
   try {
     rawReviews.value = await get('/rnd/reviews/')
+  } catch {
+    // keeps what's on screen
   } finally {
     loading.value = false
   }
-})
+}
+onMounted(load)
+useAutoRefresh(load)
 
 const reviews = computed(() => rawReviews.value.map(r => ({
   id: r.id,

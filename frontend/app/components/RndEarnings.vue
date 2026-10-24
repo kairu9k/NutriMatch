@@ -292,21 +292,23 @@ const payout = ref(null)
 const toast = ref('')
 const resending = ref(false)
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     const [earnings, acc] = await Promise.all([get('/rnd/earnings/'), get('/rnd/payout-account/').catch(() => null)])
     e.value = earnings
     account.value = acc && acc.method ? acc : null
     // the dashboard's "Add payout details" link opens the pop-up (/earnings?payout=1)
-    if (route.query.payout) startEdit()
+    if (route.query.payout && !quiet) startEdit()
   } catch {
-    error.value = 'Could not load your earnings.'
+    if (!quiet) error.value = 'Could not load your earnings.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+// a payment, a posted balance or a payout shows without a reload
+useAutoRefresh(() => load({ quiet: true }))
 
 const accountText = computed(() => {
   const a = e.value?.payout_account

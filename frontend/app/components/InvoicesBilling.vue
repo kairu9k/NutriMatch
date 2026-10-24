@@ -203,13 +203,15 @@ const resending = ref(false)
 const toast = ref('')
 
 async function load({ quiet = false } = {}) {
-  if (!quiet) loading.value = true
-  error.value = ''
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     await post('/client/invoices/sync/').catch(() => null) // catches payments whose webhook was missed
     invoices.value = await get('/client/invoices/')
   } catch {
-    error.value = 'Could not load your invoices. Please refresh the page.'
+    if (!quiet) error.value = 'Could not load your invoices. Please refresh the page.'
   } finally {
     loading.value = false
   }
@@ -222,6 +224,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', onVisible)
 })
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
+useAutoRefresh(() => load({ quiet: true }), { paused: () => !!payingId.value })
 watch(payError, (msg) => { if (msg) error.value = msg })
 
 const due = computed(() => invoices.value.filter(i => i.status === 'unpaid' && i.pay_by)

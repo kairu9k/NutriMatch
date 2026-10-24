@@ -248,10 +248,12 @@ function params(page) {
 }
 
 let requestId = 0
-async function load() {
+async function load({ quiet = false } = {}) {
   const id = ++requestId
-  loading.value = true
-  error.value = ''
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     const r = await get('/admin/appointments/', { query: params(1) })
     if (id !== requestId) return
@@ -259,11 +261,14 @@ async function load() {
     count.value = r.count
     nextPage.value = r.next ? 2 : null
   } catch {
-    if (id === requestId) error.value = 'Could not load appointments. Please refresh the page.'
+    if (id === requestId && !quiet) error.value = 'Could not load appointments. Please refresh the page.'
   } finally {
     if (id === requestId) loading.value = false
   }
 }
+// The figures always refresh; the list only while just its first page is
+// loaded, so "Load more" rows the admin opened aren't thrown away.
+useAutoRefresh(() => Promise.all([loadSummary(), rows.value.length <= 50 ? load({ quiet: true }) : null]))
 async function loadMore() {
   loadingMore.value = true
   try {
@@ -297,7 +302,7 @@ onMounted(() => {
 /* display */
 function statusOf(a) {
   const past = new Date(a.scheduled_at) < new Date()
-  if (a.status === 'pending') return past ? { label: 'Expired — RND never confirmed', pill: 'muted' } : { label: 'Waiting for RND', pill: 'gold' }
+  if (a.status === 'pending') return past ? { label: 'Expired, the RND never confirmed', pill: 'muted' } : { label: 'Waiting for RND', pill: 'gold' }
   if (a.status === 'confirmed') {
     return past ? { label: 'Not marked complete', pill: 'muted' } : { label: 'Confirmed', pill: 'green' }
   }

@@ -80,15 +80,17 @@ const rows = ref([])
 const loading = ref(true)
 const error = ref('')
 const search = ref('')
-onMounted(async () => {
+async function load({ quiet = false } = {}) {
   try {
     rows.value = await get('/rnd/patients/')
   } catch {
-    error.value = 'Could not load your patients.'
+    if (!quiet) error.value = 'Could not load your patients.'
   } finally {
     loading.value = false
   }
-})
+}
+onMounted(load)
+useAutoRefresh(() => load({ quiet: true }))
 
 const active = computed(() => rows.value.filter(p => p.status === 'active'))
 function bucket(p) {

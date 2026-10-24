@@ -312,15 +312,17 @@ function flash(msg) {
   setTimeout(() => { toast.value = '' }, 3500)
 }
 
-async function loadInvoices() {
+async function loadInvoices({ quiet = false } = {}) {
   try {
     invoices.value = await get('/admin/invoices/')
   } catch {
-    error.value = 'Could not load billing data. Please refresh the page.'
+    if (!quiet) error.value = 'Could not load billing data. Please refresh the page.'
   } finally {
     loading.value = false
   }
 }
+// payments and refunds show without a reload (the settings form is left alone)
+useAutoRefresh(() => loadInvoices({ quiet: true }))
 
 const paid = computed(() => invoices.value.filter(i => i.status === 'paid'))
 const totals = computed(() => paid.value.reduce((t, i) => ({

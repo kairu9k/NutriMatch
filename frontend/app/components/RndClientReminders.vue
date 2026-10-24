@@ -161,16 +161,18 @@ const active = computed(() => byTime(reminders.value.filter(r => r.is_active || 
 const paused = computed(() => byTime(reminders.value.filter(r => !r.is_active && !r.done)))
 const kindLabel = r => (r.type === 'medication' ? 'Medication' : 'Habit')
 
-async function load() {
+async function load({ quiet = false } = {}) {
   try {
     reminders.value = await get(`/rnd/relationships/${props.relationshipId}/reminders/`)
   } catch {
-    error.value = 'Could not load reminders. Please refresh.'
+    if (!quiet) error.value = 'Could not load reminders. Please refresh.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+// "Done today" ticks from the client show without a reload
+useAutoRefresh(() => load({ quiet: true }))
 
 function flash(text) {
   toast.value = text

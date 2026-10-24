@@ -323,19 +323,25 @@ const allergyText = computed(() => {
   return listText(a) || 'No known allergies'
 })
 
-async function load() {
-  loading.value = true
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     data.value = await get(`/admin/users/${route.params.id}/overview/`)
     useHead({ title: `${data.value.user.first_name} ${data.value.user.last_name} · NutriMatch Admin` })
   } catch (e) {
-    error.value = e?.response?.status === 404 ? 'This account doesn\'t exist.' : 'Could not load this account. Please refresh.'
+    if (!quiet) error.value = e?.response?.status === 404 ? 'This account doesn\'t exist.' : 'Could not load this account. Please refresh.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+// Refreshes every 5 minutes, but never a client's record: each load of it
+// writes a "record viewed" audit row (RA 10173), which must mean a person
+// looked, not a timer.
+useAutoRefresh(() => load({ quiet: true }), { interval: 300000, paused: () => !data.value || data.value.user?.role === 'client' })
 
 function flash(msg) {
   toast.value = msg

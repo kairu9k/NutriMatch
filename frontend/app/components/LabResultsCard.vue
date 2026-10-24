@@ -57,6 +57,7 @@ async function load() {
   try { data.value = await get('/client/labs/') } catch { data.value = null }
 }
 onMounted(load)
+useAutoRefresh(load)
 
 async function onPick(e) {
   const files = Array.from(e.target.files || [])

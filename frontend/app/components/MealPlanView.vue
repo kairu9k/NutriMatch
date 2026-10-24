@@ -363,9 +363,11 @@ async function saveMealLog() {
   }
 }
 
-async function loadMealPlans() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadMealPlans({ quiet = false } = {}) {
+  if (!quiet) {
+    isLoading.value = true
+    errorMessage.value = ''
+  }
   try {
     const [mealPlans, logs, profile] = await Promise.all([
       get('/client/meal-plans/'),
@@ -375,18 +377,25 @@ async function loadMealPlans() {
     plans.value = mealPlans
     todaysLogs.value = logs
     myAllergies.value = profile?.health_profile?.allergies || []
+    if (quiet) return // a background refresh keeps the meal the client is on
     // start on the first meal not logged yet (else the first one)
     const firstOpen = todaysMeals.value.findIndex(m => !logFor(m.id))
     activeMealIndex.value = firstOpen >= 0 ? firstOpen : 0
     resetLogForm()
   } catch {
-    errorMessage.value = 'Could not load your meal plan. Please try again later.'
+    if (!quiet) errorMessage.value = 'Could not load your meal plan. Please try again later.'
   } finally {
     isLoading.value = false
   }
 }
 
 onMounted(loadMealPlans)
+// new plan, plan updates and the RND's ratings show without a reload; waits
+// while a log is being written (a chosen photo or an edited note)
+useAutoRefresh(() => loadMealPlans({ quiet: true }), {
+  paused: () => isSavingLog.value || !!logForm.photoFile || logForm.removeSaved ||
+    logForm.reasonNotes !== (activeLog.value?.reason_notes || ''),
+})
 </script>
 
 <style scoped>

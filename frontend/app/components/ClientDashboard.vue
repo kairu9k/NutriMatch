@@ -711,9 +711,11 @@ const chartFillPoints = computed(() => {
 /* ---------- Recent activity ---------- */
 const recentActivity = computed(() => notifications.value.slice(0, 5))
 
-async function loadDashboard() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadDashboard({ quiet = false } = {}) {
+  if (!quiet) {
+    isLoading.value = true
+    errorMessage.value = ''
+  }
   try {
     const [appts, rels, latestScreening, progress, plans, logs, invs, notes, labData] = await Promise.all([
       get('/client/appointments/'),
@@ -739,13 +741,15 @@ async function loadDashboard() {
     const rndId = careRnd.value?.id
     if (rndId) rndProfile.value = await get(`/client/rnds/${rndId}/`).catch(() => null)
   } catch {
-    errorMessage.value = 'Could not load your dashboard. Please try again later.'
+    if (!quiet) errorMessage.value = 'Could not load your dashboard. Please try again later.'
   } finally {
     isLoading.value = false
   }
 }
 
 onMounted(loadDashboard)
+// stays current without a reload (composables/useAutoRefresh.js)
+useAutoRefresh(() => Promise.all([loadDashboard({ quiet: true }), loadToday()]))
 
 /* Coming up today — consultations, meals to log and RND reminders (also
    sends any reminder that's due right now). */

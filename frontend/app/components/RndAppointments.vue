@@ -241,16 +241,18 @@ const error = ref('')
 const busy = ref(false)
 const search = ref('')
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     board.value = await get('/rnd/appointments/board/')
   } catch {
-    error.value = 'Could not load your appointments.'
+    if (!quiet) error.value = 'Could not load your appointments.'
   } finally {
     loading.value = false
   }
 }
+// a new booking request, a payment or a cancellation shows without a reload
+useAutoRefresh(() => load({ quiet: true }))
 
 /* ---------- tabs + ?relationship= filter (from a patient chart) ---------- */
 const TABS = [

@@ -288,19 +288,22 @@ function formatShortDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-async function loadRecords() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadRecords({ quiet = false } = {}) {
+  if (!quiet) {
+    isLoading.value = true
+    errorMessage.value = ''
+  }
   try {
     records.value = await get('/client/progress/')
   } catch {
-    errorMessage.value = 'Could not load your progress history. Please try again later.'
+    if (!quiet) errorMessage.value = 'Could not load your progress history. Please try again later.'
   } finally {
     isLoading.value = false
   }
 }
 
 onMounted(() => { loadRecords(); loadAdherence() })
+useAutoRefresh(() => Promise.all([loadRecords({ quiet: true }), loadAdherence()]))
 </script>
 
 <style scoped>

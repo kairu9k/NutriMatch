@@ -338,6 +338,9 @@ async function loadAdminCounts() {
   }
 }
 watch(() => [auth.hydrated, route.path], ([hydrated]) => { if (hydrated) loadAdminCounts() }, { immediate: true })
+// The sidebar badges (RND booking requests, the client's lab requests, the
+// admin's to-do counts) also keep up while you stay on one page.
+useAutoRefresh(() => auth.hydrated && Promise.all([loadBadgeCounts(), loadAdminCounts()]))
 const adminNavGroups = computed(() => [
   { label: null, items: [{ icon: LayoutDashboard, label: 'Dashboard', to: '/admin-dashboard' }] },
   {

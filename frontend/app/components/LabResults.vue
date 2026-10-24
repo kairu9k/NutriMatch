@@ -117,6 +117,7 @@ async function load() {
   }
 }
 onMounted(load)
+useAutoRefresh(load)
 
 function flash(msg) {
   toast.value = msg

@@ -142,16 +142,17 @@ const kind = ref('')
 const goal = ref('')
 const focus = ref(null)
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     data.value = await get('/rnd/ncp/overview/')
   } catch {
-    error.value = 'Could not load your NCP records.'
+    if (!quiet) error.value = 'Could not load your NCP records.'
   } finally {
     loading.value = false
   }
 }
+useAutoRefresh(() => load({ quiet: true }))
 onMounted(() => {
   if (route.query.relationship) {
     navigateTo(`/client-detail/${route.query.relationship}?tab=ncp`, { replace: true })

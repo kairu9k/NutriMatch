@@ -160,19 +160,20 @@ const toast = ref('')
 const rows = computed(() => run.value?.rows || [])
 const dueRows = computed(() => rows.value.filter(r => r.eligible))
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     const [r, h] = await Promise.all([get('/admin/payouts/run/'), get('/admin/payouts/')])
     run.value = r
     history.value = Array.isArray(h) ? h : h?.results || []
   } catch {
-    error.value = 'Could not load payouts. Please refresh the page.'
+    if (!quiet) error.value = 'Could not load payouts. Please refresh the page.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+useAutoRefresh(() => load({ quiet: true }))
 
 function openRelease(r) {
   releasing.value = r

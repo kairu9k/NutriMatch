@@ -63,19 +63,22 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-async function loadReviews() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadReviews({ quiet = false } = {}) {
+  if (!quiet) {
+    isLoading.value = true
+    errorMessage.value = ''
+  }
   try {
     reviews.value = await get('/client/reviews/')
   } catch {
-    errorMessage.value = 'Could not load your reviews. Please try again later.'
+    if (!quiet) errorMessage.value = 'Could not load your reviews. Please try again later.'
   } finally {
     isLoading.value = false
   }
 }
 
 onMounted(loadReviews)
+useAutoRefresh(() => loadReviews({ quiet: true }))
 </script>
 
 <style scoped>

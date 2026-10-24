@@ -520,8 +520,8 @@ const error = ref('')
 const hover = ref(null)
 const p = computed(() => s.value?.patient)
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     const [summary, ncp] = await Promise.all([
       get(`/rnd/relationships/${relationshipId}/summary/`),
@@ -530,12 +530,15 @@ async function load() {
     s.value = summary
     ncpRecords.value = ncp
   } catch {
-    error.value = 'Could not load this patient.'
+    if (!quiet) error.value = 'Could not load this patient.'
   } finally {
     loading.value = false
   }
 }
 const refresh = load
+// meal logs, lab uploads, payments and discharge requests show without a
+// reload; the NCP form and other pop-ups pause it while open
+useAutoRefresh(() => load({ quiet: true }))
 onMounted(async () => {
   await load()
   // "Continue in chart" (NCP Records page) lands here with ?open=draft.

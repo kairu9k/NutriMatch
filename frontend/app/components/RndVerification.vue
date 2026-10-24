@@ -321,14 +321,20 @@ watch(selectedId, (id) => {
   navigateTo({ query }, { replace: true })
 })
 
-onMounted(async () => {
+async function loadRnds({ quiet = false } = {}) {
   try {
     rnds.value = await get('/admin/rnds/')
   } catch {
-    error.value = 'Could not load RND applications. Please refresh the page.'
+    if (!quiet) error.value = 'Could not load RND applications. Please refresh the page.'
   } finally {
     loading.value = false
   }
+}
+// new applications show without a reload (the open one stays open)
+useAutoRefresh(() => loadRnds({ quiet: true }))
+
+onMounted(async () => {
+  await loadRnds()
   const wanted = Number(route.query.open)
   if (wanted && rnds.value.some(r => r.id === wanted && statusOf(r) === 'pending')) select(wanted)
   else if (isWide() && filtered.value.length) select(filtered.value[0].id)

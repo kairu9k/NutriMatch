@@ -168,7 +168,9 @@ const lists = reactive({ clients: [], rnds: [], admins: [] })
 
 const asList = r => (Array.isArray(r) ? r : r?.results || [])
 
-onMounted(async () => {
+useAutoRefresh(() => loadAll({ quiet: true }))
+onMounted(loadAll)
+async function loadAll({ quiet = false } = {}) {
   try {
     const [clients, rnds, admins] = await Promise.all([
       get('/admin/clients/'),
@@ -179,11 +181,11 @@ onMounted(async () => {
     lists.rnds = asList(rnds)
     lists.admins = asList(admins)
   } catch {
-    error.value = 'Could not load the accounts. Please refresh the page.'
+    if (!quiet) error.value = 'Could not load the accounts. Please refresh the page.'
   } finally {
     loading.value = false
   }
-})
+}
 
 watch(tab, t => navigateTo({ query: { ...route.query, tab: t } }, { replace: true }))
 

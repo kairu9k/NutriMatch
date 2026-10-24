@@ -215,19 +215,23 @@ const loading = ref(true)
 const error = ref('')
 const printError = ref('')
 
-async function load() {
+async function load({ quiet = false } = {}) {
   if (period.value === 'custom' && !(from.value && to.value)) return
-  loading.value = true
-  error.value = ''
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     const q = period.value === 'custom' ? { from: from.value, to: to.value } : { period: period.value }
     r.value = await get('/admin/reports/', { query: q })
   } catch {
-    error.value = 'Could not load the report. Please try again.'
+    if (!quiet) error.value = 'Could not load the report. Please try again.'
   } finally {
     loading.value = false
   }
 }
+// a heavier request, so every 5 minutes rather than every minute
+useAutoRefresh(() => load({ quiet: true }), { interval: 300000 })
 watch([period, from, to], load)
 onMounted(load)
 

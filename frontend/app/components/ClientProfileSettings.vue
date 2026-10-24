@@ -872,6 +872,16 @@ onMounted(async () => {
     loadError.value = 'Could not load your profile. Please try again later.'
   }
 })
+// Care team stays current (a discharge, a new RND) without a reload. Only that
+// part refreshes: the profile form is never touched.
+async function refreshCare() {
+  const relationships = await get('/client/relationships/')
+  const active = relationships.find(r => r.status === 'active')
+  careRel.value = active || null
+  if (active && careRnd.value?.id !== active.rnd.id) careRnd.value = await get(`/client/rnds/${active.rnd.id}/`).catch(() => null)
+  if (!active) careRnd.value = null
+}
+useAutoRefresh(refreshCare)
 </script>
 
 <style scoped>

@@ -114,18 +114,21 @@ const search = ref('')
 const activeType = ref('all')
 const current = ref(null)
 
-async function load() {
-  loading.value = true
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     resources.value = await get('/client/resources/')
   } catch {
-    error.value = 'Could not load your resources.'
+    if (!quiet) error.value = 'Could not load your resources.'
   } finally {
     loading.value = false
   }
 }
 onMounted(load)
+useAutoRefresh(() => load({ quiet: true }))
 
 const countOf = type => (type === 'all' ? resources.value.length : resources.value.filter(r => r.type === type).length)
 // Newest shares first.

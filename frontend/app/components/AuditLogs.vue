@@ -156,10 +156,12 @@ const pageNumbers = computed(() => {
 })
 
 let requestId = 0
-async function load(pageNo = 1) {
+async function load(pageNo = 1, { quiet = false } = {}) {
   const id = ++requestId
-  loading.value = true
-  error.value = ''
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     const r = await get('/admin/audit-logs/', { query: params(pageNo) })
     if (id !== requestId) return // a newer filter change won
@@ -167,11 +169,13 @@ async function load(pageNo = 1) {
     count.value = r.count
     page.value = pageNo
   } catch {
-    if (id === requestId) error.value = 'Could not load the audit log. Please refresh the page.'
+    if (id === requestId && !quiet) error.value = 'Could not load the audit log. Please refresh the page.'
   } finally {
     if (id === requestId) loading.value = false
   }
 }
+// new entries show on the page the admin is on
+useAutoRefresh(() => load(page.value, { quiet: true }))
 
 async function goTo(n) {
   if (n < 1 || n > pageCount.value || n === page.value) return

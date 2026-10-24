@@ -359,6 +359,9 @@ async function load() {
   }
 }
 onMounted(load)
+// confirmations, cancellations and expired requests show without a reload;
+// not while a payment is open
+useAutoRefresh(load, { paused: () => !!payingId.value })
 
 /* ---------- Join window ---------- */
 // Re-renders every 30s (`now`, declared at the top); when a paid video

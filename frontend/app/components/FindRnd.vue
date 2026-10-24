@@ -156,11 +156,13 @@ function clearFilters() {
 const specialtyKeyword = s => s.split(/[ /&]/)[0]
 
 let requestId = 0
-async function load() {
+async function load({ quiet = false } = {}) {
   const id = ++requestId
-  loading.value = true
-  error.value = ''
-  page.value = 1
+  if (!quiet) {
+    loading.value = true
+    error.value = ''
+    page.value = 1
+  }
   const query = {}
   if (search.value.trim()) query.search = search.value.trim()
   if (specialization.value) query.specialty = specialtyKeyword(specialization.value)
@@ -170,11 +172,13 @@ async function load() {
     const r = await get('/client/rnds/', { query })
     if (id === requestId) rnds.value = r
   } catch {
-    if (id === requestId) error.value = 'Could not load the RNDs.'
+    if (id === requestId && !quiet) error.value = 'Could not load the RNDs.'
   } finally {
     if (id === requestId) loading.value = false
   }
 }
+// open times and "one RND at a time" stay current; keeps the page you're on
+useAutoRefresh(() => load({ quiet: true }))
 
 let searchTimer
 watch(search, () => {

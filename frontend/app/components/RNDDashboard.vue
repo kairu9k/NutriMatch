@@ -323,25 +323,30 @@ function timeAgo(iso) {
   return shortDate(iso)
 }
 
-async function load() {
-  error.value = ''
+async function load({ quiet = false } = {}) {
+  if (!quiet) error.value = ''
   try {
     d.value = await get('/rnd/dashboard/')
   } catch {
-    error.value = 'Could not load your dashboard.'
+    if (!quiet) error.value = 'Could not load your dashboard.'
   } finally {
     loading.value = false
   }
 }
-onMounted(async () => {
-  load()
-  loadActivity()
+async function loadSetup() {
   try {
     setupMissing.value = (await get('/auth/me/onboarding/')).missing || []
   } catch {
     setupMissing.value = []
   }
+}
+onMounted(() => {
+  load()
+  loadActivity()
+  loadSetup()
 })
+// requests, schedule, payments and alerts stay current without a reload
+useAutoRefresh(() => Promise.all([load({ quiet: true }), loadSetup()]))
 // patient alerts, critical first as the API sends them (all of them: the pop-up scrolls)
 const shownAlerts = computed(() => d.value?.alerts || [])
 const noDot = t => String(t || '').replace(/[.\s]+$/, '')
