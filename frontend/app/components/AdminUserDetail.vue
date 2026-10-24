@@ -84,7 +84,7 @@
             <div class="nm-panel">
               <div class="nm-panel-head">
                 <h2 class="nm-panel-title">Credentials</h2>
-                <NuxtLink v-if="rnd.profile.review_status === 'pending'" to="/rnd-verification" class="nm-panel-link">Review application →</NuxtLink>
+                <NuxtLink v-if="rnd.profile.review_status === 'pending'" to="/rnd-verification" class="nm-panel-link">Review application</NuxtLink>
               </div>
               <dl class="nm-dl">
                 <div><dt>PRC license no.</dt><dd :class="{ muted: !rnd.profile.prc_license_number }">{{ rnd.profile.prc_license_number || 'Not given' }}</dd></div>
@@ -124,7 +124,7 @@
           <div v-if="client" class="nm-panel">
             <div class="nm-panel-head" style="margin-bottom: 0">
               <h2 class="nm-panel-title">Activity</h2>
-              <NuxtLink :to="`/admin-appointments?view=all&client=${u.id}`" class="nm-panel-link">Appointments →</NuxtLink>
+              <NuxtLink :to="`/admin-appointments?view=all&client=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
             </div>
             <dl class="nm-dl" style="margin-top: 14px">
               <div><dt>Appointments</dt><dd>{{ countText(client.appointments) }}</dd></div>
@@ -148,7 +148,7 @@
                   <h2 class="nm-panel-title">Earnings</h2>
                   <p class="nm-panel-sub">Next payout {{ shortDate(rnd.earnings.next_payout_date) }}</p>
                 </div>
-                <NuxtLink to="/payouts" class="nm-panel-link">Payouts →</NuxtLink>
+                <NuxtLink to="/payouts" class="nm-panel-link">Payouts</NuxtLink>
               </div>
               <dl class="nm-dl">
                 <div><dt>Pending</dt><dd>{{ peso(rnd.earnings.pending) }}</dd></div>
@@ -175,7 +175,7 @@
             <div class="nm-panel">
               <div class="nm-panel-head" style="margin-bottom: 0">
                 <h2 class="nm-panel-title">Practice activity</h2>
-                <NuxtLink :to="`/admin-appointments?view=all&rnd=${u.id}`" class="nm-panel-link">Appointments →</NuxtLink>
+                <NuxtLink :to="`/admin-appointments?view=all&rnd=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
               </div>
               <dl class="nm-dl" style="margin-top: 14px">
                 <div><dt>Active patients</dt><dd>{{ rnd.patients }}</dd></div>

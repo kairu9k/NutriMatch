@@ -583,8 +583,9 @@ function nameInitials(name) {
 
 @media (max-width: 640px) {
   .needs-row { flex-wrap: wrap; padding: 12px 16px; }
-  .needs-row .nm-panel-link { flex-basis: 100%; padding-left: 28px; }
-  .needs-row.unfinished .nm-panel-link { padding-left: 21px; }
+  .needs-row .needs-text { flex: 1 1 calc(100% - 40px); }
+  .needs-row .nm-panel-link { margin-left: 28px; }
+  .needs-row.unfinished .nm-panel-link { margin-left: 0; }
   .needs-chips, .needs-more { padding-left: 16px; padding-right: 16px; }
   .sched-end { width: 100%; padding-left: 78px; }
   .chart-figure { text-align: left; }

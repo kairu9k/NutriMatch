@@ -16,7 +16,7 @@
             </p>
           </div>
           <button v-if="!e.payout_account" type="button" class="nm-btn-gold" @click="startEdit">Add payout details</button>
-          <p v-else class="st-account">{{ accountText }} <button type="button" class="nm-panel-link" @click="startEdit">Change</button></p>
+          <p v-else class="st-account">{{ accountText }} <button type="button" class="nm-btn-gold nm-btn-sm" @click="startEdit">Change</button></p>
         </div>
 
         <div class="st-figures">
@@ -530,8 +530,6 @@ function longDate(v) {
 .statement .st-title { color: #fff; }
 .statement .st-sub { color: #cfe0d5; }
 .statement .st-account { color: rgba(255, 255, 255, 0.85); }
-.statement .st-account .nm-panel-link { color: #f3d27a; }
-.statement .st-account .nm-panel-link:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 .statement .st-figures { border-top: none; }
 .st-sub { font-size: 0.88rem; color: #4a5a4a; line-height: 1.55; margin: 0; max-width: 62ch; }
 .st-head .nm-btn-gold { flex-shrink: 0; text-decoration: none; }
@@ -573,7 +571,6 @@ function longDate(v) {
 .modal-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: 8px; color: #6a7a6a; cursor: pointer; }
 .modal-x:hover { background: #f2f5f2; color: #1a3a1a; }
 .modal-x:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
-.st-account .nm-panel-link { background: none; border: none; padding: 0; font: inherit; font-weight: 600; cursor: pointer; }
 .pd-methods { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .pd-method { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #d5dad5; border-radius: 10px; padding: 9px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .pd-method.on { border-color: #1f8f5c; background: #f2f9f4; }

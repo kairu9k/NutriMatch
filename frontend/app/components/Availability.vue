@@ -372,10 +372,11 @@ function formatBlockDate(iso) {
 .empty-note-inline { font-size: 0.82rem; color: #8a9a8a; }
 
 .day-action-link {
-  display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: #0a4a37; font-family: inherit;
-  font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; padding: 4px 0;
+  display: inline-flex; align-items: center; gap: 4px; background: #e3efe7; border: none; border-radius: 8px; color: #0a4a37; font-family: inherit;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; min-height: 32px; padding: 0 12px;
 }
-.day-action-link:hover { text-decoration: underline; }
+.day-action-link:hover { background: #d3e7da; }
+.day-action-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 .empty-note { font-size: 0.82rem; color: #6a7a6a; margin: 0; }
 .save-error { font-size: 0.82rem; color: #c0483a; margin: 12px 0 0; }

@@ -98,7 +98,7 @@
           <tbody>
             <tr v-for="p in history" :key="p.id">
               <td data-label="Released">{{ dateTime(p.released_at) }}</td>
-              <td data-label="RND"><NuxtLink :to="`/users/${p.rnd}`" class="nm-panel-link">{{ p.rnd_name }}</NuxtLink></td>
+              <td data-label="RND"><NuxtLink :to="`/users/${p.rnd}`" class="nm-text-link">{{ p.rnd_name }}</NuxtLink></td>
               <td data-label="Amount" class="nm-num"><strong>{{ peso(p.amount) }}</strong> <span class="nm-muted">· {{ p.invoice_count }} consult{{ p.invoice_count === 1 ? '' : 's' }}</span></td>
               <td data-label="Sent to">{{ methodText(p) }}</td>
               <td data-label="Reference" class="mono">{{ p.reference }}</td>

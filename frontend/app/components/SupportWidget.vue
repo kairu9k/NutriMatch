@@ -391,7 +391,7 @@ function when(iso) {
 .reply { display: flex; gap: 8px; align-items: flex-end; }
 .reply textarea { resize: none; flex: 1; }
 .reply .nm-btn-dark { height: 40px; width: 44px; padding: 0; justify-content: center; }
-.sw-close-req { display: block; margin: 10px auto 0; }
+.sw-close-req { display: flex; width: fit-content; margin: 10px auto 0; }
 
 .sw-pop-enter-active, .sw-pop-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; transform-origin: bottom right; }
 .sw-pop-enter-from, .sw-pop-leave-to { opacity: 0; transform: scale(0.96) translateY(6px); }

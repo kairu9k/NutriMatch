@@ -135,7 +135,7 @@
           <div>
             <dt>Invoice</dt>
             <dd v-if="selected.payment">
-              <NuxtLink to="/billing-commission" class="nm-panel-link">INV-{{ String(selected.payment.invoice_id).padStart(4, '0') }}</NuxtLink>
+              <NuxtLink to="/billing-commission" class="nm-text-link">INV-{{ String(selected.payment.invoice_id).padStart(4, '0') }}</NuxtLink>
               · {{ peso(selected.payment.amount) }}
             </dd>
             <dd v-else class="muted">{{ selected.status === 'pending' ? 'Issued when the RND confirms' : 'None' }}</dd>

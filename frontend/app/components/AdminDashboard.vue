@@ -56,7 +56,7 @@
             <h2 class="nm-panel-title">This month vs last month</h2>
             <p class="nm-panel-sub">{{ dash.compare.label }} — same number of days</p>
           </div>
-          <NuxtLink to="/platform-reports" class="nm-panel-link">Reports →</NuxtLink>
+          <NuxtLink to="/platform-reports" class="nm-panel-link">Reports</NuxtLink>
         </div>
         <div v-for="m in dash.compare.metrics" :key="m.key" class="cmp">
           <span class="cmp-label">{{ METRIC_LABEL[m.key] }}</span>
@@ -104,7 +104,7 @@
             <h2 class="nm-panel-title">RND applications</h2>
             <p class="nm-panel-sub">Check each PRC license before approving</p>
           </div>
-          <NuxtLink to="/rnd-verification" class="nm-panel-link">View all →</NuxtLink>
+          <NuxtLink to="/rnd-verification" class="nm-panel-link">View all</NuxtLink>
         </div>
         <p v-if="loading" class="nm-muted">Loading…</p>
         <div v-else-if="!pendingRnds.length" class="nm-empty">
@@ -131,7 +131,7 @@
             <h2 class="nm-panel-title">Recent admin activity</h2>
             <p class="nm-panel-sub">Approvals, account changes, refunds, payouts and settings</p>
           </div>
-          <NuxtLink to="/audit-logs?scope=admin" class="nm-panel-link">Audit logs →</NuxtLink>
+          <NuxtLink to="/audit-logs?scope=admin" class="nm-panel-link">Audit logs</NuxtLink>
         </div>
         <p v-if="loading" class="nm-muted">Loading…</p>
         <div v-else-if="!activity.length" class="nm-empty"><p>Nothing recorded yet.</p></div>

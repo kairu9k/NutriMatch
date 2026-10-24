@@ -759,9 +759,9 @@ onMounted(showActiveTab)
 .prc-section .form-grid { margin-bottom: 12px; }
 .prc-photo-link {
   display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600;
-  color: #0a4a37; text-decoration: none; border: 1px solid #d9e3dc; border-radius: 8px; padding: 7px 12px;
+  color: #0a4a37; text-decoration: none; background: #e3efe7; border-radius: 8px; min-height: 36px; padding: 0 14px;
 }
-.prc-photo-link:hover { background: #f4f7f5; }
+.prc-photo-link:hover { background: #d3e7da; }
 .fee-input-wrap { display: flex; align-items: center; gap: 8px; max-width: 320px; margin-top: 8px; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
 .fee-input { flex: 1; min-width: 0; }

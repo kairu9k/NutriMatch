@@ -296,7 +296,7 @@ const Avatar = defineComponent({
 .tgoal { color: #4a5a4a; }
 .pgoal.muted, .tgoal.muted { color: #8a968a; font-style: italic; }
 .tview { display: inline-flex; align-items: center; justify-content: flex-end; color: #1f6f46; font-weight: 600; }
-.chart-link { display: inline-block; margin: 6px 0 0 10px; }
+.chart-link { margin: 6px 0 0 10px; }
 .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: 0.82rem; }
 .pager-btns { display: flex; gap: 10px; }
 

@@ -1283,8 +1283,9 @@ function formatTime(t) {
 
 <style scoped>
 .top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-.back-link { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; margin: 0 0 12px; font-family: inherit; font-size: 0.84rem; font-weight: 600; color: #1f6f46; cursor: pointer; }
-.back-link:hover { text-decoration: underline; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; border: none; background: #e3efe7; border-radius: 8px; min-height: 32px; padding: 0 12px; margin: 0 0 12px; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #0a4a37; cursor: pointer; }
+.back-link:hover { background: #d3e7da; }
+.back-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 .mode-toggle { display: flex; gap: 10px; }
 .mode-btn {

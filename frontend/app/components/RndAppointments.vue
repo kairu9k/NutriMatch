@@ -403,7 +403,6 @@ async function completeNow() {
 <style scoped>
 .head { display: flex; justify-content: flex-start; align-items: center; gap: 6px 14px; flex-wrap: wrap; margin: 0 0 14px; }
 .nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; line-height: 1.4; }
-.head .nm-panel-link { display: inline-flex; align-items: center; gap: 5px; font-size: 0.88rem; line-height: 1.4; }
 
 .appt-list { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .filter-note { margin-bottom: 14px; }

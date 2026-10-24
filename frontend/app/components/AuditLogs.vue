@@ -27,7 +27,7 @@
         <label class="admin-only"><input v-model="adminOnly" type="checkbox" /> Admin actions only</label>
       </div>
       <div class="filter-foot">
-        <span class="nm-muted">{{ loading ? 'Loading…' : `${count.toLocaleString()} event${count === 1 ? '' : 's'}` }}<template v-if="hasFilters"> · <button class="nm-panel-link" @click="clearFilters">Clear filters</button></template></span>
+        <span class="nm-muted">{{ loading ? 'Loading…' : `${count.toLocaleString()} event${count === 1 ? '' : 's'}` }}<template v-if="hasFilters"> <button class="nm-panel-link" @click="clearFilters">Clear filters</button></template></span>
         <button class="nm-btn-outline nm-btn-sm" :disabled="exporting || !count" @click="exportCsv">
           <Download :size="14" /> {{ exporting ? 'Preparing…' : 'Export CSV' }}
         </button>

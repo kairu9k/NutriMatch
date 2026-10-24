@@ -61,8 +61,18 @@
 .nm-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .nm-panel-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0; }
 .nm-panel-sub { font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0; line-height: 1.5; }
-.nm-panel-link { font-size: 0.78rem; color: #1f8f5c; font-weight: 600; text-decoration: none; white-space: nowrap; background: none; border: none; cursor: pointer; font-family: inherit; padding: 0; }
-.nm-panel-link:hover { text-decoration: underline; }
+/* every action link is a small filled light green button (user's rule, 2026-10-24: no text-only actions) */
+.nm-panel-link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 0 12px; border-radius: 8px;
+  background: #e3efe7; color: #0a4a37; border: none; font-size: 0.78rem; font-weight: 600; line-height: 1.2;
+  text-decoration: none; white-space: nowrap; cursor: pointer; font-family: inherit; vertical-align: middle;
+}
+.nm-panel-link:hover:not(:disabled) { background: #d3e7da; }
+.nm-panel-link:disabled { opacity: 0.5; cursor: not-allowed; }
+.nm-panel-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+/* a name or number inside text or a table cell stays a plain link */
+.nm-text-link { color: #1f6f46; font-weight: 600; text-decoration: none; }
+.nm-text-link:hover { text-decoration: underline; }
 .nm-section-title { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 18px 0 8px; }
 
 /* rows inside panels */
