@@ -140,6 +140,30 @@ class NotificationListView(generics.ListAPIView):
             recipient=self.request.user, channel=NotificationLog.Channel.IN_APP
         ).exclude(notifiable_type="message").order_by("-created_at")
 
+    # ?page=N (the Notifications page): {count, unread, page, page_size, results}
+    # PAGE_SIZE at a time. Without ?page (bell, dashboard) the plain list as before.
+    PAGE_SIZE = 20
+
+    def list(self, request, *args, **kwargs):
+        if "page" not in request.query_params:
+            return super().list(request, *args, **kwargs)
+        qs = self.get_queryset()
+        try:
+            page = max(1, int(request.query_params.get("page") or 1))
+        except ValueError:
+            page = 1
+        count = qs.count()
+        last = max(1, -(-count // self.PAGE_SIZE))
+        page = min(page, last)
+        rows = qs[(page - 1) * self.PAGE_SIZE: page * self.PAGE_SIZE]
+        return Response({
+            "count": count,
+            "unread": qs.filter(is_read=False).count(),
+            "page": page,
+            "page_size": self.PAGE_SIZE,
+            "results": self.get_serializer(rows, many=True).data,
+        })
+
 
 class NotificationDetailView(generics.RetrieveAPIView):
     """One of the user's own notifications with a summary of what it's

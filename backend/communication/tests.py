@@ -583,3 +583,26 @@ class NotificationConsumerTests(TransactionTestCase):
         event = await rnd_socket.receive_json_from(timeout=2)
         self.assertEqual((event["kind"], event["relationship_id"], event["message"]["message"]), ("message", self.rel.id, "Hi doc!"))
         await rnd_socket.disconnect()
+
+
+class NotificationPagingTests(TestCase):
+    """The Notifications page asks for ?page=N; the bell and dashboard keep the plain list."""
+
+    def setUp(self):
+        self.rnd = _make_rnd("page.rnd@nutrimatch.test")
+        self.api = APIClient()
+        self.api.force_authenticate(self.rnd)
+        for i in range(25):
+            NotificationLog.objects.create(recipient=self.rnd, notifiable_type="reminder", notifiable_id=i,
+                                           subject=f"N{i}", content="x", is_read=i < 5,
+                                           channel=NotificationLog.Channel.IN_APP)
+
+    def test_pages_of_twenty_with_unread_count(self):
+        first = self.api.get("/api/notifications/?page=1").data
+        self.assertEqual((first["count"], first["unread"], first["page"], len(first["results"])), (25, 20, 1, 20))
+        second = self.api.get("/api/notifications/?page=2").data
+        self.assertEqual(len(second["results"]), 5)
+        self.assertEqual(self.api.get("/api/notifications/?page=9").data["page"], 2)
+
+    def test_no_page_keeps_the_plain_list(self):
+        self.assertEqual(len(self.api.get("/api/notifications/").data), 25)

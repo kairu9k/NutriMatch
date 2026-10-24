@@ -39,8 +39,13 @@
       </div>
       </template>
     </div>
+    <div v-if="!isLoading && pageCount > 1" class="pager">
+      <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="page === 1" @click="goPage(page - 1)">Previous</button>
+      <span class="pager-num">Page {{ page }} of {{ pageCount }}</span>
+      <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="page === pageCount" @click="goPage(page + 1)">Next</button>
+    </div>
 
-    <div v-else class="empty-state">
+    <div v-else-if="!isLoading && !notifications.length" class="empty-state">
       <p class="empty-title">No notifications yet</p>
       <p class="empty-desc">Updates about your consultations, payments and care show up here.</p>
     </div>
@@ -61,8 +66,14 @@ const isLoading = ref(true)
 const isMarkingAll = ref(false)
 const errorMessage = ref('')
 const notifications = ref([])
+// 20 a page from the server (?page=N); unread is counted over all of them.
+const page = ref(1)
+const total = ref(0)
+const pageSize = ref(20)
+const unreadTotal = ref(0)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
+const unreadCount = computed(() => unreadTotal.value)
 
 // Same icons as the notification pop-up.
 const ICONS = { appointment: CalendarCheck, invoice: Receipt, message: MessageSquare, meal_plan: Utensils, meal_log: Utensils, payout: Wallet, resource: BookOpen, reminder: AlarmClock, relationship: HeartHandshake, support: Headset, lab_request: FlaskConical, lab_result: FlaskConical }
@@ -106,7 +117,12 @@ async function loadNotifications() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    notifications.value = await get('/notifications/')
+    const res = await get(`/notifications/?page=${page.value}`)
+    notifications.value = res.results
+    total.value = res.count
+    pageSize.value = res.page_size
+    unreadTotal.value = res.unread
+    page.value = res.page
   } catch {
     errorMessage.value = 'Could not load your notifications. Please try again later.'
   } finally {
@@ -125,10 +141,17 @@ function openNotification(n) {
   else openDetail.value = n
 }
 
+function goPage(n) {
+  page.value = n
+  loadNotifications()
+  window.scrollTo({ top: 0 })
+}
+
 async function markRead(n) {
   try {
     await patch(`/notifications/${n.id}/read/`)
     n.is_read = true
+    unreadTotal.value = Math.max(0, unreadTotal.value - 1)
   } catch {
     // non-critical, leave as unread on failure
   }
@@ -139,6 +162,7 @@ async function markAllRead() {
   try {
     await patch('/notifications/mark-all-read/')
     notifications.value.forEach(n => { n.is_read = true })
+    unreadTotal.value = 0
   } catch {
     errorMessage.value = 'Could not mark notifications as read. Please try again.'
   } finally {
@@ -151,7 +175,11 @@ onMounted(loadNotifications)
 // New ones appear live at the top (ws/notifications/); a reconnect re-syncs.
 const live = useLiveUpdates()
 live.onLive('notification', ({ notification }) => {
-  if (!notifications.value.some(n => n.id === notification.id)) notifications.value = [notification, ...notifications.value]
+  if (notifications.value.some(n => n.id === notification.id)) return
+  total.value += 1
+  if (!notification.is_read) unreadTotal.value += 1
+  // only the first page shows the newest ones
+  if (page.value === 1) notifications.value = [notification, ...notifications.value].slice(0, pageSize.value)
 })
 live.onLive('reconnect', loadNotifications)
 </script>
@@ -160,6 +188,8 @@ live.onLive('reconnect', loadNotifications)
 * { box-sizing: border-box; }
 
 .notifications-page { font-family: 'Inter', sans-serif; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 18px; }
+.pager-num { font-size: 0.84rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
 
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }

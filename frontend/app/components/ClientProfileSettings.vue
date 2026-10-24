@@ -353,13 +353,18 @@
             <p>Nothing saved yet.</p>
             <p class="empty-sub">Complete a screening, book an appointment or log a meal, and it shows up here.</p>
           </div>
-          <div v-for="entry in filteredHistory" v-else :key="entry.key" class="entry-row">
+          <div v-for="entry in pagedHistory" v-else :key="entry.key" class="entry-row">
             <div class="entry-icon" :class="entry.iconClass"><component :is="entry.icon" :size="16" /></div>
             <div class="entry-info">
               <p class="entry-title">{{ entry.title }}</p>
               <p class="entry-detail">{{ entry.detail }}</p>
             </div>
             <span class="entry-time">{{ formatTimestamp(entry.at) }}</span>
+          </div>
+          <div v-if="!isLoadingHistory && historyPages > 1" class="pager">
+            <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="historyPage === 1" @click="historyPage--">Previous</button>
+            <span class="pager-num">Page {{ historyPage }} of {{ historyPages }}</span>
+            <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="historyPage === historyPages" @click="historyPage++">Next</button>
           </div>
         </template>
       </div>
@@ -806,6 +811,12 @@ onMounted(showActiveTab)
 const filteredHistory = computed(() =>
   historyFilter.value === 'all' ? historyEntries.value : historyEntries.value.filter(e => e.type === historyFilter.value)
 )
+// 20 a page (Print still prints the whole filtered list); a new filter starts at page 1.
+const HISTORY_PER_PAGE = 20
+const historyPage = ref(1)
+const historyPages = computed(() => Math.max(1, Math.ceil(filteredHistory.value.length / HISTORY_PER_PAGE)))
+const pagedHistory = computed(() => filteredHistory.value.slice((historyPage.value - 1) * HISTORY_PER_PAGE, historyPage.value * HISTORY_PER_PAGE))
+watch(historyFilter, () => { historyPage.value = 1 })
 
 function formatTimestamp(iso) {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -976,6 +987,8 @@ onMounted(async () => {
 .fig dd { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: lining-nums; }
 .fig-unit { font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 500; color: #6a7a6a; }
 .fig.risk dd { color: #a12525; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; }
+.pager-num { font-size: 0.84rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
 .edit-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 16px; border-top: 1px solid #d9e3dc; }
 
 /* SETTING ROWS (security, notifications, privacy, care team) */
