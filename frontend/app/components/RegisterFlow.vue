@@ -1,23 +1,17 @@
 <template>
-  <div class="register-page">
-    <!-- LEFT PANEL -->
+  <div class="auth-page register-page">
+    <!-- LEFT PANEL: the steps, a real sequence -->
     <aside class="left-panel">
       <div class="circle circle-1"></div>
       <div class="circle circle-2"></div>
       <div class="circle circle-3"></div>
-
       <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
-        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-img" />
-        <span class="logo-text" style="font-family: 'DM Serif Display', serif; font-weight: 700; font-size: medium;">Nutri<span class="logo-match">Match</span></span>
+        <img src="/resources/nutrimatchlogo.png" alt="" class="logo-icon" />
+        <span>Nutri<span class="logo-match">Match</span></span>
       </NuxtLink>
 
       <div class="left-content">
-        <span class="eyebrow">CREATE ACCOUNT</span>
-        <h1>
-          Join your<br />
-          <em class="highlight">nutrition</em><br />
-          journey today.
-        </h1>
+        <h1>{{ selectedRole === 'rnd' ? 'Apply to consult on NutriMatch.' : 'Create your account.' }}</h1>
 
         <div class="steps">
           <div
@@ -27,13 +21,10 @@
             :class="{ active: stageIndex === index, done: stageIndex > index }"
           >
             <span class="step-number">
-              <span v-if="stageIndex > index">✓</span>
+              <Check v-if="stageIndex > index" :size="15" aria-hidden="true" />
               <span v-else>{{ index + 1 }}</span>
             </span>
-            <div class="step-text">
-              <span class="step-label">STEP {{ String(index + 1).padStart(2, '0') }}</span>
-              <span class="step-title">{{ step.label }}</span>
-            </div>
+            <span class="step-title">{{ step.label }}</span>
           </div>
         </div>
       </div>
@@ -41,11 +32,13 @@
 
     <!-- RIGHT PANEL -->
     <main class="right-panel">
+      <NuxtLink to="/" class="back-link"><ArrowLeft :size="14" aria-hidden="true" /> Back to home</NuxtLink>
+
       <div class="form-wrap">
         <!-- STEP 1: CHOOSE ROLE -->
         <div v-if="currentStep === 1">
-          <h2>Choose Your Role</h2>
-          <p class="subtitle">Step 1 of {{ steps.length }} — Tell us how you'll use NutriMatch</p>
+          <h2>How will you use NutriMatch?</h2>
+          <p class="subtitle">Step 1 of {{ steps.length }}.</p>
 
           <div class="role-grid">
             <button
@@ -67,32 +60,30 @@
             </div>
           </Transition>
 
-          <button class="btn-primary" :disabled="!selectedRole" @click="currentStep = 2">
-            Continue →
-          </button>
+          <button class="btn-primary" :disabled="!selectedRole" @click="currentStep = 2">Continue</button>
         </div>
 
         <!-- STEP 2: YOUR DETAILS -->
         <div v-else-if="currentStep === 2">
-          <h2>{{ selectedRole === 'rnd' ? 'Account & License' : 'Your Details' }}</h2>
-          <p class="subtitle">Step 2 of {{ steps.length }} — {{ selectedRole === 'rnd' ? 'Your account and PRC credentials' : 'Enter your personal information' }}</p>
+          <h2>{{ selectedRole === 'rnd' ? 'Account and license' : 'Your details' }}</h2>
+          <p class="subtitle">Step 2 of {{ steps.length }}. {{ selectedRole === 'rnd' ? 'How you sign in, and your PRC license.' : 'How you sign in, and a little about you.' }}</p>
 
           <form class="details-form" novalidate @submit.prevent="goToConfirm">
             <div class="field-row">
               <div class="field">
-                <label>First Name</label>
+                <label>First name</label>
                 <input v-model="form.firstName" type="text" placeholder="e.g. Juan" maxlength="100" :class="{ invalid: firstNameError }" required />
                 <span v-if="firstNameError" class="field-error">{{ firstNameError }}</span>
               </div>
               <div class="field">
-                <label>Last Name</label>
+                <label>Last name</label>
                 <input v-model="form.lastName" type="text" placeholder="e.g. Dela Cruz" maxlength="100" :class="{ invalid: lastNameError }" required />
                 <span v-if="lastNameError" class="field-error">{{ lastNameError }}</span>
               </div>
             </div>
 
             <div class="field">
-              <label>Email Address</label>
+              <label>Email address</label>
               <div class="input-icon-wrap">
                 <User class="input-icon" aria-hidden="true" />
                 <input v-model.trim="form.email" type="email" placeholder="you@example.com" :class="{ invalid: emailError }" required />
@@ -107,23 +98,23 @@
                 <input
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
-                  placeholder="Min. 8 characters"
+                  placeholder="Choose a password"
                   minlength="8"
                   required
                 />
-                <button type="button" class="toggle-visibility" @click="showPassword = !showPassword">
-                  {{ showPassword ? 'HIDE' : 'SHOW' }}
+                <button type="button" class="toggle-visibility" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword">
+                  <EyeOff v-if="showPassword" :size="17" aria-hidden="true" /><Eye v-else :size="17" aria-hidden="true" />
                 </button>
               </div>
               <ul class="pw-rules" aria-label="Password requirements">
                 <li v-for="rule in passwordRules" :key="rule.label" :class="{ ok: rule.ok }">
-                  <span class="pw-rule-mark">{{ rule.ok ? '✓' : '○' }}</span> {{ rule.label }}
+                  <Check v-if="rule.ok" :size="13" aria-hidden="true" /><Circle v-else :size="11" aria-hidden="true" /> {{ rule.label }}
                 </li>
               </ul>
             </div>
 
             <div class="field">
-              <label>Confirm Password</label>
+              <label>Type the password again</label>
               <div class="input-icon-wrap">
                 <Lock class="input-icon" aria-hidden="true" />
                 <input
@@ -132,17 +123,17 @@
                   placeholder="Repeat your password"
                   required
                 />
-                <button type="button" class="toggle-visibility" @click="showConfirmPassword = !showConfirmPassword">
-                  {{ showConfirmPassword ? 'HIDE' : 'SHOW' }}
+                <button type="button" class="toggle-visibility" :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'" @click="showConfirmPassword = !showConfirmPassword">
+                  <EyeOff v-if="showConfirmPassword" :size="17" aria-hidden="true" /><Eye v-else :size="17" aria-hidden="true" />
                 </button>
               </div>
-              <span v-if="form.confirmPassword && !passwordsMatch" class="field-error">Passwords do not match.</span>
+              <span v-if="form.confirmPassword && !passwordsMatch" class="field-error">The two passwords don't match.</span>
             </div>
 
             <template v-if="selectedRole === 'patient'">
               <div class="field-row">
                 <div class="field">
-                  <label>Date of Birth</label>
+                  <label>Date of birth</label>
                   <input v-model="form.dob" type="date" :max="latestBirthDate" min="1900-01-01" :class="{ invalid: dobError }" required />
                   <span v-if="dobError" class="field-error">{{ dobError }}</span>
                 </div>
@@ -158,13 +149,13 @@
               </div>
 
               <div class="field">
-                <label>Primary Health Concern</label>
+                <label>Main health concern</label>
                 <select class="nm-select block" v-model="form.healthConcern" required>
                   <option disabled value="">Select</option>
                   <option>Hypertension</option>
                   <option>Type 2 Diabetes</option>
-                  <option>Obesity Management</option>
-                  <option>Renal Nutrition</option>
+                  <option>Obesity management</option>
+                  <option>Renal nutrition</option>
                   <option>Other</option>
                 </select>
               </div>
@@ -172,17 +163,17 @@
 
             <template v-else-if="selectedRole === 'rnd'">
               <div class="field">
-                <label for="reg-phone">Mobile Number <span class="required-tag">Required</span></label>
+                <label for="reg-phone">Mobile number <span class="required-tag">Required</span></label>
                 <PhoneInput id="reg-phone" v-model="form.phone" label="mobile number" rnd />
                 <span class="license-hint">A Philippine mobile number, so our admin team can reach you. Not shown to clients.</span>
               </div>
               <div class="field">
-                <label>Date of Birth</label>
+                <label>Date of birth</label>
                 <input v-model="form.dob" type="date" :max="latestBirthDate" min="1900-01-01" :class="{ invalid: dobError }" required />
                 <span v-if="dobError" class="field-error">{{ dobError }}</span>
               </div>
               <div class="field">
-                <label>PRC License Number <span class="required-tag">Required</span></label>
+                <label>PRC license number <span class="required-tag">Required</span></label>
                 <input
                   v-model="form.prcNumber"
                   type="text"
@@ -195,17 +186,17 @@
                 <span v-else class="license-hint">The 7-digit number on your PRC ID.</span>
               </div>
               <div class="field">
-                <label>PRC License Photo <span class="required-tag">Required</span></label>
+                <label>PRC license photo <span class="required-tag">Required</span></label>
                 <label class="license-upload" :class="{ 'has-file': licensePreview }">
                   <input ref="licenseInput" type="file" accept="image/jpeg,image/png,image/webp" class="license-input" @change="onLicenseSelected" />
                   <img v-if="licensePreview" :src="licensePreview" alt="PRC license preview" class="license-preview" />
                   <span v-else class="license-placeholder">
                     <strong>Upload a clear photo of your PRC ID</strong>
-                    JPG, PNG, or WEBP · up to 5 MB
+                    JPG, PNG or WEBP, up to 5 MB
                   </span>
                 </label>
                 <div v-if="form.prcLicenseImage" class="license-file-row">
-                  <span class="license-filename">{{ form.prcLicenseImage.name }} · click the photo to change</span>
+                  <span class="license-filename">{{ form.prcLicenseImage.name }}. Click the photo to change it.</span>
                   <button type="button" class="license-remove" @click="removeLicense">Remove</button>
                 </div>
                 <span class="license-hint">Only our admin team sees this photo, to verify your license.</span>
@@ -222,20 +213,20 @@
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
             <div class="form-nav">
-              <button type="button" class="btn-back" @click="currentStep = 1">← Back</button>
-              <button type="submit" class="btn-primary" :disabled="!detailsValid || checkingEmail">{{ checkingEmail ? 'Checking…' : 'Continue →' }}</button>
+              <button type="button" class="btn-back" @click="currentStep = 1">Back</button>
+              <button type="submit" class="btn-primary" :disabled="!detailsValid || checkingEmail">{{ checkingEmail ? 'Checking…' : 'Continue' }}</button>
             </div>
           </form>
         </div>
 
         <!-- RND STEP 3: PROFESSIONAL PROFILE (stage 5) -->
         <div v-else-if="currentStep === 5">
-          <h2>Professional Profile</h2>
-          <p class="subtitle">Step 3 of {{ steps.length }} — What clients see before booking</p>
+          <h2>Your profile</h2>
+          <p class="subtitle">Step 3 of {{ steps.length }}. What clients see before they book you.</p>
 
           <form class="details-form" novalidate @submit.prevent="goToConsultation">
             <div class="field">
-              <label>Profile Photo <span class="optional-tag">Optional</span></label>
+              <label>Profile photo <span class="optional-tag">Optional</span></label>
               <div class="photo-row">
                 <img v-if="photoPreview" :src="photoPreview" alt="Profile photo preview" class="photo-preview" />
                 <div v-else class="photo-placeholder">{{ (form.firstName[0] || '') + (form.lastName[0] || '') }}</div>
@@ -245,13 +236,13 @@
                     {{ form.profilePhoto ? 'Change photo' : 'Upload photo' }}
                   </label>
                   <button v-if="form.profilePhoto" type="button" class="license-remove" @click="removePhoto">Remove</button>
-                  <span class="license-hint">A clear, friendly headshot. JPG, PNG or WEBP · max 2 MB.</span>
+                  <span class="license-hint">A clear, friendly headshot. JPG, PNG or WEBP, up to 2 MB.</span>
                 </div>
               </div>
             </div>
 
             <div class="field">
-              <label>Professional Bio <span class="required-tag">Required</span></label>
+              <label>Bio <span class="required-tag">Required</span></label>
               <textarea
                 v-model="form.bio" rows="5" maxlength="1000" class="bio-input" :class="{ invalid: bioError }"
                 placeholder="e.g. Registered Nutritionist-Dietitian with 6 years of hospital experience, helping adults manage diabetes and lose weight through practical Filipino meals."
@@ -264,7 +255,7 @@
             </div>
 
             <div class="field">
-              <label>Languages You Consult In <span class="required-tag">Required</span></label>
+              <label>Languages you consult in <span class="required-tag">Required</span></label>
               <div class="chip-grid">
                 <label v-for="lang in LANGUAGES" :key="lang.code" class="choice-chip" :class="{ checked: form.languages.includes(lang.code) }">
                   <input v-model="form.languages" type="checkbox" :value="lang.code" />
@@ -275,20 +266,20 @@
 
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
             <div class="form-nav">
-              <button type="button" class="btn-back" @click="currentStep = 2">← Back</button>
-              <button type="submit" class="btn-primary" :disabled="!profileValid">Continue →</button>
+              <button type="button" class="btn-back" @click="currentStep = 2">Back</button>
+              <button type="submit" class="btn-primary" :disabled="!profileValid">Continue</button>
             </div>
           </form>
         </div>
 
         <!-- RND STEP 4: CONSULTATION SETUP (stage 6) -->
         <div v-else-if="currentStep === 6">
-          <h2>Consultation Setup</h2>
-          <p class="subtitle">Step 4 of {{ steps.length }} — Your fee and consultation formats</p>
+          <h2>Consultations</h2>
+          <p class="subtitle">Step 4 of {{ steps.length }}. Your fee and how you consult.</p>
 
           <form class="details-form" novalidate @submit.prevent="goToConfirm">
             <div class="field">
-              <label>Consultation Fee <span class="required-tag">Required</span></label>
+              <label>Consultation fee <span class="required-tag">Required</span></label>
               <div class="fee-wrap">
                 <span class="fee-prefix">₱</span>
                 <input v-model.number="form.fee" type="number" inputmode="numeric" min="100" step="50" placeholder="e.g. 800" :class="{ invalid: feeError }" />
@@ -299,7 +290,7 @@
             </div>
 
             <div class="field">
-              <label>Consultation Formats <span class="required-tag">Required</span></label>
+              <label>Consultation formats <span class="required-tag">Required</span></label>
               <div class="chip-grid">
                 <label v-for="(label, key) in MODE_LABELS" :key="key" class="choice-chip" :class="{ checked: form.modes.includes(key) }">
                   <input v-model="form.modes" type="checkbox" :value="key" />
@@ -309,17 +300,17 @@
             </div>
 
             <div v-if="form.modes.includes('in_person')" class="field">
-              <label for="reg-clinic">Clinic Address <span class="required-tag">Required</span></label>
+              <label for="reg-clinic">Clinic address <span class="required-tag">Required</span></label>
               <input id="reg-clinic" v-model="form.clinicAddress" type="text" maxlength="255"
                 placeholder="e.g. 2F Bajada Medical Bldg, J.P. Laurel Ave, Bajada, Davao City" />
               <span v-if="clinicAddressError" class="field-error">{{ clinicAddressError }}</span>
-              <span v-else class="license-hint">Where clients go for in-person consultations — shown on your profile.</span>
+              <span v-else class="license-hint">Where clients go for in-person consultations. It's shown on your profile.</span>
             </div>
 
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
             <div class="form-nav">
-              <button type="button" class="btn-back" @click="currentStep = 5">← Back</button>
-              <button type="submit" class="btn-primary" :disabled="!consultationValid">Continue →</button>
+              <button type="button" class="btn-back" @click="currentStep = 5">Back</button>
+              <button type="submit" class="btn-primary" :disabled="!consultationValid">Continue</button>
             </div>
           </form>
         </div>
@@ -327,50 +318,50 @@
         <!-- RND: APPLICATION UNDER REVIEW (stage 7, after verifying the email) -->
         <div v-else-if="currentStep === 7" class="review-stage">
           <div class="review-icon"><ClipboardCheck :size="28" aria-hidden="true" /></div>
-          <h2>Application Submitted</h2>
+          <h2>Application sent</h2>
           <p class="subtitle">
-            Thank you, {{ form.firstName }}! Your email is confirmed and your application is now with our admin team.
+            Thank you, {{ form.firstName }}. Your email is confirmed and your application is with our admin team.
           </p>
           <ol class="review-steps">
-            <li><strong>We review your PRC license and profile</strong> — usually within 1–2 business days.</li>
-            <li><strong>We email you at {{ form.email }}</strong> once your account is approved (or if we need anything fixed).</li>
-            <li><strong>Then you can sign in</strong> — add your weekly hours in Profile Settings and clients can find and book you.</li>
+            <li><strong>We review your PRC license and profile.</strong> It usually takes 1 to 2 business days.</li>
+            <li><strong>We email you at {{ form.email }}</strong> once your account is approved, or if we need anything fixed.</li>
+            <li><strong>Then you can sign in.</strong> Add your weekly hours in Profile Settings and clients can find and book you.</li>
           </ol>
-          <p class="review-small">You won't be able to sign in until your application is approved.</p>
-          <button type="button" class="btn-primary" @click="navigateTo('/')">Back to Homepage</button>
+          <p class="review-small">You can't sign in until your application is approved.</p>
+          <button type="button" class="btn-primary" @click="navigateTo('/')">Back to home</button>
         </div>
 
         <!-- STEP 3: CONFIRM -->
         <div v-else-if="currentStep === 3">
-          <h2>{{ selectedRole === 'rnd' ? 'Review Your Application' : 'Confirm Your Details' }}</h2>
-          <p class="subtitle">Step {{ steps.length }} of {{ steps.length }} — Review before submitting</p>
+          <h2>{{ selectedRole === 'rnd' ? 'Check your application' : 'Check your details' }}</h2>
+          <p class="subtitle">Step {{ steps.length }} of {{ steps.length }}. Make sure everything is right before you send it.</p>
 
           <div class="confirm-summary">
-            <div class="confirm-row"><span>Role</span><strong>{{ selectedRole === 'rnd' ? 'RND' : 'Patient' }}</strong></div>
+            <div class="confirm-row"><span>Signing up as</span><strong>{{ selectedRole === 'rnd' ? 'RND' : 'Client' }}</strong></div>
             <div class="confirm-row"><span>Name</span><strong>{{ form.firstName }} {{ form.lastName }}</strong></div>
             <div class="confirm-row"><span>Email</span><strong class="no-capitalize">{{ form.email }}</strong></div>
             <template v-if="selectedRole === 'patient'">
-              <div class="confirm-row"><span>Date of Birth</span><strong>{{ form.dob }}</strong></div>
+              <div class="confirm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
               <div class="confirm-row"><span>Gender</span><strong>{{ form.gender }}</strong></div>
-              <div class="confirm-row"><span>Primary Health Concern</span><strong>{{ form.healthConcern }}</strong></div>
+              <div class="confirm-row"><span>Main health concern</span><strong>{{ form.healthConcern }}</strong></div>
             </template>
             <template v-else-if="selectedRole === 'rnd'">
-              <div class="confirm-row"><span>Date of Birth</span><strong>{{ form.dob }}</strong></div>
-              <div class="confirm-row"><span>Mobile Number</span><strong>{{ formatPhone(form.phone) }}</strong></div>
-              <div class="confirm-row"><span>PRC License Number</span><strong>{{ form.prcNumber }}</strong></div>
-              <div class="confirm-row"><span>PRC License Photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
+              <div class="confirm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
+              <div class="confirm-row"><span>Mobile number</span><strong>{{ formatPhone(form.phone) }}</strong></div>
+              <div class="confirm-row"><span>PRC license number</span><strong>{{ form.prcNumber }}</strong></div>
+              <div class="confirm-row"><span>PRC license photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
               <div class="confirm-row"><span>Specialization</span><strong>{{ form.specialization || '—' }}</strong></div>
               <div class="confirm-row"><span>Languages</span><strong>{{ form.languages.map(languageName).join(', ') }}</strong></div>
-              <div class="confirm-row"><span>Consultation Fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
+              <div class="confirm-row"><span>Consultation fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
               <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
-              <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic Address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
+              <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
               <div class="confirm-row confirm-block"><span>Bio</span><p class="confirm-bio">{{ form.bio.trim() }}</p></div>
-              <div v-if="photoPreview" class="confirm-row"><span>Profile Photo</span><img :src="photoPreview" alt="Profile photo" class="confirm-photo" /></div>
+              <div v-if="photoPreview" class="confirm-row"><span>Profile photo</span><img :src="photoPreview" alt="Profile photo" class="confirm-photo" /></div>
             </template>
           </div>
           <p v-if="selectedRole === 'rnd'" class="review-note">
-            Our admin team reviews your PRC license and profile before your account is activated — usually within 1–2 business days.
-            You'll be able to sign in once it's approved.
+            Our admin team reviews your PRC license and profile before your account is activated. It usually takes 1 to 2 business days,
+            and you can sign in once it's approved.
           </p>
 
           <!-- Informed consent (RA 10173) — two boxes the person ticks
@@ -412,14 +403,14 @@
                   <button type="button" class="legal-tab" :class="{ active: legalTab === 'terms' }" @click="openLegal('terms')">Terms and Conditions</button>
                   <button type="button" class="legal-tab" :class="{ active: legalTab === 'privacy' }" @click="openLegal('privacy')">Privacy Policy</button>
                 </div>
-                <button type="button" class="legal-close" aria-label="Close" @click="legalOpen = false">✕</button>
+                <button type="button" class="legal-close" aria-label="Close" @click="legalOpen = false"><X :size="18" aria-hidden="true" /></button>
               </div>
               <iframe class="legal-frame" :class="{ ready: legalReady }" :src="legalTab === 'terms' ? '/terms' : '/privacy-policy'" :title="legalTab === 'terms' ? 'Terms and Conditions' : 'Privacy Policy'" @load="trimLegalFrame"></iframe>
               <div class="legal-foot">
                 <!-- Terms first, then Next leads to the Privacy Policy, which closes. -->
                 <template v-if="legalTab === 'terms'">
                   <p class="legal-hint">Read the Terms, then the Privacy Policy.</p>
-                  <button type="button" class="btn-primary legal-done" @click="openLegal('privacy')">Next: Privacy Policy →</button>
+                  <button type="button" class="btn-primary legal-done" @click="openLegal('privacy')">Next: Privacy Policy</button>
                 </template>
                 <template v-else>
                   <p class="legal-hint">{{ termsViewed ? 'You can now tick the consent boxes.' : 'Open the Terms tab too to continue.' }}</p>
@@ -432,10 +423,10 @@
           <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
           <div class="form-nav">
-            <button type="button" class="btn-back" :disabled="isSubmitting" @click="currentStep = selectedRole === 'rnd' ? 6 : 2">← Back</button>
+            <button type="button" class="btn-back" :disabled="isSubmitting" @click="currentStep = selectedRole === 'rnd' ? 6 : 2">Back</button>
             <button class="btn-primary" :disabled="isSubmitting || !consentGiven" :aria-busy="isSubmitting" @click="submitRegistration">
               <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
-              {{ isSubmitting ? (selectedRole === 'rnd' ? 'Submitting…' : 'Creating account…') : (selectedRole === 'rnd' ? 'Submit Application →' : 'Create Account →') }}
+              {{ isSubmitting ? (selectedRole === 'rnd' ? 'Submitting…' : 'Creating account…') : (selectedRole === 'rnd' ? 'Submit application' : 'Create account') }}
             </button>
           </div>
         </div>
@@ -443,9 +434,9 @@
         <!-- STEP 4: VERIFY EMAIL -->
         <div v-else-if="currentStep === 4">
           <div class="sent-icon"><Mail :size="26" aria-hidden="true" /></div>
-          <h2>Verify Your Email</h2>
+          <h2>Check your inbox</h2>
           <p class="subtitle">
-            We've sent a 6-digit code to <strong>{{ form.email }}</strong>. Enter it below to activate your account.
+            We sent a 6-digit code to <strong>{{ form.email }}</strong>. Enter it to confirm your email.
           </p>
 
           <form class="details-form" @submit.prevent="submitVerification">
@@ -459,7 +450,7 @@
 
             <button type="submit" class="btn-primary" :disabled="isSubmitting || isResending" :aria-busy="isSubmitting">
               <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
-              {{ isSubmitting ? 'Verifying…' : 'Verify & Continue →' }}
+              {{ isSubmitting ? 'Verifying…' : 'Confirm email' }}
             </button>
           </form>
 
@@ -470,7 +461,7 @@
         </div>
 
         <p v-if="![4, 7].includes(currentStep)" class="signin-link">
-          Already have an account? <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && navigateTo('/login')">Sign in →</a>
+          Already have an account? <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && navigateTo('/login')">Sign in</a>
         </p>
       </div>
     </main>
@@ -479,7 +470,7 @@
 
 <script setup>
 import { phIso } from '~/utils/phTime'
-import { ClipboardCheck, Lock, Mail, User } from 'lucide-vue-next'
+import { ArrowLeft, Check, Circle, ClipboardCheck, Eye, EyeOff, Lock, Mail, User, X } from 'lucide-vue-next'
 const auth = useAuthStore()
 
 // Landing-page buttons link to /register?role=client|rnd: open that role's
@@ -615,7 +606,7 @@ const NAME_RE = /^\p{L}+(?:[ .'\-]+\p{L}+)*\.?$/u
 function nameError(value) {
   const v = value.trim()
   if (!v) return ''
-  return NAME_RE.test(v) ? '' : 'Letters only — no numbers or symbols.'
+  return NAME_RE.test(v) ? '' : 'Letters only, no numbers or symbols.'
 }
 const firstNameError = computed(() => nameError(form.firstName))
 const lastNameError = computed(() => nameError(form.lastName))
@@ -761,7 +752,7 @@ const clinicAddressError = computed(() => {
   if (!form.modes.includes('in_person')) return ''
   const v = form.clinicAddress.trim()
   if (!v) return ''
-  return v.length < 10 ? 'Enter the full address — building, street, barangay and city.' : ''
+  return v.length < 10 ? 'Enter the full address: building, street, barangay and city.' : ''
 })
 const clinicAddressOk = computed(() => !form.modes.includes('in_person') || (form.clinicAddress.trim().length >= 10))
 const consultationValid = computed(() =>
@@ -809,8 +800,8 @@ const genderToSex = { Male: 'male', Female: 'female' }
 // in); clients keep the short form. Stage numbers: 1 role, 2 details,
 // 5 profile, 6 consultation, 3 confirm, 4 verify email, 7 under review.
 const steps = computed(() => (selectedRole.value === 'rnd'
-  ? [{ label: 'Choose Role' }, { label: 'Account & License' }, { label: 'Profile' }, { label: 'Consultation' }, { label: 'Review & Submit' }]
-  : [{ label: 'Choose Role' }, { label: 'Your Details' }, { label: 'Confirm' }]))
+  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Profile' }, { label: 'Consultations' }, { label: 'Check and send' }]
+  : [{ label: 'Choose a role' }, { label: 'Your details' }, { label: 'Check and create' }]))
 const STAGE_ORDER = { patient: [1, 2, 3], rnd: [1, 2, 5, 6, 3] }
 const stageIndex = computed(() => {
   if ([4, 7].includes(currentStep.value)) return steps.value.length // all done
@@ -826,14 +817,14 @@ const icons = {
 }
 
 const roles = [
-  { value: 'patient', icon: icons.patient, label: 'Patient', desc: 'Find an RND' },
-  { value: 'rnd', icon: icons.rnd, label: 'RND', desc: 'Offer care' }
+  { value: 'patient', icon: icons.patient, label: 'I need nutrition care', desc: 'Sign up as a client' },
+  { value: 'rnd', icon: icons.rnd, label: "I'm an RND", desc: 'Apply to consult' }
 ]
 
-// Info box text nga mo show the role grid, matching the Figma copy per role
+// The note under the role cards, one per role
 const roleInfoText = {
-  patient: "You'll be matched with PRC-verified nutritionist–dietitians based on your health goals and preferences. No verification needed to get started.",
-  rnd: "RND accounts require PRC license verification by our admin team — usually within 1–2 business days — before your profile goes live to clients."
+  patient: "Find a PRC-verified nutritionist-dietitian who fits your health goals, and book them directly. No verification needed to get started.",
+  rnd: "Our admin team checks your PRC license before your profile goes live to clients. It usually takes 1 to 2 business days."
 }
 
 const roleInfo = computed(() => roleInfoText[selectedRole.value] || '')
@@ -942,381 +933,179 @@ async function resendCode() {
 }
 </script>
 
+<style scoped src="~/assets/css/auth.css"></style>
+
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;500;600;700&display=swap');
-
-.register-page {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-}
-
-/* LEFT PANEL */
-.left-panel {
-  background: linear-gradient(160deg, #0b3022 0%, #063c2a 60%, #052a1d 100%);
-  position: relative;
-  overflow: hidden;
-  padding: 48px 64px;
-  color: #fff;
-}
-
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 55%, rgba(255,255,255,0) 75%);
-}
+/* the original background picture: light circles on the dark green */
+.left-panel { background: linear-gradient(160deg, #0b3022 0%, #063c2a 60%, #052a1d 100%); }
+.circle { background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 55%, rgba(255,255,255,0) 75%); }
 .circle-1 { width: 400px; height: 400px; top: -150px; right: -100px; }
 .circle-2 { width: 350px; height: 350px; bottom: 100px; right: -150px; }
 .circle-3 { width: 450px; height: 450px; bottom: -250px; left: -150px; }
 
-.brand { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; position: relative; z-index: 1; }
-.home-link { color: inherit; text-decoration: none; width: fit-content; }
-.logo-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-.logo-match { color: #D4A017; }
-
-.left-content { margin-top: 120px; position: relative; z-index: 1; }
-
-.eyebrow { font-size: 0.75rem; letter-spacing: 0.1em; color: #a8c4a8; }
-
-.left-content h1 {
-  font-family: 'Playfair Display', serif;
-  font-weight: 700;
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  line-height: 1.2;
-  margin: 16px 0 56px;
-}
-.highlight { color: #D4A017; font-style: italic; }
-
-.steps { display: flex; flex-direction: column; }
-
-.step {
-  display: flex;
-  gap: 16px;
-  padding-bottom: 32px;
-  position: relative;
-}
-.step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 32px;
-  width: 1px;
-  height: calc(100% - 32px);
-  background: rgba(255,255,255,0.2);
-}
-
+/* LEFT: the steps */
+.steps { display: flex; flex-direction: column; margin-top: 36px; }
+.step { display: flex; align-items: center; gap: 14px; padding-bottom: 22px; position: relative; }
+.step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 34px; width: 1px; height: calc(100% - 36px); background: rgba(255, 255, 255, 0.22); }
 .step-number {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.1);
-  color: #a8c4a8;
-  font-size: 0.85rem;
-  font-weight: 600;
-  flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.1); color: #cfe0d5; font-size: 0.85rem; font-weight: 600;
 }
-.step.active .step-number { background: #fff; color: #1a3a1a; }
+.step.active .step-number { background: #fff; color: #0a4a37; }
 .step.done .step-number { background: #D4A017; color: #1a3a1a; }
-
-.step-text { display: flex; flex-direction: column; }
-.step-label { font-size: 0.7rem; letter-spacing: 0.08em; color: #7aaa7a; }
-.step-title { font-weight: 600; color: #d8e8d8; }
+.step-title { font-weight: 600; font-size: 0.92rem; color: #cfe0d5; }
 .step.active .step-title { color: #fff; }
-.step.done .step-title { color: #D4A017; }
-
-/* RIGHT PANEL */
-.right-panel {
-  background: #fff;
-  padding: 48px 80px;
-  display: flex;
-  flex-direction: column;
-}
-
-.form-wrap { max-width: 480px; margin: 40px auto 0; width: 100%; }
-
-.form-wrap h2 {
-  font-family: 'Playfair Display', serif;
-  font-size: 2rem;
-  color: #1a3a1a;
-  margin-bottom: 8px;
-}
-
-.subtitle { color: #8a9a8a; font-size: 0.9rem; margin-bottom: 32px; }
 
 /* ROLE CARDS */
-.role-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
-
+.role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
 .role-card {
-  border: 1.5px solid #e0e5e0;
-  border-radius: 12px;
-  padding: 28px 16px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 24px 16px; text-align: center;
+  border: 1.5px solid #d9e3dc; border-radius: 12px; background: #fff; cursor: pointer; font-family: inherit; color: #1a3a1a;
 }
-.role-card:hover { border-color: #1a3a1a; transform: translateY(-1px); }
-.role-card.selected {
-  border-color: #1a3a1a;
-  background: #f6f9f6;
-  box-shadow: 0 0 0 1px #1a3a1a;
-}
+.role-card:hover { border-color: #1f8f5c; }
+.role-card.selected { border-color: #0a4a37; background: #f2f9f4; box-shadow: 0 0 0 1px #0a4a37; }
+.role-card:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.role-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: #e3efe7; color: #0a4a37; margin-bottom: 6px; }
+.role-name { font-weight: 700; font-size: 0.95rem; }
+.role-desc { font-size: 0.8rem; color: #6a7a6a; }
+/* plain information: grey */
+.role-info-box { background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; }
+.role-info-box p { font-size: 0.85rem; line-height: 1.5; color: #4a5a4a; margin: 0; }
+.fade-slide-enter-active, .fade-slide-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(-6px); }
+@media (prefers-reduced-motion: reduce) { .fade-slide-enter-active, .fade-slide-leave-active { transition: none; } }
 
-.role-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6a8a6a;
-  margin-bottom: 6px;
-  transition: color 0.15s ease;
-}
-.role-card.selected .role-icon,
-.role-card:hover .role-icon { color: #1a3a1a; }
-
-.role-name { font-weight: 700; color: #1a3a1a; }
-.role-desc { font-size: 0.78rem; color: #8a9a8a; }
-
-/* ROLE INFO BOX — mirrors the Figma hint box under the role grid */
-.role-info-box {
-  border-left: 3px solid #1a3a1a;
-  background: #f6f5ef;
-  border-radius: 6px;
-  padding: 14px 18px;
-  margin-bottom: 20px;
-}
-.role-info-box p {
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: #4a5a4a;
-  margin: 0;
-}
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-.fade-slide-enter-from,
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-/* FORM FIELDS */
+/* FORM */
 .details-form { display: flex; flex-direction: column; gap: 18px; margin-bottom: 12px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #1a3a1a;
-  text-transform: uppercase;
-}
-.field input {
-  padding: 12px 14px;
-  border: 1px solid #dde3dd;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-family: inherit;
-  background: #fff;
-  color: #1a3a1a;
-}
-.field input:focus { outline: none; border-color: #1a3a1a; }
+.field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
 .field select { min-height: 46px; font-size: 0.95rem; }
+.required-tag, .optional-tag { font-size: 0.78rem; font-weight: 500; margin-left: 6px; }
+.required-tag { color: #a12525; }
+.optional-tag { color: #6a7a6a; }
+.field-error { display: block; font-size: 0.78rem; color: #c0392b; }
+.field input.invalid, .field select.invalid, .bio-input.invalid { border-color: #e2a39b; background: #fff8f7; }
+.license-hint { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
 
 .license-upload {
-  display: flex; align-items: center; justify-content: center; min-height: 120px;
-  border: 1.5px dashed #b8c8b8; border-radius: 10px; background: #f7f9f7;
-  cursor: pointer; overflow: hidden; padding: 10px; text-transform: none; letter-spacing: normal;
+  display: flex; align-items: center; justify-content: center; min-height: 120px; padding: 10px; overflow: hidden; cursor: pointer;
+  border: 1.5px dashed #3f9a6b; border-radius: 10px; background: #fff;
 }
-.license-upload:hover { border-color: #1a3a1a; }
-.license-upload.has-file { border-style: solid; background: #fff; }
+.license-upload:hover { background: #f7faf8; }
+.license-upload.has-file { border: 1px solid #d9e3dc; }
 .license-input { display: none; }
-.license-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.8rem; color: #8a9a8a; text-align: center; font-weight: 400; }
+.license-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.8rem; color: #6a7a6a; text-align: center; }
 .license-placeholder strong { color: #1a3a1a; font-size: 0.86rem; }
 .license-preview { max-height: 160px; max-width: 100%; border-radius: 6px; object-fit: contain; }
-.license-filename { font-size: 0.75rem; color: #4a5a4a; }
 .license-file-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.license-filename { font-size: 0.78rem; color: #4a5a4a; overflow-wrap: anywhere; }
 .license-remove {
-  border: 1px solid #f0d6d6; background: #fff; color: #c0392b; border-radius: 6px;
-  padding: 4px 10px; font-size: 0.74rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: none; border-radius: 8px;
+  background: #c0392b; color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
 }
-.license-remove:hover { background: #fbeaea; }
-.required-tag {
-  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-  color: #c0392b; background: #fbeaea; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle;
-}
-.license-hint { font-size: 0.72rem; color: #9aaa9a; }
-.confirm-license { height: 56px; border-radius: 6px; object-fit: cover; }
+.license-remove:hover { background: #a93226; }
 
-.input-icon-wrap { position: relative; display: flex; align-items: center; }
-.input-icon-wrap input { flex: 1; padding-left: 38px; padding-right: 60px; }
-.input-icon {
-  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-  width: 16px; height: 16px; color: #9aa8a0;
-  pointer-events: none;
-}
-.toggle-visibility {
-  position: absolute; right: 12px;
-  background: none; border: none; cursor: pointer;
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
-  color: #6a8a6a;
-}
-
-/* CONFIRM STEP */
-.confirm-summary {
-  border: 1px solid #e0e5e0;
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.confirm-row { display: flex; justify-content: space-between; gap: 16px; font-size: 0.9rem; }
-.confirm-row span { color: #8a9a8a; flex-shrink: 0; }
-.confirm-row strong { color: #1a3a1a; text-transform: capitalize; text-align: right; }
-.confirm-row strong.no-capitalize { text-transform: none; }
-
-/* BUTTONS */
-.form-nav { display: flex; gap: 12px; margin-top: 4px; }
-
-.btn-primary {
-  width: 100%;
-  background: #1a3a1a;
-  color: #fff;
-  border: none;
-  padding: 16px;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 4px;
-}
-.btn-primary:hover:not(:disabled) { background: #14300f; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-back:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-spinner {
-  width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
-  animation: btn-spin 0.7s linear infinite; flex-shrink: 0;
-}
-@keyframes btn-spin { to { transform: rotate(360deg); } }
-.link-disabled { opacity: 0.45; pointer-events: none; cursor: not-allowed; }
-
-.optional-tag { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #6a7a6a; background: #eef1ee; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
 .photo-row { display: flex; align-items: center; gap: 14px; }
 .photo-preview, .photo-placeholder { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
 .photo-preview { object-fit: cover; }
-.photo-placeholder { background: #D4A017; color: #1a3a1a; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
-.photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.field .photo-btn, .photo-btn { position: relative; border: 1px solid #d5dad5; border-radius: 8px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; color: #1a3a1a; cursor: pointer; background: #fff; text-transform: none; letter-spacing: normal; }
-.photo-btn:hover { background: #f7f9f7; }
-.bio-input { width: 100%; border: 1px solid #d5dad5; border-radius: 10px; padding: 12px 14px; font-size: 0.88rem; font-family: inherit; line-height: 1.5; resize: vertical; box-sizing: border-box; }
-.bio-input:focus { outline: none; border-color: #1a3a1a; }
-.bio-input.invalid { border-color: #c0392b; }
+.photo-placeholder { background: #0a4a37; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
+.photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.photo-btn {
+  position: relative; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 8px;
+  background: #e3efe7; color: #0a4a37; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.photo-btn:hover { background: #d3e7da; }
+.bio-input {
+  width: 100%; box-sizing: border-box; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 14px;
+  font-size: 0.9rem; font-family: inherit; line-height: 1.5; color: #1a3a1a; resize: vertical;
+}
+.bio-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
 .bio-meta { display: flex; justify-content: space-between; gap: 10px; }
-.char-count { font-size: 0.72rem; color: #8a9a8a; white-space: nowrap; }
-.char-count.short { color: #b8860b; }
+.char-count { font-size: 0.76rem; color: #6a7a6a; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.char-count.short { color: #a12525; }
+
+/* toggle chips: languages, formats */
 .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.field .choice-chip, .choice-chip { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid #d5dad5; border-radius: 999px; padding: 7px 13px; font-size: 0.8rem; font-weight: 600; color: #4a5a4a; cursor: pointer; background: #fff; text-transform: none; letter-spacing: normal; }
-.choice-chip input { accent-color: #1a3a1a; margin: 0; }
-.choice-chip.checked { border-color: #1a3a1a; background: #f0f5f0; color: #1a3a1a; }
+.choice-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 13px; border: 1.5px solid #d9e3dc; border-radius: 999px;
+  background: #fff; color: #4a5a4a; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.choice-chip input { accent-color: #0a4a37; margin: 0; }
+.choice-chip.checked { border-color: #0a4a37; background: #e3efe7; color: #0a4a37; }
 .fee-wrap { display: flex; align-items: center; gap: 8px; max-width: 280px; }
 .fee-wrap input { flex: 1; min-width: 0; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
-.fee-suffix { font-size: 0.8rem; color: #8a9a8a; white-space: nowrap; }
-.confirm-block { flex-direction: column; align-items: flex-start !important; gap: 4px; }
-.confirm-bio { margin: 0; font-size: 0.84rem; color: #1a3a1a; line-height: 1.5; white-space: pre-line; }
+.fee-suffix { font-size: 0.82rem; color: #6a7a6a; white-space: nowrap; }
+
+/* CHECK STEP: one divided summary */
+.confirm-summary { border: 1px solid #d9e3dc; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+.confirm-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 11px 16px; font-size: 0.88rem; }
+.confirm-row + .confirm-row { border-top: 1px solid #d9e3dc; }
+.confirm-row span { color: #6a7a6a; flex-shrink: 0; }
+.confirm-block { flex-direction: column; align-items: flex-start; gap: 4px; }
+.confirm-bio { margin: 0; font-size: 0.86rem; color: #1a3a1a; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.confirm-license { height: 56px; border-radius: 6px; object-fit: cover; }
 .confirm-photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-.review-note { font-size: 0.8rem; color: #6a5a2a; background: #fdf8ec; border-left: 3px solid #D4A017; border-radius: 6px; padding: 10px 14px; margin: 14px 0 0; line-height: 1.5; }
+.review-note { font-size: 0.84rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; line-height: 1.5; }
+
 .review-stage { text-align: left; }
-.review-icon { width: 56px; height: 56px; border-radius: 50%; background: #e3f3ea; color: #1f8f5c; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-.review-steps { margin: 18px 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; color: #4a5a4a; line-height: 1.5; }
+.review-icon { width: 56px; height: 56px; border-radius: 50%; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.review-steps { margin: 18px 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; color: #4a5a4a; line-height: 1.5; }
 .review-steps strong { color: #1a3a1a; }
-.review-small { font-size: 0.8rem; color: #8a9a8a; margin: 0 0 18px; }
-.consent-box { display: flex; flex-direction: column; gap: 12px; margin: 18px 0 6px; padding: 14px 16px; border: 1px solid #e5e8e5; border-radius: 10px; background: #fafbfa; }
-.consent-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; color: #4a5a4a; line-height: 1.5; cursor: pointer; text-transform: none; letter-spacing: normal; font-weight: 400; }
-.consent-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #1a3a1a; flex-shrink: 0; cursor: pointer; }
-.consent-item a { color: #1a3a1a; font-weight: 700; text-decoration: underline; }
+.review-small { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 18px; }
+
+/* consent (RA 10173) */
+.consent-box { display: flex; flex-direction: column; gap: 12px; margin: 0 0 6px; padding: 14px 16px; border: 1px solid #d9e3dc; border-radius: 12px; background: #fff; }
+.consent-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.5; cursor: pointer; }
+.consent-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
+.consent-item a, .consent-lock-note a { color: #0a4a37; font-weight: 600; text-decoration: underline; }
 .consent-item.is-locked { cursor: default; }
-.consent-lock-note { margin: 0; font-size: 0.78rem; color: #8a6a10; }
-.consent-lock-note a { color: #1a3a1a; font-weight: 700; text-decoration: underline; }
 .consent-item input:disabled { opacity: 0.5; cursor: not-allowed; }
-.legal-overlay { position: fixed; inset: 0; background: rgba(10, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
-.legal-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 1100px; height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
-.legal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e5e8e5; }
+/* something still to do: dashed green */
+.consent-lock-note { margin: 0; font-size: 0.82rem; color: #1f4a30; border: 1.5px dashed #3f9a6b; border-radius: 8px; padding: 8px 12px; line-height: 1.5; }
+
+/* Terms / Privacy pop-up, same frame as every pop-up */
+.legal-overlay { position: fixed; inset: 0; background: rgba(20, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+.legal-modal {
+  width: 100%; max-width: 1000px; height: 92vh; height: 92dvh; display: flex; flex-direction: column; overflow: hidden;
+  background: #fff; border-radius: 18px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
+}
+.legal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #d9e3dc; }
 .legal-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-.legal-tab { border: 1px solid #dde3dd; background: #fff; color: #4a5a4a; border-radius: 999px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; font-family: inherit; cursor: pointer; }
-.legal-tab.active { background: #1a3a1a; border-color: #1a3a1a; color: #fff; }
-.legal-close { border: none; background: none; font-size: 1rem; color: #6a7a6a; cursor: pointer; padding: 4px 8px; }
+.legal-tab {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border: none; border-radius: 8px;
+  background: #e3efe7; color: #0a4a37; font-size: 0.82rem; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.legal-tab:hover { background: #d3e7da; }
+.legal-tab.active { background: #0a4a37; color: #fff; }
+.legal-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: none; color: #6a7a6a; cursor: pointer; }
+.legal-close:hover { background: #f2f5f2; color: #1a3a1a; }
 .legal-frame { flex: 1; width: 100%; border: none; background: #fff; opacity: 0; transition: opacity 0.15s ease; }
 .legal-frame.ready { opacity: 1; }
-.legal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid #e5e8e5; }
-.legal-hint { margin: 0; font-size: 0.78rem; color: #6a7a6a; }
-.btn-primary.legal-done { width: auto; margin-top: 0; padding: 11px 26px; }
-.field-error { display: block; font-size: 0.74rem; color: #c0392b; margin-top: 5px; }
-input.invalid, select.invalid { border-color: #e2a39b !important; background: #fff8f7; }
-.pw-rules { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
-.pw-rules li { font-size: 0.74rem; color: #8a9a8a; display: flex; align-items: center; gap: 6px; }
-.pw-rules li.ok { color: #1f8f5c; font-weight: 600; }
-.pw-rule-mark { width: 12px; text-align: center; }
-@media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
-.form-nav .btn-primary { flex: 1; margin-top: 0; }
+.legal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid #d9e3dc; background: #f7faf8; }
+.legal-hint { margin: 0; font-size: 0.82rem; color: #4a5a4a; }
+.btn-primary.legal-done { width: auto; min-height: 40px; }
 
+/* BUTTON ROW: Back and Continue, one height */
+.form-nav { display: flex; gap: 12px; margin-top: 4px; }
+.form-nav .btn-primary { flex: 1; }
 .btn-back {
-  flex: 0 0 auto;
-  background: #fff;
-  border: 1px solid #dde3dd;
-  color: #1a3a1a;
-  padding: 16px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+  flex: 0 0 auto; min-height: 46px; padding: 0 20px; border: none; border-radius: 8px;
+  background: #e3efe7; color: #0a4a37; font-family: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer;
 }
-.btn-back:hover { background: #f4f6f4; }
+.btn-back:hover:not(:disabled) { background: #d3e7da; }
+.btn-back:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-back:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.btn-spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff; animation: btn-spin 0.7s linear infinite; flex-shrink: 0; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+.link-disabled { opacity: 0.45; pointer-events: none; cursor: not-allowed; }
+.form-success { margin-top: 4px; }
 
-.signin-link { text-align: center; margin-top: 20px; font-size: 0.88rem; color: #8a9a8a; }
-.signin-link a { color: #1a3a1a; font-weight: 600; text-decoration: none; }
-
-.form-error {
-  background: #fdecec;
-  border: 1px solid #f3b8b8;
-  color: #a12525;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.85rem;
-  margin: 4px 0 0;
-}
-
-.form-success {
-  background: #e6f4e6;
-  border: 1px solid #b8ddb8;
-  color: #1a5a2a;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.85rem;
-  margin: 4px 0 0;
-}
-
-.sent-icon {
-  width: 52px; height: 52px; border-radius: 50%; background: #f1f3f1; color: #9aa8a0;
-  display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
-}
-
-.code-input { letter-spacing: 0.3em; font-size: 1.2rem; text-align: center; font-weight: 700; }
-
-/* Phones/tablets: the green hero (headline + step list) would stack above
-   the form and push it off-screen, so it shrinks to a slim branded bar and
-   the form comes first — the form already says "Step 2 of 3". */
 @media (max-width: 900px) {
-  .register-page { grid-template-columns: 1fr; min-height: 100vh; min-height: 100dvh; grid-template-rows: auto 1fr; }
-  .left-panel { padding: 16px 20px; min-height: 0; }
-  .left-content, .circle { display: none; }
-  .right-panel { padding: 24px 20px 32px; }
-  .form-wrap { margin-top: 8px; }
-  .role-grid { grid-template-columns: 1fr; }
-  .field-row { grid-template-columns: 1fr; }
+  .role-grid, .field-row { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .legal-overlay { padding: 0; }
+  .legal-modal { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; }
+  .legal-foot .btn-primary.legal-done { width: 100%; }
 }
 </style>
