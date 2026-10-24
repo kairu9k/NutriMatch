@@ -845,8 +845,8 @@ const genderToSex = { Male: 'male', Female: 'female' }
 // in); clients keep the short form. Stage numbers: 1 role, 2 details,
 // 5 profile, 6 consultation, 3 confirm, 4 verify email, 7 under review.
 const steps = computed(() => (selectedRole.value === 'rnd'
-  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Profile' }, { label: 'Consultations' }, { label: 'Check and send' }]
-  : [{ label: 'Choose a role' }, { label: 'Your details' }, { label: 'Check and create' }]))
+  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Your profile' }, { label: 'Consultations' }, { label: 'Check your application' }]
+  : [{ label: 'Choose a role' }, { label: 'Your details' }, { label: 'Check your details' }]))
 const STAGE_ORDER = { patient: [1, 2, 3], rnd: [1, 2, 5, 6, 3] }
 const stageIndex = computed(() => {
   if ([4, 7].includes(currentStep.value)) return steps.value.length // all done
