@@ -16,17 +16,18 @@
           </button>
         </p>
       </div>
-      <div class="nm-upnext">
-        <template v-if="firstUp">
-          <p class="nm-upnext-label">First up</p>
-          <p class="first-title" :class="firstUp.level">{{ firstUp.title }}</p>
-          <p class="nm-upnext-empty">{{ firstUp.detail }}</p>
-          <div class="nm-upnext-actions"><NuxtLink :to="firstUp.link" class="nm-hero-btn primary">Open</NuxtLink></div>
-        </template>
-        <template v-else-if="dash">
-          <p class="nm-upnext-label">First up</p>
-          <p class="nm-upnext-empty">Nothing needs you right now.</p>
-          <div class="nm-upnext-actions"><NuxtLink to="/platform-reports" class="nm-hero-btn">Open reports</NuxtLink></div>
+      <div class="nm-upnext todo-card">
+        <p class="nm-upnext-label">Your to-do</p>
+        <template v-if="dash">
+          <ul class="todo">
+            <li v-for="t in todoRows" :key="t.key" :class="{ done: !t.count }">
+              <component :is="t.count ? CircleDot : CheckCircle2" :size="16" class="todo-mark" aria-hidden="true" />
+              <span class="todo-text">{{ t.count ? t.text : t.doneText }}</span>
+              <NuxtLink v-if="t.count" :to="t.link" class="nm-hero-btn primary todo-btn">{{ t.action }}</NuxtLink>
+            </li>
+          </ul>
+          <p v-if="!todoOpen" class="todo-clear">All caught up.<template v-if="stats.next_payout_date"> Next payout {{ longDate(stats.next_payout_date) }}.</template></p>
+          <button type="button" class="see-all" @click="attnOpen = true">See everything<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template></button>
         </template>
         <p v-else class="nm-upnext-empty">Loading…</p>
       </div>
@@ -35,7 +36,7 @@
     <!-- TODAY: one divided panel -->
     <section v-if="dash" class="nm-panel figs-panel" aria-label="Today">
       <h2 class="nm-panel-title figs-title">Today</h2>
-      <div class="figs six">
+      <div class="figs nine">
         <NuxtLink v-for="t in todayFigures" :key="t.label" :to="t.link" class="fig" :class="t.tone">
           <strong>{{ t.value }}</strong><span>{{ t.label }}</span>
         </NuxtLink>
@@ -43,26 +44,23 @@
     </section>
 
     <div v-if="dash" class="nm-grid">
-      <!-- NEEDS ATTENTION: red critical, gold to do, grey for your information -->
-      <section class="nm-panel attn-panel">
+      <!-- MONTH VS LAST MONTH -->
+      <section class="nm-panel">
         <div class="nm-panel-head">
           <div>
-            <h2 class="nm-panel-title">Needs attention</h2>
-            <p class="nm-panel-sub">Most urgent first</p>
+            <h2 class="nm-panel-title">This month vs last month</h2>
+            <p class="nm-panel-sub">{{ dash.compare.label }}, the same number of days</p>
           </div>
         </div>
-        <div v-if="!dash.attention.length" class="nm-empty"><CheckCircle2 :size="26" aria-hidden="true" /><p>Nothing needs you right now.</p></div>
-        <ul v-else class="attn-list">
-          <li v-for="a in dash.attention" :key="a.key" class="attn" :class="a.level">
-            <component :is="LEVEL_ICON[a.level]" :size="16" class="attn-icon" aria-hidden="true" />
-            <span class="attn-main">
-              <strong>{{ a.title }}</strong>
-              <small>{{ a.detail }}</small>
-              <small v-if="a.people.length" class="attn-people">{{ a.people.slice(0, 4).map(p => p.name).join(', ') }}{{ a.people.length > 4 ? `, and ${a.people.length - 4} more` : '' }}</small>
-            </span>
-            <NuxtLink :to="a.link" class="nm-panel-link">Open</NuxtLink>
-          </li>
-        </ul>
+        <div v-for="m in dash.compare.metrics" :key="m.key" class="cmp">
+          <span class="cmp-label">{{ METRIC_LABEL[m.key] }}</span>
+          <span class="cmp-now">{{ money(m) ? peso(m.now) : m.now }}</span>
+          <span class="cmp-delta" :class="m.change_pct == null ? 'flat' : m.change_pct > 0 ? 'up' : 'flat'">
+            <template v-if="m.change_pct == null">{{ m.now ? 'New' : 'No change' }}</template>
+            <template v-else><component :is="m.change_pct >= 0 ? TrendingUp : TrendingDown" :size="13" aria-hidden="true" /> {{ m.change_pct > 0 ? '+' : '' }}{{ m.change_pct }}%</template>
+          </span>
+          <span class="cmp-before">was {{ money(m) ? peso(m.before) : m.before }}</span>
+        </div>
       </section>
 
       <!-- RND APPLICATIONS -->
@@ -124,26 +122,7 @@
       </div>
     </section>
 
-    <div v-if="dash" class="nm-grid">
-      <!-- MONTH VS LAST MONTH -->
-      <section class="nm-panel">
-        <div class="nm-panel-head">
-          <div>
-            <h2 class="nm-panel-title">This month vs last month</h2>
-            <p class="nm-panel-sub">{{ dash.compare.label }}, the same number of days</p>
-          </div>
-        </div>
-        <div v-for="m in dash.compare.metrics" :key="m.key" class="cmp">
-          <span class="cmp-label">{{ METRIC_LABEL[m.key] }}</span>
-          <span class="cmp-now">{{ money(m) ? peso(m.now) : m.now }}</span>
-          <span class="cmp-delta" :class="m.change_pct == null ? 'flat' : m.change_pct > 0 ? 'up' : 'flat'">
-            <template v-if="m.change_pct == null">{{ m.now ? 'New' : 'No change' }}</template>
-            <template v-else><component :is="m.change_pct >= 0 ? TrendingUp : TrendingDown" :size="13" aria-hidden="true" /> {{ m.change_pct > 0 ? '+' : '' }}{{ m.change_pct }}%</template>
-          </span>
-          <span class="cmp-before">was {{ money(m) ? peso(m.before) : m.before }}</span>
-        </div>
-      </section>
-
+    <div v-if="dash">
       <!-- RECENT ADMIN ACTIVITY: click a row for the details -->
       <section class="nm-panel">
         <div class="nm-panel-head">
@@ -162,6 +141,36 @@
           <ChevronRight :size="15" class="act-go" aria-hidden="true" />
         </button>
       </section>
+    </div>
+
+    <!-- EVERYTHING THAT NEEDS AN EYE (pop-up from the to-do card) -->
+    <div v-if="attnOpen && dash" class="nm-modal-overlay" @click.self="attnOpen = false">
+      <div class="nm-modal attn-modal" role="dialog" aria-modal="true" aria-labelledby="attn-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="attnOpen = false"><X :size="18" aria-hidden="true" /></button>
+        <h2 id="attn-title" class="nm-modal-title">Needs attention</h2>
+        <h3 class="attn-h">Your to-do</h3>
+        <p v-if="!todoItems.length" class="nm-muted attn-none">Nothing to do right now.</p>
+        <ul v-else class="attn-list">
+          <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
+            <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
+            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+            <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm" @click="attnOpen = false">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
+          </li>
+        </ul>
+        <h3 class="attn-h">Keep an eye on</h3>
+        <p class="attn-sub">For your information. The app or the RND handles these.</p>
+        <p v-if="!watchItems.length" class="nm-muted attn-none">Nothing to watch right now.</p>
+        <ul v-else class="attn-list">
+          <li v-for="a in watchItems" :key="a.key" class="attn watch">
+            <Info :size="16" class="attn-icon" aria-hidden="true" />
+            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+            <NuxtLink :to="a.link" class="nm-panel-link" @click="attnOpen = false">View</NuxtLink>
+          </li>
+        </ul>
+        <div class="nm-modal-actions"><button type="button" class="nm-btn-soft" @click="attnOpen = false">Close</button></div>
+      </div>
     </div>
 
     <!-- ACTIVITY DETAILS (pop-up, only when a row is clicked) -->
@@ -192,7 +201,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { AlertOctagon, AlertTriangle, CheckCircle2, ChevronRight, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { CheckCircle2, ChevronRight, CircleDot, Info, RefreshCw, ShieldCheck, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -207,7 +216,6 @@ const ov = computed(() => dash.value?.overview || null)
 const activity = ref([])
 const openLog = ref(null)
 
-const LEVEL_ICON = { critical: AlertOctagon, warning: AlertTriangle, info: Info }
 const METRIC_LABEL = { consultations: 'Consultations completed', payments: 'Payments received', commission: 'Commission', new_clients: 'New clients' }
 const money = m => m.key === 'payments' || m.key === 'commission'
 const pct = v => (v == null ? '—' : `${v}%`)
@@ -220,14 +228,35 @@ const todayFigures = computed(() => {
     { label: 'Waiting for the RND', value: t.requests ?? 0, link: '/admin-appointments', tone: t.requests ? 'gold' : '' },
     { label: 'Unpaid, starting within 24 hours', value: t.unpaid_soon ?? 0, link: '/admin-appointments', tone: t.unpaid_soon ? 'red' : '' },
     { label: 'Support requests waiting', value: stats.value.support_open ?? 0, link: '/admin-support', tone: stats.value.support_open ? 'gold' : '' },
+    { label: 'Completed in 7 days', value: t.completed_7_days ?? 0, link: '/admin-appointments' },
     { label: 'Cancelled in 7 days', value: t.cancelled_7_days ?? 0, link: '/admin-appointments' },
+    { label: 'RND applications', value: stats.value.pending_verif ?? 0, link: '/rnd-verification', tone: stats.value.pending_verif ? 'gold' : '' },
+    { label: 'Refunds to send', value: stats.value.refunds_pending ?? 0, link: '/billing-commission?tab=refunds', tone: stats.value.refunds_pending ? 'gold' : '' },
   ]
 })
-const firstUp = computed(() => dash.value?.attention?.[0] || null)
+// The admin's own jobs (the rest is information: the app or the RND acts on it).
+const TODO_KEYS = ['applications', 'support', 'refunds', 'payouts_due']
+const ACTIONS = { applications: 'Review', support: 'Reply', refunds: 'Send refunds', payouts_due: 'Release' }
+const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_KEYS.includes(a.key)))
+const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
+const attnOpen = ref(false)
+const peopleText = people => people.slice(0, 4).map(p => p.name).join(', ') + (people.length > 4 ? `, and ${people.length - 4} more` : '')
+const todoRows = computed(() => {
+  const st = stats.value
+  const n = (v, one, many) => `${v} ${v === 1 ? one : many}`
+  return [
+    { key: 'applications', count: st.pending_verif || 0, text: n(st.pending_verif, 'RND application to review', 'RND applications to review'), doneText: 'No applications waiting', action: 'Review', link: '/rnd-verification' },
+    { key: 'support', count: st.support_open || 0, text: n(st.support_open, 'support request to answer', 'support requests to answer'), doneText: 'Support requests all answered', action: 'Reply', link: '/admin-support' },
+    { key: 'refunds', count: st.refunds_pending || 0, text: n(st.refunds_pending, 'refund to send', 'refunds to send'), doneText: 'No refunds to send', action: 'Send', link: '/billing-commission?tab=refunds' },
+    { key: 'payouts', count: st.payouts_due_count || 0, text: `${peso(st.payouts_due_total)} in payouts to release`, doneText: 'No payouts due', action: 'Release', link: '/payouts' },
+  ]
+})
+const todoOpen = computed(() => todoRows.value.filter(t => t.count).length)
+const longDate = v => new Date(`${v}T00:00:00`).toLocaleDateString('en-PH', { month: 'long', day: 'numeric' })
 const summaryLine = computed(() => {
   if (!dash.value) return 'Loading today…'
-  const n = dash.value.attention.length
-  return n ? `${n} thing${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} you today.` : 'Everything is up to date.'
+  const n = todoOpen.value
+  return n ? `${n} thing${n === 1 ? '' : 's'} to do today.` : "You're all caught up."
 })
 
 const longToday = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -289,7 +318,11 @@ const updatedText = computed(() => {
 })
 let timer = null
 let clock = null
-function onKey(e) { if (e.key === 'Escape') openLog.value = null }
+function onKey(e) {
+  if (e.key !== 'Escape') return
+  if (openLog.value) openLog.value = null
+  else attnOpen.value = false
+}
 function onVisible() {
   if (document.visibilityState === 'visible' && (!loadedAt.value || Date.now() - loadedAt.value > REFRESH_MS)) load()
 }
@@ -321,14 +354,31 @@ onBeforeUnmount(() => {
 .refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-.first-title { margin: 0; font-size: 1rem; font-weight: 700; color: #1a3a1a; line-height: 1.35; }
-.first-title.critical { color: #a12525; }
+/* the to-do card in the banner */
+.todo { list-style: none; margin: 0; padding: 0; }
+.todo li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #edf2ee; min-height: 46px; }
+.todo li:first-child { border-top: none; padding-top: 0; }
+.todo-mark { flex-shrink: 0; color: #a37a0b; }
+.todo li.done .todo-mark { color: #1f8f5c; }
+.todo-text { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; }
+.todo li.done .todo-text { font-weight: 500; color: #6a7a6a; }
+.todo-btn { height: 32px; padding: 0 14px; flex-shrink: 0; }
+.todo-clear { margin: 0; font-size: 0.86rem; color: #4a5a4a; }
+.see-all {
+  align-self: flex-start; min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37;
+  font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.see-all:hover { background: #d3e7da; }
+.see-all:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 /* figures: one divided panel */
 .figs-panel { padding: 16px 0 0; overflow: hidden; }
 .figs-title { padding: 0 20px 12px; }
 .figs { display: grid; border-top: 1px solid #d9e3dc; }
-.figs.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+/* 3 x 3, split by lines */
+.figs.nine { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.figs.nine .fig:nth-child(3n + 1) { border-left: none; }
+.figs.nine .fig:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
 .fig { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; text-decoration: none; color: #1a3a1a; min-width: 0; border-left: 1px solid #d9e3dc; }
 .fig:first-child { border-left: none; }
 .fig:hover { background: #f7faf8; }
@@ -343,10 +393,13 @@ onBeforeUnmount(() => {
 .attn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
 .attn:first-child { border-top: none; padding-top: 0; }
 .attn-icon { flex-shrink: 0; margin-top: 2px; }
-.attn.critical .attn-icon { color: #c0392b; }
-.attn.warning .attn-icon { color: #a37a0b; }
-.attn.info .attn-icon { color: #6a7a6a; }
-.attn.critical strong { color: #a12525; }
+.attn.todo-item .attn-icon { color: #a37a0b; }
+.attn.watch .attn-icon { color: #6a7a6a; }
+.attn-modal { max-width: 560px; }
+.attn-h { font-size: 0.92rem; font-weight: 700; margin: 4px 0 8px; }
+.attn-h + .attn-list, .attn-sub + .attn-list { margin-bottom: 18px; }
+.attn-sub { font-size: 0.8rem; color: #6a7a6a; margin: -4px 0 10px; }
+.attn-none { margin: 0 0 18px; }
 .attn-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .attn-main strong { font-size: 0.86rem; color: #1a3a1a; }
 .attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
@@ -391,18 +444,14 @@ onBeforeUnmount(() => {
 .log-changes { margin: 0; padding-left: 18px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.6; overflow-wrap: anywhere; }
 
 @media (max-width: 1100px) {
-  .figs.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .figs.six .fig:nth-child(3n + 1) { border-left: none; }
-  .figs.six .fig:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
   .overview { grid-template-columns: minmax(0, 1fr); }
   .ov-col { border-left: none; border-top: 1px solid #d9e3dc; }
   .ov-col:first-child { border-top: none; }
 }
 @media (max-width: 560px) {
-  .figs.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .figs.six .fig { border-left: 1px solid #d9e3dc; border-top: 1px solid #d9e3dc; }
-  .figs.six .fig:nth-child(odd) { border-left: none; }
-  .figs.six .fig:nth-child(-n + 2) { border-top: none; }
+  .fig { padding: 12px 12px; }
+  .fig strong { font-size: 1.3rem; }
+  .todo li { flex-wrap: wrap; }
   .attn { flex-wrap: wrap; }
   .attn .nm-panel-link { margin-left: 26px; }
 }
