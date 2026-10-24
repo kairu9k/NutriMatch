@@ -52,11 +52,15 @@
         </div>
       </section>
 
-      <!-- NEEDS YOU: everything waiting on the client, same panel as the RND
-           dashboard. Red = it goes wrong soon if left (payment due within a day,
-           labs for a consultation within 2 days); dashed green = still to do. -->
-      <section class="needs" aria-label="Needs you">
-        <p v-if="!needsUrgent.length && !needsTodo.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing is waiting on you.</p>
+      <!-- NEEDS ATTENTION: the shared strip (same on the RND and admin dashboards);
+           its pop-up lists everything waiting on the client. Red = it goes wrong soon
+           if left (payment due within a day, labs for a consultation within 2 days);
+           dashed green = still to do. -->
+      <NeedsAttention
+        class="needs-strip" :count="needsUrgent.length + needsTodo.length" :urgent="needsUrgent.length > 0"
+        :titles="[...needsUrgent, ...needsTodo].map(n => n.title)" clear-text="All caught up. Nothing is waiting on you."
+      >
+      <div class="needs in-modal">
         <ul v-if="needsUrgent.length" class="needs-band">
           <li v-for="n in needsUrgent" :key="n.key" class="needs-row risk">
             <AlertTriangle :size="16" class="needs-icon" aria-hidden="true" />
@@ -70,7 +74,8 @@
             <NuxtLink :to="n.to" class="needs-btn">{{ n.action }}</NuxtLink>
           </li>
         </ul>
-      </section>
+      </div>
+      </NeedsAttention>
 
       <!-- HEALTH SNAPSHOT -->
       <section class="stat-grid" aria-label="Your health at a glance">
@@ -306,7 +311,7 @@
 import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  UtensilsCrossed, AlertTriangle, CheckCircle2, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
+  UtensilsCrossed, AlertTriangle, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -825,7 +830,9 @@ function phClock(iso) {
 /* NEEDS YOU (same panel as RNDDashboard.vue) */
 .needs { background: #fff; border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; margin: -4px 0 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .needs > * + * { border-top: 1px solid #d9e3dc; }
-.all-clear { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 20px; font-size: 0.86rem; font-weight: 600; color: #1f6f46; }
+.needs-strip { margin: -4px 0 20px; }
+/* the list inside the pop-up: a plain bordered box */
+.needs.in-modal { margin: 0; border-radius: 12px; box-shadow: none; animation: none; }
 .needs-band { list-style: none; margin: 0; padding: 0; }
 .needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
 .needs-row + .needs-row { border-top: 1px solid #eef1ee; }

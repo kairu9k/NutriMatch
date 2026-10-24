@@ -40,11 +40,14 @@
       </div>
     </section>
 
-    <!-- "Needs you": one panel, ranked: patient risks (red), then unfinished setup
-         and records (dashed green mark), then the to-do chips -->
-    <section v-if="d" class="nm-panel needs" aria-label="Needs you">
-      <p v-if="allClear" class="all-clear"><CheckCircle2 :size="16" /> All caught up. Nothing is waiting on you.</p>
-      <template v-else>
+    <!-- NEEDS ATTENTION: the shared strip (same on the client and admin dashboards).
+         Its pop-up is ranked: patient risks (red), then unfinished setup and records
+         (dashed green mark), then the to-do chips. -->
+    <NeedsAttention
+      v-if="d" class="needs-strip" :count="needTitles.length" :urgent="riskAlerts.length > 0" :titles="needTitles"
+      clear-text="All caught up. Nothing is waiting on you."
+    >
+      <div class="needs in-modal">
         <ul v-if="riskAlerts.length" class="needs-band">
           <li v-for="(a, i) in riskAlerts" :key="`risk-${i}`" class="needs-row risk" :style="{ '--i': i }">
             <component :is="ALERT_ICONS[a.level]" :size="16" class="needs-icon" aria-hidden="true" />
@@ -70,18 +73,14 @@
             <NuxtLink :to="a.link" class="nm-panel-link">{{ a.action }}</NuxtLink>
           </li>
         </ul>
-        <p v-if="moreAlerts" class="needs-more">
-          {{ moreAlerts }} more patient alert{{ moreAlerts === 1 ? '' : 's' }}.
-          <NuxtLink to="/my-patients?filter=attention" class="nm-panel-link">See all in My Patients</NuxtLink>
-        </p>
         <div v-if="todoItems.length" class="needs-chips">
           <NuxtLink v-for="(t, i) in todoItems" :key="t.key" :to="t.to" class="todo-item" :style="{ '--i': i }">
             <component :is="t.icon" :size="15" class="todo-icon" aria-hidden="true" />
             <span><strong>{{ t.count }}</strong> {{ t.label }}</span>
           </NuxtLink>
         </div>
-      </template>
-    </section>
+      </div>
+    </NeedsAttention>
 
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading your dashboard…</p></div>
 
@@ -257,7 +256,7 @@
 
 <script setup>
 import {
-  AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, FlaskConical, Info, MessageSquare,
+  AlertTriangle, CalendarDays, ClipboardList, FlaskConical, Info, MessageSquare,
   OctagonAlert, Target, Users, Utensils, Video, Wallet,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
@@ -293,15 +292,25 @@ onMounted(async () => {
     setupMissing.value = []
   }
 })
-// patient alerts (critical first, as the API sends them); only the first few up top
-const MAX_ALERTS = 3
-const shownAlerts = computed(() => (d.value?.alerts || []).slice(0, MAX_ALERTS))
-const moreAlerts = computed(() => Math.max((d.value?.alerts || []).length - MAX_ALERTS, 0))
+// patient alerts, critical first as the API sends them (all of them: the pop-up scrolls)
+const shownAlerts = computed(() => d.value?.alerts || [])
 const noDot = t => String(t || '').replace(/[.\s]+$/, '')
 const riskAlerts = computed(() => shownAlerts.value.filter(a => a.level !== 'info'))
 const infoAlerts = computed(() => shownAlerts.value.filter(a => a.level === 'info'))
 const hasUnfinished = computed(() => !!(requiredMissing.value.length || needsClinicAddress.value || !d.value?.earnings.has_payout_account || infoAlerts.value.length))
-const allClear = computed(() => !riskAlerts.value.length && !hasUnfinished.value && !moreAlerts.value && !todoItems.value.length)
+// one short title per row in the pop-up, in its order (the strip shows the first two)
+const needTitles = computed(() => {
+  if (!d.value) return []
+  const alert = a => `${a.client.name}: ${noDot(a.title)}`
+  return [
+    ...riskAlerts.value.map(alert),
+    ...(requiredMissing.value.length ? ['Finish your profile so clients can book you'] : []),
+    ...(needsClinicAddress.value ? ['Add your clinic address'] : []),
+    ...(!d.value.earnings.has_payout_account ? ['Add your payout details'] : []),
+    ...infoAlerts.value.map(alert),
+    ...todoItems.value.map(t => `${t.count} ${t.label}`),
+  ]
+})
 const requiredMissing = computed(() => setupMissing.value.filter(m => !m.optional))
 const needsClinicAddress = computed(() => setupMissing.value.some(m => m.key === 'clinic_address'))
 
@@ -502,7 +511,9 @@ function nameInitials(name) {
 .empty-line { margin: 12px 0 4px; }
 /* "Needs you" panel */
 .needs { padding: 0; overflow: hidden; margin-bottom: 20px; }
-.needs .all-clear { padding: 14px 20px; }
+.needs-strip { margin-bottom: 20px; }
+/* the list inside the pop-up: a plain bordered box */
+.needs.in-modal { margin: 0; background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; }
 .needs-band { list-style: none; margin: 0; padding: 0; }
 .needs > * + * { border-top: 1px solid #d9e3dc; }
 .needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
@@ -516,7 +527,6 @@ function nameInitials(name) {
 .needs-icon { flex-shrink: 0; color: #c0392b; }
 /* unfinished: the app's dashed green mark */
 .needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
-.needs-more { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 0; padding: 10px 20px; font-size: 0.82rem; color: #6a7a6a; }
 .needs-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px; background: #fbfcfa; }
 .todo-item { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #d9e3dc; border-radius: 999px; padding: 6px 12px; text-decoration: none; color: #3a4a3a; font-size: 0.82rem; }
 .todo-item:hover { border-color: #3f9a6b; color: #1a3a1a; }
@@ -527,7 +537,7 @@ function nameInitials(name) {
    glow on the panel itself, only the items move): the red
    lines and dashed-green lines each glow three times, the chips pop in and glow */
 @media (prefers-reduced-motion: no-preference) {
-  .needs { animation: nm-drop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
   .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
   .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
   .needs-row.unfinished::before { animation: nm-march 3s linear 0.45s 1; }
@@ -575,7 +585,7 @@ function nameInitials(name) {
   .needs-row .needs-text { flex: 1 1 calc(100% - 40px); }
   .needs-row .nm-panel-link { margin-left: 28px; }
   .needs-row.unfinished .nm-panel-link { margin-left: 0; }
-  .needs-chips, .needs-more { padding-left: 16px; padding-right: 16px; }
+  .needs-chips { padding-left: 16px; padding-right: 16px; }
   .sched-end { width: 100%; padding-left: 78px; }
   .chart-figure { text-align: left; }
 }

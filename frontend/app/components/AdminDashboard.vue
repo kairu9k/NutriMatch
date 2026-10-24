@@ -17,16 +17,31 @@
       </div>
     </section>
 
-    <!-- NEEDS ATTENTION: one strip under the banner (the client's "Pay now" row);
-         its button opens the pop-up with every item. Red while something is critical. -->
-    <section v-if="dash" class="needs" aria-label="Needs attention">
-      <p v-if="!dash.attention.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing needs you right now.</p>
-      <div v-else class="needs-row" :class="attnTone">
-        <span class="needs-tag" :class="attnTone">{{ attnTone === 'risk' ? 'Urgent' : 'To do' }}</span>
-        <span class="needs-text"><strong>{{ attnHeadline }}</strong> {{ attnSummary }}</span>
-        <button type="button" class="nm-btn-dark nm-btn-sm" aria-haspopup="dialog" @click="attnOpen = true">Needs attention ({{ dash.attention.length }})</button>
-      </div>
-    </section>
+    <!-- NEEDS ATTENTION: the shared strip; its pop-up lists the admin's own to-do,
+         then what to keep an eye on (the app or the RND handles those) -->
+    <NeedsAttention v-if="dash" :count="dash.attention.length" :urgent="attnUrgent" :titles="attnTitles">
+      <h3 class="attn-h">Your to-do</h3>
+      <p v-if="!todoItems.length" class="attn-none">Nothing to do right now.</p>
+      <ul v-else class="attn-list">
+        <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
+          <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
+          <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+            <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+          <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
+        </li>
+      </ul>
+      <h3 class="attn-h">Keep an eye on</h3>
+      <p class="attn-sub">For your information. The app or the RND handles these.</p>
+      <p v-if="!watchItems.length" class="attn-none">Nothing to watch right now.</p>
+      <ul v-else class="attn-list">
+        <li v-for="a in watchItems" :key="a.key" class="attn watch">
+          <Info :size="16" class="attn-icon" aria-hidden="true" />
+          <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
+            <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
+          <NuxtLink :to="a.link" class="nm-panel-link">View</NuxtLink>
+        </li>
+      </ul>
+    </NeedsAttention>
 
     <div v-if="dash" class="nm-grid">
       <!-- MONTH VS LAST MONTH -->
@@ -111,39 +126,6 @@
       </section>
     </div>
 
-    <!-- NEEDS ATTENTION (pop-up from the strip's button): the admin's own to-do,
-         then what to keep an eye on (the app or the RND handles those). -->
-    <div v-if="attnOpen && dash" class="nm-modal-overlay" @click.self="attnOpen = false">
-      <div class="nm-modal attn-modal" role="dialog" aria-modal="true" aria-labelledby="attn-title">
-        <button type="button" class="nm-modal-x" aria-label="Close" @click="attnOpen = false"><X :size="18" aria-hidden="true" /></button>
-        <h2 id="attn-title" class="nm-modal-title">Needs attention</h2>
-        <h3 class="attn-h">Your to-do</h3>
-        <p v-if="!todoItems.length" class="attn-none">Nothing to do right now.</p>
-        <ul v-else class="attn-list">
-          <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
-            <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
-            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-            <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm" @click="attnOpen = false">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
-          </li>
-        </ul>
-        <h3 class="attn-h">Keep an eye on</h3>
-        <p class="attn-sub">For your information. The app or the RND handles these.</p>
-        <p v-if="!watchItems.length" class="attn-none">Nothing to watch right now.</p>
-        <ul v-else class="attn-list">
-          <li v-for="a in watchItems" :key="a.key" class="attn watch">
-            <Info :size="16" class="attn-icon" aria-hidden="true" />
-            <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-              <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-            <NuxtLink :to="a.link" class="nm-panel-link" @click="attnOpen = false">View</NuxtLink>
-          </li>
-        </ul>
-        <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-soft" @click="attnOpen = false">Close</button>
-        </div>
-      </div>
-    </div>
-
     <!-- ACTIVITY DETAILS (pop-up, only when a row is clicked) -->
     <div v-if="openLog" class="nm-modal-overlay" @click.self="openLog = null">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="log-title">
@@ -172,7 +154,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { CheckCircle2, CircleDot, Info, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
+import { CircleDot, Info, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -210,25 +192,8 @@ const ACTIONS = { applications: 'Review', support: 'Reply', refunds: 'Send refun
 const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_KEYS.includes(a.key)))
 const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
 // critical first (the API sorts them); the admin's jobs get their action name
-const attnOpen = ref(false)
-const attnTone = computed(() => ((dash.value?.attention || []).some(a => a.level === 'critical') ? 'risk' : 'unfinished'))
-const attnHeadline = computed(() => {
-  const n = dash.value?.attention.length || 0
-  return `${n} thing${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} your attention.`
-})
-// "2 unpaid consultations starting within 24 h, 1 RND application to review, and 2 more."
-const attnSummary = computed(() => {
-  const titles = attnRows.value.map(a => a.title)
-  const shown = titles.slice(0, 2).join(', ')
-  return titles.length > 2 ? `${shown}, and ${titles.length - 2} more.` : `${shown}.`
-})
-const attnRows = computed(() => (dash.value?.attention || []).map(a => ({
-  ...a,
-  title: a.title.replace(/\.$/, ''),
-  text: a.people.length ? `${a.detail} ${peopleText(a.people)}.` : a.detail,
-  tone: a.level === 'critical' ? 'risk' : TODO_KEYS.includes(a.key) ? 'unfinished' : 'watch',
-  action: ACTIONS[a.key] || (TODO_KEYS.includes(a.key) || a.level === 'critical' ? 'Open' : 'View'),
-})))
+const attnUrgent = computed(() => (dash.value?.attention || []).some(a => a.level === 'critical'))
+const attnTitles = computed(() => (dash.value?.attention || []).map(a => a.title))
 const peopleText = people => people.slice(0, 4).map(p => p.name).join(', ') + (people.length > 4 ? `, and ${people.length - 4} more` : '')
 const todoOpen = computed(() => todoItems.value.length)
 const summaryLine = computed(() => {
@@ -308,7 +273,6 @@ let clock = null
 function onKey(e) {
   if (e.key !== 'Escape') return
   if (openLog.value) openLog.value = null
-  else attnOpen.value = false
 }
 function onVisible() {
   if (document.visibilityState === 'visible' && (!loadedAt.value || Date.now() - loadedAt.value > REFRESH_MS)) load()
@@ -341,7 +305,6 @@ onBeforeUnmount(() => {
 .refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-.attn-modal { max-width: 560px; }
 .attn-list { list-style: none; margin: 0; padding: 0; }
 .attn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
 .attn:first-child { border-top: none; padding-top: 0; }
@@ -379,31 +342,6 @@ onBeforeUnmount(() => {
 .fig span { font-size: 0.74rem; color: #4a5a4a; line-height: 1.3; }
 .fig.red strong { color: #a12525; }
 .fig.gold strong { color: #a37a0b; }
-
-/* needs attention: same strip as ClientDashboard.vue's "Needs you" */
-.needs { background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
-.admin-dash > .needs { border-radius: 14px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.all-clear { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 20px; font-size: 0.86rem; font-weight: 600; color: #1f6f46; }
-.needs-band { list-style: none; margin: 0; padding: 0; }
-.needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
-.needs-row + .needs-row { border-top: 1px solid #eef1ee; }
-.needs-row strong { color: #1a3a1a; }
-.needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.needs-row.risk { background: #fdf3f2; }
-.needs-row.risk strong { color: #a12525; }
-/* the strip's label: red Urgent while something is critical, else green To do */
-.needs-tag { flex-shrink: 0; padding: 2px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; line-height: 1.5; }
-.needs-tag.risk { background: #f6d9d6; color: #a12525; }
-.needs-tag.unfinished { background: #e3efe7; color: #0a4a37; }
-.needs-row .nm-btn-dark, .needs-row .nm-btn-soft { flex-shrink: 0; white-space: nowrap; }
-.needs-row button.nm-btn-dark { font-family: inherit; cursor: pointer; }
-/* red and dashed rows glow three times when they appear (page load, pop-up) */
-@media (prefers-reduced-motion: no-preference) {
-  .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
-  .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
-}
-@keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
-@keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
 
 /* overview: three divided columns */
 .overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; overflow: visible; }
@@ -456,9 +394,7 @@ onBeforeUnmount(() => {
 @media (max-width: 560px) {
   .fig { padding: 12px 12px; }
   .fig strong { font-size: 1.3rem; }
-  .needs-row { flex-wrap: wrap; padding: 12px 16px; }
   .attn { flex-wrap: wrap; }
   .attn .nm-panel-link { margin-left: 26px; }
-  .needs-text { flex-basis: 100%; }
 }
 </style>
