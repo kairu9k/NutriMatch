@@ -2,14 +2,16 @@
   <div class="nm-page admin-dash">
     <p v-if="error" class="nm-error">{{ error }} <button type="button" class="nm-panel-link" @click="load()">Try again</button></p>
 
-    <!-- BANNER: greeting and summary (nm-hero in portal.css, one column here) -->
-    <section class="nm-hero greet-only">
+    <!-- BANNER: greeting and summary on the left, the platform's day on the right
+         (nm-hero in portal.css; AdminDayTimeline.vue) -->
+    <section class="nm-hero admin-hero">
       <div class="nm-hero-greet">
         <p class="nm-hero-date">{{ longToday }}</p>
         <h1 class="nm-hero-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
         <p class="nm-hero-sub">{{ summaryLine }}</p>
         <p class="updated">{{ updatedText }}</p>
       </div>
+      <AdminDayTimeline v-if="dash?.schedule" :rows="dash.schedule.today" :next="dash.schedule.next" :now="now" />
     </section>
 
     <!-- NEEDS ATTENTION: the shared strip; its pop-up lists the admin's own to-do,
@@ -300,7 +302,8 @@ onBeforeUnmount(() => {
 .attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
 .attn-people { color: #4a5a4a !important; }
 /* Today in the banner's white card */
-.nm-hero.greet-only { grid-template-columns: minmax(0, 1fr); }
+.admin-hero { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 36px; }
+@media (max-width: 900px) { .admin-hero { grid-template-columns: minmax(0, 1fr); gap: 22px; } }
 /* the nine figures fill the panel beside the month comparison */
 .nm-grid { align-items: stretch; }
 .today-panel { padding: 0; overflow: hidden; display: flex; }

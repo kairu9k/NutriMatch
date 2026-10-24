@@ -231,6 +231,31 @@ def _overview(now):
     }
 
 
+def _schedule(now):
+    """Today's consultations on the platform (PH date) for the banner's day
+    timeline (2026-10-25): start, length, state and who; cancelled ones are
+    left out. Plus the next one still to start (today or later, 30 days)."""
+    from billing.services import appointment_invoice
+    from scheduling.models import Appointment
+
+    local = now.astimezone(_ph())
+    start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    base = Appointment.objects.exclude(status="cancelled").select_related("relationship__client", "relationship__rnd")
+
+    def row(a):
+        inv = appointment_invoice(a)
+        return {
+            "id": a.id, "scheduled_at": a.scheduled_at, "duration_minutes": a.duration_minutes or 60,
+            "status": a.status, "type": a.get_type_display(), "paid": bool(inv and inv.status == "paid"),
+            "client": a.relationship.client.full_name, "rnd": a.relationship.rnd.full_name,
+        }
+
+    today = [row(a) for a in base.filter(scheduled_at__gte=start, scheduled_at__lt=start + timedelta(days=1)).order_by("scheduled_at")]
+    nxt = (base.filter(status__in=["pending", "confirmed"], scheduled_at__gt=now, scheduled_at__lte=now + timedelta(days=30))
+           .order_by("scheduled_at").first())
+    return {"today": today, "next": row(nxt) if nxt else None}
+
+
 class AdminDashboardView(APIView):
     permission_classes = [IsAdmin]
 
@@ -244,4 +269,5 @@ class AdminDashboardView(APIView):
             "attention": _attention(now, s),
             "compare": _compare(now),
             "overview": _overview(now),
+            "schedule": _schedule(now),
         })

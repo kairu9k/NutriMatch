@@ -103,3 +103,30 @@ class AdminDashboardTests(TestCase):
         apps = [a for a in self.api.get("/api/admin/dashboard/").data["attention"] if a["key"] == "applications"]
         self.assertEqual(apps[0]["count"], 1)
         self.assertEqual(self.api.get("/api/admin/platform-stats/").data["pending_verif"], 1)
+
+
+class ScheduleTests(TestCase):
+    """The banner's day timeline: today's consultations and the next one."""
+
+    def test_today_and_next(self):
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        from core.admin_dashboard import _schedule
+        from core.test_utils import approve_rnd, onboard_client
+        from scheduling.models import Appointment, RndClientRelationship
+
+        ph = ZoneInfo("Asia/Manila")
+        now = datetime(2026, 10, 25, 11, 0, tzinfo=ph)
+        rnd = approve_rnd(User.objects.create_user(email="r@s.ph", password="x", role="rnd", first_name="Maria", last_name="Santos"))
+        c = onboard_client(User.objects.create_user(email="c@s.ph", password="x", role="client", first_name="Ana", last_name="Cruz"))
+        rel = RndClientRelationship.objects.create(rnd=rnd, client=c, status="active")
+        mk = lambda h, status, day=25: Appointment.objects.create(relationship=rel, type="video", status=status,
+                                                                  scheduled_at=datetime(2026, 10, day, h, tzinfo=ph))
+        done, later = mk(9, "completed"), mk(15, "confirmed")
+        mk(13, "cancelled")            # left out
+        mk(10, "confirmed", day=26)    # tomorrow: not today
+        s = _schedule(now)
+        self.assertEqual([r["id"] for r in s["today"]], [done.id, later.id])
+        self.assertEqual((s["next"]["id"], s["next"]["client"], s["next"]["paid"]), (later.id, "Ana Cruz", False))
+        self.assertEqual(_schedule(now + timedelta(days=40))["next"], None)
