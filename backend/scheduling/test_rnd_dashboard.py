@@ -110,3 +110,22 @@ class RndDashboardTests(TestCase):
         self.assertEqual(api.get("/api/rnd/dashboard/").status_code, 200)
         api.force_authenticate(self.c)
         self.assertEqual(api.get("/api/rnd/dashboard/").status_code, 403)
+
+    def test_earnings_this_month_vs_last(self):
+        from billing.models import Invoice
+
+        def done(when, amount, status="paid"):
+            a = Appointment.objects.create(relationship=self.rel, scheduled_at=when, duration_minutes=60, type="video",
+                                           status="completed", completed_at=when)
+            Invoice.objects.create(relationship=self.rel, appointment=a, amount=Decimal(amount), commission_amt=Decimal(amount) / 10,
+                                   status=status, paid_at=when - timedelta(hours=1))
+
+        done(datetime(2026, 10, 3, 10, tzinfo=PH), "1000")                     # this month: share 900
+        done(datetime(2026, 10, 10, 10, tzinfo=PH), "500", "refund_pending")    # refunded money isn't earned
+        done(datetime(2026, 9, 5, 10, tzinfo=PH), "600")                       # last month, inside Sep 1-14: 540
+        done(datetime(2026, 9, 20, 10, tzinfo=PH), "800")                      # after Sep 14: not compared
+        c = build_dashboard(self.rnd, self.now)["earnings_compare"]
+        m = {x["key"]: x for x in c["metrics"]}
+        self.assertEqual((m["earned"]["now"], m["earned"]["before"], m["earned"]["change_pct"]), (900.0, 540.0, 67))
+        self.assertEqual((m["consultations"]["now"], m["consultations"]["before"]), (2, 1))
+        self.assertEqual(c["label"], "October 1–14 vs September 1–14")

@@ -2,6 +2,7 @@
 (GET /api/rnd/dashboard/). Philippine time throughout."""
 
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 
 from django.db.models import Avg, Count
 from django.utils import timezone
@@ -13,6 +14,26 @@ from accounts.permissions import IsRnd
 from .patient_insights import ADHERENCE_GOAL, CareData, adherence_pct, person as _person, ph_tz
 
 BMI_RANK = {"Normal": 0, "Overweight (At Risk)": 1, "Underweight": 1, "Obese I": 2, "Obese II": 3}
+
+
+def _earnings_compare(rnd, now):
+    """This month so far vs the same days of last month (same windows as the
+    admin dashboard): the RND's share of consultations completed in each, and
+    how many. Refunded / refund-pending money isn't earned (billing.payouts)."""
+    from billing.models import Invoice
+    from billing.payouts import rnd_share
+    from core.admin_dashboard import compare_metrics, month_windows
+
+    from .models import Appointment
+
+    this_start, prev_start, prev_cut, label = month_windows(now)
+
+    def figures(lo, hi):
+        done = Appointment.objects.filter(relationship__rnd=rnd, status="completed", completed_at__gte=lo, completed_at__lt=hi)
+        paid = Invoice.objects.filter(appointment__in=done, status=Invoice.Status.PAID)
+        return {"earned": float(sum((rnd_share(i) for i in paid), Decimal("0"))), "consultations": done.count()}
+
+    return {"label": label, "metrics": compare_metrics(figures(this_start, now), figures(prev_start, prev_cut))}
 
 
 def build_dashboard(rnd, now=None):
@@ -128,6 +149,7 @@ def build_dashboard(rnd, now=None):
 
     # ---------------------------------------------------------------- money + reviews
     e = rnd_earnings(rnd, now)
+    earnings_compare = _earnings_compare(rnd, now)
     reviews = [{"rating": r.rating, "comment": r.comment, "client": f"{r.client.first_name} {r.client.last_name[:1]}.".strip(),
                 "created_at": r.created_at}
                for r in Review.objects.filter(rnd=rnd, is_public=True).select_related("client").order_by("-created_at")[:3]]
@@ -154,6 +176,7 @@ def build_dashboard(rnd, now=None):
         "alerts": alerts[:8],
         "outcomes": outcomes,
         "earnings": {k: e[k] for k in ("pending", "posted", "paid_out", "next_payout_date", "eligible", "has_payout_account", "minimum_payout")},
+        "earnings_compare": earnings_compare,
         "reviews": reviews,
         "rating": rating,
     }

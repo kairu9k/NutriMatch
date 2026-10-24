@@ -39,10 +39,9 @@ def _pct(now_v, before_v):
     return round((now_v - before_v) / before_v * 100)
 
 
-def _compare(now):
-    from billing.models import Invoice
-    from scheduling.models import Appointment
-
+def month_windows(now):
+    """This month so far and the same days of last month (PH months):
+    (this_start, prev_start, prev_cut, label). Also used by the RND dashboard."""
     local = now.astimezone(_ph())
     this_start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_end_day = this_start - timedelta(days=1)
@@ -51,6 +50,19 @@ def _compare(now):
     # half-finished month isn't compared with a whole one.
     elapsed = now - this_start
     prev_cut = min(prev_start + elapsed, this_start)
+    label = f"{this_start:%B} 1–{local.day} vs {prev_start:%B} 1–{(prev_cut - timedelta(seconds=1)).astimezone(_ph()).day}"
+    return this_start, prev_start, prev_cut, label
+
+
+def compare_metrics(cur, prev):
+    return [{"key": k, "now": cur[k], "before": prev[k], "change_pct": _pct(cur[k], prev[k])} for k in cur]
+
+
+def _compare(now):
+    from billing.models import Invoice
+    from scheduling.models import Appointment
+
+    this_start, prev_start, prev_cut, label = month_windows(now)
 
     def figures(lo, hi):
         paid = Invoice.objects.filter(paid_at__gte=lo, paid_at__lt=hi)
@@ -65,10 +77,7 @@ def _compare(now):
         }
 
     cur, prev = figures(this_start, now), figures(prev_start, prev_cut)
-    return {
-        "label": f"{this_start:%B} 1–{local.day} vs {prev_start:%B} 1–{(prev_cut - timedelta(seconds=1)).astimezone(_ph()).day}",
-        "metrics": [{"key": k, "now": cur[k], "before": prev[k], "change_pct": _pct(cur[k], prev[k])} for k in cur],
-    }
+    return {"label": label, "metrics": compare_metrics(cur, prev)}
 
 
 def _attention(now, summary):
