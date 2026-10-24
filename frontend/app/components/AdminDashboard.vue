@@ -15,9 +15,6 @@
             <RefreshCw :size="14" :class="{ spin: refreshing }" aria-hidden="true" /> Refresh
           </button>
         </p>
-        <button v-if="dash" type="button" class="attn-open" aria-haspopup="dialog" @click="attnOpen = true">
-          Needs attention<template v-if="dash.attention.length"> ({{ dash.attention.length }})</template>
-        </button>
       </div>
       <div class="nm-upnext today-card" aria-label="At a glance">
         <div v-if="dash" class="figs nine">
@@ -26,6 +23,17 @@
           </NuxtLink>
         </div>
         <p v-else class="nm-upnext-empty">Loading…</p>
+      </div>
+    </section>
+
+    <!-- NEEDS ATTENTION: one strip under the banner (the client's "Pay now" row);
+         its button opens the pop-up with every item. Red while something is critical. -->
+    <section v-if="dash" class="needs" aria-label="Needs attention">
+      <p v-if="!dash.attention.length" class="all-clear"><CheckCircle2 :size="16" aria-hidden="true" /> All caught up. Nothing needs you right now.</p>
+      <div v-else class="needs-row" :class="attnTone">
+        <AlertTriangle v-if="attnTone === 'risk'" :size="16" class="needs-icon" aria-hidden="true" />
+        <span class="needs-text"><strong>{{ attnHeadline }}</strong> {{ attnSummary }}</span>
+        <button type="button" class="nm-btn-dark nm-btn-sm" aria-haspopup="dialog" @click="attnOpen = true">Needs attention ({{ dash.attention.length }})</button>
       </div>
     </section>
 
@@ -221,6 +229,17 @@ const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_
 const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
 // critical first (the API sorts them); the admin's jobs get their action name
 const attnOpen = ref(false)
+const attnTone = computed(() => ((dash.value?.attention || []).some(a => a.level === 'critical') ? 'risk' : 'unfinished'))
+const attnHeadline = computed(() => {
+  const n = dash.value?.attention.length || 0
+  return `${n} thing${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} your attention.`
+})
+// "2 unpaid consultations starting within 24 h, 1 RND application to review, and 2 more."
+const attnSummary = computed(() => {
+  const titles = attnRows.value.map(a => a.title)
+  const shown = titles.slice(0, 2).join(', ')
+  return titles.length > 2 ? `${shown}, and ${titles.length - 2} more.` : `${shown}.`
+})
 const attnRows = computed(() => (dash.value?.attention || []).map(a => ({
   ...a,
   title: a.title.replace(/\.$/, ''),
@@ -331,13 +350,6 @@ onBeforeUnmount(() => {
 .refresh:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* Needs attention: opens the pop-up (the one gold button, on the green banner) */
-.attn-open {
-  align-self: flex-start; display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px; margin-top: 4px; border: none;
-  border-radius: 8px; background: #D4A017; color: #1a3a1a; font-family: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer;
-}
-.attn-open:hover { background: #e0ae22; }
-.attn-open:focus-visible { outline: 2px solid #f3d27a; outline-offset: 2px; }
 .attn-modal { max-width: 720px; }
 /* Today in the banner's white card */
 .today-card { padding: 0; gap: 0; overflow: hidden; }
@@ -360,6 +372,7 @@ onBeforeUnmount(() => {
 
 /* needs attention: same strip as ClientDashboard.vue's "Needs you" */
 .needs { background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.admin-dash > .needs { border-radius: 14px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
 .all-clear { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 20px; font-size: 0.86rem; font-weight: 600; color: #1f6f46; }
 .needs-band { list-style: none; margin: 0; padding: 0; }
 .needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
@@ -372,7 +385,8 @@ onBeforeUnmount(() => {
 .needs-icon.info { color: #6a7a6a; }
 .needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
 .needs-row .nm-btn-dark, .needs-row .nm-btn-soft { flex-shrink: 0; white-space: nowrap; }
-/* when the pop-up opens, red and dashed rows glow three times */
+.needs-row button.nm-btn-dark { font-family: inherit; cursor: pointer; }
+/* red and dashed rows glow three times when they appear (page load, pop-up) */
 @media (prefers-reduced-motion: no-preference) {
   .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
   .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
