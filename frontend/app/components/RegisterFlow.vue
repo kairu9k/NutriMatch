@@ -447,8 +447,8 @@
 
           <form class="details-form" @submit.prevent="submitVerification">
             <div class="field">
-              <label>Verification Code</label>
-              <input v-model="verificationCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" class="code-input" required />
+              <label>Code</label>
+              <input v-model="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" class="code-input" required />
             </div>
 
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
@@ -461,8 +461,10 @@
           </form>
 
           <p class="signin-link">
-            Didn't get the code?
-            <a href="#" :class="{ 'link-disabled': isSubmitting || isResending }" :aria-disabled="isSubmitting || isResending" @click.prevent="!isSubmitting && !isResending && resendCode()">{{ isResending ? 'Sending…' : 'Resend code' }}</a>
+            Didn't get it?
+            <span v-if="resendIn > 0" class="resend-wait">Resend code in {{ resendIn }}s</span>
+            <a v-else href="#" :class="{ 'link-disabled': isSubmitting || isResending }" :aria-disabled="isSubmitting || isResending" @click.prevent="!isSubmitting && !isResending && resendCode()">{{ isResending ? 'Sending…' : 'Resend code' }}</a>,
+            or <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && changeEmail()">change your email</a>.
           </p>
         </div>
 
@@ -884,6 +886,7 @@ async function submitRegistration() {
     // unverified — login is refused until it's confirmed, so move to the
     // code-entry step instead of logging in right away.
     currentStep.value = 4
+    startResendTimer()
   } catch (error) {
     const data = error?.data
     const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
@@ -924,18 +927,49 @@ async function submitVerification() {
   }
 }
 
+// A new code can be asked for 30 seconds after the last one was sent
+// (the API also allows at most 5 a minute).
+const RESEND_SECONDS = 30
+const resendIn = ref(0)
+let resendTimer = null
+function startResendTimer() {
+  clearInterval(resendTimer)
+  resendIn.value = RESEND_SECONDS
+  resendTimer = setInterval(() => {
+    resendIn.value -= 1
+    if (resendIn.value <= 0) clearInterval(resendTimer)
+  }, 1000)
+}
+onBeforeUnmount(() => clearInterval(resendTimer))
+
 async function resendCode() {
+  if (resendIn.value > 0) return
   errorMessage.value = ''
   resendMessage.value = ''
   isResending.value = true
   try {
     await auth.resendVerificationCode(form.email)
-    resendMessage.value = 'A new code has been sent.'
-  } catch {
-    errorMessage.value = 'Something went wrong. Please try again.'
+    resendMessage.value = `A new code is on its way to ${form.email}.`
+    startResendTimer()
+  } catch (error) {
+    errorMessage.value = (error?.response?.status ?? error?.status) === 429
+      ? 'Too many codes asked for. Wait a minute, then try again.'
+      : "We couldn't send a new code. Check your connection and try again."
   } finally {
     isResending.value = false
   }
+}
+
+// Typed the wrong email: back to the details with everything still filled
+// in. Sending the form again makes a new account for the right address; the
+// unconfirmed one is cleaned up if anyone registers that address later.
+function changeEmail() {
+  clearInterval(resendTimer)
+  resendIn.value = 0
+  verificationCode.value = ''
+  errorMessage.value = ''
+  resendMessage.value = ''
+  currentStep.value = 2
 }
 </script>
 
@@ -1115,6 +1149,7 @@ async function resendCode() {
 .btn-spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff; animation: btn-spin 0.7s linear infinite; flex-shrink: 0; }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
 .top-back { margin-bottom: 32px; }
+.resend-wait { color: #6a7a6a; font-variant-numeric: tabular-nums; }
 .link-disabled { opacity: 0.45; pointer-events: none; cursor: not-allowed; }
 .form-success { margin-top: 4px; }
 
