@@ -5,8 +5,8 @@
     </div>
     <div class="for-rnds-content">
       <div class="eyebrow"><span class="eyebrow-line"></span> FOR REGISTERED NUTRITIONIST-DIETITIANS</div>
-      <h2>Modernize Your<br /><em class="highlight">Clinical Practice</em></h2>
-      <p>Replace paper records with a fully digital NCP workflow — from NRS-2002 screening to disease-specific meal planning and outcome reports.</p>
+      <h2>Modernize your<br /><em class="highlight">clinical practice</em></h2>
+      <p>Replace paper records with a digital NCP workflow, from NRS-2002 screening to condition-specific meal plans and progress reports.</p>
 
       <ul class="features-list">
         <li v-for="item in features" :key="item">
@@ -15,7 +15,7 @@
       </ul>
 
       <div class="ncp-card">
-        <div class="ncp-title">NCP Record — Phase Progress</div>
+        <div class="ncp-title">NCP record progress</div>
         <div class="ncp-phase" v-for="phase in phases" :key="phase.title" :class="{ active: phase.active }">
           <div class="phase-dot" :class="{ active: phase.active }"></div>
           <div>
@@ -30,7 +30,7 @@
 
 <script setup>
 const features = [
-  'Auto-generated PES statements',
+  'PES diagnosis from standard terms',
   'NRS-2002 nutritional risk scoring',
   'WHO Asia-Pacific BMI thresholds',
   'FNRI Food Exchange integration',
@@ -38,10 +38,10 @@ const features = [
 ]
 
 const phases = [
-  { title: 'Phase 1 — Nutritional Assessment', sub: 'BMI 23.4 · NRS Score 2 · At Risk', active: true },
-  { title: 'Phase 2 — Nutrition Diagnosis', sub: 'Inadequate carb intake r/t poor dietary knowledge', active: true },
-  { title: 'Phase 3 — Intervention', sub: '1800 kcal diabetic diet · FNRI Exchange', active: false },
-  { title: 'Phase 4 — Monitoring & Evaluation', sub: 'Pending follow-up — May 30, 2026', active: false },
+  { title: 'Phase 1: Nutrition assessment', sub: 'BMI 23.4, NRS-2002 score 2, at risk', active: true },
+  { title: 'Phase 2: Nutrition diagnosis', sub: 'Inadequate carb intake r/t poor dietary knowledge', active: true },
+  { title: 'Phase 3: Intervention', sub: '1,800 kcal diabetic diet, FNRI exchanges', active: false },
+  { title: 'Phase 4: Monitoring and evaluation', sub: 'Follow-up on May 30, 2026', active: false },
 ]
 </script>
 

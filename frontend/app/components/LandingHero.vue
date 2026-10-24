@@ -5,30 +5,30 @@
       <div class="hero-content">
         <div class="hero-badge">
           <span class="badge-dot"></span>
-          DESIGNED FOR PHILIPPINE RNDS · RA 10173 COMPLIANT
+          DESIGNED FOR PHILIPPINE RNDS, RA 10173 COMPLIANT
         </div>
 
         <h1 class="hero-heading">
-          Nourish Your Body.<br />
-          <em class="highlight">Transform</em> Your Life.
+          Nourish your body.<br />
+          <em class="highlight">Transform</em> your life.
         </h1>
 
         <p class="hero-subtext">
-          NutriMatch connects patients with PRC-licensed Registered Nutritionist-Dietitians
+          NutriMatch connects clients with PRC-licensed Registered Nutritionist-Dietitians
           for structured Medical Nutrition Therapy, powered by FNRI food data and the
           full NCP framework.
         </p>
 
         <div class="hero-cta">
-          <button class="btn-primary" @click="navigateTo('/register?role=client')">Find an RND →</button>
-          <button class="btn-secondary" @click="navigateTo('/register?role=rnd')">Join as Dietitian</button>
+          <button class="btn-primary" @click="navigateTo('/register?role=client')">Find an RND</button>
+          <button class="btn-secondary" @click="navigateTo('/register?role=rnd')">Join as an RND</button>
         </div>
 
         <div class="hero-tags">
-          <span class="tag"><Check class="tag-icon" :size="14" :stroke-width="2.5" /> PRC Verified RNDs</span>
-          <span class="tag"><ShieldCheck class="tag-icon" :size="14" :stroke-width="2.5" /> RA 10173 Compliant</span>
-          <span class="tag"><FileText class="tag-icon" :size="14" :stroke-width="2.5" /> FNRI Food Database</span>
-          <span class="tag"><Activity class="tag-icon" :size="14" :stroke-width="2.5" /> Full NCP Framework</span>
+          <span class="tag"><Check class="tag-icon" :size="14" :stroke-width="2.5" /> PRC-verified RNDs</span>
+          <span class="tag"><ShieldCheck class="tag-icon" :size="14" :stroke-width="2.5" /> RA 10173 compliant</span>
+          <span class="tag"><FileText class="tag-icon" :size="14" :stroke-width="2.5" /> FNRI food database</span>
+          <span class="tag"><Activity class="tag-icon" :size="14" :stroke-width="2.5" /> Full NCP framework</span>
         </div>
       </div>
 
@@ -68,7 +68,7 @@
 
         <div class="stat-card stat-bottom">
           <div class="stat-number">5,000+</div>
-          <div class="stat-label">Patients Served</div>
+          <div class="stat-label">Clients served</div>
         </div>
 
         <div class="screening-card">
@@ -87,7 +87,7 @@
             <div class="rnd-avatar">IA</div>
             <div class="rnd-info">
               <div class="rnd-name">RND Ivy Hope Alba</div>
-              <div class="rnd-spec">Diabetes · Renal Nutrition</div>
+              <div class="rnd-spec">Diabetes, renal nutrition</div>
             </div>
             <div class="rnd-rating">★ 4.9</div>
           </div>
@@ -111,8 +111,8 @@ import { Check, ShieldCheck, FileText, Activity } from 'lucide-vue-next'
 
 const stats = [
   { number: '200+', label: 'Verified RNDs' },
-  { number: '5,000+', label: 'Patients Served' },
-  { number: '8', label: 'Core Modules' },
+  { number: '5,000+', label: 'Clients served' },
+  { number: '8', label: 'Core modules' },
   { number: 'RA 10173', label: 'Compliant' },
 ]
 
@@ -229,11 +229,11 @@ onUnmounted(() => {
 .btn-primary:active { transform: scale(0.98); }
 
 .btn-secondary {
-  background: #ffffff; border: 1.5px solid #123524; color: #123524;
+  background: #e3efe7; border: none; color: #123524;
   padding: 14px 28px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
   transition: background 0.2s, transform 0.15s;
 }
-.btn-secondary:hover { background: rgba(18,53,36,0.06); }
+.btn-secondary:hover { background: #d3e7da; }
 .btn-secondary:active { transform: scale(0.98); }
 
 .hero-tags {

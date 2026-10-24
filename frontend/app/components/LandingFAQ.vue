@@ -2,7 +2,7 @@
   <section class="faq" id="faqs">
     <div class="faq-header">
       <div class="eyebrow">FAQ</div>
-      <h2>Common Questions</h2>
+      <h2>Common questions</h2>
     </div>
 
     <div class="faq-list">
@@ -26,11 +26,14 @@ const openIndex = ref(null)
 const toggle = (i) => { openIndex.value = openIndex.value === i ? null : i }
 
 const faqs = [
-  { q: 'Is NutriMatch free to use?', a: 'Yes, creating a patient account is completely free. RNDs may have consultation fees set independently on their profiles.' },
+  { q: 'Is NutriMatch free to use?', a: 'Creating an account is free. Each RND sets their own consultation fee, shown on their profile. You pay it once your RND confirms the booking, any time before the consultation starts.' },
   { q: 'How are RNDs verified on the platform?', a: 'All RNDs upload a photo of their PRC license during registration, which our admin team verifies against PRC records before their profile goes live.' },
-  { q: 'Is my health data kept private?', a: 'Absolutely. NutriMatch is fully RA 10173 (Data Privacy Act) compliant. Your health data is encrypted and never shared without your consent.' },
+  { q: 'Is my health data kept private?', a: 'Yes. NutriMatch follows the Data Privacy Act of 2012 (RA 10173). Only you and your RND see your health records, your data travels over an encrypted connection, and every time someone opens your records it is logged.' },
   { q: 'Which conditions does NutriMatch support?', a: 'NutriMatch supports diabetes, hypertension, renal disease, obesity, malnutrition, and other conditions requiring Medical Nutrition Therapy.' },
-  { q: 'What consultation types are available?', a: 'You can choose a video call or an in-person consultation depending on your RND\'s availability and your preference.' },
+  { q: 'What consultation types are available?', a: 'A video call or an in-person visit at your RND\'s clinic, depending on what your RND offers.' },
+  { q: 'How do I pay?', a: 'Through PayMongo with GCash, Maya, a card or QR Ph. Your consultation opens once it is paid.' },
+  { q: 'What if a consultation is cancelled?', a: 'If you already paid, you get a full refund within 5 to 7 business days, back to the same wallet or card.' },
+  { q: 'Can I see more than one RND?', a: 'You work with one RND at a time, so your care stays in one place. You can ask to end your care with them in Profile Settings, then book someone else.' },
 ]
 </script>
 

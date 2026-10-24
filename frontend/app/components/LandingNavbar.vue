@@ -20,8 +20,8 @@
     </ul>
 
     <div class="nav-actions">
-      <button class="btn-login" @click="navigateTo('/login')">Log In</button>
-      <button class="btn-get-started" @click="navigateTo('/register')">Get Started</button>
+      <button class="btn-login" @click="navigateTo('/login')">Sign in</button>
+      <button class="btn-get-started" @click="navigateTo('/register')">Create account</button>
     </div>
   </nav>
 </template>
@@ -31,7 +31,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const links = [
   { id: 'features', label: 'Features' },
-  { id: 'how-it-works', label: 'How It Works' },
+  { id: 'how-it-works', label: 'How it works' },
   { id: 'testimonials', label: 'Testimonials' },
   { id: 'for-rnds', label: 'For RNDs' },
   { id: 'faqs', label: 'FAQs' },
@@ -163,11 +163,11 @@ onBeforeUnmount(() => {
 .nav-actions { display: flex; gap: 12px; align-items: center; }
 
 .btn-login {
-  background: transparent; border: 0.5px solid #ffffff; color: #ffffff;
+  background: rgba(255, 255, 255, 0.14); border: none; color: #ffffff;
   padding: 8px 35px; border-radius: 24px; font-size: 0.70rem;
-  font-weight: 500; cursor: pointer; transition: background 0.2s;
+  font-weight: 700; cursor: pointer; transition: background 0.2s;
 }
-.btn-login:hover {  border-color: #D4A017; color: #D4A017; }
+.btn-login:hover { background: rgba(255, 255, 255, 0.22); }
 
 .btn-get-started {
   background: #EFBF04; border: none; color: #063C2A;

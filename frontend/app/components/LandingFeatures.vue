@@ -2,9 +2,9 @@
   <section class="features" id="features" style="background-color: #F9F8F0;">
     <div class="features-header">
       <div class="eyebrow" style="color:#004635;"font-size: 0.75rem;><span class="eyebrow-line"></span> BUILT FOR FILIPINO HEALTHCARE</div>
-      <h2>Everything for Clinical Nutrition Care</h2>
+      <h2>Everything for clinical nutrition care</h2>
       <p style="font-family: 'Inter', sans-serif; font-size: 1rem; color: #5a7a5a; max-width: 600px; margin: 0 auto; line-height: 1.7;">
-        From Client-RND matching to FNRI-compliant meal plans, every step of your care journey is covered.
+        From finding your RND to FNRI-based meal plans, every step of your care is covered.
       </p>
     </div>
 
@@ -19,7 +19,7 @@
     </div>
 
     <div class="features-cta">
-      <button class="btn-gold" @click="navigateTo('/register')">Start Your Nutrition Journey →</button>
+      <button class="btn-gold" @click="navigateTo('/register')">Start your nutrition journey</button>
     </div>
   </section>
 </template>
@@ -27,23 +27,23 @@
 <script setup>
 const features = [
   {
-    title: 'Filipino-First Meal Plans',
-    desc: 'FNRI Food Exchange Lists, disease-specific templates for diabetes, hypertension & renal conditions.',
+    title: 'Filipino-first meal plans',
+    desc: 'FNRI food exchange lists and ready templates for diabetes, hypertension, kidney disease and weight management.',
     img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80',
   },
   {
-    title: 'Client-RND Matching',
-    desc: 'Filter by specialty, language (Tagalog, Cebuano, Ilocano), and consultation mode — video call or in-person.',
+    title: 'Find the right RND',
+    desc: 'Filter by specialty, language (Tagalog, Cebuano, Ilocano and more) and format: video call or in person.',
     img: 'https://images.unsplash.com/photo-1543362906-acfc16c67564?w=400&q=80',
   },
   {
-    title: 'Digital NCP Module',
-    desc: 'Complete 4-phase Nutrition Care Process — Assessment, PES Diagnosis, Intervention, and Monitoring.',
+    title: 'Digital NCP records',
+    desc: 'The full 4-step Nutrition Care Process: assessment, PES diagnosis, intervention and monitoring.',
     img: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&q=80',
   },
   {
-    title: 'Outcome Monitoring',
-    desc: 'Track BMI, HbA1c, blood pressure & glucose with automated dashboards and longitudinal reports.',
+    title: 'Progress you can see',
+    desc: 'Weight, BMI, blood pressure, glucose and HbA1c charted over time, with reports you can print.',
     img: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400&q=80',
   },
 ]

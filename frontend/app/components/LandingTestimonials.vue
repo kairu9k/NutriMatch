@@ -2,7 +2,7 @@
   <section class="testimonials" id="testimonials">
     <div class="testimonials-header">
       <div class="eyebrow"><span class="eyebrow-line"></span> TESTIMONIALS</div>
-      <h2>Trusted by Clients &amp; Dietitians</h2>
+      <h2>Trusted by clients and dietitians</h2>
       <p>Real stories from people whose lives have changed through expert nutrition guidance.</p>
     </div>
 
@@ -30,7 +30,7 @@ const testimonials = [
   {
     name: 'Julia Niel Bulalaque',
     initials: 'JB',
-    role: 'Client — Diabetic Management',
+    role: 'Client, diabetes care',
     quote: 'NutriMatch helped me find an RND who speaks Cebuano and truly understands my diabetes. I feel heard for the first time.',
     img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80',
   },
@@ -38,13 +38,13 @@ const testimonials = [
     name: 'RND Ivy Hope Alba',
     initials: 'IA',
     role: 'Registered Nutritionist-Dietitian',
-    quote: 'The digital NCP workflow is a complete game-changer. PES statements, lab tracking, and meal plans — all in one place.',
+    quote: 'The digital NCP workflow is a complete game-changer. PES statements, lab tracking and meal plans, all in one place.',
     img: 'https://images.unsplash.com/photo-1543362906-acfc16c67564?w=600&q=80',
   },
   {
     name: 'Kent Leabres',
     initials: 'KB',
-    role: 'Client — Weight Management',
+    role: 'Client, weight management',
     quote: 'Lost 8 kilos in 3 months following my personalized FNRI meal plan. My RND adjusted recipes based on my actual labs.',
     img: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&q=80',
   },

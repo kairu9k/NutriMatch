@@ -7,7 +7,7 @@
         <p class="quote-text">
           "For <em class="highlight">better nutrition</em> and transformations that last a lifetime."
         </p>
-        <div class="quote-sub">THE NUTRIMATCH PHILOSOPHY · BUILT FOR THE PHILIPPINES</div>
+        <div class="quote-sub">THE NUTRIMATCH PHILOSOPHY, BUILT FOR THE PHILIPPINES</div>
       </div>
     </section>
 
@@ -21,7 +21,7 @@
     <section class="hiw" id="how-it-works" style="background: linear-gradient(135deg, #014536 0%, #002A40 100%);">
       <div class="hiw-header">
         <div class="eyebrow"><span class="eyebrow-line"></span> SIMPLE PROCESS</div>
-        <h2>How NutriMatch Works</h2>
+        <h2>How NutriMatch works</h2>
         <p>Three steps to evidence-based nutrition care.</p>
       </div>
 
@@ -43,18 +43,18 @@
 const steps = [
   {
     number: '01',
-    title: 'Register & Get Verified',
-    desc: 'Create your profile, complete pre-consultation screening, and submit credentials (RNDs) for PRC verification.',
+    title: 'Sign up and get checked',
+    desc: 'Clients answer a short health screening. RNDs send their PRC license, and our team checks it before they go live.',
   },
   {
     number: '02',
-    title: 'Match Your Dietitian',
-    desc: 'Browse verified RNDs by specialty, language, and consultation modality — video call or in-person.',
+    title: 'Book your RND',
+    desc: 'Browse verified RNDs by specialty and language, then book a video call or an in-person visit.',
   },
   {
     number: '03',
-    title: 'Transform Your Health',
-    desc: 'Get a personalized FNRI meal plan, structured NCP, and ongoing monitoring through your secure dashboard.',
+    title: 'Follow your plan',
+    desc: 'Get a personal FNRI meal plan, log your meals and see your progress from your dashboard.',
   },
 ]
 </script>

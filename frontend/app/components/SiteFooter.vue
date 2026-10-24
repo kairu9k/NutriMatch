@@ -6,35 +6,35 @@
           <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-img" />
           <div class="footer-logo"><span class="logo-nutri">Nutri</span><span class="logo-match">Match</span></div>
         </NuxtLink>
-        <p>A web-based clinical nutrition consultation management system for Filipino RNDs and patients. Built for Philippine healthcare.</p>
+        <p>A web-based clinical nutrition consultation management system for Filipino RNDs and their clients. Built for Philippine healthcare.</p>
         <span class="ra-badge">RA 10173 COMPLIANT</span>
       </div>
 
       <div class="footer-col">
         <div class="footer-col-title">PLATFORM</div>
         <NuxtLink to="/#features">Features</NuxtLink>
-        <NuxtLink to="/#how-it-works">How It Works</NuxtLink>
+        <NuxtLink to="/#how-it-works">How it works</NuxtLink>
         <NuxtLink to="/#testimonials">Reviews</NuxtLink>
         <NuxtLink to="/#faqs">FAQ</NuxtLink>
       </div>
 
       <div class="footer-col">
         <div class="footer-col-title">FOR USERS</div>
-        <NuxtLink to="/register">Sign Up as Patient</NuxtLink>
-        <NuxtLink to="/register">Register as RND</NuxtLink>
-        <NuxtLink to="/login">Log In</NuxtLink>
+        <NuxtLink to="/register?role=client">Sign up as a client</NuxtLink>
+        <NuxtLink to="/register?role=rnd">Apply as an RND</NuxtLink>
+        <NuxtLink to="/login">Sign in</NuxtLink>
       </div>
 
       <div class="footer-col">
         <div class="footer-col-title">LEGAL</div>
         <NuxtLink to="/privacy-policy">Privacy Policy</NuxtLink>
-        <NuxtLink to="/terms">Terms of Service</NuxtLink>
-        <NuxtLink to="/contact">Contact Us</NuxtLink>
+        <NuxtLink to="/terms">Terms and Conditions</NuxtLink>
+        <NuxtLink to="/contact">Contact us</NuxtLink>
       </div>
     </div>
 
     <div class="footer-bottom">
-      <span>© 2026 NutriMatch · BSIT Group 12 · STI College Davao · Alba · Bulalaque · Leabres · Timtim</span>
+      <span>© 2026 NutriMatch, BSIT Group 12, STI College Davao: Alba, Bulalaque, Leabres, Timtim</span>
       <div class="footer-links">
         <NuxtLink to="/privacy-policy">Privacy</NuxtLink>
         <NuxtLink to="/terms">Terms</NuxtLink>
