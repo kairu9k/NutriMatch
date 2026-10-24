@@ -270,7 +270,8 @@ async function load() {
     ])
     stats.value = s
     dash.value = d
-    pendingRnds.value = rnds.filter(r => r.is_active && r.review_status === 'pending')
+    // unfinished sign-ups (email not confirmed) stay hidden: they can't be approved yet
+    pendingRnds.value = rnds.filter(r => r.is_active && r.review_status === 'pending' && r.email_verified_at)
       .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
     activity.value = (Array.isArray(logs) ? logs : logs?.results || []).slice(0, 6)
     error.value = ''

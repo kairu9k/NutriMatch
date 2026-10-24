@@ -89,3 +89,17 @@ class AdminDashboardTests(TestCase):
         o = self.api.get("/api/admin/dashboard/").data["overview"]
         self.assertIsNone(o["platform"]["cancelled_pct_30_days"])
         self.assertEqual(o["platform"]["payments_this_month"], 0.0)
+
+    def test_unconfirmed_applicants_not_counted(self):
+        from profiles.models import RndProfile
+
+        done = User.objects.create_user(email="app1@d.ph", password="x", role="rnd", first_name="A", last_name="One")
+        done.email_verified_at = timezone.now()
+        done.save()
+        RndProfile.objects.create(user=done, prc_license_number="1111111", review_status="pending")
+        unfinished = User.objects.create_user(email="app2@d.ph", password="x", role="rnd", first_name="B", last_name="Two")
+        RndProfile.objects.create(user=unfinished, prc_license_number="2222222", review_status="pending")
+
+        apps = [a for a in self.api.get("/api/admin/dashboard/").data["attention"] if a["key"] == "applications"]
+        self.assertEqual(apps[0]["count"], 1)
+        self.assertEqual(self.api.get("/api/admin/platform-stats/").data["pending_verif"], 1)

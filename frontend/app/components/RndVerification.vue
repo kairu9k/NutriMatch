@@ -14,13 +14,14 @@
       </div>
     </div>
 
+    <p v-if="!loading && tab === 'pending' && unfinishedCount" class="nm-note plain-note unfinished-note">{{ unfinishedNote }}</p>
     <p v-if="loading" class="nm-muted">Loading applications…</p>
 
     <!-- TO REVIEW: short list + review panel -->
     <template v-else-if="tab === 'pending'">
       <div v-if="!filtered.length" class="nm-panel nm-empty">
         <ShieldCheck :size="28" />
-        <p>{{ search ? 'No applications match your search.' : 'No applications waiting for review. 🎉' }}</p>
+        <p>{{ search ? 'No applications match your search.' : 'No applications waiting for review.' }}</p>
       </div>
 
       <div v-else class="review-layout">
@@ -249,11 +250,18 @@ const checks = reactive({ name: false, number: false, photo: false })
 
 // review_status comes from the RND's application (pending → approved /
 // rejected); a deactivated account is listed separately.
+// An applicant who never confirmed their email is an unfinished sign-up: it
+// can't be approved, and signing up again replaces it, so it isn't listed.
 function statusOf(r) {
   if (!r.is_active) return 'inactive'
   if (r.review_status === 'rejected') return 'rejected'
-  return r.is_verified ? 'approved' : 'pending'
+  if (r.is_verified) return 'approved'
+  return r.email_verified_at ? 'pending' : 'unfinished'
 }
+const unfinishedCount = computed(() => countOf('unfinished'))
+const unfinishedNote = computed(() => (unfinishedCount.value === 1
+  ? "1 sign-up hasn't confirmed its email yet, so it isn't listed. It shows here once confirmed."
+  : `${unfinishedCount.value} sign-ups haven't confirmed their email yet, so they aren't listed. They show here once confirmed.`))
 const countOf = key => rnds.value.filter(r => statusOf(r) === key).length
 
 const filtered = computed(() => {
@@ -399,6 +407,7 @@ async function confirmReject() {
 </script>
 
 <style scoped>
+.unfinished-note { margin: 0 0 14px; }
 .review-layout { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 20px; align-items: start; }
 
 /* queue */

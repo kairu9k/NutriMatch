@@ -95,7 +95,10 @@ def _attention(now, summary):
     support = SupportTicket.objects.filter(status=SupportTicket.Status.OPEN).count()
     add("warning", "support", support, f"{support} support request{'s' if support != 1 else ''} waiting for a reply",
         "Clients and RNDs are told we usually reply within 24 hours.", "/admin-support")
-    pending = RndProfile.objects.filter(review_status="pending", user__is_active=True).count()
+    # Only applicants who confirmed their email: an unfinished sign-up can't be
+    # approved yet, and signing up again replaces it.
+    pending = RndProfile.objects.filter(review_status="pending", user__is_active=True,
+                                        user__email_verified_at__isnull=False).count()
     add("warning", "applications", pending, f"{pending} RND application{'s' if pending != 1 else ''} to review",
         "Check each PRC license before approving.", "/rnd-verification")
     refunds = Invoice.objects.filter(status="refund_pending").count()

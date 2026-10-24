@@ -34,7 +34,8 @@ class AdminPlatformStatsView(APIView):
 
         active_rnds = RndProfile.objects.filter(is_verified=True, user__is_active=True).count()
         # Applications still awaiting a decision (not rejected / deactivated).
-        pending_verif = RndProfile.objects.filter(review_status="pending", user__is_active=True).count()
+        pending_verif = RndProfile.objects.filter(review_status="pending", user__is_active=True,
+                                                  user__email_verified_at__isnull=False).count()
         clients = User.objects.filter(role=User.Role.CLIENT, is_active=True).count()
         # Shown under the Clients card, so clients only (RNDs have their own card).
         new_registrations = User.objects.filter(role=User.Role.CLIENT, created_at__gte=thirty_days_ago).count()
