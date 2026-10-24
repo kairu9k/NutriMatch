@@ -273,6 +273,7 @@
 
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
             <div class="form-nav">
+              <button type="button" class="btn-back" @click="errorMessage = ''; currentStep = 2">Back</button>
               <button type="submit" class="btn-primary" :disabled="!profileValid">Continue</button>
             </div>
           </form>
@@ -315,6 +316,7 @@
 
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
             <div class="form-nav">
+              <button type="button" class="btn-back" @click="errorMessage = ''; currentStep = 5">Back</button>
               <button type="submit" class="btn-primary" :disabled="!consultationValid">Continue</button>
             </div>
           </form>
@@ -428,6 +430,8 @@
           <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
           <div class="form-nav">
+            <!-- RNDs can step back through their application; the client check step has none (user's call) -->
+            <button v-if="selectedRole === 'rnd'" type="button" class="btn-back" :disabled="isSubmitting" @click="errorMessage = ''; currentStep = 6">Back</button>
             <button class="btn-primary" :disabled="isSubmitting || !consentGiven" :aria-busy="isSubmitting" @click="submitRegistration">
               <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
               {{ isSubmitting ? (selectedRole === 'rnd' ? 'Submitting…' : 'Creating account…') : (selectedRole === 'rnd' ? 'Submit application' : 'Create account') }}
@@ -1152,9 +1156,16 @@ function changeEmail() {
 .legal-hint { margin: 0; font-size: 0.82rem; color: #4a5a4a; }
 .btn-primary.legal-done { width: auto; min-height: 40px; }
 
-/* BUTTON ROW */
+/* BUTTON ROW: Back and Continue, one height */
 .form-nav { display: flex; gap: 12px; margin-top: 4px; }
 .form-nav .btn-primary { flex: 1; }
+.btn-back {
+  flex: 0 0 auto; min-height: 46px; padding: 0 20px; border: none; border-radius: 8px;
+  background: #e3efe7; color: #0a4a37; font-family: inherit; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+}
+.btn-back:hover:not(:disabled) { background: #d3e7da; }
+.btn-back:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-back:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .btn-spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff; animation: btn-spin 0.7s linear infinite; flex-shrink: 0; }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
 .top-back { margin-bottom: 32px; }
