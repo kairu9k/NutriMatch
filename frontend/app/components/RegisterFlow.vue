@@ -221,7 +221,6 @@
             <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
 
             <div class="form-nav">
-              <button type="button" class="btn-back" @click="currentStep = 1">Back</button>
               <button type="submit" class="btn-primary" :disabled="!detailsValid || checkingEmail">{{ checkingEmail ? 'Checking…' : 'Continue' }}</button>
             </div>
           </form>
