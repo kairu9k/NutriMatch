@@ -109,8 +109,8 @@
           </div>
           <template v-if="health.hasAllergies">
             <div class="chips">
-              <button v-for="a in ALLERGY_OPTIONS" :key="a" type="button" class="chip" :class="{ on: health.allergies.includes(a) }" :aria-pressed="health.allergies.includes(a)" @click="toggle(health.allergies, a)">{{ a }}</button>
-              <button v-for="a in customAllergies" :key="a" type="button" class="chip on" :aria-pressed="true" @click="toggle(health.allergies, a)">{{ a }} ✕</button>
+              <button v-for="a in ALLERGY_OPTIONS" :key="a" type="button" class="chip allergy" :class="{ on: health.allergies.includes(a) }" :aria-pressed="health.allergies.includes(a)" @click="toggle(health.allergies, a)">{{ a }}</button>
+              <button v-for="a in customAllergies" :key="a" type="button" class="chip allergy on" :aria-pressed="true" @click="toggle(health.allergies, a)">{{ a }} ✕</button>
             </div>
             <div class="add-row">
               <input v-model="newAllergy" type="text" maxlength="60" placeholder="Other allergy, e.g. Mango" @keydown.enter.prevent="addAllergy()" />
@@ -200,7 +200,7 @@ const { get, patch, post } = useApi()
 const STEPS = [
   { key: 'welcome', label: 'Welcome' },
   { key: 'about', label: 'About you' },
-  { key: 'health', label: 'Health background' },
+  { key: 'health', label: 'Your health' },
   { key: 'screening', label: 'Screening' },
 ]
 const step = ref('welcome')
@@ -421,7 +421,7 @@ onMounted(async () => {
 .link-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .onb-main { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
-.onb-steps { list-style: none; padding: 0; margin: 0 0 20px; display: flex; gap: 55px; }
+.onb-steps { list-style: none; padding: 0; margin: 0 0 20px; display: flex; gap: 12px; }
 .onb-step { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #8a9a8a; font-weight: 600; min-width: 0; }
 .onb-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #d5dad5; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; background: #fff; }
 .onb-step.active { color: #1a3a1a; }
@@ -465,6 +465,8 @@ onMounted(async () => {
 .chip { border: 1.5px solid #d5dad5; background: #fff; color: #4a5a4a; border-radius: 999px; padding: 7px 13px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; }
 .chip:hover { border-color: #9aaa9a; }
 .chip.on { border-color: #1a3a1a; background: #1a3a1a; color: #fff; }
+/* a ticked allergy is a real warning: red, never quiet */
+.chip.allergy.on { border-color: #c0392b; background: #c0392b; color: #fff; }
 .add-row { display: flex; gap: 8px; margin-top: 8px; }
 .add-row input { flex: 1; }
 
@@ -484,7 +486,7 @@ onMounted(async () => {
   .grid-2, .radio-row { grid-template-columns: 1fr; }
   .onb-step-label { display: none; }
   .onb-step.active { flex: 2; }
-  .onb-step.active .onb-step-label { display: inline; overflow: visible; }
+  .onb-step.active .onb-step-label { display: inline; }
   .actions { flex-direction: column-reverse; }
   .actions > * { width: 100%; }
 }
