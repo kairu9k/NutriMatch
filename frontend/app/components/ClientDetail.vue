@@ -796,7 +796,7 @@ const trends = computed(() => {
 .more-item:hover, .more-item:focus-visible { background: #f6f8f6; outline: none; }
 .more-item.danger { color: #b23b2e; }
 .more-item.danger:hover { background: #fdf0ee; }
-.ph-allergy { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; background: #fdecec; color: #8f2a20; font-size: 0.86rem; line-height: 1.45; }
+.ph-allergy { display: flex; width: fit-content; max-width: 100%; align-items: flex-start; gap: 8px; margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; background: #fdecec; color: #8f2a20; font-size: 0.86rem; line-height: 1.45; }
 .ph-allergy svg { flex-shrink: 0; margin-top: 2px; }
 
 /* every panel on the chart (tabs included, also inside child components like
