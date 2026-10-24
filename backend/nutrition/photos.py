@@ -54,21 +54,46 @@ def upload_meal_photo(file):
     return result["public_id"], result.get("format") or "jpg"
 
 
+PHOTO_SALT = "meal-photo"
+
+
 def meal_photo_link(log):
     """A link to the log's photo that works for PHOTO_LINK_MINUTES, or None.
-    Only call it for someone allowed to see the log."""
-    if log.photo_public_id:
-        import cloudinary.utils
+    Only call it for someone allowed to see the log.
 
-        try:
-            _configure()
-        except MealPhotoError:
-            return None
-        return cloudinary.utils.private_download_url(
-            log.photo_public_id, log.photo_format or "jpg", resource_type="image", type="authenticated",
-            expires_at=int((timezone.now() + timedelta(minutes=PHOTO_LINK_MINUTES)).timestamp()),
-        )
+    The link is the API's own (/api/meal-photos/<id>/?t=<signed token>): the
+    token expires after PHOTO_LINK_MINUTES and the API fetches the photo from
+    Cloudinary's CDN, which is fast (Cloudinary's own expiring download link
+    took ~16 s per photo from here, 2026-10-24)."""
+    if log.photo_public_id:
+        from django.core import signing
+
+        token = signing.dumps({"l": log.id}, salt=PHOTO_SALT)
+        return f"{settings.API_PUBLIC_URL}/api/meal-photos/{log.id}/?t={token}"
     return log.photo_url or None  # older photo not moved yet
+
+
+def read_photo_token(token, log_id):
+    """True when `token` was issued for this log in the last PHOTO_LINK_MINUTES."""
+    from django.core import signing
+
+    try:
+        data = signing.loads(token or "", salt=PHOTO_SALT, max_age=PHOTO_LINK_MINUTES * 60)
+    except signing.BadSignature:
+        return False
+    return data.get("l") == log_id
+
+
+def fetch_meal_photo(log):
+    """The photo's bytes, or None."""
+    from core.downloads import fetch_private_image
+
+    try:
+        _configure()
+    except MealPhotoError:
+        return None
+    return fetch_private_image(log.photo_public_id, log.photo_format or "jpg",
+                               int((timezone.now() + timedelta(minutes=1)).timestamp()))
 
 
 def destroy_meal_photo(public_id, *, authenticated=True):

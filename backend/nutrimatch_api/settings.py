@@ -280,6 +280,11 @@ GMAIL_HOST_PASSWORD = config('GMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=GMAIL_HOST_USER or 'noreply@nutrimatch.ph')
 # Where links in emails point (sign in, apply again).
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000').rstrip('/')
+# The API's own public address, for links the API hands out (meal photos).
+API_PUBLIC_URL = config(
+    'API_PUBLIC_URL',
+    default=f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else 'http://127.0.0.1:8000',
+).rstrip('/')
 # Fallback for the `support_email` system setting (core/support.py).
 SUPPORT_EMAIL = config('SUPPORT_EMAIL', default='nutrimatch36@gmail.com')
 

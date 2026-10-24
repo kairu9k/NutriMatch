@@ -50,16 +50,25 @@ class PrivateMealPhotoTests(TestCase):
         log = MealLog.objects.get(pk=resp.data["id"])
         self.assertEqual((log.photo_public_id, log.photo_format, log.photo_url), ("meal-logs-private/abc", "jpg", None))
 
+        # The link is the API's own, with a signed token; never a public Cloudinary address.
         link = resp.data["photo_url"]
-        self.assertIn("api.cloudinary.com", link)  # a signed download link, not res.cloudinary.com/.../upload/
-        expires = int(parse_qs(urlparse(link).query)["expires_at"][0])
-        minutes = (expires - timezone.now().timestamp()) / 60
-        self.assertTrue(PHOTO_LINK_MINUTES - 1 <= minutes <= PHOTO_LINK_MINUTES + 1, minutes)
+        self.assertIn(f"/api/meal-photos/{log.id}/?t=", link)
+        self.assertNotIn("cloudinary", link)
+        path = link.split("8000", 1)[-1]
+        anon = APIClient()
+        with mock.patch("nutrition.photos.fetch_meal_photo", return_value=b"jpeg-bytes") as fetch:
+            ok = anon.get(path)  # an <img> sends no JWT; the token is the key
+        self.assertEqual((ok.status_code, ok["Content-Type"], ok.content), (200, "image/jpeg", b"jpeg-bytes"))
+        self.assertEqual(fetch.call_args.args[0].id, log.id)
+        self.assertEqual(anon.get(f"/api/meal-photos/{log.id}/?t=forged").status_code, 403)
+        self.assertEqual(anon.get(path.replace(f"/{log.id}/", f"/{log.id + 1}/")).status_code, 403)  # token is per log
+        with mock.patch("django.core.signing.time.time", return_value=timezone.now().timestamp() + PHOTO_LINK_MINUTES * 60 + 5):
+            self.assertEqual(anon.get(path).status_code, 403)  # expired
 
         # The client's own list and the RND's view get a link; another RND gets nothing.
-        self.assertTrue(self.api.get("/api/client/meal-logs/").data[0]["photo_url"].startswith("https://api.cloudinary.com"))
+        self.assertIn("/api/meal-photos/", self.api.get("/api/client/meal-logs/").data[0]["photo_url"])
         self.api.force_authenticate(self.rnd)
-        self.assertIn("api.cloudinary.com", self.api.get(f"/api/rnd/meal-logs/{log.id}/").data["photo_url"])
+        self.assertIn("/api/meal-photos/", self.api.get(f"/api/rnd/meal-logs/{log.id}/").data["photo_url"])
         other = approve_rnd(User.objects.create_user(email="ro@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
         self.api.force_authenticate(other)
         self.assertEqual(self.api.get(f"/api/rnd/meal-logs/{log.id}/").status_code, 404)

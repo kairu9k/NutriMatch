@@ -16,7 +16,6 @@ import logging
 import os
 from datetime import timedelta
 
-import httpx
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
@@ -116,45 +115,16 @@ def upload_lab_file(file):
 
 
 def fetch_lab_file(result):
-    """The file's bytes, fetched server-side; no link ever reaches the browser.
-
-    First through Cloudinary's CDN with a signed authenticated delivery URL
-    (fast). Cloudinary's API download link was the only way before, but from
-    here it trickles (a 5 MB PDF took well over 30 s, 2026-10-24), so it is
-    only the fallback. Each try has an overall deadline, not just a per-read
-    timeout, so a slow download ends in an error instead of a spinner."""
-    import cloudinary.utils
+    """The file's bytes, fetched server-side (CDN first, see core/downloads.py);
+    no link ever reaches the browser."""
+    from core.downloads import fetch_private_image
 
     _configure()
-    cdn_url, _ = cloudinary.utils.cloudinary_url(
-        result.file_public_id, resource_type="image", type="authenticated",
-        sign_url=True, format=result.file_format, secure=True,
-    )
-    api_url = cloudinary.utils.private_download_url(
-        result.file_public_id, result.file_format, resource_type="image", type="authenticated",
-        expires_at=int((timezone.now() + timedelta(minutes=1)).timestamp()),
-    )
-    for url in (cdn_url, api_url):
-        try:
-            return _download(url, deadline=25)
-        except (httpx.HTTPError, TimeoutError):
-            continue
-    raise LabFileError("Could not load the file. Please try again.")
-
-
-def _download(url, deadline):
-    """GET the whole body within `deadline` seconds in total."""
-    import time
-
-    end = time.monotonic() + deadline
-    chunks = []
-    with httpx.stream("GET", url, timeout=10, follow_redirects=True) as resp:
-        resp.raise_for_status()
-        for chunk in resp.iter_bytes():
-            chunks.append(chunk)
-            if time.monotonic() > end:
-                raise TimeoutError("download too slow")
-    return b"".join(chunks)
+    data = fetch_private_image(result.file_public_id, result.file_format,
+                               int((timezone.now() + timedelta(minutes=1)).timestamp()))
+    if data is None:
+        raise LabFileError("Could not load the file. Please try again.")
+    return data
 
 
 def destroy_lab_file(public_id):

@@ -436,3 +436,32 @@ class ClientMealLogSaveView(APIView):
         )
 
         return Response(MealLogSerializer(meal_log).data, status=status.HTTP_200_OK)
+
+
+class MealPhotoView(APIView):
+    """GET /api/meal-photos/<id>/?t=<token>: the meal log's private photo.
+
+    No JWT (an <img> can't send one): the signed token from meal_photo_link()
+    is the key. It's only handed to people allowed to see the log and expires
+    after PHOTO_LINK_MINUTES."""
+
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        from django.http import HttpResponse
+
+        from .photos import fetch_meal_photo, read_photo_token
+
+        if not read_photo_token(request.query_params.get("t"), pk):
+            return Response({"detail": "This photo link has expired. Reload the page."}, status=status.HTTP_403_FORBIDDEN)
+        log = MealLog.objects.filter(pk=pk).exclude(photo_public_id__isnull=True).exclude(photo_public_id="").first()
+        if not log:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        data = fetch_meal_photo(log)
+        if data is None:
+            return Response({"detail": "Could not load the photo. Please try again."}, status=status.HTTP_502_BAD_GATEWAY)
+        fmt = (log.photo_format or "jpg").lower()
+        resp = HttpResponse(data, content_type=f"image/{'jpeg' if fmt in ('jpg', 'jpeg') else fmt}")
+        resp["Cache-Control"] = "private, max-age=600"
+        return resp

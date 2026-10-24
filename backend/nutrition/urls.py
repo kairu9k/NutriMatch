@@ -5,6 +5,7 @@ from .usda import UsdaFoodDetailView, UsdaFoodSearchView
 
 from .views import (
     ClientMealLogListView,
+    MealPhotoView,
     ClientMealLogSaveView,
     RndMealLogDetailView,
     RndMealLogReviewView,
@@ -22,6 +23,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("meal-photos/<int:pk>/", MealPhotoView.as_view(), name="meal_photo"),
     path("food-exchange/categories/", FoodExchangeCategoryListView.as_view(), name="food_exchange_categories"),
     path("food-exchange/items/", FoodExchangeItemListView.as_view(), name="food_exchange_items"),
     path("usda/foods/", UsdaFoodSearchView.as_view(), name="usda_food_search"),
