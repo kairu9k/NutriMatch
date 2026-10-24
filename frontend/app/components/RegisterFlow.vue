@@ -687,9 +687,27 @@ const detailsValid = computed(() => {
   return false
 })
 
+// The first thing on the details step that still needs fixing, in words.
+const detailsProblem = computed(() => {
+  if (!form.firstName.trim() || firstNameError.value) return 'your first name'
+  if (!form.lastName.trim() || lastNameError.value) return 'your last name'
+  if (!form.email || emailError.value) return 'your email address'
+  if (!passwordRules.value.every(r => r.ok)) return 'your password'
+  if (!form.confirmPassword || !passwordsMatch.value) return 'the password typed again'
+  if (!form.dob || dobError.value) return 'your date of birth'
+  if (selectedRole.value === 'patient') return !form.gender ? 'your gender' : !form.healthConcern ? 'your main health concern' : ''
+  if (rndPhoneError(form.phone)) return 'your mobile number'
+  if (!/^\d{7}$/.test(form.prcNumber)) return 'your PRC license number'
+  if (!form.prcLicenseImage) return 'your PRC license photo'
+  if (!form.specialization) return 'your specialization'
+  return ''
+})
+
 async function goToConfirm() {
   if (!detailsValid.value) {
-    errorMessage.value = 'Please fix the highlighted fields first.'
+    // On a later step the details aren't on screen: take them back there.
+    if (currentStep.value !== 2) currentStep.value = 2
+    errorMessage.value = `Please check ${detailsProblem.value || 'the highlighted fields'} first.`
     return
   }
   // Same rule the API applies at submit (a verified account owns the email),
