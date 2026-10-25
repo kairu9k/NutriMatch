@@ -6,213 +6,236 @@
     <p v-if="loading" class="nm-muted">Loading account…</p>
 
     <template v-else-if="data">
-      <!-- identity + actions -->
-      <div class="nm-panel identity">
-        <div class="identity-main">
-          <img v-if="u.profile_photo" :src="u.profile_photo" class="nm-avatar lg" alt="" />
-          <span v-else class="nm-avatar lg">{{ userInitials(u.first_name, u.last_name) }}</span>
-          <div style="min-width: 0">
-            <h1 class="nm-page-title" style="margin: 0">{{ u.first_name }} {{ u.last_name }}</h1>
-            <p class="nm-page-sub">{{ u.email }}<template v-if="u.phone">, {{ formatPhone(u.phone) }}</template></p>
-            <div class="pill-row">
-              <span class="nm-pill muted">{{ roleLabel }}</span>
-              <span class="nm-pill" :class="account.is_active ? 'green' : 'muted'">{{ account.is_active ? 'Active' : 'Deactivated' }}</span>
-              <span v-if="rnd" class="nm-pill" :class="reviewPill">{{ reviewLabel }}</span>
+      <!-- ACCOUNT FILE (2026-10-25): who they are and the account's state at the
+           top, real information below, anything missing in one grey line. -->
+      <section class="nm-panel file-head">
+        <div class="fh-top">
+          <div class="identity-main">
+            <img v-if="u.profile_photo" :src="u.profile_photo" class="nm-avatar lg" alt="" />
+            <span v-else class="nm-avatar lg">{{ userInitials(u.first_name, u.last_name) }}</span>
+            <div style="min-width: 0">
+              <h1 class="nm-page-title" style="margin: 0">{{ u.first_name }} {{ u.last_name }}</h1>
+              <p class="nm-page-sub">{{ u.email }}<template v-if="u.phone">, {{ formatPhone(u.phone) }}</template></p>
+              <div class="pill-row">
+                <span class="nm-pill muted">{{ roleLabel }}</span>
+                <span class="nm-pill" :class="account.is_active ? 'green' : 'muted'">{{ account.is_active ? 'Active' : 'Deactivated' }}</span>
+                <span v-if="rnd" class="nm-pill" :class="reviewPill">{{ reviewLabel }}</span>
+              </div>
             </div>
           </div>
+          <div v-if="!isSelf" class="identity-actions">
+            <button type="button" class="nm-btn-soft" :disabled="busy" @click="openEdit"><Pencil :size="14" aria-hidden="true" /> Edit details</button>
+            <button type="button" class="nm-btn-soft" :disabled="busy" @click="sendReset"><KeyRound :size="14" aria-hidden="true" /> Send password reset</button>
+            <button v-if="account.is_active" type="button" class="nm-btn-danger solid" :disabled="busy" @click="openDeactivate"><Ban :size="14" aria-hidden="true" /> Deactivate</button>
+            <button v-else type="button" class="nm-btn-dark" :disabled="busy" @click="reactivate"><RotateCcw :size="14" aria-hidden="true" /> Reactivate</button>
+          </div>
         </div>
-        <div v-if="!isSelf" class="identity-actions">
-          <button type="button" class="nm-btn-soft" :disabled="busy" @click="openEdit"><Pencil :size="14" aria-hidden="true" /> Edit details</button>
-          <button type="button" class="nm-btn-soft" :disabled="busy" @click="sendReset"><KeyRound :size="14" aria-hidden="true" /> Send password reset</button>
-          <button v-if="account.is_active" type="button" class="nm-btn-danger solid" :disabled="busy" @click="openDeactivate"><Ban :size="14" aria-hidden="true" /> Deactivate</button>
-          <button v-else type="button" class="nm-btn-dark" :disabled="busy" @click="reactivate"><RotateCcw :size="14" aria-hidden="true" /> Reactivate</button>
+        <!-- the account at a glance (gold = something not done yet) -->
+        <dl class="fh-strip">
+          <div v-for="c in stripCells" :key="c.label" :class="{ warn: c.warn }">
+            <dt>{{ c.label }}</dt><dd>{{ c.value }}</dd>
+          </div>
+        </dl>
+        <p v-if="client" class="fh-audit"><ShieldCheck :size="14" aria-hidden="true" /> Health information. Your view was recorded in the audit log (RA 10173).</p>
+      </section>
+
+      <!-- CLIENT -->
+      <div v-if="client" class="file-grid">
+        <div class="file-col">
+          <section class="nm-panel">
+            <div class="nm-panel-head">
+              <h2 class="nm-panel-title">Care</h2>
+              <NuxtLink :to="`/admin-appointments?view=all&client=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
+            </div>
+            <p class="care-rnds">
+              <template v-if="client.rnds.length">
+                <span class="label">RND</span>
+                <span v-for="r in client.rnds" :key="r.rnd_id" class="care-rnd">
+                  <NuxtLink :to="`/users/${r.rnd_id}`" class="nm-text-link">{{ r.name }}</NuxtLink>
+                  <span class="nm-pill" :class="r.status === 'active' ? 'green' : 'muted'">{{ cap(r.status) }}</span>
+                </span>
+              </template>
+              <span v-else class="nm-muted">Hasn't booked an RND yet.</span>
+            </p>
+            <div class="figs four">
+              <div><strong>{{ appt(client, 'pending') + appt(client, 'confirmed') }}</strong><span>Upcoming or waiting</span></div>
+              <div><strong>{{ appt(client, 'completed') }}</strong><span>Completed</span></div>
+              <div><strong>{{ appt(client, 'cancelled') }}</strong><span>Cancelled</span></div>
+              <div><strong>{{ peso(client.invoices.paid_total) }}</strong><span>Total paid</span></div>
+            </div>
+          </section>
+
+          <section class="nm-panel">
+            <h2 class="nm-panel-title">Health</h2>
+            <dl class="facts">
+              <div v-if="listText(client.health.medical_conditions)"><dt>Conditions</dt><dd>{{ listText(client.health.medical_conditions) }}</dd></div>
+              <!-- allergies are never quiet (patient safety) -->
+              <div>
+                <dt>Allergies</dt>
+                <dd>
+                  <span v-if="client.health.allergies == null" class="gap">Not answered yet</span>
+                  <span v-else-if="!listText(client.health.allergies)">No known allergies</span>
+                  <span v-else class="allergy-list"><span v-for="a in client.health.allergies" :key="a" class="allergy">{{ a }}</span></span>
+                </dd>
+              </div>
+              <div v-if="listText(client.health.dietary_restrictions)"><dt>Diet</dt><dd>{{ listText(client.health.dietary_restrictions) }}</dd></div>
+              <div v-if="listText(client.health.health_goals)"><dt>Goals</dt><dd>{{ listText(client.health.health_goals) }}</dd></div>
+              <div v-if="client.health.religion"><dt>Religion</dt><dd>{{ client.health.religion }}</dd></div>
+            </dl>
+            <p v-if="healthMissing.length" class="not-given">Not given: {{ healthMissing.join(', ') }}.</p>
+          </section>
+
+          <section class="nm-panel">
+            <h2 class="nm-panel-title">Latest screening</h2>
+            <p class="nm-panel-sub">{{ s ? `Taken ${shortDate(s.created_at)}, ${client.screening_count} in total` : 'No pre-consultation screening yet.' }}</p>
+            <div v-if="s" class="figs four" style="margin-top: 14px">
+              <div><strong>{{ num(s.bmi) }}</strong><span>BMI<template v-if="s.bmi_category">, {{ s.bmi_category }}</template></span></div>
+              <div :class="{ risk: Number(s.nrs_score) >= 3 }"><strong>{{ s.nrs_score ?? '—' }}</strong><span>NRS-2002<template v-if="s.nrs_risk">, {{ cap(s.nrs_risk).toLowerCase() }}</template></span></div>
+              <div><strong>{{ num(s.weight_kg) }} kg</strong><span>{{ num(s.height_cm) }} cm tall</span></div>
+              <div><strong>{{ s.tdee_kcal ? Math.round(s.tdee_kcal).toLocaleString('en-PH') : '—' }}</strong><span>kcal a day (TDEE)</span></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="file-col">
+          <section class="nm-panel">
+            <h2 class="nm-panel-title">Personal</h2>
+            <dl class="facts">
+              <div v-if="client.profile.date_of_birth"><dt>Born</dt><dd>{{ dobText(client.profile.date_of_birth) }}</dd></div>
+              <div v-if="client.profile.sex"><dt>Sex</dt><dd>{{ cap(client.profile.sex) }}</dd></div>
+              <div v-if="client.profile.address"><dt>Address</dt><dd>{{ client.profile.address }}</dd></div>
+              <div v-if="client.profile.emergency_contact"><dt>Emergency contact</dt><dd>{{ emergencyText }}</dd></div>
+            </dl>
+            <p v-if="personalMissing.length" class="not-given">Not given: {{ personalMissing.join(', ') }}.</p>
+          </section>
+          <section class="nm-panel">
+            <h2 class="nm-panel-title">Admin history</h2>
+            <p v-if="!data.recent_activity.length" class="nm-muted" style="margin: 12px 0 0">Nothing recorded yet.</p>
+            <ol v-else class="history">
+              <li v-for="(a, i) in data.recent_activity" :key="i">
+                <span class="h-title">{{ auditLabel(a.action) }}</span>
+                <span class="h-time">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></span>
+              </li>
+            </ol>
+          </section>
         </div>
       </div>
 
-      <p v-if="client" class="nm-note">
-        This page shows health information. Your view was recorded in the audit log (RA 10173).
-      </p>
+      <!-- RND -->
+      <template v-if="rnd">
+        <section class="nm-panel figs-panel">
+          <div class="figs six">
+            <div><strong>{{ rnd.patients }}</strong><span>Active patients</span></div>
+            <div><strong>{{ appt(rnd, 'completed') }}</strong><span>Consultations done</span></div>
+            <div><strong>{{ rnd.rating.average ? `${rnd.rating.average} ★` : '—' }}</strong><span>{{ rnd.rating.count ? `${rnd.rating.count} review${rnd.rating.count === 1 ? '' : 's'}` : 'No reviews yet' }}</span></div>
+            <div><strong>{{ peso(rnd.earnings.pending) }}</strong><span>Pending</span></div>
+            <div><strong>{{ peso(rnd.earnings.posted) }}</strong><span>Posted, ready to pay</span></div>
+            <div><strong>{{ peso(rnd.earnings.paid_out) }}</strong><span>Paid out, {{ rnd.payouts }} payout{{ rnd.payouts === 1 ? '' : 's' }}</span></div>
+          </div>
+        </section>
 
-      <div class="nm-grid">
-        <div class="nm-col">
-          <!-- CLIENT -->
-          <template v-if="client">
-            <div class="nm-panel">
-              <h2 class="nm-panel-title">Personal details</h2>
-              <dl class="nm-dl" style="margin-top: 14px">
-                <div><dt>Date of birth</dt><dd :class="{ muted: !client.profile.date_of_birth }">{{ dobText(client.profile.date_of_birth) }}</dd></div>
-                <div><dt>Sex</dt><dd :class="{ muted: !client.profile.sex }">{{ cap(client.profile.sex) || 'Not given' }}</dd></div>
-                <div><dt>Address</dt><dd :class="{ muted: !client.profile.address }">{{ client.profile.address || 'Not given' }}</dd></div>
-                <div><dt>Emergency contact</dt><dd :class="{ muted: !client.profile.emergency_contact }">{{ emergencyText }}</dd></div>
-              </dl>
-            </div>
-
-            <div class="nm-panel">
-              <h2 class="nm-panel-title">Health background</h2>
-              <dl class="nm-dl" style="margin-top: 14px">
-                <div><dt>Conditions</dt><dd :class="{ muted: !listText(client.health.medical_conditions) }">{{ listText(client.health.medical_conditions) || 'None listed' }}</dd></div>
-                <div><dt>Allergies</dt><dd :class="{ muted: !listText(client.health.allergies) }">{{ allergyText }}</dd></div>
-                <div><dt>Dietary restrictions</dt><dd :class="{ muted: !listText(client.health.dietary_restrictions) }">{{ listText(client.health.dietary_restrictions) || 'None listed' }}</dd></div>
-                <div><dt>Religion</dt><dd :class="{ muted: !client.health.religion }">{{ client.health.religion || 'Not given' }}</dd></div>
-                <div><dt>Health goals</dt><dd :class="{ muted: !listText(client.health.health_goals) }">{{ listText(client.health.health_goals) || 'None listed' }}</dd></div>
-              </dl>
-            </div>
-
-            <div class="nm-panel">
-              <div class="nm-panel-head">
-                <div>
-                  <h2 class="nm-panel-title">Latest screening</h2>
-                  <p class="nm-panel-sub">{{ client.screening_count }} screening{{ client.screening_count === 1 ? '' : 's' }} in total</p>
-                </div>
-              </div>
-              <div v-if="!s" class="nm-empty"><p>No pre-consultation screening yet.</p></div>
-              <dl v-else class="nm-dl">
-                <div><dt>Taken</dt><dd>{{ dateTime(s.created_at) }}</dd></div>
-                <div><dt>Height and weight</dt><dd>{{ num(s.height_cm) }} cm, {{ num(s.weight_kg) }} kg</dd></div>
-                <div><dt>BMI</dt><dd>{{ num(s.bmi) }} <span v-if="s.bmi_category" class="nm-muted">({{ cap(s.bmi_category) }})</span></dd></div>
-                <div><dt>TDEE</dt><dd>{{ s.tdee_kcal ? `${Math.round(s.tdee_kcal)} kcal/day` : '—' }}</dd></div>
-                <div><dt>NRS-2002</dt><dd>{{ s.nrs_score ?? '—' }} <span v-if="s.nrs_risk" class="nm-muted">({{ cap(s.nrs_risk) }})</span></dd></div>
-              </dl>
-            </div>
-          </template>
-
-          <!-- RND -->
-          <template v-if="rnd">
-            <p v-if="rnd.profile.review_status === 'rejected' && rnd.profile.rejection_reason" class="nm-note plain-note">
+        <div class="file-grid">
+          <div class="file-col">
+            <p v-if="rnd.profile.review_status === 'rejected' && rnd.profile.rejection_reason" class="nm-note plain-note" style="margin: 0">
               <strong>Application rejected.</strong> Reason sent: {{ rnd.profile.rejection_reason }}
             </p>
-            <div class="nm-panel">
+            <section class="nm-panel">
               <div class="nm-panel-head">
                 <h2 class="nm-panel-title">Credentials</h2>
-                <NuxtLink v-if="rnd.profile.review_status === 'pending'" to="/rnd-verification" class="nm-panel-link">Review application</NuxtLink>
+                <NuxtLink v-if="rnd.profile.review_status === 'pending'" :to="`/rnd-verification?open=${u.id}`" class="nm-panel-link">Review application</NuxtLink>
               </div>
-              <dl class="nm-dl">
-                <div><dt>PRC license no.</dt><dd :class="{ muted: !rnd.profile.prc_license_number }">{{ rnd.profile.prc_license_number || 'Not given' }}</dd></div>
-                <div><dt>Specialization</dt><dd>{{ rnd.profile.specialization || '—' }}</dd></div>
-                <div><dt>Date of birth</dt><dd :class="{ muted: !rnd.profile.date_of_birth }">{{ dobText(rnd.profile.date_of_birth) }}</dd></div>
-                <div><dt>Verified</dt><dd :class="{ muted: !rnd.profile.verified_at }">{{ rnd.profile.verified_at ? shortDate(rnd.profile.verified_at) : 'Not yet' }}</dd></div>
-              </dl>
-              <button v-if="rnd.profile.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="licenseOpen = true">
-                <img :src="rnd.profile.prc_license_image_url" alt="PRC license photo" />
-                <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
-              </button>
-              <p v-else class="nm-muted" style="margin-top: 12px">No PRC license photo on file.</p>
-            </div>
-
-            <div class="nm-panel">
-              <h2 class="nm-panel-title">Practice</h2>
-              <p v-if="rnd.profile.bio" class="bio">{{ rnd.profile.bio }}</p>
-              <dl class="nm-dl" style="margin-top: 14px">
-                <div><dt>Consultation fee</dt><dd>{{ rnd.profile.consultation_fee ? peso(rnd.profile.consultation_fee) : '—' }}</dd></div>
-                <div><dt>Modes</dt><dd>{{ (rnd.profile.consultation_modes || []).map(m => MODE_LABELS[m] || m).join(', ') || '—' }}</dd></div>
-                <div><dt>Languages</dt><dd>{{ rnd.languages.join(', ') || '—' }}</dd></div>
-                <div><dt>New clients</dt><dd>{{ rnd.profile.available_for_new_clients ? 'Accepting' : 'Not accepting' }}</dd></div>
-                <div v-if="(rnd.profile.consultation_modes || []).includes('in_person')"><dt>Clinic address</dt><dd :class="{ muted: !rnd.profile.clinic_address }">{{ rnd.profile.clinic_address || 'Not added yet' }}</dd></div>
-              </dl>
-              <p class="nm-section-title">Weekly hours</p>
-              <p v-if="!hours.length" class="nm-muted">No availability set.</p>
-              <p v-for="line in hours" :key="line" class="hours-line">{{ line }}</p>
-              <p v-if="requiredMissing.length" class="nm-note" style="margin: 14px 0 0">
-                Clients can't book this RND yet. Still to do: {{ requiredMissing.map(m => m.label.toLowerCase()).join('; ') }}.
-              </p>
-            </div>
-          </template>
-        </div>
-
-        <div class="nm-col">
-          <!-- client activity -->
-          <div v-if="client" class="nm-panel">
-            <div class="nm-panel-head" style="margin-bottom: 0">
-              <h2 class="nm-panel-title">Activity</h2>
-              <NuxtLink :to="`/admin-appointments?view=all&client=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
-            </div>
-            <dl class="nm-dl" style="margin-top: 14px">
-              <div><dt>Appointments</dt><dd>{{ countText(client.appointments) }}</dd></div>
-              <div><dt>Total paid</dt><dd>{{ peso(client.invoices.paid_total) }}</dd></div>
-            </dl>
-            <p class="nm-section-title">RNDs</p>
-            <p v-if="!client.rnds.length" class="nm-muted">Hasn't booked an RND yet.</p>
-            <div v-for="r in client.rnds" :key="r.rnd_id" class="nm-row">
-              <div class="nm-row-main">
-                <NuxtLink :to="`/users/${r.rnd_id}`" class="nm-row-title link">{{ r.name }}</NuxtLink>
+              <div class="cred">
+                <button v-if="rnd.profile.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="licenseOpen = true">
+                  <img :src="rnd.profile.prc_license_image_url" alt="PRC license photo" />
+                  <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+                </button>
+                <div v-else class="license license-missing">No license photo on file</div>
+                <dl class="facts">
+                  <div><dt>PRC license no.</dt><dd class="mono">{{ rnd.profile.prc_license_number || 'Not given' }}</dd></div>
+                  <div><dt>Specialization</dt><dd>{{ rnd.profile.specialization || 'Not given' }}</dd></div>
+                  <div><dt>Born</dt><dd>{{ dobText(rnd.profile.date_of_birth) }}</dd></div>
+                  <div><dt>Approved</dt><dd>{{ rnd.profile.verified_at ? shortDate(rnd.profile.verified_at) : 'Not yet' }}</dd></div>
+                </dl>
               </div>
-              <span class="nm-pill" :class="r.status === 'active' ? 'green' : 'muted'">{{ cap(r.status) }}</span>
-            </div>
+            </section>
+
+            <!-- the Find an RND card, as clients see it (gaps in gold) -->
+            <section class="nm-panel">
+              <h2 class="nm-panel-title">What clients see</h2>
+              <p v-if="requiredMissing.length" class="nm-panel-sub">Clients can't book them yet. Still to do: {{ requiredMissing.map(m => m.label.toLowerCase()).join('; ') }}.</p>
+              <article class="preview">
+                <p class="pv-fee">
+                  <template v-if="Number(rnd.profile.consultation_fee) >= 100">{{ peso(rnd.profile.consultation_fee) }} per consultation</template>
+                  <span v-else class="gap">{{ peso(rnd.profile.consultation_fee || 0) }}, below the ₱100 minimum</span>
+                  <span class="nm-pill" :class="rnd.profile.available_for_new_clients ? 'green' : 'muted'">{{ rnd.profile.available_for_new_clients ? 'Taking new clients' : 'Not taking new clients' }}</span>
+                </p>
+                <p v-if="(rnd.profile.bio || '').trim()" class="pv-bio">{{ rnd.profile.bio }}</p>
+                <span v-else class="gap">No bio yet</span>
+                <div class="pv-chips">
+                  <span v-for="l in rnd.languages" :key="l" class="chip">{{ String(l).replace(/ \(.*\)/, '') }}</span>
+                  <span v-if="!rnd.languages.length" class="gap">No languages yet</span>
+                </div>
+                <div class="pv-formats">
+                  <span v-for="m in rnd.profile.consultation_modes || []" :key="m" class="format"><component :is="MODE_ICONS[m] || Video" :size="13" aria-hidden="true" /> {{ MODE_LABELS[m] || m }}</span>
+                </div>
+                <p v-if="(rnd.profile.consultation_modes || []).includes('in_person')" class="pv-where">
+                  <MapPin :size="13" aria-hidden="true" />
+                  <span v-if="rnd.profile.clinic_address">{{ rnd.profile.clinic_address }}</span>
+                  <span v-else class="gap">No clinic address, so in-person can't be booked</span>
+                </p>
+                <div class="pv-hours">
+                  <CalendarClock :size="14" aria-hidden="true" />
+                  <span v-if="hours.length" class="pv-hours-list"><span v-for="h in hours" :key="h">{{ h }}</span></span>
+                  <span v-else>{{ rnd.profile.review_status === 'approved' ? 'No weekly hours set yet' : 'Weekly hours are added after approval' }}</span>
+                </div>
+              </article>
+            </section>
           </div>
 
-          <!-- RND money -->
-          <template v-if="rnd">
-            <div class="nm-panel">
+          <div class="file-col">
+            <section class="nm-panel">
               <div class="nm-panel-head">
                 <div>
-                  <h2 class="nm-panel-title">Earnings</h2>
+                  <h2 class="nm-panel-title">Payout details</h2>
                   <p class="nm-panel-sub">Next payout {{ shortDate(rnd.earnings.next_payout_date) }}</p>
                 </div>
                 <NuxtLink to="/payouts" class="nm-panel-link">Payouts</NuxtLink>
               </div>
-              <dl class="nm-dl">
-                <div><dt>Pending</dt><dd>{{ peso(rnd.earnings.pending) }}</dd></div>
-                <div><dt>Posted (ready)</dt><dd>{{ peso(rnd.earnings.posted) }}</dd></div>
-                <div><dt>Paid out</dt><dd>{{ peso(rnd.earnings.paid_out) }}</dd></div>
-                <div><dt>Payouts made</dt><dd>{{ rnd.payouts }}</dd></div>
-              </dl>
-            </div>
-
-            <div class="nm-panel">
-              <h2 class="nm-panel-title">Payout details</h2>
-              <p v-if="!rnd.payout_account" class="nm-note" style="margin: 14px 0 0">
-                No GCash or bank details yet. Their balance is held until they add them.
-              </p>
-              <dl v-else class="nm-dl" style="margin-top: 14px">
-                <div><dt>Method</dt><dd>{{ rnd.payout_account.method_label }}</dd></div>
-                <div v-if="rnd.payout_account.bank_name"><dt>Bank</dt><dd>{{ rnd.payout_account.bank_name }}</dd></div>
-                <div><dt>Account name</dt><dd>{{ rnd.payout_account.account_name }}</dd></div>
-                <div><dt>Account number</dt><dd class="mono">{{ rnd.payout_account.account_number }}</dd></div>
+              <p v-if="!rnd.payout_account" class="nm-note" style="margin: 0">No GCash or bank details yet. Their balance is held until they add them.</p>
+              <dl v-else class="facts">
+                <div><dt>Method</dt><dd>{{ rnd.payout_account.method_label }}<template v-if="rnd.payout_account.bank_name">, {{ rnd.payout_account.bank_name }}</template></dd></div>
+                <div><dt>Account</dt><dd>{{ rnd.payout_account.account_name }}, <span class="mono">{{ rnd.payout_account.account_number }}</span></dd></div>
                 <div><dt>Last updated</dt><dd>{{ shortDate(rnd.payout_account.updated_at) }}</dd></div>
               </dl>
-            </div>
-
-            <div class="nm-panel">
-              <div class="nm-panel-head" style="margin-bottom: 0">
-                <h2 class="nm-panel-title">Practice activity</h2>
+            </section>
+            <section class="nm-panel">
+              <div class="nm-panel-head">
+                <h2 class="nm-panel-title">Admin history</h2>
                 <NuxtLink :to="`/admin-appointments?view=all&rnd=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
               </div>
-              <dl class="nm-dl" style="margin-top: 14px">
-                <div><dt>Active patients</dt><dd>{{ rnd.patients }}</dd></div>
-                <div><dt>Rating</dt><dd>{{ rnd.rating.average ? `${rnd.rating.average} ★ (${rnd.rating.count})` : 'No reviews yet' }}</dd></div>
-                <div><dt>Appointments</dt><dd>{{ countText(rnd.appointments) }}</dd></div>
-              </dl>
-            </div>
-          </template>
-
-          <!-- account -->
-          <div class="nm-panel">
-            <h2 class="nm-panel-title">Account</h2>
-            <dl class="nm-dl" style="margin-top: 14px">
-              <div><dt>Joined</dt><dd>{{ shortDate(u.created_at) }}</dd></div>
-              <div><dt>Last sign-in</dt><dd :class="{ muted: !account.last_login }">{{ account.last_login ? dateTime(account.last_login) : 'Never' }}</dd></div>
-              <div><dt>Email verified</dt><dd :class="{ muted: !account.email_verified_at }">{{ account.email_verified_at ? shortDate(account.email_verified_at) : 'Not verified' }}</dd></div>
-              <div><dt>Terms accepted</dt><dd :class="{ muted: !account.terms_accepted_at }">{{ account.terms_accepted_at ? shortDate(account.terms_accepted_at) : '—' }}</dd></div>
-              <div><dt>Data-privacy consent</dt><dd :class="{ muted: !account.data_consent_at }">{{ account.data_consent_at ? shortDate(account.data_consent_at) : '—' }}</dd></div>
-              <div v-if="u.role !== 'admin'"><dt>Onboarding</dt><dd :class="{ muted: !account.onboarding_completed_at }">{{ account.onboarding_completed_at ? shortDate(account.onboarding_completed_at) : 'Not finished' }}</dd></div>
-            </dl>
-            <p class="nm-hint" style="margin-top: 12px">Passwords are stored encrypted (hashed), so nobody can view them. Use Send password reset instead.</p>
-          </div>
-
-          <div class="nm-panel">
-            <h2 class="nm-panel-title">Admin history</h2>
-            <p v-if="!data.recent_activity.length" class="nm-muted" style="margin-top: 12px">Nothing recorded yet.</p>
-            <div v-else style="margin-top: 12px">
-              <div v-for="(a, i) in data.recent_activity" :key="i" class="nm-row">
-                <div class="nm-row-main">
-                  <p class="nm-row-title">{{ auditLabel(a.action) }}</p>
-                  <p class="nm-row-sub">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></p>
-                </div>
-              </div>
-            </div>
+              <p v-if="!data.recent_activity.length" class="nm-muted" style="margin: 0">Nothing recorded yet.</p>
+              <ol v-else class="history">
+                <li v-for="(a, i) in data.recent_activity" :key="i">
+                  <span class="h-title">{{ auditLabel(a.action) }}</span>
+                  <span class="h-time">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></span>
+                </li>
+              </ol>
+            </section>
           </div>
         </div>
-      </div>
+      </template>
+
+      <!-- ADMIN: the header and the history -->
+      <section v-if="!client && !rnd" class="nm-panel">
+        <h2 class="nm-panel-title">Admin history</h2>
+        <p v-if="!data.recent_activity.length" class="nm-muted" style="margin: 12px 0 0">Nothing recorded yet.</p>
+        <ol v-else class="history">
+          <li v-for="(a, i) in data.recent_activity" :key="i">
+            <span class="h-title">{{ auditLabel(a.action) }}</span>
+            <span class="h-time">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></span>
+          </li>
+        </ol>
+      </section>
     </template>
 
     <!-- deactivate -->
@@ -304,7 +327,10 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Ban, CheckCircle2, ExternalLink, IdCard, KeyRound, Maximize2, Pencil, RotateCcw, X } from 'lucide-vue-next'
+import {
+  ArrowLeft, Ban, CalendarClock, CheckCircle2, ExternalLink, IdCard, KeyRound, MapPin, Maximize2, Pencil, RotateCcw, ShieldCheck,
+  UserRound, Video, X,
+} from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
@@ -320,6 +346,7 @@ const showDeactivate = ref(false)
 const reason = ref('')
 const reasonError = ref('')
 const licenseOpen = ref(false)
+const MODE_ICONS = { video: Video, in_person: UserRound }
 
 const u = computed(() => data.value?.user || {})
 const account = computed(() => data.value?.account || {})
@@ -335,8 +362,38 @@ const requiredMissing = computed(() => (rnd.value?.missing_setup || []).filter(m
 const emergencyText = computed(() => {
   const p = client.value?.profile
   if (!p?.emergency_contact) return 'Not given'
-  return p.emergency_phone ? `${p.emergency_contact}, ${p.emergency_phone}` : p.emergency_contact
+  return p.emergency_phone ? `${p.emergency_contact}, ${formatPhone(p.emergency_phone) || p.emergency_phone}` : p.emergency_contact
 })
+// appointment counts by status ({ completed: 3, ... })
+const appt = (who, k) => who?.appointments?.[k] || 0
+// The strip under the name: the account at a glance; gold = not done yet.
+const stripCells = computed(() => {
+  const a = account.value
+  const cells = [
+    { label: 'Joined', value: shortDate(u.value.created_at) },
+    { label: 'Last sign-in', value: a.last_login ? dateTime(a.last_login) : 'Never' },
+    { label: 'Email', value: a.email_verified_at ? `Confirmed ${shortDate(a.email_verified_at)}` : 'Not confirmed', warn: !a.email_verified_at },
+  ]
+  if (client.value) cells.push({ label: 'Onboarding', value: a.onboarding_completed_at ? `Finished ${shortDate(a.onboarding_completed_at)}` : 'Not finished', warn: !a.onboarding_completed_at })
+  if (rnd.value) cells.push({ label: 'Application', value: reviewLabel.value || 'Not sent', warn: rnd.value.profile.review_status === 'pending' })
+  if (u.value.role !== 'admin') {
+    const both = a.terms_accepted_at && a.data_consent_at
+    cells.push({ label: 'Consent (RA 10173)', value: both ? `Given ${shortDate(a.data_consent_at)}` : 'Missing', warn: !both })
+  }
+  return cells
+})
+// fields with nothing in them, listed once instead of a grey row each
+const personalMissing = computed(() => {
+  const p = client.value?.profile || {}
+  return [['date of birth', p.date_of_birth], ['sex', p.sex], ['address', p.address], ['emergency contact', p.emergency_contact]]
+    .filter(([, v]) => !v).map(([k]) => k)
+})
+const healthMissing = computed(() => {
+  const h = client.value?.health || {}
+  return [['conditions', listText(h.medical_conditions)], ['diet', listText(h.dietary_restrictions)], ['goals', listText(h.health_goals)], ['religion', h.religion]]
+    .filter(([, v]) => !v).map(([k]) => k)
+})
+
 const allergyText = computed(() => {
   const a = client.value?.health.allergies
   if (a == null) return 'Not answered yet'
@@ -499,37 +556,128 @@ function countText(counts) {
 
 <style scoped>
 .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; }
-.identity { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 20px; }
+
+/* header: identity + actions, then the account strip */
+.file-head { padding: 0; overflow: hidden; margin-bottom: 20px; }
+.fh-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 22px 22px 18px; }
 .identity-main { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .identity-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.license { display: block; width: 100%; padding: 0; margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
+.fh-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0; border-top: 1px solid #d9e3dc; }
+.fh-strip > div { padding: 12px 18px; min-width: 0; border-left: 1px solid #d9e3dc; }
+.fh-strip > div:first-child { border-left: none; }
+.fh-strip dt { font-size: 0.74rem; color: #6a7a6a; }
+.fh-strip dd { margin: 3px 0 0; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
+.fh-strip .warn dd { color: #7a560f; }
+.fh-audit { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 18px; border-top: 1px solid #d9e3dc; background: #f7faf8; font-size: 0.78rem; color: #4a5a4a; }
+.fh-audit svg { color: #0a4a37; flex-shrink: 0; }
+
+/* body */
+.file-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.file-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.figs-panel { padding: 0; overflow: hidden; margin-bottom: 20px; }
+
+/* divided figures, as on the dashboards */
+.figs { display: grid; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.figs-panel .figs { border: none; border-radius: 0; }
+.figs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.figs.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.figs > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; min-width: 0; border-left: 1px solid #d9e3dc; }
+.figs > div:first-child { border-left: none; }
+.figs strong { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; line-height: 1.2; font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.figs span { font-size: 0.74rem; color: #4a5a4a; line-height: 1.3; }
+.figs .risk strong { color: #a12525; }
+
+/* facts: label above value, only what's filled in */
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 12px 0 0; }
+.facts > div { padding: 9px 0; border-top: 1px solid #edf2ee; min-width: 0; }
+.facts > div:nth-child(-n + 2) { border-top: none; }
+.facts dt { font-size: 0.74rem; color: #6a7a6a; }
+.facts dd { margin: 3px 0 0; font-size: 0.88rem; color: #1a3a1a; overflow-wrap: anywhere; }
+.not-given { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #edf2ee; font-size: 0.8rem; color: #6a7a6a; }
+.care-rnds { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 14px; font-size: 0.88rem; }
+.care-rnds .label { font-size: 0.74rem; color: #6a7a6a; }
+.care-rnd { display: inline-flex; align-items: center; gap: 6px; }
+/* allergies: red, never quiet */
+.allergy-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.allergy { font-size: 0.78rem; font-weight: 700; color: #a12525; background: #fdecec; border: 1px solid #f3b8b8; border-radius: 999px; padding: 2px 10px; }
+.gap { display: inline-block; font-size: 0.78rem; font-weight: 600; color: #7a560f; background: #fdf3dc; border-radius: 6px; padding: 2px 8px; align-self: flex-start; }
+
+/* admin history: a short timeline */
+.history { list-style: none; margin: 12px 0 0; padding: 0; }
+.history li { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 0 0 14px 18px; }
+.history li::before { content: ''; position: absolute; left: 3px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: #3f9a6b; }
+.history li::after { content: ''; position: absolute; left: 6px; top: 16px; bottom: 2px; width: 1px; background: #d9e3dc; }
+.history li:last-child { padding-bottom: 0; }
+.history li:last-child::after { display: none; }
+.h-title { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; }
+.h-time { font-size: 0.76rem; color: #6a7a6a; }
+
+/* RND credentials + the client-facing card */
+.cred { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.cred .facts { grid-template-columns: 1fr; margin: 0; }
+.cred .facts > div:nth-child(2) { border-top: 1px solid #edf2ee; }
+.license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
 .license:hover img { opacity: 0.92; }
 .license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.license img { display: block; width: 100%; max-height: 260px; object-fit: contain; }
-.license span { display: flex; align-items: center; gap: 6px; padding: 10px 12px; font-size: 0.8rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
+.license img { display: block; width: 100%; max-height: 220px; object-fit: contain; }
+.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
+.license-missing { padding: 40px 14px; text-align: center; color: #a12525; background: #fdecec; border-color: #f3b8b8; font-size: 0.82rem; font-weight: 600; cursor: default; }
+.preview { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; border: 1px solid #d9e3dc; border-radius: 12px; padding: 16px; overflow-wrap: anywhere; }
+.pv-fee { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; margin: 0; }
+.pv-bio { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0; white-space: pre-line; }
+.pv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.76rem; font-weight: 600; background: #f2f6f3; border: 1px solid #d9e3dc; color: #4a5a4a; border-radius: 12px; padding: 2px 10px; }
+.pv-formats { display: flex; flex-wrap: wrap; gap: 12px; }
+.format { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #1a3a1a; font-weight: 500; }
+.format svg { color: #3f9a6b; }
+.pv-where { display: flex; align-items: flex-start; gap: 6px; font-size: 0.8rem; color: #4a5a4a; margin: 0; line-height: 1.4; }
+.pv-where svg { flex-shrink: 0; margin-top: 2px; }
+.pv-hours { display: flex; align-items: flex-start; gap: 8px; background: #e3efe7; color: #1e4a26; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; line-height: 1.45; }
+.pv-hours svg { flex-shrink: 0; margin-top: 1px; }
+.pv-hours-list { display: flex; flex-direction: column; gap: 2px; }
+.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+/* license pop-up */
 .license-modal { max-width: 900px; }
 .lm-head { display: flex; gap: 12px; align-items: flex-start; }
 .lm-icon { width: 36px; height: 36px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .lm-photo { margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
 .lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
-.bio { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 12px 0 0; white-space: pre-line; }
-.hours-line { font-size: 0.85rem; color: #2a3a2a; margin: 0 0 4px; }
-.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
-.link { text-decoration: none; }
-.link:hover { text-decoration: underline; }
-@media (max-width: 640px) {
-  .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
-  .lm-photo { flex: 1; align-items: center; }
-  .identity-main { align-items: flex-start; }
-  .identity-actions { width: 100%; }
-  .identity-actions > * { flex: 1; }
-}
+
+/* edit pop-up */
 .edit-modal { max-width: 560px; }
 .edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .edit-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .edit-field .nm-label { margin: 0; }
 .edit-field input.nm-input { min-height: 42px; }
 .edit-field .nm-input.invalid { border-color: #e0a3a3; background: #fffafa; }
+
+@media (max-width: 1100px) {
+  .figs.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .figs.six > div:nth-child(4) { border-left: none; }
+  .figs.six > div:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
+}
+@media (max-width: 900px) {
+  .file-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .fh-top { padding: 18px 16px 14px; }
+  .identity-main { align-items: flex-start; }
+  .identity-actions { width: 100%; }
+  .identity-actions > * { flex: 1; }
+  .fh-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fh-strip > div { border-left: none; border-top: 1px solid #d9e3dc; }
+  .fh-strip > div:nth-child(even) { border-left: 1px solid #d9e3dc; }
+  .fh-strip > div:nth-child(-n + 2) { border-top: none; }
+  .figs.four, .figs.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .figs.four > div:nth-child(odd), .figs.six > div:nth-child(odd) { border-left: none; }
+  .figs.four > div:nth-child(n + 3), .figs.six > div:nth-child(n + 3) { border-top: 1px solid #d9e3dc; }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .facts > div:nth-child(2) { border-top: 1px solid #edf2ee; }
+  .cred { grid-template-columns: minmax(0, 1fr); }
+  .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
+  .lm-photo { flex: 1; align-items: center; }
+}
 @media (max-width: 560px) { .edit-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
