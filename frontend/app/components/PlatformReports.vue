@@ -106,7 +106,7 @@
                 <tr><th>RND</th><th class="nm-num">Consultations</th><th class="nm-num">Received</th><th class="nm-num">Commission</th><th class="nm-num">RND share</th><th>Rating</th><th style="width: 140px">Share of consultations</th></tr>
               </thead>
               <tbody>
-                <tr v-for="x in r.rnds" :key="x.id" class="clickable" @click="navigateTo(`/users/${x.id}`)">
+                <tr v-for="x in pagedRnds" :key="x.id" class="clickable" tabindex="0" @click="navigateTo(`/users/${x.id}`)" @keydown.enter="navigateTo(`/users/${x.id}`)">
                   <td><p class="nm-row-title">{{ x.name }}</p><p class="nm-row-sub">{{ x.specialization || '—' }}</p></td>
                   <td data-label="Consultations" class="nm-num">{{ x.consultations }}</td>
                   <td data-label="Received" class="nm-num">{{ peso(x.gross) }}</td>
@@ -121,6 +121,7 @@
               </tbody>
             </table>
           </div>
+          <ListPager v-model:page="rndPage" :pages="rndPages" />
         </section>
       </template>
 
@@ -207,7 +208,8 @@ const PERIODS = [
   { value: 'last_3_months', label: 'Last 3 months' }, { value: 'this_year', label: 'This year' },
   { value: 'all', label: 'All time' }, { value: 'custom', label: 'Custom dates…' },
 ]
-const period = ref('this_month')
+// all time first (user's call, 2026-10-26); a narrower period is one pick away
+const period = ref('all')
 const from = ref('')
 const to = ref('')
 const r = ref(null)
@@ -225,7 +227,7 @@ async function load({ quiet = false } = {}) {
     const q = period.value === 'custom' ? { from: from.value, to: to.value } : { period: period.value }
     r.value = await get('/admin/reports/', { query: q })
   } catch {
-    if (!quiet) error.value = 'Could not load the report. Please try again.'
+    if (!quiet) error.value = 'Could not load the report. Try again.'
   } finally {
     loading.value = false
   }
@@ -251,6 +253,9 @@ const cancelledPct = computed(() => {
 const formatSplit = computed(() => Object.entries(r.value?.consultations.by_format || {}).map(([f, n]) => `${n} ${f.toLowerCase()}`).join(', ') || 'none yet')
 const totalConsults = computed(() => (r.value?.rnds || []).reduce((s, x) => s + x.consultations, 0))
 const share = x => (totalConsults.value ? Math.round(x.consultations / totalConsults.value * 100) : 0)
+// Each RND: 20 a page; a new period starts at page 1
+const rndList = computed(() => r.value?.rnds || [])
+const { page: rndPage, pages: rndPages, paged: pagedRnds } = usePager(rndList, { perPage: 20, resetOn: () => [period.value, from.value, to.value] })
 
 function print() {
   printError.value = ''
