@@ -3,7 +3,9 @@
        today on one line, sized to its length, with a gold "Now" mark. Faint =
        done, white = paid, gold = not paid yet, dashed = waiting for the RND.
        Pointing at a block shows it in the line underneath, which otherwise
-       names the next consultation. -->
+       names the next consultation. At most two rows of blocks: anything more
+       at the same time folds into one "+N" mark on a third row that lists them,
+       so a busy hour never makes the banner taller. -->
   <div class="day">
     <p class="day-head">
       <template v-if="rows.length"><strong>{{ rows.length }}</strong> consultation{{ rows.length === 1 ? '' : 's' }} today<template v-if="toCome">, {{ toCome }} still to come</template></template>
@@ -19,6 +21,12 @@
             :to="`/admin-appointments?view=all&search=${b.id}`" class="slot" :class="b.state" :aria-label="b.text"
             @mouseenter="focused = b" @mouseleave="focused = null" @focus="focused = b" @blur="focused = null"
           />
+        </li>
+        <li v-for="g in overflow" :key="`more-${g.key}`" :style="{ left: `${g.left}%`, top: `${g.top}px` }" class="more-li">
+          <NuxtLink
+            to="/admin-appointments?view=all" class="more" :aria-label="g.text"
+            @mouseenter="focused = g" @mouseleave="focused = null" @focus="focused = g" @blur="focused = null"
+          >+{{ g.count }}</NuxtLink>
         </li>
       </ul>
       <span v-if="nowPct != null" class="now" :style="{ left: `${nowPct}%` }" aria-hidden="true"><i>Now</i></span>
@@ -45,6 +53,7 @@ const props = defineProps({
 
 const LANE = 12 // px per row of blocks; overlapping consultations stack
 const GAP = 4
+const MAX_LANES = 2 // rows of blocks; the rest go into a "+N" mark below
 const focused = ref(null)
 
 // minutes since midnight, Philippine time
@@ -87,24 +96,41 @@ function stateOf(r) {
   return r.paid ? 'paid' : 'unpaid'
 }
 
-// blocks, each in the first row (lane) where it doesn't overlap another
-const blocks = computed(() => {
+// Each consultation goes in the first row (lane) where it doesn't overlap
+// another; with both rows taken it's held back for the "+N" mark.
+const placed = computed(() => {
   const laneEnds = []
-  return props.rows.map((r) => {
+  const shown = []
+  const hidden = []
+  for (const r of props.rows) {
     const s = minuteOf(new Date(r.scheduled_at))
     const e = s + r.duration_minutes
     let lane = laneEnds.findIndex(end => end <= s)
-    if (lane === -1) { lane = laneEnds.length; laneEnds.push(e) } else laneEnds[lane] = e
+    if (lane === -1 && laneEnds.length < MAX_LANES) { lane = laneEnds.length; laneEnds.push(e) } else if (lane !== -1) laneEnds[lane] = e
     const state = stateOf(r)
     const { when, rest } = describe(r)
-    return {
-      id: r.id, state, top: 20 + lane * (LANE + GAP),
-      left: pct(s), width: Math.max(pct(e) - pct(s), 1.2),
-      text: `${when}: ${rest}, ${WORD[state]}`,
-    }
-  })
+    const item = { id: r.id, s, e, state, when, who: `${r.client} with RND ${r.rnd}`, text: `${when}: ${rest}, ${WORD[state]}` }
+    if (lane === -1) hidden.push(item)
+    else shown.push({ ...item, top: 20 + lane * (LANE + GAP), left: pct(s), width: Math.max(pct(e) - pct(s), 1.2) })
+  }
+  return { shown, hidden }
 })
-const lanes = computed(() => Math.max(1, ...blocks.value.map(b => (b.top - 20) / (LANE + GAP) + 1)))
+const blocks = computed(() => placed.value.shown)
+// held-back consultations that overlap each other share one mark
+const overflow = computed(() => {
+  const groups = []
+  for (const h of placed.value.hidden) {
+    const g = groups.find(x => h.s < x.e && x.s < h.e)
+    if (g) { g.items.push(h); g.s = Math.min(g.s, h.s); g.e = Math.max(g.e, h.e) } else groups.push({ s: h.s, e: h.e, items: [h] })
+  }
+  return groups.map(g => ({
+    key: g.s, count: g.items.length, left: pct(g.s), top: 20 + MAX_LANES * (LANE + GAP),
+    // the first three by name, then how many others (the Appointments page lists them all)
+    text: `${g.items.length} more at ${g.items[0].when}: ${g.items.slice(0, 3).map(i => i.who).join('; ')}`
+      + (g.items.length > 3 ? `, and ${g.items.length - 3} others` : ''),
+  }))
+})
+const lanes = computed(() => Math.max(1, ...blocks.value.map(b => (b.top - 20) / (LANE + GAP) + 1)) + (overflow.value.length ? 1 : 0))
 const trackHeight = computed(() => 20 + lanes.value * (LANE + GAP) + 2)
 const railTop = computed(() => 20 + (lanes.value * (LANE + GAP) - GAP) / 2)
 
@@ -140,6 +166,9 @@ const nextText = computed(() => {
 .slot.unpaid, .sw.unpaid { background: #d4a017; }
 /* dashed = still to do (design rule): the RND hasn't confirmed it yet */
 .slot.waiting, .sw.waiting { background: transparent; border: 1.5px dashed #cfe0d5; box-sizing: border-box; }
+/* "+N": the consultations that didn't fit in the two rows */
+.more { display: inline-flex; align-items: center; height: 14px; padding: 0 6px; border-radius: 7px; background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; text-decoration: none; white-space: nowrap; outline: none; }
+.more:hover, .more:focus-visible { background: rgba(255, 255, 255, 0.3); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
 .now { position: absolute; top: 14px; bottom: -4px; width: 2px; margin-left: -1px; background: #e2c25e; border-radius: 2px; pointer-events: none; }
 .now i { position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -1px); font-style: normal; font-size: 10px; font-weight: 700; color: #e2c25e; background: #003f2f; padding: 0 3px; border-radius: 3px; }
 
