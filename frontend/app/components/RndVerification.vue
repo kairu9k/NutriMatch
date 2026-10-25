@@ -81,10 +81,10 @@
             <!-- 1. the license, with the checks beside it -->
             <h3 class="desk-title">Check the license</h3>
             <div class="desk">
-              <a v-if="selected.prc_license_image_url" :href="selected.prc_license_image_url" target="_blank" rel="noopener" class="license" title="Open full size">
+              <button v-if="selected.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="licenseOpen = true">
                 <img :src="selected.prc_license_image_url" alt="PRC license photo" />
-                <span><Maximize2 :size="13" aria-hidden="true" /> Open full size</span>
-              </a>
+                <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+              </button>
               <div v-else class="license license-missing">No license photo on file. The license can't be checked.</div>
 
               <div class="checks">
@@ -214,6 +214,25 @@
       <ListPager v-model:page="page" :pages="pages" />
     </div>
 
+    <!-- LICENSE PHOTO, full size (the client Resources preview pop-up) -->
+    <div v-if="licenseOpen && selected?.prc_license_image_url" class="nm-modal-overlay" @click.self="licenseOpen = false">
+      <div class="nm-modal license-modal" role="dialog" aria-modal="true" aria-labelledby="license-title">
+        <div class="lm-head nm-modal-head">
+          <span class="lm-icon"><IdCard :size="18" aria-hidden="true" /></span>
+          <div style="flex: 1; min-width: 0">
+            <h3 id="license-title" class="nm-modal-title" style="margin: 0">PRC license, {{ selected.first_name }} {{ selected.last_name }}</h3>
+            <p class="nm-panel-sub">License no. {{ selected.prc_license_number || 'not given' }}</p>
+          </div>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="licenseOpen = false"><X :size="18" aria-hidden="true" /></button>
+        </div>
+        <div class="lm-photo"><img :src="selected.prc_license_image_url" alt="PRC license photo, full size" /></div>
+        <div class="nm-modal-actions">
+          <a :href="selected.prc_license_image_url" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
+          <button type="button" class="nm-btn-dark" @click="licenseOpen = false">Done</button>
+        </div>
+      </div>
+    </div>
+
     <!-- reject modal -->
     <div v-if="rejecting" class="nm-modal-overlay" @click.self="busy ? null : (rejecting = false)">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="reject-title">
@@ -243,7 +262,7 @@
 
 <script setup>
 import {
-  ArrowLeft, BadgeCheck, CalendarClock, Check, CheckCircle2, ChevronRight, ExternalLink, MapPin, Maximize2, Search, ShieldCheck,
+  ArrowLeft, BadgeCheck, CalendarClock, Check, CheckCircle2, ChevronRight, ExternalLink, IdCard, MapPin, Maximize2, Search, ShieldCheck,
   UserRound, Video, X,
 } from 'lucide-vue-next'
 import { formatPhone } from '~/utils/phone'
@@ -270,6 +289,7 @@ const QUICK_REASONS = [
 ]
 
 const MODE_ICONS = { video: Video, in_person: UserRound }
+const licenseOpen = ref(false)
 
 // How long an application has waited; gold after 3 days.
 const waitDays = r => Math.max(0, Math.floor((Date.now() - new Date(r.submitted_at)) / 86400000))
@@ -511,10 +531,17 @@ async function confirmReject() {
 
 /* 1. license + checks side by side */
 .desk { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-.license { display: block; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; text-decoration: none; background: #f7faf8; }
+.license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; text-decoration: none; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
+.license:hover img { opacity: 0.92; }
 .license img { display: block; width: 100%; max-height: 340px; object-fit: contain; }
 .license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
 .license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+/* the full-size pop-up */
+.license-modal { max-width: 900px; }
+.lm-head { display: flex; gap: 12px; align-items: flex-start; }
+.lm-icon { width: 36px; height: 36px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lm-photo { margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
+.lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
 .license-missing { padding: 48px 16px; text-align: center; color: #a12525; background: #fdecec; border-color: #f3b8b8; font-size: 0.84rem; font-weight: 600; }
 .checks { display: flex; flex-direction: column; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
 .check-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer; background: #fff; }
@@ -581,6 +608,8 @@ async function confirmReject() {
   .queue { max-height: none; }
 }
 @media (max-width: 640px) {
+  .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
+  .lm-photo { flex: 1; align-items: center; }
   .desk { grid-template-columns: 1fr; }
   .decide-actions { width: 100%; flex-wrap: wrap; }
   .decide-actions > button { flex: 1; }
