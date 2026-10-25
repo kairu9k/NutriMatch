@@ -16,6 +16,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
+from core.ph_time import ph_date
 
 HOLD_DAYS = 3
 MIN_PAYOUT = Decimal("500.00")
@@ -94,7 +95,7 @@ def rnd_earnings(rnd, now=None):
     account = getattr(rnd, "payout_account", None)
     return {
         **{k: v.quantize(Decimal("0.01")) for k, v in totals.items()},
-        "next_payout_date": next_payout_date(timezone.localdate(now)),
+        "next_payout_date": next_payout_date(ph_date(now)),
         "minimum_payout": MIN_PAYOUT,
         "hold_days": HOLD_DAYS,
         "has_payout_account": account is not None,
@@ -133,7 +134,7 @@ def release_payout(rnd, *, reference, released_by, notes=""):
             raise PayoutError(f"Posted balance is ₱{amount:,.2f} — the minimum payout is ₱{MIN_PAYOUT:,.0f}. It carries over.")
         payout = Payout.objects.create(
             # The month's payout run it belongs to (the 5th), even if released a little early/late.
-            rnd=rnd, amount=amount, payout_date=timezone.localdate(now).replace(day=PAYOUT_DAY),
+            rnd=rnd, amount=amount, payout_date=ph_date(now).replace(day=PAYOUT_DAY),
             method=account.method, account_name=account.account_name, account_number=account.account_number,
             bank_name=account.bank_name, reference=reference[:100], notes=(notes or "").strip()[:1000] or None,
             released_by=released_by, released_at=now,

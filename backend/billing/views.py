@@ -461,7 +461,7 @@ class AdminPayoutRunView(APIView):
             elif account is None:
                 reason = "No payout details yet"
             else:
-                reason = "Below the minimum - carries over"
+                reason = f"Below the ₱{MIN_PAYOUT:,.0f} minimum, carries over"
             rows.append({
                 "rnd_id": rnd.id,
                 "rnd_name": rnd.full_name,
@@ -471,6 +471,9 @@ class AdminPayoutRunView(APIView):
                 "posted": data["posted"],
                 "paid_out": data["paid_out"],
                 "posted_count": sum(1 for i in data["items"] if i["state"] == "posted"),
+                "pending_count": sum(1 for i in data["items"] if i["state"] == "pending"),
+                # when the next pending share turns Posted (completed + HOLD_DAYS)
+                "next_posts_on": min((i["posts_on"] for i in data["items"] if i["state"] == "pending" and i["posts_on"]), default=None),
                 "eligible": data["eligible"],
                 "reason": reason,
                 "payout_account": {
