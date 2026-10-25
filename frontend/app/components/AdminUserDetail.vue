@@ -82,7 +82,6 @@
               <div v-if="listText(client.health.health_goals)"><dt>Goals</dt><dd>{{ listText(client.health.health_goals) }}</dd></div>
               <div v-if="client.health.religion"><dt>Religion</dt><dd>{{ client.health.religion }}</dd></div>
             </dl>
-            <p v-if="healthMissing.length" class="not-given">Not given: {{ healthMissing.join(', ') }}.</p>
           </section>
 
           <section class="nm-panel">
@@ -106,7 +105,7 @@
               <div v-if="client.profile.address"><dt>Address</dt><dd>{{ client.profile.address }}</dd></div>
               <div v-if="client.profile.emergency_contact"><dt>Emergency contact</dt><dd>{{ emergencyText }}</dd></div>
             </dl>
-            <p v-if="personalMissing.length" class="not-given">Not given: {{ personalMissing.join(', ') }}.</p>
+            <p v-if="personalMissing.length === 4" class="nm-muted" style="margin: 12px 0 0">Nothing filled in yet.</p>
           </section>
           <section class="nm-panel">
             <h2 class="nm-panel-title">Admin history</h2>
@@ -382,15 +381,10 @@ const stripCells = computed(() => {
   }
   return cells
 })
-// fields with nothing in them, listed once instead of a grey row each
+// empty fields are simply left out; this only tells when nothing is filled in
 const personalMissing = computed(() => {
   const p = client.value?.profile || {}
   return [['date of birth', p.date_of_birth], ['sex', p.sex], ['address', p.address], ['emergency contact', p.emergency_contact]]
-    .filter(([, v]) => !v).map(([k]) => k)
-})
-const healthMissing = computed(() => {
-  const h = client.value?.health || {}
-  return [['conditions', listText(h.medical_conditions)], ['diet', listText(h.dietary_restrictions)], ['goals', listText(h.health_goals)], ['religion', h.religion]]
     .filter(([, v]) => !v).map(([k]) => k)
 })
 
@@ -594,7 +588,6 @@ function countText(counts) {
 .facts > div:nth-child(-n + 2) { border-top: none; }
 .facts dt { font-size: 0.74rem; color: #6a7a6a; }
 .facts dd { margin: 3px 0 0; font-size: 0.88rem; color: #1a3a1a; overflow-wrap: anywhere; }
-.not-given { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #edf2ee; font-size: 0.8rem; color: #6a7a6a; }
 .care-rnds { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 14px; font-size: 0.88rem; }
 .care-rnds .label { font-size: 0.74rem; color: #6a7a6a; }
 .care-rnd { display: inline-flex; align-items: center; gap: 6px; }
