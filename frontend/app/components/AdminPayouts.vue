@@ -216,11 +216,16 @@
 
         <ol class="steps">
           <li>Send {{ peso(releasing.payable) }} from the NutriMatch {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} account.</li>
-          <li>Type the reference number from the receipt below. {{ releasing.rnd_name.split(' ')[0] }} gets an email and a notification.</li>
+          <li>Copy the reference number from the receipt into the box below. {{ releasing.rnd_name.split(' ')[0] }} gets an email and a notification.</li>
         </ol>
 
-        <label class="nm-label" for="payout-ref">Reference number</label>
-        <input id="payout-ref" v-model="reference" class="nm-input mono" maxlength="100" placeholder="For example: 1234 567 890123" />
+        <label class="nm-label" for="payout-ref">Receipt reference number</label>
+        <input id="payout-ref" v-model="reference" class="nm-input mono" maxlength="100" placeholder="For example: 1234 567 890123" aria-describedby="payout-ref-hint" />
+        <p id="payout-ref-hint" class="nm-hint">
+          <template v-if="['gcash', 'maya'].includes(releasing.payout_account.method)">After you send, {{ payoutVia(releasing.payout_account.method) }} shows a receipt with a "Ref. No." (about 13 digits). It proves the money went out.</template>
+          <template v-else>After you send, the bank or app shows a reference or transaction number on the receipt. It proves the money went out.</template>
+          Not the RND's account number.
+        </p>
         <label class="nm-label" for="payout-notes" style="margin-top: 12px">Notes <span class="nm-muted">(optional)</span></label>
         <textarea id="payout-notes" v-model="notes" data-allow-emoji class="nm-input" rows="2" maxlength="500" />
         <label v-if="releasing.payout_account.recently_changed" class="confirm">
