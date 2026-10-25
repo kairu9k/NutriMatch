@@ -41,90 +41,123 @@
               <span class="queue-name">{{ r.first_name }} {{ r.last_name }}</span>
               <span class="queue-sub">{{ r.specialization }}</span>
             </span>
-            <span class="queue-date">{{ shortDate(r.submitted_at) }}</span>
+            <span class="queue-wait" :class="{ long: waitDays(r) > 3 }" :title="`Applied ${shortDate(r.submitted_at)}`">{{ waitText(r) }}</span>
             <ChevronRight :size="16" class="queue-chevron" />
           </button>
           <ListPager v-model:page="page" :pages="pages" />
         </div>
 
-        <!-- review panel (a full-screen sheet on phones) -->
+        <!-- REVIEW: a verification desk (2026-10-25). The decision bar stays at the
+             top; the checklist sits beside the license photo, each tick next to the
+             value it checks; then a preview of what clients will see once approved,
+             with anything missing marked in gold. A full-screen sheet on phones. -->
         <div v-if="selected" ref="reviewWrap" class="review-wrap">
           <div ref="reviewPanel" class="nm-panel review">
             <button type="button" class="nm-btn-soft nm-btn-sm back-btn" @click="selectedId = null"><ArrowLeft :size="15" /> All applications</button>
 
-            <div class="review-head">
-              <img v-if="selected.profile_photo" :src="selected.profile_photo" class="nm-avatar lg" alt="" />
-              <span v-else class="nm-avatar lg">{{ userInitials(selected.first_name, selected.last_name) }}</span>
-              <div style="min-width: 0; flex: 1">
-                <h2 class="nm-panel-title review-name">{{ selected.first_name }} {{ selected.last_name }}</h2>
-                <p class="nm-panel-sub">{{ selected.specialization }}, applied {{ shortDate(selected.submitted_at) }}</p>
+            <div class="decide">
+              <div class="decide-who">
+                <img v-if="selected.profile_photo" :src="selected.profile_photo" class="nm-avatar lg" alt="" />
+                <span v-else class="nm-avatar lg">{{ userInitials(selected.first_name, selected.last_name) }}</span>
+                <div class="decide-name">
+                  <h2 class="nm-panel-title">{{ selected.first_name }} {{ selected.last_name }}</h2>
+                  <p class="nm-panel-sub">{{ selected.specialization }}, applied {{ shortDate(selected.submitted_at) }}</p>
+                </div>
               </div>
-              <span class="nm-pill gold">Under review</span>
+              <div class="decide-actions">
+                <span class="review-pos">{{ position }} of {{ filtered.length }}</span>
+                <button type="button" class="nm-btn-danger solid" :disabled="busy" @click="openReject"><X :size="14" /> Reject</button>
+                <button type="button" class="nm-btn-dark" :disabled="busy || !canApprove" @click="approve">
+                  <Check :size="14" /> {{ busy ? 'Approving…' : filtered.length > 1 ? 'Approve and open next' : 'Approve' }}
+                </button>
+              </div>
+              <p v-if="approveHint" class="decide-hint">{{ approveHint }}</p>
             </div>
 
             <p v-if="!selected.email_verified_at" class="nm-note plain-note review-note">
               Waiting for the applicant to confirm their email. You can approve once they have.
             </p>
 
-            <!-- a caution before approving (gold notice), not a danger -->
-            <p v-if="incomplete.length" class="nm-note review-note">
-              This application is incomplete: {{ incomplete.join(', ') }}. You can still approve it, but they won't appear in Find an RND until it's added.
-            </p>
-
-            <!-- the license first: it's the main thing to check -->
-            <p class="nm-section-title">PRC license</p>
-            <div class="license-row">
+            <!-- 1. the license, with the checks beside it -->
+            <h3 class="desk-title">Check the license</h3>
+            <div class="desk">
               <a v-if="selected.prc_license_image_url" :href="selected.prc_license_image_url" target="_blank" rel="noopener" class="license" title="Open full size">
                 <img :src="selected.prc_license_image_url" alt="PRC license photo" />
-                <span><Maximize2 :size="13" /> Open full size</span>
+                <span><Maximize2 :size="13" aria-hidden="true" /> Open full size</span>
               </a>
-              <div v-else class="license license-missing">No license photo on file</div>
-              <dl class="nm-dl license-facts">
-                <div><dt>PRC license no.</dt><dd class="mono">{{ selected.prc_license_number || '—' }}</dd></div>
-                <div><dt>Name on application</dt><dd>{{ selected.first_name }} {{ selected.last_name }}</dd></div>
-                <div><dt>Date of birth</dt><dd>{{ shortDate(selected.date_of_birth) }}<template v-if="selected.date_of_birth"> ({{ ageFrom(selected.date_of_birth) }} yrs)</template></dd></div>
-                <div><dt>Email</dt><dd>{{ selected.email }}</dd></div>
-                <div><dt>Mobile</dt><dd>{{ formatPhone(selected.phone) || '—' }}</dd></div>
-              </dl>
-            </div>
+              <div v-else class="license license-missing">No license photo on file. The license can't be checked.</div>
 
-            <p class="nm-section-title">Practice</p>
-            <dl class="nm-dl">
-              <div><dt>Fee</dt><dd>{{ peso(selected.consultation_fee) }}</dd></div>
-              <div><dt>Formats</dt><dd>{{ (selected.consultation_modes || []).map(m => MODE_LABELS[m] || m).join(', ') || '—' }}</dd></div>
-              <div v-if="(selected.consultation_modes || []).includes('in_person')"><dt>Clinic address</dt><dd :class="{ muted: !selected.clinic_address }">{{ selected.clinic_address || 'Not given' }}</dd></div>
-              <div><dt>Languages</dt><dd>{{ (selected.languages || []).join(', ') || '—' }}</dd></div>
-              <div>
-                <dt>Weekly hours</dt>
-                <dd>
-                  <span v-if="!hours.length" class="nm-muted">Added after approval</span>
-                  <span v-for="line in hours" :key="line" class="hours-line">{{ line }}</span>
-                </dd>
+              <div class="checks">
+                <label class="check-row" :class="{ done: checks.name }">
+                  <input v-model="checks.name" type="checkbox" />
+                  <span class="check-text">
+                    <span>The name matches the license</span>
+                    <strong>{{ selected.first_name }} {{ selected.last_name }}</strong>
+                  </span>
+                </label>
+                <label class="check-row" :class="{ done: checks.number }">
+                  <input v-model="checks.number" type="checkbox" />
+                  <span class="check-text">
+                    <span>The license number is valid on the PRC website</span>
+                    <strong class="mono">{{ selected.prc_license_number || 'No number given' }}</strong>
+                    <a href="https://verification.prc.gov.ph/" target="_blank" rel="noopener" class="nm-panel-link prc-link" @click.stop>
+                      Check on the PRC website <ExternalLink :size="12" aria-hidden="true" />
+                    </a>
+                  </span>
+                </label>
+                <label class="check-row" :class="{ done: checks.photo }">
+                  <input v-model="checks.photo" type="checkbox" />
+                  <span class="check-text">
+                    <span>The photo is clear and the license isn't expired</span>
+                    <small>Look for the expiry date on the photo.</small>
+                  </span>
+                </label>
               </div>
+            </div>
+
+            <!-- 2. what approving publishes -->
+            <h3 class="desk-title">What clients will see once approved</h3>
+            <article class="preview">
+              <div class="pv-head">
+                <img v-if="selected.profile_photo" :src="selected.profile_photo" class="nm-avatar lg" alt="" />
+                <span v-else class="nm-avatar lg">{{ userInitials(selected.first_name, selected.last_name) }}</span>
+                <div class="pv-id">
+                  <p class="pv-name">{{ selected.first_name }} {{ selected.last_name }} <BadgeCheck :size="15" class="pv-verified" aria-hidden="true" /></p>
+                  <p class="pv-spec">{{ selected.specialization || 'General and clinical nutrition' }}</p>
+                  <p class="pv-fee">
+                    <template v-if="Number(selected.consultation_fee) >= 100">{{ peso(selected.consultation_fee) }} per consultation</template>
+                    <span v-else class="gap">{{ peso(selected.consultation_fee || 0) }}, below the ₱100 minimum</span>
+                  </p>
+                </div>
+              </div>
+              <p v-if="(selected.bio || '').trim()" class="pv-bio">{{ selected.bio }}</p>
+              <p v-else class="gap">No bio yet</p>
+              <div class="pv-chips">
+                <span v-for="l in selected.languages || []" :key="l" class="chip">{{ String(l).replace(/ \(.*\)/, '') }}</span>
+                <span v-if="!(selected.languages || []).length" class="gap">No languages yet</span>
+              </div>
+              <div class="pv-formats">
+                <span v-for="m in selected.consultation_modes || []" :key="m" class="format"><component :is="MODE_ICONS[m] || Video" :size="13" aria-hidden="true" /> {{ MODE_LABELS[m] || m }}</span>
+              </div>
+              <p v-if="(selected.consultation_modes || []).includes('in_person')" class="pv-where">
+                <MapPin :size="13" aria-hidden="true" />
+                <span v-if="selected.clinic_address">{{ selected.clinic_address }}</span>
+                <span v-else class="gap">No clinic address, so in-person can't be booked</span>
+              </p>
+              <div class="pv-hours">
+                <CalendarClock :size="14" aria-hidden="true" />
+                <span v-if="hours.length" class="pv-hours-list"><span v-for="h in hours" :key="h">{{ h }}</span></span>
+                <span v-else>Weekly hours are added after approval</span>
+              </div>
+            </article>
+
+            <!-- 3. contact details, for the admin only -->
+            <h3 class="desk-title">Contact</h3>
+            <dl class="contact">
+              <div><dt>Email</dt><dd>{{ selected.email }}</dd></div>
+              <div><dt>Mobile</dt><dd>{{ formatPhone(selected.phone) || 'None given' }}</dd></div>
+              <div><dt>Date of birth</dt><dd>{{ selected.date_of_birth ? `${shortDate(selected.date_of_birth)} (${ageFrom(selected.date_of_birth)})` : 'None given' }}</dd></div>
             </dl>
-            <p class="nm-section-title">Professional bio</p>
-            <p class="bio">{{ selected.bio || '—' }}</p>
-
-            <!-- reviewer checklist (a reminder; not saved) -->
-            <div class="checklist">
-              <p class="checklist-title">Before approving</p>
-              <label v-for="c in CHECKS" :key="c.key" class="check">
-                <input v-model="checks[c.key]" type="checkbox" />
-                <span>{{ c.label }}</span>
-              </label>
-              <a href="https://verification.prc.gov.ph/" target="_blank" rel="noopener" class="nm-panel-link prc-link">
-                Open PRC license verification <ExternalLink :size="12" />
-              </a>
-            </div>
-
-            <div class="review-actions">
-              <span class="review-pos">{{ position }} of {{ filtered.length }}</span>
-              <button class="nm-btn-danger" :disabled="busy" @click="openReject"><X :size="14" /> Reject</button>
-              <button class="nm-btn-dark" :disabled="busy || !canApprove" :title="approveHint" @click="approve">
-                <Check :size="14" /> {{ busy ? 'Approving…' : filtered.length > 1 ? 'Approve and open next' : 'Approve' }}
-              </button>
-            </div>
-            <p v-if="approveHint" class="nm-hint" style="text-align: right">{{ approveHint }}</p>
           </div>
         </div>
         <div v-else class="nm-panel review-placeholder">
@@ -210,7 +243,8 @@
 
 <script setup>
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronRight, ExternalLink, Maximize2, Search, ShieldCheck, X,
+  ArrowLeft, BadgeCheck, CalendarClock, Check, CheckCircle2, ChevronRight, ExternalLink, MapPin, Maximize2, Search, ShieldCheck,
+  UserRound, Video, X,
 } from 'lucide-vue-next'
 import { formatPhone } from '~/utils/phone'
 
@@ -234,6 +268,15 @@ const QUICK_REASONS = [
   "We couldn't verify your PRC license number on the PRC website. Please check it and apply again.",
   'Your PRC license appears to be expired. Please renew it and apply again.',
 ]
+
+const MODE_ICONS = { video: Video, in_person: UserRound }
+
+// How long an application has waited; gold after 3 days.
+const waitDays = r => Math.max(0, Math.floor((Date.now() - new Date(r.submitted_at)) / 86400000))
+const waitText = (r) => {
+  const d = waitDays(r)
+  return d === 0 ? 'Today' : `${d} day${d === 1 ? '' : 's'}`
+}
 
 const loading = ref(true)
 const error = ref('')
@@ -275,17 +318,6 @@ const { page, pages, paged: pagedList } = usePager(filtered, { resetOn: () => [t
 const selected = computed(() => (tab.value === 'pending' ? filtered.value.find(r => r.id === selectedId.value) : null) || null)
 const position = computed(() => filtered.value.findIndex(r => r.id === selectedId.value) + 1)
 const hours = computed(() => availabilityLines(selected.value?.availability))
-// Applications from before the 5-step form (2026-10-10) may lack these.
-const incomplete = computed(() => {
-  const r = selected.value
-  if (!r) return []
-  const missing = []
-  if (!r.prc_license_image_url) missing.push('no PRC license photo')
-  if (!r.prc_license_number) missing.push('no PRC license number')
-  if (Number(r.consultation_fee || 0) < 100) missing.push('no consultation fee')
-  if (!(r.bio || '').trim()) missing.push('no bio')
-  return missing
-})
 const allChecked = computed(() => CHECKS.every(c => checks[c.key]))
 const canApprove = computed(() => !!selected.value?.email_verified_at && allChecked.value)
 const approveHint = computed(() => {
@@ -420,7 +452,7 @@ async function confirmReject() {
 .review-layout { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 20px; align-items: start; }
 
 /* queue */
-.queue { padding: 10px; position: sticky; top: 16px; }
+.queue { padding: 10px; position: sticky; top: 92px; }
 .queue-hint { font-size: 0.78rem; color: #6a7a6a; margin: 6px 10px 8px; }
 .queue :deep(.nm-pager) { margin: 8px 0 0; padding: 10px 0 2px; }
 .queue-item {
@@ -433,34 +465,76 @@ async function confirmReject() {
 .queue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .queue-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .queue-sub { font-size: 0.75rem; color: #8a9a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.queue-date { font-size: 0.74rem; color: #6a7a6a; flex-shrink: 0; }
+/* how long it has waited; gold after 3 days */
+.queue-wait { flex-shrink: 0; font-size: 0.74rem; font-weight: 600; color: #4a5a4a; background: #f2f6f3; border-radius: 999px; padding: 2px 9px; }
+.queue-wait.long { background: #fdf3dc; color: #7a560f; }
 .queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
 
-/* review panel */
-.review-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.review-name { font-size: 1.25rem; }
-.back-btn { display: none; align-items: center; gap: 6px; margin-bottom: 14px; }
+/* review panel: the decision bar sticks under the top bar while you scroll */
+.review { padding-top: 0; }
+.decide {
+  position: sticky; top: 75px; z-index: 3; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px;
+  margin: 0 -22px; padding: 18px 22px 16px; background: #fff; border-bottom: 1px solid #d9e3dc; border-radius: 14px 14px 0 0;
+}
+.decide-who { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.decide-name { min-width: 0; }
+.decide-name .nm-panel-title { font-size: 1.25rem; }
+.decide-actions { display: flex; align-items: center; gap: 10px; }
+.review-pos { font-size: 0.78rem; color: #6a7a6a; margin-right: 4px; white-space: nowrap; }
+.decide-hint { flex-basis: 100%; margin: -4px 0 0; text-align: right; font-size: 0.78rem; color: #6a7a6a; }
+.back-btn { display: none; align-items: center; gap: 6px; margin: 16px 0 0; }
 .review-note { margin: 16px 0 0; }
-.license-row { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
-.license { display: block; border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; text-decoration: none; }
-.license img { display: block; width: 100%; max-height: 300px; object-fit: contain; background: #f7f9f7; }
-.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; }
-.license-missing { padding: 40px 16px; text-align: center; color: #a12525; background: #fdecec; font-size: 0.84rem; font-weight: 600; }
-.license-facts { grid-template-columns: 1fr; }
-.license-facts > div:nth-child(2) { border-top: 1px solid #d9e3dc; padding-top: 11px; }
-.hours-line { display: block; font-size: 0.85rem; }
-.bio { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 0; white-space: pre-line; }
+.desk-title { font-family: inherit; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 22px 0 10px; }
+
+/* 1. license + checks side by side */
+.desk { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.license { display: block; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; text-decoration: none; background: #f7faf8; }
+.license img { display: block; width: 100%; max-height: 340px; object-fit: contain; }
+.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
+.license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.license-missing { padding: 48px 16px; text-align: center; color: #a12525; background: #fdecec; border-color: #f3b8b8; font-size: 0.84rem; font-weight: 600; }
+.checks { display: flex; flex-direction: column; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.check-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer; background: #fff; }
+.check-row + .check-row { border-top: 1px solid #d9e3dc; }
+.check-row:hover { background: #f7faf8; }
+.check-row.done { background: #f2f8f4; }
+.check-row input { width: 18px; height: 18px; margin-top: 1px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
+.check-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 0.82rem; color: #4a5a4a; }
+.check-text strong { font-size: 0.98rem; color: #1a3a1a; overflow-wrap: anywhere; }
+.check-text small { font-size: 0.76rem; color: #6a7a6a; }
+.prc-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
 .mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+/* 2. the client-facing card, as on Find an RND; gaps in gold */
+.preview { display: flex; flex-direction: column; gap: 10px; border: 1px solid #d9e3dc; border-radius: 14px; padding: 18px; background: #fff; overflow-wrap: anywhere; }
+.pv-head { display: flex; gap: 14px; align-items: flex-start; }
+.pv-id { min-width: 0; }
+.pv-name { font-family: 'Playfair Display', serif; font-size: 1.12rem; font-weight: 700; color: #1a3a1a; margin: 0; display: flex; align-items: center; gap: 6px; }
+.pv-verified { color: #1f8f5c; }
+.pv-spec { font-size: 0.82rem; color: #4a5a4a; margin: 3px 0 0; }
+.pv-fee { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; margin: 4px 0 0; }
+.pv-bio { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0; white-space: pre-line; }
+.pv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.76rem; font-weight: 600; background: #f2f6f3; border: 1px solid #d9e3dc; color: #4a5a4a; border-radius: 12px; padding: 2px 10px; }
+.pv-formats { display: flex; flex-wrap: wrap; gap: 12px; }
+.format { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #1a3a1a; font-weight: 500; }
+.format svg { color: #3f9a6b; }
+.pv-where { display: flex; align-items: flex-start; gap: 6px; font-size: 0.8rem; color: #4a5a4a; margin: 0; line-height: 1.4; }
+.pv-where svg { flex-shrink: 0; margin-top: 2px; }
+.pv-hours { display: flex; align-items: flex-start; gap: 8px; background: #e3efe7; color: #1e4a26; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; line-height: 1.45; }
+.pv-hours svg { flex-shrink: 0; margin-top: 1px; }
+.pv-hours-list { display: flex; flex-direction: column; gap: 2px; }
+/* something clients would miss: a gold notice, not an error */
+.gap { display: inline-block; font-size: 0.78rem; font-weight: 600; color: #7a560f; background: #fdf3dc; border-radius: 6px; padding: 2px 8px; margin: 0; align-self: flex-start; }
+
+/* 3. contact */
+.contact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
+.contact > div { padding: 12px 14px; min-width: 0; }
+.contact > div + div { border-left: 1px solid #d9e3dc; }
+.contact dt { font-size: 0.74rem; color: #6a7a6a; }
+.contact dd { margin: 3px 0 0; font-size: 0.85rem; color: #1a3a1a; overflow-wrap: anywhere; }
 .reason { font-size: 0.84rem; color: #2a3a2a; }
 
-.checklist { margin-top: 20px; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 12px; padding: 14px 16px; }
-.checklist-title { font-size: 0.8rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
-.check { display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: #2a3a2a; padding: 5px 0; cursor: pointer; }
-.check input { width: 16px; height: 16px; margin-top: 2px; accent-color: #0a4a37; flex-shrink: 0; }
-.prc-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; }
-
-.review-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d9e3dc; }
-.review-pos { margin-right: auto; font-size: 0.78rem; color: #6a7a6a; }
 .review-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #6a7a6a; min-height: 300px; font-size: 0.86rem; }
 .review-placeholder p { margin: 0; }
 
@@ -480,11 +554,15 @@ async function confirmReject() {
   .review-wrap { position: fixed; inset: 0; z-index: 250; background: #f4f5f3; overflow-y: auto; padding: 16px; }
   .review { min-height: 100%; }
   .back-btn { display: inline-flex; }
+  .decide { top: -16px; }
 }
 @media (max-width: 640px) {
-  .license-row { grid-template-columns: 1fr; }
-  .review-actions { flex-wrap: wrap; }
-  .review-pos { width: 100%; text-align: center; margin: 0 0 4px; }
-  .review-actions > button { flex: 1; }
+  .desk { grid-template-columns: 1fr; }
+  .decide-actions { width: 100%; flex-wrap: wrap; }
+  .decide-actions > button { flex: 1; }
+  .review-pos { width: 100%; }
+  .decide-hint { text-align: left; }
+  .contact { grid-template-columns: 1fr; }
+  .contact > div + div { border-left: none; border-top: 1px solid #d9e3dc; }
 }
 </style>
