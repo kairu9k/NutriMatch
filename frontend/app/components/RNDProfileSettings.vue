@@ -86,9 +86,9 @@
               <div class="info-item"><dt>Verified on</dt><dd :class="{ muted: !personalInfo.prcVerifiedOn }">{{ personalInfo.prcVerifiedOn || 'Not yet verified' }}</dd></div>
               <div class="info-item"><dt>Specialization</dt><dd :class="{ muted: !personalInfo.specialization }">{{ personalInfo.specialization || 'Not set' }}</dd></div>
             </dl>
-            <a v-if="personalInfo.prcPhotoUrl" :href="personalInfo.prcPhotoUrl" target="_blank" rel="noopener" class="prc-photo-link">
-              <FileImage :size="15" /> View license photo
-            </a>
+            <button v-if="personalInfo.prcPhotoUrl" type="button" class="prc-photo-link" aria-haspopup="dialog" @click="licenseOpen = true">
+              <FileImage :size="15" aria-hidden="true" /> View license photo
+            </button>
             <p class="field-hint">Your PRC details and specialization can't be edited here. To update them, contact the NutriMatch admin.</p>
           </div>
 
@@ -331,6 +331,24 @@
       </div>
     </div>
 
+    <!-- LICENSE PHOTO, full size (same pop-up as the admin's) -->
+    <div v-if="licenseOpen && personalInfo.prcPhotoUrl" class="nm-modal-overlay" @click.self="licenseOpen = false">
+      <div class="nm-modal license-modal" role="dialog" aria-modal="true" aria-labelledby="license-title">
+        <div class="lm-head nm-modal-head">
+          <span class="lm-icon"><BadgeCheck :size="18" aria-hidden="true" /></span>
+          <div style="flex: 1; min-width: 0">
+            <h3 id="license-title" class="nm-modal-title" style="margin: 0">Your PRC license</h3>
+            <p class="lm-sub">License no. {{ personalInfo.prcNumber || 'not given' }}</p>
+          </div>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="licenseOpen = false"><X :size="18" aria-hidden="true" /></button>
+        </div>
+        <div class="lm-photo"><img :src="personalInfo.prcPhotoUrl" alt="PRC license photo, full size" /></div>
+        <div class="nm-modal-actions">
+          <button type="button" class="nm-btn-dark" @click="licenseOpen = false">Done</button>
+        </div>
+      </div>
+    </div>
+
     <Transition name="toast-fade">
       <div v-if="toastVisible" class="toast">
         <CheckCircle2 :size="16" /> {{ toastMessage }}
@@ -387,6 +405,7 @@ const personalInfo = ref({
 const isSavingProfile = ref(false)
 const profileError = ref('')
 const isEditing = ref(false)
+const licenseOpen = ref(false)
 const profileLoaded = ref(false)
 // Last loaded profile — Cancel restores the form from it.
 const lastLoaded = ref(null)
@@ -763,7 +782,18 @@ onMounted(showActiveTab)
   display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600;
   color: #0a4a37; text-decoration: none; background: #e3efe7; border-radius: 8px; min-height: 36px; padding: 0 14px;
 }
+.prc-photo-link { border: 0; cursor: pointer; font-family: inherit; }
 .prc-photo-link:hover { background: #d3e7da; }
+.license-modal { max-width: 900px; }
+.lm-head { display: flex; gap: 12px; align-items: flex-start; }
+.lm-icon { width: 36px; height: 36px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lm-sub { margin: 2px 0 0; font-size: 0.82rem; color: #6b7a70; }
+.lm-photo { margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
+.lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
+@media (max-width: 640px) {
+  .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
+  .lm-photo { flex: 1; align-items: center; }
+}
 .fee-input-wrap { display: flex; align-items: center; gap: 8px; max-width: 320px; margin-top: 8px; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
 .fee-input { flex: 1; min-width: 0; }
