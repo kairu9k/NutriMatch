@@ -27,9 +27,9 @@
       <div v-else class="review-layout">
         <!-- list -->
         <div class="nm-panel queue">
-          <p class="queue-hint">Oldest first</p>
+          <p class="queue-hint">{{ filtered.length }} waiting, oldest first</p>
           <button
-            v-for="r in filtered"
+            v-for="r in pagedList"
             :key="r.id"
             class="queue-item"
             :class="{ active: selected?.id === r.id }"
@@ -41,38 +41,34 @@
               <span class="queue-name">{{ r.first_name }} {{ r.last_name }}</span>
               <span class="queue-sub">{{ r.specialization }}</span>
             </span>
-            <span class="queue-end">
-              <span class="queue-date">{{ shortDate(r.submitted_at) }}</span>
-              <span class="queue-email" :class="r.email_verified_at ? 'ok' : 'no'">
-                <component :is="r.email_verified_at ? MailCheck : MailX" :size="12" />
-                {{ r.email_verified_at ? 'Email verified' : 'Email not verified' }}
-              </span>
-            </span>
+            <span class="queue-date">{{ shortDate(r.submitted_at) }}</span>
             <ChevronRight :size="16" class="queue-chevron" />
           </button>
+          <ListPager v-model:page="page" :pages="pages" />
         </div>
 
         <!-- review panel (a full-screen sheet on phones) -->
         <div v-if="selected" ref="reviewWrap" class="review-wrap">
           <div ref="reviewPanel" class="nm-panel review">
-            <button class="back-btn" @click="selectedId = null"><ArrowLeft :size="15" /> All applications</button>
+            <button type="button" class="nm-btn-soft nm-btn-sm back-btn" @click="selectedId = null"><ArrowLeft :size="15" /> All applications</button>
 
             <div class="review-head">
               <img v-if="selected.profile_photo" :src="selected.profile_photo" class="nm-avatar lg" alt="" />
               <span v-else class="nm-avatar lg">{{ userInitials(selected.first_name, selected.last_name) }}</span>
               <div style="min-width: 0; flex: 1">
                 <h2 class="nm-panel-title review-name">{{ selected.first_name }} {{ selected.last_name }}</h2>
-                <p class="nm-panel-sub">{{ selected.specialization }} · Applied {{ shortDate(selected.submitted_at) }}</p>
+                <p class="nm-panel-sub">{{ selected.specialization }}, applied {{ shortDate(selected.submitted_at) }}</p>
               </div>
               <span class="nm-pill gold">Under review</span>
             </div>
 
-            <p v-if="!selected.email_verified_at" class="nm-note" style="margin: 16px 0 0">
-              Waiting for the applicant to verify their email — you can approve once they have.
+            <p v-if="!selected.email_verified_at" class="nm-note plain-note review-note">
+              Waiting for the applicant to confirm their email. You can approve once they have.
             </p>
 
-            <p v-if="incomplete.length" class="nm-error" style="margin: 16px 0 0">
-              This application is incomplete: {{ incomplete.join(', ') }}. Approve it only if that's fine — they won't appear in Find an RND until it's added.
+            <!-- a caution before approving (gold notice), not a danger -->
+            <p v-if="incomplete.length" class="nm-note review-note">
+              This application is incomplete: {{ incomplete.join(', ') }}. You can still approve it, but they won't appear in Find an RND until it's added.
             </p>
 
             <!-- the license first: it's the main thing to check -->
@@ -125,7 +121,7 @@
               <span class="review-pos">{{ position }} of {{ filtered.length }}</span>
               <button class="nm-btn-danger" :disabled="busy" @click="openReject"><X :size="14" /> Reject</button>
               <button class="nm-btn-dark" :disabled="busy || !canApprove" :title="approveHint" @click="approve">
-                <Check :size="14" /> {{ busy ? 'Approving…' : filtered.length > 1 ? 'Approve → next' : 'Approve' }}
+                <Check :size="14" /> {{ busy ? 'Approving…' : filtered.length > 1 ? 'Approve and open next' : 'Approve' }}
               </button>
             </div>
             <p v-if="approveHint" class="nm-hint" style="text-align: right">{{ approveHint }}</p>
@@ -158,7 +154,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in filtered" :key="r.id" class="clickable" @click="navigateTo(`/users/${r.id}`)">
+            <tr v-for="r in pagedList" :key="r.id" class="clickable" @click="navigateTo(`/users/${r.id}`)">
               <td>
                 <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
                   <img v-if="r.profile_photo" :src="r.profile_photo" class="nm-avatar" alt="" />
@@ -175,13 +171,14 @@
               <td v-if="tab === 'approved'" data-label="Rating">{{ r.average_rating ? `★ ${r.average_rating}` : '—' }}</td>
               <td v-if="tab === 'rejected'" data-label="Reason sent">
                 <span class="reason">{{ r.rejection_reason || '—' }}</span>
-                <span class="nm-row-sub" style="display: block">{{ shortDate(r.reviewed_at) }} · can re-apply with the same email</span>
+                <span class="nm-row-sub" style="display: block">{{ shortDate(r.reviewed_at) }}, can apply again with the same email</span>
               </td>
               <td v-if="tab === 'inactive'" data-label="Was">{{ r.is_verified ? 'Approved RND' : 'Applicant' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <ListPager v-model:page="page" :pages="pages" />
     </div>
 
     <!-- reject modal -->
@@ -195,13 +192,13 @@
         </div>
         <label class="nm-label" for="reject-reason">Reason</label>
         <textarea id="reject-reason" v-model="rejectReason" class="nm-input" rows="4" maxlength="1000"
-          placeholder="e.g. The PRC license photo is blurry — please upload a clearer photo of the front of your ID." />
+          placeholder="For example: the PRC license photo is blurry. Please upload a clearer photo of the front of your license." />
         <p v-if="rejectError" class="nm-field-error">{{ rejectError }}</p>
-        <p v-else class="nm-hint">At least 10 characters — the applicant will see this.</p>
+        <p v-else class="nm-hint">At least 10 characters. The applicant will see this.</p>
         <div class="nm-modal-actions">
-          <button class="nm-btn-outline" :disabled="busy" @click="rejecting = false">Cancel</button>
-          <button class="nm-btn-danger solid" :disabled="busy" @click="confirmReject">
-            {{ busy ? 'Sending…' : 'Reject & email applicant' }}
+          <button type="button" class="nm-btn-soft" :disabled="busy" @click="rejecting = false">Keep reviewing</button>
+          <button type="button" class="nm-btn-danger solid" :disabled="busy" @click="confirmReject">
+            {{ busy ? 'Sending…' : 'Reject and email the applicant' }}
           </button>
         </div>
       </div>
@@ -213,7 +210,7 @@
 
 <script setup>
 import {
-  ArrowLeft, Check, CheckCircle2, ChevronRight, ExternalLink, MailCheck, MailX, Maximize2, Search, ShieldCheck, X,
+  ArrowLeft, Check, CheckCircle2, ChevronRight, ExternalLink, Maximize2, Search, ShieldCheck, X,
 } from 'lucide-vue-next'
 import { formatPhone } from '~/utils/phone'
 
@@ -232,10 +229,10 @@ const CHECKS = [
   { key: 'photo', label: 'The license photo is clear and not expired' },
 ]
 const QUICK_REASONS = [
-  'The PRC license photo is blurry — please upload a clearer photo of the front of your license.',
+  'The PRC license photo is blurry. Please upload a clearer photo of the front of your license.',
   "The name on your application doesn't match the name on your PRC license.",
-  "We couldn't verify your PRC license number on the PRC website — please check it and apply again.",
-  'Your PRC license appears to be expired — please renew it and apply again.',
+  "We couldn't verify your PRC license number on the PRC website. Please check it and apply again.",
+  'Your PRC license appears to be expired. Please renew it and apply again.',
 ]
 
 const loading = ref(true)
@@ -272,6 +269,9 @@ const filtered = computed(() => {
     .sort((a, b) => (tab.value === 'pending' ? new Date(a.submitted_at) - new Date(b.submitted_at) : 0))
 })
 
+// 20 per page: the queue on To review, the table on the other tabs
+const { page, pages, paged: pagedList } = usePager(filtered, { resetOn: () => [tab.value, search.value] })
+
 const selected = computed(() => (tab.value === 'pending' ? filtered.value.find(r => r.id === selectedId.value) : null) || null)
 const position = computed(() => filtered.value.findIndex(r => r.id === selectedId.value) + 1)
 const hours = computed(() => availabilityLines(selected.value?.availability))
@@ -303,6 +303,9 @@ const reviewWrap = ref(null)
 const reviewPanel = ref(null)
 function select(id) {
   selectedId.value = id
+  // the queue shows the page the open application is on
+  const at = filtered.value.findIndex(r => r.id === id)
+  if (at >= 0) page.value = Math.floor(at / 20) + 1
   for (const c of CHECKS) checks[c.key] = false
   // start each application at the top (the sheet on phones, the page on desktop)
   nextTick(() => {
@@ -371,7 +374,7 @@ async function approve() {
     await patch(`/admin/users/${r.id}/verify-rnd/`)
     Object.assign(r, { is_verified: true, review_status: 'approved', verified_at: new Date().toISOString() })
     next()
-    flash(`${r.first_name} is approved — we emailed them.`)
+    flash(`${r.first_name} is approved. We emailed them.`)
   } catch (e) {
     error.value = apiError(e, 'Could not approve this RND. Please try again.')
   } finally {
@@ -392,7 +395,7 @@ function openReject() {
 async function confirmReject() {
   const r = selected.value
   if (rejectReason.value.trim().length < 10) {
-    rejectError.value = 'Explain why in at least 10 characters — the applicant will see this.'
+    rejectError.value = 'Explain why in at least 10 characters. The applicant will see this.'
     return
   }
   busy.value = true
@@ -403,7 +406,7 @@ async function confirmReject() {
     Object.assign(r, { review_status: 'rejected', rejection_reason: rejectReason.value.trim(), reviewed_at: new Date().toISOString() })
     rejecting.value = false
     next()
-    flash('Application rejected — the reason was emailed.')
+    flash('Application rejected. We emailed them the reason.')
   } catch (e) {
     rejectError.value = apiError(e, 'Could not reject this application. Please try again.')
   } finally {
@@ -418,54 +421,54 @@ async function confirmReject() {
 
 /* queue */
 .queue { padding: 10px; position: sticky; top: 16px; }
-.queue-hint { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9aaa9a; margin: 6px 10px 8px; }
+.queue-hint { font-size: 0.78rem; color: #6a7a6a; margin: 6px 10px 8px; }
+.queue :deep(.nm-pager) { margin: 8px 0 0; padding: 10px 0 2px; }
 .queue-item {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 1px solid transparent;
   border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; color: inherit;
 }
 .queue-item + .queue-item { margin-top: 2px; }
 .queue-item:hover { background: #f7f9f7; }
-.queue-item.active { background: #eef3ec; border-color: #d3e2d6; }
+.queue-item.active { background: #eef3ec; border-color: #d9e3dc; }
 .queue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .queue-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .queue-sub { font-size: 0.75rem; color: #8a9a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.queue-end { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
-.queue-date { font-size: 0.72rem; color: #8a9a8a; }
-.queue-email { display: inline-flex; align-items: center; gap: 3px; font-size: 0.66rem; font-weight: 600; }
-.queue-email.ok { color: #1f8f5c; }
-.queue-email.no { color: #b8860b; }
+.queue-date { font-size: 0.74rem; color: #6a7a6a; flex-shrink: 0; }
 .queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
 
 /* review panel */
 .review-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .review-name { font-size: 1.25rem; }
-.back-btn { display: none; align-items: center; gap: 6px; background: none; border: none; color: #1f8f5c; font-weight: 600; font-size: 0.84rem; padding: 0; margin-bottom: 14px; cursor: pointer; font-family: inherit; }
+.back-btn { display: none; align-items: center; gap: 6px; margin-bottom: 14px; }
+.review-note { margin: 16px 0 0; }
 .license-row { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
-.license { display: block; border: 1px solid #eceeec; border-radius: 10px; overflow: hidden; text-decoration: none; }
+.license { display: block; border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; text-decoration: none; }
 .license img { display: block; width: 100%; max-height: 300px; object-fit: contain; background: #f7f9f7; }
-.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #1f8f5c; border-top: 1px solid #eceeec; }
+.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; }
 .license-missing { padding: 40px 16px; text-align: center; color: #a12525; background: #fdecec; font-size: 0.84rem; font-weight: 600; }
 .license-facts { grid-template-columns: 1fr; }
-.license-facts > div:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 11px; }
+.license-facts > div:nth-child(2) { border-top: 1px solid #d9e3dc; padding-top: 11px; }
 .hours-line { display: block; font-size: 0.85rem; }
 .bio { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 0; white-space: pre-line; }
 .mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
 .reason { font-size: 0.84rem; color: #2a3a2a; }
 
-.checklist { margin-top: 20px; background: #fafbfa; border: 1px solid #eceeec; border-radius: 12px; padding: 14px 16px; }
+.checklist { margin-top: 20px; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 12px; padding: 14px 16px; }
 .checklist-title { font-size: 0.8rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
 .check { display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: #2a3a2a; padding: 5px 0; cursor: pointer; }
-.check input { width: 16px; height: 16px; margin-top: 2px; accent-color: #163a1c; flex-shrink: 0; }
+.check input { width: 16px; height: 16px; margin-top: 2px; accent-color: #0a4a37; flex-shrink: 0; }
 .prc-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; }
 
-.review-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #f0f2f0; }
-.review-pos { margin-right: auto; font-size: 0.78rem; color: #8a9a8a; }
-.review-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #9aaa9a; min-height: 300px; font-size: 0.86rem; }
+.review-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d9e3dc; }
+.review-pos { margin-right: auto; font-size: 0.78rem; color: #6a7a6a; }
+.review-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #6a7a6a; min-height: 300px; font-size: 0.86rem; }
 .review-placeholder p { margin: 0; }
 
 .reason-chips { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-.reason-chip { text-align: left; background: #f7f9f7; border: 1px solid #e3e8e3; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; color: #2a3a2a; cursor: pointer; font-family: inherit; line-height: 1.4; }
-.reason-chip:hover { border-color: #1a3a1a; }
+/* quick reasons: a tap fills the box (light green, like other secondary choices) */
+.reason-chip { text-align: left; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; color: #1a3a1a; cursor: pointer; font-family: inherit; line-height: 1.4; }
+.reason-chip:hover { background: #e3efe7; border-color: #3f9a6b; }
+.reason-chip:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 /* below 1000px: just the list; an application opens as a full-screen sheet */
 @media (max-width: 999px) {
