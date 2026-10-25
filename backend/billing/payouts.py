@@ -9,7 +9,12 @@ commission) moves through:
 Payout day is the 5th of every month. A payout needs at least
 MIN_PAYOUT posted and the RND's payout details (GCash/bank) on file;
 smaller balances carry over. Money moves outside the app — the admin sends
-it and records the reference here."""
+it and records the reference here.
+
+No early payouts, no exceptions (user's rule, 2026-10-26): each run (the 5th)
+pays only shares that were Posted on or before that 5th, Philippine date.
+A run can be released late (on the 6th, the 20th...), but money that posted
+after its 5th always waits for the next run."""
 
 from datetime import date, timedelta
 from decimal import Decimal
@@ -36,6 +41,25 @@ def next_payout_date(today=None):
     month = today.month % 12 + 1
     year = today.year + (1 if today.month == 12 else 0)
     return date(year, month, PAYOUT_DAY)
+
+
+def last_payout_day(today=None):
+    """The most recent payout day (the run whose money can be paid now)."""
+    from core.ph_time import ph_today
+
+    today = today or ph_today()
+    if today.day >= PAYOUT_DAY:
+        return today.replace(day=PAYOUT_DAY)
+    if today.month == 1:
+        return date(today.year - 1, 12, PAYOUT_DAY)
+    return date(today.year, today.month - 1, PAYOUT_DAY)
+
+
+def in_run(invoice, run_day):
+    """A Posted share belongs to the run of `run_day` if it posted on or
+    before that day (an invoice with no completed appointment counts)."""
+    until = posted_until(invoice)
+    return until is None or ph_date(until) <= run_day
 
 
 def invoice_state(invoice, now=None):
@@ -73,7 +97,8 @@ def rnd_earnings(rnd, now=None):
         .select_related("appointment", "relationship__client")
         .order_by("-paid_at")
     )
-    totals = {"pending": Decimal("0"), "posted": Decimal("0"), "paid_out": Decimal("0")}
+    totals = {"pending": Decimal("0"), "posted": Decimal("0"), "paid_out": Decimal("0"), "payable": Decimal("0")}
+    run_day = last_payout_day(ph_date(now))
     rows = []
     for inv in invoices:
         state = invoice_state(inv, now)
@@ -81,6 +106,9 @@ def rnd_earnings(rnd, now=None):
             continue
         share = rnd_share(inv)
         totals[state] += share
+        payable = state == "posted" and in_run(inv, run_day)
+        if payable:
+            totals["payable"] += share
         rows.append({
             "invoice_id": inv.id,
             "client_name": inv.relationship.client.full_name,
@@ -90,16 +118,19 @@ def rnd_earnings(rnd, now=None):
             "share": share,
             "state": state,
             "posts_on": posted_until(inv) if state == "pending" else None,
+            "payable": payable,
             "payout_id": inv.payout_id,
         })
     account = getattr(rnd, "payout_account", None)
     return {
         **{k: v.quantize(Decimal("0.01")) for k, v in totals.items()},
         "next_payout_date": next_payout_date(ph_date(now)),
+        "run_date": run_day,
         "minimum_payout": MIN_PAYOUT,
         "hold_days": HOLD_DAYS,
         "has_payout_account": account is not None,
-        "eligible": account is not None and totals["posted"] >= MIN_PAYOUT,
+        # only what posted by the last 5th can be paid now
+        "eligible": account is not None and totals["payable"] >= MIN_PAYOUT,
         "items": rows,
     }
 
@@ -128,13 +159,20 @@ def release_payout(rnd, *, reference, released_by, notes=""):
             .filter(relationship__rnd=rnd, status=Invoice.Status.PAID, payout__isnull=True)
             .select_related("appointment")
         )
-        posted = [inv for inv in candidates if invoice_state(inv, now) == "posted"]
+        run_day = last_payout_day(ph_date(now))
+        posted = [inv for inv in candidates if invoice_state(inv, now) == "posted" and in_run(inv, run_day)]
         amount = sum((rnd_share(inv) for inv in posted), Decimal("0")).quantize(Decimal("0.01"))
         if amount < MIN_PAYOUT:
-            raise PayoutError(f"Posted balance is ₱{amount:,.2f} — the minimum payout is ₱{MIN_PAYOUT:,.0f}. It carries over.")
+            later = [inv for inv in candidates if invoice_state(inv, now) == "posted" and not in_run(inv, run_day)]
+            if later and not posted:
+                nxt = next_payout_date(ph_date(now))
+                raise PayoutError(f"Nothing from the {run_day:%B} {run_day.day} run is left to pay. "
+                                  f"Money posted after that is paid on {nxt:%B} {nxt.day}.")
+            raise PayoutError(f"The balance for the {run_day:%B} {run_day.day} run is ₱{amount:,.2f}. "
+                              f"The minimum payout is ₱{MIN_PAYOUT:,.0f}, so it carries over.")
         payout = Payout.objects.create(
-            # The month's payout run it belongs to (the 5th), even if released a little early/late.
-            rnd=rnd, amount=amount, payout_date=ph_date(now).replace(day=PAYOUT_DAY),
+            # the run it belongs to: the last 5th (released on it or later, never earlier)
+            rnd=rnd, amount=amount, payout_date=run_day,
             method=account.method, account_name=account.account_name, account_number=account.account_number,
             bank_name=account.bank_name, reference=reference[:100], notes=(notes or "").strip()[:1000] or None,
             released_by=released_by, released_at=now,

@@ -448,7 +448,7 @@ class AdminPayoutRunView(APIView):
     def get(self, request):
         from accounts.models import User
 
-        from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, next_payout_date, rnd_earnings
+        from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, last_payout_day, next_payout_date, rnd_earnings
 
         rows = []
         for rnd in User.objects.filter(role="rnd").order_by("first_name"):
@@ -456,10 +456,13 @@ class AdminPayoutRunView(APIView):
             if not (data["pending"] or data["posted"] or data["paid_out"]):
                 continue
             account = getattr(rnd, "payout_account", None)
+            run_day, nxt = data["run_date"], data["next_payout_date"]
             if data["eligible"]:
                 reason = None
             elif account is None:
                 reason = "No payout details yet"
+            elif data["payable"] == 0 and data["posted"] > 0:
+                reason = f"Posted after {run_day:%b} {run_day.day}, paid on {nxt:%b} {nxt.day}"
             else:
                 reason = f"Below the ₱{MIN_PAYOUT:,.0f} minimum, carries over"
             rows.append({
@@ -469,6 +472,9 @@ class AdminPayoutRunView(APIView):
                 "profile_photo": rnd.profile_photo,
                 "pending": data["pending"],
                 "posted": data["posted"],
+                # what this run can pay: posted on or before the last 5th
+                "payable": data["payable"],
+                "payable_count": sum(1 for i in data["items"] if i["payable"]),
                 "paid_out": data["paid_out"],
                 "posted_count": sum(1 for i in data["items"] if i["state"] == "posted"),
                 "pending_count": sum(1 for i in data["items"] if i["state"] == "pending"),
@@ -487,11 +493,12 @@ class AdminPayoutRunView(APIView):
         today = ph_today()
         return Response({
             "next_payout_date": next_payout_date(today),
+            "run_date": last_payout_day(today),
             "payout_day_reached": today.day >= PAYOUT_DAY,
             "minimum_payout": MIN_PAYOUT,
             "hold_days": HOLD_DAYS,
             "rows": rows,
-            "due_total": sum((r["posted"] for r in rows if r["eligible"]), 0),
+            "due_total": sum((r["payable"] for r in rows if r["eligible"]), 0),
         })
 
 

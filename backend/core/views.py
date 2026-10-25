@@ -70,7 +70,7 @@ def _admin_todo_counts():
         data = rnd_earnings(rnd)
         if data["eligible"]:
             due_rnds += 1
-            due_total += data["posted"]
+            due_total += data["payable"]
     return {
         "refunds_pending": Invoice.objects.filter(status="refund_pending").count(),
         "unpaid_invoices": Invoice.objects.filter(status=Invoice.Status.UNPAID).count(),

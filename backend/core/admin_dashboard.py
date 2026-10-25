@@ -120,11 +120,11 @@ def _attention(now, summary):
         if not e["has_payout_account"] and (e["posted"] + e["pending"]) > 0:
             no_details.append({"id": rnd.id, "name": rnd.full_name})
         if e["eligible"]:
-            due.append({"id": rnd.id, "name": rnd.full_name, "amount": e["posted"]})
+            due.append({"id": rnd.id, "name": rnd.full_name, "amount": e["payable"]})
     due_total = sum(d["amount"] for d in due)
     add("warning", "payouts_due", len(due),
         f"₱{due_total:,.0f} in payouts to send to {len(due)} RND{'s' if len(due) != 1 else ''}",
-        "Posted balances of at least ₱500 with payout details on file.", "/payouts",
+        "Balances of at least ₱500 posted by the last payout day, with payout details on file.", "/payouts",
         [{"id": d["id"], "name": d["name"]} for d in due])
     add("info", "payout_details", len(no_details),
         f"{len(no_details)} RND{'s' if len(no_details) != 1 else ''} with money but no payout details",

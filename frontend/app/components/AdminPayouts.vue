@@ -78,7 +78,7 @@
             </NuxtLink>
 
             <div class="payee-money">
-              <strong class="mono">{{ peso(g.key === 'later' ? r.pending : r.posted) }}</strong>
+              <strong class="mono">{{ peso(g.key === 'later' ? r.pending : g.key === 'ready' ? r.payable : r.posted) }}</strong>
               <span>{{ moneyLine(r, g.key) }}</span>
             </div>
 
@@ -91,7 +91,7 @@
             </div>
 
             <div class="payee-act">
-              <button v-if="r.eligible" type="button" class="nm-btn-dark nm-btn-sm" @click="openRelease(r)">Release {{ peso(r.posted) }}</button>
+              <button v-if="r.eligible" type="button" class="nm-btn-dark nm-btn-sm" @click="openRelease(r)">Release {{ peso(r.payable) }}</button>
               <span v-else-if="g.key === 'held' && r.payout_account" class="held-why">{{ r.reason }}</span>
             </div>
           </div>
@@ -130,8 +130,8 @@
         <h3 id="release-title" class="nm-modal-title">Pay {{ releasing.rnd_name }}</h3>
 
         <div class="send">
-          <p class="send-amount mono">{{ peso(releasing.posted) }}</p>
-          <p class="send-for">for {{ releasing.posted_count }} consultation{{ releasing.posted_count === 1 ? '' : 's' }}</p>
+          <p class="send-amount mono">{{ peso(releasing.payable) }}</p>
+          <p class="send-for">for {{ releasing.payable_count }} consultation{{ releasing.payable_count === 1 ? '' : 's' }} posted by {{ runText }}</p>
           <dl class="send-rows">
             <div><dt>Send by</dt><dd>{{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }}</dd></div>
             <div>
@@ -151,7 +151,7 @@
         </div>
 
         <ol class="steps">
-          <li>Send {{ peso(releasing.posted) }} from the NutriMatch {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} account.</li>
+          <li>Send {{ peso(releasing.payable) }} from the NutriMatch {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} account.</li>
           <li>Type the reference number from the receipt below. {{ releasing.rnd_name.split(' ')[0] }} gets an email and a notification.</li>
         </ol>
 
@@ -194,11 +194,11 @@ const rows = computed(() => run.value?.rows || [])
 const dueRows = computed(() => rows.value.filter(r => r.eligible))
 const heldRows = computed(() => rows.value.filter(r => !r.eligible && Number(r.posted) > 0))
 const laterRows = computed(() => rows.value.filter(r => !r.eligible && Number(r.posted) <= 0 && Number(r.pending) > 0))
-const heldTotal = computed(() => heldRows.value.reduce((s, r) => s + Number(r.posted), 0))
+const heldTotal = computed(() => rows.value.reduce((s, r) => s + Number(r.posted) - (r.eligible ? Number(r.payable) : 0), 0))
 const pendingTotal = computed(() => rows.value.reduce((s, r) => s + Number(r.pending), 0))
 const groups = computed(() => [
-  { key: 'ready', title: 'Ready to release', sub: 'Posted balances of the minimum or more, with payout details on file.', empty: 'Nobody to pay right now.', rows: dueRows.value },
-  { key: 'held', title: 'Held', sub: 'Posted, but not paid this month. Each says why.', empty: 'Nothing held.', rows: heldRows.value },
+  { key: 'ready', title: 'Ready to release', sub: `Posted by ${runText.value}, at least ${peso(run.value?.minimum_payout ?? 500)}, with payout details on file.`, empty: `Everyone from the ${runText.value} run is paid.`, rows: dueRows.value },
+  { key: 'held', title: 'Held', sub: 'Posted, but not paid in this run. Each says why.', empty: 'Nothing held.', rows: heldRows.value },
   { key: 'later', title: 'Not posted yet', sub: 'Consultations still inside the hold.', empty: 'Nothing pending.', rows: laterRows.value },
 ].filter(g => g.key !== 'later' || g.rows.length))
 
@@ -213,12 +213,19 @@ const dayTitle = computed(() => {
   const d = new Date(`${run.value.next_payout_date}T00:00:00+08:00`).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric' })
   return daysLeft.value === 0 ? `Payout day is today, ${d}` : `Next payout day: ${d}`
 })
+// the run that can be paid now: the last 5th (no early payouts, user's rule 2026-10-26)
+const runText = computed(() => run.value
+  ? new Date(`${run.value.run_date}T00:00:00+08:00`).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' })
+  : '')
+const nextText = computed(() => run.value
+  ? new Date(`${run.value.next_payout_date}T00:00:00+08:00`).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' })
+  : '')
 const daySub = computed(() => {
   if (!run.value) return ''
-  if (daysLeft.value === 0) return 'Send the balances below, then record each one.'
-  if (!run.value.payout_day_reached) return 'You can release early if you need to.'
-  const month = new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long' })
-  return `${month}'s payout day has passed, so anything ready below can still be released now.`
+  if (daysLeft.value === 0) return 'Pay everything posted by today, then record each one.'
+  const n = dueRows.value.length
+  if (n) return `${n} RND${n === 1 ? '' : 's'} still to be paid from the ${runText.value} run. Money posted after ${runText.value} is paid on ${nextText.value}.`
+  return `Everyone from the ${runText.value} run is paid. Money posted since then is paid on ${nextText.value}.`
 })
 // from the last payout day to the next one, and how far along today is
 const cycle = computed(() => {
@@ -240,6 +247,11 @@ function moneyLine(r, key) {
   if (key === 'later') {
     const when = r.next_posts_on ? `, the first posts ${shortDate(r.next_posts_on)}` : ''
     return `${r.pending_count} pending${when}`
+  }
+  if (key === 'ready') {
+    const waits = Number(r.posted) - Number(r.payable)
+    const line = `${r.payable_count} consultation${r.payable_count === 1 ? '' : 's'} posted by ${runText.value}`
+    return waits > 0 ? `${line}, ${peso(waits)} waits for ${nextText.value}` : line
   }
   return Number(r.pending) > 0 ? `${posted}, ${peso(r.pending)} still pending` : posted
 }

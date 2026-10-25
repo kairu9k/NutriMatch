@@ -15,7 +15,7 @@ from core.test_utils import approve_rnd, onboard_client
 from scheduling.models import Appointment, RndClientRelationship
 
 from .models import Invoice, PaymentTransaction, Payout, RndPayoutAccount
-from .payouts import next_payout_date
+from .payouts import last_payout_day, next_payout_date
 
 
 class PayoutTests(TestCase):
@@ -40,6 +40,13 @@ class PayoutTests(TestCase):
             relationship=self.rel, appointment=appt, amount=Decimal(amount), commission_pct=Decimal("10.00"),
             status="paid" if paid else "unpaid", paid_at=timezone.now() if paid else None,
         )
+
+    def _before_run(self, days=5):
+        """How many days ago a consultation must have been completed so its
+        share posted `days` days before the last payout day (in this run)."""
+        from core.ph_time import ph_today
+
+        return (ph_today() - last_payout_day()).days + days
 
     def _add_gcash(self):
         return self.rnd_api.put("/api/rnd/payout-account/", {
@@ -93,9 +100,15 @@ class PayoutTests(TestCase):
         self.assertEqual(payout_destination("bank", "BPI"), "BPI")
         self.assertEqual(payout_destination("bank"), "Bank transfer")
 
+    def test_last_payout_day(self):
+        self.assertEqual(last_payout_day(date(2026, 10, 26)), date(2026, 10, 5))
+        self.assertEqual(last_payout_day(date(2026, 10, 5)), date(2026, 10, 5))
+        self.assertEqual(last_payout_day(date(2026, 10, 4)), date(2026, 9, 5))
+        self.assertEqual(last_payout_day(date(2027, 1, 2)), date(2026, 12, 5))
+
     def test_release_rules_and_paid_once(self):
-        first = self._consult(completed_days_ago=10)
-        self._consult(completed_days_ago=8)  # posted total 1,440
+        first = self._consult(completed_days_ago=self._before_run(10))
+        self._consult(completed_days_ago=self._before_run(8))  # posted total 1,440
         url = f"/api/admin/payouts/release/{self.rnd.id}/"
         self.assertIn("payout details", self.admin_api.post(url, {"reference": "GC-1"}, format="json").data["detail"])
         self._add_gcash()
@@ -108,6 +121,7 @@ class PayoutTests(TestCase):
         resp = self.admin_api.post(url, {"reference": "GC-2026-11-05"}, format="json")
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(Decimal(resp.data["amount"]), Decimal("1440.00"))
+        self.assertEqual(Payout.objects.get().payout_date, last_payout_day())  # dated to its run
         first.refresh_from_db()
         self.assertIsNotNone(first.payout_id)
         self.assertEqual(PaymentTransaction.objects.filter(transaction_type="payout").count(), 2)
@@ -123,7 +137,7 @@ class PayoutTests(TestCase):
 
     def test_minimum_payout_carries_over(self):
         self._add_gcash()
-        self._consult(amount="300.00", completed_days_ago=6)  # 270 posted < 500
+        self._consult(amount="300.00", completed_days_ago=self._before_run())  # 270 posted < 500
         resp = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-3"}, format="json")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("minimum", resp.data["detail"])
@@ -133,12 +147,40 @@ class PayoutTests(TestCase):
 
     def test_refund_pending_invoice_is_never_paid_out(self):
         self._add_gcash()
-        inv = self._consult(completed_days_ago=6)
+        inv = self._consult(completed_days_ago=self._before_run())
         Invoice.objects.filter(pk=inv.pk).update(status="refund_pending")
-        self._consult(completed_days_ago=6)
+        self._consult(completed_days_ago=self._before_run())
         resp = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-4"}, format="json")
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(Decimal(resp.data["amount"]), Decimal("720.00"))
+
+    def test_money_posted_after_the_payout_day_waits_for_the_next_run(self):
+        """No early payouts (user's rule, 2026-10-26): on Oct 26 only what
+        posted by Oct 5 is paid; what posted after waits for Nov 5."""
+        from datetime import datetime, timezone as dt_tz
+        from unittest import mock
+
+        fixed = datetime(2026, 10, 26, 4, 0, tzinfo=dt_tz.utc)  # noon in the Philippines
+        with mock.patch("django.utils.timezone.now", return_value=fixed):
+            self._add_gcash()
+            in_run = self._consult(completed_days_ago=28)                 # posted Oct 1
+            later = self._consult(amount="2000.00", completed_days_ago=11)  # posted Oct 18
+            row = next(r for r in self.admin_api.get("/api/admin/payouts/run/").data["rows"] if r["rnd_id"] == self.rnd.id)
+            self.assertEqual((Decimal(row["posted"]), Decimal(row["payable"])), (Decimal("2520.00"), Decimal("720.00")))
+            resp = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-5"}, format="json")
+            self.assertEqual(resp.status_code, 201, resp.data)
+            self.assertEqual(Decimal(resp.data["amount"]), Decimal("720.00"))
+            self.assertEqual(Payout.objects.get().payout_date, date(2026, 10, 5))
+            later.refresh_from_db()
+            self.assertIsNone(later.payout_id)
+            again = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-6"}, format="json")
+            self.assertEqual(again.status_code, 400)
+            self.assertIn("paid on November 5", again.data["detail"])
+            row = next(r for r in self.admin_api.get("/api/admin/payouts/run/").data["rows"] if r["rnd_id"] == self.rnd.id)
+            self.assertFalse(row["eligible"])
+            self.assertEqual(row["reason"], "Posted after Oct 5, paid on Nov 5")
+        in_run.refresh_from_db()
+        self.assertIsNotNone(in_run.payout_id)
 
     def test_completing_starts_the_hold(self):
         appt = Appointment.objects.create(relationship=self.rel, type="video", status="confirmed", scheduled_at=timezone.now() - timedelta(hours=2))
