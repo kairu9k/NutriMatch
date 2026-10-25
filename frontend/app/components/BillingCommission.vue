@@ -58,7 +58,7 @@
         <Receipt :size="28" aria-hidden="true" />
         <p>{{ invoices.length ? 'No invoices match these filters.' : 'No invoices yet.' }}</p>
       </div>
-      <div v-else class="nm-table-wrap">
+      <div v-else class="nm-table-wrap ledger-scroll">
         <table class="nm-table stack ledger">
           <thead>
             <tr>
@@ -581,6 +581,11 @@ button.fig:hover { background: #f7faf8; }
 
 /* the ledger */
 .ledger-count { font-size: 0.8rem; }
+/* the invoice list scrolls inside its panel; the column names stay on top */
+@media (min-width: 641px) {
+  .ledger-scroll { max-height: max(320px, min(560px, calc(100vh - 330px))); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c5d6ca transparent; }
+  .ledger-scroll thead th { position: sticky; top: 0; z-index: 1; background: #fff; padding-top: 2px; box-shadow: 0 1px 0 #d9e3dc; }
+}
 .cell-sub { display: block; font-size: 0.76rem; color: #8a9a8a; margin-top: 2px; }
 .pct { font-size: 0.74rem; color: #8a9a8a; margin-left: 2px; }
 
