@@ -40,47 +40,10 @@
       </div>
     </section>
 
-    <!-- NEEDS ATTENTION: the shared strip (same on the client and admin dashboards).
-         Its pop-up is ranked: patient risks (red), then unfinished setup and records
-         (dashed green mark), then the to-do chips. -->
-    <NeedsAttention
-      v-if="d" class="needs-strip" :count="needTitles.length" :urgent="riskAlerts.length > 0" :titles="needTitles"
-      clear-text="All caught up. Nothing is waiting on you."
-    >
-      <div class="needs in-modal">
-        <ul v-if="riskAlerts.length" class="needs-band">
-          <li v-for="(a, i) in riskAlerts" :key="`risk-${i}`" class="needs-row risk" :style="{ '--i': i }">
-            <component :is="ALERT_ICONS[a.level]" :size="16" class="needs-icon" aria-hidden="true" />
-            <span class="needs-text"><strong>{{ a.client.name }}: {{ noDot(a.title) }}.</strong> {{ a.detail }}</span>
-            <NuxtLink :to="a.link" class="nm-panel-link">{{ a.action }}</NuxtLink>
-          </li>
-        </ul>
-        <ul v-if="hasUnfinished" class="needs-band">
-          <li v-if="requiredMissing.length" class="needs-row unfinished">
-            <span class="needs-text"><strong>Finish your profile so clients can book you.</strong> Still to do: {{ requiredMissing.map(m => m.label.toLowerCase()).join('; ') }}.</span>
-            <NuxtLink :to="requiredMissing.length === 1 && requiredMissing[0].key === 'availability' ? '/profile-settings?tab=availability' : '/profile-settings'" class="nm-panel-link">Complete profile</NuxtLink>
-          </li>
-          <li v-if="needsClinicAddress" class="needs-row unfinished">
-            <span class="needs-text"><strong>Add your clinic address.</strong> Clients can't book your in-person consultations until it's added.</span>
-            <NuxtLink to="/profile-settings" class="nm-panel-link">Add address</NuxtLink>
-          </li>
-          <li v-if="!d.earnings.has_payout_account" class="needs-row unfinished">
-            <span class="needs-text"><strong>Add your payout details.</strong> Earnings are sent every 5th to your e-wallet or bank<template v-if="Number(d.earnings.pending) + Number(d.earnings.posted) > 0">, and {{ peso(Number(d.earnings.pending) + Number(d.earnings.posted)) }} is waiting</template>.</span>
-            <NuxtLink to="/earnings?payout=1" class="nm-panel-link">Add payout details</NuxtLink>
-          </li>
-          <li v-for="(a, i) in infoAlerts" :key="`info-${i}`" class="needs-row unfinished">
-            <span class="needs-text"><strong>{{ a.client.name }}: {{ noDot(a.title) }}.</strong> {{ a.detail }}</span>
-            <NuxtLink :to="a.link" class="nm-panel-link">{{ a.action }}</NuxtLink>
-          </li>
-        </ul>
-        <div v-if="todoItems.length" class="needs-chips">
-          <NuxtLink v-for="(t, i) in todoItems" :key="t.key" :to="t.to" class="todo-item" :style="{ '--i': i }">
-            <component :is="t.icon" :size="15" class="todo-icon" aria-hidden="true" />
-            <span><strong>{{ t.count }}</strong> {{ t.label }}</span>
-          </NuxtLink>
-        </div>
-      </div>
-    </NeedsAttention>
+    <!-- NEEDS ATTENTION: the shared strip and pop-up (NeedsAttention.vue, same
+         design as the client and admin dashboards): patient alerts first (red
+         triangle = a risk), then the RND's own to-do -->
+    <NeedsAttention v-if="d" class="needs-strip" :groups="needGroups" clear-text="All caught up. Nothing is waiting on you." />
 
     <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading your dashboard…</p></div>
 
@@ -277,8 +240,8 @@
 
 <script setup>
 import {
-  AlertTriangle, CalendarDays, ClipboardList, FlaskConical, Info, MessageSquare,
-  OctagonAlert, Target, Users, Utensils, Video, Wallet,
+  CalendarDays, ClipboardList, FlaskConical, MessageSquare,
+  Target, Users, Utensils, Video, Wallet,
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
@@ -287,7 +250,6 @@ const { get } = useApi()
 const auth = useAuthStore()
 const now = useNow()
 
-const ALERT_ICONS = { critical: OctagonAlert, warning: AlertTriangle, info: Info }
 
 const d = ref(null)
 const loading = ref(true)
@@ -352,18 +314,40 @@ const shownAlerts = computed(() => d.value?.alerts || [])
 const noDot = t => String(t || '').replace(/[.\s]+$/, '')
 const riskAlerts = computed(() => shownAlerts.value.filter(a => a.level !== 'info'))
 const infoAlerts = computed(() => shownAlerts.value.filter(a => a.level === 'info'))
-const hasUnfinished = computed(() => !!(requiredMissing.value.length || needsClinicAddress.value || !d.value?.earnings.has_payout_account || infoAlerts.value.length))
-// one short title per row in the pop-up, in its order (the strip shows the first two)
-const needTitles = computed(() => {
+// The pop-up's sections. Each to-do count gets a line of what to do and a button.
+const TODO_TEXT = {
+  done: ['Mark each one complete after the call, so the client gets their summary.', 'Mark complete'],
+  ncp: ['Finish the records you started.', 'Finish'],
+  plan: ['They have a finished NCP record and no meal plan yet.', 'Create plan'],
+  logs: ['Rate how well each meal followed the plan.', 'Rate'],
+  labs: ['Open each upload, then accept or decline it.', 'Review'],
+  msg: ['Reply in Messages.', 'Reply'],
+}
+const needGroups = computed(() => {
   if (!d.value) return []
-  const alert = a => `${a.client.name}: ${noDot(a.title)}`
+  const alert = (a, i, tone) => ({ key: `${tone}-${i}`, title: `${a.client.name}: ${noDot(a.title)}`, detail: a.detail, to: a.link, action: a.action, tone })
+  const todo = []
+  if (requiredMissing.value.length) {
+    todo.push({ key: 'profile', title: 'Finish your profile so clients can book you', tone: 'todo', action: 'Complete profile',
+      detail: `Still to do: ${requiredMissing.value.map(m => m.label.toLowerCase()).join('; ')}.`,
+      to: requiredMissing.value.length === 1 && requiredMissing.value[0].key === 'availability' ? '/profile-settings?tab=availability' : '/profile-settings' })
+  }
+  if (needsClinicAddress.value) {
+    todo.push({ key: 'clinic', title: 'Add your clinic address', tone: 'todo', action: 'Add address', to: '/profile-settings',
+      detail: "Clients can't book your in-person consultations until it's added." })
+  }
+  if (!d.value.earnings.has_payout_account) {
+    const waiting = Number(d.value.earnings.pending) + Number(d.value.earnings.posted)
+    todo.push({ key: 'payout', title: 'Add your payout details', tone: 'todo', action: 'Add details', to: '/earnings?payout=1',
+      detail: `Earnings are sent every 5th to your e-wallet or bank${waiting > 0 ? `, and ${peso(waiting)} is waiting` : ''}.` })
+  }
+  for (const t of todoItems.value) {
+    todo.push({ key: t.key, title: `${t.count} ${t.label}`, detail: TODO_TEXT[t.key]?.[0], action: TODO_TEXT[t.key]?.[1], to: t.to, tone: 'todo' })
+  }
   return [
-    ...riskAlerts.value.map(alert),
-    ...(requiredMissing.value.length ? ['Finish your profile so clients can book you'] : []),
-    ...(needsClinicAddress.value ? ['Add your clinic address'] : []),
-    ...(!d.value.earnings.has_payout_account ? ['Add your payout details'] : []),
-    ...infoAlerts.value.map(alert),
-    ...todoItems.value.map(t => `${t.count} ${t.label}`),
+    { title: 'Your patients', sub: "From your patients' records. Open the chart to follow up.",
+      items: [...riskAlerts.value.map((a, i) => alert(a, i, 'urgent')), ...infoAlerts.value.map((a, i) => alert(a, i, 'info'))] },
+    { title: 'Your to-do', items: todo },
   ]
 })
 const requiredMissing = computed(() => setupMissing.value.filter(m => !m.optional))
@@ -537,48 +521,8 @@ function nameInitials(name) {
 .bento-row small { display: block; font-size: 0.74rem; font-weight: 400; color: #7a8a7a; margin-top: 1px; }
 .bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.15; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
 .empty-line { margin: 12px 0 4px; }
-/* "Needs you" panel */
-.needs { padding: 0; overflow: hidden; margin-bottom: 20px; }
+/* NEEDS ATTENTION strip (NeedsAttention.vue) */
 .needs-strip { margin-bottom: 20px; }
-/* the list inside the pop-up: a plain bordered box */
-.needs.in-modal { margin: 0; background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; }
-.needs-band { list-style: none; margin: 0; padding: 0; }
-.needs > * + * { border-top: 1px solid #d9e3dc; }
-.needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
-.needs-row + .needs-row { border-top: 1px solid #eef1ee; }
-.needs-row strong { color: #1a3a1a; }
-.needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.needs-row .nm-panel-link { flex-shrink: 0; white-space: nowrap; }
-/* a patient risk: red, never quiet (patient safety) */
-.needs-row.risk { background: #fdf3f2; }
-.needs-row.risk strong { color: #a12525; }
-.needs-icon { flex-shrink: 0; color: #c0392b; }
-/* unfinished: the app's dashed green mark */
-.needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
-.needs-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px; background: #fbfcfa; }
-.todo-item { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #d9e3dc; border-radius: 999px; padding: 6px 12px; text-decoration: none; color: #3a4a3a; font-size: 0.82rem; }
-.todo-item:hover { border-color: #3f9a6b; color: #1a3a1a; }
-.todo-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.todo-item strong { color: #1a3a1a; }
-.todo-icon { color: #3f9a6b; }
-/* one opening moment, about 3 seconds, then still: the panel drops in (no
-   glow on the panel itself, only the items move): the red
-   lines and dashed-green lines each glow three times, the chips pop in and glow */
-@media (prefers-reduced-motion: no-preference) {
-
-  .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
-  .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
-  .needs-row.unfinished::before { animation: nm-march 3s linear 0.45s 1; }
-  .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
-  .needs-chips .todo-item { animation: nm-nudge 0.5s ease-out both, nm-chip-glow 1s ease-in-out 3; animation-delay: calc(0.6s + var(--i, 0) * 90ms), 0.45s; }
-}
-@keyframes nm-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-@keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
-@keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
-@keyframes nm-chip-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: 0 0 0 3px rgba(63, 154, 107, 0.25), 0 0 12px rgba(63, 154, 107, 0.35); } }
-@keyframes nm-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
-@keyframes nm-march { from { border-left-color: #3f9a6b; opacity: 1; } 25% { opacity: 0.35; } 50% { opacity: 1; } 75% { opacity: 0.35; } to { opacity: 1; } }
-@keyframes nm-nudge { 0% { transform: translateY(4px); opacity: 0; } 60% { transform: translateY(-2px); opacity: 1; } 100% { transform: none; opacity: 1; } }
 .req-pointer { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #f0f2f0; font-size: 0.82rem; color: #6a7a6a; }
 /* the light card shadow on panels; the banner gets the stronger one */
 .nm-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
@@ -616,11 +560,6 @@ function nameInitials(name) {
 .review-text { font-size: 0.84rem; color: #3a4a3a; margin: 4px 0; line-height: 1.5; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
-  .needs-row { flex-wrap: wrap; padding: 12px 16px; }
-  .needs-row .needs-text { flex: 1 1 calc(100% - 40px); }
-  .needs-row .nm-panel-link { margin-left: 28px; }
-  .needs-row.unfinished .nm-panel-link { margin-left: 0; }
-  .needs-chips { padding-left: 16px; padding-right: 16px; }
   .sched-end { width: 100%; padding-left: 78px; }
   .chart-figure { text-align: left; }
 }

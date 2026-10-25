@@ -16,29 +16,7 @@
 
     <!-- NEEDS ATTENTION: the shared strip; its pop-up lists the admin's own to-do,
          then what to keep an eye on (the app or the RND handles those) -->
-    <NeedsAttention v-if="dash" :count="dash.attention.length" :urgent="attnUrgent" :titles="attnTitles">
-      <h3 class="attn-h">Your to-do</h3>
-      <p v-if="!todoItems.length" class="attn-none">Nothing to do right now.</p>
-      <ul v-else class="attn-list">
-        <li v-for="a in todoItems" :key="a.key" class="attn todo-item">
-          <CircleDot :size="16" class="attn-icon" aria-hidden="true" />
-          <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-            <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-          <NuxtLink :to="a.link" class="nm-btn-dark nm-btn-sm">{{ ACTIONS[a.key] || 'Open' }}</NuxtLink>
-        </li>
-      </ul>
-      <h3 class="attn-h">Keep an eye on</h3>
-      <p class="attn-sub">For your information. The app or the RND handles these.</p>
-      <p v-if="!watchItems.length" class="attn-none">Nothing to watch right now.</p>
-      <ul v-else class="attn-list">
-        <li v-for="a in watchItems" :key="a.key" class="attn watch">
-          <Info :size="16" class="attn-icon" aria-hidden="true" />
-          <span class="attn-main"><strong>{{ a.title }}</strong><small>{{ a.detail }}</small>
-            <small v-if="a.people.length" class="attn-people">{{ peopleText(a.people) }}</small></span>
-          <NuxtLink :to="a.link" class="nm-panel-link">View</NuxtLink>
-        </li>
-      </ul>
-    </NeedsAttention>
+    <NeedsAttention v-if="dash" :groups="attnGroups" />
 
     <div v-if="dash" class="nm-grid">
       <!-- MONTH VS LAST MONTH -->
@@ -148,7 +126,7 @@
 
 <script setup>
 import { phHour } from '~/utils/phTime'
-import { CircleDot, Info, X } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const { get } = useApi()
@@ -186,8 +164,17 @@ const ACTIONS = { applications: 'Review', support: 'Reply', refunds: 'Send refun
 const todoItems = computed(() => (dash.value?.attention || []).filter(a => TODO_KEYS.includes(a.key)))
 const watchItems = computed(() => (dash.value?.attention || []).filter(a => !TODO_KEYS.includes(a.key)))
 // critical first (the API sorts them); the admin's jobs get their action name
-const attnUrgent = computed(() => (dash.value?.attention || []).some(a => a.level === 'critical'))
-const attnTitles = computed(() => (dash.value?.attention || []).map(a => a.title))
+// the pop-up's two sections (NeedsAttention.vue draws them)
+const attnItem = (a, tone, action) => ({
+  key: a.key, title: a.title, detail: a.detail, extra: a.people.length ? peopleText(a.people) : '', to: a.link, action, tone,
+  critical: a.level === 'critical',
+})
+const attnGroups = computed(() => [
+  { title: 'Your to-do', empty: 'Nothing to do right now.', always: true,
+    items: todoItems.value.map(a => attnItem(a, 'todo', ACTIONS[a.key] || 'Open')) },
+  { title: 'Keep an eye on', sub: 'For your information. The app or the RND handles these.', empty: 'Nothing to watch right now.', always: true,
+    items: watchItems.value.map(a => attnItem(a, 'info', 'View')) },
+])
 const peopleText = people => people.slice(0, 4).map(p => p.name).join(', ') + (people.length > 4 ? `, and ${people.length - 4} more` : '')
 const todoOpen = computed(() => todoItems.value.length)
 const summaryLine = computed(() => {
@@ -287,20 +274,6 @@ onBeforeUnmount(() => {
 .admin-dash { display: flex; flex-direction: column; gap: 20px; }
 .admin-dash > * { margin-top: 0; margin-bottom: 0; }
 .updated { margin: 2px 0 0; font-size: 0.8rem; color: #cfe0d5; }
-.attn-list { list-style: none; margin: 0; padding: 0; }
-.attn { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid #d9e3dc; }
-.attn:first-child { border-top: none; padding-top: 0; }
-.attn-icon { flex-shrink: 0; margin-top: 2px; }
-.attn.todo-item .attn-icon { color: #a37a0b; }
-.attn.watch .attn-icon { color: #6a7a6a; }
-.attn-h { font-size: 0.92rem; font-weight: 700; margin: 4px 0 8px; }
-.attn-h + .attn-list, .attn-sub + .attn-list { margin-bottom: 18px; }
-.attn-sub { font-size: 0.8rem; color: #6a7a6a; margin: -4px 0 10px; }
-.attn-none { margin: 0 0 18px; font-size: 0.84rem; color: #6a7a6a; }
-.attn-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.attn-main strong { font-size: 0.86rem; color: #1a3a1a; }
-.attn-main small { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
-.attn-people { color: #4a5a4a !important; }
 /* Today in the banner's white card */
 .admin-hero { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 36px; }
 @media (max-width: 900px) { .admin-hero { grid-template-columns: minmax(0, 1fr); gap: 22px; } }
@@ -374,7 +347,5 @@ onBeforeUnmount(() => {
 @media (max-width: 560px) {
   .fig { padding: 12px 12px; }
   .fig strong { font-size: 1.3rem; }
-  .attn { flex-wrap: wrap; }
-  .attn .nm-panel-link { margin-left: 26px; }
 }
 </style>

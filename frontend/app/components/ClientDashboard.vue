@@ -56,26 +56,7 @@
            its pop-up lists everything waiting on the client. Red = it goes wrong soon
            if left (payment due within a day, labs for a consultation within 2 days);
            dashed green = still to do. -->
-      <NeedsAttention
-        class="needs-strip" :count="needsUrgent.length + needsTodo.length" :urgent="needsUrgent.length > 0"
-        :titles="[...needsUrgent, ...needsTodo].map(n => n.title)" clear-text="All caught up. Nothing is waiting on you."
-      >
-      <div class="needs in-modal">
-        <ul v-if="needsUrgent.length" class="needs-band">
-          <li v-for="n in needsUrgent" :key="n.key" class="needs-row risk">
-            <AlertTriangle :size="16" class="needs-icon" aria-hidden="true" />
-            <span class="needs-text"><strong>{{ n.title }}</strong> {{ n.detail }}</span>
-            <NuxtLink :to="n.to" class="needs-btn urgent">{{ n.action }}</NuxtLink>
-          </li>
-        </ul>
-        <ul v-if="needsTodo.length" class="needs-band">
-          <li v-for="n in needsTodo" :key="n.key" class="needs-row unfinished">
-            <span class="needs-text"><strong>{{ n.title }}</strong> {{ n.detail }}</span>
-            <NuxtLink :to="n.to" class="needs-btn">{{ n.action }}</NuxtLink>
-          </li>
-        </ul>
-      </div>
-      </NeedsAttention>
+      <NeedsAttention class="needs-strip" :groups="needGroups" clear-text="All caught up. Nothing is waiting on you." />
 
       <!-- HEALTH SNAPSHOT -->
       <section class="stat-grid" aria-label="Your health at a glance">
@@ -311,7 +292,7 @@
 import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  UtensilsCrossed, AlertTriangle, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
+  UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
 } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Dashboard' })
@@ -424,6 +405,15 @@ function labsLeft(r) {
   const names = r.test_names || []
   return (r.tests || []).length ? names.filter((_, i) => !done.has(r.tests[i])) : names
 }
+// The pop-up (NeedsAttention.vue, same design as the admin and RND dashboards):
+// one "Your to-do" list; what goes wrong soon if left turns the strip red.
+const needGroups = computed(() => [{
+  title: 'Your to-do',
+  items: [
+    ...needsUrgent.value.map(n => ({ key: n.key, title: n.title, detail: n.detail, to: n.to, action: n.action, tone: 'todo', critical: true })),
+    ...needsTodo.value.map(n => ({ key: n.key, title: n.title, detail: n.detail, to: n.to, action: n.action, tone: 'todo' })),
+  ],
+}])
 const needsUrgent = computed(() => {
   const out = []
   for (const inv of unpaidInvoices.value) {
@@ -831,37 +821,8 @@ function phClock(iso) {
 .empty-note.spaced { margin-bottom: 16px; }
 
 /* UNPAID INVOICE ROW */
-/* NEEDS YOU (same panel as RNDDashboard.vue) */
-.needs { background: #fff; border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; margin: -4px 0 20px; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.needs > * + * { border-top: 1px solid #d9e3dc; }
+/* NEEDS ATTENTION strip (NeedsAttention.vue) */
 .needs-strip { margin: -4px 0 20px; }
-/* the list inside the pop-up: a plain bordered box */
-.needs.in-modal { margin: 0; border-radius: 12px; box-shadow: none; animation: none; }
-.needs-band { list-style: none; margin: 0; padding: 0; }
-.needs-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
-.needs-row + .needs-row { border-top: 1px solid #eef1ee; }
-.needs-row strong { color: #1a3a1a; }
-.needs-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.needs-row.risk { background: #fdf3f2; }
-.needs-row.risk strong { color: #a12525; }
-.needs-icon { flex-shrink: 0; color: #c0392b; }
-.needs-row.unfinished::before { content: ''; flex-shrink: 0; align-self: stretch; width: 0; border-left: 2px dashed #3f9a6b; margin: 2px 2px 2px 7px; }
-/* every action here is the usual dark green; red only marks the warning (row + icon) */
-.needs-btn { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 32px; white-space: nowrap; font-size: 0.82rem; font-weight: 600; text-decoration: none; color: #fff; border: 1px solid #0a4a37; border-radius: 8px; padding: 0 14px; background: #0a4a37; }
-.needs-btn:hover { background: #00382a; }
-.needs-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-/* one opening moment, about 3 seconds: the panel drops in, then each red and
-   dashed-green line glows three times (only the items, not the panel) */
-@media (prefers-reduced-motion: no-preference) {
-  .needs { animation: nm-drop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-  .needs-row.risk { animation: nm-risk 1s ease-in-out 0.45s 3; }
-  .needs-row.risk .needs-icon { animation: nm-shake 0.5s ease-in-out 0.6s 2; }
-  .needs-row.unfinished { animation: nm-todo 1s ease-in-out 0.45s 3; }
-}
-@keyframes nm-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-@keyframes nm-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
-@keyframes nm-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
-@keyframes nm-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
 .notice-text { flex: 1; font-size: 0.85rem; }
 .notice-text strong { color: #1a3a1a; }
 
@@ -1005,10 +966,6 @@ function phClock(iso) {
   .stat-value { font-size: 1.35rem; }
   .panel { padding: 18px 16px; }
   .adherence-row { grid-template-columns: 1fr; gap: 8px; }
-  .needs-row { flex-wrap: wrap; padding: 12px 16px; }
-  .needs-text { flex-basis: calc(100% - 40px); }
-  .needs-btn { margin-left: 28px; }
-  .needs-row.unfinished .needs-btn { margin-left: 21px; }
   .macro-source { margin-left: 0; width: 100%; }
 }
 
