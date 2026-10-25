@@ -61,7 +61,8 @@ class AdminAppointmentSerializer(serializers.ModelSerializer):
         invoice = invoices[0] if invoices else None
         if invoice is None:
             return None
-        return {"invoice_id": invoice.id, "status": invoice.status, "amount": str(invoice.amount), "paid_at": invoice.paid_at}
+        return {"invoice_id": invoice.id, "status": invoice.status, "amount": str(invoice.amount), "paid_at": invoice.paid_at,
+                "issued_at": invoice.created_at}
 
 
 def admin_appointments():
@@ -192,9 +193,15 @@ class AdminAppointmentCancelView(APIView):
                 {"detail": f"This appointment is already {appointment.get_status_display().lower()} and can't be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Once it has started it's the RND's to close (Finish consultation: done or no-show), same as for the client.
+        if appointment.scheduled_at <= timezone.now():
+            return Response(
+                {"detail": "This consultation has already started, so it can't be cancelled here. The RND closes it from the consultation room."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         reason = (request.data.get("reason") or "").strip()
         if len(reason) < 10:
-            return Response({"reason": ["Explain why in at least 10 characters — both the client and the RND will see this."]},
+            return Response({"reason": ["Explain why in at least 10 characters. Both the client and the RND will see this."]},
                             status=status.HTTP_400_BAD_REQUEST)
         reason = reason[:500]
         old_status = appointment.status

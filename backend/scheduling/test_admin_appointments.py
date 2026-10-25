@@ -93,6 +93,13 @@ class AdminAppointmentTests(TestCase):
             resp = self.api.post(f"/api/admin/appointments/{appt.id}/cancel/", {"reason": "Testing a finished one."}, format="json")
             self.assertEqual(resp.status_code, 400)
 
+    def test_cannot_cancel_once_started(self):
+        started = self._appt("confirmed", timezone.now() - timedelta(minutes=5))
+        resp = self.api.post(f"/api/admin/appointments/{started.id}/cancel/", {"reason": "Testing one that started."}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        started.refresh_from_db()
+        self.assertEqual(started.status, "confirmed")
+
     def test_admin_only(self):
         other = APIClient()
         other.force_authenticate(self.client_user)
