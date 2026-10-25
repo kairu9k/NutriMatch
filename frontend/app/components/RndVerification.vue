@@ -24,7 +24,7 @@
         <p>{{ search ? 'No applications match your search.' : 'No applications waiting for review.' }}</p>
       </div>
 
-      <div v-else class="review-layout">
+      <div v-else ref="layout" class="review-layout" :style="deskHeight ? { '--desk-h': `${deskHeight}px` } : null">
         <!-- list -->
         <div class="nm-panel queue">
           <p class="queue-hint">{{ filtered.length }} waiting, oldest first</p>
@@ -52,7 +52,7 @@
              value it checks; then a preview of what clients will see once approved,
              with anything missing marked in gold. A full-screen sheet on phones. -->
         <div v-if="selected" ref="reviewWrap" class="review-wrap">
-          <div ref="reviewPanel" class="nm-panel review">
+          <div class="nm-panel review">
             <button type="button" class="nm-btn-soft nm-btn-sm back-btn" @click="selectedId = null"><ArrowLeft :size="15" /> All applications</button>
 
             <div class="decide">
@@ -332,7 +332,6 @@ function isWide() {
 }
 
 const reviewWrap = ref(null)
-const reviewPanel = ref(null)
 function select(id) {
   selectedId.value = id
   // the queue shows the page the open application is on
@@ -342,9 +341,6 @@ function select(id) {
   // start each application at the top (the sheet on phones, the page on desktop)
   nextTick(() => {
     if (reviewWrap.value) reviewWrap.value.scrollTop = 0
-    if (isWide() && reviewPanel.value && reviewPanel.value.getBoundingClientRect().top < 0) {
-      reviewPanel.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
   })
 }
 
@@ -367,6 +363,24 @@ async function loadRnds({ quiet = false } = {}) {
 }
 // new applications show without a reload (the open one stays open)
 useAutoRefresh(() => loadRnds({ quiet: true }))
+
+// Desktop: the queue and the review panel fill the rest of the screen and
+// scroll on their own, so the page itself stays still.
+const layout = ref(null)
+const deskHeight = ref(0)
+function measure() {
+  if (!layout.value || !isWide()) { deskHeight.value = 0; return }
+  const top = layout.value.getBoundingClientRect().top + window.scrollY
+  deskHeight.value = Math.max(360, window.innerHeight - top - 24)
+  // take off whatever still makes the page scroll (the page's bottom padding)
+  nextTick(() => {
+    const over = document.documentElement.scrollHeight - window.innerHeight
+    if (over > 0) deskHeight.value = Math.max(360, deskHeight.value - over)
+  })
+}
+watch(layout, () => nextTick(measure))
+onMounted(() => window.addEventListener('resize', measure))
+onBeforeUnmount(() => window.removeEventListener('resize', measure))
 
 onMounted(async () => {
   await loadRnds()
@@ -470,10 +484,19 @@ async function confirmReject() {
 .queue-wait.long { background: #fdf3dc; color: #7a560f; }
 .queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
 
-/* review panel: the decision bar sticks under the top bar while you scroll */
+/* review panel: on desktop it scrolls on its own (the page and the queue stay
+   put), and the decision bar sticks at the top of it */
+@media (min-width: 1000px) {
+  .review-wrap, .queue {
+    max-height: var(--desk-h, calc(100vh - 112px)); overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: #c5d6ca transparent;
+  }
+  .review-wrap { border-radius: 14px; }
+  .queue { position: static; }
+}
 .review { padding-top: 0; }
 .decide {
-  position: sticky; top: 75px; z-index: 3; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px;
+  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px;
   margin: 0 -22px; padding: 18px 22px 16px; background: #fff; border-bottom: 1px solid #d9e3dc; border-radius: 14px 14px 0 0;
 }
 .decide-who { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -555,6 +578,7 @@ async function confirmReject() {
   .review { min-height: 100%; }
   .back-btn { display: inline-flex; }
   .decide { top: -16px; }
+  .queue { max-height: none; }
 }
 @media (max-width: 640px) {
   .desk { grid-template-columns: 1fr; }
