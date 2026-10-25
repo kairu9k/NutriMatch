@@ -70,13 +70,13 @@ def _appointment_summary(appt, viewer):
     else:
         other = rel.rnd if rel.client_id == viewer.id else rel.client
         with_ = other.full_name
-    return {"id": appt.id, "label": f"{_ph(appt.scheduled_at)} · {appt.get_type_display()} · {with_}", "status": appt.status}
+    return {"id": appt.id, "label": f"{_ph(appt.scheduled_at)}, {appt.get_type_display()}, {with_}", "status": appt.status}
 
 
 def _invoice_summary(inv):
     if inv is None:
         return None
-    return {"id": inv.id, "label": f"INV-{inv.id:04d} · ₱{inv.amount:,.2f} · {inv.get_status_display()}", "status": inv.status}
+    return {"id": inv.id, "label": f"INV-{inv.id:04d}, ₱{inv.amount:,.2f}, {inv.get_status_display()}", "status": inv.status}
 
 
 # ---- serializers -------------------------------------------------------------
@@ -162,7 +162,7 @@ def _notify_admins(ticket, subject, content):
             send_branded_email(
                 to=support_email(), subject=f"[SR-{ticket.id:04d}] {subject}", template="emails/notice.html",
                 context={"first_name": "NutriMatch team", "heading": subject, "paragraphs": [content],
-                         "highlight": f"{ticket.user.full_name} ({ticket.user.get_role_display()}) · {ticket.get_category_display()}",
+                         "highlight": f"{ticket.user.full_name} ({ticket.user.get_role_display()}), {ticket.get_category_display()}",
                          "button_label": "Open in NutriMatch", "button_url": link},
                 text=f"{subject}\n\n{content}\n\n{link}",
             )
@@ -184,7 +184,7 @@ def _notify_user(ticket, reply):
             send_notice_email(
                 ticket.user, subject=f"Re: {ticket.subject} [SR-{ticket.id:04d}]", heading="We replied to your request",
                 paragraphs=[reply.body, "You can reply from the help button (bottom right) in NutriMatch."],
-                highlight=f"Request SR-{ticket.id:04d} · {ticket.subject}",
+                highlight=f"Request SR-{ticket.id:04d}: {ticket.subject}",
                 button_label="Open my request",
                 button_url=f"{settings.FRONTEND_URL}/{'rnd-dashboard' if ticket.user.role == 'rnd' else 'client-dashboard'}?support={ticket.id}",
             )

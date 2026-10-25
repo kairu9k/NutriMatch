@@ -1,84 +1,110 @@
 <template>
   <div class="sup">
-    <div class="toolbar">
+    <div class="nm-toolbar">
       <div class="nm-tabs" role="tablist">
         <button v-for="t in TABS" :key="t.key" type="button" role="tab" class="nm-tab" :class="{ active: status === t.key }" :aria-selected="status === t.key" @click="status = t.key">
           {{ t.label }}<span v-if="t.key !== 'all'" class="nm-count">{{ counts[t.key] ?? 0 }}</span>
         </button>
       </div>
       <div class="nm-search">
-        <Search :size="15" />
+        <Search :size="15" aria-hidden="true" />
         <input v-model="search" type="search" placeholder="Search name, email, subject or SR-0001" aria-label="Search support requests" />
       </div>
     </div>
     <p v-if="error" class="nm-error">{{ error }}</p>
 
-    <div class="layout" :class="{ 'has-open': !!selectedId }">
-      <!-- LIST -->
-      <section class="nm-panel list">
-        <p v-if="loading" class="nm-muted">Loading…</p>
-        <div v-else-if="!tickets.length" class="empty">
-          <Inbox :size="28" />
-          <p>{{ status === 'open' ? 'No requests waiting for a reply.' : 'No requests here.' }}</p>
+    <!-- SUPPORT DESK (2026-10-25): the queue and the open request each scroll on
+         their own on desktop; on phones the request opens over the queue. -->
+    <div ref="layout" class="desk" :class="{ 'has-open': !!selectedId }" :style="deskHeight ? { '--desk-h': `${deskHeight}px` } : null">
+      <!-- QUEUE -->
+      <section class="nm-panel queue">
+        <p class="queue-head">{{ queueText }}</p>
+        <p v-if="loading" class="nm-muted queue-empty">Loading…</p>
+        <div v-else-if="!tickets.length" class="nm-empty queue-empty">
+          <Inbox :size="28" aria-hidden="true" />
+          <p>{{ emptyText }}</p>
         </div>
-        <button v-for="t in tickets" :key="t.id" type="button" class="row" :class="{ on: t.id === selectedId, unread: t.unread }" @click="select(t.id)">
-          <span class="row-top">
-            <span class="row-user">{{ t.user.name }} <small>{{ ROLE[t.user.role] }}</small></span>
-            <span class="row-time">{{ ago(t.last_activity_at) }}</span>
-          </span>
-          <span class="row-subject"><span v-if="t.unread" class="dot" aria-label="Unread"></span>{{ t.subject }}</span>
-          <span class="row-meta">
-            <span>{{ t.reference }} · {{ t.category_label }}</span>
-            <span class="nm-pill" :class="STATUS_PILL[t.status]">{{ t.status_label }}</span>
+        <button v-for="t in pagedTickets" :key="t.id" type="button" class="q-row" :class="{ on: t.id === selectedId, unread: t.unread }" @click="select(t.id)">
+          <img v-if="t.user.profile_photo" :src="t.user.profile_photo" class="nm-avatar sm" alt="" />
+          <span v-else class="nm-avatar sm">{{ nameInitials(t.user.name) }}</span>
+          <span class="q-main">
+            <span class="q-top">
+              <span class="q-name">{{ t.user.name }}<small>, {{ ROLE[t.user.role] }}</small></span>
+              <span class="q-time" :class="{ long: waitingLong(t) }" :title="when(t.last_activity_at)">{{ ageText(t) }}</span>
+            </span>
+            <span class="q-subject"><span v-if="t.unread" class="dot" aria-label="New message"></span>{{ t.subject }}</span>
+            <span v-if="t.last_message" class="q-preview">{{ t.last_message.from_support ? 'You: ' : '' }}{{ t.last_message.body }}</span>
+            <span class="q-meta">
+              <span>{{ t.reference }}, {{ t.category_label }}</span>
+              <span v-if="status === 'all'" class="nm-pill" :class="STATUS_PILL[t.status]">{{ t.status_label }}</span>
+            </span>
           </span>
         </button>
+        <ListPager v-model:page="page" :pages="pages" />
       </section>
 
-      <!-- THREAD -->
-      <section class="nm-panel thread-panel">
-        <div v-if="!selectedId" class="empty">
-          <Headset :size="28" />
+      <!-- THE REQUEST -->
+      <section class="nm-panel thread">
+        <div v-if="!selectedId" class="nm-empty thread-empty">
+          <Headset :size="28" aria-hidden="true" />
           <p>Pick a request to read and reply.</p>
         </div>
-        <p v-else-if="!ticket" class="nm-muted">Loading…</p>
+        <p v-else-if="!ticket" class="nm-muted thread-empty">Loading…</p>
         <template v-else>
-          <button type="button" class="nm-panel-link back" @click="selectedId = null"><ArrowLeft :size="14" /> All requests</button>
           <div class="t-head">
-            <div>
-              <h2 class="nm-panel-title">{{ ticket.subject }}</h2>
-              <p class="nm-panel-sub">{{ ticket.reference }} · {{ ticket.category_label }} · opened {{ when(ticket.created_at) }}</p>
+            <button type="button" class="nm-btn-soft nm-btn-sm back" @click="selectedId = null"><ArrowLeft :size="14" aria-hidden="true" /> All requests</button>
+            <div class="t-title">
+              <div class="t-name">
+                <h2 class="nm-panel-title">{{ ticket.subject }}</h2>
+                <p class="nm-panel-sub">{{ ticket.reference }}, {{ ticket.category_label }}, opened {{ when(ticket.created_at) }}</p>
+              </div>
+              <div class="t-actions">
+                <span class="nm-pill" :class="STATUS_PILL[ticket.status]">{{ ticket.status_label }}</span>
+                <button v-if="ticket.status !== 'closed'" type="button" class="nm-btn-soft nm-btn-sm" :disabled="busy" @click="act('close')">Close request</button>
+                <button v-else type="button" class="nm-btn-soft nm-btn-sm" :disabled="busy" @click="act('reopen')">Reopen</button>
+              </div>
             </div>
-            <span class="nm-pill" :class="STATUS_PILL[ticket.status]">{{ ticket.status_label }}</span>
           </div>
 
+          <!-- who asked, and what it's about -->
           <div class="who">
-            <div>
-              <strong>{{ ticket.user.name }}</strong> <span class="nm-pill muted">{{ ROLE[ticket.user.role] }}</span>
-              <p><a :href="`mailto:${ticket.user.email}`">{{ ticket.user.email }}</a></p>
+            <img v-if="ticket.user.profile_photo" :src="ticket.user.profile_photo" class="nm-avatar" alt="" />
+            <span v-else class="nm-avatar">{{ nameInitials(ticket.user.name) }}</span>
+            <div class="who-text">
+              <strong>{{ ticket.user.name }}</strong>
+              <span>{{ ROLE[ticket.user.role] }}, <a :href="`mailto:${ticket.user.email}`" class="nm-text-link">{{ ticket.user.email }}</a></span>
             </div>
-            <NuxtLink :to="`/users/${ticket.user.id}`" class="nm-btn-outline nm-btn-sm">View user</NuxtLink>
+            <NuxtLink :to="`/users/${ticket.user.id}`" class="nm-btn-soft nm-btn-sm">View user</NuxtLink>
           </div>
           <div v-if="ticket.appointment || ticket.invoice" class="refs">
-            <NuxtLink v-if="ticket.appointment" to="/admin-appointments" class="ref"><CalendarCheck :size="14" /> {{ ticket.appointment.label }}</NuxtLink>
-            <NuxtLink v-if="ticket.invoice" to="/billing-commission" class="ref"><Receipt :size="14" /> {{ ticket.invoice.label }}</NuxtLink>
+            <span class="refs-label">About</span>
+            <NuxtLink v-if="ticket.appointment" to="/admin-appointments?view=all" class="ref"><CalendarCheck :size="14" aria-hidden="true" /> {{ ticket.appointment.label }}</NuxtLink>
+            <NuxtLink v-if="ticket.invoice" to="/billing-commission" class="ref"><Receipt :size="14" aria-hidden="true" /> {{ ticket.invoice.label }}</NuxtLink>
           </div>
 
+          <!-- the conversation, split by day -->
           <div ref="box" class="msgs">
-            <div v-for="m in ticket.messages" :key="m.id" class="msg" :class="{ support: m.from_support }">
-              <p class="msg-who">{{ m.from_support ? `${m.sender_name} (Support)` : m.sender_name }} · {{ when(m.created_at) }}</p>
-              <p class="msg-body">{{ m.body }}</p>
-            </div>
+            <template v-for="g in messageDays" :key="g.key">
+              <p class="msg-day"><span>{{ g.label }}</span></p>
+              <div v-for="m in g.items" :key="m.id" class="msg" :class="{ support: m.from_support }">
+                <p class="msg-who">{{ m.from_support ? `${m.sender_name} for NutriMatch Support` : m.sender_name }}, {{ timeOnly(m.created_at) }}</p>
+                <p class="msg-body">{{ m.body }}</p>
+              </div>
+            </template>
           </div>
 
           <form class="reply" @submit.prevent="sendReply">
-            <textarea v-model="reply" data-allow-emoji class="nm-input" rows="3" maxlength="3000" placeholder="Write a reply — the user is notified and emailed. They see it from &quot;NutriMatch Support&quot;." aria-label="Reply"></textarea>
-            <div class="reply-actions">
-              <button v-if="ticket.status !== 'closed'" type="button" class="nm-btn-outline nm-btn-sm" :disabled="busy" @click="act('close')">Close request</button>
-              <button v-else type="button" class="nm-btn-outline nm-btn-sm" :disabled="busy" @click="act('reopen')">Reopen</button>
-              <button type="submit" class="nm-btn-dark nm-btn-sm" :disabled="busy || reply.trim().length < 2"><Send :size="13" /> {{ busy ? 'Sending…' : 'Send reply' }}</button>
+            <label class="sr-only" for="sup-reply">Reply</label>
+            <textarea id="sup-reply" v-model="reply" data-allow-emoji class="nm-input" rows="3" maxlength="3000"
+              :placeholder="`Reply to ${ticket.user.name.split(' ')[0]}`"></textarea>
+            <div class="reply-foot">
+              <p class="reply-hint">
+                {{ ticket.status === 'closed' ? 'Replying reopens the request. ' : '' }}They see it from NutriMatch Support and get an email.
+              </p>
+              <button type="submit" class="nm-btn-dark" :disabled="busy || reply.trim().length < 2"><Send :size="14" aria-hidden="true" /> {{ busy ? 'Sending…' : 'Send reply' }}</button>
             </div>
+            <p v-if="replyError" class="nm-field-error">{{ replyError }}</p>
           </form>
-          <p v-if="replyError" class="nm-error">{{ replyError }}</p>
         </template>
       </section>
     </div>
@@ -96,8 +122,11 @@ const router = useRouter()
 const { get, post } = useApi()
 
 const TABS = [{ key: 'open', label: 'Open' }, { key: 'answered', label: 'Answered' }, { key: 'closed', label: 'Closed' }, { key: 'all', label: 'All' }]
+// waiting for us = gold (a to-do), waiting for them = green, done = grey
 const STATUS_PILL = { open: 'gold', answered: 'green', closed: 'muted' }
 const ROLE = { client: 'Client', rnd: 'RND' }
+// an open request older than this gets a gold age
+const LONG_WAIT_HOURS = 24
 
 const status = ref('open')
 const search = ref('')
@@ -105,6 +134,21 @@ const tickets = ref([])
 const counts = ref({})
 const loading = ref(true)
 const error = ref('')
+// Open requests: the one waiting longest first, like a queue at a counter
+const sorted = computed(() => status.value === 'open'
+  ? [...tickets.value].sort((a, b) => new Date(a.last_activity_at) - new Date(b.last_activity_at))
+  : tickets.value)
+const { page, pages, paged: pagedTickets } = usePager(sorted, { perPage: 20, resetOn: () => [status.value, search.value] })
+
+const queueText = computed(() => {
+  const n = tickets.value.length
+  if (status.value === 'open') return n ? `${n} waiting for a reply, oldest first` : 'Nothing waiting for a reply'
+  return `${n} request${n === 1 ? '' : 's'}`
+})
+const emptyText = computed(() => {
+  if (search.value.trim()) return 'No requests match this search.'
+  return { open: 'No requests waiting for a reply.', answered: 'No requests waiting for the user.', closed: 'No closed requests.' }[status.value] || 'No support requests yet.'
+})
 
 async function load({ quiet = false } = {}) {
   if (!quiet) error.value = ''
@@ -115,7 +159,7 @@ async function load({ quiet = false } = {}) {
     tickets.value = data.results
     counts.value = data.counts
   } catch {
-    if (!quiet) error.value = 'Could not load support requests.'
+    if (!quiet) error.value = 'Could not load support requests. Refresh the page to try again.'
   } finally {
     loading.value = false
   }
@@ -167,7 +211,7 @@ async function sendReply() {
     scroll()
     load()
   } catch (e) {
-    replyError.value = e?.data?.body?.[0] || e?.data?.detail || 'Could not send the reply.'
+    replyError.value = e?.data?.body?.[0] || e?.data?.detail || 'Could not send the reply. Try again.'
   } finally {
     busy.value = false
   }
@@ -178,7 +222,7 @@ async function act(kind) {
     ticket.value = await post(`/admin/support/tickets/${ticket.value.id}/${kind}/`)
     load()
   } catch {
-    replyError.value = 'Could not update this request.'
+    replyError.value = 'Could not update this request. Try again.'
   } finally {
     busy.value = false
   }
@@ -193,67 +237,156 @@ watch(() => route.query.ticket, (id) => {
   router.replace({ query: rest })
 }, { immediate: true })
 
-function ago(iso) {
-  const s = Math.floor((Date.now() - new Date(iso)) / 1000)
-  for (const [label, secs] of [['d', 86400], ['h', 3600], ['m', 60]]) {
-    const v = Math.floor(s / secs)
-    if (v >= 1) return `${v}${label} ago`
-  }
-  return 'just now'
+// Desktop: the queue and the request fill the rest of the screen and scroll on
+// their own, so the page itself stays still (same as RND applications).
+const layout = ref(null)
+const deskHeight = ref(0)
+const isWide = () => window.matchMedia('(min-width: 1000px)').matches
+function measure() {
+  if (!layout.value || !isWide()) { deskHeight.value = 0; return }
+  const top = layout.value.getBoundingClientRect().top + window.scrollY
+  deskHeight.value = Math.max(420, window.innerHeight - top - 24)
+  nextTick(() => {
+    const over = document.documentElement.scrollHeight - window.innerHeight
+    if (over > 0) deskHeight.value = Math.max(420, deskHeight.value - over)
+  })
+}
+onMounted(() => {
+  nextTick(measure)
+  window.addEventListener('resize', measure)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', measure))
+
+/* display */
+const PH = { timeZone: 'Asia/Manila' }
+function nameInitials(name) {
+  const parts = String(name || '').split(' ').filter(Boolean)
+  return userInitials(parts[0], parts[parts.length - 1])
+}
+function waitingLong(t) {
+  return t.status === 'open' && Date.now() - new Date(t.last_activity_at) > LONG_WAIT_HOURS * 3600000
+}
+function ageText(t) {
+  const s = Math.floor((Date.now() - new Date(t.last_activity_at)) / 1000)
+  if (s < 60) return 'Just now'
+  if (s < 3600) return `${Math.floor(s / 60)} min`
+  if (s < 86400) return `${Math.floor(s / 3600)} h`
+  const d = Math.floor(s / 86400)
+  return `${d} day${d === 1 ? '' : 's'}`
 }
 function when(iso) {
-  return new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return new Date(iso).toLocaleString('en-PH', { ...PH, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
+function timeOnly(iso) {
+  return new Date(iso).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' })
+}
+const dayKey = v => new Date(v).toLocaleDateString('en-CA', PH)
+const messageDays = computed(() => {
+  const out = []
+  const today = dayKey(Date.now())
+  const yesterday = dayKey(Date.now() - 86400000)
+  for (const m of ticket.value?.messages || []) {
+    const key = dayKey(m.created_at)
+    const last = out[out.length - 1]
+    if (last && last.key === key) { last.items.push(m); continue }
+    const label = key === today ? 'Today' : key === yesterday ? 'Yesterday'
+      : new Date(m.created_at).toLocaleDateString('en-PH', { ...PH, weekday: 'long', month: 'long', day: 'numeric' })
+    out.push({ key, label, items: [m] })
+  }
+  return out
+})
 </script>
 
 <style scoped>
-.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.layout { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
-.list { padding: 10px; max-height: calc(100vh - 220px); overflow-y: auto; }
-.empty { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #8a9a8a; padding: 40px 10px; text-align: center; font-size: 0.85rem; }
-.empty p { margin: 0; }
-.row { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; border: 1px solid transparent; background: none; border-radius: 10px; padding: 10px 12px; cursor: pointer; font-family: inherit; }
-.row + .row { margin-top: 2px; }
-.row:hover { background: #f7f9f7; }
-.row.on { background: #eef4ee; border-color: #cfe0d2; }
-.row-top { display: flex; justify-content: space-between; gap: 8px; }
-.row-user { font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
-.row-user small { font-weight: 500; color: #8a9a8a; margin-left: 4px; }
-.row-time { font-size: 0.7rem; color: #9aaa9a; white-space: nowrap; }
-.row-subject { font-size: 0.82rem; color: #2a3a2a; display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
-.row.unread .row-subject { font-weight: 700; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #e04b3c; flex-shrink: 0; }
-.row-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.7rem; color: #8a9a8a; }
+.desk { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
 
-.thread-panel { min-height: 420px; }
-.back { display: none; align-items: center; gap: 4px; margin-bottom: 10px; }
-.t-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-.t-head .nm-panel-title { overflow-wrap: anywhere; }
-.who { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #f7f9f7; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.84rem; }
-.who p { margin: 3px 0 0; font-size: 0.78rem; }
-.who a { color: #1f8f5c; }
-.refs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.ref { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; color: #34508a; background: #eef1f8; border-radius: 8px; padding: 5px 9px; text-decoration: none; }
-.msgs { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding: 4px 2px 10px; }
-.msg { align-self: flex-start; max-width: 80%; background: #f4f6f4; border-radius: 12px 12px 12px 4px; padding: 9px 12px; }
-.msg.support { align-self: flex-end; background: #e6f0e8; border-radius: 12px 12px 4px 12px; }
-.msg-who { font-size: 0.68rem; font-weight: 700; color: #6a7a6a; margin: 0 0 3px; }
-.msg-body { font-size: 0.85rem; color: #1a3a1a; line-height: 1.55; margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
-.reply { border-top: 1px solid #eceeec; padding-top: 12px; }
-.reply textarea { resize: vertical; }
-.reply-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+/* queue */
+.queue { padding: 8px; }
+.queue-head { margin: 6px 8px 8px; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; }
+.queue-empty { padding: 32px 10px; }
+.q-row {
+  display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; border: 0; background: none;
+  border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; border-left: 3px solid transparent;
+}
+.q-row + .q-row { margin-top: 2px; }
+.q-row:hover { background: #f7faf8; }
+.q-row.on { background: #eef5f0; border-left-color: #0a4a37; }
+.q-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.nm-avatar.sm { width: 32px; height: 32px; font-size: 0.72rem; }
+.q-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.q-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.q-name { font-size: 0.84rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-name small { font-weight: 500; color: #8a9a8a; font-size: 0.76rem; }
+.q-time { flex-shrink: 0; font-size: 0.72rem; font-weight: 600; color: #6a7a6a; background: #f2f6f3; border-radius: 999px; padding: 1px 8px; }
+.q-time.long { background: #fdf3dc; color: #7a560f; }
+.q-subject { font-size: 0.83rem; color: #2a3a2a; min-width: 0; overflow-wrap: anywhere; }
+.q-row.unread .q-subject { font-weight: 700; color: #1a3a1a; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #D4A017; margin: 0 6px 1px 0; vertical-align: middle; }
+.q-preview { font-size: 0.76rem; color: #8a9a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; font-size: 0.72rem; color: #8a9a8a; }
 
-@media (max-width: 900px) {
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  .layout.has-open .list { display: none; }
-  .layout:not(.has-open) .thread-panel { display: none; }
+/* the request */
+.thread { padding-top: 0; display: flex; flex-direction: column; min-height: 460px; }
+.thread-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 10px; }
+.t-head {
+  position: sticky; top: 0; z-index: 2; margin: 0 -22px; padding: 18px 22px 14px; background: #fff;
+  border-bottom: 1px solid #d9e3dc; border-radius: 14px 14px 0 0;
+}
+.back { display: none; margin-bottom: 12px; }
+.t-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.t-name { min-width: 0; flex: 1; }
+.t-name .nm-panel-title { font-size: 1.2rem; overflow-wrap: anywhere; }
+.t-actions { display: flex; align-items: center; gap: 10px; }
+.who { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #edf1ee; }
+.who-text { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: 0.84rem; color: #1a3a1a; }
+.who-text span { font-size: 0.78rem; color: #6a7a6a; overflow-wrap: anywhere; }
+.refs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid #edf1ee; }
+.refs-label { font-size: 0.76rem; font-weight: 600; color: #6a7a6a; }
+.ref {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 600; color: #0a4a37;
+  background: #e3efe7; border-radius: 8px; padding: 6px 10px; text-decoration: none; overflow-wrap: anywhere;
+}
+.ref:hover { background: #d3e7da; }
+
+.msgs { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 8px 2px 16px; }
+.msg-day { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; font-size: 0.74rem; font-weight: 600; color: #8a9a8a; }
+.msg-day::before, .msg-day::after { content: ''; flex: 1; height: 1px; background: #edf1ee; }
+.msg { align-self: flex-start; max-width: 78%; background: #f4f6f4; border-radius: 14px 14px 14px 4px; padding: 10px 13px; }
+.msg.support { align-self: flex-end; background: #e3efe7; border-radius: 14px 14px 4px 14px; }
+.msg-who { font-size: 0.72rem; font-weight: 600; color: #6a7a6a; margin: 0 0 3px; }
+.msg-body { font-size: 0.86rem; color: #1a3a1a; line-height: 1.55; margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+
+.reply {
+  position: sticky; bottom: 0; margin: 0 -22px -22px; padding: 14px 22px 18px; background: #f7faf8;
+  border-top: 1px solid #d9e3dc; border-radius: 0 0 14px 14px;
+}
+.reply textarea { resize: vertical; background: #fff; }
+.reply-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.reply-hint { margin: 0; font-size: 0.78rem; color: #6a7a6a; flex: 1; min-width: 200px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* desktop: both sides scroll on their own */
+@media (min-width: 1000px) {
+  .queue, .thread {
+    max-height: var(--desk-h, calc(100vh - 180px)); overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: #c5d6ca transparent;
+  }
+  .thread { min-height: var(--desk-h, 460px); }
+}
+@media (max-width: 999px) {
+  .desk { grid-template-columns: minmax(0, 1fr); }
+  .desk.has-open .queue { display: none; }
+  .desk:not(.has-open) .thread { display: none; }
   .back { display: inline-flex; }
-  .list { max-height: none; }
   .msg { max-width: 92%; }
 }
-@media (max-width: 560px) {
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .nm-search { max-width: none; }
-  .who { flex-direction: column; align-items: flex-start; }
+@media (max-width: 640px) {
+  .nm-search { flex: 1 1 100%; max-width: none; }
+  .t-head { margin: 0 -16px; padding: 16px 16px 12px; }
+  .reply { margin: 0 -16px -18px; padding: 12px 16px 16px; }
+  .who { flex-wrap: wrap; }
+  .t-head, .reply { position: static; }
+  .t-actions { width: 100%; }
+  .t-actions .nm-pill { margin-right: auto; }
 }
 </style>
