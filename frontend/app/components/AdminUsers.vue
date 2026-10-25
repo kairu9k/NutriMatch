@@ -1,16 +1,12 @@
 <template>
   <div class="nm-page">
-    <div class="users-head">
-      <p class="nm-page-sub">Every client, RND and admin account. Open one to see their full record.</p>
-      <button type="button" class="nm-btn-dark nm-btn-sm" @click="openAddAdmin"><UserPlus :size="14" /> Add admin</button>
-    </div>
 
     <!-- add admin (POST /api/admin/admins/, accounts/admin_accounts.py) -->
     <div v-if="showAdd" class="nm-modal-overlay" @click.self="showAdd = false">
       <form class="nm-modal" @submit.prevent="addAdmin">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="showAdd = false"><X :size="18" aria-hidden="true" /></button>
         <h3 class="nm-modal-title">Add an admin</h3>
-        <p class="nm-modal-text">They get full admin access. We email them an invite to set their own password with a 6-digit code — no password is sent by email.</p>
+        <p class="nm-modal-text">They get full admin access. We email them an invite to set their own password with a 6-digit code. No password is ever sent by email.</p>
         <div class="add-grid">
           <label class="add-field"><span class="nm-label">First name</span>
             <input v-model="addForm.first_name" class="nm-input" maxlength="150" required />
@@ -23,13 +19,13 @@
           <input v-model="addForm.email" type="email" class="nm-input" maxlength="254" required />
           <small v-if="addErrors.email" class="nm-field-error">{{ addErrors.email }}</small></label>
         <label class="add-field"><span class="nm-label">Reason</span>
-          <textarea v-model="addForm.reason" class="nm-input" rows="2" maxlength="500" placeholder="e.g. Second admin to cover support on weekends." />
+          <textarea v-model="addForm.reason" class="nm-input" rows="2" maxlength="500" placeholder="For example: a second admin to cover support on weekends." />
           <small v-if="addErrors.reason" class="nm-field-error">{{ addErrors.reason }}</small>
-          <small v-else class="nm-hint">At least 10 characters — saved in the audit log.</small></label>
+          <small v-else class="nm-hint">At least 10 characters. It's saved in the audit log.</small></label>
         <p v-if="addErrors.detail" class="nm-error">{{ addErrors.detail }}</p>
         <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-outline" @click="showAdd = false">Cancel</button>
-          <button type="submit" class="nm-btn-dark" :disabled="adding">{{ adding ? 'Adding…' : 'Add admin & send invite' }}</button>
+          <button type="button" class="nm-btn-soft" @click="showAdd = false">Cancel</button>
+          <button type="submit" class="nm-btn-dark" :disabled="adding">{{ adding ? 'Adding…' : 'Add admin and send invite' }}</button>
         </div>
       </form>
     </div>
@@ -43,17 +39,15 @@
           {{ t.label }} <span class="nm-count">{{ lists[t.key].length }}</span>
         </button>
       </div>
-      <div class="nm-search">
-        <Search :size="15" />
-        <input v-model="query" type="search" placeholder="Search name or email" />
-      </div>
-    </div>
-
-    <div class="nm-toolbar" style="margin-bottom: 12px">
-      <div class="nm-tabs">
-        <button v-for="s in statusFilters" :key="s.key" class="nm-tab" :class="{ active: status === s.key }" @click="status = s.key">
-          {{ s.label }}
-        </button>
+      <div class="users-tools">
+        <select v-model="status" class="nm-select" aria-label="Account status">
+          <option v-for="s in statusFilters" :key="s.key" :value="s.key">{{ s.label }}</option>
+        </select>
+        <div class="nm-search">
+          <Search :size="15" />
+          <input v-model="query" type="search" placeholder="Search name or email" />
+        </div>
+        <button type="button" class="nm-btn-dark" @click="openAddAdmin"><UserPlus :size="14" aria-hidden="true" /> Add admin</button>
       </div>
     </div>
 
@@ -61,7 +55,7 @@
       <p v-if="loading" class="nm-muted">Loading accounts…</p>
       <div v-else-if="!rows.length" class="nm-empty">
         <Users :size="28" />
-        <p>No {{ tab }} match these filters.</p>
+        <p>{{ query || status !== 'all' ? `No ${tabs.find(t => t.key === tab).label.toLowerCase()} match these filters.` : `No ${tabs.find(t => t.key === tab).label.toLowerCase()} yet.` }}</p>
       </div>
       <div v-else class="nm-table-wrap">
         <table class="nm-table stack">
@@ -78,7 +72,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in rows" :key="u.id" class="clickable" @click="open(u)">
+            <tr v-for="u in pagedRows" :key="u.id" class="clickable" @click="open(u)">
               <td>
                 <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
                   <img v-if="u.profile_photo" :src="u.profile_photo" class="nm-avatar" alt="" />
@@ -98,12 +92,13 @@
               <td v-if="tab !== 'admins'" data-label="Consultations" class="nm-num">{{ u.consultations ?? 0 }}</td>
               <td data-label="Joined">{{ shortDate(u.created_at) }}</td>
               <td data-label="Status">
-                <span class="nm-pill" :class="u.is_active ? 'green' : 'red'">{{ u.is_active ? 'Active' : 'Deactivated' }}</span>
+                <span class="nm-pill" :class="u.is_active ? 'green' : 'muted'">{{ u.is_active ? 'Active' : 'Deactivated' }}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+      <ListPager v-model:page="page" :pages="pages" />
     </div>
   </div>
 </template>
@@ -154,7 +149,7 @@ const tabs = [
   { key: 'admins', label: 'Admins' },
 ]
 const statusFilters = [
-  { key: 'all', label: 'All' },
+  { key: 'all', label: 'Any status' },
   { key: 'active', label: 'Active' },
   { key: 'inactive', label: 'Deactivated' },
 ]
@@ -199,6 +194,9 @@ const rows = computed(() => {
   })
 })
 
+// 20 per page; back to page 1 when the tab, status or search changes
+const { page, pages, paged: pagedRows } = usePager(rows, { resetOn: () => [tab.value, status.value, query.value] })
+
 function open(u) {
   navigateTo(`/users/${u.id}`)
 }
@@ -206,13 +204,18 @@ function reviewLabel(s) {
   return { pending: 'Under review', approved: 'Approved', rejected: 'Rejected' }[s] || '—'
 }
 function reviewPill(s) {
-  return { pending: 'gold', approved: 'green', rejected: 'red' }[s] || 'muted'
+  return { pending: 'gold', approved: 'green', rejected: 'muted' }[s] || 'muted'
 }
 </script>
 
 <style scoped>
-.users-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.users-head .nm-page-sub { margin: 0; }
+.users-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.users-tools .nm-select { width: auto; min-width: 140px; }
+@media (max-width: 640px) {
+  .users-tools { width: 100%; }
+  .users-tools .nm-search { flex: 1 1 100%; order: -1; }
+  .users-tools .nm-select, .users-tools .nm-btn-dark { flex: 1; }
+}
 .add-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .add-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; min-width: 0; }
 .add-field .nm-label { margin: 0; }

@@ -13,19 +13,19 @@
           <span v-else class="nm-avatar lg">{{ userInitials(u.first_name, u.last_name) }}</span>
           <div style="min-width: 0">
             <h1 class="nm-page-title" style="margin: 0">{{ u.first_name }} {{ u.last_name }}</h1>
-            <p class="nm-page-sub">{{ u.email }}<span v-if="u.phone"> · {{ formatPhone(u.phone) }}</span></p>
+            <p class="nm-page-sub">{{ u.email }}<template v-if="u.phone">, {{ formatPhone(u.phone) }}</template></p>
             <div class="pill-row">
-              <span class="nm-pill blue">{{ roleLabel }}</span>
-              <span class="nm-pill" :class="account.is_active ? 'green' : 'red'">{{ account.is_active ? 'Active' : 'Deactivated' }}</span>
+              <span class="nm-pill muted">{{ roleLabel }}</span>
+              <span class="nm-pill" :class="account.is_active ? 'green' : 'muted'">{{ account.is_active ? 'Active' : 'Deactivated' }}</span>
               <span v-if="rnd" class="nm-pill" :class="reviewPill">{{ reviewLabel }}</span>
             </div>
           </div>
         </div>
         <div v-if="!isSelf" class="identity-actions">
-          <button class="nm-btn-outline" :disabled="busy" @click="openEdit"><Pencil :size="14" /> Edit details</button>
-          <button class="nm-btn-outline" :disabled="busy" @click="sendReset"><KeyRound :size="14" /> Send password reset</button>
-          <button v-if="account.is_active" class="nm-btn-danger" :disabled="busy" @click="openDeactivate"><Ban :size="14" /> Deactivate</button>
-          <button v-else class="nm-btn-dark" :disabled="busy" @click="reactivate"><RotateCcw :size="14" /> Reactivate</button>
+          <button type="button" class="nm-btn-soft" :disabled="busy" @click="openEdit"><Pencil :size="14" aria-hidden="true" /> Edit details</button>
+          <button type="button" class="nm-btn-soft" :disabled="busy" @click="sendReset"><KeyRound :size="14" aria-hidden="true" /> Send password reset</button>
+          <button v-if="account.is_active" type="button" class="nm-btn-danger solid" :disabled="busy" @click="openDeactivate"><Ban :size="14" aria-hidden="true" /> Deactivate</button>
+          <button v-else type="button" class="nm-btn-dark" :disabled="busy" @click="reactivate"><RotateCcw :size="14" aria-hidden="true" /> Reactivate</button>
         </div>
       </div>
 
@@ -68,7 +68,7 @@
               <div v-if="!s" class="nm-empty"><p>No pre-consultation screening yet.</p></div>
               <dl v-else class="nm-dl">
                 <div><dt>Taken</dt><dd>{{ dateTime(s.created_at) }}</dd></div>
-                <div><dt>Height / weight</dt><dd>{{ num(s.height_cm) }} cm · {{ num(s.weight_kg) }} kg</dd></div>
+                <div><dt>Height and weight</dt><dd>{{ num(s.height_cm) }} cm, {{ num(s.weight_kg) }} kg</dd></div>
                 <div><dt>BMI</dt><dd>{{ num(s.bmi) }} <span v-if="s.bmi_category" class="nm-muted">({{ cap(s.bmi_category) }})</span></dd></div>
                 <div><dt>TDEE</dt><dd>{{ s.tdee_kcal ? `${Math.round(s.tdee_kcal)} kcal/day` : '—' }}</dd></div>
                 <div><dt>NRS-2002</dt><dd>{{ s.nrs_score ?? '—' }} <span v-if="s.nrs_risk" class="nm-muted">({{ cap(s.nrs_risk) }})</span></dd></div>
@@ -78,9 +78,9 @@
 
           <!-- RND -->
           <template v-if="rnd">
-            <div v-if="rnd.profile.review_status === 'rejected' && rnd.profile.rejection_reason" class="nm-error">
-              Rejected: {{ rnd.profile.rejection_reason }}
-            </div>
+            <p v-if="rnd.profile.review_status === 'rejected' && rnd.profile.rejection_reason" class="nm-note plain-note">
+              <strong>Application rejected.</strong> Reason sent: {{ rnd.profile.rejection_reason }}
+            </p>
             <div class="nm-panel">
               <div class="nm-panel-head">
                 <h2 class="nm-panel-title">Credentials</h2>
@@ -92,10 +92,10 @@
                 <div><dt>Date of birth</dt><dd :class="{ muted: !rnd.profile.date_of_birth }">{{ dobText(rnd.profile.date_of_birth) }}</dd></div>
                 <div><dt>Verified</dt><dd :class="{ muted: !rnd.profile.verified_at }">{{ rnd.profile.verified_at ? shortDate(rnd.profile.verified_at) : 'Not yet' }}</dd></div>
               </dl>
-              <a v-if="rnd.profile.prc_license_image_url" :href="rnd.profile.prc_license_image_url" target="_blank" rel="noopener" class="license">
+              <button v-if="rnd.profile.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="licenseOpen = true">
                 <img :src="rnd.profile.prc_license_image_url" alt="PRC license photo" />
-                <span><FileImage :size="14" /> Open PRC license photo</span>
-              </a>
+                <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+              </button>
               <p v-else class="nm-muted" style="margin-top: 12px">No PRC license photo on file.</p>
             </div>
 
@@ -161,7 +161,7 @@
             <div class="nm-panel">
               <h2 class="nm-panel-title">Payout details</h2>
               <p v-if="!rnd.payout_account" class="nm-note" style="margin: 14px 0 0">
-                No GCash or bank details yet — their balance is held until they add them.
+                No GCash or bank details yet. Their balance is held until they add them.
               </p>
               <dl v-else class="nm-dl" style="margin-top: 14px">
                 <div><dt>Method</dt><dd>{{ rnd.payout_account.method_label }}</dd></div>
@@ -196,7 +196,7 @@
               <div><dt>Data-privacy consent</dt><dd :class="{ muted: !account.data_consent_at }">{{ account.data_consent_at ? shortDate(account.data_consent_at) : '—' }}</dd></div>
               <div v-if="u.role !== 'admin'"><dt>Onboarding</dt><dd :class="{ muted: !account.onboarding_completed_at }">{{ account.onboarding_completed_at ? shortDate(account.onboarding_completed_at) : 'Not finished' }}</dd></div>
             </dl>
-            <p class="nm-hint" style="margin-top: 12px">Passwords are stored encrypted (hashed) and can't be viewed by anyone — use “Send password reset” instead.</p>
+            <p class="nm-hint" style="margin-top: 12px">Passwords are stored encrypted (hashed), so nobody can view them. Use Send password reset instead.</p>
           </div>
 
           <div class="nm-panel">
@@ -206,7 +206,7 @@
               <div v-for="(a, i) in data.recent_activity" :key="i" class="nm-row">
                 <div class="nm-row-main">
                   <p class="nm-row-title">{{ auditLabel(a.action) }}</p>
-                  <p class="nm-row-sub">{{ dateTime(a.created_at) }}<span v-if="a.by"> · by {{ a.by }}</span></p>
+                  <p class="nm-row-sub">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></p>
                 </div>
               </div>
             </div>
@@ -224,16 +224,16 @@
           They'll be signed out and won't be able to sign in. We'll email them the reason below. You can reactivate the account any time.
         </p>
         <p v-if="rnd" class="nm-note" style="margin: 0 0 12px">
-          <strong>Their patients are let go right away:</strong> every upcoming consultation is cancelled (paid ones go to Billing → Refunds)
+          <strong>Their patients are let go right away:</strong> every upcoming consultation is cancelled (paid ones go to the Refunds tab in Billing and Commission)
           and their care ends, so the clients can choose another RND. Reactivating doesn't bring these back.
         </p>
         <label class="nm-label" for="deactivate-reason">Reason</label>
         <textarea id="deactivate-reason" v-model="reason" class="nm-input" rows="4" maxlength="1000"
-          placeholder="e.g. Repeated no-shows and abusive messages to an RND." />
+          placeholder="For example: repeated no-shows and abusive messages to an RND." />
         <p v-if="reasonError" class="nm-field-error">{{ reasonError }}</p>
-        <p v-else class="nm-hint">At least 10 characters — the user will see this.</p>
+        <p v-else class="nm-hint">At least 10 characters. The user will see this.</p>
         <div class="nm-modal-actions">
-          <button class="nm-btn-outline" @click="showDeactivate = false">Cancel</button>
+          <button type="button" class="nm-btn-soft" @click="showDeactivate = false">Keep account</button>
           <button class="nm-btn-danger solid" :disabled="busy" @click="deactivate">{{ busy ? 'Deactivating…' : 'Deactivate account' }}</button>
         </div>
       </div>
@@ -269,15 +269,34 @@
           </template>
         </div>
         <label class="nm-label" for="edit-reason">Reason for the change</label>
-        <textarea id="edit-reason" v-model="editForm.reason" class="nm-input" rows="2" maxlength="500" placeholder="e.g. User emailed support: their last name was misspelled at sign-up." />
+        <textarea id="edit-reason" v-model="editForm.reason" class="nm-input" rows="2" maxlength="500" placeholder="For example: the user emailed support because their last name was misspelled at sign-up." />
         <p v-if="editErrors.reason" class="nm-field-error">{{ editErrors.reason }}</p>
-        <p v-else class="nm-hint">At least 10 characters — saved in the audit log and included in the email.</p>
+        <p v-else class="nm-hint">At least 10 characters. It's saved in the audit log and included in the email.</p>
         <p v-if="editErrors.detail" class="nm-error" style="margin-top: 10px">{{ editErrors.detail }}</p>
         <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-outline" @click="showEdit = false">Cancel</button>
+          <button type="button" class="nm-btn-soft" @click="showEdit = false">Cancel</button>
           <button type="submit" class="nm-btn-dark" :disabled="busy || !editChanged">{{ busy ? 'Saving…' : 'Save changes' }}</button>
         </div>
       </form>
+    </div>
+
+    <!-- LICENSE PHOTO, full size (same pop-up as RND Applications) -->
+    <div v-if="licenseOpen && rnd?.profile.prc_license_image_url" class="nm-modal-overlay" @click.self="licenseOpen = false">
+      <div class="nm-modal license-modal" role="dialog" aria-modal="true" aria-labelledby="license-title">
+        <div class="lm-head nm-modal-head">
+          <span class="lm-icon"><IdCard :size="18" aria-hidden="true" /></span>
+          <div style="flex: 1; min-width: 0">
+            <h3 id="license-title" class="nm-modal-title" style="margin: 0">PRC license, {{ u.first_name }} {{ u.last_name }}</h3>
+            <p class="nm-panel-sub">License no. {{ rnd.profile.prc_license_number || 'not given' }}</p>
+          </div>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="licenseOpen = false"><X :size="18" aria-hidden="true" /></button>
+        </div>
+        <div class="lm-photo"><img :src="rnd.profile.prc_license_image_url" alt="PRC license photo, full size" /></div>
+        <div class="nm-modal-actions">
+          <a :href="rnd.profile.prc_license_image_url" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
+          <button type="button" class="nm-btn-dark" @click="licenseOpen = false">Done</button>
+        </div>
+      </div>
     </div>
 
     <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
@@ -285,7 +304,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Ban, CheckCircle2, FileImage, KeyRound, Pencil, RotateCcw, X } from 'lucide-vue-next'
+import { ArrowLeft, Ban, CheckCircle2, ExternalLink, IdCard, KeyRound, Maximize2, Pencil, RotateCcw, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
@@ -300,6 +319,7 @@ const toast = ref('')
 const showDeactivate = ref(false)
 const reason = ref('')
 const reasonError = ref('')
+const licenseOpen = ref(false)
 
 const u = computed(() => data.value?.user || {})
 const account = computed(() => data.value?.account || {})
@@ -309,13 +329,13 @@ const s = computed(() => client.value?.latest_screening)
 const isSelf = computed(() => u.value.id === auth.user?.id)
 const roleLabel = computed(() => ({ client: 'Client', rnd: 'RND', admin: 'Admin' }[u.value.role] || u.value.role))
 const reviewLabel = computed(() => ({ pending: 'Application under review', approved: 'Approved', rejected: 'Rejected' }[rnd.value?.profile.review_status] || ''))
-const reviewPill = computed(() => ({ pending: 'gold', approved: 'green', rejected: 'red' }[rnd.value?.profile.review_status] || 'muted'))
+const reviewPill = computed(() => ({ pending: 'gold', approved: 'green', rejected: 'muted' }[rnd.value?.profile.review_status] || 'muted'))
 const hours = computed(() => availabilityLines(rnd.value?.availability))
 const requiredMissing = computed(() => (rnd.value?.missing_setup || []).filter(m => !m.optional))
 const emergencyText = computed(() => {
   const p = client.value?.profile
   if (!p?.emergency_contact) return 'Not given'
-  return p.emergency_phone ? `${p.emergency_contact} · ${p.emergency_phone}` : p.emergency_contact
+  return p.emergency_phone ? `${p.emergency_contact}, ${p.emergency_phone}` : p.emergency_contact
 })
 const allergyText = computed(() => {
   const a = client.value?.health.allergies
@@ -375,7 +395,7 @@ async function saveEdit() {
     return
   }
   const phoneMsg = editForm.phone === editBefore.value.phone ? ''
-    : rnd.value && !editForm.phone ? 'RNDs must have a mobile number — enter a Philippine mobile, e.g. +63 917 123 4567.'
+    : rnd.value && !editForm.phone ? 'RNDs must have a mobile number. Enter a Philippine mobile, for example +63 917 123 4567.'
     : (rnd.value ? rndPhoneError : phoneError)(editForm.phone)
   if (phoneMsg) {
     editErrors.value = { phone: phoneMsg }
@@ -390,7 +410,7 @@ async function saveEdit() {
     await patch(`/admin/users/${u.value.id}/edit/`, body)
     showEdit.value = false
     await load()
-    flash('Details updated — the user was emailed.')
+    flash('Details updated. We emailed the user.')
   } catch (e) {
     const d = e?.data || {}
     editErrors.value = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
@@ -409,7 +429,7 @@ function openDeactivate() {
 async function deactivate() {
   reasonError.value = ''
   if (reason.value.trim().length < 10) {
-    reasonError.value = 'Explain why in at least 10 characters — the user will see this.'
+    reasonError.value = 'Explain why in at least 10 characters. The user will see this.'
     return
   }
   busy.value = true
@@ -418,7 +438,7 @@ async function deactivate() {
     showDeactivate.value = false
     await load()
     const n = res?.consultations_cancelled || 0, m = res?.care_ended || 0
-    flash('Account deactivated — the user was emailed.'
+    flash('Account deactivated. We emailed the user.'
       + (n ? ` ${n} consultation${n === 1 ? '' : 's'} cancelled.` : '')
       + (m ? ` Care ended for ${m} client${m === 1 ? '' : 's'}.` : ''))
   } catch (e) {
@@ -434,7 +454,7 @@ async function reactivate() {
   try {
     await post(`/admin/users/${u.value.id}/reactivate/`)
     await load()
-    flash('Account reactivated — the user was emailed.')
+    flash('Account reactivated. We emailed the user.')
   } catch (e) {
     error.value = apiError(e)
   } finally {
@@ -473,7 +493,7 @@ function dobText(dob) {
 function countText(counts) {
   const entries = Object.entries(counts || {})
   if (!entries.length) return 'None yet'
-  return entries.map(([k, n]) => `${n} ${cap(k).toLowerCase()}`).join(' · ')
+  return entries.map(([k, n]) => `${n} ${cap(k).toLowerCase()}`).join(', ')
 }
 </script>
 
@@ -483,15 +503,24 @@ function countText(counts) {
 .identity-main { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .identity-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.license { display: block; margin-top: 16px; border: 1px solid #eceeec; border-radius: 10px; overflow: hidden; text-decoration: none; }
-.license img { display: block; width: 100%; max-height: 260px; object-fit: contain; background: #f7f9f7; }
-.license span { display: flex; align-items: center; gap: 6px; padding: 10px 12px; font-size: 0.8rem; font-weight: 600; color: #1f8f5c; border-top: 1px solid #eceeec; }
+.license { display: block; width: 100%; padding: 0; margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
+.license:hover img { opacity: 0.92; }
+.license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.license img { display: block; width: 100%; max-height: 260px; object-fit: contain; }
+.license span { display: flex; align-items: center; gap: 6px; padding: 10px 12px; font-size: 0.8rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
+.license-modal { max-width: 900px; }
+.lm-head { display: flex; gap: 12px; align-items: flex-start; }
+.lm-icon { width: 36px; height: 36px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lm-photo { margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
+.lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
 .bio { font-size: 0.86rem; color: #4a5a4a; line-height: 1.6; margin: 12px 0 0; white-space: pre-line; }
 .hours-line { font-size: 0.85rem; color: #2a3a2a; margin: 0 0 4px; }
 .mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
 .link { text-decoration: none; }
 .link:hover { text-decoration: underline; }
 @media (max-width: 640px) {
+  .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
+  .lm-photo { flex: 1; align-items: center; }
   .identity-main { align-items: flex-start; }
   .identity-actions { width: 100%; }
   .identity-actions > * { flex: 1; }
