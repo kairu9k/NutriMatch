@@ -194,8 +194,8 @@ const rows = computed(() => {
   })
 })
 
-// 20 per page; back to page 1 when the tab, status or search changes
-const { page, pages, paged: pagedRows } = usePager(rows, { resetOn: () => [tab.value, status.value, query.value] })
+// 10 per page; back to page 1 when the tab, status or search changes
+const { page, pages, paged: pagedRows } = usePager(rows, { perPage: 10, resetOn: () => [tab.value, status.value, query.value] })
 
 function open(u) {
   navigateTo(`/users/${u.id}`)
