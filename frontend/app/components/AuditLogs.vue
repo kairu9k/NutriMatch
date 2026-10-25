@@ -43,6 +43,7 @@
         <ScrollText :size="28" aria-hidden="true" />
         <p>{{ hasFilters ? 'No events match these filters.' : 'No events recorded yet.' }}</p>
       </div>
+      <div ref="scroller" class="journal-scroll">
       <section v-for="d in days" :key="d.key" class="day">
         <h3 class="day-title"><span>{{ d.label }}</span><span class="day-count">{{ d.items.length }}</span></h3>
         <button v-for="log in d.items" :key="log.id" type="button" class="entry" :class="toneOf(log.action)" @click="selected = log">
@@ -58,6 +59,7 @@
           <ChevronRight :size="16" class="entry-go" aria-hidden="true" />
         </button>
       </section>
+      </div>
       <ListPager :page="page" :pages="pageCount" @update:page="goTo" />
     </div>
 
@@ -137,6 +139,7 @@ const loading = ref(true)
 const PAGE_SIZE = 20
 const page = ref(1)
 const listTop = ref(null)
+const scroller = ref(null)
 const exporting = ref(false)
 const error = ref('')
 const logs = ref([])
@@ -219,6 +222,7 @@ useAutoRefresh(() => load(page.value, { quiet: true }))
 async function goTo(n) {
   if (n < 1 || n > pageCount.value || n === page.value) return
   await load(n)
+  scroller.value?.scrollTo({ top: 0 })
   listTop.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -362,6 +366,11 @@ function toneOf(a) {
 
 /* journal */
 .journal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid #d9e3dc; font-size: 0.82rem; }
+/* the journal scrolls inside its panel; each day's heading stays on top while its entries pass */
+@media (min-width: 641px) {
+  .journal-scroll { max-height: max(360px, min(640px, calc(100vh - 330px))); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c5d6ca transparent; padding-right: 4px; }
+  .journal-scroll .day-title { position: sticky; top: 0; z-index: 1; background: #fff; margin-top: 0; padding: 14px 0 6px; }
+}
 .day-title { display: flex; align-items: baseline; gap: 8px; margin: 18px 0 4px; font-family: inherit; font-size: 0.86rem; font-weight: 700; color: #0a4a37; }
 .day-count { font-size: 0.74rem; font-weight: 600; color: #8a9a8a; }
 .entry {
