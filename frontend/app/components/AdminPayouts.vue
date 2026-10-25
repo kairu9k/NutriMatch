@@ -10,6 +10,15 @@
           <h2 class="run-day-title">{{ run ? dayTitle : 'Loading…' }}</h2>
           <p class="run-day-sub">{{ daySub }}</p>
         </div>
+        <!-- the month between two payout days, with today on it -->
+        <div v-if="cycle" class="cycle">
+          <p class="cycle-left"><strong>{{ daysLeft === 0 ? 'Today' : daysLeft }}</strong>{{ daysLeft === 0 ? '' : ` day${daysLeft === 1 ? '' : 's'} to go` }}</p>
+          <div class="cycle-bar" role="img" :aria-label="`${cycle.pct}% of the way from ${cycle.from} to ${cycle.to}`">
+            <span class="cycle-fill" :style="{ width: `${cycle.pct}%` }"></span>
+            <span class="cycle-now" :style="{ left: `${cycle.pct}%` }"></span>
+          </div>
+          <div class="cycle-ends"><span>{{ cycle.from }}</span><span>{{ cycle.to }}</span></div>
+        </div>
       </div>
       <div class="run-figs">
         <div class="fig">
@@ -207,11 +216,20 @@ const dayTitle = computed(() => {
 const daySub = computed(() => {
   if (!run.value) return ''
   if (daysLeft.value === 0) return 'Send the balances below, then record each one.'
-  const n = daysLeft.value
-  const wait = `${n} day${n === 1 ? '' : 's'} to go.`
-  if (!run.value.payout_day_reached) return `${wait} You can release early if you need to.`
+  if (!run.value.payout_day_reached) return 'You can release early if you need to.'
   const month = new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long' })
-  return `${wait} ${month}'s payout day has passed, so anything ready below can still be released now.`
+  return `${month}'s payout day has passed, so anything ready below can still be released now.`
+})
+// from the last payout day to the next one, and how far along today is
+const cycle = computed(() => {
+  if (!run.value) return null
+  const next = new Date(`${run.value.next_payout_date}T00:00:00+08:00`)
+  const prev = new Date(next)
+  prev.setMonth(prev.getMonth() - 1)
+  const fmt = d => d.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' })
+  const total = Math.round((next - prev) / 86400000)
+  const pct = Math.min(100, Math.max(0, Math.round(((total - daysLeft.value) / total) * 100)))
+  return { from: fmt(prev), to: fmt(next), pct }
 })
 function ordinal(n) {
   const end = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')
@@ -310,7 +328,15 @@ function methodText(p) {
 
 /* run sheet */
 .run-sheet { margin-bottom: 20px; padding: 0; overflow: hidden; }
-.run-day { display: flex; gap: 12px; align-items: flex-start; padding: 18px 22px 16px; border-bottom: 1px solid #d9e3dc; }
+.run-day { display: flex; gap: 12px; align-items: center; padding: 18px 22px 16px; border-bottom: 1px solid #d9e3dc; }
+.run-day > div:nth-child(2) { flex: 1; min-width: 0; }
+.cycle { width: 260px; flex-shrink: 0; }
+.cycle-left { margin: 0 0 8px; text-align: right; font-size: 0.8rem; color: #6a7a6a; }
+.cycle-left strong { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #0a4a37; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.cycle-bar { position: relative; height: 8px; border-radius: 999px; background: #e3efe7; }
+.cycle-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: #9fcfb3; }
+.cycle-now { position: absolute; top: 50%; width: 14px; height: 14px; margin-left: -7px; transform: translateY(-50%); border-radius: 50%; background: #0a4a37; border: 2px solid #fff; box-shadow: 0 0 0 1px #0a4a37; }
+.cycle-ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.72rem; color: #8a9a8a; }
 .run-day-icon { color: #0a4a37; margin-top: 3px; flex-shrink: 0; }
 .run-day-title { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; }
 .run-day-sub { margin: 3px 0 0; font-size: 0.82rem; color: #6a7a6a; }
@@ -393,7 +419,9 @@ function methodText(p) {
   .paid-amount { grid-row: 2; grid-column: 2; }
 }
 @media (max-width: 640px) {
-  .run-day { padding: 16px; }
+  .run-day { padding: 16px; flex-wrap: wrap; }
+  .cycle { width: 100%; }
+  .cycle-left { text-align: left; }
   .run-figs { grid-template-columns: minmax(0, 1fr); }
   .fig { border-left: none; padding: 12px 16px; }
   .fig + .fig { border-top: 1px solid #d9e3dc; }
