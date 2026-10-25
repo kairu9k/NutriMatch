@@ -4,7 +4,7 @@
       <div class="nm-panel-head">
         <div>
           <h2 class="nm-panel-title">Your details</h2>
-          <p class="nm-panel-sub">Shown in the audit log and on support replies other admins see. Your email is your sign-in — ask another admin to change it (Users → Edit details).</p>
+          <p class="nm-panel-sub">Shown in the audit log and on support replies other admins see. Your email is your sign-in. To change it, ask another admin to use Edit details on your account in Users.</p>
         </div>
       </div>
       <form class="grid" @submit.prevent="saveDetails">
@@ -116,7 +116,7 @@ async function changePassword() {
   try {
     await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
     Object.assign(pw, { current: '', next: '', confirm: '' })
-    flash('Password changed — we emailed you a confirmation.')
+    flash('Password changed. We emailed you a confirmation.')
   } catch (e) {
     pwErrors.value = fieldErrors(e)
   } finally {

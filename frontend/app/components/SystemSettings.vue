@@ -44,7 +44,7 @@
 
         <div class="nm-panel">
           <h2 class="nm-panel-title">Privacy & compliance</h2>
-          <p class="nm-panel-sub">Republic Act No. 10173 — Data Privacy Act</p>
+          <p class="nm-panel-sub">Republic Act No. 10173, the Data Privacy Act</p>
           <div v-for="c in COMPLIANCE" :key="c.title" class="nm-row" style="margin-top: 6px">
             <div class="nm-stat-icon" style="margin: 0"><component :is="c.icon" :size="16" /></div>
             <div class="nm-row-main">

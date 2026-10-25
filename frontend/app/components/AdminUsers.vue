@@ -3,9 +3,9 @@
 
     <!-- add admin (POST /api/admin/admins/, accounts/admin_accounts.py) -->
     <div v-if="showAdd" class="nm-modal-overlay" @click.self="showAdd = false">
-      <form class="nm-modal" @submit.prevent="addAdmin">
+      <form class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="add-admin-title" @submit.prevent="addAdmin">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="showAdd = false"><X :size="18" aria-hidden="true" /></button>
-        <h3 class="nm-modal-title">Add an admin</h3>
+        <h3 id="add-admin-title" class="nm-modal-title">Add an admin</h3>
         <p class="nm-modal-text">They get full admin access. We email them an invite to set their own password with a 6-digit code. No password is ever sent by email.</p>
         <div class="add-grid">
           <label class="add-field"><span class="nm-label">First name</span>
