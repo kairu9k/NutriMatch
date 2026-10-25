@@ -54,7 +54,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'When do I get paid?',
-      a: 'Your share (fee minus the platform commission) is Pending until the consultation is completed, then Posted 3 days later. Posted balances are released on or after the 5th of each month once they reach ₱500, to the GCash or bank account in your payout details.',
+      a: 'Your share (fee minus the platform commission) is on hold until 3 days after the consultation is completed, then it clears. On the 5th of each month NutriMatch pays everything that cleared by that day, once it reaches ₱500, to the GCash or bank account in your payout details. Money that clears after the 5th waits for the next month. Payouts are never sent early.',
       link: { label: 'Earnings', to: '/earnings' },
     },
     {

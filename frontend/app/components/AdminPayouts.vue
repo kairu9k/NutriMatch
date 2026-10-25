@@ -28,20 +28,20 @@
         </div>
         <div class="fig">
           <strong :class="{ warn: heldTotal > 0 }">{{ peso(heldTotal) }}</strong>
-          <span class="fig-label">Posted but held</span>
-          <span class="fig-note" :class="{ warn: heldRows.length }">{{ heldRows.length ? `${heldRows.length} RND${heldRows.length === 1 ? '' : 's'}, see why below` : 'Nothing held' }}</span>
+          <span class="fig-label">Cleared, waiting</span>
+          <span class="fig-note" :class="{ warn: heldRows.length }">{{ heldRows.length ? `${heldRows.length} RND${heldRows.length === 1 ? '' : 's'}, see why below` : 'Nothing waiting' }}</span>
         </div>
         <div class="fig">
           <strong>{{ peso(pendingTotal) }}</strong>
-          <span class="fig-label">Still pending</span>
-          <span class="fig-note">Posts {{ run?.hold_days ?? 3 }} days after the consultation</span>
+          <span class="fig-label">On hold</span>
+          <span class="fig-note">Clears {{ run?.hold_days ?? 3 }} days after the consultation</span>
         </div>
       </div>
 
       <!-- how a consultation's share moves: a real sequence -->
       <ol class="flow" aria-label="How an RND's share is paid">
-        <li><strong>Pending</strong><span>until {{ run?.hold_days ?? 3 }} days after the consultation is completed</span></li>
-        <li><strong>Posted</strong><span>paid on the {{ ordinal(payoutDay) }} if it's {{ peso(run?.minimum_payout ?? 500) }} or more, otherwise it carries over</span></li>
+        <li><strong>On hold</strong><span>until {{ run?.hold_days ?? 3 }} days after the consultation is completed, in case the client needs a refund</span></li>
+        <li><strong>Cleared</strong><span>paid on the {{ ordinal(payoutDay) }} if it's {{ peso(run?.minimum_payout ?? 500) }} or more, otherwise it carries over</span></li>
         <li><strong>Paid out</strong><span>you send it by GCash or bank, then record the reference here</span></li>
       </ol>
     </section>
@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <!-- THIS MONTH: ready, held, then not posted yet -->
+    <!-- THIS MONTH: ready, waiting, then still on hold -->
     <template v-if="tab === 'run'">
       <p v-if="loading" class="nm-panel nm-muted">Loading balances…</p>
       <div v-else-if="!rows.length" class="nm-panel nm-empty">
@@ -87,7 +87,7 @@
                 <span class="to-method">{{ payoutVia(r.payout_account.method, r.payout_account.bank_name) }}</span>
                 <span class="to-line">{{ r.payout_account.account_name }}, <span class="mono">{{ r.payout_account.account_number }}</span></span>
               </template>
-              <span v-else class="nm-pill gold no-details">No payout details yet, held until added</span>
+              <span v-else class="nm-pill gold no-details">No payout details yet, waits until added</span>
             </div>
 
             <div class="payee-act">
@@ -131,7 +131,7 @@
 
         <div class="send">
           <p class="send-amount mono">{{ peso(releasing.payable) }}</p>
-          <p class="send-for">for {{ releasing.payable_count }} consultation{{ releasing.payable_count === 1 ? '' : 's' }} posted by {{ runText }}</p>
+          <p class="send-for">for {{ releasing.payable_count }} consultation{{ releasing.payable_count === 1 ? '' : 's' }} cleared by {{ runText }}</p>
           <dl class="send-rows">
             <div><dt>Send by</dt><dd>{{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }}</dd></div>
             <div>
@@ -150,6 +150,16 @@
           </dl>
         </div>
 
+        <!-- new or changed details: the classic payout fraud, so stop and check -->
+        <div v-if="releasing.payout_account.recently_changed" class="changed" role="alert">
+          <ShieldAlert :size="18" aria-hidden="true" />
+          <p>
+            <strong>These payout details {{ changedText }}.</strong>
+            Before sending, confirm the number with {{ firstName }} on a channel you already trust (a call or Discord).
+            If someone got into their account, they could have swapped the number.
+          </p>
+        </div>
+
         <ol class="steps">
           <li>Send {{ peso(releasing.payable) }} from the NutriMatch {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} account.</li>
           <li>Type the reference number from the receipt below. {{ releasing.rnd_name.split(' ')[0] }} gets an email and a notification.</li>
@@ -159,10 +169,20 @@
         <input id="payout-ref" v-model="reference" class="nm-input mono" maxlength="100" placeholder="For example: 1234 567 890123" />
         <label class="nm-label" for="payout-notes" style="margin-top: 12px">Notes <span class="nm-muted">(optional)</span></label>
         <textarea id="payout-notes" v-model="notes" data-allow-emoji class="nm-input" rows="2" maxlength="500" />
+        <label v-if="releasing.payout_account.recently_changed" class="confirm">
+          <input v-model="detailsChecked" type="checkbox" />
+          <span>I confirmed this {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} number with {{ firstName }}.</span>
+        </label>
+        <label class="confirm">
+          <input v-model="sentChecked" type="checkbox" />
+          <span>I sent <strong>{{ peso(releasing.payable) }}</strong> to {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} <span class="mono">{{ releasing.payout_account.account_number }}</span>. This can't be undone.</span>
+        </label>
         <p v-if="releaseError" class="nm-field-error">{{ releaseError }}</p>
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-soft" :disabled="busy" @click="releasing = null">Not yet</button>
-          <button type="button" class="nm-btn-dark" :disabled="busy" @click="release">{{ busy ? 'Recording…' : 'Record as paid out' }}</button>
+          <button type="button" class="nm-btn-dark" :disabled="busy || !canRecord" @click="release">
+            {{ busy ? 'Recording…' : lockLeft > 0 ? `Record as paid out (${lockLeft})` : 'Record as paid out' }}
+          </button>
         </div>
       </div>
     </div>
@@ -173,7 +193,7 @@
 
 <script setup>
 import { payoutVia } from '~/utils/payout'
-import { CalendarClock, Check, CheckCircle2, Copy, Wallet, X } from 'lucide-vue-next'
+import { CalendarClock, Check, CheckCircle2, Copy, ShieldAlert, Wallet, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 
@@ -189,6 +209,20 @@ const releaseError = ref('')
 const busy = ref(false)
 const toast = ref('')
 const copied = ref(false)
+const sentChecked = ref(false)
+const detailsChecked = ref(false)
+const lockLeft = ref(0)
+let lockTimer
+const firstName = computed(() => (releasing.value?.rnd_name || '').split(' ')[0])
+const changedText = computed(() => {
+  const at = releasing.value?.payout_account?.details_changed_at
+  if (!at) return 'are new'
+  const days = Math.floor((Date.now() - new Date(at)) / 86400000)
+  return days < 1 ? 'were added or changed today' : `were added or changed ${days} day${days === 1 ? '' : 's'} ago`
+})
+// a payout can't be undone: tick what you did, and the button waits 3 seconds
+const canRecord = computed(() => sentChecked.value && lockLeft.value <= 0
+  && (!releasing.value?.payout_account?.recently_changed || detailsChecked.value))
 
 const rows = computed(() => run.value?.rows || [])
 const dueRows = computed(() => rows.value.filter(r => r.eligible))
@@ -197,9 +231,9 @@ const laterRows = computed(() => rows.value.filter(r => !r.eligible && Number(r.
 const heldTotal = computed(() => rows.value.reduce((s, r) => s + Number(r.posted) - (r.eligible ? Number(r.payable) : 0), 0))
 const pendingTotal = computed(() => rows.value.reduce((s, r) => s + Number(r.pending), 0))
 const groups = computed(() => [
-  { key: 'ready', title: 'Ready to release', sub: `Posted by ${runText.value}, at least ${peso(run.value?.minimum_payout ?? 500)}, with payout details on file.`, empty: `Everyone from the ${runText.value} run is paid.`, rows: dueRows.value },
-  { key: 'held', title: 'Held', sub: 'Posted, but not paid in this run. Each says why.', empty: 'Nothing held.', rows: heldRows.value },
-  { key: 'later', title: 'Not posted yet', sub: 'Consultations still inside the hold.', empty: 'Nothing pending.', rows: laterRows.value },
+  { key: 'ready', title: 'Ready to release', sub: `Cleared by ${runText.value}, at least ${peso(run.value?.minimum_payout ?? 500)}, with payout details on file.`, empty: `Everyone from the ${runText.value} run is paid.`, rows: dueRows.value },
+  { key: 'held', title: 'Waiting', sub: 'Cleared, but not paid in this run. Each says why.', empty: 'Nothing waiting.', rows: heldRows.value },
+  { key: 'later', title: 'Still on hold', sub: 'Consultations inside the 3-day hold. Nothing to pay yet.', empty: 'Nothing on hold.', rows: laterRows.value },
 ].filter(g => g.key !== 'later' || g.rows.length))
 
 const payoutDay = computed(() => run.value ? new Date(`${run.value.next_payout_date}T00:00:00+08:00`).getDate() : 5)
@@ -222,10 +256,10 @@ const nextText = computed(() => run.value
   : '')
 const daySub = computed(() => {
   if (!run.value) return ''
-  if (daysLeft.value === 0) return 'Pay everything posted by today, then record each one.'
+  if (daysLeft.value === 0) return 'Pay everything cleared by today, then record each one.'
   const n = dueRows.value.length
-  if (n) return `${n} RND${n === 1 ? '' : 's'} still to be paid from the ${runText.value} run. Money posted after ${runText.value} is paid on ${nextText.value}.`
-  return `Everyone from the ${runText.value} run is paid. Money posted since then is paid on ${nextText.value}.`
+  if (n) return `${n} RND${n === 1 ? '' : 's'} still to be paid from the ${runText.value} run. Money cleared after ${runText.value} is paid on ${nextText.value}.`
+  return `Everyone from the ${runText.value} run is paid. Money cleared since then is paid on ${nextText.value}.`
 })
 // from the last payout day to the next one, and how far along today is
 const cycle = computed(() => {
@@ -243,17 +277,17 @@ function ordinal(n) {
   return `${n}${end}`
 }
 function moneyLine(r, key) {
-  const posted = `${r.posted_count} consultation${r.posted_count === 1 ? '' : 's'} posted`
+  const posted = `${r.posted_count} consultation${r.posted_count === 1 ? '' : 's'} cleared`
   if (key === 'later') {
-    const when = r.next_posts_on ? `, the first posts ${shortDate(r.next_posts_on)}` : ''
-    return `${r.pending_count} pending${when}`
+    const when = r.next_posts_on ? `, the first clears ${shortDate(r.next_posts_on)}` : ''
+    return `${r.pending_count} on hold${when}`
   }
   if (key === 'ready') {
     const waits = Number(r.posted) - Number(r.payable)
-    const line = `${r.payable_count} consultation${r.payable_count === 1 ? '' : 's'} posted by ${runText.value}`
+    const line = `${r.payable_count} consultation${r.payable_count === 1 ? '' : 's'} cleared by ${runText.value}`
     return waits > 0 ? `${line}, ${peso(waits)} waits for ${nextText.value}` : line
   }
-  return Number(r.pending) > 0 ? `${posted}, ${peso(r.pending)} still pending` : posted
+  return Number(r.pending) > 0 ? `${posted}, ${peso(r.pending)} still on hold` : posted
 }
 
 async function load({ quiet = false } = {}) {
@@ -295,7 +329,16 @@ function openRelease(r) {
   notes.value = ''
   releaseError.value = ''
   copied.value = false
+  sentChecked.value = false
+  detailsChecked.value = false
+  lockLeft.value = 3
+  clearInterval(lockTimer)
+  lockTimer = setInterval(() => {
+    lockLeft.value -= 1
+    if (lockLeft.value <= 0) clearInterval(lockTimer)
+  }, 1000)
 }
+onBeforeUnmount(() => clearInterval(lockTimer))
 async function copy(text) {
   try {
     await navigator.clipboard.writeText(text)
@@ -314,7 +357,13 @@ async function release() {
   }
   busy.value = true
   try {
-    const p = await post(`/admin/payouts/release/${releasing.value.rnd_id}/`, { reference: reference.value.trim(), notes: notes.value.trim() })
+    const p = await post(`/admin/payouts/release/${releasing.value.rnd_id}/`, {
+      reference: reference.value.trim(),
+      notes: notes.value.trim(),
+      // the amount this pop-up showed; the API refuses if it changed meanwhile
+      expected_amount: String(releasing.value.payable),
+      details_confirmed: detailsChecked.value,
+    })
     releasing.value = null
     await load()
     toast.value = `${peso(p.amount)} recorded as paid out to ${p.rnd_name}.`
@@ -422,6 +471,17 @@ function methodText(p) {
 .send-rows dt { color: #6a7a6a; }
 .send-rows dd { margin: 0; color: #1a3a1a; font-weight: 600; display: flex; align-items: center; gap: 8px; text-align: right; overflow-wrap: anywhere; }
 .copy { flex-shrink: 0; }
+.changed {
+  display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 0; padding: 12px 14px; border-radius: 10px;
+  background: #fdecec; border: 1px solid #f2c4c4; color: #7a1f1f; font-size: 0.83rem; line-height: 1.5;
+}
+.changed svg { flex-shrink: 0; margin-top: 2px; color: #a12525; }
+.changed p { margin: 0; }
+.confirm {
+  display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 10px 12px; border: 1px solid #d9e3dc;
+  border-radius: 10px; font-size: 0.84rem; color: #1a3a1a; line-height: 1.45; cursor: pointer;
+}
+.confirm input { margin-top: 3px; accent-color: #0a4a37; flex-shrink: 0; }
 .steps { list-style: decimal; margin: 16px 0 14px; padding-left: 20px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.55; }
 .steps li + li { margin-top: 4px; }
 

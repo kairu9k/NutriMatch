@@ -48,6 +48,13 @@ class PayoutTests(TestCase):
 
         return (ph_today() - last_payout_day()).days + days
 
+    def _release(self, amount, reference="1023 456 789012", confirmed=True):
+        """Record a payout the way the page does: the amount the admin saw,
+        the receipt reference, and the confirmation for new details."""
+        return self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {
+            "reference": reference, "expected_amount": str(amount), "details_confirmed": confirmed,
+        }, format="json")
+
     def _add_gcash(self):
         return self.rnd_api.put("/api/rnd/payout-account/", {
             "method": "gcash", "account_name": "Maria Santos", "account_number": "0917 123 4567",
@@ -109,16 +116,15 @@ class PayoutTests(TestCase):
     def test_release_rules_and_paid_once(self):
         first = self._consult(completed_days_ago=self._before_run(10))
         self._consult(completed_days_ago=self._before_run(8))  # posted total 1,440
-        url = f"/api/admin/payouts/release/{self.rnd.id}/"
-        self.assertIn("payout details", self.admin_api.post(url, {"reference": "GC-1"}, format="json").data["detail"])
+        self.assertIn("payout details", self._release("1440.00").data["detail"])
         self._add_gcash()
-        self.assertEqual(self.admin_api.post(url, {"reference": ""}, format="json").status_code, 400)
+        self.assertEqual(self._release("1440.00", reference="").status_code, 400)
         run = self.admin_api.get("/api/admin/payouts/run/").data
         row = next(r for r in run["rows"] if r["rnd_id"] == self.rnd.id)
         self.assertTrue(row["eligible"])
         self.assertEqual(row["payout_account"]["account_number"], "09171234567")
 
-        resp = self.admin_api.post(url, {"reference": "GC-2026-11-05"}, format="json")
+        resp = self._release("1440.00")
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(Decimal(resp.data["amount"]), Decimal("1440.00"))
         self.assertEqual(Payout.objects.get().payout_date, last_payout_day())  # dated to its run
@@ -128,7 +134,7 @@ class PayoutTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(action="payout.released", user=self.admin).exists())
         self.assertIn("₱1,440.00", mail.outbox[-1].subject)
         # nothing left to pay — the same invoices are never paid twice
-        again = self.admin_api.post(url, {"reference": "GC-again"}, format="json")
+        again = self._release("1440.00", reference="9988 776 655443")
         self.assertEqual(again.status_code, 400)
         self.assertEqual(Payout.objects.count(), 1)
         data = self.rnd_api.get("/api/rnd/earnings/").data
@@ -138,7 +144,7 @@ class PayoutTests(TestCase):
     def test_minimum_payout_carries_over(self):
         self._add_gcash()
         self._consult(amount="300.00", completed_days_ago=self._before_run())  # 270 posted < 500
-        resp = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-3"}, format="json")
+        resp = self._release("270.00")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("minimum", resp.data["detail"])
         row = next(r for r in self.admin_api.get("/api/admin/payouts/run/").data["rows"] if r["rnd_id"] == self.rnd.id)
@@ -150,7 +156,7 @@ class PayoutTests(TestCase):
         inv = self._consult(completed_days_ago=self._before_run())
         Invoice.objects.filter(pk=inv.pk).update(status="refund_pending")
         self._consult(completed_days_ago=self._before_run())
-        resp = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-4"}, format="json")
+        resp = self._release("720.00")
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(Decimal(resp.data["amount"]), Decimal("720.00"))
 
@@ -167,20 +173,69 @@ class PayoutTests(TestCase):
             later = self._consult(amount="2000.00", completed_days_ago=11)  # posted Oct 18
             row = next(r for r in self.admin_api.get("/api/admin/payouts/run/").data["rows"] if r["rnd_id"] == self.rnd.id)
             self.assertEqual((Decimal(row["posted"]), Decimal(row["payable"])), (Decimal("2520.00"), Decimal("720.00")))
-            resp = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-5"}, format="json")
+            resp = self._release("720.00")
             self.assertEqual(resp.status_code, 201, resp.data)
             self.assertEqual(Decimal(resp.data["amount"]), Decimal("720.00"))
             self.assertEqual(Payout.objects.get().payout_date, date(2026, 10, 5))
             later.refresh_from_db()
             self.assertIsNone(later.payout_id)
-            again = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/", {"reference": "GC-6"}, format="json")
+            again = self._release("720.00", reference="5566 778 899001")
             self.assertEqual(again.status_code, 400)
             self.assertIn("paid on November 5", again.data["detail"])
             row = next(r for r in self.admin_api.get("/api/admin/payouts/run/").data["rows"] if r["rnd_id"] == self.rnd.id)
             self.assertFalse(row["eligible"])
-            self.assertEqual(row["reason"], "Posted after Oct 5, paid on Nov 5")
+            self.assertEqual(row["reason"], "Cleared after Oct 5, paid on Nov 5")
         in_run.refresh_from_db()
         self.assertIsNotNone(in_run.payout_id)
+
+    def test_amount_must_match_what_the_admin_saw(self):
+        self._add_gcash()
+        self._consult(completed_days_ago=self._before_run())  # 720
+        resp = self._release("1440.00")  # the page showed an older amount
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("amount changed to ₱720.00", resp.data["detail"])
+        self.assertIn("Nothing was recorded", resp.data["detail"])
+        no_amount = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/",
+                                        {"reference": "1023 456 789012", "details_confirmed": True}, format="json")
+        self.assertEqual(no_amount.status_code, 400)
+        self.assertFalse(Payout.objects.exists())
+        self.assertEqual(self._release("720.00").status_code, 201)
+
+    def test_reference_must_be_a_real_receipt_number(self):
+        self._add_gcash()
+        self._consult(completed_days_ago=self._before_run())
+        short = self._release("720.00", reference="GC-1")
+        self.assertIn("too short", short.data["detail"])
+        number = self._release("720.00", reference="0917 123 4567")  # the RND's own GCash number
+        self.assertIn("account number", number.data["detail"])
+        self.assertFalse(Payout.objects.exists())
+        self.assertEqual(self._release("720.00", reference="1023 456 789012").status_code, 201)
+
+    def test_recently_changed_details_need_confirming(self):
+        self._consult(completed_days_ago=self._before_run())
+        self._add_gcash()  # new details: changed just now
+        row = next(r for r in self.admin_api.get("/api/admin/payouts/run/").data["rows"] if r["rnd_id"] == self.rnd.id)
+        self.assertTrue(row["payout_account"]["recently_changed"])
+        resp = self._release("720.00", confirmed=False)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("changed in the last 7 days", resp.data["detail"])
+        # saving the same details again is not a change; a week later the warning is gone
+        account = RndPayoutAccount.objects.get(rnd=self.rnd)
+        RndPayoutAccount.objects.filter(pk=account.pk).update(details_changed_at=timezone.now() - timedelta(days=8))
+        self._add_gcash()
+        account.refresh_from_db()
+        self.assertLess(account.details_changed_at, timezone.now() - timedelta(days=7))
+        self.assertEqual(self._release("720.00", confirmed=False).status_code, 201)
+
+    def test_changing_the_number_stamps_the_change(self):
+        self._add_gcash()
+        RndPayoutAccount.objects.filter(rnd=self.rnd).update(details_changed_at=timezone.now() - timedelta(days=30))
+        self.rnd_api.put("/api/rnd/payout-account/", {
+            "method": "gcash", "account_name": "Maria Santos", "account_number": "0918 000 1111",
+        }, format="json")
+        account = RndPayoutAccount.objects.get(rnd=self.rnd)
+        self.assertGreater(account.details_changed_at, timezone.now() - timedelta(minutes=1))
+        self.assertTrue(AuditLog.objects.filter(action="payout_account.updated", new_values__details_changed=True).exists())
 
     def test_completing_starts_the_hold(self):
         appt = Appointment.objects.create(relationship=self.rel, type="video", status="confirmed", scheduled_at=timezone.now() - timedelta(hours=2))

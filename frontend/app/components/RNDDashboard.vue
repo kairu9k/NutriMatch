@@ -187,14 +187,14 @@
             <div class="cmp plain">
               <span class="cmp-label">Waiting to be paid</span>
               <span class="cmp-now">{{ peso(Number(d.earnings.pending) + Number(d.earnings.posted)) }}</span>
-              <span class="cmp-before">{{ peso(d.earnings.posted) }} posted, {{ peso(d.earnings.pending) }} pending</span>
+              <span class="cmp-before">{{ peso(d.earnings.posted) }} cleared, {{ peso(d.earnings.pending) }} on hold</span>
             </div>
             <div class="cmp plain">
               <span class="cmp-label">Paid out so far</span>
               <span class="cmp-now">{{ peso(d.earnings.paid_out) }}</span>
             </div>
             <p class="nm-hint">
-              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} posted and your payout details</template>.
+              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} cleared and your payout details</template>.
             </p>
           </div>
 

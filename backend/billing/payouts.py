@@ -26,6 +26,10 @@ from core.ph_time import ph_date
 HOLD_DAYS = 3
 MIN_PAYOUT = Decimal("500.00")
 PAYOUT_DAY = 5
+# payout details changed this recently need the RND's confirmation first
+RECENT_CHANGE_DAYS = 7
+# a GCash or bank receipt reference has at least this many letters/digits
+MIN_REFERENCE_CHARS = 6
 
 
 def rnd_share(invoice):
@@ -41,6 +45,28 @@ def next_payout_date(today=None):
     month = today.month % 12 + 1
     year = today.year + (1 if today.month == 12 else 0)
     return date(year, month, PAYOUT_DAY)
+
+
+def details_recently_changed(account, now=None):
+    changed = getattr(account, "details_changed_at", None)
+    return bool(changed and changed >= (now or timezone.now()) - timedelta(days=RECENT_CHANGE_DAYS))
+
+
+def check_reference(reference, account):
+    """A real receipt reference: long enough, and not the account number typed
+    into the wrong box. Returns the cleaned reference."""
+    import re
+
+    reference = (reference or "").strip()
+    if not reference:
+        raise PayoutError("Enter the GCash or bank reference number from the receipt.")
+    if len(re.sub(r"[^0-9A-Za-z]", "", reference)) < MIN_REFERENCE_CHARS:
+        raise PayoutError(f"That reference is too short. Copy the full reference number from the receipt (at least {MIN_REFERENCE_CHARS} letters or digits).")
+    digits = re.sub(r"\D", "", reference)
+    account_digits = re.sub(r"\D", "", account.account_number or "")
+    if account_digits and digits.endswith(account_digits[-10:]) and len(digits) <= len(account_digits) + 2:
+        raise PayoutError("That's the RND's account number, not the receipt's reference number. Copy the reference from the GCash or bank receipt.")
+    return reference
 
 
 def last_payout_day(today=None):
@@ -139,20 +165,25 @@ class PayoutError(Exception):
     pass
 
 
-def release_payout(rnd, *, reference, released_by, notes=""):
+def release_payout(rnd, *, reference, released_by, notes="", expected_amount=None, details_confirmed=False):
     """Pay out everything the RND has Posted (admin sent the money already)."""
     from communication.services import notify
     from core.models import AuditLog
 
     from .models import Invoice, PaymentTransaction, Payout
 
-    reference = (reference or "").strip()
-    if not reference:
-        raise PayoutError("Enter the GCash/bank transfer reference number.")
     account = getattr(rnd, "payout_account", None)
     if account is None:
         raise PayoutError("This RND hasn't added their payout details yet.")
+    reference = check_reference(reference, account)
     now = timezone.now()
+    if details_recently_changed(account, now) and not details_confirmed:
+        raise PayoutError(f"These payout details changed in the last {RECENT_CHANGE_DAYS} days. "
+                          "Confirm the number with the RND before sending, then tick the confirmation.")
+    try:
+        expected = Decimal(str(expected_amount)).quantize(Decimal("0.01"))
+    except Exception:  # noqa: BLE001 - missing or not a number
+        raise PayoutError("Reload the page and try again: the amount you saw wasn't sent with the request.")
     with transaction.atomic():
         candidates = list(
             Invoice.objects.select_for_update()
@@ -167,9 +198,13 @@ def release_payout(rnd, *, reference, released_by, notes=""):
             if later and not posted:
                 nxt = next_payout_date(ph_date(now))
                 raise PayoutError(f"Nothing from the {run_day:%B} {run_day.day} run is left to pay. "
-                                  f"Money posted after that is paid on {nxt:%B} {nxt.day}.")
+                                  f"Money that cleared after that is paid on {nxt:%B} {nxt.day}.")
             raise PayoutError(f"The balance for the {run_day:%B} {run_day.day} run is ₱{amount:,.2f}. "
                               f"The minimum payout is ₱{MIN_PAYOUT:,.0f}, so it carries over.")
+        if amount != expected:
+            # a refund or a newly cleared consultation landed after the page was opened
+            raise PayoutError(f"The amount changed to ₱{amount:,.2f} since you opened this (you saw ₱{expected:,.2f}). "
+                              "Nothing was recorded. Check what you actually sent, then reload and record the right amount.")
         payout = Payout.objects.create(
             # the run it belongs to: the last 5th (released on it or later, never earlier)
             rnd=rnd, amount=amount, payout_date=run_day,
@@ -242,6 +277,7 @@ def rnd_statement(rnd, now=None):
     from .models import Invoice
 
     now = now or timezone.now()
+    run_day = last_payout_day(ph_date(now))
     rows = []
     invoices = (Invoice.objects.filter(relationship__rnd=rnd)
                 .select_related("appointment", "relationship__client", "payout").order_by("-created_at"))
@@ -259,6 +295,8 @@ def rnd_statement(rnd, now=None):
             "share": rnd_share(inv),
             "state": state,
             "posts_on": posted_until(inv) if state == "pending" else None,
+            # cleared in time for the last payout day's run (else it waits for the next)
+            "payable": state == "posted" and in_run(inv, run_day),
             "paid_at": inv.paid_at,
             "payment_method": inv.get_payment_method_display() if inv.payment_method else None,
             "issued_at": inv.created_at,

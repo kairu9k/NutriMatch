@@ -124,7 +124,7 @@ def _attention(now, summary):
     due_total = sum(d["amount"] for d in due)
     add("warning", "payouts_due", len(due),
         f"₱{due_total:,.0f} in payouts to send to {len(due)} RND{'s' if len(due) != 1 else ''}",
-        "Balances of at least ₱500 posted by the last payout day, with payout details on file.", "/payouts",
+        "Balances of at least ₱500 that cleared by the last payout day, with payout details on file.", "/payouts",
         [{"id": d["id"], "name": d["name"]} for d in due])
     add("info", "payout_details", len(no_details),
         f"{len(no_details)} RND{'s' if len(no_details) != 1 else ''} with money but no payout details",

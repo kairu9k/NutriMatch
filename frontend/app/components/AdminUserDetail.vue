@@ -128,7 +128,7 @@
             <div><strong>{{ appt(rnd, 'completed') }}</strong><span>Consultations done</span></div>
             <div><strong>{{ rnd.rating.average ? `${rnd.rating.average} ★` : '—' }}</strong><span>{{ rnd.rating.count ? `${rnd.rating.count} review${rnd.rating.count === 1 ? '' : 's'}` : 'No reviews yet' }}</span></div>
             <div><strong>{{ peso(rnd.earnings.pending) }}</strong><span>Pending</span></div>
-            <div><strong>{{ peso(rnd.earnings.posted) }}</strong><span>Posted, ready to pay</span></div>
+            <div><strong>{{ peso(rnd.earnings.posted) }}</strong><span>Cleared, waiting for payout</span></div>
             <div><strong>{{ peso(rnd.earnings.paid_out) }}</strong><span>Paid out, {{ rnd.payouts }} payout{{ rnd.payouts === 1 ? '' : 's' }}</span></div>
           </div>
         </section>

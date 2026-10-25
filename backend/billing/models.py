@@ -132,6 +132,11 @@ class RndPayoutAccount(models.Model):
     account_number = models.CharField(max_length=50)
     bank_name = models.CharField(max_length=100, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # When the method, name, number or bank last changed (not a re-save of the
+    # same details). A payout right after a change is the classic fraud pattern
+    # (someone takes over the account and swaps the number), so the admin is
+    # warned for RECENT_CHANGE_DAYS and has to confirm with the RND.
+    details_changed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "rnd_payout_accounts"

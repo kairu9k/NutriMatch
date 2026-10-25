@@ -326,12 +326,17 @@ class RndPayoutAccountView(APIView):
         from .serializers import RndPayoutAccountSerializer
 
         account = RndPayoutAccount.objects.filter(rnd=request.user).first()
+        before = (account.method, account.account_name, account.account_number, account.bank_name) if account else None
         serializer = RndPayoutAccountSerializer(account, data=request.data)
         serializer.is_valid(raise_exception=True)
         saved = serializer.save(rnd=request.user)
+        changed = before != (saved.method, saved.account_name, saved.account_number, saved.bank_name)
+        if changed:
+            saved.details_changed_at = timezone.now()
+            saved.save(update_fields=["details_changed_at"])
         AuditLog.objects.create(
             user=request.user, action="payout_account.updated", table_name="rnd_payout_accounts",
-            record_id=saved.id, new_values={"method": saved.method},
+            record_id=saved.id, new_values={"method": saved.method, "details_changed": changed},
         )
         return Response(RndPayoutAccountSerializer(saved).data)
 
@@ -448,7 +453,7 @@ class AdminPayoutRunView(APIView):
     def get(self, request):
         from accounts.models import User
 
-        from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, last_payout_day, next_payout_date, rnd_earnings
+        from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, details_recently_changed, last_payout_day, next_payout_date, rnd_earnings
 
         rows = []
         for rnd in User.objects.filter(role="rnd").order_by("first_name"):
@@ -462,7 +467,7 @@ class AdminPayoutRunView(APIView):
             elif account is None:
                 reason = "No payout details yet"
             elif data["payable"] == 0 and data["posted"] > 0:
-                reason = f"Posted after {run_day:%b} {run_day.day}, paid on {nxt:%b} {nxt.day}"
+                reason = f"Cleared after {run_day:%b} {run_day.day}, paid on {nxt:%b} {nxt.day}"
             else:
                 reason = f"Below the ₱{MIN_PAYOUT:,.0f} minimum, carries over"
             rows.append({
@@ -486,6 +491,8 @@ class AdminPayoutRunView(APIView):
                     "method": account.method, "method_label": account.get_method_display(),
                     "account_name": account.account_name, "account_number": account.account_number,
                     "bank_name": account.bank_name,
+                    "details_changed_at": account.details_changed_at,
+                    "recently_changed": details_recently_changed(account),
                 } if account else None,
             })
         from core.ph_time import ph_today
@@ -516,7 +523,11 @@ class AdminReleasePayoutView(APIView):
 
         rnd = get_object_or_404(User, pk=rnd_id, role="rnd")
         try:
-            payout = release_payout(rnd, reference=request.data.get("reference"), released_by=request.user, notes=request.data.get("notes", ""))
+            payout = release_payout(
+                rnd, reference=request.data.get("reference"), released_by=request.user, notes=request.data.get("notes", ""),
+                expected_amount=request.data.get("expected_amount"),
+                details_confirmed=request.data.get("details_confirmed") is True,
+            )
         except PayoutError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PayoutSerializer(payout).data, status=status.HTTP_201_CREATED)

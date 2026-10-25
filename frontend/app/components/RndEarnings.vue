@@ -4,15 +4,15 @@
     <p v-if="loading" class="nm-muted">Loading your earnings…</p>
 
     <template v-else-if="e">
-      <!-- statement: next payout, then where the money is (it moves pending → posted → paid out) -->
+      <!-- statement: next payout, then where the money is (it moves on hold, cleared, paid out) -->
       <section class="nm-panel statement">
         <div class="st-head">
           <div>
             <h1 class="st-title">Next payout {{ longDate(e.next_payout_date) }}</h1>
             <p class="st-sub">
               <template v-if="!e.payout_account">Add your GCash or bank details so NutriMatch can send your earnings. Your balance is kept until then.</template>
-              <template v-else-if="!e.eligible">Payouts start at {{ peso(e.minimum_payout) }} posted. Smaller balances carry over to the next 5th.</template>
-              <template v-else>{{ peso(e.posted) }} goes to your {{ accountText }}.</template>
+              <template v-else-if="!e.eligible">Payouts start at {{ peso(e.minimum_payout) }} cleared. Smaller balances carry over to the next 5th.</template>
+              <template v-else>{{ peso(e.payable) }} cleared by {{ shortDate(e.run_date) }} goes to your {{ accountText }}.</template>
             </p>
           </div>
           <button v-if="!e.payout_account" type="button" class="nm-btn-gold" @click="startEdit">Add payout details</button>
@@ -22,13 +22,13 @@
         <div class="st-figures">
           <div class="st-flow">
             <div class="fig">
-              <p class="fig-label">Pending</p>
+              <p class="fig-label">On hold</p>
               <p class="fig-value">{{ peso(e.pending) }}</p>
-              <p class="fig-note">Held {{ e.hold_days }} days after the consultation</p>
+              <p class="fig-note">Clears {{ e.hold_days }} days after the consultation</p>
             </div>
             <ChevronRight :size="18" class="fig-arrow" aria-hidden="true" />
             <div class="fig">
-              <p class="fig-label">Posted</p>
+              <p class="fig-label">Cleared</p>
               <p class="fig-value">{{ peso(e.posted) }}</p>
               <p class="fig-note">Paid out on {{ shortDate(e.next_payout_date) }}</p>
             </div>
@@ -104,7 +104,7 @@
         <div class="nm-panel">
           <h2 class="nm-panel-title">Payouts</h2>
           <p class="nm-panel-sub">Sent on the 5th of each month<template v-if="e.payouts.length">, {{ e.payouts.length }} so far</template></p>
-          <p v-if="!e.payouts.length" class="empty-line">No payouts yet. The first one is sent on the 5th once {{ peso(e.minimum_payout) }} is posted.</p>
+          <p v-if="!e.payouts.length" class="empty-line">No payouts yet. The first one is sent on the 5th once {{ peso(e.minimum_payout) }} has cleared.</p>
           <button v-for="p in pagedPayouts" :key="p.id" type="button" class="payout-row" @click="openPayout(p)">
             <span class="payout-main">
               <span class="nm-row-title">{{ peso(p.amount) }} for {{ p.invoice_count }} consultation{{ p.invoice_count === 1 ? '' : 's' }}</span>
@@ -266,8 +266,8 @@ const route = useRoute()
 
 const STATE = {
   awaiting_payment: { label: 'Awaiting payment', pill: 'gold' },
-  pending: { label: 'Pending', pill: 'gold' },
-  posted: { label: 'Posted', pill: 'green' },
+  pending: { label: 'On hold', pill: 'gold' },
+  posted: { label: 'Cleared', pill: 'green' },
   paid_out: { label: 'Paid out', pill: 'blue' },
   refund_pending: { label: 'Being refunded', pill: 'red' },
   refunded: { label: 'Refunded', pill: 'muted' },
@@ -276,8 +276,8 @@ const STATE = {
 const TABS = [
   { key: 'all', label: 'All' },
   { key: 'awaiting_payment', label: 'Awaiting payment' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'posted', label: 'Posted' },
+  { key: 'pending', label: 'On hold' },
+  { key: 'posted', label: 'Cleared' },
   { key: 'paid_out', label: 'Paid out' },
   { key: 'other', label: 'Refunded / voided' },
 ]
@@ -342,8 +342,8 @@ const countsAsEarning = r => ['pending', 'posted', 'paid_out'].includes(r.state)
 
 function stateDetail(r) {
   if (r.state === 'awaiting_payment') return 'Client pays before the consultation'
-  if (r.state === 'pending') return r.posts_on ? `Posts ${shortDate(r.posts_on)}` : 'Posts 3 days after it\'s completed'
-  if (r.state === 'posted') return `For the ${shortDate(e.value.next_payout_date)} payout`
+  if (r.state === 'pending') return r.posts_on ? `Clears ${shortDate(r.posts_on)}` : 'Clears 3 days after it\'s completed'
+  if (r.state === 'posted') return `For the ${shortDate(r.payable ? e.value.run_date : e.value.next_payout_date)} payout`
   if (r.state === 'paid_out') return r.payout ? `Paid ${shortDate(r.payout.released_at)}` : ''
   if (r.state === 'refund_pending') return 'Cancelled after paying'
   return ''
@@ -351,8 +351,10 @@ function stateDetail(r) {
 function stateExplain(r) {
   return {
     awaiting_payment: 'The client hasn\'t paid yet. If it\'s still unpaid at the start time, the consultation is cancelled automatically.',
-    pending: `Paid. It stays pending until ${e.value.hold_days} days after you mark the consultation complete, in case the client reports a problem.`,
-    posted: `Cleared. It's included in the next payout on ${longDate(e.value.next_payout_date)}.`,
+    pending: `Paid. It stays on hold until ${e.value.hold_days} days after you mark the consultation complete, in case the client reports a problem.`,
+    posted: r.payable
+      ? `Cleared by ${longDate(e.value.run_date)}, so it's in that payout. NutriMatch sends it to your payout account.`
+      : `Cleared after ${longDate(e.value.run_date)}, so it's in the next payout on ${longDate(e.value.next_payout_date)}. Payouts are never sent early.`,
     paid_out: 'Sent to your payout account.',
     refund_pending: 'The consultation was cancelled after the client paid, so the client is being refunded. It doesn\'t count toward your earnings.',
     refunded: 'The client was refunded. It doesn\'t count toward your earnings.',
@@ -372,7 +374,7 @@ function invoiceSteps(r) {
     steps.push({ label: r.state === 'voided' ? 'Cancelled before payment' : r.state === 'refunded' ? 'Refunded to the client' : 'Being refunded to the client', when: r.state === 'refund_pending' ? 'NutriMatch handles the refund' : '', done: r.state !== 'refund_pending' })
   } else {
     const posted = ['posted', 'paid_out'].includes(r.state)
-    steps.push({ label: 'Posted to your balance', when: r.posts_on ? when(r.posts_on) : `${e.value.hold_days} days after the consultation is completed`, done: posted })
+    steps.push({ label: 'Cleared', when: r.posts_on ? when(r.posts_on) : `${e.value.hold_days} days after the consultation is completed`, done: posted })
     steps.push({ label: 'Paid out', when: r.payout ? `${shortDate(r.payout.released_at)}, ref. ${r.payout.reference}` : `On a payout day (the 5th)`, done: r.state === 'paid_out' })
   }
   const next = steps.findIndex(x => !x.done)
@@ -541,7 +543,7 @@ function longDate(v) {
 .st-flow .fig { flex: 1; }
 .fig { padding: 18px 24px 20px; min-width: 0; }
 .fig-month { border-left: 1px solid #d9e3dc; }
-/* visible dividers between Pending, Posted and Paid out; the arrow sits on the line */
+/* visible dividers between On hold, Cleared and Paid out; the arrow sits on the line */
 .st-flow .fig + .fig-arrow + .fig { border-left: 1px solid #d9e3dc; }
 .fig-arrow { flex-shrink: 0; align-self: center; color: #8fa996; margin: 0 -11px; position: relative; z-index: 1; background: #fbfcfa; border-radius: 50%; box-sizing: content-box; padding: 2px; }
 .fig-label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; margin: 0 0 6px; }
@@ -615,7 +617,7 @@ function longDate(v) {
 @media (max-width: 640px) {
   .st-head { flex-direction: column; padding: 18px 16px; }
   .st-head .nm-btn-gold { align-self: stretch; justify-content: center; }
-  /* 2 x 2 on phones; the order still reads pending, posted, paid out */
+  /* 2 x 2 on phones; the order still reads on hold, cleared, paid out */
   .st-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .st-flow { display: contents; }
   .fig-arrow { display: none; }
