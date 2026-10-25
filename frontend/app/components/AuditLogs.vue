@@ -91,7 +91,7 @@
               <template v-else>{{ targetOf(selected) || '—' }}</template>
             </dd>
           </div>
-          <div><dt>IP address</dt><dd class="mono">{{ selected.ip_address || '—' }}</dd></div>
+          <div><dt>IP address</dt><dd :class="selected.ip_address ? 'mono' : 'muted'">{{ selected.ip_address || (selected.user ? 'Not recorded (older entry)' : 'None, done automatically') }}</dd></div>
           <div><dt>Event code</dt><dd class="mono">{{ selected.action }}</dd></div>
           <div v-if="selected.user_agent" class="wide"><dt>Browser</dt><dd class="sub-dd">{{ selected.user_agent }}</dd></div>
         </dl>

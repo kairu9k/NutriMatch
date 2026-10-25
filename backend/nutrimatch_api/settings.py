@@ -70,6 +70,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',  # serves /static/ in production
     'corsheaders.middleware.CorsMiddleware',
     'core.server_time.server_time_middleware',
+    'core.request_context.current_request_middleware',  # lets audit rows record the IP
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

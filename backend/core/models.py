@@ -66,5 +66,20 @@ class AuditLog(models.Model):
     class Meta:
         db_table = "audit_logs"
 
+    def save(self, *args, **kwargs):
+        # A new row made while handling a request records where it came from,
+        # whoever wrote it (core/request_context.py). The forwarded client IP
+        # replaces the proxy's address that older callers pass in.
+        if self._state.adding:
+            from .request_context import client_ip, current_request
+
+            request = current_request()
+            if request is not None:
+                if not self.ip_address or self.ip_address == request.META.get("REMOTE_ADDR"):
+                    self.ip_address = client_ip(request)
+                if not self.user_agent:
+                    self.user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:255] or None
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.action} — {self.created_at:%Y-%m-%d %H:%M}"
