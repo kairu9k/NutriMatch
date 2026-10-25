@@ -203,7 +203,7 @@ class PayoutTests(TestCase):
         resp = self._release("1440.00")  # the page showed an older amount
         self.assertEqual(resp.status_code, 400)
         self.assertIn("amount changed to ₱720.00", resp.data["detail"])
-        self.assertIn("Nothing was recorded", resp.data["detail"])
+        self.assertIn("Nothing was sent or recorded", resp.data["detail"])
         no_amount = self.admin_api.post(f"/api/admin/payouts/release/{self.rnd.id}/",
                                         {"reference": "1023 456 789012", "details_confirmed": True}, format="json")
         self.assertEqual(no_amount.status_code, 400)

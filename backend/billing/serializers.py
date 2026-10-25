@@ -258,6 +258,7 @@ class PayoutSerializer(serializers.ModelSerializer):
         fields = [
             "id", "rnd", "rnd_name", "amount", "payout_date", "method", "account_name", "account_number", "bank_name",
             "reference", "notes", "released_by_name", "released_at", "invoice_count",
+            "provider", "status", "provider_payout_id", "test_mode", "failure_code", "settled_at",
         ]
 
     def get_released_by_name(self, obj):

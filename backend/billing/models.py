@@ -162,6 +162,26 @@ class Payout(models.Model):
     released_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
     released_at = models.DateTimeField()
 
+    # How it was sent (2026-10-26): recorded by hand after the admin sent it,
+    # or sent by NutriMatch through Xendit. A Xendit payout is "sending" until
+    # Xendit reports it succeeded ("paid") or failed ("failed": its invoices
+    # are released again). Manual payouts are "paid" from the start.
+    class Provider(models.TextChoices):
+        MANUAL = "manual", "Recorded by hand"
+        XENDIT = "xendit", "Xendit"
+
+    class Status(models.TextChoices):
+        SENDING = "sending", "Sending"
+        PAID = "paid", "Paid out"
+        FAILED = "failed", "Failed"
+
+    provider = models.CharField(max_length=20, choices=Provider.choices, default=Provider.MANUAL)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PAID)
+    provider_payout_id = models.CharField(max_length=100, null=True, blank=True, db_index=True)
+    test_mode = models.BooleanField(default=False)
+    failure_code = models.CharField(max_length=100, null=True, blank=True)
+    settled_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         db_table = "payouts"
         ordering = ["-released_at"]
