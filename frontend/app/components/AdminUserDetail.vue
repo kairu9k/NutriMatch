@@ -1,6 +1,6 @@
 <template>
   <div class="nm-page">
-    <NuxtLink to="/users" class="nm-panel-link back-link"><ArrowLeft :size="14" /> All users</NuxtLink>
+    <NuxtLink :to="backTo" class="nm-panel-link back-link"><ArrowLeft :size="14" /> All users</NuxtLink>
 
     <p v-if="error" class="nm-error">{{ error }}</p>
     <p v-if="loading" class="nm-muted">Loading account…</p>
@@ -354,6 +354,8 @@ const rnd = computed(() => data.value?.rnd)
 const s = computed(() => client.value?.latest_screening)
 const isSelf = computed(() => u.value.id === auth.user?.id)
 const roleLabel = computed(() => ({ client: 'Client', rnd: 'RND', admin: 'Admin' }[u.value.role] || u.value.role))
+// Back to the list tab this user is on (Users keeps the tab in ?tab=)
+const backTo = computed(() => ({ path: '/users', query: { tab: { client: 'clients', rnd: 'rnds', admin: 'admins' }[u.value.role] || 'clients' } }))
 const reviewLabel = computed(() => ({ pending: 'Application under review', approved: 'Approved', rejected: 'Rejected' }[rnd.value?.profile.review_status] || ''))
 const reviewPill = computed(() => ({ pending: 'gold', approved: 'green', rejected: 'muted' }[rnd.value?.profile.review_status] || 'muted'))
 const hours = computed(() => availabilityLines(rnd.value?.availability))
