@@ -405,6 +405,21 @@ class ClientResendReceiptView(APIView):
         return Response({"detail": f"Receipt sent to {request.user.email}."})
 
 
+def payout_detail(payout):
+    """A payout with the consultations it covered (RND Earnings, admin History)."""
+    from .payouts import rnd_share
+    from .serializers import PayoutSerializer
+
+    data = PayoutSerializer(payout).data
+    data["invoices"] = [
+        {"invoice_id": inv.id, "client_name": inv.relationship.client.full_name,
+         "consultation_at": inv.appointment.scheduled_at if inv.appointment else None,
+         "amount": inv.amount, "commission": inv.commission_amt, "share": rnd_share(inv)}
+        for inv in payout.invoices.select_related("relationship__client", "appointment").order_by("appointment__scheduled_at")
+    ]
+    return data
+
+
 class RndPayoutDetailView(APIView):
     """One payout with the consultations it covered (Earnings page)."""
 
@@ -412,18 +427,19 @@ class RndPayoutDetailView(APIView):
 
     def get(self, request, payout_id):
         from .models import Payout
-        from .payouts import rnd_share
-        from .serializers import PayoutSerializer
 
-        payout = get_object_or_404(Payout, pk=payout_id, rnd=request.user)
-        data = PayoutSerializer(payout).data
-        data["invoices"] = [
-            {"invoice_id": inv.id, "client_name": inv.relationship.client.full_name,
-             "consultation_at": inv.appointment.scheduled_at if inv.appointment else None,
-             "amount": inv.amount, "commission": inv.commission_amt, "share": rnd_share(inv)}
-            for inv in payout.invoices.select_related("relationship__client", "appointment").order_by("appointment__scheduled_at")
-        ]
-        return Response(data)
+        return Response(payout_detail(get_object_or_404(Payout, pk=payout_id, rnd=request.user)))
+
+
+class AdminPayoutDetailView(APIView):
+    """One payout as a slip for the admin's History tab."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, payout_id):
+        from .models import Payout
+
+        return Response(payout_detail(get_object_or_404(Payout.objects.select_related("rnd", "released_by"), pk=payout_id)))
 
 
 class RndResendPayoutEmailView(APIView):

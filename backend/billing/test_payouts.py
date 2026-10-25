@@ -188,6 +188,15 @@ class PayoutTests(TestCase):
         in_run.refresh_from_db()
         self.assertIsNotNone(in_run.payout_id)
 
+    def test_admin_payout_slip(self):
+        self._add_gcash()
+        inv = self._consult(completed_days_ago=self._before_run())
+        payout_id = self._release("720.00").data["id"]
+        slip = self.admin_api.get(f"/api/admin/payouts/{payout_id}/").data
+        self.assertEqual((slip["reference"], slip["invoices"][0]["invoice_id"]), ("1023 456 789012", inv.id))
+        self.assertEqual(Decimal(slip["invoices"][0]["share"]), Decimal("720.00"))
+        self.assertEqual(self.rnd_api.get(f"/api/admin/payouts/{payout_id}/").status_code, 403)
+
     def test_amount_must_match_what_the_admin_saw(self):
         self._add_gcash()
         self._consult(completed_days_ago=self._before_run())  # 720

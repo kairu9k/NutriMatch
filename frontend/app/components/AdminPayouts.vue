@@ -107,10 +107,10 @@
       </div>
       <section v-for="m in historyMonths" :key="m.key" class="month">
         <h3 class="month-title"><span>{{ m.label }}</span><span class="mono">{{ peso(m.total) }}</span></h3>
-        <div v-for="p in m.items" :key="p.id" class="paid-row">
+        <button v-for="p in m.items" :key="p.id" type="button" class="paid-row" :aria-label="`Open payout ${payoutNo(p)} to ${p.rnd_name}`" @click="openSlip(p)">
           <span class="paid-date">{{ shortDate(p.released_at) }}</span>
           <span class="paid-who">
-            <NuxtLink :to="`/users/${p.rnd}`" class="nm-text-link">{{ p.rnd_name }}</NuxtLink>
+            <span class="paid-name">{{ p.rnd_name }}</span>
             <span class="nm-row-sub">{{ p.invoice_count }} consultation{{ p.invoice_count === 1 ? '' : 's' }}, sent to {{ methodText(p) }}</span>
           </span>
           <span class="paid-ref">
@@ -118,9 +118,63 @@
             <span class="nm-row-sub">{{ p.released_by_name ? `Recorded by ${p.released_by_name}` : '' }}</span>
           </span>
           <strong class="paid-amount mono">{{ peso(p.amount) }}</strong>
-        </div>
+          <ChevronRight :size="16" class="paid-go" aria-hidden="true" />
+        </button>
       </section>
       <ListPager v-model:page="page" :pages="pages" />
+    </div>
+
+    <!-- PAYOUT SLIP: what was paid, where it went, and the consultations it covered -->
+    <div v-if="slip" class="nm-modal-overlay" @click.self="slip = null">
+      <div class="nm-modal slip" role="dialog" aria-modal="true" aria-labelledby="slip-title">
+        <div class="slip-head nm-modal-head">
+          <div>
+            <h3 id="slip-title" class="nm-modal-title mono">{{ payoutNo(slip) }}</h3>
+            <p class="nm-panel-sub">Recorded {{ dateTime(slip.released_at) }}{{ slip.released_by_name ? `, by ${slip.released_by_name}` : '' }}</p>
+          </div>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="slip = null"><X :size="18" aria-hidden="true" /></button>
+        </div>
+
+        <div class="send">
+          <p class="send-amount mono">{{ peso(slip.amount) }}</p>
+          <p class="send-for">to {{ slip.rnd_name }}, for the {{ longDay(slip.payout_date) }} payout</p>
+          <dl class="send-rows">
+            <div><dt>Sent by</dt><dd>{{ payoutVia(slip.method, slip.bank_name) }}</dd></div>
+            <div><dt>Account name</dt><dd>{{ slip.account_name }}</dd></div>
+            <div><dt>Account number</dt><dd class="mono">{{ slip.account_number }}</dd></div>
+            <div>
+              <dt>Receipt reference</dt>
+              <dd>
+                <span class="mono">{{ slip.reference }}</span>
+                <button type="button" class="nm-btn-soft nm-btn-sm copy" @click="copy(slip.reference)">
+                  <component :is="copied ? Check : Copy" :size="13" aria-hidden="true" /> {{ copied ? 'Copied' : 'Copy' }}
+                </button>
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <p v-if="slip.notes" class="nm-note plain-note slip-note">{{ slip.notes }}</p>
+
+        <h4 class="slip-title">Consultations it covered</h4>
+        <p v-if="!slip.invoices" class="nm-muted">Loading…</p>
+        <p v-else-if="slipError" class="nm-error">{{ slipError }}</p>
+        <template v-else>
+          <div v-for="i in slip.invoices" :key="i.invoice_id" class="slip-line">
+            <span class="slip-what">
+              <span>{{ i.client_name }}</span>
+              <span class="nm-row-sub">INV-{{ String(i.invoice_id).padStart(4, '0') }}<template v-if="i.consultation_at">, {{ shortDate(i.consultation_at) }}</template>, fee {{ peso(i.amount) }} less {{ peso(i.commission) }} commission</span>
+            </span>
+            <strong class="mono">{{ peso(i.share) }}</strong>
+          </div>
+          <div class="slip-line total"><span>Total paid out</span><strong class="mono">{{ peso(slip.amount) }}</strong></div>
+        </template>
+
+        <div class="nm-modal-actions">
+          <NuxtLink :to="`/users/${slip.rnd}`" class="nm-btn-soft">View RND</NuxtLink>
+          <button type="button" class="nm-btn-soft" :disabled="!slip.invoices" @click="printSlip"><Printer :size="14" aria-hidden="true" /> Print</button>
+          <button type="button" class="nm-btn-dark" @click="slip = null">Done</button>
+        </div>
+      </div>
     </div>
 
     <!-- RELEASE: send first, then record it -->
@@ -193,7 +247,7 @@
 
 <script setup>
 import { payoutVia } from '~/utils/payout'
-import { CalendarClock, Check, CheckCircle2, Copy, ShieldAlert, Wallet, X } from 'lucide-vue-next'
+import { CalendarClock, Check, CheckCircle2, ChevronRight, Copy, Printer, ShieldAlert, Wallet, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 
@@ -379,6 +433,43 @@ function nameInitials(name) {
   const parts = String(name || '').split(' ').filter(Boolean)
   return userInitials(parts[0], parts[parts.length - 1])
 }
+/* payout slip (History) */
+const slip = ref(null)
+const slipError = ref('')
+const payoutNo = p => `PO-${String(p.id).padStart(4, '0')}`
+const longDay = d => new Date(`${d}T00:00:00+08:00`).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' })
+async function openSlip(p) {
+  slip.value = { ...p, invoices: null }
+  slipError.value = ''
+  copied.value = false
+  try {
+    const d = await get(`/admin/payouts/${p.id}/`)
+    if (slip.value?.id === p.id) slip.value = d
+  } catch (e) {
+    if (slip.value?.id === p.id) {
+      slipError.value = apiError(e, 'Could not load this payout. Try again.')
+      slip.value = { ...slip.value, invoices: [] }
+    }
+  }
+}
+function printSlip() {
+  const p = slip.value
+  const ok = printDocument({
+    title: 'Payout slip',
+    number: `${payoutNo(p)}, ${shortDate(p.released_at)}`,
+    rows: [['Paid to', `${p.rnd_name} (${p.account_name})`], ['Sent by', `${payoutVia(p.method, p.bank_name)}, ${p.account_number}`],
+      ['Receipt reference', p.reference], ['Payout day', longDay(p.payout_date)], ['Recorded by', p.released_by_name || 'NutriMatch']],
+    table: [['Invoice', 'Client', 'Consultation', 'Fee', 'Commission', 'RND share'],
+      ...p.invoices.map(i => [`INV-${String(i.invoice_id).padStart(4, '0')}`, i.client_name, i.consultation_at ? shortDate(i.consultation_at) : '—', peso(i.amount), peso(i.commission), peso(i.share)])],
+    total: ['Total paid out', peso(p.amount)],
+    note: p.notes || '',
+  })
+  if (!ok) {
+    toast.value = 'Allow pop-ups for this site to print the slip.'
+    setTimeout(() => { toast.value = '' }, 3000)
+  }
+}
+
 function methodText(p) {
   return `${payoutVia(p.method, p.bank_name)} ${p.account_number}`
 }
@@ -454,7 +545,23 @@ function methodText(p) {
   display: flex; justify-content: space-between; gap: 12px; margin: 0 0 4px; padding-bottom: 8px; border-bottom: 1px solid #d9e3dc;
   font-family: inherit; font-size: 0.88rem; font-weight: 700; color: #0a4a37;
 }
-.paid-row { display: grid; grid-template-columns: 90px minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 11px 0; border-top: 1px solid #edf1ee; }
+.paid-row {
+  display: grid; grid-template-columns: 90px minmax(0, 1.6fr) minmax(0, 1fr) auto 16px; gap: 14px; align-items: center; width: 100%;
+  padding: 11px 8px; margin: 0; border: 0; border-top: 1px solid #edf1ee; background: none; text-align: left; font-family: inherit; cursor: pointer; color: inherit;
+}
+.paid-row:hover { background: #f7faf8; }
+.paid-row:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.paid-name { font-weight: 700; color: #1a3a1a; }
+.paid-go { color: #9aaa9a; }
+/* payout slip */
+.slip { max-width: 540px; }
+.slip-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.slip-head .nm-modal-x { position: static; float: none; margin: 0; }
+.slip-note { margin: 14px 0 0; }
+.slip-title { margin: 18px 0 6px; font-family: inherit; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
+.slip-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid #edf1ee; font-size: 0.86rem; }
+.slip-what { display: flex; flex-direction: column; min-width: 0; }
+.slip-line.total { border-top: 1px solid #d9e3dc; font-weight: 700; }
 .month-title + .paid-row { border-top: none; }
 .paid-date { font-size: 0.8rem; color: #6a7a6a; }
 .paid-who, .paid-ref { display: flex; flex-direction: column; min-width: 0; font-size: 0.86rem; }
@@ -490,6 +597,7 @@ function methodText(p) {
   .payee-who { grid-column: 1 / -1; }
   .payee-act { grid-column: 1 / -1; text-align: left; }
   .paid-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+  .paid-go { display: none; }
   .paid-date { grid-column: 1 / -1; }
   .paid-ref { grid-column: 1; }
   .paid-amount { grid-row: 2; grid-column: 2; }
