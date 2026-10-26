@@ -144,6 +144,8 @@ def rnd_earnings(rnd, now=None):
             "share": share,
             "state": state,
             "posts_on": posted_until(inv) if state == "pending" else None,
+            # when it cleared (the end of its 3-day hold), for cleared and paid shares
+            "cleared_on": posted_until(inv) if state in ("posted", "paid_out") else None,
             "payable": payable,
             "payout_id": inv.payout_id,
         })

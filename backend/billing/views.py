@@ -525,6 +525,25 @@ class AdminPayoutRunView(APIView):
         })
 
 
+class AdminRndBalanceView(APIView):
+    """One RND's unpaid money for the Payouts board (read only): every
+    consultation on hold or cleared, when it clears or cleared, and whether
+    it belongs to the payout that can be paid now."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, rnd_id):
+        from accounts.models import User
+
+        from .payouts import rnd_earnings
+
+        rnd = get_object_or_404(User, pk=rnd_id, role="rnd")
+        data = rnd_earnings(rnd)
+        data["items"] = [i for i in data["items"] if i["state"] in ("pending", "posted")]
+        data["rnd"] = {"id": rnd.id, "name": rnd.full_name, "email": rnd.email, "profile_photo": rnd.profile_photo}
+        return Response(data)
+
+
 class AdminReleasePayoutView(APIView):
     """Admin records that they sent an RND's posted balance (with the
     GCash/bank reference)."""

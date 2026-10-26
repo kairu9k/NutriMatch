@@ -188,6 +188,15 @@ class PayoutTests(TestCase):
         in_run.refresh_from_db()
         self.assertIsNotNone(in_run.payout_id)
 
+    def test_admin_sees_an_rnds_balance(self):
+        self._consult(completed_days_ago=self._before_run())   # cleared, in this run
+        self._consult(completed_days_ago=1)                    # on hold
+        data = self.admin_api.get(f"/api/admin/payouts/rnd/{self.rnd.id}/").data
+        states = sorted((i["state"], i["payable"]) for i in data["items"])
+        self.assertEqual(states, [("pending", False), ("posted", True)])
+        self.assertTrue(all(i["cleared_on"] for i in data["items"] if i["state"] == "posted"))
+        self.assertEqual(self.rnd_api.get(f"/api/admin/payouts/rnd/{self.rnd.id}/").status_code, 403)
+
     def test_admin_payout_slip(self):
         self._add_gcash()
         inv = self._consult(completed_days_ago=self._before_run())

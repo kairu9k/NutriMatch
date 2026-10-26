@@ -73,15 +73,17 @@
           </header>
           <p v-if="!col.cards.length" class="col-empty">{{ col.empty }}</p>
           <article v-for="c in col.cards" :key="c.r.rnd_id" class="card">
-            <div class="card-top">
-              <NuxtLink :to="`/users/${c.r.rnd_id}`" class="card-who">
-                <img v-if="c.r.profile_photo" :src="c.r.profile_photo" class="nm-avatar sm" alt="" />
-                <span v-else class="nm-avatar sm">{{ nameInitials(c.r.rnd_name) }}</span>
-                <span class="card-name">{{ c.r.rnd_name }}</span>
-              </NuxtLink>
-              <strong class="card-amount mono">{{ peso(c.amount) }}</strong>
-            </div>
-            <p class="card-next" :class="c.tone">{{ c.next }}</p>
+            <button type="button" class="card-open" :aria-label="`See ${c.r.rnd_name}'s balance`" @click="openBalance(c.r)">
+              <span class="card-top">
+                <span class="card-who">
+                  <img v-if="c.r.profile_photo" :src="c.r.profile_photo" class="nm-avatar sm" alt="" />
+                  <span v-else class="nm-avatar sm">{{ nameInitials(c.r.rnd_name) }}</span>
+                  <span class="card-name">{{ c.r.rnd_name }}</span>
+                </span>
+                <strong class="card-amount mono">{{ peso(c.amount) }}</strong>
+              </span>
+              <span class="card-next" :class="c.tone">{{ c.next }}</span>
+            </button>
             <template v-if="col.key === 'ready'">
               <p class="card-to">{{ payoutVia(c.r.payout_account.method, c.r.payout_account.bank_name) }}, {{ c.r.payout_account.account_name }}, <span class="mono">{{ c.r.payout_account.account_number }}</span></p>
               <button type="button" class="nm-btn-dark nm-btn-sm card-btn" @click="openRelease(c.r)">Release {{ peso(c.r.payable) }}</button>
@@ -114,6 +116,53 @@
         </button>
       </section>
       <ListPager v-model:page="page" :pages="pages" />
+    </div>
+
+    <!-- AN RND'S BALANCE (read only): every consultation not paid yet, by stage -->
+    <div v-if="balance" class="nm-modal-overlay" @click.self="balance = null">
+      <div class="nm-modal bal" role="dialog" aria-modal="true" aria-labelledby="bal-title">
+        <div class="bal-head nm-modal-head">
+          <img v-if="balance.row.profile_photo" :src="balance.row.profile_photo" class="nm-avatar" alt="" />
+          <span v-else class="nm-avatar">{{ nameInitials(balance.row.rnd_name) }}</span>
+          <div style="flex: 1; min-width: 0">
+            <h3 id="bal-title" class="nm-modal-title">{{ balance.row.rnd_name }}</h3>
+            <p class="nm-panel-sub">Not paid yet: {{ peso(Number(balance.row.pending) + Number(balance.row.posted)) }}</p>
+          </div>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="balance = null"><X :size="18" aria-hidden="true" /></button>
+        </div>
+
+        <p v-if="!balance.row.payout_account" class="nm-note bal-note">
+          <strong>No GCash or bank details yet.</strong> Cleared money waits until {{ balance.row.rnd_name.split(' ')[0] }} adds them in Earnings.
+        </p>
+        <p v-if="balanceError" class="nm-error">{{ balanceError }}</p>
+        <p v-else-if="!balance.items" class="nm-muted">Loading…</p>
+        <template v-else>
+          <section v-for="g in balanceGroups" :key="g.key" class="bal-group" :class="g.key">
+            <h4 class="bal-title">
+              <span>{{ g.title }}</span>
+              <strong class="mono">{{ peso(g.total) }}</strong>
+            </h4>
+            <p class="bal-sub">{{ g.sub }}</p>
+            <div v-for="i in g.items" :key="i.invoice_id" class="bal-line">
+              <span class="bal-what">
+                <span>{{ i.client_name }}<template v-if="i.appointment_date">, {{ shortDate(i.appointment_date) }}</template></span>
+                <span class="nm-row-sub">INV-{{ String(i.invoice_id).padStart(4, '0') }}, fee {{ peso(i.amount) }} less {{ peso(i.commission) }} commission</span>
+              </span>
+              <span class="bal-right">
+                <strong class="mono">{{ peso(i.share) }}</strong>
+                <span class="bal-when">{{ g.when(i) }}</span>
+              </span>
+            </div>
+          </section>
+          <p v-if="!balanceGroups.length" class="nm-muted">Nothing waiting to be paid.</p>
+        </template>
+
+        <div class="nm-modal-actions">
+          <NuxtLink :to="`/users/${balance.row.rnd_id}`" class="nm-btn-soft">View RND</NuxtLink>
+          <button v-if="balance.row.eligible" type="button" class="nm-btn-dark" @click="releaseFromBalance">Release {{ peso(balance.row.payable) }}</button>
+          <button v-else type="button" class="nm-btn-dark" @click="balance = null">Done</button>
+        </div>
+      </div>
     </div>
 
     <!-- PAYOUT SLIP: what was paid, where it went, and the consultations it covered -->
@@ -288,7 +337,7 @@ const columns = computed(() => {
     amount: Number(r.pending),
     next: r.next_posts_on
       ? `${plural(r.pending_count, 'consultation')}, the first clears ${shortDate(r.next_posts_on)}`
-      : `${plural(r.pending_count, 'consultation')}, clears ${run.value?.hold_days ?? 3} days after it's completed`,
+      : `${plural(r.pending_count, 'consultation')}, not completed yet`,
     tone: '',
   }))
   const waiting = rows.value
@@ -444,6 +493,40 @@ function nameInitials(name) {
   const parts = String(name || '').split(' ').filter(Boolean)
   return userInitials(parts[0], parts[parts.length - 1])
 }
+/* an RND's balance (read only, from the board) */
+const balance = ref(null)
+const balanceError = ref('')
+async function openBalance(row) {
+  balance.value = { row, items: null }
+  balanceError.value = ''
+  try {
+    const d = await get(`/admin/payouts/rnd/${row.rnd_id}/`)
+    if (balance.value?.row.rnd_id === row.rnd_id) balance.value = { row, items: d.items }
+  } catch (e) {
+    balanceError.value = apiError(e, 'Could not load this balance. Try again.')
+  }
+}
+function releaseFromBalance() {
+  const row = balance.value.row
+  balance.value = null
+  openRelease(row)
+}
+const balanceGroups = computed(() => {
+  const items = balance.value?.items || []
+  const sum = list => list.reduce((t, i) => t + Number(i.share), 0)
+  const ready = items.filter(i => i.state === 'posted' && i.payable)
+  const waiting = items.filter(i => i.state === 'posted' && !i.payable)
+  const hold = items.filter(i => i.state === 'pending')
+  return [
+    { key: 'ready', title: 'Ready to send', sub: `Cleared by ${runText.value}, so it belongs to the payout that can be paid now.`, items: ready, total: sum(ready),
+      when: i => `Cleared ${shortDate(i.cleared_on)}` },
+    { key: 'waiting', title: 'Cleared, waiting', sub: `Cleared after ${runText.value}, so it waits for payday on ${nextText.value}. Payouts are never sent early.`, items: waiting, total: sum(waiting),
+      when: i => `Cleared ${shortDate(i.cleared_on)}, paid ${nextText.value}` },
+    { key: 'hold', title: 'On hold', sub: 'Within 3 days of the consultation, or not marked complete yet, in case the client needs a refund.', items: hold, total: sum(hold),
+      when: i => (i.posts_on ? `Clears ${shortDate(i.posts_on)}` : 'Not completed yet') },
+  ].filter(g => g.items.length)
+})
+
 /* payout slip (History) */
 const slip = ref(null)
 const slipError = ref('')
@@ -537,7 +620,16 @@ function methodText(p) {
 .col.hold .col-total { color: #6a7a6a; }
 .col-sub { margin: 2px 0 0; font-size: 0.78rem; color: #8a9a8a; }
 .col-empty { margin: 0; padding: 18px 16px; font-size: 0.84rem; color: #8a9a8a; }
-.card { padding: 12px 16px; border-top: 1px solid #edf1ee; }
+.card { padding: 0; border-top: 1px solid #edf1ee; }
+.card-open {
+  display: block; width: 100%; padding: 12px 16px 10px; border: 0; background: none; text-align: left;
+  font-family: inherit; color: inherit; cursor: pointer;
+}
+.card-open:hover { background: #f7faf8; }
+.card-open:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.card .card-to, .card .card-btn { margin-left: 52px; }
+.card .card-btn { margin-bottom: 12px; }
+.card .card-to { margin-top: 0; }
 .col-head + .card { border-top: none; }
 .card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .card-who { display: flex; align-items: center; gap: 8px; min-width: 0; text-decoration: none; }
@@ -546,10 +638,27 @@ function methodText(p) {
 .card-amount { font-size: 0.95rem; color: #1a3a1a; flex-shrink: 0; }
 .col.waiting .card-amount { color: #b8860b; }
 .col.hold .card-amount { color: #6a7a6a; }
-.card-next { margin: 4px 0 0 36px; font-size: 0.78rem; color: #6a7a6a; }
+.card-next { display: block; margin: 4px 0 0 36px; font-size: 0.78rem; color: #6a7a6a; }
 .card-next.gold { color: #7a560f; font-weight: 600; }
 .card-to { margin: 4px 0 0 36px; font-size: 0.76rem; color: #4a5a4a; overflow-wrap: anywhere; }
 .card-btn { margin: 10px 0 0 36px; }
+
+/* an RND's balance */
+.bal { max-width: 560px; }
+.bal-head { display: flex; gap: 12px; align-items: center; }
+.bal-head .nm-modal-x { position: static; float: none; margin: 0; }
+.bal-note { margin: 0 0 12px; }
+.bal-group { margin-top: 14px; padding-top: 10px; border-top: 3px solid #c9d6cd; }
+.bal-group.waiting { border-top-color: #D4A017; }
+.bal-group.ready { border-top-color: #0a4a37; }
+.bal-group:first-of-type { margin-top: 0; }
+.bal-title { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-family: inherit; font-size: 0.9rem; font-weight: 700; color: #1a3a1a; }
+.bal-group.waiting .bal-title strong { color: #b8860b; }
+.bal-sub { margin: 2px 0 6px; font-size: 0.78rem; color: #6a7a6a; }
+.bal-line { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid #edf1ee; font-size: 0.85rem; }
+.bal-what { display: flex; flex-direction: column; min-width: 0; color: #1a3a1a; }
+.bal-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.bal-when { font-size: 0.74rem; color: #6a7a6a; }
 
 /* history */
 .month + .month { margin-top: 18px; }
@@ -620,6 +729,6 @@ function methodText(p) {
   .fig { border-left: none; padding: 12px 16px; }
   .fig + .fig { border-top: 1px solid #d9e3dc; }
   .flow { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 12px; }
-  .card-btn { width: calc(100% - 36px); }
+  .card .card-btn { width: calc(100% - 68px); }
 }
 </style>
