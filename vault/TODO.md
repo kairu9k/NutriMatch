@@ -293,6 +293,16 @@ Decisions (user, 2026-10-10): admins can **see everything** — account details,
 - [ ] Phone-width check of the dashboard card, Lab Results page and the RND Lab results tab.
 - [ ] Mention it in the scope/features section (not in the proposal).
 
+## WebRTC video consultations (planned 2026-10-26, user's decisions)
+
+Why: the room embeds meet.jit.si, which now needs one person to log in before a call starts and cuts embedded calls after about 5 minutes. User's call: NutriMatch's own 1-on-1 WebRTC call, **WebRTC only, no backup video**. Out of scope: screen sharing, recording (RA 10173: consultations are not recorded), in-call chat (Messages exists).
+
+- [ ] **Phase 1, signaling:** `ws/appointments/<id>/call/` (Channels, JWT auth like the other sockets). Only the appointment's RND and client; the client only once paid; only inside the join window (15 min before start to 15 min after end); at most 2 people. Relays offer / answer / ICE candidates and presence (joined, left, camera and mic state). Records start (both joined) and end on `ConsultationSession` (provider `webrtc`). Tests for every access rule.
+- [ ] **Phase 2, ICE servers:** `GET /api/appointments/<id>/call-config/` (same access rules) returns Cloudflare STUN + TURN with short-lived credentials from `POST https://rtc.live.cloudflare.com/v1/turn/keys/<CLOUDFLARE_TURN_KEY_ID>/credentials/generate-ice-servers` (Bearer `CLOUDFLARE_TURN_API_TOKEN`, server side only). Free tier 1,000 GB/month relay. Checked 2026-10-26: STUN + TURN on 3478/443/80, `turns:` on 443 TCP.
+- [ ] **Phase 3, call screen:** `composables/useWebRtcCall.js` (getUserMedia with audio-only fallback, perfect negotiation, ICE restart on failure, socket reconnect) + `VideoCall.vue` (remote large, self small; mute, camera on/off, switch camera, end; states: waiting, connecting, reconnecting, poor connection, left; blocked camera/mic help). Replaces the Jitsi frame in `ConsultationRoom.vue`; the RND's end still opens Finish consultation.
+- [ ] **Phase 4, device tests:** laptop to laptop; laptop to phone on mobile data (relay); Android Chrome and iPhone Safari; Wi-Fi to mobile data mid-call; camera blocked / no camera; leave and rejoin; a 60-minute call.
+- [ ] **Phase 5, switch over:** remove Jitsi from the room, update CLAUDE.md and the documentation (video = WebRTC with Cloudflare TURN), set `CLOUDFLARE_TURN_*` on Render, deploy.
+
 ## Phase 8 — Deployment
 - [ ] Django: Railway/Render/Fly.io (or your school's requirement) + Postgres addon
 - [ ] Nuxt: Vercel/Netlify, or same host as backend

@@ -331,6 +331,11 @@ PAYMONGO = {
 # search answers "not set up" instead of calling the API.
 USDA_FDC_API_KEY = config('USDA_FDC_API_KEY', default='')
 
+# Video consultations are NutriMatch's own WebRTC calls (scheduling/video_call.py);
+# Cloudflare provides the TURN relay for strict networks. Blank = STUN only.
+CLOUDFLARE_TURN_KEY_ID = config('CLOUDFLARE_TURN_KEY_ID', default='')
+CLOUDFLARE_TURN_API_TOKEN = config('CLOUDFLARE_TURN_API_TOKEN', default='')
+
 # SMS reminders through Semaphore (communication/sms.py). Blank key = no SMS
 # is sent (the text is only logged). The sender name must be one registered
 # in the Semaphore dashboard; blank uses the account's default sender name.

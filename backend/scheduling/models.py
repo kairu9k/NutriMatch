@@ -97,6 +97,7 @@ class ConsultationSession(models.Model):
         ZOOM = "zoom", "Zoom"
         DAILY_CO = "daily_co", "Daily.co"
         JITSI = "jitsi", "Jitsi"
+        WEBRTC = "webrtc", "NutriMatch video (WebRTC)"
         TWILIO_VIDEO = "twilio_video", "Twilio Video"
         GOOGLE_MEET = "google_meet", "Google Meet"
         OTHER = "other", "Other"

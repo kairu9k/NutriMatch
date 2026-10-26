@@ -8,6 +8,7 @@ from .patient_list import RndPatientListView
 from .patient_summary import RndPatientSummaryView
 from .rnd_appointments import RndAppointmentBoardView
 from .consultation_summary import ClientConsultationSummaryView, RndConsultationSummaryView
+from .video_call import CallConfigView
 from .room import ClientRoomInfoView
 from .rnd_dashboard import RndDashboardView
 
@@ -40,6 +41,7 @@ urlpatterns = [
     path("client/appointments/<int:pk>/", ClientAppointmentDetailView.as_view(), name="client_appointment_detail"),
     path("client/appointments/<int:pk>/cancel/", ClientAppointmentCancelView.as_view(), name="client_appointment_cancel"),
     path("client/appointments/<int:pk>/room-info/", ClientRoomInfoView.as_view(), name="client_room_info"),
+    path("appointments/<int:pk>/call-config/", CallConfigView.as_view(), name="call_config"),
     path("client/appointments/<int:pk>/summary/", ClientConsultationSummaryView.as_view(), name="client_consultation_summary"),
     path("rnd/appointments/<int:pk>/summary/", RndConsultationSummaryView.as_view(), name="rnd_consultation_summary"),
 
