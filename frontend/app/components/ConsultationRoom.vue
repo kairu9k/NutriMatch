@@ -96,11 +96,75 @@
           <template v-else-if="tab === 'patient'">
             <p v-if="s.health.allergies.length" class="allergy"><AlertTriangle :size="14" /> Allergy: {{ s.health.allergies.join(', ') }}</p>
             <p v-if="appt.notes" class="note">“{{ appt.notes }}”<small>Their note when booking</small></p>
-            <div class="stats">
-              <div><span>Weight</span><strong>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</strong><small>{{ figureSource(p.progress.weight_origin) || 'not measured yet' }}</small><small v-if="p.progress.weight_change_kg != null">{{ signed(p.progress.weight_change_kg) }} kg since screening</small></div>
-              <div><span>BMI</span><strong>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</strong><small>{{ p.progress.bmi_class || '' }}</small><small v-if="p.progress.bmi_origin">from the {{ figureSource(p.progress.bmi_origin) }} weight</small></div>
-              <div><span>Adherence, 7 days</span><strong>{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</strong><small>{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} logged` : 'no active plan' }}</small></div>
-              <div :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }"><span>NRS-2002</span><strong>{{ s.screening?.nrs_score ?? '—' }}</strong><small>{{ s.screening?.nrs_risk || '' }}</small><small v-if="s.screening">{{ screeningSource(s.screening) }}</small></div>
+            <!-- the four figures; clicking one turns the panel over to explain it
+                 (what it is, the formula with this patient's numbers, how to read it) -->
+            <div class="flip" :class="{ flipped: !!statInfo }">
+              <div class="stats face" :aria-hidden="!!statInfo" :inert="!!statInfo || undefined">
+                <button type="button" class="tile" @click="statInfo = 'weight'">
+                  <span>Weight</span><strong>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</strong>
+                  <small>{{ figureSource(p.progress.weight_origin) || 'not measured yet' }}</small>
+                  <small v-if="p.progress.weight_change_kg != null">{{ signed(p.progress.weight_change_kg) }} kg since screening</small>
+                </button>
+                <button type="button" class="tile" @click="statInfo = 'bmi'">
+                  <span>BMI</span><strong>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</strong>
+                  <small>{{ p.progress.bmi_class || '' }}</small>
+                  <small v-if="p.progress.bmi_origin">from the {{ figureSource(p.progress.bmi_origin) }} weight</small>
+                </button>
+                <button type="button" class="tile" @click="statInfo = 'adherence'">
+                  <span>Adherence, 7 days</span><strong>{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</strong>
+                  <small>{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} logged` : 'no active plan' }}</small>
+                </button>
+                <button type="button" class="tile" :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }" @click="statInfo = 'nrs'">
+                  <span>NRS-2002</span><strong>{{ s.screening?.nrs_score ?? '—' }}</strong>
+                  <small>{{ s.screening?.nrs_risk || '' }}</small>
+                  <small v-if="s.screening">{{ screeningSource(s.screening) }}</small>
+                </button>
+                <p class="flip-hint">Tap a figure to see what it means.</p>
+              </div>
+
+              <section class="info face back" :aria-hidden="!statInfo" :inert="!statInfo || undefined" aria-live="polite">
+                <template v-if="statInfo === 'weight'">
+                  <h4>Weight</h4>
+                  <p>The latest weight on record: <strong>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : 'none yet' }}</strong><template v-if="p.progress.weight_origin">, {{ figureSource(p.progress.weight_origin) }}</template>.</p>
+                  <p class="formula">Change = latest weight − screening weight<template v-if="p.progress.weight_change_kg != null && s.screening?.weight_kg != null"><br>{{ fmt1(p.progress.latest_weight_kg) }} − {{ fmt1(s.screening.weight_kg) }} = <strong>{{ signed(p.progress.weight_change_kg) }} kg</strong></template></p>
+                  <p class="muted">"At consultation" means you measured it and it came from a finalized NCP record. "Self-reported" means {{ p.client.first_name }} typed it in, so check it. A change of 2 kg or more within 14 days is flagged as an alert.</p>
+                </template>
+                <template v-else-if="statInfo === 'bmi'">
+                  <h4>BMI (body mass index)</h4>
+                  <p class="formula">BMI = weight (kg) ÷ height (m)²<template v-if="bmiCalc"><br>{{ bmiCalc }}</template></p>
+                  <p class="muted">WHO Asia-Pacific cut-offs (lower than the global ones, for Asian adults):</p>
+                  <ul class="bands">
+                    <li v-for="b in BMI_BANDS" :key="b.label" :class="{ on: p.progress.bmi_class === b.label }"><span>{{ b.label }}</span><span>{{ b.range }}</span></li>
+                  </ul>
+                </template>
+                <template v-else-if="statInfo === 'adherence'">
+                  <h4>Meal-plan adherence, last 7 days</h4>
+                  <p class="formula">Adherence = score ÷ counted meals × 100<template v-if="p.adherence?.pct != null"><br>{{ p.adherence.logged }} of {{ p.adherence.planned }} planned meals logged, scored <strong>{{ p.adherence.pct }}%</strong></template></p>
+                  <ul class="bands">
+                    <li><span>Followed</span><span>1 point</span></li>
+                    <li><span>Partly followed</span><span>½ point</span></li>
+                    <li><span>Not followed, or not logged</span><span>0</span></li>
+                    <li><span>Logged, waiting for your rating</span><span>not counted</span></li>
+                  </ul>
+                  <p class="muted">The goal is 80%. Under 50% is flagged as an alert. Meals count from the day the plan was first sent.</p>
+                </template>
+                <template v-else-if="statInfo === 'nrs'">
+                  <h4>NRS-2002 (nutritional risk screening)</h4>
+                  <p class="formula">Score = nutritional status (0–3) + severity of disease (0–3)</p>
+                  <ul class="bands">
+                    <li><span>BMI under 18.5</span><span>3</span></li>
+                    <li><span>Weight loss of 5% or more</span><span>2</span></li>
+                    <li><span>Eating less than usual</span><span>1</span></li>
+                  </ul>
+                  <ul class="bands">
+                    <li :class="{ on: (s.screening?.nrs_score ?? -1) >= 0 && s.screening.nrs_score < 3 }"><span>No risk</span><span>0–2</span></li>
+                    <li :class="{ on: s.screening?.nrs_score >= 3 && s.screening.nrs_score < 5 }"><span>At risk</span><span>3–4</span></li>
+                    <li :class="{ on: s.screening?.nrs_score >= 5 }"><span>High risk</span><span>5 or more</span></li>
+                  </ul>
+                  <p class="muted">{{ p.client.first_name }} scored {{ s.screening?.nrs_score ?? '—' }} {{ screeningSource(s.screening) }}, from their own answers. It isn't recalculated afterwards, so reassess if their weight or intake has changed.</p>
+                </template>
+                <button type="button" class="link small soft" @click="statInfo = null"><ArrowLeft :size="13" aria-hidden="true" /> Back to the figures</button>
+              </section>
             </div>
             <dl class="facts">
               <div><dt>Age and sex</dt><dd>{{ [p.client.age != null ? `${p.client.age} y/o` : null, SEX[p.client.sex]].filter(Boolean).join(', ') || '—' }}</dd></div>
@@ -503,6 +567,18 @@ const SEX = { male: 'Male', female: 'Female' }
 const LOG = { followed: 'followed', partially_followed: 'partly followed', not_followed: 'not followed' }
 const list = l => (l?.length ? l.join(', ') : '—')
 const whole = v => (v == null ? '—' : Math.round(Number(v)).toLocaleString('en-PH'))
+// the figure whose explanation is showing on the back of the panel
+const statInfo = ref(null)
+const BMI_BANDS = [
+  { label: 'Underweight', range: 'under 18.5' }, { label: 'Normal', range: '18.5–22.9' }, { label: 'Overweight (At Risk)', range: '23–24.9' },
+  { label: 'Obese I', range: '25–29.9' }, { label: 'Obese II', range: '30 or more' },
+]
+const bmiCalc = computed(() => {
+  const w = Number(p.value?.progress?.latest_weight_kg)
+  const h = Number(s.value?.screening?.height_cm) / 100
+  if (!w || !h) return ''
+  return `${w.toFixed(1)} ÷ ${h.toFixed(2)}² = ${(w / (h * h)).toFixed(1)}`
+})
 const fmt1 = v => Number(v).toFixed(1)
 const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 const initials = n => String(n || '').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase()
@@ -754,11 +830,39 @@ function onHangUp() {
 .note small { font-style: normal; color: #8a9a8a; font-size: 0.7rem; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 12px; background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden;
   box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.stats div { padding: 10px 12px; display: flex; flex-direction: column; min-width: 0; }
-.stats div:nth-child(even) { border-left: 1px solid #d9e3dc; }
-.stats div:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
-.stats div.risk { background: #fdf3f2; }
-.stats div.risk strong, .stats div.risk small { color: #a12525; }
+.stats .tile {
+  padding: 10px 12px; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; text-align: left;
+  border: 0; background: #fff; font-family: inherit; color: #1a3a1a; cursor: pointer;
+}
+.stats .tile:hover { background: #f7faf8; }
+.stats .tile:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.stats .tile:nth-child(even) { border-left: 1px solid #d9e3dc; }
+.stats .tile:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
+.stats .tile.risk { background: #fdf3f2; }
+.stats .tile.risk strong, .stats .tile.risk small { color: #a12525; }
+.flip-hint { grid-column: 1 / -1; margin: 0; padding: 6px 12px; border-top: 1px solid #d9e3dc; font-size: 0.7rem; color: #8a9a8a; background: #f7faf8; }
+/* both faces share one grid cell, so the panel is as tall as the longer one */
+.flip { display: grid; margin-bottom: 12px; perspective: 1200px; }
+.flip > .face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip > .stats { margin-bottom: 0; }
+.flip > .back { transform: rotateY(180deg); }
+.flip.flipped > .stats { transform: rotateY(-180deg); }
+.flip.flipped > .back { transform: rotateY(0deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .flip > .face { transition: transform 0.45s ease; }
+}
+.info {
+  background: #fff; border: 1px solid #d9e3dc; border-radius: 12px; padding: 12px 14px; font-size: 0.8rem; color: #2a3a2a; line-height: 1.5;
+  box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09);
+}
+.info h4 { margin: 0 0 6px; font-family: inherit; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; }
+.info p { margin: 0 0 8px; }
+.info .formula { background: #f2f7f3; border-radius: 8px; padding: 8px 10px; font-variant-numeric: tabular-nums; }
+.info .bands { list-style: none; margin: 0 0 8px; padding: 0; border: 1px solid #d9e3dc; border-radius: 8px; overflow: hidden; }
+.info .bands li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 10px; font-size: 0.76rem; }
+.info .bands li + li { border-top: 1px solid #edf1ee; }
+.info .bands li.on { background: #e3efe7; font-weight: 700; color: #0a4a37; }
+.info .link.small { margin-top: 4px; }
 .stats span { font-size: 0.74rem; font-weight: 600; color: #4a5a4a; }
 .stats strong { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-variant-numeric: tabular-nums lining-nums; }
 .stats small { font-size: 0.7rem; color: #8a9a8a; }
