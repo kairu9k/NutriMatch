@@ -249,7 +249,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
   if (phase === 'pending') hint = `Waiting for RND ${rndUser.first_name} to confirm. You'll be asked to pay once they do.`
   else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} before ${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(start)} to start your consultation. If it isn't paid by then, the booking is cancelled and the slot is released.`
   else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)}, 15 minutes before the start.`
-  else if (phase === 'confirmed' && a.type === 'video') hint = a.video_session_url ? 'Your video room is open. You can join now.' : 'Your RND is setting up the video room.'
+  else if (phase === 'confirmed' && a.type === 'video') hint = 'Your video room is open. You can join now.'
   else if (phase === 'confirmed' && a.type === 'in_person') hint = 'Message your RND if you need the clinic address or directions.'
   else if (phase === 'expired') hint = 'The time passed before your RND confirmed this request.'
   else if (phase === 'ended') hint = 'Your RND will mark this consultation complete.'
@@ -287,10 +287,11 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     statusLabel,
     statusClass,
     hint,
-    canJoinVideo: phase === 'confirmed' && a.type === 'video' && Boolean(a.video_session_url) && inWindow,
+    // NutriMatch's own video call (WebRTC) needs no room link: a confirmed,
+    // paid consultation inside its window can be joined (the call checks too)
+    canJoinVideo: phase === 'confirmed' && a.type === 'video' && inWindow,
     opensLater: phase === 'confirmed' && a.type === 'video' && nowMs < opensAt,
     opensLabel: formatJoinTime(opensAt, nowMs),
-    needsRoomRefresh: phase === 'confirmed' && a.type === 'video' && inWindow && !a.video_session_url,
     canMessage: relActive,
     // A confirmed consultation can't be cancelled once it has started (the API refuses too).
     canCancel: a.status === 'pending' || (a.status === 'confirmed' && nowMs < start.getTime()),
@@ -362,18 +363,6 @@ onMounted(load)
 // confirmations, cancellations and expired requests show without a reload;
 // not while a payment is open
 useAutoRefresh(load, { paused: () => !!payingId.value })
-
-/* ---------- Join window ---------- */
-// Re-renders every 30s (`now`, declared at the top); when a paid video
-// visit's window opens, reload once to fetch its room link (the API only
-// sends it inside the window).
-const refreshedFor = new Set()
-watch(now, () => {
-  const due = appointments.value.filter(a => a.needsRoomRefresh && !refreshedFor.has(a.id))
-  if (!due.length) return
-  due.forEach(a => refreshedFor.add(a.id))
-  load()
-})
 
 /* ---------- Pay before the consultation ---------- */
 const { pay, payingId, payError } = usePayInvoice()

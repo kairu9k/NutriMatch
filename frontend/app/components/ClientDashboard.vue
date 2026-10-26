@@ -545,9 +545,9 @@ const nextStep = computed(() => {
   }
   if (appt?.status === 'confirmed') {
     const when = `${formatLongDate(appt.scheduled_at)} at ${formatTime(appt.scheduled_at)}`
-    // The API only sends the room link inside the join window (15 min early).
-    const canJoin = (appt.type === 'video' && appt.video_session_url)
-      || (appt.type === 'chat' && appt.payment?.status === 'paid' && Date.now() >= new Date(appt.join_opens_at) && Date.now() <= new Date(appt.join_closes_at))
+    // Paid and inside the join window (15 min before to 15 min after)
+    const canJoin = ['video', 'chat'].includes(appt.type) && appt.payment?.status === 'paid'
+      && Date.now() >= new Date(appt.join_opens_at) && Date.now() <= new Date(appt.join_closes_at)
     return {
       eyebrow: 'Upcoming consultation',
       text: `${APPT_TYPES[appt.type] || ''} consultation with ${rndName} on ${when}.`,
