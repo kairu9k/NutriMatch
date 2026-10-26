@@ -71,7 +71,12 @@
             <strong class="col-total mono">{{ peso(col.total) }}</strong>
             <p class="col-sub">{{ col.sub }}</p>
           </header>
-          <p v-if="!col.cards.length" class="col-empty">{{ col.empty }}</p>
+          <div v-if="!col.cards.length" class="col-empty">
+            <p>{{ col.empty }}</p>
+            <button v-if="col.key === 'ready'" type="button" class="nm-btn-soft nm-btn-sm preview-btn" @click="openPreview">
+              <Eye :size="14" aria-hidden="true" /> Preview the release pop-up
+            </button>
+          </div>
           <article v-for="c in col.cards" :key="c.r.rnd_id" class="card">
             <button type="button" class="card-open" :aria-label="`See ${c.r.rnd_name}'s balance`" @click="openBalance(c.r)">
               <span class="card-top">
@@ -223,6 +228,10 @@
       <div class="nm-modal release" role="dialog" aria-modal="true" aria-labelledby="release-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="busy ? null : (releasing = null)"><X :size="18" aria-hidden="true" /></button>
         <h3 id="release-title" class="nm-modal-title">Pay {{ releasing.rnd_name }}</h3>
+        <p v-if="releasing.preview" class="preview-note">
+          <Eye :size="15" aria-hidden="true" />
+          <span><strong>Preview with sample data.</strong> This is what the admin sees on payday. Nothing can be sent or recorded from here.</span>
+        </p>
 
         <div class="send">
           <p class="send-amount mono">{{ peso(releasing.payable) }}</p>
@@ -280,7 +289,7 @@
         <p v-if="releaseError" class="nm-field-error">{{ releaseError }}</p>
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-soft" :disabled="busy" @click="releasing = null">Not yet</button>
-          <button type="button" class="nm-btn-dark" :disabled="busy || !canRecord" @click="release">
+          <button type="button" class="nm-btn-dark" :disabled="busy || !canRecord || releasing.preview" @click="release">
             {{ busy ? 'Recording…' : lockLeft > 0 ? `Record as paid out (${lockLeft})` : 'Record as paid out' }}
           </button>
         </div>
@@ -293,7 +302,7 @@
 
 <script setup>
 import { payoutVia } from '~/utils/payout'
-import { CalendarClock, Check, CheckCircle2, ChevronRight, Copy, Printer, Send, ShieldAlert, Wallet, X } from 'lucide-vue-next'
+import { CalendarClock, Check, CheckCircle2, ChevronRight, Copy, Eye, Printer, Send, ShieldAlert, Wallet, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 
@@ -437,6 +446,14 @@ const historyMonths = computed(() => {
   return out
 })
 
+// For demos when nobody is ready to pay: the real pop-up with a made-up RND,
+// marked as a preview; its record button stays disabled.
+function openPreview() {
+  openRelease({
+    preview: true, rnd_id: 0, rnd_name: 'Sample RND', payable: '720.00', payable_count: 1,
+    payout_account: { method: 'gcash', account_name: 'Sample RND', account_number: '09171234567', bank_name: null, recently_changed: false },
+  })
+}
 function openRelease(r) {
   releasing.value = r
   reference.value = ''
@@ -464,6 +481,7 @@ async function copy(text) {
 }
 
 async function release() {
+  if (releasing.value?.preview) return // sample data: never sent or recorded
   releaseError.value = ''
   if (!reference.value.trim()) {
     releaseError.value = 'Enter the GCash or bank reference number so the payment can be traced.'
@@ -619,7 +637,14 @@ function methodText(p) {
 .col.waiting .col-total { color: #b8860b; }
 .col.hold .col-total { color: #6a7a6a; }
 .col-sub { margin: 2px 0 0; font-size: 0.78rem; color: #8a9a8a; }
-.col-empty { margin: 0; padding: 18px 16px; font-size: 0.84rem; color: #8a9a8a; }
+.col-empty { padding: 18px 16px; font-size: 0.84rem; color: #8a9a8a; }
+.col-empty p { margin: 0; }
+.preview-btn { margin-top: 12px; }
+.preview-note {
+  display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px;
+  background: #f4f6f4; border: 1px dashed #9aaa9a; font-size: 0.82rem; color: #4a5a4a; line-height: 1.45;
+}
+.preview-note svg { flex-shrink: 0; margin-top: 2px; }
 .card { padding: 0; border-top: 1px solid #edf1ee; }
 .card-open {
   display: block; width: 100%; padding: 12px 16px 10px; border: 0; background: none; text-align: left;
