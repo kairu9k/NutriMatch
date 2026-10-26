@@ -79,12 +79,6 @@
 
           <!-- PATIENT -->
           <template v-else-if="tab === 'patient'">
-            <div class="quick">
-              <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
-              <button type="button" class="link small soft" @click="tab = 'ncp'"><PenLine :size="13" aria-hidden="true" /> Write the NCP record</button>
-            </div>
-            <p v-if="labsSent" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Sent. {{ p.client.first_name }} is asked to upload them before your next consultation.</p>
-            <p v-if="labsError" class="nm-field-error">{{ labsError }}</p>
             <p v-if="s.health.allergies.length" class="allergy"><AlertTriangle :size="14" /> Allergy: {{ s.health.allergies.join(', ') }}</p>
             <p v-if="appt.notes" class="note">“{{ appt.notes }}”<small>Their note when booking</small></p>
             <div class="stats">
@@ -118,8 +112,13 @@
               </div>
             </section>
             <section class="block">
-              <h3>Lab results</h3>
+              <div class="block-head">
+                <h3>Lab results</h3>
+                <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
+              </div>
               <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted">None yet.</p>
+              <p v-if="labsSent" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Sent. {{ p.client.first_name }} is asked to upload them before your next consultation.</p>
+              <p v-if="labsError" class="nm-field-error">{{ labsError }}</p>
               <div v-for="r in s.labs?.recent || []" :key="r.id" class="lab-row">
                 <span class="lab-main">
                   {{ r.test_names.join(', ') }}, taken {{ shortDate(r.taken_on) }}<template v-if="r.fasted === 'no'">, not fasting</template>
@@ -602,10 +601,6 @@ function onHangUp() {
 
 <style scoped>
 * { box-sizing: border-box; }
-.quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.quick .link.small { margin-top: 0; }
-.link.small.soft { background: #e3efe7; color: #0a4a37; }
-.link.small.soft:hover { background: #d3e7da; }
 .lab-ask { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 6px; font-size: 0.82rem; color: #7a560f; font-weight: 600; }
 .lab-ask svg { flex-shrink: 0; margin-top: 2px; }
 .upload { margin-top: 8px; cursor: pointer; }

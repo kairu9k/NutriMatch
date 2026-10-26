@@ -145,7 +145,7 @@ def _labs(rel, now):
     return {
         **rnd_lab_counts(rel),
         "open": [request_payload(r, now) for r in rel.lab_requests.filter(status="open").prefetch_related("results")],
-        "recent": [result_payload(r, now) for r in rel.lab_results.all()[:5]],
+        "recent": [result_payload(r, now) for r in rel.lab_results.filter(declined_at__isnull=True)[:5]],  # declined uploads stay in the chart's Lab results tab
     }
 
 
