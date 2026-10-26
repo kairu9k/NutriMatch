@@ -171,7 +171,7 @@ class BillingAndVideoViewTests(TestCase):
         )
         self.assertEqual(resp.status_code, 401)
 
-    def test_confirm_video_appointment_creates_session(self):
+    def test_confirm_video_appointment_makes_no_room_link(self):
         PreConsultationScreening.objects.create(
             client=self.client_user, height_cm=Decimal("170.00"), weight_kg=Decimal("70.00"),
         )
@@ -181,10 +181,10 @@ class BillingAndVideoViewTests(TestCase):
 
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(resp.data["status"], "confirmed")
-        self.assertTrue(resp.data["video_session_url"].startswith("https://meet.jit.si/"))
-        self.assertEqual(len(resp.data["consultation_sessions"]), 1)
-        # host_url must never appear in the client-facing serialized session
-        self.assertNotIn("host_url", resp.data["consultation_sessions"][0])
+        # the call runs on the room page (WebRTC); no outside room link is made
+        self.assertIsNone(resp.data["video_session_url"])
+        self.assertIsNone(resp.data["meeting_id"])
+        self.assertEqual(resp.data["consultation_sessions"], [])
 
 
 class PaymentMethodRecordedTests(TestCase):

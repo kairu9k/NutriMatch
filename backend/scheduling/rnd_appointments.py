@@ -66,7 +66,6 @@ def build_board(rnd, now=None):
             "notes": a.notes, "cancellation_reason": a.cancellation_reason, "completed_at": a.completed_at,
             "join_opens_at": a.scheduled_at - timedelta(minutes=JOIN_EARLY_MINUTES),
             "join_closes_at": end + timedelta(minutes=JOIN_LATE_MINUTES),
-            "has_video_room": bool(a.video_session_url),
             "clinic_address": clinic if a.type == Appointment.Type.IN_PERSON else None,
         }
         if bucket == "requests":

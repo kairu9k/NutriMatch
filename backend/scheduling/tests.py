@@ -507,15 +507,18 @@ class PayBeforeConsultationTests(TestCase):
         note = NotificationLog.objects.get(recipient=self.client_user, subject__startswith="Appointment confirmed")
         self.assertIn("Please pay ₱800.00", note.content)
 
-    def test_video_link_hidden_from_client_until_paid(self):
+    def test_old_video_link_hidden_from_client_until_paid(self):
+        # Consultations confirmed before the WebRTC call (2026-10-26) still
+        # carry a Jitsi link; the client gets it only once paid, in the window.
         invoice = self._confirm()
+        Appointment.objects.filter(pk=self.appt.pk).update(video_session_url="https://meet.jit.si/nm-appt-old", meeting_id="nm-appt-old")
         unpaid = self._client_view()
         self.assertIsNone(unpaid["video_session_url"])
         self.assertIsNone(unpaid["meeting_id"])
         self.assertEqual(unpaid["payment"]["status"], "unpaid")
         detail = self.client_api.get(f"/api/client/appointments/{self.appt.id}/").data
         self.assertIsNone(detail["video_session_url"])
-        # the RND always sees the room
+        # the RND always sees it
         rnd_row = next(a for a in self.rnd_api.get("/api/rnd/appointments/").data if a["id"] == self.appt.id)
         self.assertTrue(rnd_row["video_session_url"])
 

@@ -315,9 +315,8 @@ MAILERS = {'default': _MAILER}
 # External services
 # Empty in dev — services degrade to raising a clear config error rather
 # than silently making unauthenticated calls. Fill in .env before Phase 8.
-# Video consultations use Jitsi's free public server (scheduling/services.py)
-# and need no API key/settings entry — Daily.co was dropped because its
-# free tier gates the call UI behind having a card on file.
+# Video consultations are NutriMatch's own WebRTC call (scheduling/video_call.py);
+# the Cloudflare TURN relay keys are CLOUDFLARE_TURN_KEY_ID / _API_TOKEN.
 
 PAYMONGO = {
     'SECRET_KEY': config('PAYMONGO_SECRET_KEY', default=''),

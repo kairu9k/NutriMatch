@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from accounts.permissions import IsClient, IsRnd
 from clinical.models import PreConsultationScreening
 
-from .models import Appointment, ConsultationSession, Review, RndClientRelationship
+from .models import Appointment, Review, RndClientRelationship
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentSerializer,
@@ -20,7 +20,6 @@ from .serializers import (
     ReviewSerializer,
     RndClientRelationshipSerializer,
 )
-from .services import JitsiVideoService, VideoSessionError
 
 
 PH_TZ = ZoneInfo("Asia/Manila")
@@ -259,22 +258,8 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             relationship.discharge_reason = None
             relationship.save(update_fields=["status", "started_at", "ended_at", "discharge_reason", "updated_at"])
 
-        if appointment.type == Appointment.Type.VIDEO:
-            try:
-                room = JitsiVideoService().create_room(appointment)
-            except VideoSessionError:
-                pass
-            else:
-                ConsultationSession.objects.create(
-                    appointment=appointment,
-                    video_provider=ConsultationSession.VideoProvider.JITSI,
-                    external_session_id=room["external_session_id"],
-                    host_url=room["host_url"],
-                    participant_url=room["participant_url"],
-                )
-                appointment.video_session_url = room["participant_url"]
-                appointment.meeting_id = room["external_session_id"]
-                appointment.save(update_fields=["video_session_url", "meeting_id", "updated_at"])
+        # Video consultations need no room link: the call happens on the room
+        # page itself (scheduling/video_call.py), which checks who may join.
 
         from billing.services import create_appointment_invoice
         from communication.services import notify

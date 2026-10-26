@@ -9,7 +9,6 @@ from django.test import TestCase, override_settings
 from accounts.models import User
 from profiles.models import RndProfile
 from scheduling.models import Appointment, RndClientRelationship
-from scheduling.services import JitsiVideoService
 
 from .models import Invoice
 from .services import InvalidWebhookSignatureError, PayMongoService, PaymentGatewayError
@@ -130,28 +129,3 @@ class PayMongoServiceTests(TestCase):
         mock_client.get.return_value = _mock_response({"data": {"id": "link_1", "attributes": {"status": "unpaid"}}})
         self.assertEqual(PayMongoService().get_link_status("ref_1")["status"], "pending")
 
-
-class JitsiVideoServiceTests(TestCase):
-    def setUp(self):
-        rnd = User.objects.create_user(email="rnd2@t.ph", password="x", role="rnd", first_name="R", last_name="D")
-        client = User.objects.create_user(email="client2@t.ph", password="x", role="client", first_name="C", last_name="L")
-        rel = RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
-        from django.utils import timezone
-        self.appointment = Appointment.objects.create(
-            relationship=rel, scheduled_at=timezone.now(), type="video", duration_minutes=30
-        )
-
-    def test_create_room_returns_jitsi_url(self):
-        result = JitsiVideoService().create_room(self.appointment)
-
-        self.assertTrue(result["participant_url"].startswith("https://meet.jit.si/"))
-        # no host/participant distinction on the public server
-        self.assertEqual(result["host_url"], result["participant_url"])
-        self.assertTrue(result["external_session_id"].startswith(f"nm-appt-{self.appointment.id}-"))
-        self.assertIn(result["external_session_id"], result["participant_url"])
-
-    def test_create_room_names_are_unique(self):
-        first = JitsiVideoService().create_room(self.appointment)
-        second = JitsiVideoService().create_room(self.appointment)
-
-        self.assertNotEqual(first["external_session_id"], second["external_session_id"])
