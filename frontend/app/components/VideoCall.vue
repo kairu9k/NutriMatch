@@ -97,12 +97,9 @@ const notice = computed(() => {
 watch([call.remoteStream, remoteEl], ([stream, el]) => { if (el) el.srcObject = stream || null })
 watch([call.localStream, localEl], ([stream, el]) => { if (el) el.srcObject = stream || null })
 
+// The room asks first (the RND: how to finish; the client: leave the call?),
+// and the call stays connected meanwhile; leaving the room ends it.
 function hangUp() {
-  if (props.isRnd) {
-    emit('hangup') // the room asks how to finish; the call stays open meanwhile
-    return
-  }
-  call.leave()
   emit('hangup')
 }
 

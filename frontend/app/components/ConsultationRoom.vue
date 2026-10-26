@@ -23,7 +23,7 @@
         <button v-if="mustFinish" type="button" class="end-btn" @click="openEnd">
           <CheckCircle2 :size="15" /> Finish consultation
         </button>
-        <button v-else type="button" class="exit-btn" @click="exitRoom">
+        <button v-else type="button" class="exit-btn" @click="inLiveCall ? (callLeaveAsk = true) : exitRoom()">
           <template v-if="!isRnd && appt?.status === 'confirmed' && windowState === 'open'"><PhoneOff :size="15" /> Leave call</template>
           <template v-else><ArrowLeft :size="15" /> Leave</template>
         </button>
@@ -248,14 +248,29 @@
     </div>
 
     <!-- LEAVE WITH UNSAVED NCP -->
+    <!-- client leaving a live call: ask first, so a stray tap doesn't drop them out -->
+    <div v-if="callLeaveAsk" class="overlay" @click.self="stayInCall">
+      <div class="nm-modal" role="alertdialog" aria-modal="true" aria-labelledby="call-leave-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="stayInCall"><X :size="18" aria-hidden="true" /></button>
+        <h2 id="call-leave-title" class="nm-modal-title">Leave the call?</h2>
+        <p class="nm-modal-text">
+          {{ other.firstName || 'Your RND' }} stays in the call. You can join again from My Appointments until {{ clock(appt.join_closes_at) }}.
+        </p>
+        <div class="nm-modal-actions">
+          <button type="button" class="nm-btn-soft" @click="stayInCall">Stay</button>
+          <button type="button" class="nm-btn-danger solid" @click="callLeaveAsk = false; leave()"><PhoneOff :size="15" aria-hidden="true" /> Leave call</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="leaveAsk" class="overlay" @click.self="leaveAsk = false">
       <div class="nm-modal" role="alertdialog" aria-labelledby="leave-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="leaveAsk = false"><X :size="18" aria-hidden="true" /></button>
         <h2 id="leave-title" class="nm-modal-title">Your NCP form has unsaved changes</h2>
         <p class="nm-modal-text">Save them as a draft before leaving the room?</p>
         <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-outline" @click="leaveAsk = false">Stay</button>
-          <button type="button" class="nm-btn-danger" @click="leave">Leave without saving</button>
+          <button type="button" class="nm-btn-soft" @click="leaveAsk = false">Stay</button>
+          <button type="button" class="nm-btn-danger solid" @click="leave">Leave without saving</button>
           <button type="button" class="nm-btn-dark" @click="tab = 'ncp'; leaveAsk = false">Go to the NCP form</button>
         </div>
       </div>
@@ -488,6 +503,14 @@ async function completeNow() {
 
 /* ---------- leaving ---------- */
 const leaveAsk = ref(false)
+// the client in a live video call: leaving asks first (Stay / Leave call)
+const callLeaveAsk = ref(false)
+const inLiveCall = computed(() => !isRnd.value && appt.value?.type === 'video' && appt.value?.status === 'confirmed'
+  && windowState.value === 'open' && appt.value?.payment?.status === 'paid')
+function stayInCall() {
+  callLeaveAsk.value = false
+  pendingTo = null
+}
 let leaving = false // set once the RND chose how to leave, so the guard lets it through
 let pendingTo = null // where a blocked navigation (Back, a link) was going
 function exitRoom() {
@@ -509,6 +532,7 @@ onBeforeRouteLeave((to) => {
   if (leaving) return true
   if (mustFinish.value) { pendingTo = to.fullPath; openEnd(); return false }
   if (ncpDirty.value) { pendingTo = to.fullPath; leaveAsk.value = true; return false }
+  if (inLiveCall.value) { pendingTo = to.fullPath; callLeaveAsk.value = true; return false }
   return true
 })
 // Closing or reloading the tab: the browser's own "Leave site?" prompt.
@@ -523,6 +547,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload)
 // the call stays open meanwhile; the client's Leave just leaves the room.
 function onHangUp() {
   if (mustFinish.value) openEnd()
+  else if (inLiveCall.value) callLeaveAsk.value = true
   else exitRoom()
 }
 </script>
