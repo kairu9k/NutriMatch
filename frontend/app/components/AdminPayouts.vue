@@ -86,7 +86,7 @@
             </button>
             <template v-if="col.key === 'ready'">
               <p class="card-to">{{ payoutVia(c.r.payout_account.method, c.r.payout_account.bank_name) }}, {{ c.r.payout_account.account_name }}, <span class="mono">{{ c.r.payout_account.account_number }}</span></p>
-              <button type="button" class="nm-btn-dark nm-btn-sm card-btn" @click="openRelease(c.r)">Release {{ peso(c.r.payable) }}</button>
+              <button type="button" class="nm-btn-dark nm-btn-sm card-btn" @click="openRelease(c.r)"><Send :size="13" aria-hidden="true" /> Release {{ peso(c.r.payable) }}</button>
             </template>
           </article>
         </section>
@@ -159,7 +159,7 @@
 
         <div class="nm-modal-actions">
           <NuxtLink :to="`/users/${balance.row.rnd_id}`" class="nm-btn-soft">View RND</NuxtLink>
-          <button v-if="balance.row.eligible" type="button" class="nm-btn-dark" @click="releaseFromBalance">Release {{ peso(balance.row.payable) }}</button>
+          <button v-if="balance.row.eligible" type="button" class="nm-btn-dark" @click="releaseFromBalance"><Send :size="14" aria-hidden="true" /> Release {{ peso(balance.row.payable) }}</button>
           <button v-else type="button" class="nm-btn-dark" @click="balance = null">Done</button>
         </div>
       </div>
@@ -293,7 +293,7 @@
 
 <script setup>
 import { payoutVia } from '~/utils/payout'
-import { CalendarClock, Check, CheckCircle2, ChevronRight, Copy, Printer, ShieldAlert, Wallet, X } from 'lucide-vue-next'
+import { CalendarClock, Check, CheckCircle2, ChevronRight, Copy, Printer, Send, ShieldAlert, Wallet, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
 
