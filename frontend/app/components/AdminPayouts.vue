@@ -20,11 +20,13 @@
           <div class="cycle-ends"><span>{{ cycle.from }}</span><span>{{ cycle.to }}</span></div>
         </div>
       </div>
+      <!-- the money from left to right: on hold, then cleared and waiting, then
+           ready on payday; each step sits under its own figure -->
       <div class="run-figs">
         <div class="fig">
-          <strong>{{ peso(run?.due_total ?? 0) }}</strong>
-          <span class="fig-label">Ready to send</span>
-          <span class="fig-note">{{ dueRows.length }} RND{{ dueRows.length === 1 ? '' : 's' }}</span>
+          <strong>{{ peso(pendingTotal) }}</strong>
+          <span class="fig-label">On hold</span>
+          <span class="fig-note">Clears {{ run?.hold_days ?? 3 }} days after the consultation</span>
         </div>
         <div class="fig">
           <strong :class="{ warn: heldTotal > 0 }">{{ peso(heldTotal) }}</strong>
@@ -32,17 +34,17 @@
           <span class="fig-note" :class="{ warn: heldRows.length }">{{ heldRows.length ? `${heldRows.length} RND${heldRows.length === 1 ? '' : 's'}, see why below` : 'Nothing waiting' }}</span>
         </div>
         <div class="fig">
-          <strong>{{ peso(pendingTotal) }}</strong>
-          <span class="fig-label">On hold</span>
-          <span class="fig-note">Clears {{ run?.hold_days ?? 3 }} days after the consultation</span>
+          <strong>{{ peso(run?.due_total ?? 0) }}</strong>
+          <span class="fig-label">Ready to send</span>
+          <span class="fig-note">{{ dueRows.length }} RND{{ dueRows.length === 1 ? '' : 's' }}</span>
         </div>
       </div>
 
       <!-- how a consultation's share moves: a real sequence -->
       <ol class="flow" aria-label="How an RND's share is paid">
-        <li><strong>On hold</strong><span>until {{ run?.hold_days ?? 3 }} days after the consultation is completed, in case the client needs a refund</span></li>
-        <li><strong>Cleared</strong><span>paid on the {{ ordinal(payoutDay) }} if it's {{ peso(run?.minimum_payout ?? 500) }} or more, otherwise it carries over</span></li>
-        <li><strong>Paid out</strong><span>you send it by GCash or bank, then record the reference here</span></li>
+        <li><strong>On hold</strong><span>for {{ run?.hold_days ?? 3 }} days after the consultation is completed, in case the client needs a refund</span></li>
+        <li><strong>Cleared</strong><span>now the RND's; it waits for payday, the {{ ordinal(payoutDay) }}, and needs {{ peso(run?.minimum_payout ?? 500) }} or more, otherwise it carries over</span></li>
+        <li><strong>Ready to send</strong><span>on payday, send it by GCash or bank, then record the receipt's reference here</span></li>
       </ol>
     </section>
 
