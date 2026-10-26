@@ -61,11 +61,9 @@
           <button v-if="isRnd" type="button" class="link" @click="openEnd">Finish this consultation</button>
         </div>
         <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation. Meet {{ isRnd ? 'your patient' : 'your RND' }} at the clinic{{ isRnd ? ' and use the panel for your notes' : '' }}.</p></div>
-        <div v-else-if="!appt.video_session_url" class="state-card"><VideoOff :size="28" /><p>No video room has been set up for this consultation.</p></div>
-        <!-- Jitsi's embed script, so hanging up can open Finish; the plain
-             frame is the fallback if the script can't load. -->
-        <iframe v-else-if="jitsiFailed" :src="videoSrc" class="video" title="Video consultation" allow="camera; microphone; fullscreen; display-capture; autoplay" />
-        <div v-else ref="videoHost" class="video" />
+        <!-- NutriMatch's own video call (WebRTC, 2026-10-26): browser to browser,
+             encrypted, not recorded. The RND's End opens Finish consultation. -->
+        <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" />
       </main>
 
       <!-- RND WORK PANEL -->
@@ -286,13 +284,6 @@ const auth = useAuthStore()
 const { get, patch } = useApi()
 const now = useNow(15000)
 const isRnd = computed(() => auth.user?.role === 'rnd')
-// Jitsi otherwise shows whatever name was last typed in this browser; pass the
-// signed-in person's name ("RND" added for the dietitian) in its URL config.
-const videoSrc = computed(() => {
-  const u = auth.user
-  const name = u ? `${u.first_name} ${u.last_name}`.trim() + (isRnd.value ? ', RND' : '') : ''
-  return name ? `${appt.value.video_session_url}#userInfo.displayName=${encodeURIComponent(JSON.stringify(name))}` : appt.value.video_session_url
-})
 const apptId = route.params.id
 
 const appt = ref(null)
@@ -510,8 +501,7 @@ function leave() {
   leaving = true
   const to = pendingTo
   pendingTo = null
-  // Not router.back(): the Jitsi frame adds its own history entries, so "back"
-  // can just step inside the frame. Use the app page we came from instead.
+  // Back to the app page we came from (or My Appointments).
   navigateTo(to || window.history.state?.back || '/appointments')
 }
 // Browser Back, the sidebar or any link: ask the same Finish question first.
@@ -528,63 +518,13 @@ function onBeforeUnload(e) {
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
-/* ---------- video (Jitsi embed script) ---------- */
-// Jitsi's external API lets the room notice the RND pressing Jitsi's own red
-// hang-up button — that opens Finish. If the script can't load, the plain
-// frame is used and the Finish button still works.
-const videoHost = ref(null)
-const jitsiFailed = ref(false)
-let jitsi = null
-function loadJitsiScript(origin) {
-  if (window.JitsiMeetExternalAPI) return Promise.resolve()
-  return new Promise((resolve, reject) => {
-    const tag = document.createElement('script')
-    tag.src = `${origin}/external_api.js`
-    tag.async = true
-    tag.onload = resolve
-    tag.onerror = reject
-    document.head.appendChild(tag)
-  })
+/* ---------- video (WebRTC, components/VideoCall.vue) ---------- */
+// The RND's End asks how to finish (complete, no-show, come back later) and
+// the call stays open meanwhile; the client's Leave just leaves the room.
+function onHangUp() {
+  if (mustFinish.value) openEnd()
+  else exitRoom()
 }
-async function mountJitsi(host) {
-  if (jitsi || !host || !appt.value?.video_session_url) return
-  try {
-    const url = new URL(appt.value.video_session_url)
-    await loadJitsiScript(url.origin)
-    if (!videoHost.value) return // the room changed state while loading
-    const u = auth.user
-    jitsi = new window.JitsiMeetExternalAPI(url.host, {
-      roomName: url.pathname.replace(/^\//, ''),
-      parentNode: host,
-      configOverwrite: {
-        disableDeepLinking: true, // phones stay in the browser, no "get the app" page
-        // RND only — the client's hang-up works as normal.
-        ...(isRnd.value ? { buttonsWithNotifyClick: [{ key: 'hangup', preventExecution: true }] } : {}),
-      },
-      width: '100%',
-      height: '100%',
-      userInfo: u ? { displayName: `${u.first_name} ${u.last_name}`.trim() + (isRnd.value ? ', RND' : '') } : undefined,
-    })
-    // Hanging up: Jitsi tells us instead of hanging up itself (hangup is in
-    // buttonsWithNotifyClick), so we leave by disposing, put a fresh join screen
-    // back (no Jitsi end page) and ask the RND to finish. readyToClose covers
-    // a hang-up that still reaches Jitsi's end page.
-    const hungUp = () => {
-      disposeJitsi()
-      if (videoHost.value) mountJitsi(videoHost.value)
-      if (mustFinish.value && !endOpen.value) openEnd()
-    }
-    jitsi.addListener('toolbarButtonClicked', (e) => { if (e?.key === 'hangup') hungUp() })
-    jitsi.addListener('readyToClose', hungUp)
-  } catch {
-    jitsiFailed.value = true
-  }
-}
-function disposeJitsi() {
-  if (jitsi) { jitsi.dispose(); jitsi = null }
-}
-watch(videoHost, (host) => { if (host) mountJitsi(host); else disposeJitsi() })
-onBeforeUnmount(disposeJitsi)
 </script>
 
 <style scoped>
