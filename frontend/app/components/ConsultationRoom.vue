@@ -117,7 +117,11 @@
                 <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
               </div>
               <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted">None yet.</p>
-              <p v-if="labsSent" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Sent. {{ p.client.first_name }} is asked to upload them before your next consultation.</p>
+              <p v-if="labsSent" class="ok">
+                <CheckCircle2 :size="14" aria-hidden="true" />
+                <template v-if="windowState === 'open'">Sent. {{ p.client.first_name }} can upload them now, during the call, or later from the Lab results page.</template>
+                <template v-else>Sent. {{ p.client.first_name }} can upload them from the Lab results page.</template>
+              </p>
               <p v-if="labsError" class="nm-field-error">{{ labsError }}</p>
               <div v-for="r in s.labs?.recent || []" :key="r.id" class="lab-row">
                 <span class="lab-main">
