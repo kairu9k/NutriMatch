@@ -55,50 +55,40 @@
       </div>
     </div>
 
-    <!-- THIS MONTH: ready, waiting, then still on hold -->
+    <!-- THIS MONTH: a board under the figures above. Left to right is the
+         money's way: on hold, cleared and waiting, ready to send. An RND whose
+         money is in two stages has a card in each. -->
     <template v-if="tab === 'run'">
       <p v-if="loading" class="nm-panel nm-muted">Loading balances…</p>
       <div v-else-if="!rows.length" class="nm-panel nm-empty">
         <Wallet :size="28" aria-hidden="true" />
         <p>No RND has earnings yet.</p>
       </div>
-      <template v-else>
-        <section v-for="g in groups" :key="g.key" class="nm-panel group">
-          <div class="group-head">
-            <h3 class="group-title">{{ g.title }} <span class="group-count">{{ g.rows.length }}</span></h3>
-            <p class="group-sub">{{ g.sub }}</p>
-          </div>
-          <p v-if="!g.rows.length" class="nm-muted group-empty">{{ g.empty }}</p>
-          <div v-for="r in g.rows" :key="r.rnd_id" class="payee" :class="g.key">
-            <NuxtLink :to="`/users/${r.rnd_id}`" class="payee-who">
-              <img v-if="r.profile_photo" :src="r.profile_photo" class="nm-avatar" alt="" />
-              <span v-else class="nm-avatar">{{ nameInitials(r.rnd_name) }}</span>
-              <span class="payee-name">
-                <span class="nm-row-title">{{ r.rnd_name }}</span>
-                <span class="nm-row-sub">{{ r.email }}</span>
-              </span>
-            </NuxtLink>
-
-            <div class="payee-money">
-              <strong class="mono">{{ peso(g.key === 'later' ? r.pending : g.key === 'ready' ? r.payable : r.posted) }}</strong>
-              <span>{{ moneyLine(r, g.key) }}</span>
+      <div v-else class="board">
+        <section v-for="col in columns" :key="col.key" class="nm-panel col" :class="col.key" :aria-labelledby="`col-${col.key}`">
+          <header class="col-head">
+            <h3 :id="`col-${col.key}`" class="col-title">{{ col.title }} <span class="col-count">{{ col.cards.length }}</span></h3>
+            <strong class="col-total mono">{{ peso(col.total) }}</strong>
+            <p class="col-sub">{{ col.sub }}</p>
+          </header>
+          <p v-if="!col.cards.length" class="col-empty">{{ col.empty }}</p>
+          <article v-for="c in col.cards" :key="c.r.rnd_id" class="card">
+            <div class="card-top">
+              <NuxtLink :to="`/users/${c.r.rnd_id}`" class="card-who">
+                <img v-if="c.r.profile_photo" :src="c.r.profile_photo" class="nm-avatar sm" alt="" />
+                <span v-else class="nm-avatar sm">{{ nameInitials(c.r.rnd_name) }}</span>
+                <span class="card-name">{{ c.r.rnd_name }}</span>
+              </NuxtLink>
+              <strong class="card-amount mono">{{ peso(c.amount) }}</strong>
             </div>
-
-            <div class="payee-to">
-              <template v-if="r.payout_account">
-                <span class="to-method">{{ payoutVia(r.payout_account.method, r.payout_account.bank_name) }}</span>
-                <span class="to-line">{{ r.payout_account.account_name }}, <span class="mono">{{ r.payout_account.account_number }}</span></span>
-              </template>
-              <span v-else class="nm-pill gold no-details">No payout details yet, waits until added</span>
-            </div>
-
-            <div class="payee-act">
-              <button v-if="r.eligible" type="button" class="nm-btn-dark nm-btn-sm" @click="openRelease(r)">Release {{ peso(r.payable) }}</button>
-              <span v-else-if="g.key === 'held' && r.payout_account" class="held-why">{{ r.reason }}</span>
-            </div>
-          </div>
+            <p class="card-next" :class="c.tone">{{ c.next }}</p>
+            <template v-if="col.key === 'ready'">
+              <p class="card-to">{{ payoutVia(c.r.payout_account.method, c.r.payout_account.bank_name) }}, {{ c.r.payout_account.account_name }}, <span class="mono">{{ c.r.payout_account.account_number }}</span></p>
+              <button type="button" class="nm-btn-dark nm-btn-sm card-btn" @click="openRelease(c.r)">Release {{ peso(c.r.payable) }}</button>
+            </template>
+          </article>
         </section>
-      </template>
+      </div>
     </template>
 
     <!-- HISTORY: grouped by payout month -->
@@ -288,14 +278,41 @@ const canRecord = computed(() => sentChecked.value && lockLeft.value <= 0
 const rows = computed(() => run.value?.rows || [])
 const dueRows = computed(() => rows.value.filter(r => r.eligible))
 const heldRows = computed(() => rows.value.filter(r => !r.eligible && Number(r.posted) > 0))
-const laterRows = computed(() => rows.value.filter(r => !r.eligible && Number(r.posted) <= 0 && Number(r.pending) > 0))
 const heldTotal = computed(() => rows.value.reduce((s, r) => s + Number(r.posted) - (r.eligible ? Number(r.payable) : 0), 0))
 const pendingTotal = computed(() => rows.value.reduce((s, r) => s + Number(r.pending), 0))
-const groups = computed(() => [
-  { key: 'ready', title: 'Ready to release', sub: `Cleared by ${runText.value}, at least ${peso(run.value?.minimum_payout ?? 500)}, with payout details on file.`, empty: `Everyone from the ${runText.value} run is paid.`, rows: dueRows.value },
-  { key: 'held', title: 'Waiting', sub: 'Cleared, but not paid in this run. Each says why.', empty: 'Nothing waiting.', rows: heldRows.value },
-  { key: 'later', title: 'Still on hold', sub: 'Consultations inside the 3-day hold. Nothing to pay yet.', empty: 'Nothing on hold.', rows: laterRows.value },
-].filter(g => g.key !== 'later' || g.rows.length))
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+// one card per RND per stage, each with one line saying what happens next
+const columns = computed(() => {
+  const hold = rows.value.filter(r => Number(r.pending) > 0).map(r => ({
+    r,
+    amount: Number(r.pending),
+    next: r.next_posts_on
+      ? `${plural(r.pending_count, 'consultation')}, the first clears ${shortDate(r.next_posts_on)}`
+      : `${plural(r.pending_count, 'consultation')}, clears ${run.value?.hold_days ?? 3} days after it's completed`,
+    tone: '',
+  }))
+  const waiting = rows.value
+    .map(r => ({ r, amount: Number(r.posted) - (r.eligible ? Number(r.payable) : 0) }))
+    .filter(c => c.amount > 0)
+    .map((c) => {
+      const r = c.r
+      if (!r.payout_account) return { ...c, next: 'Waits for the RND to add GCash or bank details', tone: 'gold' }
+      if (r.eligible || Number(r.payable) === 0) return { ...c, next: `Paid on ${nextText.value}`, tone: '' }
+      return { ...c, next: `Under ${peso(run.value?.minimum_payout ?? 500)}, adds to the ${nextText.value} payout`, tone: '' }
+    })
+  const ready = dueRows.value.map(r => ({
+    r, amount: Number(r.payable), next: `${plural(r.payable_count, 'consultation')}, cleared by ${runText.value}`, tone: '',
+  }))
+  const total = list => list.reduce((s, c) => s + c.amount, 0)
+  return [
+    { key: 'hold', title: 'On hold', sub: 'Just finished. Wait 3 days in case of a refund.', empty: 'Nothing on hold.', cards: hold, total: total(hold) },
+    { key: 'waiting', title: 'Cleared, waiting', sub: 'The RND\'s now. It waits for payday.', empty: 'Nothing waiting.', cards: waiting, total: total(waiting) },
+    {
+      key: 'ready', title: 'Ready to send', sub: `Cleared by ${runText.value}. Pay these now.`, cards: ready, total: total(ready),
+      empty: run.value?.payout_day_reached && daysLeft.value !== 0 ? `Everyone from the ${runText.value} run is paid. Next payday is ${nextText.value}.` : `Nobody to pay until ${nextText.value}.`,
+    },
+  ]
+})
 
 const payoutDay = computed(() => run.value ? new Date(`${run.value.next_payout_date}T00:00:00+08:00`).getDate() : 5)
 const daysLeft = computed(() => {
@@ -336,19 +353,6 @@ const cycle = computed(() => {
 function ordinal(n) {
   const end = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')
   return `${n}${end}`
-}
-function moneyLine(r, key) {
-  const posted = `${r.posted_count} consultation${r.posted_count === 1 ? '' : 's'} cleared`
-  if (key === 'later') {
-    const when = r.next_posts_on ? `, the first clears ${shortDate(r.next_posts_on)}` : ''
-    return `${r.pending_count} on hold${when}`
-  }
-  if (key === 'ready') {
-    const waits = Number(r.posted) - Number(r.payable)
-    const line = `${r.payable_count} consultation${r.payable_count === 1 ? '' : 's'} cleared by ${runText.value}`
-    return waits > 0 ? `${line}, ${peso(waits)} waits for ${nextText.value}` : line
-  }
-  return Number(r.pending) > 0 ? `${posted}, ${peso(r.pending)} still on hold` : posted
 }
 
 async function load({ quiet = false } = {}) {
@@ -520,31 +524,32 @@ function methodText(p) {
 }
 .flow strong { font-size: 0.84rem; color: #1a3a1a; }
 
-/* groups of payees */
-.group + .group { margin-top: 16px; }
-.group-head { margin-bottom: 6px; }
-.group-title { margin: 0; font-family: inherit; font-size: 0.95rem; font-weight: 700; color: #1a3a1a; display: flex; align-items: baseline; gap: 8px; }
-.group-count { font-size: 0.76rem; font-weight: 600; color: #8a9a8a; }
-.group-sub { margin: 2px 0 0; font-size: 0.8rem; color: #8a9a8a; }
-.group-empty { margin: 10px 0 0; font-size: 0.84rem; }
-.payee {
-  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) auto; align-items: center; gap: 16px;
-  padding: 14px 0; border-top: 1px solid #edf1ee;
-}
-.group-head + .payee { border-top-color: transparent; }
-.payee-who { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; }
-.payee-name { display: flex; flex-direction: column; min-width: 0; }
-.payee-money { display: flex; flex-direction: column; min-width: 0; }
-.payee-money strong { font-size: 1.05rem; color: #1a3a1a; }
-.payee.held .payee-money strong { color: #b8860b; }
-.payee.later .payee-money strong { color: #6a7a6a; }
-.payee-money span { font-size: 0.76rem; color: #8a9a8a; }
-.payee-to { display: flex; flex-direction: column; min-width: 0; }
-.no-details { align-self: flex-start; white-space: normal; }
-.to-method { font-size: 0.8rem; font-weight: 700; color: #1a3a1a; }
-.to-line { font-size: 0.77rem; color: #6a7a6a; overflow-wrap: anywhere; }
-.payee-act { text-align: right; }
-.held-why { font-size: 0.78rem; font-weight: 600; color: #7a560f; }
+/* the board: three columns under the figures */
+.board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.col { padding: 0; overflow: hidden; }
+.col-head { padding: 14px 16px 12px; border-bottom: 1px solid #d9e3dc; border-top: 4px solid #c9d6cd; }
+.col.waiting .col-head { border-top-color: #D4A017; }
+.col.ready .col-head { border-top-color: #0a4a37; }
+.col-title { margin: 0; font-family: inherit; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; display: flex; align-items: baseline; gap: 8px; }
+.col-count { font-size: 0.76rem; font-weight: 600; color: #8a9a8a; }
+.col-total { display: block; margin-top: 4px; font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; }
+.col.waiting .col-total { color: #b8860b; }
+.col.hold .col-total { color: #6a7a6a; }
+.col-sub { margin: 2px 0 0; font-size: 0.78rem; color: #8a9a8a; }
+.col-empty { margin: 0; padding: 18px 16px; font-size: 0.84rem; color: #8a9a8a; }
+.card { padding: 12px 16px; border-top: 1px solid #edf1ee; }
+.col-head + .card { border-top: none; }
+.card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.card-who { display: flex; align-items: center; gap: 8px; min-width: 0; text-decoration: none; }
+.nm-avatar.sm { width: 28px; height: 28px; font-size: 0.68rem; }
+.card-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-amount { font-size: 0.95rem; color: #1a3a1a; flex-shrink: 0; }
+.col.waiting .card-amount { color: #b8860b; }
+.col.hold .card-amount { color: #6a7a6a; }
+.card-next { margin: 4px 0 0 36px; font-size: 0.78rem; color: #6a7a6a; }
+.card-next.gold { color: #7a560f; font-weight: 600; }
+.card-to { margin: 4px 0 0 36px; font-size: 0.76rem; color: #4a5a4a; overflow-wrap: anywhere; }
+.card-btn { margin: 10px 0 0 36px; }
 
 /* history */
 .month + .month { margin-top: 18px; }
@@ -600,9 +605,7 @@ function methodText(p) {
 .steps li + li { margin-top: 4px; }
 
 @media (max-width: 900px) {
-  .payee { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
-  .payee-who { grid-column: 1 / -1; }
-  .payee-act { grid-column: 1 / -1; text-align: left; }
+  .board { grid-template-columns: minmax(0, 1fr); }
   .paid-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
   .paid-go { display: none; }
   .paid-date { grid-column: 1 / -1; }
@@ -617,6 +620,6 @@ function methodText(p) {
   .fig { border-left: none; padding: 12px 16px; }
   .fig + .fig { border-top: 1px solid #d9e3dc; }
   .flow { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 12px; }
-  .payee-act .nm-btn-dark { width: 100%; }
+  .card-btn { width: calc(100% - 36px); }
 }
 </style>
