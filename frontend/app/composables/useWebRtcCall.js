@@ -60,13 +60,13 @@ export function useWebRtcCall(appointmentId) {
   async function openMedia() {
     try {
       localStream.value = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
       })
     } catch (err) {
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') throw err
       // no camera (or it's busy): join with sound only
-      localStream.value = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      localStream.value = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
       hasCamera.value = false
       camOn.value = false
     }

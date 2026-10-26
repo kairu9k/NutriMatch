@@ -95,7 +95,16 @@ const notice = computed(() => {
 
 // show the streams in the video elements
 watch([call.remoteStream, remoteEl], ([stream, el]) => { if (el) el.srcObject = stream || null })
-watch([call.localStream, localEl], ([stream, el]) => { if (el) el.srcObject = stream || null })
+// Your own preview must never play your microphone: Vue doesn't always set the
+// `muted` property from the attribute, and an unmuted preview loops your voice
+// back into the mic (the loud siren-like howl).
+watch([call.localStream, localEl], ([stream, el]) => {
+  if (!el) return
+  el.muted = true
+  el.defaultMuted = true
+  el.volume = 0
+  el.srcObject = stream || null
+})
 
 // The room asks first (the RND: how to finish; the client: leave the call?),
 // and the call stays connected meanwhile; leaving the room ends it.
