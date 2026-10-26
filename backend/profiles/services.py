@@ -7,7 +7,7 @@ import cloudinary.utils
 from django.conf import settings
 
 ALLOWED_LICENSE_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-MAX_LICENSE_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_LICENSE_IMAGE_BYTES = 10 * 1024 * 1024  # the sign-up form shrinks photos before sending (2026-10-26)
 
 
 class LicenseImageUploadError(Exception):

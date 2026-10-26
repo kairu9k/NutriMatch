@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -164,11 +164,41 @@ class RndAvailabilityListCreateView(generics.ListCreateAPIView):
 
 
 class RndAvailabilityDetailView(generics.UpdateAPIView, generics.DestroyAPIView):
+    """Edit or remove one weekly block — refused while an upcoming booking sits
+    in the hours being taken away (profiles/availability_guard.py)."""
+
     serializer_class = RndAvailabilityScheduleSerializer
     permission_classes = [IsRnd]
 
     def get_queryset(self):
         return RndAvailabilitySchedule.objects.filter(rnd=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        from .availability_guard import bookings_left_outside, refusal
+
+        block = self.get_object()
+        serializer = self.get_serializer(block, data=request.data, partial=kwargs.get("partial", False))
+        serializer.is_valid(raise_exception=True)
+        new = {f: serializer.validated_data.get(f, getattr(block, f)) for f in
+               ("day_of_week", "start_time", "end_time", "effective_from", "effective_to")}
+        if serializer.validated_data.get("is_available", block.is_available):
+            blocked = bookings_left_outside(request.user, remove_id=block.id, replacement=new)
+        else:
+            blocked = bookings_left_outside(request.user, remove_id=block.id)
+        if blocked:
+            return Response(refusal(blocked), status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        from .availability_guard import bookings_left_outside, refusal
+
+        block = self.get_object()
+        blocked = bookings_left_outside(request.user, remove_id=block.id)
+        if blocked:
+            return Response(refusal(blocked), status=status.HTTP_400_BAD_REQUEST)
+        block.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RndPublicAvailabilityView(generics.ListAPIView):

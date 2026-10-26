@@ -480,6 +480,7 @@
 
 <script setup>
 import { phIso } from '~/utils/phTime'
+import { shrinkImage } from '~/utils/shrinkImage'
 import { ArrowLeft, Check, Circle, ClipboardCheck, Eye, EyeOff, Lock, Mail, User, X } from 'lucide-vue-next'
 const auth = useAuthStore()
 
@@ -557,21 +558,23 @@ function trimLegalFrame(e) {
 }
 const consentGiven = computed(() => consent.terms && consent.data)
 
-const MAX_LICENSE_BYTES = 5 * 1024 * 1024
+const MAX_LICENSE_BYTES = 10 * 1024 * 1024
 const licensePreview = ref('')
 
-function onLicenseSelected(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
+async function onLicenseSelected(e) {
+  const picked = e.target.files?.[0]
+  if (!picked) return
   errorMessage.value = ''
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    errorMessage.value = 'Upload a JPG, PNG, or WEBP photo of your PRC license.'
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(picked.type)) {
+    errorMessage.value = 'Upload a JPG, PNG, or WEBP photo of your PRC license. iPhone HEIC photos: take a screenshot of it, or set the camera to "Most compatible".'
     return
   }
-  if (file.size > MAX_LICENSE_BYTES) {
-    errorMessage.value = 'The license photo must be 5 MB or smaller.'
+  if (picked.size > MAX_LICENSE_BYTES) {
+    errorMessage.value = `That photo is ${(picked.size / 1024 / 1024).toFixed(1)} MB. The license photo must be 10 MB or smaller.`
     return
   }
+  // shrink it before it's sent, so the upload is quick on a phone connection
+  const file = await shrinkImage(picked)
   if (licensePreview.value) URL.revokeObjectURL(licensePreview.value)
   form.prcLicenseImage = file
   licensePreview.value = URL.createObjectURL(file)
@@ -929,7 +932,16 @@ async function submitRegistration() {
     const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
       'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
-    errorMessage.value = (failed && data[failed][0]) || data?.detail || 'Registration failed. Please check your details and try again.'
+    const code = error?.statusCode || error?.status || error?.response?.status
+    // no answer at all: the upload never finished (slow or dropped connection)
+    const fallback = !error?.response && !data
+        ? "Your application didn't finish sending. Your internet connection may have dropped or been too slow. Check it and press Submit again."
+      : code === 413
+        ? 'The photos are too large to send. Choose a smaller license or profile photo and try again.'
+        : code >= 500
+          ? 'Something went wrong on our side while saving your application. Wait a minute and press Submit again.'
+          : 'Registration failed. Please check your details and try again.'
+    errorMessage.value = (failed && data[failed][0]) || data?.detail || fallback
     // Send them back to the step that has the problem.
     if (selectedRole.value === 'rnd' && failed) {
       if (['bio', 'languages', 'profile_photo'].includes(failed)) currentStep.value = 5

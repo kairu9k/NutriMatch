@@ -221,8 +221,9 @@ async function saveEdit(slot) {
     const idx = slots.value.findIndex(s => s.id === slot.id)
     if (idx !== -1) slots.value[idx] = updated
     editingId.value = null
-  } catch {
-    saveError.value = 'Could not update slot. Please try again.'
+  } catch (e) {
+    // e.g. a booking sits in the hours being taken away (the API names it)
+    saveError.value = apiError(e, 'Could not update these hours. Try again.')
   }
 }
 
@@ -231,8 +232,8 @@ async function removeSlot(slot) {
   try {
     await del(`/rnd/availability/${slot.id}/`)
     slots.value = slots.value.filter(s => s.id !== slot.id)
-  } catch {
-    saveError.value = 'Could not remove slot. Please try again.'
+  } catch (e) {
+    saveError.value = apiError(e, 'Could not remove these hours. Try again.')
   }
 }
 

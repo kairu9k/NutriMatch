@@ -442,7 +442,7 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         if getattr(value, "content_type", None) not in ALLOWED_LICENSE_IMAGE_TYPES:
             raise serializers.ValidationError("Upload a JPG, PNG, or WEBP photo of your PRC license.")
         if value.size > MAX_LICENSE_IMAGE_BYTES:
-            raise serializers.ValidationError("The license photo must be 5 MB or smaller.")
+            raise serializers.ValidationError("The license photo must be 10 MB or smaller.")
         return value
 
     @transaction.atomic
