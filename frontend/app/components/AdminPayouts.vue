@@ -80,7 +80,6 @@
             <div class="payee-money">
               <strong class="mono">{{ peso(g.key === 'later' ? r.pending : g.key === 'ready' ? r.payable : r.posted) }}</strong>
               <span>{{ moneyLine(r, g.key) }}</span>
-              <span v-if="Number(r.sending) > 0" class="sending-line">{{ peso(r.sending) }} being sent through Xendit</span>
             </div>
 
             <div class="payee-to">
@@ -113,11 +112,6 @@
           <span class="paid-who">
             <span class="paid-name">{{ p.rnd_name }}</span>
             <span class="nm-row-sub">{{ p.invoice_count }} consultation{{ p.invoice_count === 1 ? '' : 's' }}, sent to {{ methodText(p) }}</span>
-            <span class="paid-pills">
-              <span v-if="p.status === 'sending'" class="nm-pill gold">Sending</span>
-              <span v-else-if="p.status === 'failed'" class="nm-pill red">Failed, not sent</span>
-              <span v-if="p.provider === 'xendit'" class="nm-pill muted">{{ p.test_mode ? 'Xendit, test mode' : 'Xendit' }}</span>
-            </span>
           </span>
           <span class="paid-ref">
             <span class="mono">{{ p.reference }}</span>
@@ -148,16 +142,8 @@
             <div><dt>Sent by</dt><dd>{{ payoutVia(slip.method, slip.bank_name) }}</dd></div>
             <div><dt>Account name</dt><dd>{{ slip.account_name }}</dd></div>
             <div><dt>Account number</dt><dd class="mono">{{ slip.account_number }}</dd></div>
-            <div v-if="slip.provider === 'xendit'">
-              <dt>Status</dt>
-              <dd>
-                <span class="nm-pill" :class="{ paid: 'green', sending: 'gold', failed: 'red' }[slip.status]">{{ { paid: 'Paid out', sending: 'Sending', failed: 'Failed, not sent' }[slip.status] }}</span>
-                <span v-if="slip.test_mode" class="nm-pill muted">Test mode</span>
-              </dd>
-            </div>
-            <div v-if="slip.failure_code"><dt>Xendit says</dt><dd class="mono">{{ slip.failure_code }}</dd></div>
             <div>
-              <dt>{{ slip.provider === 'xendit' ? 'Xendit payout ID' : 'Receipt reference' }}</dt>
+              <dt>Receipt reference</dt>
               <dd>
                 <span class="mono">{{ slip.reference }}</span>
                 <button type="button" class="nm-btn-soft nm-btn-sm copy" @click="copy(slip.reference)">
@@ -185,7 +171,6 @@
 
         <div class="nm-modal-actions">
           <NuxtLink :to="`/users/${slip.rnd}`" class="nm-btn-soft">View RND</NuxtLink>
-          <button v-if="slip.status === 'sending'" type="button" class="nm-btn-soft" :disabled="checking" @click="checkXendit">{{ checking ? 'Checking…' : 'Check with Xendit' }}</button>
           <button type="button" class="nm-btn-soft" :disabled="!slip.invoices" @click="printSlip"><Printer :size="14" aria-hidden="true" /> Print</button>
           <button type="button" class="nm-btn-dark" @click="slip = null">Done</button>
         </div>
@@ -197,11 +182,6 @@
       <div class="nm-modal release" role="dialog" aria-modal="true" aria-labelledby="release-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="busy ? null : (releasing = null)"><X :size="18" aria-hidden="true" /></button>
         <h3 id="release-title" class="nm-modal-title">Pay {{ releasing.rnd_name }}</h3>
-
-        <div v-if="releasing.xendit_ok" class="nm-tabs mode-tabs" role="tablist" aria-label="How to pay">
-          <button type="button" role="tab" class="nm-tab" :class="{ active: mode === 'xendit' }" :aria-selected="mode === 'xendit'" @click="mode = 'xendit'">Send with Xendit</button>
-          <button type="button" role="tab" class="nm-tab" :class="{ active: mode === 'manual' }" :aria-selected="mode === 'manual'" @click="mode = 'manual'">I sent it myself</button>
-        </div>
 
         <div class="send">
           <p class="send-amount mono">{{ peso(releasing.payable) }}</p>
@@ -234,16 +214,6 @@
           </p>
         </div>
 
-        <template v-if="mode === 'xendit'">
-          <ol class="steps">
-            <li>NutriMatch sends {{ peso(releasing.payable) }} to {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} <span class="mono">{{ releasing.payout_account.account_number }}</span> through Xendit.</li>
-            <li>Xendit's payout ID becomes the reference. {{ firstName }} gets an email and a notification once Xendit confirms the money went out.</li>
-          </ol>
-          <p v-if="run?.xendit?.test_mode" class="nm-note plain-note test-note">
-            <strong>Test mode.</strong> Xendit only simulates this transfer from its test balance. No real money moves, and nothing reaches a real {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} account.
-          </p>
-        </template>
-        <template v-else>
         <ol class="steps">
           <li>Send {{ peso(releasing.payable) }} from the NutriMatch {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} account.</li>
           <li>Copy the reference number from the receipt into the box below. {{ releasing.rnd_name.split(' ')[0] }} gets an email and a notification.</li>
@@ -256,7 +226,6 @@
           <template v-else>After you send, the bank or app shows a reference or transaction number on the receipt. It proves the money went out.</template>
           Not the RND's account number.
         </p>
-        </template>
         <label class="nm-label" for="payout-notes" style="margin-top: 12px">Notes <span class="nm-muted">(optional)</span></label>
         <textarea id="payout-notes" v-model="notes" data-allow-emoji class="nm-input" rows="2" maxlength="500" />
         <label v-if="releasing.payout_account.recently_changed" class="confirm">
@@ -265,15 +234,13 @@
         </label>
         <label class="confirm">
           <input v-model="sentChecked" type="checkbox" />
-          <span v-if="mode === 'xendit'">Send <strong>{{ peso(releasing.payable) }}</strong> to {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} <span class="mono">{{ releasing.payout_account.account_number }}</span> through Xendit. This can't be undone.</span>
-          <span v-else>I sent <strong>{{ peso(releasing.payable) }}</strong> to {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} <span class="mono">{{ releasing.payout_account.account_number }}</span>. This can't be undone.</span>
+          <span>I sent <strong>{{ peso(releasing.payable) }}</strong> to {{ payoutVia(releasing.payout_account.method, releasing.payout_account.bank_name) }} <span class="mono">{{ releasing.payout_account.account_number }}</span>. This can't be undone.</span>
         </label>
         <p v-if="releaseError" class="nm-field-error">{{ releaseError }}</p>
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-soft" :disabled="busy" @click="releasing = null">Not yet</button>
           <button type="button" class="nm-btn-dark" :disabled="busy || !canRecord" @click="release">
-            <template v-if="mode === 'xendit'">{{ busy ? 'Sending…' : lockLeft > 0 ? `Send ${peso(releasing.payable)} (${lockLeft})` : `Send ${peso(releasing.payable)}` }}</template>
-            <template v-else>{{ busy ? 'Recording…' : lockLeft > 0 ? `Record as paid out (${lockLeft})` : 'Record as paid out' }}</template>
+            {{ busy ? 'Recording…' : lockLeft > 0 ? `Record as paid out (${lockLeft})` : 'Record as paid out' }}
           </button>
         </div>
       </div>
@@ -302,8 +269,6 @@ const busy = ref(false)
 const toast = ref('')
 const copied = ref(false)
 const sentChecked = ref(false)
-// how this payout goes out: through Xendit when it can send there, else by hand
-const mode = ref('manual')
 const detailsChecked = ref(false)
 const lockLeft = ref(0)
 let lockTimer
@@ -425,7 +390,6 @@ function openRelease(r) {
   copied.value = false
   sentChecked.value = false
   detailsChecked.value = false
-  mode.value = r.xendit_ok ? 'xendit' : 'manual'
   lockLeft.value = 3
   clearInterval(lockTimer)
   lockTimer = setInterval(() => {
@@ -446,15 +410,14 @@ async function copy(text) {
 
 async function release() {
   releaseError.value = ''
-  if (mode.value === 'manual' && !reference.value.trim()) {
+  if (!reference.value.trim()) {
     releaseError.value = 'Enter the GCash or bank reference number so the payment can be traced.'
     return
   }
   busy.value = true
   try {
     const p = await post(`/admin/payouts/release/${releasing.value.rnd_id}/`, {
-      via: mode.value,
-      reference: mode.value === 'manual' ? reference.value.trim() : undefined,
+      reference: reference.value.trim(),
       notes: notes.value.trim(),
       // the amount this pop-up showed; the API refuses if it changed meanwhile
       expected_amount: String(releasing.value.payable),
@@ -462,12 +425,8 @@ async function release() {
     })
     releasing.value = null
     await load()
-    toast.value = p.provider !== 'xendit'
-      ? `${peso(p.amount)} recorded as paid out to ${p.rnd_name}.`
-      : p.status === 'paid'
-        ? `${peso(p.amount)} sent to ${p.rnd_name} through Xendit. Reference ${p.reference}.`
-        : `${peso(p.amount)} sent to Xendit. It turns Paid out once Xendit confirms.`
-    setTimeout(() => { toast.value = '' }, 4000)
+    toast.value = `${peso(p.amount)} recorded as paid out to ${p.rnd_name}.`
+    setTimeout(() => { toast.value = '' }, 3000)
   } catch (e) {
     releaseError.value = apiError(e)
   } finally {
@@ -484,18 +443,6 @@ const slip = ref(null)
 const slipError = ref('')
 const payoutNo = p => `PO-${String(p.id).padStart(4, '0')}`
 const longDay = d => new Date(`${d}T00:00:00+08:00`).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' })
-const checking = ref(false)
-async function checkXendit() {
-  checking.value = true
-  try {
-    slip.value = await post(`/admin/payouts/${slip.value.id}/check/`)
-    load({ quiet: true })
-  } catch (e) {
-    slipError.value = apiError(e, 'Could not reach Xendit. Try again.')
-  } finally {
-    checking.value = false
-  }
-}
 async function openSlip(p) {
   slip.value = { ...p, invoices: null }
   slipError.value = ''
@@ -647,12 +594,6 @@ function methodText(p) {
   border-radius: 10px; font-size: 0.84rem; color: #1a3a1a; line-height: 1.45; cursor: pointer;
 }
 .confirm input { margin-top: 3px; accent-color: #0a4a37; flex-shrink: 0; }
-.mode-tabs { display: flex; width: 100%; margin: 4px 0 14px; }
-.mode-tabs .nm-tab { flex: 1; justify-content: center; }
-.test-note { margin: 0 0 12px; }
-.sending-line { font-size: 0.76rem; font-weight: 600; color: #7a560f; }
-.paid-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-.paid-pills:empty { display: none; }
 .steps { list-style: decimal; margin: 16px 0 14px; padding-left: 20px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.55; }
 .steps li + li { margin-top: 4px; }
 

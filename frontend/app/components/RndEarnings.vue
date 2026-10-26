@@ -268,7 +268,6 @@ const STATE = {
   awaiting_payment: { label: 'Awaiting payment', pill: 'gold' },
   pending: { label: 'On hold', pill: 'gold' },
   posted: { label: 'Cleared', pill: 'green' },
-  sending: { label: 'Being sent', pill: 'gold' },
   paid_out: { label: 'Paid out', pill: 'blue' },
   refund_pending: { label: 'Being refunded', pill: 'red' },
   refunded: { label: 'Refunded', pill: 'muted' },
@@ -339,13 +338,12 @@ const payoutPage = ref(1)
 const payoutPages = computed(() => Math.max(1, Math.ceil((e.value?.payouts.length || 0) / PAYOUTS_PER_PAGE)))
 const pagedPayouts = computed(() => (e.value?.payouts || []).slice((payoutPage.value - 1) * PAYOUTS_PER_PAGE, payoutPage.value * PAYOUTS_PER_PAGE))
 
-const countsAsEarning = r => ['pending', 'posted', 'sending', 'paid_out'].includes(r.state)
+const countsAsEarning = r => ['pending', 'posted', 'paid_out'].includes(r.state)
 
 function stateDetail(r) {
   if (r.state === 'awaiting_payment') return 'Client pays before the consultation'
   if (r.state === 'pending') return r.posts_on ? `Clears ${shortDate(r.posts_on)}` : 'Clears 3 days after it\'s completed'
   if (r.state === 'posted') return `For the ${shortDate(r.payable ? e.value.run_date : e.value.next_payout_date)} payout`
-  if (r.state === 'sending') return 'On its way to your account'
   if (r.state === 'paid_out') return r.payout ? `Paid ${shortDate(r.payout.released_at)}` : ''
   if (r.state === 'refund_pending') return 'Cancelled after paying'
   return ''
@@ -357,7 +355,6 @@ function stateExplain(r) {
     posted: r.payable
       ? `Cleared by ${longDate(e.value.run_date)}, so it's in that payout. NutriMatch sends it to your payout account.`
       : `Cleared after ${longDate(e.value.run_date)}, so it's in the next payout on ${longDate(e.value.next_payout_date)}. Payouts are never sent early.`,
-    sending: 'NutriMatch has sent it to your payout account. It shows as paid out once the transfer is confirmed.',
     paid_out: 'Sent to your payout account.',
     refund_pending: 'The consultation was cancelled after the client paid, so the client is being refunded. It doesn\'t count toward your earnings.',
     refunded: 'The client was refunded. It doesn\'t count toward your earnings.',

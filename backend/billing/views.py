@@ -442,60 +442,6 @@ class AdminPayoutDetailView(APIView):
         return Response(payout_detail(get_object_or_404(Payout.objects.select_related("rnd", "released_by"), pk=payout_id)))
 
 
-class AdminPayoutCheckView(APIView):
-    """Ask Xendit now about a payout that's still sending."""
-
-    permission_classes = [IsAdmin]
-
-    def post(self, request, payout_id):
-        from . import xendit
-        from .models import Payout
-        from .payouts import apply_xendit_status
-
-        payout = get_object_or_404(Payout, pk=payout_id)
-        if payout.provider == Payout.Provider.XENDIT and payout.status == Payout.Status.SENDING and payout.provider_payout_id:
-            try:
-                apply_xendit_status(payout, xendit.get_payout(payout.provider_payout_id))
-            except xendit.XenditError as exc:
-                return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
-            payout.refresh_from_db()
-        return Response(payout_detail(payout))
-
-
-class XenditPayoutWebhookView(APIView):
-    """Xendit's Payouts V2 callback. Unauthenticated like the PayMongo one;
-    the x-callback-token header (XENDIT_CALLBACK_TOKEN) is the gate, and the
-    payout's status is read back from Xendit's API rather than trusted from
-    the body."""
-
-    permission_classes = [AllowAny]
-    authentication_classes = []
-
-    def post(self, request):
-        import hmac
-
-        from django.conf import settings
-
-        from . import xendit
-        from .models import Payout
-        from .payouts import apply_xendit_status
-
-        expected = (getattr(settings, "XENDIT_CALLBACK_TOKEN", "") or "").strip()
-        given = request.headers.get("x-callback-token", "")
-        if not expected or not hmac.compare_digest(expected, given):
-            return Response({"detail": "Invalid callback token."}, status=status.HTTP_401_UNAUTHORIZED)
-        data = request.data.get("data") if isinstance(request.data.get("data"), dict) else request.data
-        payout_id = (data or {}).get("id")
-        payout = Payout.objects.filter(provider=Payout.Provider.XENDIT, provider_payout_id=payout_id).first() if payout_id else None
-        if payout is None:
-            return Response({"detail": "Not a NutriMatch payout."}, status=status.HTTP_200_OK)
-        try:
-            apply_xendit_status(payout, xendit.get_payout(payout_id))
-        except xendit.XenditError:
-            return Response({"detail": "Will retry."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        return Response({"detail": "ok"})
-
-
 class RndResendPayoutEmailView(APIView):
     permission_classes = [IsRnd]
 
@@ -525,14 +471,10 @@ class AdminPayoutRunView(APIView):
 
         from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, details_recently_changed, last_payout_day, next_payout_date, rnd_earnings
 
-        from . import xendit
-        from .payouts import sync_sending_payouts
-
-        sync_sending_payouts()
         rows = []
         for rnd in User.objects.filter(role="rnd").order_by("first_name"):
             data = rnd_earnings(rnd)
-            if not (data["pending"] or data["posted"] or data["sending"] or data["paid_out"]):
+            if not (data["pending"] or data["posted"] or data["paid_out"]):
                 continue
             account = getattr(rnd, "payout_account", None)
             run_day, nxt = data["run_date"], data["next_payout_date"]
@@ -554,9 +496,6 @@ class AdminPayoutRunView(APIView):
                 # what this run can pay: posted on or before the last 5th
                 "payable": data["payable"],
                 "payable_count": sum(1 for i in data["items"] if i["payable"]),
-                "sending": data["sending"],
-                # Xendit can send to these details (else: record it by hand)
-                "xendit_ok": bool(account) and xendit.configured() and xendit.channel_for(account) is not None,
                 "paid_out": data["paid_out"],
                 "posted_count": sum(1 for i in data["items"] if i["state"] == "posted"),
                 "pending_count": sum(1 for i in data["items"] if i["state"] == "pending"),
@@ -578,7 +517,6 @@ class AdminPayoutRunView(APIView):
         return Response({
             "next_payout_date": next_payout_date(today),
             "run_date": last_payout_day(today),
-            "xendit": {"enabled": xendit.configured(), "test_mode": xendit.is_test_mode()},
             "payout_day_reached": today.day >= PAYOUT_DAY,
             "minimum_payout": MIN_PAYOUT,
             "hold_days": HOLD_DAYS,
@@ -599,19 +537,13 @@ class AdminReleasePayoutView(APIView):
         from .payouts import PayoutError, release_payout
         from .serializers import PayoutSerializer
 
-        from .payouts import send_payout_via_xendit
-
         rnd = get_object_or_404(User, pk=rnd_id, role="rnd")
-        common = {
-            "released_by": request.user, "notes": request.data.get("notes", ""),
-            "expected_amount": request.data.get("expected_amount"),
-            "details_confirmed": request.data.get("details_confirmed") is True,
-        }
         try:
-            if request.data.get("via") == "xendit":
-                payout = send_payout_via_xendit(rnd, **common)
-            else:
-                payout = release_payout(rnd, reference=request.data.get("reference"), **common)
+            payout = release_payout(
+                rnd, reference=request.data.get("reference"), released_by=request.user, notes=request.data.get("notes", ""),
+                expected_amount=request.data.get("expected_amount"),
+                details_confirmed=request.data.get("details_confirmed") is True,
+            )
         except PayoutError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PayoutSerializer(payout).data, status=status.HTTP_201_CREATED)
@@ -621,12 +553,6 @@ class AdminPayoutListView(generics.ListAPIView):
     """Payout history (optionally ?rnd=<id>)."""
 
     permission_classes = [IsAdmin]
-
-    def list(self, request, *args, **kwargs):
-        from .payouts import sync_sending_payouts
-
-        sync_sending_payouts()
-        return super().list(request, *args, **kwargs)
 
     def get_serializer_class(self):
         from .serializers import PayoutSerializer

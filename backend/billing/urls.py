@@ -7,7 +7,6 @@ from .views import (
     AdminInvoiceRefundView,
     AdminMarkRefundedView,
     AdminPayoutListView,
-    AdminPayoutCheckView,
     AdminPayoutDetailView,
     AdminPayoutRunView,
     AdminReleasePayoutView,
@@ -20,7 +19,6 @@ from .views import (
     ClientInvoiceSyncView,
     InitiatePaymentView,
     PayMongoWebhookView,
-    XenditPayoutWebhookView,
     RndInvoiceListView,
 )
 
@@ -37,7 +35,6 @@ urlpatterns = [
     path("admin/payouts/", AdminPayoutListView.as_view(), name="admin_payout_list"),
     path("admin/payouts/run/", AdminPayoutRunView.as_view(), name="admin_payout_run"),
     path("admin/payouts/<int:payout_id>/", AdminPayoutDetailView.as_view(), name="admin_payout_detail"),
-    path("admin/payouts/<int:payout_id>/check/", AdminPayoutCheckView.as_view(), name="admin_payout_check"),
     path("admin/payouts/release/<int:rnd_id>/", AdminReleasePayoutView.as_view(), name="admin_release_payout"),
     path("rnd/payout-account/", RndPayoutAccountView.as_view(), name="rnd_payout_account"),
     path("rnd/earnings/", RndEarningsView.as_view(), name="rnd_earnings"),
@@ -48,5 +45,4 @@ urlpatterns = [
 
 webhook_urlpatterns = [
     path("webhooks/paymongo/", PayMongoWebhookView.as_view(), name="paymongo_webhook"),
-    path("webhooks/xendit/payouts/", XenditPayoutWebhookView.as_view(), name="xendit_payout_webhook"),
 ]

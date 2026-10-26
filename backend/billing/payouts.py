@@ -89,15 +89,14 @@ def in_run(invoice, run_day):
 
 
 def invoice_state(invoice, now=None):
-    """'pending' | 'posted' | 'sending' | 'paid_out' | None (doesn't count:
-    unpaid, cancelled, refunded…). 'sending' = in a Xendit payout that hasn't
-    succeeded yet."""
+    """'pending' | 'posted' | 'paid_out' | None (doesn't count: unpaid,
+    cancelled, refunded…)."""
     from .models import Invoice
 
     if invoice.status != Invoice.Status.PAID:
         return None
     if invoice.payout_id:
-        return "paid_out" if invoice.payout.status == "paid" else "sending"
+        return "paid_out"
     appt = invoice.appointment
     if appt is None:
         return "posted"  # an invoice without an appointment (legacy/manual)
@@ -121,10 +120,10 @@ def rnd_earnings(rnd, now=None):
     now = now or timezone.now()
     invoices = (
         Invoice.objects.filter(relationship__rnd=rnd, status=Invoice.Status.PAID)
-        .select_related("appointment", "relationship__client", "payout")
+        .select_related("appointment", "relationship__client")
         .order_by("-paid_at")
     )
-    totals = {"pending": Decimal("0"), "posted": Decimal("0"), "sending": Decimal("0"), "paid_out": Decimal("0"), "payable": Decimal("0")}
+    totals = {"pending": Decimal("0"), "posted": Decimal("0"), "paid_out": Decimal("0"), "payable": Decimal("0")}
     run_day = last_payout_day(ph_date(now))
     rows = []
     for inv in invoices:
@@ -166,11 +165,18 @@ class PayoutError(Exception):
     pass
 
 
-def _reserve(rnd, account, now, expected_amount, details_confirmed):
-    """The checks every payout needs, then the invoices it covers, locked
-    (call inside transaction.atomic()). Returns (run_day, invoices, amount)."""
-    from .models import Invoice
+def release_payout(rnd, *, reference, released_by, notes="", expected_amount=None, details_confirmed=False):
+    """Pay out everything the RND has Posted (admin sent the money already)."""
+    from communication.services import notify
+    from core.models import AuditLog
 
+    from .models import Invoice, PaymentTransaction, Payout
+
+    account = getattr(rnd, "payout_account", None)
+    if account is None:
+        raise PayoutError("This RND hasn't added their payout details yet.")
+    reference = check_reference(reference, account)
+    now = timezone.now()
     if details_recently_changed(account, now) and not details_confirmed:
         raise PayoutError(f"These payout details changed in the last {RECENT_CHANGE_DAYS} days. "
                           "Confirm the number with the RND before sending, then tick the confirmation.")
@@ -178,210 +184,57 @@ def _reserve(rnd, account, now, expected_amount, details_confirmed):
         expected = Decimal(str(expected_amount)).quantize(Decimal("0.01"))
     except Exception:  # noqa: BLE001 - missing or not a number
         raise PayoutError("Reload the page and try again: the amount you saw wasn't sent with the request.")
-    candidates = list(
-        Invoice.objects.select_for_update()
-        .filter(relationship__rnd=account.rnd, status=Invoice.Status.PAID, payout__isnull=True)
-        .select_related("appointment")
-    )
-    run_day = last_payout_day(ph_date(now))
-    posted = [inv for inv in candidates if invoice_state(inv, now) == "posted" and in_run(inv, run_day)]
-    amount = sum((rnd_share(inv) for inv in posted), Decimal("0")).quantize(Decimal("0.01"))
-    if amount < MIN_PAYOUT:
-        later = [inv for inv in candidates if invoice_state(inv, now) == "posted" and not in_run(inv, run_day)]
-        if later and not posted:
-            nxt = next_payout_date(ph_date(now))
-            raise PayoutError(f"Nothing from the {run_day:%B} {run_day.day} run is left to pay. "
-                              f"Money that cleared after that is paid on {nxt:%B} {nxt.day}.")
-        raise PayoutError(f"The balance for the {run_day:%B} {run_day.day} run is ₱{amount:,.2f}. "
-                          f"The minimum payout is ₱{MIN_PAYOUT:,.0f}, so it carries over.")
-    if amount != expected:
-        # a refund or a newly cleared consultation landed after the page was opened
-        raise PayoutError(f"The amount changed to ₱{amount:,.2f} since you opened this (you saw ₱{expected:,.2f}). "
-                          "Nothing was sent or recorded. Reload the page and check the new amount.")
-    return run_day, posted, amount
-
-
-def _new_payout(rnd, account, run_day, amount, *, reference, released_by, notes, now, **extra):
-    from .models import Payout
-
-    return Payout.objects.create(
-        # the run it belongs to: the last 5th (released on it or later, never earlier)
-        rnd=rnd, amount=amount, payout_date=run_day,
-        method=account.method, account_name=account.account_name, account_number=account.account_number,
-        bank_name=account.bank_name, reference=reference[:100], notes=(notes or "").strip()[:1000] or None,
-        released_by=released_by, released_at=now, **extra,
-    )
-
-
-def _book_paid(payout, invoices, now):
-    """Payout transactions + the payout.released audit row, once it is paid."""
-    from core.models import AuditLog
-
-    from .models import PaymentTransaction
-
-    PaymentTransaction.objects.bulk_create([
-        PaymentTransaction(
-            invoice=inv, transaction_type=PaymentTransaction.TransactionType.PAYOUT, amount=rnd_share(inv),
-            status="success", gateway_payload={"payout_id": payout.id, "reference": payout.reference,
-                                               "provider": payout.provider}, processed_at=now,
+    with transaction.atomic():
+        candidates = list(
+            Invoice.objects.select_for_update()
+            .filter(relationship__rnd=rnd, status=Invoice.Status.PAID, payout__isnull=True)
+            .select_related("appointment")
         )
-        for inv in invoices
-    ])
-    AuditLog.objects.create(
-        user=payout.released_by, action="payout.released", table_name="payouts", record_id=payout.id,
-        new_values={"rnd_id": payout.rnd_id, "amount": str(payout.amount), "invoices": [inv.id for inv in invoices],
-                    "reference": payout.reference, "provider": payout.provider, "test_mode": payout.test_mode},
-    )
-
-
-def _announce(payout):
-    """Tell the RND (notification + email) once the money is really out."""
-    from communication.services import notify
-
-    from .models import payout_destination
-
-    method = payout_destination(payout.method, payout.bank_name)
+        run_day = last_payout_day(ph_date(now))
+        posted = [inv for inv in candidates if invoice_state(inv, now) == "posted" and in_run(inv, run_day)]
+        amount = sum((rnd_share(inv) for inv in posted), Decimal("0")).quantize(Decimal("0.01"))
+        if amount < MIN_PAYOUT:
+            later = [inv for inv in candidates if invoice_state(inv, now) == "posted" and not in_run(inv, run_day)]
+            if later and not posted:
+                nxt = next_payout_date(ph_date(now))
+                raise PayoutError(f"Nothing from the {run_day:%B} {run_day.day} run is left to pay. "
+                                  f"Money that cleared after that is paid on {nxt:%B} {nxt.day}.")
+            raise PayoutError(f"The balance for the {run_day:%B} {run_day.day} run is ₱{amount:,.2f}. "
+                              f"The minimum payout is ₱{MIN_PAYOUT:,.0f}, so it carries over.")
+        if amount != expected:
+            # a refund or a newly cleared consultation landed after the page was opened
+            raise PayoutError(f"The amount changed to ₱{amount:,.2f} since you opened this (you saw ₱{expected:,.2f}). "
+                              "Nothing was recorded. Check what you actually sent, then reload and record the right amount.")
+        payout = Payout.objects.create(
+            # the run it belongs to: the last 5th (released on it or later, never earlier)
+            rnd=rnd, amount=amount, payout_date=run_day,
+            method=account.method, account_name=account.account_name, account_number=account.account_number,
+            bank_name=account.bank_name, reference=reference[:100], notes=(notes or "").strip()[:1000] or None,
+            released_by=released_by, released_at=now,
+        )
+        Invoice.objects.filter(id__in=[inv.id for inv in posted]).update(payout=payout)
+        PaymentTransaction.objects.bulk_create([
+            PaymentTransaction(
+                invoice=inv, transaction_type=PaymentTransaction.TransactionType.PAYOUT, amount=rnd_share(inv),
+                status="success", gateway_payload={"payout_id": payout.id, "reference": payout.reference}, processed_at=now,
+            )
+            for inv in posted
+        ])
+        AuditLog.objects.create(
+            user=released_by, action="payout.released", table_name="payouts", record_id=payout.id,
+            new_values={"rnd_id": rnd.id, "amount": str(amount), "invoices": [inv.id for inv in posted], "reference": payout.reference},
+        )
+    method = account.get_method_display()
     notify(
-        recipient=payout.rnd, notifiable_type="payout", notifiable_id=payout.id,
+        recipient=rnd, notifiable_type="payout", notifiable_id=payout.id,
         subject="Payout sent",
-        content=f"Your ₱{payout.amount:,.2f} payout was sent to your {method} account ({payout.account_number}). Reference: {payout.reference}.",
+        content=f"Your ₱{amount:,.2f} payout was sent to your {method} account ({account.account_number}). Reference: {payout.reference}.",
     )
     try:
         send_payout_email(payout)
     except Exception:
         pass  # the payout is recorded either way; the in-app notification still goes out
-
-
-def release_payout(rnd, *, reference, released_by, notes="", expected_amount=None, details_confirmed=False):
-    """Record a payout the admin already sent by hand (the fallback)."""
-    from .models import Invoice
-
-    account = getattr(rnd, "payout_account", None)
-    if account is None:
-        raise PayoutError("This RND hasn't added their payout details yet.")
-    reference = check_reference(reference, account)
-    now = timezone.now()
-    with transaction.atomic():
-        run_day, posted, amount = _reserve(rnd, account, now, expected_amount, details_confirmed)
-        payout = _new_payout(rnd, account, run_day, amount, reference=reference, released_by=released_by, notes=notes, now=now,
-                             settled_at=now)
-        Invoice.objects.filter(id__in=[inv.id for inv in posted]).update(payout=payout)
-        _book_paid(payout, posted, now)
-    _announce(payout)
     return payout
-
-
-def send_payout_via_xendit(rnd, *, released_by, notes="", expected_amount=None, details_confirmed=False):
-    """NutriMatch sends the payout through Xendit (billing/xendit.py).
-
-    The invoices are reserved for the payout first (status "sending"), so a
-    second click can't send them again; Xendit's payout id becomes the
-    reference; it turns Paid out only when Xendit reports SUCCEEDED, and a
-    refused or failed transfer releases the invoices again."""
-    from core.models import AuditLog
-
-    from . import xendit
-    from .models import Invoice, Payout
-
-    if not xendit.configured():
-        raise PayoutError("Xendit isn't set up on this server. Record the payout by hand instead.")
-    account = getattr(rnd, "payout_account", None)
-    if account is None:
-        raise PayoutError("This RND hasn't added their payout details yet.")
-    channel = xendit.channel_for(account)
-    if channel is None:
-        raise PayoutError(f"Xendit can't send to {account.bank_name or account.get_method_display()}. "
-                          "Send it yourself and record it by hand.")
-    now = timezone.now()
-    with transaction.atomic():
-        run_day, posted, amount = _reserve(rnd, account, now, expected_amount, details_confirmed)
-        payout = _new_payout(rnd, account, run_day, amount, reference="Waiting for Xendit", released_by=released_by,
-                             notes=notes, now=now, provider=Payout.Provider.XENDIT, status=Payout.Status.SENDING,
-                             test_mode=xendit.is_test_mode())
-        Invoice.objects.filter(id__in=[inv.id for inv in posted]).update(payout=payout)
-        AuditLog.objects.create(
-            user=released_by, action="payout.sent", table_name="payouts", record_id=payout.id,
-            new_values={"rnd_id": rnd.id, "amount": str(amount), "invoices": [inv.id for inv in posted],
-                        "provider": "xendit", "channel": channel, "test_mode": payout.test_mode},
-        )
-    try:
-        result = xendit.create_payout(
-            idempotency_key=f"nutrimatch-payout-{payout.id}", reference_id=f"PO-{payout.id:04d}", channel_code=channel,
-            account_name=account.account_name, account_number=account.account_number, amount=amount,
-            description=f"NutriMatch payout PO-{payout.id:04d} for the {run_day:%B} {run_day.day} run",
-        )
-    except xendit.XenditError as exc:
-        mark_payout_failed(payout, "NOT_SENT", str(exc))
-        raise PayoutError(f"{exc} Nothing was sent, and the balance is ready again.") from exc
-    Payout.objects.filter(pk=payout.pk).update(provider_payout_id=result.get("id"), reference=(result.get("id") or "")[:100])
-    payout.refresh_from_db()
-    apply_xendit_status(payout, result)
-    payout.refresh_from_db()
-    return payout
-
-
-def apply_xendit_status(payout, result):
-    """Act on what Xendit says about a payout we sent."""
-    from . import xendit
-
-    status = (result.get("status") or "").upper()
-    if status in xendit.SUCCEEDED:
-        mark_payout_paid(payout)
-    elif status in xendit.FAILED:
-        mark_payout_failed(payout, result.get("failure_code") or status, None)
-
-
-def mark_payout_paid(payout):
-    from .models import Payout
-
-    now = timezone.now()
-    with transaction.atomic():
-        locked = Payout.objects.select_for_update().get(pk=payout.pk)
-        if locked.status != Payout.Status.SENDING:
-            return  # already settled (a callback and a status check can both arrive)
-        locked.status = Payout.Status.PAID
-        locked.settled_at = now
-        locked.save(update_fields=["status", "settled_at"])
-        _book_paid(locked, list(locked.invoices.all()), now)
-    _announce(locked)
-
-
-def mark_payout_failed(payout, code, message):
-    """The transfer didn't happen: release the invoices so they can be paid again."""
-    from core.models import AuditLog
-
-    from .models import Invoice, Payout
-
-    with transaction.atomic():
-        locked = Payout.objects.select_for_update().get(pk=payout.pk)
-        if locked.status != Payout.Status.SENDING:
-            return
-        invoice_ids = list(locked.invoices.values_list("id", flat=True))
-        Invoice.objects.filter(id__in=invoice_ids).update(payout=None)
-        locked.status = Payout.Status.FAILED
-        locked.failure_code = (code or "FAILED")[:100]
-        locked.save(update_fields=["status", "failure_code"])
-        AuditLog.objects.create(
-            user=None, action="payout.failed", table_name="payouts", record_id=locked.id,
-            new_values={"rnd_id": locked.rnd_id, "amount": str(locked.amount), "invoices": invoice_ids,
-                        "failure_code": locked.failure_code, "message": (message or "")[:300]},
-        )
-
-
-def sync_sending_payouts(limit=20):
-    """Ask Xendit about payouts still sending (works without a callback, e.g.
-    on a laptop). Called when the admin opens Payouts. Best effort."""
-    from . import xendit
-    from .models import Payout
-
-    if not xendit.configured():
-        return
-    for payout in Payout.objects.filter(status=Payout.Status.SENDING, provider=Payout.Provider.XENDIT,
-                                        provider_payout_id__isnull=False)[:limit]:
-        try:
-            apply_xendit_status(payout, xendit.get_payout(payout.provider_payout_id))
-        except xendit.XenditError:
-            continue
 
 
 def send_payout_email(payout):

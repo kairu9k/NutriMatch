@@ -331,11 +331,6 @@ PAYMONGO = {
 # search answers "not set up" instead of calling the API.
 USDA_FDC_API_KEY = config('USDA_FDC_API_KEY', default='')
 
-# RND payouts through Xendit (billing/xendit.py). A development key
-# (xnd_development_...) only simulates transfers; blank = manual payouts only.
-XENDIT_SECRET_KEY = config('XENDIT_SECRET_KEY', default='')
-XENDIT_CALLBACK_TOKEN = config('XENDIT_CALLBACK_TOKEN', default='')
-
 # SMS reminders through Semaphore (communication/sms.py). Blank key = no SMS
 # is sent (the text is only logged). The sender name must be one registered
 # in the Semaphore dashboard; blank uses the account's default sender name.
