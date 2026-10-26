@@ -55,7 +55,7 @@ const props = defineProps({
   otherPhoto: { type: String, default: null },
   isRnd: { type: Boolean, default: false },
 })
-const emit = defineEmits(['hangup'])
+const emit = defineEmits(['hangup', 'peer-left'])
 
 const call = useWebRtcCall(props.appointmentId)
 const remoteEl = ref(null)
@@ -102,6 +102,9 @@ watch([call.localStream, localEl], ([stream, el]) => { if (el) el.srcObject = st
 function hangUp() {
   emit('hangup')
 }
+
+// the room re-checks the consultation then (the RND may have just finished it)
+watch(call.peerLeft, (left) => { if (left) emit('peer-left') })
 
 onMounted(() => call.start())
 defineExpose({ leave: call.leave, start: call.start })

@@ -36,6 +36,16 @@
         <p v-if="error" class="state-card err">{{ error }}</p>
         <div v-else-if="loading" class="state-card"><p>Loading…</p></div>
         <div v-else-if="!appt" class="state-card"><VideoOff :size="28" /><p>Consultation not found.</p></div>
+        <div v-else-if="appt.status === 'completed' && !isRnd" class="state-card done">
+          <span class="done-mark"><CheckCircle2 :size="30" aria-hidden="true" /></span>
+          <p class="big">Your consultation is finished</p>
+          <p>Thank you for your time, {{ auth.user?.first_name }}. {{ other.firstName }} has marked it complete.</p>
+          <p>Your summary is ready. Any updates to your meal plan and care plan show up in NutriMatch once {{ other.firstName }} sends them.</p>
+          <div class="done-actions">
+            <button type="button" class="link" @click="summaryOpen = true">View the summary</button>
+            <button type="button" class="link quiet" @click="exitRoom">Back to My Appointments</button>
+          </div>
+        </div>
         <div v-else-if="appt.status === 'completed'" class="state-card">
           <CheckCircle2 :size="28" /><p>This consultation is complete.</p>
           <button type="button" class="link" @click="summaryOpen = true">View the summary</button>
@@ -63,7 +73,7 @@
         <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation. Meet {{ isRnd ? 'your patient' : 'your RND' }} at the clinic{{ isRnd ? ' and use the panel for your notes' : '' }}.</p></div>
         <!-- NutriMatch's own video call (WebRTC, 2026-10-26): browser to browser,
              encrypted, not recorded. The RND's End opens Finish consultation. -->
-        <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" />
+        <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" @peer-left="recheckAppointment" />
         <!-- pop-ups over the call (outside the v-if chain above) -->
         <div v-if="callPops.length" class="call-pops" aria-live="polite">
           <div v-for="pop in callPops" :key="pop.id" class="call-pop">
@@ -411,6 +421,12 @@ const loading = ref(true)
 const error = ref('')
 const p = computed(() => s.value?.patient)
 
+// Quietly re-read the consultation; a client whose RND just finished it gets
+// the finish screen (the call closes because the room leaves the call state).
+async function recheckAppointment() {
+  if (isRnd.value) return
+  try { await loadAppointment() } catch { /* keep what is shown */ }
+}
 async function loadAppointment() {
   appt.value = await get(isRnd.value ? `/rnd/appointments/${apptId}/` : `/client/appointments/${apptId}/`)
 }
@@ -494,6 +510,8 @@ async function actOnPop(pop) {
 }
 live.onLive('notification', ({ notification: n } = {}) => {
   if (!n || !appt.value) return
+  // this consultation changed (finished, cancelled): show its new state
+  if (n.notifiable_type === 'appointment' && n.notifiable_id === appt.value.id) recheckAppointment()
   // client: their RND asked for tests (not the "cancelled" notice of the same type)
   if (!isRnd.value && n.notifiable_type === 'lab_request' && n.subject === 'Your RND requested lab tests') {
     loadLabs()
@@ -760,6 +778,9 @@ function onHangUp() {
 .call-pop-btn.soft { background: #e3efe7; color: #0a4a37; }
 .call-pop-btn.soft:hover { background: #d3e7da; }
 .call-pop-x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: none; background: none; color: #6a7a6a; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.state-card.done { max-width: 420px; gap: 8px; }
+.done-mark { width: 56px; height: 56px; border-radius: 50%; background: rgba(159, 207, 179, 0.18); color: #9fcfb3; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.done-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .room { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: #0d1f18; font-family: 'Inter', sans-serif; color: #1a3a1a; }
 
 .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 18px; color: #fff; flex-shrink: 0; flex-wrap: wrap; }
