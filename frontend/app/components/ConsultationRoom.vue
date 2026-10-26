@@ -64,6 +64,21 @@
         <!-- NutriMatch's own video call (WebRTC, 2026-10-26): browser to browser,
              encrypted, not recorded. The RND's End opens Finish consultation. -->
         <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" />
+        <!-- pop-ups over the call (outside the v-if chain above) -->
+        <div v-if="callPops.length" class="call-pops" aria-live="polite">
+          <div v-for="pop in callPops" :key="pop.id" class="call-pop">
+            <span class="call-pop-icon"><FlaskConical :size="16" aria-hidden="true" /></span>
+            <div class="call-pop-main">
+              <p class="call-pop-title">{{ pop.title }}</p>
+              <p class="call-pop-text">{{ pop.text }}</p>
+              <div class="call-pop-actions">
+                <button type="button" class="call-pop-btn" @click="actOnPop(pop)">{{ pop.actionLabel }}</button>
+                <button type="button" class="call-pop-btn soft" @click="dismissPop(pop)">Later</button>
+              </div>
+            </div>
+            <button type="button" class="call-pop-x" aria-label="Dismiss" @click="dismissPop(pop)"><X :size="15" aria-hidden="true" /></button>
+          </div>
+        </div>
       </main>
 
       <!-- RND WORK PANEL -->
@@ -173,7 +188,7 @@
             <p v-if="!openLabRequests.length" class="muted">Have lab results with you? Upload them so {{ info?.rnd.first_name || 'your RND' }} can see them during the call.</p>
             <label class="link small upload">
               <Upload :size="13" aria-hidden="true" /> Upload lab results
-              <input type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="onPickLabs" />
+              <input ref="labInput" type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="onPickLabs" />
             </label>
             <p v-if="labPickError" class="nm-field-error">{{ labPickError }}</p>
             <p v-if="labsUploaded" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Uploaded. {{ info?.rnd.first_name || 'Your RND' }} can open it now.</p>
@@ -386,6 +401,45 @@ async function onLabsUploaded() {
 }
 // The RND's patient panel picks up new lab results (and other changes) without a reload.
 useAutoRefresh(() => (isRnd.value ? refreshSummary() : loadLabs()))
+
+/* ---------- pop-ups over the call: lab tests asked for and sent ---------- */
+// The room has no dashboard layout, so it starts the live connection itself;
+// the two lab notifications then appear over the call the moment they happen.
+const live = useLiveUpdates()
+onMounted(() => live.start())
+const callPops = ref([])
+const labInput = ref(null)
+let popSeq = 0
+function showPop(pop) {
+  callPops.value = [...callPops.value, { id: ++popSeq, ...pop }].slice(-3)
+}
+function dismissPop(pop) {
+  callPops.value = callPops.value.filter(x => x.id !== pop.id)
+}
+async function actOnPop(pop) {
+  dismissPop(pop)
+  if (pop.action === 'upload') {
+    labInput.value?.click()
+  } else if (pop.action === 'view') {
+    tab.value = 'patient'
+    await refreshSummary()
+    const r = (s.value?.labs?.recent || []).find(x => x.id === pop.resultId)
+    if (r) viewLab(r)
+  }
+}
+live.onLive('notification', ({ notification: n } = {}) => {
+  if (!n || !appt.value) return
+  // client: their RND asked for tests (not the "cancelled" notice of the same type)
+  if (!isRnd.value && n.notifiable_type === 'lab_request' && n.subject === 'Your RND requested lab tests') {
+    loadLabs()
+    showPop({ title: `${other.value.firstName || 'Your RND'} requested lab tests`, text: n.content, action: 'upload', actionLabel: 'Upload now' })
+  }
+  // RND: the patient sent results
+  if (isRnd.value && n.notifiable_type === 'lab_result' && n.subject === 'Lab results uploaded') {
+    refreshSummary()
+    showPop({ title: `${other.value.firstName || 'Your patient'} sent lab results`, text: n.content, action: 'view', actionLabel: 'View', resultId: n.notifiable_id })
+  }
+})
 
 /* ---------- people / time ---------- */
 const other = computed(() => {
@@ -609,6 +663,26 @@ function onHangUp() {
 .lab-ask svg { flex-shrink: 0; margin-top: 2px; }
 .upload { margin-top: 8px; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.stage { position: relative; }
+.call-pops { position: absolute; top: 14px; right: 14px; z-index: 5; display: flex; flex-direction: column; gap: 8px; width: min(340px, calc(100% - 28px)); }
+.call-pop {
+  position: relative; display: flex; gap: 10px; padding: 12px 34px 12px 12px; border-radius: 12px; background: #fff; color: #1a3a1a;
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .call-pop { animation: pop-in 0.25s ease-out; }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+}
+.call-pop-icon { width: 32px; height: 32px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.call-pop-main { min-width: 0; }
+.call-pop-title { margin: 0; font-size: 0.88rem; font-weight: 700; }
+.call-pop-text { margin: 2px 0 0; font-size: 0.8rem; color: #4a5a4a; line-height: 1.45; overflow-wrap: anywhere; }
+.call-pop-actions { display: flex; gap: 8px; margin-top: 8px; }
+.call-pop-btn { min-height: 32px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; font-size: 0.8rem; font-weight: 700; background: #0a4a37; color: #fff; }
+.call-pop-btn:hover { background: #00382a; }
+.call-pop-btn.soft { background: #e3efe7; color: #0a4a37; }
+.call-pop-btn.soft:hover { background: #d3e7da; }
+.call-pop-x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: none; background: none; color: #6a7a6a; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 .room { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: #0d1f18; font-family: 'Inter', sans-serif; color: #1a3a1a; }
 
 .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 18px; color: #fff; flex-shrink: 0; flex-wrap: wrap; }
