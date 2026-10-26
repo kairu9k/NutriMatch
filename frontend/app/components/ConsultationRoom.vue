@@ -79,6 +79,12 @@
 
           <!-- PATIENT -->
           <template v-else-if="tab === 'patient'">
+            <div class="quick">
+              <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
+              <button type="button" class="link small soft" @click="tab = 'ncp'"><PenLine :size="13" aria-hidden="true" /> Write the NCP record</button>
+            </div>
+            <p v-if="labsSent" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Sent. {{ p.client.first_name }} is asked to upload them before your next consultation.</p>
+            <p v-if="labsError" class="nm-field-error">{{ labsError }}</p>
             <p v-if="s.health.allergies.length" class="allergy"><AlertTriangle :size="14" /> Allergy: {{ s.health.allergies.join(', ') }}</p>
             <p v-if="appt.notes" class="note">“{{ appt.notes }}”<small>Their note when booking</small></p>
             <div class="stats">
@@ -112,13 +118,8 @@
               </div>
             </section>
             <section class="block">
-              <div class="block-head">
-                <h3>Lab results</h3>
-                <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" /> Request lab tests</button>
-              </div>
+              <h3>Lab results</h3>
               <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted">None yet.</p>
-              <p v-if="labsSent" class="ok"><CheckCircle2 :size="14" /> Sent. {{ p.client.first_name }} is asked to upload them before your next consultation.</p>
-              <p v-if="labsError" class="nm-field-error">{{ labsError }}</p>
               <div v-for="r in s.labs?.recent || []" :key="r.id" class="lab-row">
                 <span class="lab-main">
                   {{ r.test_names.join(', ') }}, taken {{ shortDate(r.taken_on) }}<template v-if="r.fasted === 'no'">, not fasting</template>
@@ -160,6 +161,21 @@
             <p class="txt"><strong>{{ info.meal_plan.name }}</strong></p>
             <p v-if="info.meal_plan.target_kcal" class="muted">{{ whole(info.meal_plan.target_kcal) }} kcal a day{{ info.meal_plan.target_carb_g ? `, ${whole(info.meal_plan.target_carb_g)} g carbs, ${whole(info.meal_plan.target_protein_g)} g protein, ${whole(info.meal_plan.target_fat_g)} g fat` : '' }}</p>
           </section>
+          <!-- lab results: upload mid-call; the RND sees them straight away -->
+          <section v-if="labs" class="block">
+            <h3>Lab results</h3>
+            <p v-for="r in openLabRequests" :key="r.id" class="lab-ask">
+              <FlaskConical :size="13" aria-hidden="true" /> {{ info?.rnd.first_name || 'Your RND' }} asked for: {{ r.test_names.join(', ') }}
+            </p>
+            <p v-if="!openLabRequests.length" class="muted">Have lab results with you? Upload them so {{ info?.rnd.first_name || 'your RND' }} can see them during the call.</p>
+            <label class="link small upload">
+              <Upload :size="13" aria-hidden="true" /> Upload lab results
+              <input type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="onPickLabs" />
+            </label>
+            <p v-if="labPickError" class="nm-field-error">{{ labPickError }}</p>
+            <p v-if="labsUploaded" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Uploaded. {{ info?.rnd.first_name || 'Your RND' }} can open it now.</p>
+          </section>
+
           <section class="block">
             <h3>Before your call</h3>
             <ul class="check">
@@ -275,6 +291,10 @@
         </div>
       </div>
     </div>
+    <LabUploadModal
+      v-if="pickedLabs.length" :tests="labs.tests" :requests="openLabRequests" :initial-files="pickedLabs"
+      @close="pickedLabs = []" @uploaded="onLabsUploaded"
+    />
     <RequestLabsModal v-if="labRequest" :relationship-id="appt.relationship.id" :patient-name="other.firstName" :tests="labRequest.tests"
                       :next-consultation="labRequest.next_consultation" @close="labRequest = null" @sent="onLabsSent" />
     <ConsultationSummaryModal v-if="summaryOpen && appt" :appointment-id="appt.id" :role="isRnd ? 'rnd' : 'client'" @close="summaryOpen = false" />
@@ -291,8 +311,8 @@
 // their RND, the consultation time and their meal-plan targets — never NCP
 // drafts or the RND's notes. Pay-first and the join window are enforced by the
 // API (the client gets the room link only when it's paid and inside the window).
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, User, UserX, VideoOff, X } from 'lucide-vue-next'
-import { labDate } from '~/utils/labs'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, Upload, User, UserX, VideoOff, X } from 'lucide-vue-next'
+import { LAB_ACCEPT, labDate, splitLabFiles } from '~/utils/labs'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -328,13 +348,41 @@ onMounted(async () => {
   try {
     await loadAppointment()
     if (isRnd.value) await refreshSummary()
-    else info.value = await get(`/client/appointments/${apptId}/room-info/`).catch(() => null)
+    else {
+      info.value = await get(`/client/appointments/${apptId}/room-info/`).catch(() => null)
+      loadLabs()
+    }
   } catch {
     error.value = 'Could not load this consultation.'
   } finally {
     loading.value = false
   }
 })
+
+/* ---------- client: lab results during the call ---------- */
+const labs = ref(null) // GET /client/labs/: tests, requests, results
+const pickedLabs = ref([])
+const labPickError = ref('')
+const labsUploaded = ref(false)
+const openLabRequests = computed(() => (labs.value?.requests || []).filter(r => r.status === 'open'))
+async function loadLabs() {
+  try { labs.value = await get('/client/labs/') } catch { labs.value = null }
+}
+async function onPickLabs(e) {
+  const files = Array.from(e.target.files || [])
+  e.target.value = ''
+  labsUploaded.value = false
+  const { ok, error } = await splitLabFiles(files)
+  labPickError.value = error
+  if (ok.length) pickedLabs.value = ok
+}
+async function onLabsUploaded() {
+  pickedLabs.value = []
+  labsUploaded.value = true
+  await loadLabs()
+}
+// The RND's patient panel picks up new lab results (and other changes) without a reload.
+useAutoRefresh(() => (isRnd.value ? refreshSummary() : loadLabs()))
 
 /* ---------- people / time ---------- */
 const other = computed(() => {
@@ -554,6 +602,14 @@ function onHangUp() {
 
 <style scoped>
 * { box-sizing: border-box; }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.quick .link.small { margin-top: 0; }
+.link.small.soft { background: #e3efe7; color: #0a4a37; }
+.link.small.soft:hover { background: #d3e7da; }
+.lab-ask { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 6px; font-size: 0.82rem; color: #7a560f; font-weight: 600; }
+.lab-ask svg { flex-shrink: 0; margin-top: 2px; }
+.upload { margin-top: 8px; cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .room { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: #0d1f18; font-family: 'Inter', sans-serif; color: #1a3a1a; }
 
 .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 18px; color: #fff; flex-shrink: 0; flex-wrap: wrap; }
