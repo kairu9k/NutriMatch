@@ -97,10 +97,10 @@
             <p v-if="s.health.allergies.length" class="allergy"><AlertTriangle :size="14" /> Allergy: {{ s.health.allergies.join(', ') }}</p>
             <p v-if="appt.notes" class="note">“{{ appt.notes }}”<small>Their note when booking</small></p>
             <div class="stats">
-              <div><span>Weight</span><strong>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</strong><small>{{ p.progress.weight_change_kg != null ? `${signed(p.progress.weight_change_kg)} kg since screening` : 'from screening' }}</small></div>
-              <div><span>BMI</span><strong>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</strong><small>{{ p.progress.bmi_class || '' }}</small></div>
+              <div><span>Weight</span><strong>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</strong><small>{{ figureSource(p.progress.weight_origin) || 'not measured yet' }}</small><small v-if="p.progress.weight_change_kg != null">{{ signed(p.progress.weight_change_kg) }} kg since screening</small></div>
+              <div><span>BMI</span><strong>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</strong><small>{{ p.progress.bmi_class || '' }}</small><small v-if="p.progress.bmi_origin">from the {{ figureSource(p.progress.bmi_origin) }} weight</small></div>
               <div><span>Adherence, 7 days</span><strong>{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</strong><small>{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} logged` : 'no active plan' }}</small></div>
-              <div :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }"><span>NRS-2002</span><strong>{{ s.screening?.nrs_score ?? '—' }}</strong><small>{{ s.screening?.nrs_risk || '' }}</small></div>
+              <div :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }"><span>NRS-2002</span><strong>{{ s.screening?.nrs_score ?? '—' }}</strong><small>{{ s.screening?.nrs_risk || '' }}</small><small v-if="s.screening">{{ screeningSource(s.screening) }}</small></div>
             </div>
             <dl class="facts">
               <div><dt>Age and sex</dt><dd>{{ [p.client.age != null ? `${p.client.age} y/o` : null, SEX[p.client.sex]].filter(Boolean).join(', ') || '—' }}</dd></div>
@@ -330,6 +330,7 @@
 // drafts or the RND's notes. Pay-first and the join window are enforced by the
 // API (the client gets the room link only when it's paid and inside the window).
 import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, Upload, User, UserX, VideoOff, X } from 'lucide-vue-next'
+import { figureSource, screeningSource } from '~/utils/figureSource'
 import { LAB_ACCEPT, labDate, splitLabFiles } from '~/utils/labs'
 
 const route = useRoute()

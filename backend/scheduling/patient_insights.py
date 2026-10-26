@@ -167,17 +167,28 @@ class CareData:
     def progress_summary(self, rel):
         from clinical.services import classify_bmi_asia_pacific
 
+        from core.ph_time import ph_date
+
         recs = self.weights(rel.id)
         s = self.screenings.get(rel.client_id)
         start = s.weight_kg if s and s.weight_kg is not None else (recs[0].weight_kg if recs else None)
         latest = recs[-1].weight_kg if recs else None
-        bmis = [p.bmi for p in self.progress.get(rel.id, []) if p.bmi is not None]
-        bmi = bmis[-1] if bmis else (s.bmi if s else None)
+        bmi_recs = [p for p in self.progress.get(rel.id, []) if p.bmi is not None]
+        bmi = bmi_recs[-1].bmi if bmi_recs else (s.bmi if s else None)
+
+        # Where each figure came from and when, so the RND can judge it: measured
+        # at a consultation (an RND progress record, from a finalized NCP),
+        # typed in by the client (a self-reported reading), or their screening.
+        def origin(rec):
+            return {"on": rec.record_date, "from": "consultation" if rec.source == "rnd" else "self-reported"}
+        screening_origin = {"on": ph_date(s.created_at), "from": "screening"} if s else None
         return {
             "latest_weight_kg": latest if latest is not None else start,
             "weight_change_kg": round(latest - start, 1) if latest is not None and start is not None and recs else None,
+            "weight_origin": origin(recs[-1]) if recs else (screening_origin if s and s.weight_kg is not None else None),
             "bmi": bmi,
             "bmi_class": classify_bmi_asia_pacific(bmi) if bmi is not None else None,
+            "bmi_origin": origin(bmi_recs[-1]) if bmi_recs else (screening_origin if s and s.bmi is not None else None),
             "records": len(recs),
         }
 

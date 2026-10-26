@@ -85,12 +85,14 @@
           <div class="fig">
             <p class="fig-label">Current weight</p>
             <p class="fig-value">{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</p>
-            <p class="fig-note">{{ p.progress.weight_change_kg != null ? `${signed(p.progress.weight_change_kg)} kg since screening` : 'From their screening' }}</p>
+            <p class="fig-note">{{ figureSource(p.progress.weight_origin) || 'Not measured yet' }}</p>
+            <p v-if="p.progress.weight_change_kg != null" class="fig-note">{{ signed(p.progress.weight_change_kg) }} kg since screening</p>
           </div>
           <div class="fig">
             <p class="fig-label">BMI</p>
             <p class="fig-value">{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</p>
             <p class="fig-note">{{ p.progress.bmi_class ? `${p.progress.bmi_class}, Asia-Pacific` : 'Not measured yet' }}</p>
+            <p v-if="p.progress.bmi_origin" class="fig-note">From the {{ figureSource(p.progress.bmi_origin) }} weight</p>
           </div>
           <div class="fig">
             <p class="fig-label">7-day meal-plan adherence</p>
@@ -101,6 +103,7 @@
             <p class="fig-label">NRS-2002 score</p>
             <p class="fig-value">{{ s.screening?.nrs_score ?? '—' }}</p>
             <p class="fig-note">{{ s.screening ? (s.screening.nrs_risk || 'Not scored') : 'No screening yet' }}</p>
+            <p v-if="s.screening" class="fig-note">{{ screeningSource(s.screening).replace(/^f/, 'F') }}</p>
           </div>
         </div>
 
@@ -506,6 +509,7 @@
 import {
   AlertTriangle, Check, CheckCircle2, Eye, FileText, Pencil, FlaskConical, Info, Lock, MessageSquare, MoreHorizontal, OctagonAlert, Video,
 } from 'lucide-vue-next'
+import { figureSource, screeningSource } from '~/utils/figureSource'
 
 const route = useRoute()
 const router = useRouter()
