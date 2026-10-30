@@ -269,9 +269,9 @@ class MealLog(models.Model):
     """
 
     class MealStatus(models.TextChoices):
-        FOLLOWED = "followed", "Followed Plan"
-        PARTIALLY_FOLLOWED = "partially_followed", "Partially Followed"
-        NOT_FOLLOWED = "not_followed", "Did Not Follow"
+        FOLLOWED = "followed", "Followed"
+        PARTIALLY_FOLLOWED = "partially_followed", "Partly followed"
+        NOT_FOLLOWED = "not_followed", "Not followed"
 
     meal_plan_meal = models.ForeignKey(
         MealPlanMeal, on_delete=models.CASCADE, related_name="logs"

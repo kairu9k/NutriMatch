@@ -251,7 +251,7 @@ def build_plan_from_template(rel, key, kcal):
     per_slot["sugar"] = {"pm_snack": day["sugar"]} if day["sugar"] else {}
 
     carb_pct, prot_pct, fat_pct = tpl["split"]
-    restrictions = [f"Allergies: {', '.join(health.allergies)}"] if health and health.allergies else []
+    restrictions = [", ".join(health.allergies)] if health and health.allergies else []
     with transaction.atomic():
         plan = MealPlan.objects.create(
             relationship=rel, name=f"{tpl['label']} plan, {kcal:,} kcal", condition=tpl["condition"],

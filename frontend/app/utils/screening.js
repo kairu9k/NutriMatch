@@ -16,7 +16,7 @@ export const GENERAL_SYMPTOMS = [
 ]
 
 const CONDITION_GROUPS = [
-  { key: 'obesity', title: 'Obesity Management', match: /obes|weight/i, items: [
+  { key: 'obesity', title: 'Obesity management', match: /obes|weight/i, items: [
     'Short of breath when walking or climbing stairs', 'Joint or back pain', 'Snoring or poor sleep',
     'Always tired', 'Heartburn or acid reflux', 'Overeating or late-night eating',
   ] },
@@ -28,7 +28,7 @@ const CONDITION_GROUPS = [
     'Frequent headaches', 'Dizziness', 'Blurred vision', 'Chest pain or tightness',
     'Short of breath', 'Swelling in ankles or feet',
   ] },
-  { key: 'renal', title: 'Renal Nutrition', match: /renal|kidney|ckd/i, items: [
+  { key: 'renal', title: 'Renal nutrition', match: /renal|kidney|ckd/i, items: [
     'Swelling in the legs or face', 'Less or foamy urine', 'Itchy skin', 'Nausea or vomiting',
     'Muscle cramps', 'Always tired',
   ] },

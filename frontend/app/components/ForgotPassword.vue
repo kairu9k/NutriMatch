@@ -161,7 +161,7 @@ async function handleConfirm() {
   try {
     await auth.confirmPasswordReset(email.value, code.value, newPassword.value)
     successMessage.value = 'Password changed. Taking you to sign in…'
-    setTimeout(() => navigateTo('/login'), 1500)
+    setTimeout(() => navigateTo('/login?reset=1'), 1500)
   } catch (error) {
     errorMessage.value = error?.data?.detail || error?.data?.new_password?.[0] || 'That code is wrong or has expired. Ask for a new one.'
   } finally {

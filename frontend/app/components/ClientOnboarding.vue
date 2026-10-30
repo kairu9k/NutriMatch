@@ -236,6 +236,10 @@ const about = reactive({ dob: '', sex: '', language: '', phone: '' })
 const aboutErrors = reactive({ dob: '', sex: '', phone: '' })
 const health = reactive({ condition: '', conditionOther: '', hasAllergies: null, allergies: [], diet: [], religion: '', goals: [] })
 const healthErrors = reactive({ allergies: '' })
+// clear the allergy error as soon as it's answered (it used to stay until Continue)
+watch(() => [health.hasAllergies, health.allergies.length], ([has, n]) => {
+  if (has === false || (has && n)) healthErrors.allergies = ''
+})
 const newAllergy = ref('')
 const newDiet = ref('')
 const newGoal = ref('')

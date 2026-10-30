@@ -453,6 +453,8 @@ async function approve() {
 const rejecting = ref(false)
 const rejectReason = ref('')
 const rejectError = ref('')
+// clear the error once the reason is long enough (a quick reason fills it in)
+watch(rejectReason, (v) => { if (rejectError.value && v.trim().length >= 10) rejectError.value = '' })
 function openReject() {
   rejectReason.value = ''
   rejectError.value = ''

@@ -118,7 +118,7 @@ const assessment = computed(() => {
 const intervention = computed(() => {
   const x = r.value
   const rows = [
-    ['Target energy', x.target_kcal ? `${Math.round(x.target_kcal)} kcal/day` : '—'],
+    ['Target energy', x.target_kcal ? `${Math.round(x.target_kcal).toLocaleString('en-PH')} kcal/day` : '—'],
     ['Carbohydrate', num(x.target_carb_g, 'g', 0)], ['Protein', num(x.target_protein_g, 'g', 0)], ['Fat', num(x.target_fat_g, 'g', 0)],
   ]
   for (const e of x.intervention_extra || []) rows.push([e.label, `${e.value}${e.unit ? ` ${e.unit}` : ''}`])

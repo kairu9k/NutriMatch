@@ -392,7 +392,7 @@ class RndMealLogNotificationTests(TestCase):
         self.assertEqual(bad.status_code, 400)
         ok = self.client_api.patch(f"/api/rnd/meal-logs/{self.log_id}/review/", {"status": "partially_followed"}, format="json")
         self.assertEqual(ok.status_code, 200, ok.data)
-        self.assertEqual(ok.data["status_label"], "Partially Followed")
+        self.assertEqual(ok.data["status_label"], "Partly followed")
 
         other = approve_rnd(User.objects.create_user(email="rnd11@nt.ph", password="x", role="rnd", first_name="O", last_name="R"))
         self.client_api.force_authenticate(other)

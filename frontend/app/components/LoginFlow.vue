@@ -42,7 +42,7 @@
           <a :href="deactivatedMailto" class="deactivated-link">{{ deactivated }}</a>
         </div>
         <p v-else-if="errorMessage && isAdminMode" class="form-error" role="alert">{{ errorMessage }}</p>
-        <p v-if="sessionEnded && !errorMessage && !deactivated" class="form-note">Your session ended. Please sign in again.</p>
+        <p v-if="loginNote && !errorMessage && !deactivated" class="form-note">{{ loginNote }}</p>
 
         <button type="submit" class="btn-primary" :disabled="isSubmitting">
           {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
@@ -129,7 +129,7 @@
             <a :href="deactivatedMailto" class="deactivated-link">{{ deactivated }}</a>
           </div>
           <p v-else-if="errorMessage && !isAdminMode" class="form-error" role="alert">{{ errorMessage }}</p>
-          <p v-if="sessionEnded && !errorMessage && !deactivated" class="form-note">Your session ended. Please sign in again.</p>
+          <p v-if="loginNote && !errorMessage && !deactivated" class="form-note">{{ loginNote }}</p>
 
           <button type="submit" class="btn-primary" :disabled="isSubmitting">
             {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
@@ -168,7 +168,9 @@ const adminForm = reactive({
 
 const errorMessage = ref('')
 // Sent here because the session ended (composables/useApi.ts)
-const sessionEnded = useRoute().query.expired === '1'
+// or after a password reset (ForgotPassword.vue)
+const loginNote = useRoute().query.expired === '1' ? 'Your session ended. Please sign in again.'
+  : useRoute().query.reset === '1' ? 'Your password was changed. Sign in with your new password.' : ''
 // Deactivated by an admin: the API returns the support email to appeal to.
 const deactivated = ref('')
 const deactivatedMailto = computed(() => {
