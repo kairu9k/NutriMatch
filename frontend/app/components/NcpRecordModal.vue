@@ -165,7 +165,7 @@
                 <p v-if="ctx.previous.diet_prescription">{{ ctx.previous.diet_prescription }}</p>
                 <p v-if="ctx.previous.target_kcal" class="c-sub">Target {{ whole(ctx.previous.target_kcal) }} kcal/day</p>
                 <div class="since">
-                  <div><span class="k">Weight since then</span><strong>{{ ctx.previous.weight_change_kg != null ? `${signed(ctx.previous.weight_change_kg)} kg` : 'Not measured' }}</strong></div>
+                  <div><span class="k">Weight since then</span><strong>{{ weightSince != null ? `${signed(weightSince)} kg` : 'Not measured' }}</strong></div>
                   <div><span class="k">7-day meal-plan adherence</span><strong>{{ ctx.adherence?.pct != null ? `${ctx.adherence.pct}%` : 'No meal plan yet' }}</strong></div>
                 </div>
               </div>
@@ -416,6 +416,15 @@ function srcHint(f) {
 const liveBp = computed(() => (errors.value.blood_pressure ? null : bpCategory(a.value.bp_systolic, a.value.bp_diastolic)))
 const liveGlucose = computed(() => (errors.value.blood_glucose ? null : glucoseCategory(a.value.blood_glucose)))
 const liveHba1c = computed(() => (errors.value.hba1c ? null : hba1cCategory(a.value.hba1c)))
+// Change since the previous record, from the weight typed in this record (the
+// server's value only knows the last saved weight).
+const weightSince = computed(() => {
+  const prev = ctx.value?.previous
+  if (!prev) return null
+  const w = Number(a.value.weight_kg)
+  if (filled(a.value.weight_kg) && !rangeError('weight_kg', a.value.weight_kg) && prev.weight_kg != null) return Math.round((w - Number(prev.weight_kg)) * 10) / 10
+  return prev.weight_change_kg
+})
 const liveBmi = computed(() =>(rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
 const macroTotal = computed(() => macroKcal({ carb: i.value.target_carb_g, protein: i.value.target_protein_g, fat: i.value.target_fat_g }))
 const macroDiffPct = computed(() => {

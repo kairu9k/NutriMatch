@@ -397,6 +397,10 @@ const allergyText = computed(() => {
   return listText(a) || 'No known allergies'
 })
 
+// set in setup so the title goes away with the page (useHead after an await
+// is outside the component and stuck on every later page)
+useHead({ title: computed(() => data.value?.user ? `${data.value.user.first_name} ${data.value.user.last_name}, NutriMatch admin` : 'NutriMatch') })
+
 async function load({ quiet = false } = {}) {
   if (!quiet) {
     loading.value = true
@@ -404,7 +408,6 @@ async function load({ quiet = false } = {}) {
   }
   try {
     data.value = await get(`/admin/users/${route.params.id}/overview/`)
-    useHead({ title: `${data.value.user.first_name} ${data.value.user.last_name} · NutriMatch Admin` })
   } catch (e) {
     if (!quiet) error.value = e?.response?.status === 404 ? 'This account doesn\'t exist.' : 'Could not load this account. Please refresh.'
   } finally {
