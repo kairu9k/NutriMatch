@@ -55,14 +55,16 @@
               Taken {{ labDate(r.taken_on) }}<template v-if="FASTED_LABEL[r.fasted]">, <span :class="{ 'not-fasting': notFastingGlucose(r) }">{{ FASTED_LABEL[r.fasted] }}</span></template>,
               {{ r.file_name }} ({{ fileSize(r.file_size) }})
             </p>
-            <p v-if="r.declined_at" class="res-warn"><AlertTriangle :size="13" aria-hidden="true" /> Your RND sent this back: {{ r.decline_reason }} Use Replace to upload it again.</p>
+            <p v-if="r.declined_at && replaced(r)" class="res-meta">Your RND sent this back: {{ r.decline_reason }} You've uploaded a new one since.</p>
+            <p v-else-if="r.declined_at" class="res-warn"><AlertTriangle :size="13" aria-hidden="true" /> Your RND sent this back: {{ r.decline_reason }} Use Replace to upload it again.</p>
             <p v-if="notFastingGlucose(r)" class="res-warn"><AlertTriangle :size="13" aria-hidden="true" /> Glucose taken while not fasting reads high. Your RND may ask you to repeat it after 8 hours without food.</p>
           </div>
-          <span class="nm-pill" :class="r.reviewed_at ? 'green' : r.declined_at ? 'red' : 'gold'">{{ r.reviewed_at ? 'Accepted' : r.declined_at ? 'Upload again' : 'Waiting for your RND' }}</span>
+          <span v-if="r.declined_at && replaced(r)" class="nm-pill muted">Replaced</span>
+          <span v-else class="nm-pill" :class="r.reviewed_at ? 'green' : r.declined_at ? 'red' : 'gold'">{{ r.reviewed_at ? 'Accepted' : r.declined_at ? 'Upload again' : 'Waiting for your RND' }}</span>
           <div class="res-actions">
             <button type="button" class="nm-btn-soft nm-btn-sm" @click="view(r)"><Eye :size="13" aria-hidden="true" /> View</button>
             <template v-if="!r.reviewed_at">
-              <button type="button" class="nm-btn-soft nm-btn-sm" @click="replacing = r"><RefreshCw :size="13" aria-hidden="true" /> Replace</button>
+              <button v-if="!(r.declined_at && replaced(r))" type="button" class="nm-btn-soft nm-btn-sm" @click="replacing = r"><RefreshCw :size="13" aria-hidden="true" /> Replace</button>
               <button type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="deleting === r.id" @click="remove(r)"><Trash2 :size="13" aria-hidden="true" /> Delete</button>
             </template>
           </div>
@@ -104,6 +106,9 @@ const toast = ref('')
 
 const openRequests = computed(() => (data.value?.requests || []).filter(r => r.status === 'open'))
 // a fasting blood glucose test taken while not fasting: flagged red
+// A declined upload whose tests were all uploaded again later: nothing left to do.
+const replaced = r => (r.tests || []).every(t => (data.value?.results || []).some(o =>
+  o.id !== r.id && !o.declined_at && (o.tests || []).includes(t) && new Date(o.uploaded_at) > new Date(r.uploaded_at)))
 const notFastingGlucose = r => r.fasted === 'no' && (r.tests || []).includes('fbs')
 
 async function load() {
