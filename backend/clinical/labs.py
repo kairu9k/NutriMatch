@@ -110,7 +110,8 @@ def upload_lab_file(file):
     try:
         result = cloudinary.uploader.upload(file, folder=CLOUDINARY_FOLDER, resource_type="image", type="authenticated")
     except cloudinary.exceptions.Error as exc:
-        raise LabFileError(f"Could not upload the file: {exc}") from exc
+        logger.warning("Lab file upload failed: %s", exc)
+        raise LabFileError("We couldn't upload the file. Please try again in a moment.") from exc
     return result["public_id"], result.get("format") or ""
 
 

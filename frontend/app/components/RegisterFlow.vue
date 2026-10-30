@@ -204,7 +204,7 @@
                   <img v-if="licensePreview" :src="licensePreview" alt="PRC license preview" class="license-preview" />
                   <span v-else class="license-placeholder">
                     <strong>Upload a clear photo of your PRC ID</strong>
-                    JPG, PNG or WEBP, up to 5 MB
+                    JPG, PNG or WEBP, up to 10 MB
                   </span>
                 </label>
                 <div v-if="form.prcLicenseImage" class="license-file-row">

@@ -75,6 +75,7 @@
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary:focus-visible, .back-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
+.form-note { background: #f2f5f3; border: 1px solid #d9e3dc; color: #3d4f43; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; line-height: 1.5; margin: 0; }
 .form-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; line-height: 1.5; margin: 0; }
 .form-success { background: #e3efe7; border: 1px solid #c5ddcc; color: #0a4a37; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; line-height: 1.5; margin: 0; }
 .signup-link, .signin-link { text-align: center; margin: 22px 0 0; font-size: 0.88rem; color: #4a5a4a; }

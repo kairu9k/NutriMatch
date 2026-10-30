@@ -41,7 +41,14 @@ export function useApi() {
             headers: { ...headers, Authorization: `Bearer ${auth.accessToken}` },
           })
         }
+        // The session has really ended (the refresh token expired too): sign
+        // out and go to sign-in with a note, instead of leaving the page
+        // half-loaded with no user (role-switching pages showed the wrong view).
+        const wasAdmin = auth.user?.role === 'admin'
         auth.logout()
+        if (import.meta.client && !/\/login$/.test(window.location.pathname)) {
+          window.location.assign(wasAdmin ? '/admin/login?expired=1' : '/login?expired=1')
+        }
       }
       throw error
     }

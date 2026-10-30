@@ -212,7 +212,10 @@ function go(key) {
 }
 
 // Same lists as sign-up / Profile Settings.
-const CONDITION_OPTIONS = ['Hypertension', 'Type 2 Diabetes', 'Obesity Management', 'Renal Nutrition']
+// same spelling as sign-up (RegisterFlow.vue); matched ignoring case so older
+// "Renal Nutrition"-style values still land on their option
+const CONDITION_OPTIONS = ['Hypertension', 'Type 2 Diabetes', 'Obesity management', 'Renal nutrition']
+const conditionOption = v => CONDITION_OPTIONS.find(c => c.toLowerCase() === String(v || '').trim().toLowerCase())
 const LANGUAGE_OPTIONS = [
   { code: 'tl', label: 'Filipino (Tagalog)' },
   { code: 'ceb', label: 'Bisaya (Cebuano)' },
@@ -381,7 +384,7 @@ onMounted(async () => {
     const conditions = hp.medical_conditions || []
     otherConditions.value = conditions.slice(1)
     if (conditions[0]) {
-      if (CONDITION_OPTIONS.includes(conditions[0])) health.condition = conditions[0]
+      if (conditionOption(conditions[0])) health.condition = conditionOption(conditions[0])
       else { health.condition = '__other'; health.conditionOther = conditions[0] }
     }
     if (Array.isArray(hp.allergies)) {

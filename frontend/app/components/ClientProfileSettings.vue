@@ -593,7 +593,10 @@ function fireToast(message = 'Profile updated!') {
 const screening = ref(null)
 
 // Same choices as the sign-up form's "Primary Health Concern".
-const CONDITION_OPTIONS = ['Hypertension', 'Type 2 Diabetes', 'Obesity Management', 'Renal Nutrition']
+// same spelling as sign-up (RegisterFlow.vue); matched ignoring case so older
+// "Renal Nutrition"-style values still land on their option
+const CONDITION_OPTIONS = ['Hypertension', 'Type 2 Diabetes', 'Obesity management', 'Renal nutrition']
+const conditionOption = v => CONDITION_OPTIONS.find(c => c.toLowerCase() === String(v || '').trim().toLowerCase())
 const conditionChoice = ref('')
 const conditionOther = ref('')
 // medical_conditions[0] is the primary condition; anything after it is kept.
@@ -624,8 +627,8 @@ function fillCondition(profile) {
   conditionOther.value = ''
   if (!primary) {
     conditionChoice.value = ''
-  } else if (CONDITION_OPTIONS.includes(primary)) {
-    conditionChoice.value = primary
+  } else if (conditionOption(primary)) {
+    conditionChoice.value = conditionOption(primary)
   } else {
     conditionChoice.value = '__other'
     conditionOther.value = primary

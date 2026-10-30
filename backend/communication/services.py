@@ -1,8 +1,12 @@
+import logging
+
 import cloudinary
 import cloudinary.uploader
 from django.conf import settings
 
 from .models import NotificationLog
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceUploadError(Exception):
@@ -38,7 +42,8 @@ class CloudinaryResourceUploadService:
             # just images — it would otherwise reject non-image uploads.
             result = cloudinary.uploader.upload(file, folder=folder, resource_type="auto")
         except cloudinary.exceptions.Error as exc:
-            raise ResourceUploadError(f"Cloudinary upload failed: {exc}") from exc
+            logger.warning("Resource upload failed: %s", exc)
+            raise ResourceUploadError("We couldn't upload the file. Please try again in a moment.") from exc
         return result["secure_url"]
 
 

@@ -450,6 +450,17 @@
         </div>
       </div>
     </div>
+    <div v-if="leaveAsk" class="nm-modal-overlay no-print" @click.self="stayHere">
+      <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="stayHere"><X :size="18" aria-hidden="true" /></button>
+        <h3 id="leave-title" class="nm-modal-title">Leave without saving?</h3>
+        <p class="nm-modal-text">Your changes to this plan aren't saved yet. If you leave now, they're lost.</p>
+        <div class="nm-modal-actions">
+          <button class="btn-secondary" type="button" @click="stayHere">Keep editing</button>
+          <button class="btn-danger solid" type="button" @click="leaveAnyway">Leave without saving</button>
+        </div>
+      </div>
+    </div>
     <div v-if="sendCheck" class="nm-modal-overlay no-print" @click.self="sendCheck = null">
       <div class="nm-modal send-check" role="dialog" aria-modal="true" aria-labelledby="send-check-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="sendCheck = null"><X :size="18" aria-hidden="true" /></button>
@@ -710,6 +721,7 @@ let lastSnapshot = null
 let snapTimer = null
 const snapshotWeek = () => JSON.stringify(weeklyPlan)
 function resetUndo() {
+  savedSnapshot = editorSnapshot()
   clearTimeout(snapTimer)
   undoStack.value = []
   pendingEdit.value = false
@@ -747,6 +759,37 @@ function onUndoKey(event) {
 }
 onMounted(() => window.addEventListener('keydown', onUndoKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onUndoKey))
+
+/* ---------- Leaving with unsaved edits ---------- */
+// The whole editor (week, targets, name) as it was last loaded or saved;
+// leaving the page or patient with changes asks first, closing the tab gets
+// the browser's own prompt.
+let savedSnapshot = null
+const editorSnapshot = () => JSON.stringify([weeklyPlan, macroRows.value, otherRows.value, planMeta])
+const hasUnsaved = () => mode.value === 'create' && savedSnapshot !== null && editorSnapshot() !== savedSnapshot
+const leaveAsk = ref(false)
+let leaveTo = null
+function guard(to) {
+  if (!hasUnsaved()) return true
+  leaveTo = to
+  leaveAsk.value = true
+  return false
+}
+onBeforeRouteLeave(guard)
+onBeforeRouteUpdate(guard) // ?relationship= changes (All patients, another patient)
+function stayHere() {
+  leaveAsk.value = false
+  leaveTo = null
+}
+function leaveAnyway() {
+  savedSnapshot = editorSnapshot() // let this navigation through
+  const to = leaveTo
+  stayHere()
+  if (to) navigateTo(to.fullPath)
+}
+const onTabClose = (e) => { if (hasUnsaved()) { e.preventDefault(); e.returnValue = '' } }
+onMounted(() => window.addEventListener('beforeunload', onTabClose))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onTabClose))
 
 /* ---------- Delete a draft (never sent) ---------- */
 const confirmDelete = ref(false)

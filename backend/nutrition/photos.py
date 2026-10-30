@@ -50,7 +50,8 @@ def upload_meal_photo(file):
     try:
         result = cloudinary.uploader.upload(file, folder=FOLDER, resource_type="image", type="authenticated")
     except cloudinary.exceptions.Error as exc:
-        raise MealPhotoError(f"Could not upload the photo: {exc}") from exc
+        logger.warning("Meal photo upload failed: %s", exc)
+        raise MealPhotoError("We couldn't upload your photo. Please try again in a moment.") from exc
     return result["public_id"], result.get("format") or "jpg"
 
 

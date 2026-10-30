@@ -1,3 +1,4 @@
+import logging
 import re
 
 import cloudinary
@@ -8,6 +9,8 @@ from django.conf import settings
 
 ALLOWED_LICENSE_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_LICENSE_IMAGE_BYTES = 10 * 1024 * 1024  # the sign-up form shrinks photos before sending (2026-10-26)
+
+logger = logging.getLogger(__name__)
 
 
 class LicenseImageUploadError(Exception):
@@ -37,7 +40,9 @@ def upload_prc_license_image(file) -> str:
             file, folder="prc-licenses", resource_type="image", type="authenticated",
         )
     except cloudinary.exceptions.Error as exc:
-        raise LicenseImageUploadError(f"Could not upload the license photo: {exc}") from exc
+        # Cloudinary's own error is technical; it goes to the log, not the person
+        logger.warning("PRC license upload failed: %s", exc)
+        raise LicenseImageUploadError(f"We couldn't upload your license photo. Please try again in a moment.") from exc
     return result["public_id"]
 
 
@@ -77,7 +82,8 @@ def upload_profile_photo(file) -> str:
             transformation=[{"width": 400, "height": 400, "crop": "fill", "gravity": "face"}],
         )
     except cloudinary.exceptions.Error as exc:
-        raise ProfilePhotoUploadError(f"Could not upload the photo: {exc}") from exc
+        logger.warning("Profile photo upload failed: %s", exc)
+        raise ProfilePhotoUploadError("We couldn't upload your photo. Please try again in a moment.") from exc
     return result["secure_url"]
 
 

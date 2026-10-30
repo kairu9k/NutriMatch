@@ -135,7 +135,9 @@ function print() {
     if (c.pes_problem) sections.push({ heading: 'What we found', text: `${c.pes_problem}${c.pes_etiology ? ` related to ${c.pes_etiology}` : ''}${c.pes_signs ? `, as shown by ${c.pes_signs}` : ''}.` })
     const plan = []
     if (c.target_kcal) plan.push(['Energy', `${whole(c.target_kcal)} kcal a day`])
-    if (c.target_carb_g) plan.push(['Carbohydrate / protein / fat', `${whole(c.target_carb_g)} g / ${whole(c.target_protein_g)} g / ${whole(c.target_fat_g)} g`])
+    // whichever macro targets were set (the screen shows them the same way)
+    const macros = [['carbohydrate', c.target_carb_g], ['protein', c.target_protein_g], ['fat', c.target_fat_g]].filter(([, v]) => v)
+    if (macros.length) plan.push(['Macronutrients', macros.map(([k, v]) => `${whole(v)} g ${k}`).join(', ')])
     for (const t of c.other_targets) plan.push([t.label, `${t.value} ${t.unit}`.trim()])
     if (c.goal_status) plan.push(['Goals from the last visit', c.goal_status])
     sections.push({ heading: 'Plan', rows: plan, text: [c.diet_prescription, c.advice && `Advice: ${c.advice}`].filter(Boolean).join('\n') })
