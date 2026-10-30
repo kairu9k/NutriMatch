@@ -221,11 +221,12 @@
               <h3 class="tab-panel-title">Availability</h3>
               <p class="tab-panel-sub">Set the hours clients can book consultations with you.</p>
             </div>
+            <button class="outline-btn" type="button" @click="availabilityRef?.openWeekForm()"><Plus :size="15" aria-hidden="true" /> Add hours for all week</button>
           </div>
 
           <!-- Real, saved schedule (RndAvailabilitySchedule) — the same one
                clients see on your profile and in the booking calendar. -->
-          <Availability embedded />
+          <Availability ref="availabilityRef" embedded />
         </template>
 
         <!-- ============ SECURITY ============ -->
@@ -363,7 +364,7 @@ import {
   Briefcase, BadgeCheck,
   CalendarClock, X, Shield, History, Printer, ClipboardList,
   CalendarCheck, FileText, UtensilsCrossed, UserRound, Star, Wallet,
-  Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2, Bell
+  Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2, Bell, Plus
 } from 'lucide-vue-next'
 import { formatPhone, rndPhoneError } from '~/utils/phone'
 
@@ -387,6 +388,7 @@ const validTabKeys = tabs.map(t => t.key)
 if (route.query.tab === 'earnings') navigateTo('/earnings', { replace: true })
 const activeTab = ref(validTabKeys.includes(route.query.tab) ? route.query.tab : 'professional')
 const activeTabLabel = computed(() => tabs.find(t => t.key === activeTab.value)?.label)
+const availabilityRef = ref(null)
 
 /* ---------- PROFESSIONAL PROFILE ---------- */
 const auth = useAuthStore()
