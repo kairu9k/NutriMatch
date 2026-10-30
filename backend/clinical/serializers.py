@@ -17,10 +17,9 @@ class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.Mo
 
     reduced_intake = serializers.BooleanField(write_only=True, required=False, default=False)
     has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
-    # Optional Mifflin-St Jeor inputs; when omitted, ScreeningCreateView falls
-    # back to the client's profile (date_of_birth / sex). Not stored here.
-    # Only used when the profile has no date of birth — otherwise the age
-    # comes from the DOB (clients must be 18+, accounts.validators).
+    # Optional inputs, not stored here. `sex` is the fallback for the
+    # Tannhauser BMR when the profile has none; `age` is still accepted from
+    # the form but no longer used (Tannhauser's BMR doesn't take age).
     age = serializers.IntegerField(
         write_only=True, required=False, min_value=18, max_value=120,
         error_messages={"min_value": "Age must be between 18 and 120 years.", "max_value": "Age must be between 18 and 120 years."},

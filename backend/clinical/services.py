@@ -4,7 +4,9 @@ Implements the exact formulas named in the capstone proposal — do not
 substitute generic/global versions of these without checking
 vault/C1-NUTRIMATCH-FINALv5.pdf first:
 
-- BMR: Mifflin-St Jeor equation
+- BMR: Tannhauser's method — DBW from height, then BMR from DBW (2026-10-31,
+  asked for by the project's RND resource person; replaces the proposal's
+  Mifflin-St Jeor equation)
 - TDEE: BMR × activity factor
 - BMI classification: WHO Asia-Pacific thresholds (NOT the standard global
   WHO cutoffs — Asia-Pacific uses lower obesity thresholds)
@@ -42,17 +44,30 @@ def classify_bmi_asia_pacific(bmi: Decimal) -> str:
     return "Obese II"
 
 
-def calculate_bmr_mifflin_st_jeor(
-    weight_kg: Decimal, height_cm: Decimal, age_years: int, sex: str
-) -> Decimal:
-    """Mifflin-St Jeor equation.
+# kcal per kg of DBW per hour, Tannhauser BMR (values given by the RND resource person).
+BMR_KCAL_PER_KG_HOUR = {"male": Decimal("1.0"), "female": Decimal("0.9")}
 
-    Male:   BMR = 10*weight + 6.25*height - 5*age + 5
-    Female: BMR = 10*weight + 6.25*height - 5*age - 161
+
+def calculate_dbw_tannhauser(height_cm: Decimal) -> Decimal:
+    """Desirable body weight, Tannhauser's method:
+    DBW = (height cm - 100) - 10% of (height cm - 100)."""
+    base = height_cm - Decimal("100")
+    return (base - base * Decimal("0.10")).quantize(Decimal("0.01"))
+
+
+def calculate_bmr_tannhauser(height_cm: Decimal, sex: str) -> Decimal | None:
+    """BMR from the Tannhauser DBW — it uses the desirable weight, not the
+    actual weight, and no age:
+
+    Male:   BMR = DBW × 1.0 kcal/kg/hour × 24
+    Female: BMR = DBW × 0.9 kcal/kg/hour × 24
+
+    None when sex isn't male/female.
     """
-    base = (Decimal("10") * weight_kg) + (Decimal("6.25") * height_cm) - (Decimal("5") * age_years)
-    bmr = base + Decimal("5") if sex == "male" else base - Decimal("161")
-    return bmr.quantize(Decimal("0.01"))
+    factor = BMR_KCAL_PER_KG_HOUR.get(sex)
+    if factor is None:
+        return None
+    return (calculate_dbw_tannhauser(height_cm) * factor * Decimal("24")).quantize(Decimal("0.01"))
 
 
 def calculate_tdee(bmr_kcal: Decimal, activity_level: str) -> Decimal:

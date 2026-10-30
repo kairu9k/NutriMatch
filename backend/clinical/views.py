@@ -22,7 +22,7 @@ from .serializers import (
 )
 from .services import (
     calculate_bmi,
-    calculate_bmr_mifflin_st_jeor,
+    calculate_bmr_tannhauser,
     calculate_nrs2002,
     calculate_tdee,
     classify_bmi_asia_pacific,
@@ -61,25 +61,25 @@ class ScreeningCreateView(generics.ListCreateAPIView):
         bmi = calculate_bmi(weight_kg, height_cm)
         bmi_category = classify_bmi_asia_pacific(bmi)
 
-        # Age and sex always come from the profile when it has them (given at
-        # registration; the form shows them read-only and they're changed in
-        # Profile Settings). A typed value is only the fallback — older
-        # accounts without a DOB, or "Prefer not to say" at registration —
-        # and a typed sex is then saved to the profile.
+        # Sex always comes from the profile when it has it (given at
+        # registration; the form shows it read-only and it's changed in
+        # Profile Settings). A typed value is only the fallback — "Prefer not
+        # to say" at registration — and is then saved to the profile. A typed
+        # age is accepted but not stored: Tannhauser's BMR doesn't use age.
         client_profile = getattr(request.user, "client_profile", None)
-        age = serializer.validated_data.pop("age", None)
+        serializer.validated_data.pop("age", None)
         sex = serializer.validated_data.pop("sex", None)
-        if client_profile and client_profile.date_of_birth:
-            age = _age_from_dob(client_profile.date_of_birth)
         if client_profile and client_profile.sex:
             sex = client_profile.sex
         elif sex and client_profile:
             client_profile.sex = sex
             client_profile.save(update_fields=["sex", "updated_at"])
 
+        # Tannhauser BMR needs only height and sex (no age, no actual weight).
         bmr_kcal = tdee_kcal = None
-        if age and sex:
-            bmr_kcal = calculate_bmr_mifflin_st_jeor(weight_kg, height_cm, age, sex)
+        if sex:
+            bmr_kcal = calculate_bmr_tannhauser(height_cm, sex)
+        if bmr_kcal is not None:
             activity_level = serializer.validated_data.get("activity_level", "sedentary")
             tdee_kcal = calculate_tdee(bmr_kcal, activity_level)
 

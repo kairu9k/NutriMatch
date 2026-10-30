@@ -121,7 +121,7 @@
       <template v-if="result">
         <div class="results-panel">
           <h3 class="results-eyebrow">Your results</h3>
-          <p class="results-hint"><Info :size="13" aria-hidden="true" /> Worked out with the Mifflin-St Jeor equation and the WHO Asia-Pacific BMI ranges. Tap a result to see what it means.</p>
+          <p class="results-hint"><Info :size="13" aria-hidden="true" /> Worked out with Tannhauser's method for BMR and the WHO Asia-Pacific BMI ranges. Tap a result to see what it means.</p>
           <div class="results-grid" role="tablist" aria-label="Screening results">
             <button
               v-for="box in resultBoxes" :key="box.key"
@@ -341,6 +341,8 @@ const ACTIVITY_LABELS = Object.fromEntries(activityLevels.map(l => [l.value, l.l
 // Same factors as clinical/services.py ACTIVITY_FACTORS (shown in the TDEE formula).
 const ACTIVITY_FACTORS = { sedentary: 1.2, lightly_active: 1.375, moderately_active: 1.55, very_active: 1.725, extra_active: 1.9 }
 const kcal = (v) => Math.round(Number(v)).toLocaleString()
+// Tannhauser desirable body weight — same as calculate_dbw_tannhauser().
+const dbwOf = (heightCm) => Math.round((Number(heightCm) - 100) * 0.9 * 10) / 10
 
 const resultBoxes = computed(() => {
   const r = result.value
@@ -385,14 +387,15 @@ const explanation = computed(() => {
   if (openMetric.value === 'bmr') {
     return {
       title: 'BMR', fullName: 'Basal Metabolic Rate',
-      what: 'The calories your body burns at complete rest just to stay alive: breathing, keeping your heart beating and keeping you warm. It is worked out from your weight, height, age and sex (Mifflin-St Jeor equation).',
+      what: 'The calories your body burns at complete rest just to stay alive: breathing, keeping your heart beating and keeping you warm. It is worked out with Tannhauser\'s method: first your desirable body weight (DBW) from your height, then your BMR from that weight and your sex.',
       formula: [
-        { main: 'Male: BMR = (10 × weight in kg) + (6.25 × height in cm) − (5 × age in years) + 5' },
-        { main: 'Female: BMR = (10 × weight in kg) + (6.25 × height in cm) − (5 × age in years) − 161' },
+        { main: 'DBW (kg) = (height in cm − 100) − 10% of (height in cm − 100)' },
+        { main: 'Male: BMR = DBW × 1.0 kcal × 24 hours' },
+        { main: 'Female: BMR = DBW × 0.9 kcal × 24 hours' },
       ],
       yours: r.bmr_kcal
-        ? `about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
-        : 'not worked out yet. It needs your age and sex.',
+        ? `a desirable body weight of ${dbwOf(r.height_cm)} kg, so about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
+        : 'not worked out yet. It needs your sex.',
       note: 'This isn\'t how much you should eat. It\'s the starting point for your TDEE.',
     }
   }
@@ -407,7 +410,7 @@ const explanation = computed(() => {
       }],
       yours: r.tdee_kcal
         ? `about ${kcal(r.tdee_kcal)} kcal a day at ${activity}. Eating around this amount keeps your weight about the same.`
-        : 'not worked out yet. It needs your age and sex.',
+        : 'not worked out yet. It needs your sex.',
       note: 'Your RND uses this to set your daily calorie target in your meal plan. Please don\'t start cutting calories on your own based on it.',
     }
   }

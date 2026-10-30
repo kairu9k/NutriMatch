@@ -107,8 +107,21 @@
                   </div>
                 </div>
               </Field>
-              <Field label="Etiology: related to (E)" required>
-                <textarea v-model="d.pes_etiology" class="nm-input" :maxlength="TMAX.pes_etiology" rows="2" placeholder="e.g. frequent large servings of white rice and sweetened drinks" :disabled="isReadOnly"></textarea>
+              <Field label="Etiology: related to (E)" required group hint="Pick a cause from the Etiology Matrix (Academy of Nutrition and Dietetics, 2020), or type your own. Add the patient's details after it.">
+                <div class="combo" @keydown.down="etMove($event, 1)" @keydown.up="etMove($event, -1)" @keydown.enter="etPickActive" @keydown.esc="etOpen = false">
+                  <textarea v-model="d.pes_etiology" class="nm-input" :maxlength="TMAX.pes_etiology" rows="2" placeholder="Search, e.g. knowledge, or type the cause" :disabled="isReadOnly" aria-label="PES etiology"
+                            role="combobox" :aria-expanded="etOpen" aria-controls="et-list" autocomplete="off"
+                            @focus="etOpen = true" @input="etOpen = true; etIdx = -1" @blur="etCloseSoon"></textarea>
+                  <div v-if="etOpen && !isReadOnly && etGroups.length" id="et-list" class="combo-list" role="listbox">
+                    <template v-for="g in etGroups" :key="g.key">
+                      <p class="combo-group" :class="{ linked: g.linked }">{{ g.label }}</p>
+                      <button v-for="e in g.items" :key="e.id" type="button" role="option" class="combo-opt"
+                              :class="{ on: etFlat[etIdx]?.id === e.id }" :aria-selected="etFlat[etIdx]?.id === e.id" @mousedown.prevent="etPick(e.t)">
+                        {{ e.t }}<span v-if="g.linked" class="combo-tag">{{ e.c }}</span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
               </Field>
               <Field label="Signs and symptoms: as evidenced by (S)" required>
                 <textarea v-model="d.pes_signs" class="nm-input" :maxlength="TMAX.pes_signs" rows="2" placeholder="e.g. FBS 148 mg/dL, HbA1c 7.9%, diet recall of 4 cups rice/day" :disabled="isReadOnly"></textarea>
@@ -124,7 +137,7 @@
               <header class="step-head"><h3 class="step-title">Nutrition intervention</h3><p class="step-desc">What you prescribe: the energy and macro targets, and the diet itself.</p></header>
               <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Targets carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Adjust them as needed.</p>
               <div v-if="ctx.screening?.tdee_kcal" class="energy">
-                <div><span class="k">BMR (Mifflin-St Jeor)</span><strong>{{ whole(ctx.screening.bmr_kcal) }} kcal</strong></div>
+                <div><span class="k">BMR (Tannhauser)</span><strong>{{ whole(ctx.screening.bmr_kcal) }} kcal</strong></div>
                 <div><span class="k">TDEE, {{ String(ctx.screening.activity_level).toLowerCase() }}</span><strong>{{ whole(ctx.screening.tdee_kcal) }} kcal</strong></div>
                 <p class="c-sub">BMR and TDEE from their screening of {{ shortDate(ctx.screening.date) }}.</p>
               </div>
@@ -299,6 +312,7 @@ import {
   KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, bpCategory, extraRowErrors, glucoseCategory, hba1cCategory, macroKcal,
   rangeError, suggestMacros,
 } from '~/utils/ncp'
+import { etiologyGroups } from '~/utils/ncpEtiology'
 
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
@@ -459,6 +473,35 @@ function pickActive(e) {
   if (pesOpen.value && flatMatches.value[activeIdx.value]) { e.preventDefault(); pick(flatMatches.value[activeIdx.value]) }
 }
 function closeSoon() { setTimeout(() => { pesOpen.value = false }, 120) }
+
+/* ---------- Etiology picker (Etiology Matrix, utils/ncpEtiology.js) ---------- */
+// Same behaviour as the PES picker, on a textarea: the arrow keys only drive
+// the list while it's open, and Enter only picks when an option is highlighted
+// (otherwise it's a normal new line).
+const etOpen = ref(false)
+const etIdx = ref(-1)
+const etGroups = computed(() => {
+  const q = (d.value.pes_etiology || '').trim()
+  const groups = etiologyGroups(q, d.value.pes_problem)
+  const all = groups.flatMap(g => g.items)
+  return all.length && all.every(e => e.t.toLowerCase() === q.toLowerCase()) ? [] : groups
+})
+const etFlat = computed(() => etGroups.value.flatMap(g => g.items))
+function etMove(e, dir) {
+  if (!etOpen.value || !etFlat.value.length) return
+  e.preventDefault()
+  const n = etFlat.value.length
+  etIdx.value = (etIdx.value + dir + n) % n
+}
+function etPick(t) {
+  d.value.pes_etiology = t
+  etOpen.value = false
+  etIdx.value = -1
+}
+function etPickActive(e) {
+  if (etOpen.value && etFlat.value[etIdx.value]) { e.preventDefault(); etPick(etFlat.value[etIdx.value].t) }
+}
+function etCloseSoon() { setTimeout(() => { etOpen.value = false; etIdx.value = -1 }, 120) }
 
 /* ---------- required fields (mirrors NcpRecord.finalize_missing) ---------- */
 const filled = v => String(v ?? '').trim() !== ''
@@ -772,6 +815,8 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .combo-group { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; margin: 6px 8px 2px; }
 .combo-opt { display: block; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
 .combo-opt:hover, .combo-opt.on { background: #eef3ec; }
+.combo-group.linked { color: #1f6b43; }
+.combo-tag { float: right; margin-left: 10px; font-size: 0.7rem; font-weight: 600; color: #8a9a8a; }
 .pes-preview, .prev-box, .energy { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; }
 .pes-preview p, .prev-box p { margin: 4px 0 0; font-size: 0.86rem; line-height: 1.5; }
 .energy { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; }

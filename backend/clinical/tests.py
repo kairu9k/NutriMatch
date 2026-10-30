@@ -13,7 +13,8 @@ from scheduling.models import RndClientRelationship
 from .models import NcpRecord, PreConsultationScreening
 from .services import (
     calculate_bmi,
-    calculate_bmr_mifflin_st_jeor,
+    calculate_bmr_tannhauser,
+    calculate_dbw_tannhauser,
     calculate_nrs2002,
     calculate_tdee,
     classify_bmi_asia_pacific,
@@ -34,7 +35,8 @@ def _make_client(email="client@t.ph", dob=None, sex="male"):
 
 class CalculationEngineTests(TestCase):
     """Hand-checked values against the capstone proposal's named formulas —
-    do not loosen these without re-checking vault/C1-NUTRIMATCH-FINALv5.pdf."""
+    do not loosen these without re-checking vault/C1-NUTRIMATCH-FINALv5.pdf.
+    BMR is Tannhauser's method instead (the RND resource person's request)."""
 
     def test_bmi_calculation(self):
         bmi = calculate_bmi(Decimal("70"), Decimal("170"))
@@ -49,14 +51,22 @@ class CalculationEngineTests(TestCase):
         self.assertEqual(classify_bmi_asia_pacific(Decimal("27.0")), "Obese I")
         self.assertEqual(classify_bmi_asia_pacific(Decimal("31.0")), "Obese II")
 
-    def test_bmr_mifflin_st_jeor_male(self):
-        bmr = calculate_bmr_mifflin_st_jeor(Decimal("70"), Decimal("170"), 31, "male")
-        self.assertEqual(bmr, Decimal("1612.50"))
+    def test_dbw_tannhauser(self):
+        # (170 - 100) - 10% of 70 = 63; (157 - 100) - 5.7 = 51.3
+        self.assertEqual(calculate_dbw_tannhauser(Decimal("170")), Decimal("63.00"))
+        self.assertEqual(calculate_dbw_tannhauser(Decimal("157")), Decimal("51.30"))
 
-    def test_bmr_mifflin_st_jeor_female(self):
-        # Same inputs, female offset is -161 instead of +5 -> 166 lower.
-        bmr = calculate_bmr_mifflin_st_jeor(Decimal("70"), Decimal("170"), 31, "female")
-        self.assertEqual(bmr, Decimal("1446.50"))
+    def test_bmr_tannhauser_male(self):
+        # DBW 63 × 1.0 kcal/kg/hour × 24 = 1512
+        self.assertEqual(calculate_bmr_tannhauser(Decimal("170"), "male"), Decimal("1512.00"))
+
+    def test_bmr_tannhauser_female(self):
+        # DBW 63 × 0.9 × 24 = 1360.8; 157 cm: 51.3 × 0.9 × 24 = 1108.08
+        self.assertEqual(calculate_bmr_tannhauser(Decimal("170"), "female"), Decimal("1360.80"))
+        self.assertEqual(calculate_bmr_tannhauser(Decimal("157"), "female"), Decimal("1108.08"))
+
+    def test_bmr_tannhauser_needs_sex(self):
+        self.assertIsNone(calculate_bmr_tannhauser(Decimal("170"), None))
 
     def test_tdee_applies_activity_factor(self):
         bmr = Decimal("1612.50")
@@ -90,8 +100,9 @@ class ScreeningViewTests(TestCase):
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(resp.data["bmi"], "24.22")
         self.assertEqual(resp.data["bmi_category"], "Overweight (At Risk)")
-        self.assertEqual(resp.data["bmr_kcal"], "1612.50")
-        self.assertEqual(resp.data["tdee_kcal"], "2499.38")
+        # Tannhauser: DBW 63 × 1.0 × 24 = 1512; × 1.55 = 2343.6
+        self.assertEqual(resp.data["bmr_kcal"], "1512.00")
+        self.assertEqual(resp.data["tdee_kcal"], "2343.60")
         self.assertEqual(resp.data["nrs_score"], 0)
         self.assertEqual(resp.data["nrs_risk"], "no_risk")
 
@@ -106,7 +117,7 @@ class ScreeningViewTests(TestCase):
         self.assertIn("Progress Tracker", again.data["detail"])
         self.assertEqual(PreConsultationScreening.objects.filter(client=self.client_user).count(), 1)
 
-    def test_screening_without_dob_skips_bmr_tdee(self):
+    def test_screening_without_sex_skips_bmr_tdee(self):
         bare_client = User.objects.create_user(email="bare@t.ph", password="x", role="client", first_name="B", last_name="C")
         self.client_api.force_authenticate(bare_client)
         resp = self.client_api.post("/api/client/screening/", {"height_cm": "170", "weight_kg": "70"})
@@ -121,14 +132,14 @@ class ScreeningViewTests(TestCase):
         ClientProfile.objects.create(user=bare_client)
         self.client_api.force_authenticate(bare_client)
 
-        # Hand-checked: 10*90 + 6.25*172 - 5*31 + 5 = 1825; x1.375 = 2509.375
+        # Hand-checked: DBW (172 - 100) × 0.9 = 64.8; × 1.0 × 24 = 1555.2; × 1.375 = 2138.4
         resp = self.client_api.post("/api/client/screening/", {
             "height_cm": "172", "weight_kg": "90", "age": 31, "sex": "male", "activity_level": "lightly_active",
         })
 
         self.assertEqual(resp.status_code, 201, resp.data)
-        self.assertEqual(resp.data["bmr_kcal"], "1825.00")
-        self.assertEqual(resp.data["tdee_kcal"], "2509.38")
+        self.assertEqual(resp.data["bmr_kcal"], "1555.20")
+        self.assertEqual(resp.data["tdee_kcal"], "2138.40")
         self.assertEqual(resp.data["bmi_category"], "Obese II")
         self.assertNotIn("age", resp.data)
         bare_client.client_profile.refresh_from_db()
@@ -142,8 +153,7 @@ class ScreeningViewTests(TestCase):
             "height_cm": "170", "weight_kg": "70", "age": 40, "sex": "male",
         })
 
-        # The age field is read-only in the form when a DOB is on file; a
-        # tampered request can't change the BMR either.
+        # A typed age can't change the BMR (Tannhauser doesn't use age).
         self.assertEqual(typed.status_code, 201, typed.data)
         self.assertEqual(typed.data["bmr_kcal"], from_dob.data["bmr_kcal"])
 
