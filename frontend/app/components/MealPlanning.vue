@@ -208,7 +208,7 @@
               </select>
             </div>
             <div class="field">
-              <label>Target calories per day</label>
+              <label>TER (Total Energy Requirement), kcal/day</label>
               <input v-model.number="planMeta.kcalPerDay" type="number" min="0" placeholder="e.g., 1800" />
             </div>
           </div>
@@ -386,13 +386,17 @@
               </div>
             </div>
 
-            <div v-if="filledRows(macroRows).length" class="target-list">
+            <div v-if="planMeta.kcalPerDay || filledRows(macroRows).length" class="target-list">
+              <!-- TER first, then the macros it's split into (user's call, 2026-11-01) -->
+              <div v-if="planMeta.kcalPerDay" class="target-row target-ter">
+                <span>TER</span><span>{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
+              </div>
               <div v-for="row in filledRows(macroRows)" :key="row.label" class="target-row">
                 <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
               </div>
             </div>
             <div v-if="filledRows(otherRows).length" class="target-list">
-              <p class="target-list-title">Other targets <span>(not in the kcal target)</span></p>
+              <p class="target-list-title">Other targets <span>(not in the TER)</span></p>
               <div v-for="row in filledRows(otherRows)" :key="row.label" class="target-row">
                 <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
               </div>
@@ -1457,6 +1461,7 @@ function formatTime(t) {
 .preview-summary-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
 .target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
 .target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
+.target-ter { font-weight: 700; color: #1a3a1a; }
 .target-list-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .target-list-title span { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9aaa9a; }
 

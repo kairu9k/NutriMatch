@@ -24,7 +24,7 @@ from .services import (
     calculate_bmi,
     calculate_bmr_tannhauser,
     calculate_nrs2002,
-    calculate_tdee,
+    calculate_ter_tannhauser,
     classify_bmi_asia_pacific,
 )
 
@@ -81,7 +81,7 @@ class ScreeningCreateView(generics.ListCreateAPIView):
             bmr_kcal = calculate_bmr_tannhauser(height_cm, sex)
         if bmr_kcal is not None:
             activity_level = serializer.validated_data.get("activity_level", "sedentary")
-            tdee_kcal = calculate_tdee(bmr_kcal, activity_level)
+            tdee_kcal = calculate_ter_tannhauser(bmr_kcal, activity_level)  # the column holds TER
 
         # Weight-loss % is derived from the client's own screening history,
         # never self-reported — the most recent prior screening's weight is

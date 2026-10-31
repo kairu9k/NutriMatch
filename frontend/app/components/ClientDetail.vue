@@ -163,7 +163,7 @@
                   <div><dt>BMI</dt><dd>{{ s.screening.bmi ? fmt1(s.screening.bmi) : '—' }}<small v-if="s.screening.bmi_category">, {{ s.screening.bmi_category }}</small></dd></div>
                   <div><dt>Activity</dt><dd>{{ s.screening.activity_level }}</dd></div>
                   <div><dt>BMR (Tannhauser)</dt><dd>{{ s.screening.bmr_kcal ? `${Math.round(s.screening.bmr_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
-                  <div><dt>TDEE</dt><dd>{{ s.screening.tdee_kcal ? `${Math.round(s.screening.tdee_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
+                  <div><dt>TER</dt><dd>{{ s.screening.tdee_kcal ? `${Math.round(s.screening.tdee_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
                   <div><dt>NRS-2002</dt><dd>{{ s.screening.nrs_score ?? '—' }}<small v-if="s.screening.nrs_risk">, {{ s.screening.nrs_risk.toLowerCase() }}</small></dd></div>
                 </dl>
                 <p v-if="s.screening.symptoms" class="symptoms"><span class="k">Symptoms and notes</span>{{ s.screening.symptoms }}</p>
@@ -268,7 +268,7 @@
               <p class="tl-dx"><span class="tl-k">Diagnosis</span>{{ r.pes_problem || 'Not written yet' }}<template v-if="r.pes_problem && r.pes_etiology">, related to {{ r.pes_etiology }}</template></p>
               <p class="tl-facts">
                 <span><span class="tl-k">Weight</span>{{ r.weight_kg != null ? `${fmt1(r.weight_kg)} kg` : 'Not measured' }}<small v-if="r.weightChange != null" :class="{ down: r.weightChange < 0 }"> ({{ Math.abs(r.weightChange) < 0.05 ? 'no change' : `${signed(r.weightChange)} kg` }})</small></span>
-                <span><span class="tl-k">Target</span>{{ r.target_kcal ? `${Math.round(r.target_kcal).toLocaleString('en-PH')} kcal` : 'Not set' }}</span>
+                <span><span class="tl-k">TER</span>{{ r.target_kcal ? `${Math.round(r.target_kcal).toLocaleString('en-PH')} kcal` : 'Not set' }}</span>
                 <span v-if="r.is_follow_up"><span class="tl-k">Goal</span>{{ GOAL_LABEL[r.goal_status] || 'Not rated' }}</span>
               </p>
               <p v-if="r.status !== 'completed' && r.missing.length" class="tl-missing"><strong>Still needed:</strong> {{ r.missing.join(', ') }}.</p>
@@ -663,7 +663,7 @@ const GOAL_LABEL = { met: 'Met', partially_met: 'Partially met', not_met: 'Not m
 function ncpMissing(r) {
   return [
     !r.weight_kg && 'weight', !r.height_cm && 'height', !r.pes_problem && 'PES problem', !r.pes_etiology && 'etiology',
-    !r.pes_signs && 'signs and symptoms', !r.diet_prescription && 'diet prescription', !r.target_kcal && 'target kcal',
+    !r.pes_signs && 'signs and symptoms', !r.diet_prescription && 'diet prescription', !r.target_kcal && 'TER',
     r.is_follow_up && !r.goal_status && 'goal status',
   ].filter(Boolean)
 }

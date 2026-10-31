@@ -2,7 +2,7 @@
   <div class="screening-page" :class="{ embedded }">
     <div class="panel">
       <h1 class="screening-title">{{ onFile ? 'Your screening' : 'Pre-consultation screening' }}</h1>
-      <p v-if="!onFile" class="screening-sub">Your answers work out your BMI, BMR, TDEE and NRS-2002 score.</p>
+      <p v-if="!onFile" class="screening-sub">Your answers work out your BMI, BMR, TER and NRS-2002 score.</p>
 
       <!-- Taken once, then read-only: it's the starting point weight/BMI change is measured from.
            On file it shows as a short summary instead of the disabled form. -->
@@ -338,8 +338,9 @@ function toggleMetric(key) {
 watch(result, () => { openMetric.value = '' })
 
 const ACTIVITY_LABELS = Object.fromEntries(activityLevels.map(l => [l.value, l.label]))
-// Same factors as clinical/services.py ACTIVITY_FACTORS (shown in the TDEE formula).
-const ACTIVITY_FACTORS = { sedentary: 1.2, lightly_active: 1.375, moderately_active: 1.55, very_active: 1.725, extra_active: 1.9 }
+// Tannhauser physical activity as % of BMR — same as clinical/services.py
+// TER_ACTIVITY_PCT via SCREENING_TO_TER_ACTIVITY (shown in the TER formula).
+const ACTIVITY_PCT = { sedentary: 30, lightly_active: 50, moderately_active: 75, very_active: 100, extra_active: 100 }
 const kcal = (v) => Math.round(Number(v)).toLocaleString()
 // Tannhauser desirable body weight — same as calculate_dbw_tannhauser().
 const dbwOf = (heightCm) => Math.round((Number(heightCm) - 100) * 0.9 * 10) / 10
@@ -350,7 +351,7 @@ const resultBoxes = computed(() => {
   return [
     { key: 'bmi', label: 'BMI', value: Number(r.bmi).toFixed(1), tag: r.bmi_category, tagClass: bmiTagClass.value },
     { key: 'bmr', label: 'BMR', value: r.bmr_kcal ? Math.round(r.bmr_kcal) : '—', unit: 'kcal/day' },
-    { key: 'tdee', label: 'TDEE', value: r.tdee_kcal ? Math.round(r.tdee_kcal) : '—', unit: 'kcal/day' },
+    { key: 'tdee', label: 'TER', value: r.tdee_kcal ? Math.round(r.tdee_kcal) : '—', unit: 'kcal/day' },
     { key: 'nrs', label: 'NRS-2002', value: `${r.nrs_score ?? '—'}`, tag: nrsRiskLabel.value, tagClass: nrsTagClass.value },
   ]
 })
@@ -396,18 +397,21 @@ const explanation = computed(() => {
       yours: r.bmr_kcal
         ? `a desirable body weight of ${dbwOf(r.height_cm)} kg, so about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
         : 'not worked out yet. It needs your sex.',
-      note: 'This isn\'t how much you should eat. It\'s the starting point for your TDEE.',
+      note: 'This isn\'t how much you should eat. It\'s the starting point for your TER.',
     }
   }
   if (openMetric.value === 'tdee') {
     return {
-      title: 'TDEE', fullName: 'Total Daily Energy Expenditure',
-      what: 'The total calories you burn in a day, including your daily activity. It is your BMR multiplied by an activity factor (Sedentary ×1.2 up to Extra active ×1.9).',
+      title: 'TER', fullName: 'Total Energy Requirement',
+      what: 'The total calories your body needs in a day, worked out with Tannhauser\'s method: your BMR, plus your daily activity (a share of your BMR), plus the energy used to digest food (10%).',
       formula: [{
-        main: 'TDEE = BMR × activity factor',
-        // Non-breaking spaces keep each "Extra Active ×1.9" on one line.
-        sub: activityLevels.map(l => `${l.label} ×${ACTIVITY_FACTORS[l.value]}`.replace(/ /g, ' ')).join(', '),
-      }],
+        main: 'Activity = BMR × activity %',
+        // Non-breaking spaces keep each "Lightly active +50%" on one line.
+        sub: activityLevels.map(l => `${l.label} +${ACTIVITY_PCT[l.value]}%`.replace(/ /g, ' ')).join(', '),
+      },
+        { main: 'Digestion (TEF) = 10% of (BMR + activity)' },
+        { main: 'TER = BMR + activity + digestion, to the nearest 50 kcal' },
+      ],
       yours: r.tdee_kcal
         ? `about ${kcal(r.tdee_kcal)} kcal a day at ${activity}. Eating around this amount keeps your weight about the same.`
         : 'not worked out yet. It needs your sex.',

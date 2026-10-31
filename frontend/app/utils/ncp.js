@@ -98,11 +98,38 @@ export const KCAL_PER_G = { carb: 4, protein: 4, fat: 9 }
 export function macroKcal({ carb, protein, fat }) {
   return (Number(carb) || 0) * 4 + (Number(protein) || 0) * 4 + (Number(fat) || 0) * 9
 }
-// A starting split for the RND to adjust: 50% carbs, 20% protein, 30% fat.
-export function suggestMacros(kcal) {
-  const k = Number(kcal)
-  if (!k) return null
-  return { carb: Math.round((k * 0.5) / 4), protein: Math.round((k * 0.2) / 4), fat: Math.round((k * 0.3) / 9) }
+/* ---------- TER, Tannhauser's factorial method (mirrors clinical/services.py) ----------
+   DBW = (height − 100) − 10%; BMR = DBW × 1.0 (male) / 0.9 (female) × 24;
+   physical activity = % of BMR; TEF = 10% of (BMR + activity);
+   TER = BMR + activity + TEF, to the nearest 50 kcal. */
+export const TER_ACTIVITY = [
+  { value: 'bed_rest', label: 'Bed rest', pct: 10 },
+  { value: 'sedentary', label: 'Sedentary', pct: 30 },
+  { value: 'light', label: 'Light', pct: 50 },
+  { value: 'moderate', label: 'Moderate', pct: 75 },
+  { value: 'heavy', label: 'Heavy', pct: 100 },
+]
+export const DEFAULT_MACRO_PCT = { carb: 55, protein: 20, fat: 25 }
+const roundTo = (v, step) => Math.round(v / step) * step
+
+// The worked steps for the form, or null without height or sex.
+export function terSteps(heightCm, sex, activity) {
+  const h = Number(heightCm)
+  const perHour = { male: 1.0, female: 0.9 }[sex]
+  const act = TER_ACTIVITY.find(a => a.value === activity)
+  if (!h || !perHour || !act) return null
+  const dbw = (h - 100) * 0.9
+  const bmr = dbw * perHour * 24
+  const pa = bmr * act.pct / 100
+  const tef = (bmr + pa) * 0.1
+  return { dbw, perHour, bmr, act, pa, tef, exact: bmr + pa + tef, ter: roundTo(bmr + pa + tef, 50) }
+}
+
+// Grams per day from TER and a % split, each to the nearest 5 g.
+export function macroGrams(ter, pct) {
+  const t = Number(ter)
+  if (!t) return { carb: null, protein: null, fat: null }
+  return Object.fromEntries(Object.keys(KCAL_PER_G).map(k => [k, roundTo(t * (Number(pct[k]) || 0) / 100 / KCAL_PER_G[k], 5)]))
 }
 
 // Field limits — mirror clinical/serializers.py NcpRecordSerializer.RANGES /

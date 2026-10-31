@@ -134,7 +134,8 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
             "pes_problem", "pes_etiology", "pes_signs",
             # Phase 3 — Intervention
             "diet_prescription", "target_kcal", "target_protein_g", "target_carb_g",
-            "target_fat_g", "intervention_notes", "intervention_extra",
+            "target_fat_g", "ter_activity", "carb_pct", "protein_pct", "fat_pct",
+            "intervention_notes", "intervention_extra",
             # Phase 4 — Monitoring
             "monitoring_notes", "goal_status",
             "is_follow_up", "created_at", "updated_at",
@@ -153,7 +154,7 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
         "weight_kg": (Decimal("25"), Decimal("300"), "Weight must be between 25 and 300 kg."),
         "blood_glucose": (Decimal("20"), Decimal("600"), "Fasting glucose must be between 20 and 600 mg/dL."),
         "hba1c": (Decimal("3"), Decimal("20"), "HbA1c must be between 3 and 20%."),
-        "target_kcal": (Decimal("800"), Decimal("5000"), "Target kcal must be between 800 and 5000."),
+        "target_kcal": (Decimal("800"), Decimal("5000"), "TER must be between 800 and 5000 kcal."),
         "target_carb_g": (Decimal("0"), Decimal("1000"), "Carbs must be between 0 and 1000 g."),
         "target_protein_g": (Decimal("0"), Decimal("500"), "Protein must be between 0 and 500 g."),
         "target_fat_g": (Decimal("0"), Decimal("300"), "Fat must be between 0 and 300 g."),
@@ -194,6 +195,13 @@ class NcpRecordSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
             v = attrs.get(field)
             if v is not None and not low <= v <= high:
                 errors[field] = [msg]
+        # Macro split in %: each 0–100, and the three must add up to 100 once all are set.
+        pcts = {k: attrs.get(k, getattr(self.instance, k, None)) for k in ("carb_pct", "protein_pct", "fat_pct")}
+        for k, v in pcts.items():
+            if k in attrs and v is not None and v > 100:
+                errors[k] = ["Must be between 0 and 100%."]
+        if not errors and all(v is not None for v in pcts.values()) and sum(pcts.values()) != 100:
+            errors["carb_pct"] = [f"Carbs, protein and fat must add up to 100% (now {sum(pcts.values())}%)."]
         if errors:
             raise serializers.ValidationError(errors)
 

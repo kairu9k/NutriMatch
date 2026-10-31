@@ -605,7 +605,7 @@ const calorieTarget = computed(() => {
     return { value: Math.round(Number(activePlan.value.target_kcal)), label: 'Daily calorie target', note: 'Set by your RND in your meal plan' }
   }
   if (screening.value?.tdee_kcal) {
-    return { value: Math.round(Number(screening.value.tdee_kcal)), label: 'Estimated daily needs (TDEE)', note: 'Your RND sets your actual target' }
+    return { value: Math.round(Number(screening.value.tdee_kcal)), label: 'Estimated daily needs (TER)', note: 'Your RND sets your actual target' }
   }
   return { value: null, label: 'Daily calorie target', note: 'Complete your screening first' }
 })

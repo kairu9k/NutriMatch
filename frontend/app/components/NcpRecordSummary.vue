@@ -71,9 +71,10 @@
 // Read-only summary of one NCP record (NCP Records page). Records are
 // written on the patient chart, never here; finalized ones can be printed.
 import { CalendarCheck, PenLine, Printer, X } from 'lucide-vue-next'
-import { bmiClass, bpLabel, glucoseCategory, hba1cCategory } from '~/utils/ncp'
+import { TER_ACTIVITY, bmiClass, bpLabel, glucoseCategory, hba1cCategory } from '~/utils/ncp'
 
 const withCat = (text, cat) => (cat ? `${text}, ${cat.label}` : text)
+const withPct = (text, pct) => (pct != null && text !== '—' ? `${text} (${pct}% of TER)` : text)
 
 const props = defineProps({
   row: { type: Object, required: true }, // a record row from /rnd/ncp/overview/
@@ -118,8 +119,11 @@ const assessment = computed(() => {
 const intervention = computed(() => {
   const x = r.value
   const rows = [
-    ['Target energy', x.target_kcal ? `${Math.round(x.target_kcal)} kcal/day` : '—'],
-    ['Carbohydrate', num(x.target_carb_g, 'g', 0)], ['Protein', num(x.target_protein_g, 'g', 0)], ['Fat', num(x.target_fat_g, 'g', 0)],
+    ['TER (Total Energy Requirement)', x.target_kcal
+      ? `${Math.round(x.target_kcal).toLocaleString('en-PH')} kcal/day${x.ter_activity ? `, ${TER_ACTIVITY.find(t => t.value === x.ter_activity)?.label.toLowerCase()} activity` : ''}`
+      : '—'],
+    ['Carbohydrate', withPct(num(x.target_carb_g, 'g', 0), x.carb_pct)], ['Protein', withPct(num(x.target_protein_g, 'g', 0), x.protein_pct)],
+    ['Fat', withPct(num(x.target_fat_g, 'g', 0), x.fat_pct)],
   ]
   for (const e of x.intervention_extra || []) rows.push([e.label, `${e.value}${e.unit ? ` ${e.unit}` : ''}`])
   return rows

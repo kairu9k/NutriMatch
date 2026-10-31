@@ -123,8 +123,20 @@
                   </div>
                 </div>
               </Field>
-              <Field label="Signs and symptoms: as evidenced by (S)" required>
-                <textarea v-model="d.pes_signs" class="nm-input" :maxlength="TMAX.pes_signs" rows="2" placeholder="e.g. FBS 148 mg/dL, HbA1c 7.9%, diet recall of 4 cups rice/day" :disabled="isReadOnly"></textarea>
+              <Field label="Signs and symptoms: as evidenced by (S)" required group hint="Pick signs from the Assessment Terminology (Academy of Nutrition and Dietetics, 2020), or type your own. Add the patient's value after each; separate signs with ;">
+                <div class="combo" @keydown.down="sgMove($event, 1)" @keydown.up="sgMove($event, -1)" @keydown.enter="sgPickActive" @keydown.esc="sgOpen = false">
+                  <textarea ref="signsBox" v-model="d.pes_signs" class="nm-input" :maxlength="TMAX.pes_signs" rows="3" placeholder="Search, e.g. edema, HbA1c, weight loss, or type the signs" :disabled="isReadOnly" aria-label="PES signs and symptoms"
+                            role="combobox" :aria-expanded="sgOpen" aria-controls="sg-list" autocomplete="off"
+                            @focus="sgOpen = true; sgTrackCaret()" @input="sgOpen = true; sgIdx = -1; sgTrackCaret()" @click="sgOpen = true; sgTrackCaret()"
+                            @keyup.left.right.home.end="sgTrackCaret" @select="sgTrackCaret" @blur="sgCloseSoon"></textarea>
+                  <div v-if="sgOpen && !isReadOnly && sgGroups.length" id="sg-list" class="combo-list" role="listbox">
+                    <template v-for="g in sgGroups" :key="g.key">
+                      <p class="combo-group">{{ g.label }}</p>
+                      <button v-for="s in g.items" :key="s.c + s.t" type="button" role="option" class="combo-opt"
+                              :class="{ on: sgFlat[sgIdx] === s }" :aria-selected="sgFlat[sgIdx] === s" @mousedown.prevent="sgPick(s.t)">{{ s.t }}</button>
+                    </template>
+                  </div>
+                </div>
               </Field>
               <div class="pes-preview">
                 <span class="k">PES statement</span>
@@ -136,33 +148,61 @@
             <section v-else-if="stepKey === 'intervention'">
               <header class="step-head"><h3 class="step-title">Nutrition intervention</h3><p class="step-desc">What you prescribe: the energy and macro targets, and the diet itself.</p></header>
               <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Targets carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Adjust them as needed.</p>
-              <div v-if="ctx.screening?.tdee_kcal" class="energy">
-                <div><span class="k">BMR (Tannhauser)</span><strong>{{ whole(ctx.screening.bmr_kcal) }} kcal</strong></div>
-                <div><span class="k">TDEE, {{ String(ctx.screening.activity_level).toLowerCase() }}</span><strong>{{ whole(ctx.screening.tdee_kcal) }} kcal</strong></div>
-                <p class="c-sub">BMR and TDEE from their screening of {{ shortDate(ctx.screening.date) }}.</p>
+              <!-- TER, Tannhauser's factorial method (utils/ncp.js terSteps) -->
+              <div class="ter-box">
+                <div class="ter-head">
+                  <p class="ter-title">Total Energy Requirement, Tannhauser's method</p>
+                  <label class="ter-act">
+                    <span>Activity</span>
+                    <select v-model="i.ter_activity" class="nm-select" :disabled="isReadOnly" aria-label="Physical activity level">
+                      <option v-for="a2 in TER_ACTIVITY" :key="a2.value" :value="a2.value">{{ a2.label }} (+{{ a2.pct }}% of BMR)</option>
+                    </select>
+                  </label>
+                </div>
+                <!-- The result only; the working opens on request (user's call, 2026-11-01) -->
+                <div v-if="terCalc" class="ter-result">
+                  <p><strong>{{ whole(terCalc.ter) }} kcal/day</strong> <span class="c-sub">calculated TER</span></p>
+                  <button type="button" class="ter-toggle" :aria-expanded="terShowSteps" aria-controls="ter-steps" @click="terShowSteps = !terShowSteps">
+                    {{ terShowSteps ? 'Hide calculation' : 'Show calculation' }} <ChevronDown :size="14" :class="{ up: terShowSteps }" aria-hidden="true" />
+                  </button>
+                </div>
+                <dl v-if="terCalc && terShowSteps" id="ter-steps" class="ter-steps">
+                  <div><dt>DBW</dt><dd>({{ fmt(a.height_cm) }} − 100) − 10% = <strong>{{ fmt(terCalc.dbw, 1) }} kg</strong></dd></div>
+                  <div><dt>BMR</dt><dd>{{ fmt(terCalc.dbw, 1) }} × {{ terCalc.perHour.toFixed(1) }} × 24 = <strong>{{ whole(terCalc.bmr) }} kcal</strong></dd></div>
+                  <div><dt>Activity</dt><dd>{{ terCalc.act.label }}, {{ terCalc.act.pct }}% of BMR = <strong>{{ whole(terCalc.pa) }} kcal</strong></dd></div>
+                  <div><dt>TEF</dt><dd>10% of (BMR + activity) = <strong>{{ whole(terCalc.tef) }} kcal</strong></dd></div>
+                  <div class="ter-total"><dt>TER</dt><dd>{{ whole(terCalc.exact) }}, to the nearest 50 = <strong>{{ whole(terCalc.ter) }} kcal</strong></dd></div>
+                </dl>
+                <p v-if="!terCalc" class="c-sub">{{ ctx.patient?.sex ? 'Enter the height in Assessment to work out the TER.' : 'The patient\'s sex isn\'t on file, so the TER can\'t be worked out. Type it below.' }}</p>
               </div>
-              <div class="grid g4">
-                <Field label="Target kcal per day" required :error="errors.target_kcal">
-                  <input v-model="i.target_kcal" type="number" :min="L.target_kcal.min" :max="L.target_kcal.max" step="10" class="nm-input" :disabled="isReadOnly" />
-                </Field>
-                <Field label="Carbs (g)" :hint="macroHint('carb')" :error="errors.target_carb_g">
-                  <input v-model="i.target_carb_g" type="number" :min="L.target_carb_g.min" :max="L.target_carb_g.max" step="1" class="nm-input" :disabled="isReadOnly" />
-                </Field>
-                <Field label="Protein (g)" :hint="macroHint('protein')" :error="errors.target_protein_g">
-                  <input v-model="i.target_protein_g" type="number" :min="L.target_protein_g.min" :max="L.target_protein_g.max" step="1" class="nm-input" :disabled="isReadOnly" />
-                </Field>
-                <Field label="Fat (g)" :hint="macroHint('fat')" :error="errors.target_fat_g">
-                  <input v-model="i.target_fat_g" type="number" :min="L.target_fat_g.min" :max="L.target_fat_g.max" step="1" class="nm-input" :disabled="isReadOnly" />
+              <div class="ter-field">
+                <Field label="TER (Total Energy Requirement), kcal/day" required :error="errors.target_kcal">
+                  <input v-model="i.target_kcal" type="number" :min="L.target_kcal.min" :max="L.target_kcal.max" step="50" class="nm-input" :disabled="isReadOnly" />
                 </Field>
               </div>
-              <div v-if="!isReadOnly || macroTotal" class="macro-line" :class="{ warn: macroOff }">
-                <span v-if="macroTotal">Macros add up to <strong>{{ whole(macroTotal) }} kcal</strong><template v-if="Number(i.target_kcal)"> ({{ macroOff ? `${macroDiffPct}% off the target` : 'matches the target' }})</template>.</span>
-                <span v-else>Add carbs, protein and fat in grams, or use a standard split.</span>
-                <button v-if="!isReadOnly && Number(i.target_kcal)" type="button" class="nm-panel-link" @click="applySplit">Suggest 50 / 20 / 30 split</button>
+              <p v-if="!isReadOnly && terCalc && Number(i.target_kcal) !== terCalc.ter" class="macro-line">
+                <span>This differs from the calculated TER of {{ whole(terCalc.ter) }} kcal.</span>
+                <button type="button" class="nm-panel-link" @click="i.target_kcal = terCalc.ter">Use calculated TER</button>
+              </p>
+              <!-- Macro distribution: the RND sets the %, grams are TER × % ÷ kcal per gram, to the nearest 5 g -->
+              <div class="macro-table" role="group" aria-label="Macronutrient distribution">
+                <div class="mt-row mt-head"><span>Macronutrient</span><span>% of TER</span><span>Grams a day</span></div>
+                <div v-for="m2 in MACROS" :key="m2.key" class="mt-row">
+                  <span class="mt-name">{{ m2.label }} <small>{{ m2.per }} kcal/g</small></span>
+                  <span><input v-model.number="i[`${m2.key}_pct`]" type="number" min="0" max="100" step="1" class="nm-input mt-pct" :disabled="isReadOnly" :aria-label="`${m2.label} percent of TER`" /> %</span>
+                  <span class="mt-g">{{ i[`target_${m2.key}_g`] !== '' && i[`target_${m2.key}_g`] != null ? `${whole(i[`target_${m2.key}_g`])} g` : '—' }}</span>
+                </div>
+                <div class="mt-row mt-foot" :class="{ bad: errors.macro_pct }"><span>Total</span><span>{{ pctTotal }}%</span><span></span></div>
               </div>
+              <p v-if="errors.macro_pct" class="mt-err" role="alert">{{ errors.macro_pct }}</p>
+              <p v-else-if="!isReadOnly" class="c-sub">Starts at 55 / 20 / 25. Grams are TER × % ÷ 4 kcal/g (carbs, protein) or ÷ 9 kcal/g (fat), to the nearest 5 g.</p>
               <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity and more. Pick from the list or type your own." />
-              <Field label="Diet prescription" required>
-                <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="3" placeholder="e.g. 1500 kcal low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
+              <Field label="Diet prescription" required group :hint="isReadOnly ? '' : 'The first lines are written from the TER, macros and other measurements above and update with them. Add the diet itself after them; you can edit everything.'">
+                <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="4" placeholder="e.g. Low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
+                <p v-if="!isReadOnly && rxBlock && rxCurrent !== rxBlock" class="macro-line rx-outdated">
+                  <span>The TER and targets lines don't match what's set above.</span>
+                  <button type="button" class="nm-panel-link" @click="updateRxLine">Update to current numbers</button>
+                </p>
               </Field>
               <Field label="Intervention notes">
                 <textarea v-model="i.intervention_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.intervention_notes" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
@@ -176,7 +216,7 @@
                 <span class="k">Goals from the {{ shortDate(ctx.previous.encounter_date) }} record</span>
                 <p v-if="ctx.previous.pes_problem"><strong>{{ ctx.previous.pes_problem }}</strong><template v-if="ctx.previous.pes_etiology"> related to {{ ctx.previous.pes_etiology }}</template>.</p>
                 <p v-if="ctx.previous.diet_prescription">{{ ctx.previous.diet_prescription }}</p>
-                <p v-if="ctx.previous.target_kcal" class="c-sub">Target {{ whole(ctx.previous.target_kcal) }} kcal/day</p>
+                <p v-if="ctx.previous.target_kcal" class="c-sub">TER {{ whole(ctx.previous.target_kcal) }} kcal/day</p>
                 <div class="since">
                   <div><span class="k">Weight since then</span><strong>{{ ctx.previous.weight_change_kg != null ? `${signed(ctx.previous.weight_change_kg)} kg` : 'Not measured' }}</strong></div>
                   <div><span class="k">7-day meal-plan adherence</span><strong>{{ ctx.adherence?.pct != null ? `${ctx.adherence.pct}%` : 'No meal plan yet' }}</strong></div>
@@ -204,7 +244,6 @@
                 <div v-if="assessExtraLine"><dt>Other measurements</dt><dd>{{ assessExtraLine }}</dd></div>
                 <div><dt>Diagnosis</dt><dd :class="{ empty: !d.pes_problem }">{{ d.pes_problem ? pesSentence : 'Not filled in' }}</dd></div>
                 <div><dt>Prescription</dt><dd :class="{ empty: !i.diet_prescription }">{{ i.diet_prescription || 'Not filled in' }}</dd></div>
-                <div><dt>Targets</dt><dd :class="{ empty: !filled(i.target_kcal) }">{{ targetLine }}</dd></div>
                 <div v-if="interventionExtraLine"><dt>Other targets</dt><dd>{{ interventionExtraLine }}</dd></div>
                 <div v-if="showMonitoring"><dt>Goal status</dt><dd :class="{ empty: !m.goal_status }">{{ GOALS.find(g => g.value === m.goal_status)?.label || 'Not rated' }}</dd></div>
               </dl>
@@ -234,7 +273,7 @@
               <dl class="bl-grid">
                 <div><dt>BMI</dt><dd>{{ ctx.screening.bmi ?? '—' }}</dd><small>{{ ctx.screening.bmi_category }}</small></div>
                 <div :class="{ risk: (ctx.screening.nrs_score ?? 0) >= 3 }"><dt>NRS-2002</dt><dd>{{ ctx.screening.nrs_score ?? '—' }}</dd><small>{{ ctx.screening.nrs_risk }}</small></div>
-                <div><dt>TDEE</dt><dd>{{ whole(ctx.screening.tdee_kcal) }}</dd><small>kcal/day</small></div>
+                <div><dt>TER</dt><dd>{{ whole(ctx.screening.tdee_kcal) }}</dd><small>kcal/day</small></div>
                 <div><dt>BMR</dt><dd>{{ whole(ctx.screening.bmr_kcal) }}</dd><small>kcal/day</small></div>
               </dl>
               <p v-if="ctx.screening.symptoms" class="bl-sym"><strong>Symptoms:</strong> {{ ctx.screening.symptoms }}</p>
@@ -307,12 +346,13 @@
 // Nothing saves on its own: "Save draft" saves whatever is filled, and
 // "Finalize record" (Review step, with a confirmation) locks it. Required
 // fields mirror NcpRecord.finalize_missing() on the API.
-import { AlertTriangle, Check, CheckCircle2, FlaskConical, Info, Lock, Save, X } from 'lucide-vue-next'
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, FlaskConical, Info, Lock, Save, X } from 'lucide-vue-next'
 import {
-  KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, bmiClass, bmiOf, bpCategory, extraRowErrors, glucoseCategory, hba1cCategory, macroKcal,
-  rangeError, suggestMacros,
+  DEFAULT_MACRO_PCT, KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, TER_ACTIVITY, bmiClass, bmiOf, bpCategory, extraRowErrors,
+  glucoseCategory, hba1cCategory, macroGrams, rangeError, terSteps,
 } from '~/utils/ncp'
 import { etiologyGroups } from '~/utils/ncpEtiology'
+import { signGroups } from '~/utils/ncpSigns'
 
 const props = defineProps({
   relationshipId: { type: [String, Number], required: true },
@@ -388,9 +428,24 @@ function hydrate(r = {}) {
   i.value = {
     target_kcal: r.target_kcal ?? '', target_carb_g: r.target_carb_g ?? '', target_protein_g: r.target_protein_g ?? '',
     target_fat_g: r.target_fat_g ?? '', diet_prescription: r.diet_prescription ?? '', intervention_notes: r.intervention_notes ?? '',
+    ter_activity: r.ter_activity ?? '', ...splitOf(r),
     extra: (r.intervention_extra || []).map(x => ({ ...x })),
   }
   m.value = { goal_status: r.goal_status ?? '', monitoring_notes: r.monitoring_notes ?? '' }
+}
+// The record's macro split in %. Records from before the % were stored get it
+// back from their grams (fat takes the remainder so it adds up to 100); with
+// no grams either, the standard 55 / 20 / 25.
+function splitOf(r) {
+  if (r.carb_pct != null && r.protein_pct != null && r.fat_pct != null) return { carb_pct: r.carb_pct, protein_pct: r.protein_pct, fat_pct: r.fat_pct }
+  const t = Number(r.target_kcal)
+  const g = { carb: Number(r.target_carb_g), protein: Number(r.target_protein_g), fat: Number(r.target_fat_g) }
+  if (t && g.carb && g.protein && g.fat) {
+    const carb = Math.round(g.carb * KCAL_PER_G.carb / t * 100)
+    const protein = Math.round(g.protein * KCAL_PER_G.protein / t * 100)
+    return { carb_pct: carb, protein_pct: protein, fat_pct: 100 - carb - protein }
+  }
+  return { carb_pct: DEFAULT_MACRO_PCT.carb, protein_pct: DEFAULT_MACRO_PCT.protein, fat_pct: DEFAULT_MACRO_PCT.fat }
 }
 hydrate()
 
@@ -414,9 +469,16 @@ function prefillBlanks() {
     Object.assign(i.value, {
       target_kcal: prev.target_kcal ?? '', target_carb_g: prev.target_carb_g ?? '', target_protein_g: prev.target_protein_g ?? '',
       target_fat_g: prev.target_fat_g ?? '', diet_prescription: prev.diet_prescription || '',
+      ter_activity: prev.ter_activity || '', ...splitOf(prev),
     })
     carried.value = true
   }
+  // TER: the activity starts from the screening's answer; an empty TER is
+  // filled with the calculated one, and the grams follow from the %.
+  if (blank(i.value.ter_activity)) i.value.ter_activity = ctx.value.screening?.ter_activity || 'sedentary'
+  if (blank(i.value.target_kcal) && terCalc.value) i.value.target_kcal = terCalc.value.ter
+  applyGrams()
+  initRxLine()
 }
 function srcHint(f) {
   const s = ctx.value.prefill?.[f]
@@ -431,24 +493,98 @@ const liveBp = computed(() => (errors.value.blood_pressure ? null : bpCategory(a
 const liveGlucose = computed(() => (errors.value.blood_glucose ? null : glucoseCategory(a.value.blood_glucose)))
 const liveHba1c = computed(() => (errors.value.hba1c ? null : hba1cCategory(a.value.hba1c)))
 const liveBmi = computed(() =>(rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
-const macroTotal = computed(() => macroKcal({ carb: i.value.target_carb_g, protein: i.value.target_protein_g, fat: i.value.target_fat_g }))
-const macroDiffPct = computed(() => {
-  const t = Number(i.value.target_kcal)
-  return t && macroTotal.value ? Math.round(Math.abs(macroTotal.value - t) / t * 100) : 0
+/* ---------- TER and macro distribution (Tannhauser, utils/ncp.js) ---------- */
+const MACROS = [
+  { key: 'carb', label: 'Carbohydrate', per: KCAL_PER_G.carb },
+  { key: 'protein', label: 'Protein', per: KCAL_PER_G.protein },
+  { key: 'fat', label: 'Fat', per: KCAL_PER_G.fat },
+]
+const terCalc = computed(() => (rangeError('height_cm', a.value.height_cm) ? null : terSteps(a.value.height_cm, ctx.value.patient?.sex, i.value.ter_activity)))
+const terShowSteps = ref(false)
+const pctTotal = computed(() => MACROS.reduce((s, m2) => s + (Number(i.value[`${m2.key}_pct`]) || 0), 0))
+// Grams are calculated only: TER × % ÷ kcal per gram, to the nearest 5 g.
+// Left alone when they already match, so a saved draft doesn't turn "unsaved".
+function applyGrams() {
+  if (isReadOnly.value) return
+  const ter = Number(i.value.target_kcal)
+  const g = ter && !rangeError('target_kcal', ter)
+    ? macroGrams(ter, { carb: i.value.carb_pct, protein: i.value.protein_pct, fat: i.value.fat_pct })
+    : { carb: '', protein: '', fat: '' }
+  for (const k of ['carb', 'protein', 'fat']) {
+    const f = `target_${k}_g`
+    const cur = i.value[f]
+    const empty = cur === '' || cur == null
+    const same = empty ? g[k] === '' : g[k] !== '' && Number(cur) === Number(g[k])
+    if (!same) i.value[f] = g[k]
+  }
+}
+watch(() => [i.value.target_kcal, i.value.carb_pct, i.value.protein_pct, i.value.fat_pct], applyGrams)
+// The calculated TER follows height and activity while the RND hasn't typed their own.
+watch(() => terCalc.value?.ter, (now, before) => {
+  if (isReadOnly.value || !now) return
+  if (String(i.value.target_kcal ?? '').trim() === '' || Number(i.value.target_kcal) === before) i.value.target_kcal = now
 })
-const macroOff = computed(() => macroDiffPct.value > 10)
-function macroHint(k) {
-  const g = Number(i.value[{ carb: 'target_carb_g', protein: 'target_protein_g', fat: 'target_fat_g' }[k]])
-  const t = Number(i.value.target_kcal)
-  return g && t ? `${Math.round(g * KCAL_PER_G[k] / t * 100)}% of kcal` : ''
+/* ---------- Diet prescription: the lines written from the Intervention (user's calls, 2026-11-01) ----------
+   The prescription starts with up to two lines stating what's set above:
+     TER 1,850 kcal/day: carbohydrate 255 g (55%), protein 95 g (20%), fat 50 g (25%).
+     Other targets: Sodium 1500 mg/day, Water intake 2 L/day.
+   (the second from the complete "Other measurements" rows). It's plain text
+   the RND can edit. While those lines are still what we wrote, they follow
+   the form; once the RND changes them, they're theirs, and "Update to
+   current numbers" rewrites them. Saved as part of diet_prescription. */
+const RX_LINE = /^TER [\d,]+ kcal\/day: carbohydrate /
+const RX_OTHER = /^Other targets: /
+// (Uses only what's defined above: the watch below reads it during setup.)
+const rxBlock = computed(() => {
+  const lines = []
+  const ter = Number(i.value.target_kcal)
+  const g = { carb: i.value.target_carb_g, protein: i.value.target_protein_g, fat: i.value.target_fat_g }
+  if (ter && !rangeError('target_kcal', ter) && pctTotal.value === 100 && Object.values(g).every(v => v !== '' && v != null)) {
+    const n = v => Math.round(Number(v)).toLocaleString('en-PH')
+    const part = k => `${MACROS.find(m2 => m2.key === k).label.toLowerCase()} ${n(g[k])} g (${i.value[`${k}_pct`]}%)`
+    lines.push(`TER ${n(ter)} kcal/day: ${part('carb')}, ${part('protein')}, ${part('fat')}.`)
+  }
+  const others = (i.value.extra || [])
+    .filter(r => r.label?.trim() && String(r.value ?? '').trim() && !Object.keys(extraRowErrors(r)).length)
+    .map(r => `${r.label.trim()} ${String(r.value).trim()}${r.unit?.trim() ? ` ${r.unit.trim()}` : ''}`)
+  if (others.length) lines.push(`Other targets: ${others.join(', ')}.`)
+  return lines.join('\n')
+})
+// How many of the prescription's first lines are written ones (0–2).
+function rxAutoCount(lines) {
+  let n = RX_LINE.test(lines[0] || '') ? 1 : 0
+  if (RX_OTHER.test(lines[n] || '')) n++
+  return n
 }
-function applySplit() {
-  const s = suggestMacros(i.value.target_kcal)
-  if (s) Object.assign(i.value, { target_carb_g: s.carb, target_protein_g: s.protein, target_fat_g: s.fat })
+const rxCurrent = computed(() => {
+  const lines = (i.value.diet_prescription || '').split('\n')
+  return lines.slice(0, rxAutoCount(lines)).join('\n')
+})
+let rxWritten = '' // the lines this form last wrote, so it knows they're still ours
+function updateRxLine() {
+  const lines = (i.value.diet_prescription || '').split('\n')
+  const rest = lines.slice(rxAutoCount(lines)).join('\n')
+  i.value.diet_prescription = [rxBlock.value, rest.trim() ? rest : ''].filter(Boolean).join('\n')
+  rxWritten = rxBlock.value
 }
-const pesSentence = computed(() => !filled(d.value.pes_problem) && !filled(d.value.pes_etiology) && !filled(d.value.pes_signs)
-  ? 'Fill in the problem, etiology and signs to build the statement.'
-  : `${d.value.pes_problem || '…'}${d.value.pes_etiology ? ` related to ${d.value.pes_etiology}` : ''}${d.value.pes_signs ? `, as evidenced by ${d.value.pes_signs}` : ''}.`)
+// On opening a record that can be edited: put the lines at the top (or bring
+// earlier ones up to date).
+function initRxLine() {
+  if (isReadOnly.value) return
+  if (rxBlock.value && rxCurrent.value !== rxBlock.value) updateRxLine()
+  else rxWritten = rxCurrent.value
+}
+watch(rxBlock, () => {
+  if (isReadOnly.value) return
+  if (!(i.value.diet_prescription || '').trim() || rxCurrent.value === rxWritten) updateRxLine()
+})
+const fmt = (v, dp = 0) => (v === '' || v == null ? '—' : Number(v).toLocaleString('en-PH', { maximumFractionDigits: dp }))
+const pesSentence = computed(() => {
+  if (!filled(d.value.pes_problem) && !filled(d.value.pes_etiology) && !filled(d.value.pes_signs)) return 'Fill in the problem, etiology and signs to build the statement.'
+  // A sign just picked ends in a space (or "; ") left for its value; don't show that before the full stop.
+  const signs = (d.value.pes_signs || '').replace(/[\s;,]+$/, '')
+  return `${d.value.pes_problem || '…'}${d.value.pes_etiology ? ` related to ${d.value.pes_etiology}` : ''}${signs ? `, as evidenced by ${signs}` : ''}.`
+})
 
 /* ---------- PES picker ---------- */
 const pesOpen = ref(false)
@@ -503,6 +639,75 @@ function etPickActive(e) {
 }
 function etCloseSoon() { setTimeout(() => { etOpen.value = false; etIdx.value = -1 }, 120) }
 
+/* ---------- Signs picker (Assessment Terminology, utils/ncpSigns.js) ----------
+   Same behaviour as the Etiology picker, but the box holds several signs
+   separated by "; " and the RND types values and their own words between
+   them. So it searches the words just before the cursor: from the last ";"
+   (or line break) it tries the longest run of trailing words first, then
+   fewer, and uses the first that matches a term — "…diet recall nausea"
+   searches "nausea", "ankle ede" searches "ankle ede". Many terms contain
+   commas ("Glucose, fasting"), so a comma never ends the search. Picking
+   replaces just those words with the term, adds "; " before it if needed and
+   leaves the cursor after it for the patient's value. */
+const sgOpen = ref(false)
+const sgIdx = ref(-1)
+const signsBox = ref(null)
+const sgCaret = ref(null)
+function sgTrackCaret() { sgCaret.value = signsBox.value?.selectionStart ?? null }
+const sgSearch = computed(() => {
+  const text = d.value.pes_signs || ''
+  const caret = sgCaret.value == null ? text.length : Math.min(sgCaret.value, text.length)
+  const before = text.slice(0, caret)
+  const segStart = Math.max(before.lastIndexOf(';'), before.lastIndexOf('\n')) + 1
+  const segment = before.slice(segStart)
+  // Nothing typed for this sign yet (empty box, or just after "; "): the whole list.
+  if (!segment.trim()) return { start: caret, end: caret, groups: signGroups('') }
+  // Cursor after a space: between words (e.g. just after a picked term, ready
+  // for its value), so nothing to suggest until the next word is typed.
+  if (/\s$/.test(segment)) return { start: caret, end: caret, groups: [] }
+  // Where each word starts, longest run of words first.
+  const starts = [...segment.matchAll(/(?:^|[\s,]+)(?=\S)/g)].map(m => m.index + m[0].length)
+  for (const s of starts) {
+    const q = segment.slice(s).trim()
+    if (q.replace(/[^a-z0-9]/gi, '').length < 2) continue
+    const groups = signGroups(q)
+    if (groups.length) return { start: segStart + s, end: caret, groups }
+  }
+  return { start: caret, end: caret, groups: [] }
+})
+const sgGroups = computed(() => sgSearch.value.groups)
+const sgFlat = computed(() => sgGroups.value.flatMap(g => g.items))
+function sgMove(e, dir) {
+  if (!sgOpen.value || !sgFlat.value.length) return
+  e.preventDefault()
+  const n = sgFlat.value.length
+  sgIdx.value = (sgIdx.value + dir + n) % n
+}
+function sgPick(t) {
+  const text = d.value.pes_signs || ''
+  const { start, end } = sgSearch.value
+  let head = text.slice(0, start).replace(/[\s,]+$/, '')
+  if (head && !/[;\n]$/.test(head)) head += ';'
+  head = head ? `${head} ` : ''
+  const tail = text.slice(end).replace(/^\s+/, '')
+  const inserted = `${head}${t}${tail.startsWith(';') ? '' : ' '}`
+  d.value.pes_signs = `${inserted}${tail}`.slice(0, TMAX.pes_signs)
+  sgOpen.value = false
+  sgIdx.value = -1
+  nextTick(() => {
+    const el = signsBox.value
+    if (!el) return
+    el.focus()
+    const at = Math.min(inserted.length, el.value.length)
+    el.setSelectionRange(at, at)
+    sgCaret.value = at
+  })
+}
+function sgPickActive(e) {
+  if (sgOpen.value && sgFlat.value[sgIdx.value]) { e.preventDefault(); sgPick(sgFlat.value[sgIdx.value].t) }
+}
+function sgCloseSoon() { setTimeout(() => { sgOpen.value = false; sgIdx.value = -1 }, 120) }
+
 /* ---------- required fields (mirrors NcpRecord.finalize_missing) ---------- */
 const filled = v => String(v ?? '').trim() !== ''
 const missing = computed(() => {
@@ -511,7 +716,7 @@ const missing = computed(() => {
   if (!filled(a.value.height_cm) || !filled(a.value.weight_kg)) out.push({ label: 'Height and weight', step: idx('assessment') })
   if (!filled(d.value.pes_problem)) out.push({ label: 'PES problem', step: idx('diagnosis') })
   if (!filled(d.value.pes_etiology) || !filled(d.value.pes_signs)) out.push({ label: 'PES etiology and signs', step: idx('diagnosis') })
-  if (!filled(i.value.target_kcal)) out.push({ label: 'Target kcal', step: idx('intervention') })
+  if (!filled(i.value.target_kcal)) out.push({ label: 'TER', step: idx('intervention') })
   if (!filled(i.value.diet_prescription)) out.push({ label: 'Diet prescription', step: idx('intervention') })
   if (showMonitoring.value && !filled(m.value.goal_status)) out.push({ label: 'Goal status', step: idx('monitoring') })
   return out
@@ -531,12 +736,16 @@ const errors = computed(() => {
   const rowsBad = rows => rows.some(row => Object.keys(extraRowErrors(row)).length)
   if (rowsBad(a.value.extra)) e.assessment_extra = 'Fix the other measurements.'
   if (rowsBad(i.value.extra)) e.intervention_extra = 'Fix the other measurements.'
+  const pcts = MACROS.map(m2 => i.value[`${m2.key}_pct`])
+  if (pcts.some(p => p === '' || p == null || !Number.isInteger(Number(p)) || p < 0 || p > 100)) e.macro_pct = 'Each % must be a whole number from 0 to 100.'
+  else if (pctTotal.value !== 100) e.macro_pct = `Carbs, protein and fat must add up to 100% (now ${pctTotal.value}%).`
   return e
 })
 const errorCount = computed(() => Object.keys(errors.value).length)
 const ERROR_STEP = {
   height_cm: 'assessment', weight_kg: 'assessment', blood_pressure: 'assessment', blood_glucose: 'assessment', hba1c: 'assessment', assessment_extra: 'assessment',
   target_kcal: 'intervention', target_carb_g: 'intervention', target_protein_g: 'intervention', target_fat_g: 'intervention', intervention_extra: 'intervention',
+  macro_pct: 'intervention',
 }
 function stepHasError(index) {
   return Object.keys(errors.value).some(k => ERROR_STEP[k] === stepKeys.value[index])
@@ -562,12 +771,6 @@ const measureLine = computed(() => [
   filled(a.value.bp_systolic) ? `BP ${a.value.bp_systolic}/${a.value.bp_diastolic}` : null,
   filled(a.value.blood_glucose) ? `FBS ${a.value.blood_glucose} mg/dL` : null, filled(a.value.hba1c) ? `HbA1c ${a.value.hba1c}%` : null,
 ].filter(Boolean).join(', ') || 'Not filled in')
-const targetLine = computed(() => {
-  const t = i.value
-  if (!filled(t.target_kcal)) return 'Not filled in'
-  const macros = [filled(t.target_carb_g) ? `${t.target_carb_g} g carbs` : null, filled(t.target_protein_g) ? `${t.target_protein_g} g protein` : null, filled(t.target_fat_g) ? `${t.target_fat_g} g fat` : null].filter(Boolean)
-  return `${whole(t.target_kcal)} kcal/day${macros.length ? `: ${macros.join(', ')}` : ''}`
-})
 // "+ Add Field" rows, e.g. "Sodium 1500 mg"; half-filled rows are left out.
 const extraLine = rows => rows
   .filter(r => r.label?.trim() && filled(r.value))
@@ -592,9 +795,11 @@ function payload() {
     weight_kg: num(a.value.weight_kg), height_cm: num(a.value.height_cm), blood_pressure: sys || dia ? `${sys}/${dia}` : null,
     blood_glucose: num(a.value.blood_glucose), hba1c: num(a.value.hba1c), lab_notes: a.value.lab_notes || null,
     assessment_notes: a.value.assessment_notes || null, assessment_extra: a.value.extra.filter(r => r.label.trim()),
-    pes_problem: d.value.pes_problem || null, pes_etiology: d.value.pes_etiology || null, pes_signs: d.value.pes_signs || null,
+    pes_problem: d.value.pes_problem || null, pes_etiology: d.value.pes_etiology || null, pes_signs: (d.value.pes_signs || '').replace(/[\s;,]+$/, '') || null,
     target_kcal: num(i.value.target_kcal), target_carb_g: num(i.value.target_carb_g), target_protein_g: num(i.value.target_protein_g),
-    target_fat_g: num(i.value.target_fat_g), diet_prescription: i.value.diet_prescription || null,
+    target_fat_g: num(i.value.target_fat_g), ter_activity: i.value.ter_activity || null,
+    carb_pct: num(i.value.carb_pct), protein_pct: num(i.value.protein_pct), fat_pct: num(i.value.fat_pct),
+    diet_prescription: i.value.diet_prescription || null,
     intervention_notes: i.value.intervention_notes || null, intervention_extra: i.value.extra.filter(r => r.label.trim()),
     goal_status: m.value.goal_status || null, monitoring_notes: m.value.monitoring_notes || null,
   }
@@ -823,6 +1028,39 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .energy div { display: flex; flex-direction: column; }
 .energy strong { font-size: 1rem; }
 .energy .c-sub { grid-column: 1 / -1; }
+.ter-box { background: #fafbfa; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; }
+.ter-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ter-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
+.ter-act { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
+.ter-result { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ter-result p { margin: 0; font-size: 0.86rem; color: #1a3a1a; }
+.ter-result strong { font-size: 1.05rem; }
+.ter-toggle {
+  display: inline-flex; align-items: center; gap: 4px; border: none; background: #e3efe7; color: #0a4a37; border-radius: 8px;
+  min-height: 32px; padding: 0 12px; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.ter-toggle:hover { background: #d3e7da; }
+.ter-toggle:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .ter-toggle svg { transition: transform 0.15s; } }
+.ter-toggle svg.up { transform: rotate(180deg); }
+.ter-steps { margin: 10px 0 0; display: grid; gap: 4px; font-size: 0.82rem; color: #4a5a4a; }
+.ter-steps div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; }
+.ter-steps dt { font-weight: 600; color: #1a3a1a; }
+.ter-steps dd { margin: 0; }
+.ter-steps strong { color: #1a3a1a; }
+.ter-steps .ter-total { border-top: 1px solid #d9e3dc; padding-top: 6px; margin-top: 2px; }
+.ter-field { max-width: 320px; }
+.rx-outdated { margin: 8px 0 0; }
+.macro-table { border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; margin: 2px 0 6px; }
+.mt-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid #d9e3dc; font-size: 0.84rem; color: #1a3a1a; }
+.mt-row:first-child { border-top: none; }
+.mt-head { background: #f7faf8; font-size: 0.74rem; font-weight: 600; color: #6a7a6a; }
+.mt-name small { color: #8a9a8a; font-weight: 400; margin-left: 4px; }
+.mt-pct { width: 72px; display: inline-block; }
+.mt-g { font-weight: 700; }
+.mt-foot { background: #f7faf8; font-weight: 700; }
+.mt-foot.bad { color: #c0392b; }
+.mt-err { font-size: 0.78rem; color: #c0392b; font-weight: 600; margin: 0 0 12px; }
 .macro-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.8rem; color: #4a5a4a; background: #f3f8f4; border-radius: 8px; padding: 8px 12px; margin: -2px 0 14px; }
 .macro-line.warn { background: #fdf6e3; color: #7a5a00; }
 .since { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }

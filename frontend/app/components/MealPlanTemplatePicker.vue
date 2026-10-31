@@ -72,7 +72,7 @@ onMounted(load)
 watch(() => props.relationshipId, () => { picked.value = null; load() })
 
 // Each template has its own starting kcal (weight gain adds 500, weight
-// management takes 500 off the screening TDEE). Picking another template moves
+// management takes 500 off the screening TER). Picking another template moves
 // the kcal along, unless the RND typed their own number.
 const suggestion = computed(() => data.value?.templates.find(t => t.key === picked.value)?.suggested_kcal || data.value?.suggested_kcal)
 watch(picked, (key, before) => {

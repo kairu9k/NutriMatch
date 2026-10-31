@@ -14,7 +14,7 @@
       <p>NutriMatch operates under three roles: Client, RND, and Administrator. RND accounts require a valid, unexpired PRC (Professional Regulation Commission) license, submitted as a photo at registration and manually verified by an administrator before clinical features become accessible. Clinical features — including the Nutrition Care Process, meal planning, and progress monitoring — are only accessible within a formally established, active RND-client relationship.</p>
 
       <h2>3. Nature of the Service</h2>
-      <p>NutriMatch provides tools to support, not replace, professional clinical judgment. Automated computations including BMI, BMR, TDEE, and NRS-2002 nutritional risk scoring are intended as decision-support aids. Final clinical decisions remain the responsibility of the supervising RND. NutriMatch is not a substitute for emergency medical care.</p>
+      <p>NutriMatch provides tools to support, not replace, professional clinical judgment. Automated computations including BMI, BMR, TER, and NRS-2002 nutritional risk scoring are intended as decision-support aids. Final clinical decisions remain the responsibility of the supervising RND. NutriMatch is not a substitute for emergency medical care.</p>
 
       <h2>4. Payments &amp; Billing</h2>
       <p>Consultation fees are set independently by each RND and displayed on their profile prior to booking. Payments are processed through PayMongo, a third-party payment provider. NutriMatch retains a platform commission on completed transactions, frozen at the rate in effect at the time of the transaction.</p>

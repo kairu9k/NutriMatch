@@ -16,8 +16,9 @@ from .services import (
     calculate_bmr_tannhauser,
     calculate_dbw_tannhauser,
     calculate_nrs2002,
-    calculate_tdee,
+    calculate_ter_tannhauser,
     classify_bmi_asia_pacific,
+    macro_grams,
 )
 
 
@@ -68,10 +69,27 @@ class CalculationEngineTests(TestCase):
     def test_bmr_tannhauser_needs_sex(self):
         self.assertIsNone(calculate_bmr_tannhauser(Decimal("170"), None))
 
-    def test_tdee_applies_activity_factor(self):
-        bmr = Decimal("1612.50")
-        self.assertEqual(calculate_tdee(bmr, "moderately_active"), Decimal("2499.38"))
-        self.assertEqual(calculate_tdee(bmr, "sedentary"), Decimal("1935.00"))
+    def test_ter_tannhauser_factorial(self):
+        # Hand-checked. Female 157 cm: BMR 1108.08.
+        # Light: PA 50% = 554.04; TEF 10% of 1662.12 = 166.21; TER 1828.33 → 1850
+        bmr = Decimal("1108.08")
+        self.assertEqual(calculate_ter_tannhauser(bmr, "light"), Decimal("1850"))
+        # Sedentary: 1108.08 × 1.3 × 1.1 = 1584.55 → 1600; bed rest: × 1.1 × 1.1 = 1340.78 → 1350
+        self.assertEqual(calculate_ter_tannhauser(bmr, "sedentary"), Decimal("1600"))
+        self.assertEqual(calculate_ter_tannhauser(bmr, "bed_rest"), Decimal("1350"))
+        # Male 170 cm, BMR 1512: moderate 1512 × 1.75 × 1.1 = 2910.6 → 2900; heavy × 2.0 × 1.1 = 3326.4 → 3350
+        self.assertEqual(calculate_ter_tannhauser(Decimal("1512"), "moderate"), Decimal("2900"))
+        self.assertEqual(calculate_ter_tannhauser(Decimal("1512"), "heavy"), Decimal("3350"))
+        # Screening answers map onto the scale (lightly active = light, extra active = heavy).
+        self.assertEqual(calculate_ter_tannhauser(bmr, "lightly_active"), Decimal("1850"))
+        self.assertEqual(calculate_ter_tannhauser(Decimal("1512"), "extra_active"), Decimal("3350"))
+
+    def test_macro_grams_default_split(self):
+        # TER 1850, 55 / 20 / 25: carbs 254.4 → 255 g, protein 92.5 → 95 g, fat 51.4 → 50 g
+        self.assertEqual(macro_grams(Decimal("1850")), {"carb": Decimal("255"), "protein": Decimal("95"), "fat": Decimal("50")})
+        # 2000, 50 / 20 / 30: 250, 100, 66.7 → 65
+        self.assertEqual(macro_grams(Decimal("2000"), {"carb": 50, "protein": 20, "fat": 30}),
+                         {"carb": Decimal("250"), "protein": Decimal("100"), "fat": Decimal("65")})
 
     def test_nrs2002_no_risk_factors(self):
         score, risk = calculate_nrs2002(bmi=Decimal("22"))
@@ -100,9 +118,9 @@ class ScreeningViewTests(TestCase):
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(resp.data["bmi"], "24.22")
         self.assertEqual(resp.data["bmi_category"], "Overweight (At Risk)")
-        # Tannhauser: DBW 63 × 1.0 × 24 = 1512; × 1.55 = 2343.6
+        # Tannhauser: DBW 63 × 1.0 × 24 = 1512; TER (moderate) 1512 × 1.75 × 1.1 = 2910.6 → 2900
         self.assertEqual(resp.data["bmr_kcal"], "1512.00")
-        self.assertEqual(resp.data["tdee_kcal"], "2343.60")
+        self.assertEqual(resp.data["tdee_kcal"], "2900.00")
         self.assertEqual(resp.data["nrs_score"], 0)
         self.assertEqual(resp.data["nrs_risk"], "no_risk")
 
@@ -132,14 +150,14 @@ class ScreeningViewTests(TestCase):
         ClientProfile.objects.create(user=bare_client)
         self.client_api.force_authenticate(bare_client)
 
-        # Hand-checked: DBW (172 - 100) × 0.9 = 64.8; × 1.0 × 24 = 1555.2; × 1.375 = 2138.4
+        # Hand-checked: DBW (172 - 100) × 0.9 = 64.8; × 1.0 × 24 = 1555.2; TER (light) × 1.5 × 1.1 = 2566.08 → 2550
         resp = self.client_api.post("/api/client/screening/", {
             "height_cm": "172", "weight_kg": "90", "age": 31, "sex": "male", "activity_level": "lightly_active",
         })
 
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(resp.data["bmr_kcal"], "1555.20")
-        self.assertEqual(resp.data["tdee_kcal"], "2138.40")
+        self.assertEqual(resp.data["tdee_kcal"], "2550.00")
         self.assertEqual(resp.data["bmi_category"], "Obese II")
         self.assertNotIn("age", resp.data)
         bare_client.client_profile.refresh_from_db()

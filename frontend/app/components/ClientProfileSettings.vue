@@ -156,7 +156,7 @@
               <dd>{{ screening.bmi }}</dd>
             </div>
             <div class="fig">
-              <dt>Energy needs a day (TDEE)</dt>
+              <dt>Energy needs a day (TER)</dt>
               <dd>{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal).toLocaleString() : '—' }} <span class="fig-unit">kcal</span></dd>
             </div>
             <div class="fig" :class="{ risk: (screening.nrs_score ?? 0) >= 3 }">

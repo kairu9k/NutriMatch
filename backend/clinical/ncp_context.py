@@ -15,6 +15,8 @@ from rest_framework.views import APIView
 from accounts.permissions import IsRnd
 from accounts.validators import age_on
 
+from .services import SCREENING_TO_TER_ACTIVITY
+
 
 def _num(v):
     return float(v) if v is not None else None
@@ -68,7 +70,9 @@ def build_ncp_context(rel, now=None):
             "pes_problem": prev.pes_problem, "pes_etiology": prev.pes_etiology, "pes_signs": prev.pes_signs,
             "diet_prescription": prev.diet_prescription, "target_kcal": _num(prev.target_kcal),
             "target_protein_g": _num(prev.target_protein_g), "target_carb_g": _num(prev.target_carb_g),
-            "target_fat_g": _num(prev.target_fat_g), "intervention_notes": prev.intervention_notes,
+            "target_fat_g": _num(prev.target_fat_g), "ter_activity": prev.ter_activity,
+            "carb_pct": prev.carb_pct, "protein_pct": prev.protein_pct, "fat_pct": prev.fat_pct,
+            "intervention_notes": prev.intervention_notes,
             "goal_status": prev.goal_status,
             "weight_change_kg": round(latest_w - float(prev.weight_kg), 1) if latest_w is not None and prev.weight_kg else None,
         }
@@ -101,7 +105,10 @@ def build_ncp_context(rel, now=None):
         "screening": {
             "date": screening.created_at, "bmi": _num(screening.bmi), "bmi_category": screening.bmi_category,
             "bmr_kcal": _num(screening.bmr_kcal), "tdee_kcal": _num(screening.tdee_kcal),
-            "activity_level": screening.get_activity_level_display(), "nrs_score": screening.nrs_score,
+            "activity_level": screening.get_activity_level_display(),
+            # The screening's answer on the Tannhauser scale — the TER calculator's starting activity.
+            "ter_activity": SCREENING_TO_TER_ACTIVITY.get(screening.activity_level, "sedentary"),
+            "nrs_score": screening.nrs_score,
             "nrs_risk": screening.get_nrs_risk_display() if screening.nrs_risk else None, "symptoms": screening.symptoms,
         } if screening else None,
         "meal_plan": {
