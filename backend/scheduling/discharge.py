@@ -48,6 +48,7 @@ def discharge(relationship, by, reason, *, ended_by=RndClientRelationship.EndedB
     """End care. `by` is the RND (or the admin); `ended_by` says how it ended:
     the RND discharged them, it ended on its own after the client's request
     (by=None), or NutriMatch ended it (e.g. the RND was deactivated)."""
+    from clinical.models import LabRequest
     from communication.models import Reminder
     from communication.services import notify
     from core.models import AuditLog
@@ -66,11 +67,15 @@ def discharge(relationship, by, reason, *, ended_by=RndClientRelationship.EndedB
         archived = MealPlan.objects.filter(relationship=relationship, status=MealPlan.Status.ACTIVE).update(
             status=MealPlan.Status.ARCHIVED)
         stopped = Reminder.objects.filter(relationship=relationship, is_active=True).update(is_active=False)
+        # Open lab requests end with the care: the client can't upload to a closed chart.
+        labs_cancelled = LabRequest.objects.filter(relationship=relationship, status=LabRequest.Status.OPEN).update(
+            status=LabRequest.Status.CANCELLED, cancelled_at=now)
         AuditLog.objects.create(
             user=by, action="relationship.discharged", table_name="rnd_client_relationships", record_id=relationship.id,
             old_values={"status": "active"},
             new_values={"status": "discharged", "reason": reason[:1000], "ended_by": ended_by,
-                        "meal_plans_archived": archived, "reminders_stopped": stopped},
+                        "meal_plans_archived": archived, "reminders_stopped": stopped,
+                        "lab_requests_cancelled": labs_cancelled},
         )
         if ended_by == RndClientRelationship.EndedBy.RND:
             client_text = (f"{rnd.full_name} has completed your care at NutriMatch. Reason: {reason} "

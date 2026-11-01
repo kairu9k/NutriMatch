@@ -18,6 +18,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -445,6 +446,8 @@ class ClientLabsView(APIView):
         rel = _client_relationship(request.user)
         reqs = (LabRequest.objects.filter(relationship__client=request.user)
                 .exclude(status=LabRequest.Status.CANCELLED)
+                # an open request only counts while that care is active (never after discharge)
+                .exclude(Q(status=LabRequest.Status.OPEN) & ~Q(relationship__status=RndClientRelationship.Status.ACTIVE))
                 .select_related("requested_by", "relationship").prefetch_related("results"))
         results = LabResult.objects.filter(relationship__client=request.user).select_related("relationship")
         nxt = next_consultation(rel, now) if rel else None

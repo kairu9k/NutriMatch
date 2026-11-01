@@ -361,7 +361,7 @@ def today_items(client, now=None):
     """What's on today for the client dashboard: consultations, planned meals
     (logged or not) and RND reminders, in time order (Philippine time)."""
     from nutrition.models import MealLog, MealPlan, MealPlanMeal
-    from scheduling.models import Appointment
+    from scheduling.models import Appointment, RndClientRelationship
 
     from .models import Reminder
 
@@ -411,7 +411,8 @@ def today_items(client, now=None):
 
     end_of_day = end - timedelta(minutes=1)
     for req in (LabRequest.objects.filter(relationship__client=client)
-                .filter(Q(status=LabRequest.Status.OPEN) | Q(status=LabRequest.Status.COMPLETED, completed_at__gte=start, completed_at__lt=end))
+                .filter(Q(status=LabRequest.Status.OPEN, relationship__status=RndClientRelationship.Status.ACTIVE)
+                        | Q(status=LabRequest.Status.COMPLETED, completed_at__gte=start, completed_at__lt=end))
                 .select_related("relationship")):
         done = req.status == LabRequest.Status.COMPLETED
         nxt = None if done else next_consultation(req.relationship, now)

@@ -203,3 +203,22 @@ class LabResultsTests(TestCase):
         self.assertTrue(NotificationLog.objects.filter(recipient=self.c, notifiable_type="lab_request", notifiable_id=req_id,
                                                        subject="Lab request cancelled").exists())
         self.assertEqual([i for i in today_items(self.c) if i["kind"] == "lab"], [])
+
+    def test_discharge_closes_open_requests(self):
+        req_id = self.request_labs().data["id"]
+        self.appt.status = "completed"
+        self.appt.completed_at = timezone.now()
+        self.appt.save()
+        from scheduling.discharge import discharge
+
+        discharge(self.rel, self.rnd, "Goals reached, care complete.")
+        req = LabRequest.objects.get(pk=req_id)
+        self.assertEqual(req.status, LabRequest.Status.CANCELLED)
+        self.assertIsNotNone(req.cancelled_at)
+        # Gone from the client's page and My tasks, and nothing can be uploaded.
+        self.assertEqual(self.client_api.get("/api/client/labs/").data["requests"], [])
+        self.assertEqual([i for i in today_items(self.c) if i["kind"] == "lab"], [])
+        self.assertEqual(self.upload(request_id=req_id).status_code, 400)
+        self.assertEqual(self.upload().status_code, 400)
+        audit = AuditLog.objects.get(action="relationship.discharged", record_id=self.rel.id)
+        self.assertEqual(audit.new_values["lab_requests_cancelled"], 1)
