@@ -403,7 +403,7 @@ const explanation = computed(() => {
   if (openMetric.value === 'tdee') {
     return {
       title: 'TER', fullName: 'Total Energy Requirement',
-      what: 'The total calories your body needs in a day, worked out with Tannhauser\'s method: your BMR, plus your daily activity (a share of your BMR), plus the energy used to digest food (10%).',
+      what: 'The total calories your body needs in a day at a healthy weight for your height, worked out with Tannhauser\'s method: your BMR, plus your daily activity (a share of your BMR), plus the energy used to digest food (10%). It comes from your height, not your current weight.',
       formula: [{
         main: 'Activity = BMR × activity %',
         // Non-breaking spaces keep each "Lightly active +50%" on one line.
@@ -413,7 +413,7 @@ const explanation = computed(() => {
         { main: 'TER = BMR + activity + digestion, to the nearest 50 kcal' },
       ],
       yours: r.tdee_kcal
-        ? `about ${kcal(r.tdee_kcal)} kcal a day at ${activity}. Eating around this amount keeps your weight about the same.`
+        ? `about ${kcal(r.tdee_kcal)} kcal a day at ${activity}. It's set for the healthy weight for your height, so if you weigh more or less than that, eating this amount slowly moves you toward it.`
         : 'not worked out yet. It needs your sex.',
       note: 'Your RND uses this to set your daily calorie target in your meal plan. Please don\'t start cutting calories on your own based on it.',
     }
