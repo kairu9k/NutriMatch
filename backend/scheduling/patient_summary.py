@@ -55,6 +55,8 @@ def build_patient_summary(rnd, rel_id, now=None):
     current = next((r for r in recs if r.status == NcpRecord.Status.COMPLETED), None)
     care_plan = {
         "id": current.id, "encounter_date": current.encounter_date, "is_follow_up": current.is_follow_up(),
+        # measured at that consultation (Meal Planning's patient strip)
+        "weight_kg": _num(current.weight_kg), "height_cm": _num(current.height_cm), "ter_activity": current.ter_activity,
         "pes_problem": current.pes_problem, "pes_etiology": current.pes_etiology, "pes_signs": current.pes_signs,
         "diet_prescription": current.diet_prescription, "target_kcal": _num(current.target_kcal),
         "target_protein_g": _num(current.target_protein_g), "target_carb_g": _num(current.target_carb_g),

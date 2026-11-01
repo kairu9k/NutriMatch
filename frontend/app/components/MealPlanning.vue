@@ -173,6 +173,18 @@
     <!-- ================= CREATE / EDIT PLAN MODE ================= -->
     <div v-else class="planning-layout">
       <div class="create-column">
+        <!-- The patient's age, sex and latest measurements, for setting the targets -->
+        <section v-if="patientBody" class="panel body-strip no-print" :aria-label="`${patientFirstName}'s measurements`">
+          <dl class="body-figs">
+            <div><dt>Age</dt><dd>{{ patientBody.age != null ? `${patientBody.age} years` : '—' }}</dd></div>
+            <div><dt>Sex</dt><dd>{{ patientBody.sex || '—' }}</dd></div>
+            <div><dt>Height</dt><dd>{{ patientBody.height ? `${Number(patientBody.height)} cm` : '—' }}</dd></div>
+            <div><dt>Weight</dt><dd>{{ patientBody.weight != null ? `${Number(patientBody.weight)} kg` : '—' }}</dd></div>
+            <div><dt>BMI</dt><dd>{{ patientBody.bmi ? patientBody.bmi.toFixed(1) : '—' }}<small v-if="patientBody.bmiClass">{{ patientBody.bmiClass }}</small></dd></div>
+            <div><dt>TER</dt><dd>{{ patientBody.ter ? `${Math.round(patientBody.ter).toLocaleString('en-PH')} kcal` : '—' }}<small v-if="patientBody.terNote">{{ patientBody.terNote }}</small></dd></div>
+          </dl>
+          <p v-if="patientBody.source" class="body-source">{{ patientBody.source }}</p>
+        </section>
         <!-- NEW PLAN: pick how to start first, so the two forms never sit on top of each other -->
         <div v-if="!selectedPlan" class="panel start-choice">
           <h4 class="no-plan-title">New meal plan for {{ selectedPatientName }}</h4>
@@ -414,6 +426,17 @@
         </div>
 
         <div v-if="selectedPlan" class="panel">
+          <h4 class="side-title">Instructions for the patient</h4>
+          <div class="field">
+            <label>Allergies and restrictions</label>
+            <textarea v-model="instructions.allergies" rows="4" class="instr-box" placeholder="e.g., No shellfish, low potassium"></textarea>
+          </div>
+          <div class="field">
+            <label>Notes for the patient</label>
+            <textarea v-model="instructions.notes" data-allow-emoji rows="6" class="instr-box" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
+          </div>
+        </div>
+        <div v-if="selectedPlan" class="panel">
           <h4 class="side-title">Day totals</h4>
           <div class="macro-row"><span>Calories</span><span class="macro-value">{{ dayTotal('kcal') }} kcal</span></div>
           <div class="macro-bar"><div class="macro-fill fill-dark" :style="{ width: macroPct('kcal') + '%' }"></div></div>
@@ -430,17 +453,6 @@
           <p class="macro-note">Based on foods entered for the selected day</p>
         </div>
 
-        <div v-if="selectedPlan" class="panel">
-          <h4 class="side-title">Instructions for the patient</h4>
-          <div class="field">
-            <label>Allergies and restrictions</label>
-            <textarea v-model="instructions.allergies" rows="2" placeholder="e.g., No shellfish, low potassium"></textarea>
-          </div>
-          <div class="field">
-            <label>Notes for the patient</label>
-            <textarea v-model="instructions.notes" data-allow-emoji rows="3" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
-          </div>
-        </div>
       </div>
     </div>
     <div v-if="confirmDelete" class="nm-modal-overlay no-print" @click.self="confirmDelete = false">
@@ -510,7 +522,7 @@ import {
   Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle, Trash2, Undo2, Lock
 } from 'lucide-vue-next'
 import { usdaPortion } from '~/utils/usda'
-import { MEASURE_TEMPLATES } from '~/utils/ncp'
+import { MEASURE_TEMPLATES, TER_ACTIVITY, bmiClass, bmiOf } from '~/utils/ncp'
 import { allergyWarnings, conditionKeys, foodWarnings } from '~/utils/foodWarnings'
 
 const route = useRoute()
@@ -1064,19 +1076,44 @@ async function loadFnriItems() {
     fnriById.value = {}
   }
 }
+const patientSummary = ref(null)
 async function loadPatientConditions(relId) {
   patientConditions.value = []
   patientAllergies.value = []
+  patientSummary.value = null
   try {
     const summary = await get(`/rnd/relationships/${relId}/summary/`)
     if (relId === selectedRelId.value) {
       patientConditions.value = summary.health?.conditions || []
       patientAllergies.value = summary.health?.allergies || []
+      patientSummary.value = summary
     }
   } catch {
     // No conditions known — the plan's own condition still counts.
   }
 }
+// Age, sex and the latest measurements, for setting the targets: weight and
+// height from the latest finalized NCP record, else the screening.
+const patientBody = computed(() => {
+  const s = patientSummary.value
+  if (!s) return null
+  const cp = s.care_plan
+  const sc = s.screening
+  const fromNcp = cp && cp.weight_kg != null
+  const weight = fromNcp ? cp.weight_kg : sc?.weight_kg ?? null
+  const height = (fromNcp && cp.height_cm) || sc?.height_cm || null
+  const date = fromNcp ? cp.encounter_date : sc?.date
+  const bmi = bmiOf(weight, height)
+  const activity = TER_ACTIVITY.find(a => a.value === cp?.ter_activity)
+  return {
+    age: s.patient?.client?.age ?? null,
+    sex: s.patient?.client?.sex ? s.patient.client.sex.charAt(0).toUpperCase() + s.patient.client.sex.slice(1) : null,
+    weight, height, bmi, bmiClass: bmi ? bmiClass(bmi) : '',
+    ter: cp?.target_kcal ?? null,
+    terNote: cp?.target_kcal ? `NCP${activity ? `, ${activity.label.toLowerCase()} activity` : ''}` : '',
+    source: weight == null ? '' : `Weight and height from the ${fromNcp ? 'NCP record' : 'screening'} of ${new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}.`,
+  }
+})
 const warnKeys = computed(() => conditionKeys(patientConditions.value, planMeta.condition))
 // The patient's conditions, plus the plan's condition when it adds one.
 const conditionSummary = computed(() => {
@@ -1348,6 +1385,20 @@ function formatTime(t) {
 .planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 
 .panel { background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #eceeec; margin-bottom: 20px; }
+/* Patient strip: one divided row of figures */
+.body-strip { padding: 0; overflow: hidden; }
+.body-figs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; }
+.body-figs > div { padding: 12px 16px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.body-figs > div:first-child { border-left: 0; }
+.body-figs dt { font-size: 0.78rem; color: #5b6b62; margin-bottom: 2px; }
+.body-figs dd { margin: 0; font-weight: 700; color: #1a3a1a; font-size: 1rem; }
+.body-figs dd small { display: block; font-weight: 500; font-size: 0.75rem; color: #5b6b62; }
+.body-source { margin: 0; padding: 8px 16px; border-top: 1px solid #d9e3dc; font-size: 0.78rem; color: #5b6b62; }
+@media (max-width: 640px) {
+  .body-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .body-figs > div:nth-child(4) { border-left: 0; }
+  .body-figs > div:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
+}
 /* the light card shadow, on every panel here and in the parts this page shows
    (patient list, template picker) */
 .meal-planning-page :deep(.panel), .meal-planning-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
