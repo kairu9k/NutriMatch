@@ -182,14 +182,14 @@
               <div><dt>Diet</dt><dd>{{ list(s.health.dietary_restrictions) }}</dd></div>
               <div v-if="s.health.religion"><dt>Religion</dt><dd>{{ s.health.religion }}</dd></div>
               <div><dt>Goals</dt><dd>{{ list(s.health.health_goals) }}</dd></div>
-              <div v-if="s.screening"><dt>BMR and TDEE</dt><dd>{{ whole(s.screening.bmr_kcal) }} and {{ whole(s.screening.tdee_kcal) }} kcal</dd></div>
+              <div v-if="s.screening"><dt>BMR and TER</dt><dd>{{ whole(s.screening.bmr_kcal) }} and {{ whole(s.screening.tdee_kcal) }} kcal</dd></div>
             </dl>
             <section class="block">
               <h3>Current care plan</h3>
               <template v-if="s.care_plan">
                 <p v-if="s.care_plan.pes_problem" class="txt"><strong>{{ s.care_plan.pes_problem }}</strong><template v-if="s.care_plan.pes_etiology"> related to {{ s.care_plan.pes_etiology }}</template>.</p>
                 <p v-if="s.care_plan.diet_prescription" class="txt">{{ s.care_plan.diet_prescription }}</p>
-                <p v-if="s.care_plan.target_kcal" class="muted">Target {{ whole(s.care_plan.target_kcal) }} kcal/day{{ s.care_plan.target_carb_g ? `, ${whole(s.care_plan.target_carb_g)} g carbs, ${whole(s.care_plan.target_protein_g)} g protein, ${whole(s.care_plan.target_fat_g)} g fat` : '' }}</p>
+                <p v-if="s.care_plan.target_kcal" class="muted">TER {{ whole(s.care_plan.target_kcal) }} kcal/day{{ s.care_plan.target_carb_g ? `, ${whole(s.care_plan.target_carb_g)} g carbs, ${whole(s.care_plan.target_protein_g)} g protein, ${whole(s.care_plan.target_fat_g)} g fat` : '' }}</p>
               </template>
               <p v-else class="muted">No finalized NCP record yet.</p>
             </section>

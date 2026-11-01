@@ -92,6 +92,27 @@ class RegisterViewTests(TestCase):
         self.assertEqual(profile.user.phone, "+639171234567")
 
     @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/abc123")
+    def test_register_rnd_bio_is_optional_but_not_too_short(self, mock_upload):
+        # No bio at all, or an empty one, is fine; the RND adds it later.
+        for i, bio in enumerate((None, "")):
+            payload = self._rnd_payload(email=f"nobio{i}@t.ph")
+            payload["prc_license_number"] = f"012345{i}"
+            if bio is None:
+                del payload["bio"]
+            else:
+                payload["bio"] = bio
+            resp = self.client_api.post("/api/auth/register/rnd/", payload, format="multipart")
+            self.assertEqual(resp.status_code, 201, resp.data)
+            self.assertIsNone(RndProfile.objects.get(user__email=f"nobio{i}@t.ph").bio)
+        # A bio that is written still needs 50 characters.
+        payload = self._rnd_payload(email="short@t.ph")
+        payload["prc_license_number"] = "0123459"
+        payload["bio"] = "Too short."
+        resp = self.client_api.post("/api/auth/register/rnd/", payload, format="multipart")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("bio", resp.data)
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/abc123")
     def test_register_rnd_needs_a_philippine_mobile(self, mock_upload):
         for phone in (None, "", "12345", "+65 9123 4567"):
             payload = self._rnd_payload()

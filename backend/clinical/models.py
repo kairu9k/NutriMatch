@@ -98,6 +98,21 @@ class NcpRecord(models.Model):
     target_protein_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     target_carb_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     target_fat_g = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    # How the TER (target_kcal) and gram targets were worked out (2026-11-01,
+    # added after the proposal): the Tannhauser activity level and the macro
+    # split in %. Grams are rounded to 5 g, so the % can't be read back from
+    # them — they're kept here. Null on older records.
+    class TerActivity(models.TextChoices):
+        BED_REST = "bed_rest", "Bed rest"
+        SEDENTARY = "sedentary", "Sedentary"
+        LIGHT = "light", "Light"
+        MODERATE = "moderate", "Moderate"
+        HEAVY = "heavy", "Heavy"
+
+    ter_activity = models.CharField(max_length=20, choices=TerActivity.choices, null=True, blank=True)
+    carb_pct = models.PositiveSmallIntegerField(null=True, blank=True)
+    protein_pct = models.PositiveSmallIntegerField(null=True, blank=True)
+    fat_pct = models.PositiveSmallIntegerField(null=True, blank=True)
     intervention_notes = models.TextField(null=True, blank=True)
     # RND-added intervention items beyond the fixed targets, e.g.
     # [{"label": "Fluid restriction", "value": "1.5", "unit": "L/day"}].
@@ -129,7 +144,7 @@ class NcpRecord(models.Model):
         if blank(self.diet_prescription):
             missing.append("diet prescription (Intervention)")
         if blank(self.target_kcal):
-            missing.append("target kcal (Intervention)")
+            missing.append("TER (Intervention)")
         # Follow-up records also evaluate the previous record's goals.
         if self.is_follow_up() and blank(self.goal_status):
             missing.append("goal status (Monitoring)")

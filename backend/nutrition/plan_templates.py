@@ -212,7 +212,7 @@ def candidates(tpl, codes, allergens):
 
 def suggested_kcal(rel, key=None):
     """The plan's starting kcal: the latest finalized NCP prescription, else the
-    latest draft's, else the screening TDEE (minus 500 kcal, min 1,200, for
+    latest draft's, else the screening TER (minus 500 kcal, min 1,200, for
     weight management; plus 500 kcal for weight gain)."""
     from clinical.models import NcpRecord, PreConsultationScreening
 
@@ -226,8 +226,8 @@ def suggested_kcal(rel, key=None):
         adjust = KCAL_ADJUST.get(key, 0)
         if adjust:
             value = max(1200, min(MAX_KCAL, round((tdee + adjust) / 50) * 50))
-            return {"value": int(value), "source": f"screening TDEE {'+' if adjust > 0 else '−'} {abs(adjust)} kcal"}
-        return {"value": int(round(tdee / 50) * 50), "source": "screening TDEE"}
+            return {"value": int(value), "source": f"screening TER {'+' if adjust > 0 else '−'} {abs(adjust)} kcal"}
+        return {"value": int(round(tdee / 50) * 50), "source": "screening TER"}
     return {"value": 1800, "source": "default — no NCP target or screening yet"}
 
 

@@ -4,23 +4,48 @@ Implements the exact formulas named in the capstone proposal — do not
 substitute generic/global versions of these without checking
 vault/C1-NUTRIMATCH-FINALv5.pdf first:
 
-- BMR: Mifflin-St Jeor equation
-- TDEE: BMR × activity factor
+- BMR: Tannhauser's method — DBW from height, then BMR from DBW (2026-10-31,
+  asked for by the project's RND resource person; replaces the proposal's
+  Mifflin-St Jeor equation)
+- TER (Total Energy Requirement): Tannhauser's factorial method — BMR +
+  physical activity (% of BMR) + TEF (10% of the two), rounded to the nearest
+  50 kcal (2026-11-01, the RND resource person's method; replaces BMR ×
+  activity factor). Stored in the screening's `tdee_kcal` column.
+- Macro distribution: TER × % ÷ 4 (carbs, protein) or ÷ 9 (fat), rounded to
+  the nearest 5 g; default 55 / 20 / 25
 - BMI classification: WHO Asia-Pacific thresholds (NOT the standard global
   WHO cutoffs — Asia-Pacific uses lower obesity thresholds)
 - NRS-2002: adapted nutritional risk screening score
 """
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 
-ACTIVITY_FACTORS = {
-    "sedentary": Decimal("1.2"),
-    "lightly_active": Decimal("1.375"),
-    "moderately_active": Decimal("1.55"),
-    "very_active": Decimal("1.725"),
-    "extra_active": Decimal("1.9"),
+# Tannhauser physical activity, as a % of BMR (mirrored in utils/ncp.js TER_ACTIVITY).
+TER_ACTIVITY_PCT = {
+    "bed_rest": Decimal("10"),
+    "sedentary": Decimal("30"),
+    "light": Decimal("50"),
+    "moderate": Decimal("75"),
+    "heavy": Decimal("100"),
 }
+# The screening's activity answers on the Tannhauser scale (very and extra
+# active are both "heavy", the top of the scale).
+SCREENING_TO_TER_ACTIVITY = {
+    "sedentary": "sedentary",
+    "lightly_active": "light",
+    "moderately_active": "moderate",
+    "very_active": "heavy",
+    "extra_active": "heavy",
+}
+TEF_PCT = Decimal("10")
+DEFAULT_MACRO_PCT = {"carb": 55, "protein": 20, "fat": 25}
+KCAL_PER_G = {"carb": Decimal("4"), "protein": Decimal("4"), "fat": Decimal("9")}
+
+
+def round_to(value: Decimal, step: int) -> Decimal:
+    """Nearest multiple of `step`, halves up (1,825 → 1,850)."""
+    return (value / step).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * step
 
 
 def calculate_bmi(weight_kg: Decimal, height_cm: Decimal) -> Decimal:
@@ -42,22 +67,53 @@ def classify_bmi_asia_pacific(bmi: Decimal) -> str:
     return "Obese II"
 
 
-def calculate_bmr_mifflin_st_jeor(
-    weight_kg: Decimal, height_cm: Decimal, age_years: int, sex: str
-) -> Decimal:
-    """Mifflin-St Jeor equation.
+# kcal per kg of DBW per hour, Tannhauser BMR (values given by the RND resource person).
+BMR_KCAL_PER_KG_HOUR = {"male": Decimal("1.0"), "female": Decimal("0.9")}
 
-    Male:   BMR = 10*weight + 6.25*height - 5*age + 5
-    Female: BMR = 10*weight + 6.25*height - 5*age - 161
+
+def calculate_dbw_tannhauser(height_cm: Decimal) -> Decimal:
+    """Desirable body weight, Tannhauser's method:
+    DBW = (height cm - 100) - 10% of (height cm - 100)."""
+    base = height_cm - Decimal("100")
+    return (base - base * Decimal("0.10")).quantize(Decimal("0.01"))
+
+
+def calculate_bmr_tannhauser(height_cm: Decimal, sex: str) -> Decimal | None:
+    """BMR from the Tannhauser DBW — it uses the desirable weight, not the
+    actual weight, and no age:
+
+    Male:   BMR = DBW × 1.0 kcal/kg/hour × 24
+    Female: BMR = DBW × 0.9 kcal/kg/hour × 24
+
+    None when sex isn't male/female.
     """
-    base = (Decimal("10") * weight_kg) + (Decimal("6.25") * height_cm) - (Decimal("5") * age_years)
-    bmr = base + Decimal("5") if sex == "male" else base - Decimal("161")
-    return bmr.quantize(Decimal("0.01"))
+    factor = BMR_KCAL_PER_KG_HOUR.get(sex)
+    if factor is None:
+        return None
+    return (calculate_dbw_tannhauser(height_cm) * factor * Decimal("24")).quantize(Decimal("0.01"))
 
 
-def calculate_tdee(bmr_kcal: Decimal, activity_level: str) -> Decimal:
-    factor = ACTIVITY_FACTORS.get(activity_level, ACTIVITY_FACTORS["sedentary"])
-    return (bmr_kcal * factor).quantize(Decimal("0.01"))
+def calculate_ter_tannhauser(bmr_kcal: Decimal, activity: str) -> Decimal:
+    """Total Energy Requirement, Tannhauser's factorial method:
+
+    Physical activity = BMR × activity % (bed rest 10, sedentary 30, light 50,
+                        moderate 75, heavy 100)
+    TEF               = 10% of (BMR + physical activity)
+    TER               = BMR + physical activity + TEF, to the nearest 50 kcal
+
+    `activity` is a Tannhauser key or a screening answer (lightly_active…).
+    """
+    key = SCREENING_TO_TER_ACTIVITY.get(activity, activity)
+    pa = bmr_kcal * TER_ACTIVITY_PCT.get(key, TER_ACTIVITY_PCT["sedentary"]) / 100
+    tef = (bmr_kcal + pa) * TEF_PCT / 100
+    return round_to(bmr_kcal + pa + tef, 50)
+
+
+def macro_grams(ter_kcal: Decimal, pct: dict | None = None) -> dict:
+    """Grams per day for a TER and a % split (default 55 / 20 / 25), each to
+    the nearest 5 g: carbs and protein 4 kcal/g, fat 9 kcal/g."""
+    pct = pct or DEFAULT_MACRO_PCT
+    return {k: round_to(Decimal(ter_kcal) * Decimal(pct[k]) / 100 / KCAL_PER_G[k], 5) for k in ("carb", "protein", "fat")}
 
 
 def calculate_nrs2002(bmi: Decimal, weight_loss_pct: Decimal | None = None, reduced_intake: bool = False,

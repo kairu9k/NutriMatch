@@ -72,7 +72,7 @@ def build_ncp_overview(rnd, now=None):
         if blank(rec.diet_prescription):
             out.append("diet prescription")
         if blank(rec.target_kcal):
-            out.append("target kcal")
+            out.append("TER")
         if follow and blank(rec.goal_status):
             out.append("goal status")
         return out

@@ -158,7 +158,7 @@
             <div class="results">
               <div><strong>{{ review.data.screening.bmi ?? '—' }}</strong><span>BMI, {{ review.data.screening.bmi_category || '—' }}</span></div>
               <div><strong>{{ whole(review.data.screening.bmr_kcal) }}</strong><span>BMR kcal/day</span></div>
-              <div><strong>{{ whole(review.data.screening.tdee_kcal) }}</strong><span>TDEE kcal/day</span></div>
+              <div><strong>{{ whole(review.data.screening.tdee_kcal) }}</strong><span>TER kcal/day</span></div>
               <div :class="{ risk: (review.data.screening.nrs_score ?? 0) >= 3 }"><strong>{{ review.data.screening.nrs_score ?? '—' }}</strong><span>NRS-2002, {{ RISK[review.data.screening.nrs_risk] || '—' }}</span></div>
             </div>
             <dl class="facts">

@@ -340,9 +340,10 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     specialization = serializers.ChoiceField(choices=RND_SPECIALIZATIONS)
     # The rest of the application (reviewed by the admin before the RND can
     # sign in). List fields arrive as JSON strings in the multipart form.
-    bio = serializers.CharField(min_length=50, max_length=1000, trim_whitespace=True, error_messages={
-        "min_length": "Write at least 50 characters about your background and approach.",
-        "blank": "Write a short professional bio.",
+    # Optional at sign-up (2026-11-01, user's call); a bio that is written still
+    # needs 50 characters. Clients only find the RND once it's added (bookable_rnd_profiles).
+    bio = serializers.CharField(required=False, allow_blank=True, min_length=50, max_length=1000, trim_whitespace=True, error_messages={
+        "min_length": "Write at least 50 characters about your background and approach, or leave it empty for now.",
     })
     consultation_fee = serializers.DecimalField(max_digits=8, decimal_places=2, min_value=MIN_CONSULTATION_FEE, max_value=100000, error_messages={
         "min_value": f"The consultation fee must be at least \u20b1{MIN_CONSULTATION_FEE}.",
@@ -469,7 +470,7 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             prc_license_number=validated_data["prc_license_number"],
             date_of_birth=validated_data["date_of_birth"],
             specialization=validated_data["specialization"],
-            bio=validated_data["bio"],
+            bio=validated_data.get("bio") or None,
             consultation_fee=validated_data["consultation_fee"],
             consultation_modes=validated_data["consultation_modes"],
             clinic_address=validated_data.get("clinic_address") if "in_person" in validated_data["consultation_modes"] else None,

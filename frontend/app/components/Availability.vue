@@ -6,7 +6,33 @@
         <h1 class="page-title">Weekly availability</h1>
         <p class="page-subtitle">Set the hours clients can book consultations with you.</p>
       </div>
+      <button v-if="!weekOpen" class="day-action-link" type="button" @click="openWeekForm"><Plus :size="14" aria-hidden="true" /> Add hours for all week</button>
     </div>
+
+    <!-- ADD HOURS FOR ALL WEEK — the same hours on several days at once.
+         Days whose hours already overlap are skipped, not changed. -->
+    <div v-if="weekOpen" class="week-form">
+      <div class="week-form-row">
+        <span class="field-label week-label">Hours</span>
+        <input v-model="weekForm.start_time" type="time" class="time-input" aria-label="Start time" />
+        <span class="time-sep">to</span>
+        <input v-model="weekForm.end_time" type="time" class="time-input" aria-label="End time" />
+      </div>
+      <div class="week-form-row">
+        <span class="field-label week-label">Days</span>
+        <div class="day-chips" role="group" aria-label="Days to add these hours to">
+          <button v-for="d in DISPLAY_ORDER" :key="d" type="button" class="day-chip" :class="{ on: weekForm.days.includes(d) }" :aria-pressed="weekForm.days.includes(d)" @click="toggleWeekDay(d)">{{ DAY_NAMES[d].slice(0, 3) }}</button>
+        </div>
+        <button type="button" class="chip-link" @click="weekForm.days = [1, 2, 3, 4, 5]">Weekdays</button>
+        <button type="button" class="chip-link" @click="weekForm.days = [...DISPLAY_ORDER]">Every day</button>
+      </div>      <div class="week-form-actions">
+        <button class="form-btn cancel" type="button" @click="weekOpen = false">Cancel</button>
+        <button class="form-btn save" type="button" :disabled="!weekForm.days.length || weekSaving" @click="addWeekHours">
+          {{ weekSaving ? 'Adding…' : `Add to ${weekForm.days.length} day${weekForm.days.length === 1 ? '' : 's'}` }}
+        </button>
+      </div>
+    </div>
+    <p v-if="weekResult" class="week-result" role="status">{{ weekResult }}</p>
 
     <!-- WEEKLY DAY ROWS -->
     <div v-if="loading" class="empty-note">Loading…</div>
@@ -25,8 +51,7 @@
                 <button class="form-btn cancel" @click="cancelEdit">Cancel</button>
               </div>
               <button v-else class="slot-pill" type="button" @click="startEdit(slot)">
-                {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}
-                <span class="pill-icon-btn" role="button" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
+                {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}                <span class="pill-icon-btn" role="button" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
               </button>
             </template>
           </template>
@@ -167,6 +192,31 @@ function formatTime(t) {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
+// Every block must be at least 1 hour, like at sign-up.
+const MIN_BLOCK_MINUTES = 60
+const toMinutes = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+
+function rangeError(start, end) {
+  if (!start || !end) return 'Pick a start and end time.'
+  if (end <= start) return 'End time must be after start time.'
+  if (toMinutes(end) - toMinutes(start) < MIN_BLOCK_MINUTES) return 'Hours must be at least 1 hour long.'
+  return ''
+}
+
+const overlapsDay = (dayIndex, [a, b], exceptId = null) => slots.value.some(s =>
+  s.day_of_week === dayIndex && s.id !== exceptId
+  && a < s.end_time.slice(0, 5) && b > s.start_time.slice(0, 5))
+
+function createSlot(dayIndex, [start, end]) {
+  return post('/rnd/availability/', {
+    day_of_week: dayIndex,
+    start_time: `${start}:00`,
+    end_time: `${end}:00`,
+    is_available: true,
+    effective_from: phIso(),
+  })
+}
+
 function startAddSlot(dayIndex) {
   editingId.value = null
   addForm.start_time = '09:00'
@@ -176,24 +226,68 @@ function startAddSlot(dayIndex) {
 
 async function confirmAddSlot(dayIndex) {
   saveError.value = ''
-  if (addForm.end_time <= addForm.start_time) {
-    saveError.value = 'End time must be after start time.'
+  const problem = rangeError(addForm.start_time, addForm.end_time)
+  if (problem) { saveError.value = problem; return }
+  const hours = [addForm.start_time, addForm.end_time]
+  if (overlapsDay(dayIndex, hours)) {
+    saveError.value = `${DAY_NAMES[dayIndex]} already has hours in that time. Edit them instead.`
     return
   }
   try {
-    const today = phIso()
-    const created = await post('/rnd/availability/', {
-      day_of_week: dayIndex,
-      start_time: `${addForm.start_time}:00`,
-      end_time: `${addForm.end_time}:00`,
-      is_available: true,
-      effective_from: today,
-    })
-    slots.value.push(created)
+    slots.value.push(await createSlot(dayIndex, hours))
     addingDay.value = null
   } catch {
     saveError.value = 'Could not add slot. Please try again.'
   }
+}
+
+/* ---------- ADD HOURS FOR ALL WEEK ---------- */
+const weekOpen = ref(false)
+const weekSaving = ref(false)
+const weekResult = ref('')
+const weekForm = reactive({ start_time: '09:00', end_time: '17:00', days: [] })
+
+function openWeekForm() {
+  addingDay.value = null
+  editingId.value = null
+  saveError.value = ''
+  weekResult.value = ''
+  Object.assign(weekForm, { start_time: '09:00', end_time: '17:00', days: [...DISPLAY_ORDER] })
+  weekOpen.value = true
+}
+defineExpose({ openWeekForm })
+
+function toggleWeekDay(d) {
+  weekForm.days = weekForm.days.includes(d) ? weekForm.days.filter(x => x !== d) : [...weekForm.days, d]
+}
+
+const dayList = days => days.map(d => DAY_NAMES[d].slice(0, 3)).join(', ')
+
+async function addWeekHours() {
+  saveError.value = ''
+  weekResult.value = ''
+  const problem = rangeError(weekForm.start_time, weekForm.end_time)
+  if (problem) { saveError.value = problem; return }
+  const hours = [weekForm.start_time, weekForm.end_time]
+  const days = DISPLAY_ORDER.filter(d => weekForm.days.includes(d))
+  const added = [], skipped = [], failed = []
+  weekSaving.value = true
+  for (const d of days) {
+    if (overlapsDay(d, hours)) { skipped.push(d); continue }
+    try {
+      slots.value.push(await createSlot(d, hours))
+      added.push(d)
+    } catch {
+      failed.push(d)
+    }
+  }
+  weekSaving.value = false
+  const parts = []
+  if (added.length) parts.push(`Added ${formatTime(hours[0])} – ${formatTime(hours[1])} to ${dayList(added)}.`)
+  if (skipped.length) parts.push(`Skipped ${dayList(skipped)} (already has hours at that time).`)
+  if (failed.length) parts.push(`Couldn't save ${dayList(failed)}. Please try again.`)
+  weekResult.value = parts.join(' ')
+  if (!failed.length) weekOpen.value = false
 }
 
 function startEdit(slot) {
@@ -209,8 +303,10 @@ function cancelEdit() {
 
 async function saveEdit(slot) {
   saveError.value = ''
-  if (editForm.end_time <= editForm.start_time) {
-    saveError.value = 'End time must be after start time.'
+  const problem = rangeError(editForm.start_time, editForm.end_time)
+  if (problem) { saveError.value = problem; return }
+  if (overlapsDay(slot.day_of_week, [editForm.start_time, editForm.end_time], slot.id)) {
+    saveError.value = `${DAY_NAMES[slot.day_of_week]} already has hours in that time.`
     return
   }
   try {
@@ -372,7 +468,27 @@ function formatBlockDate(iso) {
 .form-btn.cancel { background: #e3efe7; color: #0a4a37; }
 .form-btn.cancel:hover { background: #d3e7da; }
 
+.form-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .empty-note-inline { font-size: 0.82rem; color: #8a9a8a; }
+
+/* ADD HOURS FOR ALL WEEK */
+.week-form {
+  display: flex; flex-direction: column; gap: 12px; background: #f4f8f5;
+  border: 1px solid #d9e3dc; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px;
+}
+.week-form-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.week-label { width: 52px; flex-shrink: 0; }
+.day-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.day-chip {
+  border: 1px solid #d9e3dc; background: #fff; color: #4a5a4a; border-radius: 999px; min-height: 32px; padding: 0 12px;
+  font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.day-chip.on { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.day-chip:focus-visible, .chip-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.chip-link { background: none; border: none; color: #0a4a37; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 4px; }
+.week-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.week-result { font-size: 0.82rem; color: #1e4a26; background: #e3efe7; border-radius: 8px; padding: 8px 12px; margin: 0 0 14px; }
 
 .day-action-link {
   display: inline-flex; align-items: center; gap: 4px; background: #e3efe7; border: none; border-radius: 8px; color: #0a4a37; font-family: inherit;

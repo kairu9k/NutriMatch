@@ -91,7 +91,7 @@
               <div><strong>{{ num(s.bmi) }}</strong><span>BMI<template v-if="s.bmi_category">, {{ s.bmi_category }}</template></span></div>
               <div :class="{ risk: Number(s.nrs_score) >= 3 }"><strong>{{ s.nrs_score ?? '—' }}</strong><span>NRS-2002<template v-if="s.nrs_risk">, {{ cap(s.nrs_risk).toLowerCase() }}</template></span></div>
               <div><strong>{{ num(s.weight_kg) }} kg</strong><span>{{ num(s.height_cm) }} cm tall</span></div>
-              <div><strong>{{ s.tdee_kcal ? Math.round(s.tdee_kcal).toLocaleString('en-PH') : '—' }}</strong><span>kcal a day (TDEE)</span></div>
+              <div><strong>{{ s.tdee_kcal ? Math.round(s.tdee_kcal).toLocaleString('en-PH') : '—' }}</strong><span>kcal a day (TER)</span></div>
             </div>
           </section>
         </div>

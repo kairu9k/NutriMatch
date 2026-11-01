@@ -37,10 +37,20 @@ class NcpFlowTests(TestCase):
         resp = self.api.patch(f"/api/rnd/ncp/{rec.id}/finalize/")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("etiology", resp.data["detail"])
-        self.assertIn("target kcal", resp.data["detail"])
+        self.assertIn("TER", resp.data["detail"])
         rec.pes_etiology, rec.pes_signs, rec.target_kcal = "large portions", "BMI 27", Decimal("1500")
         rec.save()
         self.assertEqual(self.api.patch(f"/api/rnd/ncp/{rec.id}/finalize/").status_code, 200)
+
+    def test_ter_split_saves_and_must_add_up_to_100(self):
+        base = {"relationship": self.rel.id, "encounter_date": self.today, "target_kcal": "1850", "ter_activity": "light"}
+        bad = self.api.post(self.url, {**base, "carb_pct": 50, "protein_pct": 20, "fat_pct": 25}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("100%", str(bad.data["carb_pct"]))
+        ok = self.api.post(self.url, {**base, "carb_pct": 55, "protein_pct": 20, "fat_pct": 25,
+                                      "target_carb_g": "255", "target_protein_g": "95", "target_fat_g": "50"}, format="json")
+        self.assertEqual(ok.status_code, 201, ok.data)
+        self.assertEqual((ok.data["ter_activity"], ok.data["carb_pct"], ok.data["protein_pct"], ok.data["fat_pct"]), ("light", 55, 20, 25))
 
     def test_appointment_must_be_same_patient(self):
         other_client = onboard_client(User.objects.create_user(email="o@n.ph", password="x", role="client", first_name="O", last_name="C"))

@@ -253,15 +253,15 @@
             </div>
 
             <div class="field">
-              <label>Bio <span class="required-tag">Required</span></label>
+              <label>Bio <span class="optional-tag">Optional</span></label>
               <textarea
                 v-model="form.bio" rows="5" maxlength="1000" class="bio-input" :class="{ invalid: bioError }"
                 placeholder="e.g. Registered Nutritionist-Dietitian with 6 years of hospital experience, helping adults manage diabetes and lose weight through practical Filipino meals."
               ></textarea>
               <div class="bio-meta">
                 <span v-if="bioError" class="field-error">{{ bioError }}</span>
-                <span v-else class="license-hint">At least 50 characters. Shown on your public profile.</span>
-                <span class="char-count" :class="{ short: form.bio.trim().length < 50 }">{{ form.bio.trim().length }}/1000</span>
+                <span v-else class="license-hint">You can add it later in Profile Settings. Clients find you once it's there. If you write one now, at least 50 characters.</span>
+                <span class="char-count" :class="{ short: form.bio.trim().length > 0 && form.bio.trim().length < 50 }">{{ form.bio.trim().length }}/1000</span>
               </div>
             </div>
 
@@ -364,7 +364,7 @@
               <div class="confirm-row"><span>Consultation fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
               <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
               <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
-              <div class="confirm-row confirm-block"><span>Bio</span><p class="confirm-bio">{{ form.bio.trim() }}</p></div>
+              <div class="confirm-row confirm-block"><span>Bio</span><p class="confirm-bio">{{ form.bio.trim() || 'Not added yet. You can add it in Profile Settings.' }}</p></div>
               <div v-if="photoPreview" class="confirm-row"><span>Profile photo</span><img :src="photoPreview" alt="Profile photo" class="confirm-photo" /></div>
             </template>
           </div>
@@ -786,7 +786,7 @@ const MODE_LABELS = { video: 'Video call', in_person: 'In-person' }
 const MIN_FEE = 100
 const bioError = computed(() => {
   const len = form.bio.trim().length
-  return len > 0 && len < 50 ? `Write at least 50 characters (${50 - len} more).` : ''
+  return len > 0 && len < 50 ? `Write at least 50 characters (${50 - len} more), or leave it empty for now.` : ''
 })
 const feeError = computed(() => {
   if (form.fee === '' || form.fee === null) return ''
@@ -794,7 +794,8 @@ const feeError = computed(() => {
   if (Number(form.fee) > 100000) return 'Enter a realistic fee.'
   return ''
 })
-const profileValid = computed(() => form.bio.trim().length >= 50 && form.languages.length > 0)
+// The bio is optional (2026-11-01, user's call) — only a too-short one blocks.
+const profileValid = computed(() => !bioError.value && form.languages.length > 0)
 // Only asked for (and required) when they offer in-person consultations.
 const clinicAddressError = computed(() => {
   if (!form.modes.includes('in_person')) return ''
@@ -808,7 +809,7 @@ const consultationValid = computed(() =>
 )
 function goToConsultation() {
   if (!profileValid.value) {
-    errorMessage.value = form.languages.length ? 'Your bio needs at least 50 characters.' : 'Choose at least one language.'
+    errorMessage.value = form.languages.length ? 'Your bio needs at least 50 characters, or leave it empty for now.' : 'Choose at least one language.'
     return
   }
   errorMessage.value = ''

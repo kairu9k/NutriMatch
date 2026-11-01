@@ -110,7 +110,7 @@ const DEFS = [
   { key: 'on_plan', label: 'On a plan', tone: 'green', action: 'Open',
     why: 'The patient is following a sent plan.' },
   { key: 'not_ready', label: 'Not ready yet', tone: 'muted',
-    why: 'A plan needs the NCP Intervention (diet prescription and target kcal), written at or after their consultation.' },
+    why: 'A plan needs the NCP Intervention (diet prescription and TER), written at or after their consultation.' },
 ]
 function planLine(p) {
   const plan = p.meal_plan.plan
