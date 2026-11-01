@@ -598,7 +598,6 @@ const SPECIALIZATIONS = [
   'Weight Management',
   'Renal Nutrition',
   'Hypertension & Cardiac Care',
-  'Pediatric Nutrition',
   'Sports Nutrition',
   'General / Clinical Nutrition',
 ]
