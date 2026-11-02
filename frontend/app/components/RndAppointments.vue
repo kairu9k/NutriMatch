@@ -165,7 +165,7 @@
               <div :class="{ risk: (review.data.screening.nrs_score ?? 0) >= 3 }"><strong>{{ review.data.screening.nrs_score ?? '—' }}</strong><span>NRS-2002, {{ RISK[review.data.screening.nrs_risk] || '—' }}</span></div>
             </div>
             <dl class="facts">
-              <div><dt>Height and weight</dt><dd>{{ review.data.screening.height_cm }} cm, {{ review.data.screening.weight_kg }} kg</dd></div>
+              <div><dt>Height and weight</dt><dd>{{ Number(review.data.screening.height_cm) }} cm, {{ Number(review.data.screening.weight_kg) }} kg</dd></div>
               <div><dt>Activity</dt><dd>{{ ACTIVITY[review.data.screening.activity_level] || '—' }}</dd></div>
               <div><dt>Symptoms</dt><dd>{{ review.data.screening.symptoms || 'None reported' }}</dd></div>
             </dl>
