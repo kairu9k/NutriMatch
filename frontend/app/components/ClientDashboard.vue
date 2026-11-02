@@ -61,9 +61,9 @@
       <!-- HEALTH SNAPSHOT -->
       <section class="stat-grid" aria-label="Your health at a glance">
         <div class="stat-card">
-          <p class="stat-value">{{ screening ? Number(screening.bmi).toFixed(1) : '—' }}</p>
+          <p class="stat-value">{{ currentBmi ? currentBmi.value.toFixed(1) : '—' }}</p>
           <p class="stat-label">BMI</p>
-          <p class="stat-delta" :class="screening ? bmiTone : 'neutral'">{{ screening?.bmi_category ?? 'Not yet screened' }}</p>
+          <p class="stat-delta" :class="currentBmi ? bmiTone : 'neutral'">{{ currentBmi?.label ?? 'Not yet screened' }}</p>
         </div>
         <div class="stat-card">
           <p class="stat-value">
@@ -139,8 +139,8 @@
             </template>
             <div v-else class="empty-state">
               <UtensilsCrossed :size="24" class="empty-icon" />
-              <p>No meal plan yet.</p>
-              <p class="empty-sub">Your RND prepares your meal plan after your consultation. It will show up here, meal by meal.</p>
+              <p>{{ pastRnd ? 'Your meal plan ended with your care.' : 'No meal plan yet.' }}</p>
+              <p class="empty-sub">{{ pastRnd ? 'When you start care with an RND again, your new plan shows up here.' : 'Your RND prepares your meal plan after your consultation. It will show up here, meal by meal.' }}</p>
             </div>
           </div>
 
@@ -205,7 +205,7 @@
             <template v-else>
               <div class="rnd-text">
                 <p class="rnd-eyebrow">Your RND</p>
-                <p class="rnd-specialty">You're not connected with an RND yet.</p>
+                <p class="rnd-specialty">{{ pastRnd ? `Your care with RND ${pastRndName} has ended.` : 'You\'re not connected with an RND yet.' }}</p>
               </div>
               <NuxtLink to="/find-rnd" class="nm-btn-dark nm-btn-sm">Find an RND</NuxtLink>
             </template>
@@ -290,6 +290,7 @@
 
 <script setup>
 import { phIso } from '~/utils/phTime'
+import { bmiClass } from '~/utils/ncp'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   UtensilsCrossed, Sunrise, Sun, Moon, Coffee, AlarmClock, CalendarCheck, Check, Plus, X, MessageSquare, UserRound, Video,
@@ -509,6 +510,10 @@ const whenLine = computed(() => {
 const lastVisit = computed(() => appointments.value
   .filter(a => a.status === 'completed')
   .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at))[0] || null)
+// Care that ended (discharged): no active RND, but past consultations. Used so
+// the dashboard doesn't talk as if the client never had an RND (2026-11-02 fix).
+const pastRnd = computed(() => (activeRelationship.value ? null : lastVisit.value?.relationship?.rnd || null))
+const pastRndName = computed(() => (pastRnd.value ? `${pastRnd.value.first_name} ${pastRnd.value.last_name}` : ''))
 const emptyCard = computed(() => {
   if (!screening.value) return { headline: 'Health screening', sub: 'About a minute. Your RND needs it before you meet.' }
   if (!activeRelationship.value && expiredRequest.value) return { headline: 'Booking expired', sub: 'Your last request passed before it was confirmed.' }
@@ -519,6 +524,7 @@ const emptyCard = computed(() => {
     const ago = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
     return { headline: 'Nothing booked', sub: `Your last consultation was ${formatShortDate(v.scheduled_at)}, ${ago}.` }
   }
+  if (pastRnd.value) return { headline: 'Your care has ended', sub: `Book RND ${pastRndName.value} again, or find another RND.` }
   return { headline: 'Find your RND', sub: 'Pick a licensed RND and book your first consultation.' }
 })
 
@@ -582,6 +588,14 @@ const nextStep = computed(() => {
       action: 'Book a consultation', to: `/rnd-profile-view/${activeRelationship.value.rnd.id}?book=1`,
     }
   }
+  if (pastRnd.value) {
+    return {
+      eyebrow: 'Your next step',
+      text: `Your care with RND ${pastRndName.value} has ended. You can book them again any time, or find another RND.`,
+      short: `Your care with RND ${pastRndName.value} has ended.`,
+      action: 'Book again', to: `/rnd-profile-view/${pastRnd.value.id}?book=1`,
+    }
+  }
   return {
     eyebrow: 'Your next step',
     text: 'Your screening is done. Find a licensed RND who fits your needs and book your first consultation.',
@@ -593,7 +607,17 @@ const nextStep = computed(() => {
 /* ---------- Screening badges ---------- */
 const nrsRiskLabel = computed(() => ({ no_risk: 'No risk', at_risk: 'At risk', high_risk: 'High risk' }[screening.value?.nrs_risk] || ''))
 const nrsTone = computed(() => ({ no_risk: 'good', at_risk: 'warn', high_risk: 'bad' }[screening.value?.nrs_risk] || 'neutral'))
-const bmiTone = computed(() => ((screening.value?.bmi_category || '').toLowerCase().includes('normal') ? 'good' : 'warn'))
+// The latest BMI: the newest progress record with one (from the RND's finalized
+// NCP), else the screening, so it matches the weight chart (2026-11-02 fix).
+const progressRows = ref([])
+const currentBmi = computed(() => {
+  const latest = [...progressRows.value].filter(r => r.bmi != null)
+    .sort((a, b) => String(b.record_date).localeCompare(String(a.record_date)))[0]
+  if (latest) return { value: Number(latest.bmi), label: bmiClass(Number(latest.bmi)) }
+  if (screening.value?.bmi != null) return { value: Number(screening.value.bmi), label: screening.value.bmi_category }
+  return null
+})
+const bmiTone = computed(() => ((currentBmi.value?.label || '').toLowerCase().includes('normal') ? 'good' : 'warn'))
 
 /* ---------- Meal plan ---------- */
 // Only the plan the RND has sent (drafts never reach the client).
@@ -731,6 +755,7 @@ async function loadDashboard({ quiet = false } = {}) {
     relationships.value = rels
     screening.value = latestScreening
     weightHistory.value = toWeightHistory(progress, latestScreening)
+    progressRows.value = Array.isArray(progress) ? progress : progress?.results || []
     mealPlans.value = plans
     mealLogs.value = logs
     invoices.value = invs
