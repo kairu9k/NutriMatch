@@ -643,7 +643,7 @@ function nrsLabel(risk) {
 /* ---------- NOTIFICATIONS & REMINDERS ---------- */
 const REMINDER_OPTIONS = [
   { key: 'appointments', label: 'Consultation reminders', detail: '24 hours and 1 hour before each confirmed consultation.' },
-  { key: 'payments', label: 'Payment reminders', detail: "If a consultation is still unpaid the day before. Unpaid ones are cancelled at the start time." },
+  { key: 'payments', label: 'Payment reminders', detail: "If a consultation is still unpaid the day before. Unpaid ones are cancelled 15 minutes before the start." },
   { key: 'meal_logging', label: 'Meal logging reminders', detail: "At each meal time in your meal plan, if you haven't logged that meal yet." },
   { key: 'rnd_reminders', label: 'Reminders from your RND', detail: 'Medication and habit reminders your RND sets for you.' },
 ]

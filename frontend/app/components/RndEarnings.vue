@@ -350,7 +350,7 @@ function stateDetail(r) {
 }
 function stateExplain(r) {
   return {
-    awaiting_payment: 'The client hasn\'t paid yet. If it\'s still unpaid at the start time, the consultation is cancelled automatically.',
+    awaiting_payment: 'The client hasn\'t paid yet. If it\'s still unpaid 15 minutes before the start, the consultation is cancelled automatically.',
     pending: `Paid. It stays on hold until ${e.value.hold_days} days after you mark the consultation complete, in case the client reports a problem.`,
     posted: r.payable
       ? `Cleared by ${longDate(e.value.run_date)}, so it's in that payout. NutriMatch sends it to your payout account.`

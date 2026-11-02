@@ -132,7 +132,7 @@
             <div class="fig"><dt>Completed</dt><dd>{{ r.consultations.completed }}</dd><p>{{ formatSplit }}</p></div>
             <div class="fig"><dt>Cancelled</dt><dd>{{ r.consultations.cancelled }}</dd><p>{{ pct(cancelledPct) }} of those due</p></div>
             <div class="fig"><dt>No-shows</dt><dd>{{ r.consultations.cancelled_reasons.no_show }}</dd><p>the client didn't come</p></div>
-            <div class="fig"><dt>Not paid in time</dt><dd>{{ r.consultations.cancelled_reasons.not_paid }}</dd><p>cancelled at the start time</p></div>
+            <div class="fig"><dt>Not paid in time</dt><dd>{{ r.consultations.cancelled_reasons.not_paid }}</dd><p>cancelled 15 minutes before the start</p></div>
             <div class="fig"><dt>Cancelled for other reasons</dt><dd>{{ r.consultations.cancelled_reasons.other }}</dd><p>by the client, the RND or NutriMatch</p></div>
           </dl>
         </section>

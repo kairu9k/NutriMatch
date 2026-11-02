@@ -534,12 +534,12 @@ const nextStep = computed(() => {
       action: 'Start screening', to: '/pre-consultation-screening',
     }
   }
-  // Pay before the consultation (unpaid ones are cancelled at the start time).
+  // Pay before the consultation (unpaid ones are cancelled 15 minutes before the start).
   if (appt?.status === 'confirmed' && appt.payment?.status === 'unpaid') {
     const amount = Number(appt.payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })
     return {
       eyebrow: 'Payment due',
-      text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} before then to start it. Unpaid bookings are cancelled at the start time.`,
+      text: `${rndName} confirmed your ${formatLongDate(appt.scheduled_at)} ${formatTime(appt.scheduled_at)} consultation. Pay ₱${amount} any time before ${formatTime(new Date(new Date(appt.scheduled_at).getTime() - 15 * 60000))} on that day. Unpaid bookings are cancelled 15 minutes before the start.`,
       action: null, to: '/appointments', // no button here: paying lives in Needs you, the status pill says it
     }
   }

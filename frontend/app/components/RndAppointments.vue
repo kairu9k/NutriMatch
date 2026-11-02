@@ -169,7 +169,7 @@
               <div><dt>Activity</dt><dd>{{ ACTIVITY[review.data.screening.activity_level] || '—' }}</dd></div>
               <div><dt>Symptoms</dt><dd>{{ review.data.screening.symptoms || 'None reported' }}</dd></div>
             </dl>
-            <p class="nm-hint">Confirming sends {{ review.appt.client.first_name }} an invoice for your fee. If it's still unpaid at the start time, the booking is cancelled and the slot opens again.</p>
+            <p class="nm-hint">Confirming sends {{ review.appt.client.first_name }} an invoice for your fee. If it's still unpaid 15 minutes before the start, the booking is cancelled and the slot opens again.</p>
           </template>
           <p v-else class="nm-note todo-note">They haven't submitted a pre-consultation screening yet, so this booking can't be confirmed.</p>
           <p v-if="review.actionError" class="nm-field-error">{{ review.actionError }}</p>
