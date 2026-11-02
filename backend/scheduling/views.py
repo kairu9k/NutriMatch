@@ -303,6 +303,9 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
                 "If you don't attend, there's no refund."
             ),
         )
+        from .emails import email_confirmed
+
+        email_confirmed(appointment, invoice)
         from communication.reminders import _when
         from communication.sms import text_client
 
@@ -406,10 +409,15 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
         appointment.cancel_category, appointment.cancelled_late = category, late
         appointment.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at",
                                         "cancel_category", "cancelled_late", "updated_at"])
-        settle_cancelled_appointment(appointment)
+        invoice = settle_cancelled_appointment(appointment)
         close_reopened_care_if_idle(appointment.relationship)
 
         rnd, client = appointment.relationship.rnd, appointment.relationship.client
+        if not was_pending:  # a confirmed consultation the client may be waiting for
+            from .emails import email_cancelled_by_rnd
+
+            email_cancelled_by_rnd(appointment, kind=category if late else "normal",
+                                   paid_amount=invoice.amount if invoice is not None and invoice.status == "refund_pending" else None)
         when = format_ph_datetime(appointment.scheduled_at)
         kind = appointment.get_type_display().lower()
         if late:

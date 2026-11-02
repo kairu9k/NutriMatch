@@ -18,7 +18,7 @@ from .models import Appointment, RndClientRelationship
 from .tests import _make_client, _make_rnd
 
 
-class NoShowRulesTests(TestCase):
+class _ConsultationSetup:
     def setUp(self):
         self.rnd = _make_rnd()
         self.client_user = _make_client()
@@ -40,6 +40,9 @@ class NoShowRulesTests(TestCase):
                 inv.save()
         return a
 
+
+
+class NoShowRulesTests(_ConsultationSetup, TestCase):
     # ---- time rules
     def test_confirm_closes_30_minutes_before(self):
         from clinical.models import PreConsultationScreening
@@ -242,3 +245,67 @@ class NoShowRulesTests(TestCase):
             self.rnd_api.patch(f"/api/rnd/appointments/{c.id}/cancel/", {"category": "technical"}, format="json")
         self.assertEqual(late_cancel_flags(), [(self.rnd, 3)])
         self.assertIn("late_cancels", [i["key"] for i in _attention(timezone.now(), {"unpaid_soon": 0, "stale_requests": 0, "stale_request_hours": 24})])
+
+
+class ConsultationEmailTests(_ConsultationSetup, TestCase):
+    """The four consultation events that also go by email (2026-11-02)."""
+
+    def subjects(self):
+        from django.core import mail
+
+        return [m.subject for m in mail.outbox]
+
+    def test_no_show_emails_the_client_with_the_dispute_deadline(self):
+        from django.core import mail
+
+        a = self.appt(-5)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.rnd_api.post(f"/api/rnd/appointments/{a.id}/no-show/", {"note": "Waited 15 minutes"}, format="json")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.client_user.email])
+        self.assertIn("not attending", mail.outbox[0].subject)
+        self.assertIn("Dispute by", mail.outbox[0].body)
+        self.assertNotIn("Waited 15 minutes", mail.outbox[0].body)  # the RND's note stays in the app
+
+    def test_confirm_emails_the_pay_by_time(self):
+        from django.core import mail
+
+        from clinical.models import PreConsultationScreening
+
+        PreConsultationScreening.objects.create(client=self.client_user, height_cm=160, weight_kg=60, activity_level="sedentary")
+        a = self.appt(120, status="pending")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.rnd_api.patch(f"/api/rnd/appointments/{a.id}/confirm/")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Pay by", mail.outbox[0].subject)
+        self.assertIn("15 minutes before the start", mail.outbox[0].body)
+
+    def test_rnd_cancel_and_failed_call_email_the_client(self):
+        from django.core import mail
+
+        a = self.appt(20)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.rnd_api.patch(f"/api/rnd/appointments/{a.id}/cancel/", {"category": "emergency", "reason": "private family matter"}, format="json")
+        b = self.appt(-5)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.rnd_api.post(f"/api/rnd/appointments/{b.id}/call-failed/", {}, format="json")
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn("because of an emergency", mail.outbox[0].body)
+        self.assertNotIn("private family matter", mail.outbox[0].body)
+        self.assertIn("full", mail.outbox[0].body)
+        self.assertIn("video call didn't work", mail.outbox[1].body)
+        # declining a request that was never confirmed doesn't email
+        c = self.appt(200, status="pending")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.rnd_api.patch(f"/api/rnd/appointments/{c.id}/cancel/", {"reason": "Fully booked that day"}, format="json")
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_rnd_absent_emails_the_rnd(self):
+        from django.core import mail
+
+        a = self.appt(-16)
+        record_presence(a.id, "client", True, ["client"])
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client_api.post(f"/api/client/appointments/{a.id}/rnd-absent/")
+        self.assertEqual([m.to for m in mail.outbox], [[self.rnd.email]])
+        self.assertIn("You missed a consultation", mail.outbox[0].subject)

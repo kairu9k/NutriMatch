@@ -90,6 +90,9 @@ class RndNoShowView(APIView):
                content=(f"RND {request.user.full_name} marked your consultation on {format_ph_datetime(a.scheduled_at)} "
                         "as not attended, so it isn't refunded. If this is wrong, you can dispute it from My Appointments, "
                         "History, within 3 days."))
+        from .emails import email_no_show
+
+        email_no_show(a)
         return _respond(request, a)
 
 
@@ -117,9 +120,13 @@ class RndCallFailedView(APIView):
         a.cancellation_reason = ("The video call didn't work." + (f" {note}" if note else ""))[:500]
         a.cancelled_by, a.cancelled_at = Appointment.CancelledBy.CALL_FAILED, timezone.now()
         a.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
-        settle_cancelled_appointment(a)
+        invoice = settle_cancelled_appointment(a)
         close_reopened_care_if_idle(a.relationship)
         _audit(request.user, "appointment.call_failed", a, {"note": note, "attendance": attendance_line(a)})
+        from .emails import email_cancelled_by_rnd
+
+        email_cancelled_by_rnd(a, kind="call_failed",
+                               paid_amount=invoice.amount if invoice is not None and invoice.status == "refund_pending" else None)
         notify(recipient=a.relationship.client, notifiable_type="appointment", notifiable_id=a.id,
                subject="The video call didn't work",
                content=(f"Your consultation on {format_ph_datetime(a.scheduled_at)} with RND {request.user.full_name} "
@@ -172,6 +179,9 @@ class ClientRndAbsentView(APIView):
                content=(f"{request.user.full_name} waited in the video call for their consultation on "
                         f"{format_ph_datetime(a.scheduled_at)} and you didn't join, so it was cancelled and refunded. "
                         "If this is wrong, contact NutriMatch support."))
+        from .emails import email_rnd_missed
+
+        email_rnd_missed(a)
         for admin in User.objects.filter(role=User.Role.ADMIN, is_active=True):
             notify(recipient=admin, notifiable_type="appointment", notifiable_id=a.id, subject="RND didn't attend",
                    content=f"{request.user.full_name} reported that RND {rnd.full_name} didn't join. {line} The refund is waiting.")
