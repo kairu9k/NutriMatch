@@ -602,10 +602,18 @@ function applyGrams() {
 }
 watch(() => [i.value.target_kcal, i.value.carb_pct, i.value.protein_pct, i.value.fat_pct], applyGrams)
 // The calculated TER follows height and activity while the RND hasn't typed their own.
-watch(() => terCalc.value?.ter, (now, before) => {
-  if (isReadOnly.value || !now) return
+// The TER box follows the calculated TER until the RND types their own. Compare
+// with the last VALID calculated value: while a height is being typed ("1",
+// "16", "165") it's briefly invalid and the TER blank, which used to make the
+// box stop following (2026-11-02 test-run fix).
+let lastTer = null
+watch(() => terCalc.value?.ter, (now) => {
+  if (!now) return
+  const before = lastTer
+  lastTer = now
+  if (isReadOnly.value) return
   if (String(i.value.target_kcal ?? '').trim() === '' || Number(i.value.target_kcal) === before) i.value.target_kcal = now
-})
+}, { immediate: true })
 /* ---------- Diet prescription: the lines written from the Intervention (user's calls, 2026-11-01) ----------
    The prescription starts with up to two lines stating what's set above:
      TER 1,850 kcal/day: carbohydrate 255 g (55%), protein 95 g (20%), fat 50 g (25%).
