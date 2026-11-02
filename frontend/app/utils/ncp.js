@@ -112,7 +112,10 @@ export const TER_ACTIVITY = [
 ]
 // Below this height the BMR is only an estimate (mirrors clinical/services.py bmr_note).
 export const SHORT_STATURE_CM = 150
-export const SHORT_STATURE_NOTE = 'Estimate may be less accurate for short stature; consult a dietitian.'
+export const SHORT_STATURE_NOTE = 'Short stature: this estimate may be less accurate. The RND reviews it at the consultation.'
+// BMI isn't a fair measure for very short adults (body proportions differ).
+export const BMI_SHORT_STATURE_NOTE = 'Short stature: BMI isn\'t reliable here. The RND assesses weight at the consultation.'
+export const isShortStature = h => Number(h) > 0 && Number(h) < SHORT_STATURE_CM
 // Desirable body weight, BMI method: height (m)² × 22, to 0.01 kg like the API.
 export const dbwOf = (heightCm) => Math.round((Number(heightCm) / 100) ** 2 * 22 * 100) / 100
 export const DEFAULT_MACRO_PCT = { carb: 55, protein: 20, fat: 25 }

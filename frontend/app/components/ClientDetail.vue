@@ -160,7 +160,7 @@
                 <dl class="facts">
                   <div><dt>Height</dt><dd>{{ fmt1(s.screening.height_cm) }} cm</dd></div>
                   <div><dt>Weight</dt><dd>{{ fmt1(s.screening.weight_kg) }} kg</dd></div>
-                  <div><dt>BMI</dt><dd>{{ s.screening.bmi ? fmt1(s.screening.bmi) : '—' }}<small v-if="s.screening.bmi_category">, {{ s.screening.bmi_category }}</small></dd></div>
+                  <div><dt>BMI</dt><dd>{{ s.screening.bmi ? fmt1(s.screening.bmi) : '—' }}<small v-if="s.screening.bmi_category">, {{ s.screening.bmi_category }}</small><small v-if="isShortStature(s.screening.height_cm)" class="short-note">{{ BMI_SHORT_STATURE_NOTE }}</small></dd></div>
                   <div><dt>Activity</dt><dd>{{ s.screening.activity_level }}</dd></div>
                   <div><dt>BMR (BMI method)</dt><dd>{{ s.screening.bmr_kcal ? `${Math.round(s.screening.bmr_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
                   <div><dt>TER</dt><dd>{{ s.screening.tdee_kcal ? `${Math.round(s.screening.tdee_kcal).toLocaleString('en-PH')} kcal` : 'Not calculated' }}</dd></div>
@@ -510,6 +510,7 @@ import {
   AlertTriangle, Check, CheckCircle2, Eye, FileText, Pencil, FlaskConical, Info, Lock, MessageSquare, MoreHorizontal, OctagonAlert, Video,
 } from 'lucide-vue-next'
 import { figureSource, screeningSource } from '~/utils/figureSource'
+import { BMI_SHORT_STATURE_NOTE, isShortStature } from '~/utils/ncp'
 
 const route = useRoute()
 const router = useRouter()
@@ -879,6 +880,7 @@ const trends = computed(() => {
 .facts dd { margin: 0; font-size: 0.86rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
 .facts.one dd { text-align: right; }
 .facts dd small { font-weight: 500; color: #6a7a6a; }
+.facts dd small.short-note { display: block; margin-top: 3px; color: #8a5a10; line-height: 1.4; }
 .facts dd.warn { color: #a12525; }
 .symptoms { margin: 12px 0 0; font-size: 0.84rem; color: #3a4a3a; line-height: 1.5; }
 .big-when { font-size: 0.96rem; font-weight: 700; color: #1a3a1a; margin: 6px 0 2px; }

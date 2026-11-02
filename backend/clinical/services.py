@@ -77,7 +77,8 @@ DBW_BMI = Decimal("22")
 # Below this height the BMR is only an estimate (short stature isn't what
 # the method is validated for) — shown as a note, never blocks anything.
 SHORT_STATURE_CM = Decimal("150")
-SHORT_STATURE_NOTE = "Estimate may be less accurate for short stature; consult a dietitian."
+# Read by both the client and the RND (they're already seeing a dietitian).
+SHORT_STATURE_NOTE = "Short stature: this estimate may be less accurate. The RND reviews it at the consultation."
 
 
 def calculate_dbw_bmi(height_cm: Decimal) -> Decimal:

@@ -50,6 +50,7 @@
                   <span class="k">BMI, WHO Asia-Pacific</span>
                   <strong>{{ liveBmi ?? '—' }}</strong>
                   <span class="c-sub">{{ liveBmi ? bmiClass(liveBmi) : (errors.weight_kg || errors.height_cm) ? 'Check height and weight' : 'Enter height and weight' }}</span>
+                  <span v-if="liveBmi && isShortStature(a.height_cm)" class="c-sub">{{ BMI_SHORT_STATURE_NOTE }}</span>
                 </div>
               </div>
               <div class="grid g3">
@@ -351,7 +352,7 @@
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, FlaskConical, Info, Lock, Save, X } from 'lucide-vue-next'
 import {
   DEFAULT_MACRO_PCT, KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, TER_ACTIVITY, bmiClass, bmiOf, bpCategory, extraRowErrors,
-  glucoseCategory, hba1cCategory, macroGrams, rangeError, terSteps, SHORT_STATURE_NOTE,
+  glucoseCategory, hba1cCategory, macroGrams, rangeError, terSteps, SHORT_STATURE_NOTE, BMI_SHORT_STATURE_NOTE, isShortStature,
 } from '~/utils/ncp'
 import { etiologyGroups } from '~/utils/ncpEtiology'
 import { signGroups } from '~/utils/ncpSigns'

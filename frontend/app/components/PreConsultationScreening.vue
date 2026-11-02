@@ -191,7 +191,7 @@
 
 <script setup>
 import { CheckCircle2, Info, Lock, X } from 'lucide-vue-next'
-import { dbwOf } from '~/utils/ncp'
+import { BMI_SHORT_STATURE_NOTE, dbwOf, isShortStature } from '~/utils/ncp'
 import { parseSymptoms, symptomGroups } from '~/utils/screening'
 
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
@@ -381,7 +381,7 @@ const explanation = computed(() => {
       formula: [{ main: 'BMI = weight (kg) ÷ height (m)²' }],
       yours: `${Number(r.bmi).toFixed(1)}, ${r.bmi_category}.`,
       scale: BMI_SCALE.map(row => ({ ...row, current: row.label === r.bmi_category })),
-      note: 'NutriMatch uses the WHO Asia-Pacific ranges, which are set lower than the global ones because health risks start at a lower BMI for Asian adults. BMI doesn\'t tell muscle from fat, so your RND looks at it together with your other results.',
+      note: `${isShortStature(r.height_cm) ? `${BMI_SHORT_STATURE_NOTE} ` : ''}NutriMatch uses the WHO Asia-Pacific ranges, which are set lower than the global ones because health risks start at a lower BMI for Asian adults. BMI doesn't tell muscle from fat, so your RND looks at it together with your other results.`,
     }
   }
   if (openMetric.value === 'bmr') {
@@ -402,7 +402,7 @@ const explanation = computed(() => {
   if (openMetric.value === 'tdee') {
     return {
       title: 'TER', fullName: 'Total Energy Requirement',
-      what: 'The total calories your body needs in a day at a healthy weight for your height, worked out with Tannhauser\'s method: your BMR, plus your daily activity (a share of your BMR), plus the energy used to digest food (10%). It comes from your height, not your current weight.',
+      what: 'The total calories your body needs in a day at a healthy weight for your height, worked out from your BMR (BMI method): your BMR, plus your daily activity (a share of your BMR), plus the energy used to digest food (10%). It comes from your height, not your current weight.',
       formula: [{
         main: 'Activity = BMR × activity %',
         // Non-breaking spaces keep each "Lightly active +50%" on one line.
