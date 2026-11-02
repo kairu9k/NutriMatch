@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsRnd
+from clinical.services import bmr_note
 from nutrition.photos import meal_photo_link
 
 from .patient_insights import adherence_pct, ph_tz
@@ -46,6 +47,7 @@ def build_patient_summary(rnd, rel_id, now=None):
     screening = {
         "id": s.id, "date": s.created_at, "height_cm": _num(s.height_cm), "weight_kg": _num(s.weight_kg),
         "bmi": _num(s.bmi), "bmi_category": s.bmi_category, "bmr_kcal": _num(s.bmr_kcal), "tdee_kcal": _num(s.tdee_kcal),
+        "bmr_note": bmr_note(s.height_cm) if s.bmr_kcal is not None else None,
         "activity_level": s.get_activity_level_display(), "nrs_score": s.nrs_score,
         "nrs_risk": s.get_nrs_risk_display() if s.nrs_risk else None, "symptoms": s.symptoms,
     } if s else None

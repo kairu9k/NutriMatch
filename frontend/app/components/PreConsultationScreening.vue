@@ -121,7 +121,7 @@
       <template v-if="result">
         <div class="results-panel">
           <h3 class="results-eyebrow">Your results</h3>
-          <p class="results-hint"><Info :size="13" aria-hidden="true" /> Worked out with Tannhauser's method for BMR and the WHO Asia-Pacific BMI ranges. Tap a result to see what it means.</p>
+          <p class="results-hint"><Info :size="13" aria-hidden="true" /> Worked out with the BMI method for BMR and the WHO Asia-Pacific BMI ranges. Tap a result to see what it means.</p>
           <div class="results-grid" role="tablist" aria-label="Screening results">
             <button
               v-for="box in resultBoxes" :key="box.key"
@@ -191,6 +191,7 @@
 
 <script setup>
 import { CheckCircle2, Info, Lock, X } from 'lucide-vue-next'
+import { dbwOf } from '~/utils/ncp'
 import { parseSymptoms, symptomGroups } from '~/utils/screening'
 
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
@@ -342,8 +343,6 @@ const ACTIVITY_LABELS = Object.fromEntries(activityLevels.map(l => [l.value, l.l
 // TER_ACTIVITY_PCT via SCREENING_TO_TER_ACTIVITY (shown in the TER formula).
 const ACTIVITY_PCT = { sedentary: 30, lightly_active: 50, moderately_active: 75, very_active: 100, extra_active: 100 }
 const kcal = (v) => Math.round(Number(v)).toLocaleString()
-// Tannhauser desirable body weight — same as calculate_dbw_tannhauser().
-const dbwOf = (heightCm) => Math.round((Number(heightCm) - 100) * 0.9 * 10) / 10
 
 const resultBoxes = computed(() => {
   const r = result.value
@@ -388,16 +387,16 @@ const explanation = computed(() => {
   if (openMetric.value === 'bmr') {
     return {
       title: 'BMR', fullName: 'Basal Metabolic Rate',
-      what: 'The calories your body burns at complete rest just to stay alive: breathing, keeping your heart beating and keeping you warm. It is worked out with Tannhauser\'s method: first your desirable body weight (DBW) from your height, then your BMR from that weight and your sex.',
+      what: 'The calories your body burns at complete rest just to stay alive: breathing, keeping your heart beating and keeping you warm. It is worked out with the BMI method: first your desirable body weight (DBW), the weight that gives a BMI of 22 at your height, then your BMR from that weight and your sex.',
       formula: [
-        { main: 'DBW (kg) = (height in cm − 100) − 10% of (height in cm − 100)' },
+        { main: 'DBW (kg) = height (m)² × 22' },
         { main: 'Male: BMR = DBW × 1.0 kcal × 24 hours' },
         { main: 'Female: BMR = DBW × 0.9 kcal × 24 hours' },
       ],
       yours: r.bmr_kcal
-        ? `a desirable body weight of ${dbwOf(r.height_cm)} kg, so about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
+        ? `a desirable body weight of ${dbwOf(r.height_cm).toFixed(1)} kg, so about ${kcal(r.bmr_kcal)} kcal a day, even if you rested all day.`
         : 'not worked out yet. It needs your sex.',
-      note: 'This isn\'t how much you should eat. It\'s the starting point for your TER.',
+      note: `${r.bmr_note ? `${r.bmr_note} ` : ''}This isn't how much you should eat. It's the starting point for your TER.`,
     }
   }
   if (openMetric.value === 'tdee') {

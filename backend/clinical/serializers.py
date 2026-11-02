@@ -6,6 +6,7 @@ from rest_framework import serializers
 from core.validators import NonNegativeNumbersMixin, validate_blood_pressure
 
 from .models import NcpRecord, PreConsultationScreening, ProgressRecord
+from .services import bmr_note
 
 
 class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
@@ -17,14 +18,16 @@ class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.Mo
 
     reduced_intake = serializers.BooleanField(write_only=True, required=False, default=False)
     has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
-    # Optional inputs, not stored here. `sex` is the fallback for the
-    # Tannhauser BMR when the profile has none; `age` is still accepted from
-    # the form but no longer used (Tannhauser's BMR doesn't take age).
+    # Optional inputs, not stored here. `sex` is the fallback for the BMR
+    # when the profile has none; `age` is still accepted from the form but no
+    # longer used (the BMR doesn't take age).
     age = serializers.IntegerField(
         write_only=True, required=False, min_value=18, max_value=120,
         error_messages={"min_value": "Age must be between 18 and 120 years.", "max_value": "Age must be between 18 and 120 years."},
     )
     sex = serializers.ChoiceField(write_only=True, required=False, choices=["male", "female"])
+    # The short-stature note on the BMR (below 150 cm), else null.
+    bmr_note = serializers.SerializerMethodField()
     # Realistic adult ranges, so a typo like 1700 cm or 7 kg can't produce a
     # nonsense BMI/BMR. Mirrored in PreConsultationScreening.vue.
     height_cm = serializers.DecimalField(
@@ -52,10 +55,13 @@ class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.Mo
         model = PreConsultationScreening
         fields = [
             "id", "appointment", "height_cm", "weight_kg", "bmi", "bmi_category",
-            "bmr_kcal", "tdee_kcal", "activity_level", "nrs_score", "nrs_risk",
+            "bmr_kcal", "bmr_note", "tdee_kcal", "activity_level", "nrs_score", "nrs_risk",
             "reduced_intake", "has_chronic_illness", "age", "sex", "symptoms", "created_at",
         ]
         read_only_fields = ["bmi", "bmi_category", "bmr_kcal", "tdee_kcal", "nrs_score", "nrs_risk"]
+
+    def get_bmr_note(self, obj):
+        return bmr_note(obj.height_cm) if obj.bmr_kcal is not None else None
 
 
 class NcpDraftListSerializer(serializers.ModelSerializer):
