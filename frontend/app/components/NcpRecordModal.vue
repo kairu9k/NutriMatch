@@ -187,7 +187,15 @@
                 <button type="button" class="nm-panel-link" @click="i.target_kcal = terCalc.ter">Use calculated TER</button>
               </p>
               <!-- Macro distribution: the RND sets the %, grams are TER × % ÷ kcal per gram, to the nearest 5 g -->
-              <div class="macro-table" role="group" aria-label="Macronutrient distribution">
+              <!-- Minimize (user's call, 2026-11-02): one line with the split and grams; it opens by itself on an error -->
+              <div class="mt-bar">
+                <p class="mt-bar-title">Macronutrients <span>{{ macroSplitText }}</span></p>
+                <button type="button" class="nm-btn-soft nm-btn-sm" :aria-expanded="macrosOpen" aria-controls="ncp-macro-table" @click="toggleMacros">
+                  <ChevronDown :size="14" class="mt-chev" :class="{ up: macrosOpen }" aria-hidden="true" /> {{ macrosOpen ? 'Minimize' : 'Show' }}
+                </button>
+              </div>
+              <p v-if="!macrosOpen" class="mt-summary">{{ macroGramsText }}</p>
+              <div v-show="macrosOpen" id="ncp-macro-table" class="macro-table" role="group" aria-label="Macronutrient distribution">
                 <div class="mt-row mt-head"><span>Macronutrient</span><span>% of TER</span><span>Grams a day</span></div>
                 <div v-for="m2 in MACROS" :key="m2.key" class="mt-row">
                   <span class="mt-name">{{ m2.label }} <small>{{ m2.per }} kcal/g</small></span>
@@ -197,7 +205,7 @@
                 <div class="mt-row mt-foot" :class="{ bad: errors.macro_pct }"><span>Total</span><span>{{ pctTotal }}%</span><span></span></div>
               </div>
               <p v-if="errors.macro_pct" class="mt-err" role="alert">{{ errors.macro_pct }}</p>
-              <p v-else-if="!isReadOnly" class="c-sub">Starts at 55 / 20 / 25. Grams are TER × % ÷ 4 kcal/g (carbs, protein) or ÷ 9 kcal/g (fat), to the nearest 5 g.</p>
+              <p v-else-if="!isReadOnly && macrosOpen" class="c-sub">Starts at 55 / 20 / 25. Grams are TER × % ÷ 4 kcal/g (carbs, protein) or ÷ 9 kcal/g (fat), to the nearest 5 g.</p>
               <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity and more. Pick from the list or type your own." />
               <Field label="Diet prescription" required group :hint="isReadOnly ? '' : 'The first lines are written from the TER, macros and other measurements above and update with them. Add the diet itself after them; you can edit everything.'">
                 <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="4" placeholder="e.g. Low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
@@ -429,7 +437,7 @@ function hydrate(r = {}) {
   }
   d.value = { pes_problem: r.pes_problem ?? '', pes_etiology: r.pes_etiology ?? '', pes_signs: r.pes_signs ?? '' }
   i.value = {
-    target_kcal: r.target_kcal ?? '', target_carb_g: r.target_carb_g ?? '', target_protein_g: r.target_protein_g ?? '',
+    target_kcal: r.target_kcal != null && r.target_kcal !== '' ? Number(r.target_kcal) : '', target_carb_g: r.target_carb_g ?? '', target_protein_g: r.target_protein_g ?? '',
     target_fat_g: r.target_fat_g ?? '', diet_prescription: r.diet_prescription ?? '', intervention_notes: r.intervention_notes ?? '',
     ter_activity: r.ter_activity ?? '', ...splitOf(r),
     extra: (r.intervention_extra || []).map(x => ({ ...x })),
@@ -514,6 +522,19 @@ const MACROS = [
 const terCalc = computed(() => (rangeError('height_cm', a.value.height_cm) ? null : terSteps(a.value.height_cm, ctx.value.patient?.sex, i.value.ter_activity)))
 const terShowSteps = ref(false)
 const pctTotal = computed(() => MACROS.reduce((s, m2) => s + (Number(i.value[`${m2.key}_pct`]) || 0), 0))
+// The macro table can be minimized to one line; the choice is remembered on this device.
+const MACROS_KEY = 'nm-ncp-macros-open'
+const macrosOpen = ref(true)
+onMounted(() => { try { macrosOpen.value = localStorage.getItem(MACROS_KEY) !== '0' } catch { /* storage blocked */ } })
+function toggleMacros() {
+  macrosOpen.value = !macrosOpen.value
+  try { localStorage.setItem(MACROS_KEY, macrosOpen.value ? '1' : '0') } catch { /* storage blocked */ }
+}
+const macroSplitText = computed(() => MACROS.map(m2 => i.value[`${m2.key}_pct`] || 0).join(' / '))
+const macroGramsText = computed(() => {
+  const gram = k => (i.value[`target_${k}_g`] !== '' && i.value[`target_${k}_g`] != null ? `${whole(i.value[`target_${k}_g`])} g` : '—')
+  return `Carbohydrate ${gram('carb')}, protein ${gram('protein')}, fat ${gram('fat')} a day.`
+})
 // Grams are calculated only: TER × % ÷ kcal per gram, to the nearest 5 g.
 // Left alone when they already match, so a saved draft doesn't turn "unsaved".
 function applyGrams() {
@@ -920,6 +941,8 @@ onMounted(load)
 
 /* ---------- helpers ---------- */
 const list = l => (l?.length ? l.join(', ') : 'Not recorded')
+// A split that doesn't add up to 100 opens the minimized macro table again.
+watch(() => errors.value.macro_pct, (bad) => { if (bad) macrosOpen.value = true })
 const whole = v => (v == null || v === '' ? '—' : Math.round(Number(v)).toLocaleString('en-PH'))
 const signed = v => `${Number(v) > 0 ? '+' : Number(v) < 0 ? '−' : ''}${Math.abs(Number(v)).toFixed(1)}`
 function ncpError(e, fallback) {
@@ -1063,6 +1086,13 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .ter-steps .ter-total { border-top: 1px solid #d9e3dc; padding-top: 6px; margin-top: 2px; }
 .ter-field { max-width: 320px; }
 .rx-outdated { margin: 8px 0 0; }
+.mt-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 6px; }
+.mt-bar-title { margin: 0; font-size: 0.84rem; font-weight: 700; color: #1a3a1a; }
+.mt-bar-title span { font-weight: 500; color: #6a7a6a; margin-left: 6px; }
+.mt-chev { transition: transform 0.15s ease; }
+.mt-chev.up { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .mt-chev { transition: none; } }
+.mt-summary { margin: 0 0 12px; font-size: 0.84rem; color: #1a3a1a; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; }
 .macro-table { border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; margin: 2px 0 6px; }
 .mt-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid #d9e3dc; font-size: 0.84rem; color: #1a3a1a; }
 .mt-row:first-child { border-top: none; }
