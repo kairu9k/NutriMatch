@@ -13,13 +13,17 @@
       </button>
     </div>
 
+    <!-- the browser blocked their sound from starting on its own (after a refresh): one tap turns it on -->
+    <button v-if="soundBlocked && call.remoteStream.value" type="button" class="sound-btn" @click="playRemote">
+      <Volume2 :size="16" aria-hidden="true" /> Tap to hear {{ firstName }}
+    </button>
     <!-- a short notice over the video: reconnecting, they muted -->
     <p v-if="showRemoteVideo && notice" class="notice" role="status">{{ notice }}</p>
 
     <!-- you, small -->
     <div v-if="call.localStream.value" class="self" :class="{ off: !call.camOn.value }">
       <video v-show="call.camOn.value" ref="localEl" class="self-video" autoplay playsinline muted />
-      <span v-if="!call.camOn.value" class="self-off"><VideoOff :size="16" aria-hidden="true" /> Camera off</span>
+      <span v-if="!call.camOn.value" class="self-off"><VideoOff :size="16" aria-hidden="true" /> {{ call.hasCamera.value || call.cameraMissing.value ? 'Camera off' : 'Camera busy' }}</span>
       <span class="self-label">You</span>
     </div>
 
@@ -29,9 +33,9 @@
         <component :is="call.micOn.value ? Mic : MicOff" :size="18" aria-hidden="true" />
         <span>{{ call.micOn.value ? 'Mute' : 'Unmute' }}</span>
       </button>
-      <button type="button" class="ctl" :class="{ off: !call.camOn.value }" :disabled="!call.hasCamera.value" :aria-label="!call.hasCamera.value ? 'No camera' : call.camOn.value ? 'Stop video' : 'Start video'" @click="call.toggleCam">
+      <button type="button" class="ctl" :class="{ off: !call.camOn.value }" :disabled="call.cameraMissing.value" :aria-label="camLabel" @click="call.toggleCam">
         <component :is="call.camOn.value ? Video : VideoOff" :size="18" aria-hidden="true" />
-        <span>{{ !call.hasCamera.value ? 'No camera' : call.camOn.value ? 'Stop video' : 'Start video' }}</span>
+        <span>{{ camLabel }}</span>
       </button>
       <button v-if="call.canSwitchCamera.value" type="button" class="ctl" aria-label="Switch camera" @click="call.switchCamera">
         <SwitchCamera :size="18" aria-hidden="true" /><span>Switch camera</span>
@@ -47,7 +51,7 @@
 // The video call inside the consultation room (composables/useWebRtcCall.js).
 // Ending: the client just leaves; for the RND the room opens Finish
 // consultation (the `hangup` event), and the call starts again if they stay.
-import { Mic, MicOff, PhoneOff, SwitchCamera, Video, VideoOff } from 'lucide-vue-next'
+import { Mic, MicOff, PhoneOff, SwitchCamera, Video, VideoOff, Volume2 } from 'lucide-vue-next'
 
 const props = defineProps({
   appointmentId: { type: [Number, String], required: true },
@@ -93,8 +97,25 @@ const notice = computed(() => {
   return ''
 })
 
-// show the streams in the video elements
-watch([call.remoteStream, remoteEl], ([stream, el]) => { if (el) el.srcObject = stream || null })
+const camLabel = computed(() => {
+  if (call.cameraMissing.value) return 'No camera'
+  if (!call.hasCamera.value) return 'Turn camera on' // it was busy when you joined: tap to try again
+  return call.camOn.value ? 'Stop video' : 'Start video'
+})
+// show the streams in the video elements; a browser may refuse to start sound
+// without a tap on this page (e.g. after a refresh), so offer one
+const soundBlocked = ref(false)
+function playRemote() {
+  const el = remoteEl.value
+  if (!el || !el.srcObject) return
+  el.muted = false
+  el.play().then(() => { soundBlocked.value = false }).catch(() => { soundBlocked.value = true })
+}
+watch([call.remoteStream, remoteEl], ([stream, el]) => {
+  if (!el) return
+  el.srcObject = stream || null
+  if (stream) playRemote()
+})
 // Your own preview must never play your microphone: Vue doesn't always set the
 // `muted` property from the attribute, and an unmuted preview loops your voice
 // back into the mic (the loud siren-like howl).
@@ -136,6 +157,12 @@ defineExpose({ leave: call.leave, start: call.start })
   background: #e3efe7; color: #0a4a37; font-family: inherit; font-weight: 700; font-size: 0.85rem;
 }
 
+.sound-btn {
+  position: absolute; top: 54px; left: 50%; transform: translateX(-50%); z-index: 4; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 16px; border: none; border-radius: 999px; cursor: pointer;
+  background: #0a4a37; color: #fff; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+}
+.sound-btn:hover { background: #00382a; }
 .notice {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 999px;
   background: rgba(11, 25, 20, 0.78); color: #fff; font-size: 0.8rem; font-weight: 600;

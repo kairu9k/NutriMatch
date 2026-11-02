@@ -22,7 +22,8 @@ export function useWebRtcCall(appointmentId) {
   const remoteStream = shallowRef(null)
   const micOn = ref(true)
   const camOn = ref(true)
-  const hasCamera = ref(true)
+  const hasCamera = ref(true) // we have a camera track in the call
+  const cameraMissing = ref(false) // this device has no camera at all
   const canSwitchCamera = ref(false)
   const peer = ref(null) // { name, role } while the other person is in the call
   const peerMedia = ref({ audio: true, video: true })
@@ -57,23 +58,72 @@ export function useWebRtcCall(appointmentId) {
   }
 
   /* ---------- camera and microphone ---------- */
+  const AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+  const videoWanted = () => ({ facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } })
+  const wait = ms => new Promise(r => setTimeout(r, ms))
+  // A camera that's still held (the page you just left, an older tab, another
+  // app) fails with NotReadableError / AbortError for a moment: try again
+  // before giving up, then join with sound only and keep trying (rejoin bug, 2026-11-02).
+  const busyError = err => ['NotReadableError', 'AbortError', 'TrackStartError'].includes(err?.name)
   async function openMedia() {
-    try {
-      localStream.value = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-      })
-    } catch (err) {
-      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') throw err
-      // no camera (or it's busy): join with sound only
-      localStream.value = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
+    let lastErr = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        localStream.value = await navigator.mediaDevices.getUserMedia({ audio: AUDIO, video: videoWanted() })
+        hasCamera.value = true
+        cameraMissing.value = false
+        camOn.value = true
+        lastErr = null
+        break
+      } catch (err) {
+        if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') throw err
+        lastErr = err
+        if (!busyError(err)) break
+        await wait(700)
+      }
+    }
+    if (lastErr) {
+      // no camera, or it's still busy: join with sound only
+      localStream.value = await navigator.mediaDevices.getUserMedia({ audio: AUDIO, video: false })
       hasCamera.value = false
+      cameraMissing.value = lastErr?.name === 'NotFoundError' || lastErr?.name === 'OverconstrainedError'
       camOn.value = false
     }
+    // make sure the microphone starts on (a rejoin always starts unmuted)
+    micOn.value = true
+    localStream.value.getAudioTracks().forEach((t) => { t.enabled = true })
+    await updateCameraList()
+  }
+  async function updateCameraList() {
     try {
       const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
       canSwitchCamera.value = hasCamera.value && cams.length > 1
     } catch { canSwitchCamera.value = false }
+  }
+  // Turn the camera on during the call (it was busy when you joined).
+  async function enableCamera() {
+    if (!localStream.value) return false
+    let track
+    try {
+      track = (await navigator.mediaDevices.getUserMedia({ video: videoWanted() })).getVideoTracks()[0]
+    } catch (err) {
+      if (err?.name === 'NotFoundError') cameraMissing.value = true
+      return false
+    }
+    if (!localStream.value) { track.stop(); return false }
+    localStream.value.addTrack(track)
+    localStream.value = new MediaStream(localStream.value.getTracks())
+    hasCamera.value = true
+    cameraMissing.value = false
+    camOn.value = true
+    if (pc) {
+      const sender = pc.getSenders().find(s => s.track?.kind === 'video')
+      if (sender) await sender.replaceTrack(track)
+      else pc.addTrack(track, localStream.value) // renegotiates on its own
+    }
+    send({ type: 'media', audio: micOn.value, video: camOn.value })
+    await updateCameraList()
+    return true
   }
 
   /* ---------- the peer connection ---------- */
@@ -160,6 +210,9 @@ export function useWebRtcCall(appointmentId) {
       try { data = JSON.parse(e.data) } catch { return }
       if (data.type === 'welcome') {
         role = data.role
+        // joined with sound only because the camera was busy (often the
+        // older tab this one just replaced, which lets go of it now): try once more
+        if (!hasCamera.value && !cameraMissing.value) setTimeout(() => { if (wanted && !hasCamera.value) enableCamera() }, 1500)
         const other = data.peers[0]
         if (other) { peer.value = other; peerLeft.value = false; newPeerConnection() } else if (status.value !== 'reconnecting') status.value = 'waiting'
       } else if (data.type === 'peer-joined') {
@@ -229,7 +282,7 @@ export function useWebRtcCall(appointmentId) {
     send({ type: 'media', audio: micOn.value, video: camOn.value })
   }
   function toggleCam() {
-    if (!hasCamera.value) return
+    if (!hasCamera.value) { if (!cameraMissing.value) enableCamera(); return }
     camOn.value = !camOn.value
     localStream.value?.getVideoTracks().forEach((t) => { t.enabled = camOn.value })
     send({ type: 'media', audio: micOn.value, video: camOn.value })
@@ -268,7 +321,7 @@ export function useWebRtcCall(appointmentId) {
   onBeforeUnmount(leave)
 
   return {
-    status, message, localStream, remoteStream, micOn, camOn, hasCamera, canSwitchCamera, peer, peerMedia, peerLeft,
+    status, message, localStream, remoteStream, micOn, camOn, hasCamera, cameraMissing, canSwitchCamera, peer, peerMedia, peerLeft,
     start, leave, toggleMic, toggleCam, switchCamera,
   }
 }
