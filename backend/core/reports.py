@@ -155,11 +155,21 @@ def build_report(params, today=None):
     ph = _ph()
     month = lambda dt: dt.astimezone(ph).strftime("%Y-%m")  # noqa: E731
 
+    now = timezone.now()
     appts = list(Appointment.objects.filter(status__in=["completed", "cancelled", "no_show"])
                  .select_related("relationship"))
     completed, cancelled = [], []
     for a in appts:
-        when = (a.completed_at or a.scheduled_at) if a.status == "completed" else a.scheduled_at
+        # a cancellation counts when it happened (2026-11-02): by its time
+        # slot, a future consultation cancelled today fell outside "All time"
+        if a.status == "completed":
+            when = a.completed_at or a.scheduled_at
+        elif a.status == "no_show":
+            when = a.completed_at or a.scheduled_at
+        elif a.cancelled_at:
+            when = a.cancelled_at
+        else:  # older rows: a future slot was cancelled around its last update
+            when = a.updated_at if a.scheduled_at > now else a.scheduled_at
         if lo <= when < hi:
             (completed if a.status == "completed" else cancelled).append((a, when))
 

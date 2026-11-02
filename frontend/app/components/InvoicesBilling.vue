@@ -285,7 +285,7 @@ function flash(text) {
 }
 function printReceipt(inv) {
   const ok = printDocument({
-    title: 'Official receipt',
+    title: 'Payment receipt',
     number: invNo(inv),
     rows: [
       ['Billed to', `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim() || '—'],

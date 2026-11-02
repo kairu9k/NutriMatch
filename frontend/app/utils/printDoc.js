@@ -6,7 +6,7 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 /**
  * @param {object} doc
- * @param {string} doc.title       e.g. "Official receipt"
+ * @param {string} doc.title       e.g. "Payment receipt"
  * @param {string} doc.number      e.g. "INV-0036"
  * @param {Array<[string, string]>} doc.rows  label/value pairs
  * @param {Array<Array<string>>} [doc.table]  optional rows; first row is the header

@@ -132,7 +132,7 @@
                 <div class="adherence-item">
                   <p class="adherence-value">{{ weekAdherence.logged ? `${weekAdherence.followedPct}%` : '—' }}</p>
                   <p class="adherence-label">
-                    {{ weekAdherence.logged ? `followed in the last 7 days (${weekAdherence.followed} of ${weekAdherence.logged} meals your RND rated)` : 'no rated meals in the last 7 days' }}
+                    {{ weekAdherence.logged ? `followed in the last 7 days (${weekAdherence.followed} followed${weekAdherence.partly ? `, ${weekAdherence.partly} partly` : ''}, of ${weekAdherence.logged} meals your RND rated; partly counts as half)` : 'no rated meals in the last 7 days' }}
                   </p>
                 </div>
               </div>
@@ -652,7 +652,9 @@ const weekAdherence = computed(() => {
   // Only meals the RND has rated count; the rest are waiting for their rating.
   const logs = mealLogs.value.filter(l => l.log_date >= startIso && l.log_date <= todayIso && l.status)
   const followed = logs.filter(l => l.status === 'followed').length
-  return { logged: logs.length, followed, followedPct: logs.length ? Math.round((followed / logs.length) * 100) : 0 }
+  const partly = logs.filter(l => l.status === 'partially_followed').length
+  // partly followed counts as half, the same as the RND's adherence (patient_insights.adherence_pct)
+  return { logged: logs.length, followed, partly, followedPct: logs.length ? Math.round(((followed + partly / 2) / logs.length) * 100) : 0 }
 })
 
 /* ---------- Weight chart (oldest → newest) ----------

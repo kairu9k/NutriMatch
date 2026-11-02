@@ -110,3 +110,15 @@ class ReportTabTests(TestCase):
     def test_every_month_listed(self):
         r = build_report({"from": "2026-01-01", "to": "2026-04-30"})
         self.assertEqual([m["month"] for m in r["monthly"]], ["2026-01", "2026-02", "2026-03", "2026-04"])
+
+    def test_a_future_consultation_cancelled_today_counts_today(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        rnd = approve_rnd(User.objects.create_user(email="fr@t.ph", password="x", role="rnd", first_name="F", last_name="R"))
+        client = User.objects.create_user(email="fc@t.ph", password="x", role="client", first_name="F", last_name="C")
+        rel = RndClientRelationship.objects.create(rnd=rnd, client=client, status="active")
+        Appointment.objects.create(relationship=rel, type="video", status="cancelled",
+                                   scheduled_at=timezone.now() + timedelta(days=5), cancelled_at=timezone.now())
+        self.assertEqual(build_report({"period": "all"})["consultations"]["cancelled"], 1)

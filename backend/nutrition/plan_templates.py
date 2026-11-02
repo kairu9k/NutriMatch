@@ -36,7 +36,7 @@ TEMPLATES = {
     "diabetes": {
         "label": "Diabetes mellitus", "condition": MealPlan.Condition.DIABETES, "split": (50, 20, 30),
         "veg": 4, "fruit": 3, "milk": 1, "milk_code": "milk_nonfat", "sugar": 0,
-        "rice_codes": ["rice_b", "rice_a"], "meat_codes": ["meat_low"], "flag": "ok_for_diabetes",
+        "rice_codes": ["rice_b", "rice_c"], "meat_codes": ["meat_low"], "flag": "ok_for_diabetes",
         "description": "Consistent carbohydrate at every meal, low-GI rice and root crops first, no added sugar.",
         "guidance": "Keep carbohydrate portions the same each day; choose brown/undermilled rice, root crops and whole fruit "
                     "over juice; no sweetened drinks or desserts; pair every snack with fiber or protein.",
