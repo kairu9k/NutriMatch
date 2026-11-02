@@ -1635,10 +1635,12 @@ function formatTime(t) {
 .food-table-row input:disabled { background: #f6f8f6; color: #4a5a4a; }
 .usda-name { font-size: 0.82rem; color: #1a3a1a; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
 .usda-tag { display: inline-block; font-size: 0.6rem; font-weight: 700; background: #eef1f8; color: #34508a; border-radius: 5px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px; }
-.grams-input { display: flex; align-items: center; gap: 4px; }
+.grams-input { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .grams-input span { font-size: 0.78rem; color: #6a7a6a; }
-.exch-input span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.exch-input input { max-width: 64px; }
+/* FNRI: the exchange count, with the portion it makes on a small line under it */
+.exch-input { flex-direction: column; align-items: stretch; gap: 3px; }
+.exch-input input { width: 100%; }
+.exch-input span { font-size: 0.72rem; line-height: 1.25; overflow-wrap: anywhere; }
 .add-food-row { display: flex; gap: 10px; margin: 6px 24px 22px; }
 .add-food-row .btn-add-food { flex: 1; width: auto; margin: 0; }
 .usda-btn { color: #34508a; border-color: #cfd8ea; }
