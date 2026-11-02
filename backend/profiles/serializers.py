@@ -58,6 +58,23 @@ class RndAvailabilityScheduleSerializer(serializers.ModelSerializer):
         # 12:00 AM as the end means midnight at the end of the day (profiles/hours.py)
         if start is not None and end is not None and end_minutes(end) <= start_minutes(start):
             raise serializers.ValidationError("End time must be after start time.")
+        # No overlapping hours on the same day (2026-11-02; the page checked this,
+        # the server didn't). A break is two blocks with a gap, which is fine.
+        request = self.context.get("request")
+        rnd = getattr(self.instance, "rnd", None) or getattr(request, "user", None)
+        day = attrs.get("day_of_week", getattr(self.instance, "day_of_week", None))
+        if rnd is not None and getattr(rnd, "pk", None) and day is not None and start is not None and end is not None:
+            from datetime import date as _date
+
+            others = RndAvailabilitySchedule.objects.filter(rnd=rnd, day_of_week=day, is_available=True).exclude(
+                effective_to__lt=_date.today())
+            if self.instance is not None:
+                others = others.exclude(pk=self.instance.pk)
+            for o in others:
+                if start_minutes(start) < end_minutes(o.end_time) and start_minutes(o.start_time) < end_minutes(end):
+                    raise serializers.ValidationError(
+                        f"These hours overlap {o.start_time:%I:%M %p} to {o.end_time:%I:%M %p} on the same day. "
+                        "For a break, end the first block before the second one starts.")
         return attrs
 
 

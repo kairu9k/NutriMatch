@@ -34,6 +34,12 @@
     </div>
     <p v-if="weekResult" class="week-result" role="status">{{ weekResult }}</p>
 
+    <!-- the two things people get wrong (Calendly's forum has the same questions) -->
+    <p class="nm-note plain-note avail-hint">
+      Taking a lunch break? Add your morning and afternoon as two blocks, for example 8:00 AM to 12:00 PM and 1:00 PM to 5:00 PM.
+      For hours that end at midnight, use 12:00 AM.
+    </p>
+
     <!-- WEEKLY DAY ROWS -->
     <div v-if="loading" class="empty-note">Loading…</div>
     <div v-else class="day-list">
@@ -50,7 +56,8 @@
                 <button class="form-btn save" @click="saveEdit(slot)">Save</button>
                 <button class="form-btn cancel" @click="cancelEdit">Cancel</button>
               </div>
-              <button v-else class="slot-pill" type="button" @click="startEdit(slot)">
+              <button v-else class="slot-pill" type="button" :aria-label="`Edit ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click="startEdit(slot)">
+                <PenLine :size="12" class="pill-edit" aria-hidden="true" />
                 {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}                <span class="pill-icon-btn" role="button" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
               </button>
             </template>
@@ -64,6 +71,11 @@
             <button class="form-btn save" @click="confirmAddSlot(day.dayIndex)">Add</button>
             <button class="form-btn cancel" @click="addingDay = null">Cancel</button>
           </div>
+          <!-- what clients actually get: 1-hour consultations every hour from each block's start -->
+          <p v-if="day.slots.length" class="day-preview">
+            <span>Clients can book {{ bookableText(day.slots) || 'nothing yet' }}.</span>
+            <span v-for="w in wastedText(day.slots)" :key="w" class="day-waste">{{ w }}</span>
+          </p>
         </div>
 
         <button v-if="addingDay !== day.dayIndex" class="day-action-link" @click="startAddSlot(day.dayIndex)"><Plus :size="14" aria-hidden="true" /> Add hours</button>
@@ -142,7 +154,7 @@
 <script setup>
 import { phIso } from '~/utils/phTime'
 import { computed, onMounted, reactive, ref } from 'vue'
-import { X, CalendarOff, Plus } from 'lucide-vue-next'
+import { X, CalendarOff, PenLine, Plus } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Availability' })
 
@@ -198,6 +210,40 @@ const toMinutes = t => { const [h, m] = t.split(':').map(Number); return h * 60 
 // An END time of 12:00 AM means midnight at the end of the day (profiles/hours.py):
 // compare it as "24:00" so "10 PM to 12 AM" works.
 const endKey = t => (t && t.slice(0, 5) === '00:00' ? '24:00' : (t || '').slice(0, 5))
+
+/* ---------- what clients can book on a day (same grid as profiles/public.py) ---------- */
+const SESSION = 60 // minutes, one consultation; starts step every hour from the block's start
+const shortClock = (mins) => {
+  const h = Math.floor(mins / 60) % 24
+  const m = mins % 60
+  return { text: `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''}`, period: h < 12 ? 'AM' : 'PM' }
+}
+const sortedSlots = slots => [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time))
+// "8, 9, 10, 11 AM, 1, 2, 3, 4 PM"
+function bookableText(daySlots) {
+  const starts = []
+  for (const s of sortedSlots(daySlots)) {
+    const end = toMinutes(endKey(s.end_time))
+    for (let t = toMinutes(s.start_time.slice(0, 5)); t + SESSION <= end; t += SESSION) starts.push(t)
+  }
+  const out = []
+  starts.forEach((t, i) => {
+    const c = shortClock(t)
+    const next = starts[i + 1] != null ? shortClock(starts[i + 1]) : null
+    out.push(next && next.period === c.period ? c.text : `${c.text} ${c.period}`)
+  })
+  return out.join(', ')
+}
+// "4:30 to 5:00 PM can't be booked: shorter than a 1-hour consultation."
+function wastedText(daySlots) {
+  return sortedSlots(daySlots).flatMap((s) => {
+    const start = toMinutes(s.start_time.slice(0, 5))
+    const end = toMinutes(endKey(s.end_time))
+    const left = (end - start) % SESSION
+    if (!left || end - start < SESSION) return end - start < SESSION ? [`${formatTime(s.start_time)} to ${formatTime(s.end_time)} is too short for a 1-hour consultation.`] : []
+    return [`${formatTime(`${String(Math.floor((end - left) / 60) % 24).padStart(2, '0')}:${String((end - left) % 60).padStart(2, '0')}`)} to ${formatTime(s.end_time)} can't be booked: shorter than a 1-hour consultation.`]
+  })
+}
 
 function rangeError(start, end) {
   if (!start || !end) return 'Pick a start and end time.'
@@ -442,6 +488,10 @@ function formatBlockDate(iso) {
 
 .day-content { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 
+.avail-hint { margin: 0 0 12px; }
+.day-preview { flex-basis: 100%; display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; font-size: 0.78rem; color: #6a7a6a; line-height: 1.4; }
+.day-waste { color: #8a5a10; }
+.pill-edit { color: #3f6b55; flex-shrink: 0; }
 .slot-pill {
   display: flex; align-items: center; gap: 6px;
   background: #e3efe7; color: #1e4a26; font-size: 0.82rem; font-weight: 600; font-family: inherit;

@@ -157,6 +157,7 @@ class RndAvailabilityCustomTimesTests(TestCase):
     def setUp(self):
         self.client_api = APIClient()
         self.rnd = _make_rnd()
+        RndAvailabilitySchedule.objects.filter(rnd=self.rnd).delete()  # no preset all-day hours (they would overlap)
         self.client_api.force_authenticate(self.rnd)
 
     def test_create_slot_with_custom_times(self):

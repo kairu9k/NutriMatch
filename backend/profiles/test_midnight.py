@@ -53,3 +53,14 @@ class MidnightTests(TestCase):
         resp = self.api.post("/api/rnd/time-off/", {"start_date": str(self.day), "start_time": "22:00", "end_time": "00:00"},
                              format="json")
         self.assertEqual(resp.status_code, 201, resp.data)
+
+    def test_overlapping_hours_are_refused_but_a_break_is_fine(self):
+        today = str(timezone.now().date())
+        post = lambda a, b: self.api.post("/api/rnd/availability/", {"day_of_week": self.dow, "start_time": a, "end_time": b,  # noqa: E731
+                                                                     "effective_from": today}, format="json")
+        self.assertEqual(post("08:00", "12:00").status_code, 201)
+        self.assertEqual(post("13:00", "17:00").status_code, 201)  # lunch break between
+        resp = post("11:00", "14:00")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("overlap", str(resp.data))
+        self.assertEqual(post("17:00", "00:00").status_code, 201)  # touching is fine, up to midnight
