@@ -77,7 +77,7 @@
         <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" @peer-left="recheckAppointment" />
         <!-- The RND never joined: 15 minutes after the start the client can report it (full refund). -->
         <div v-if="rndAbsentReady" class="absent-note" role="status">
-          <p><strong>{{ other.firstName }} hasn't joined yet.</strong> If they still haven't come, you can report it and get a full refund.</p>
+          <p><strong>{{ appt.attendance?.rnd_joined_at ? `${other.firstName} left the call.` : `${other.firstName} hasn't joined yet.` }}</strong> If they don't come back, you can report it and get a full refund.</p>
           <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="absentAsk = true; absentError = ''">Report that {{ other.firstName }} didn't show up</button>
         </div>
         <!-- pop-ups over the call (outside the v-if chain above) -->
@@ -411,7 +411,7 @@
         <button type="button" class="nm-modal-x" aria-label="Close" @click="!absentBusy && (absentAsk = false)"><X :size="18" aria-hidden="true" /></button>
         <h2 id="absent-title" class="nm-modal-title">Report that {{ other.firstName }} didn't show up?</h2>
         <p class="nm-modal-text">
-          NutriMatch's call record shows you joined and {{ other.firstName }} didn't. The consultation is cancelled
+          NutriMatch's call record shows you joined and {{ other.firstName }} {{ appt.attendance?.rnd_joined_at ? 'was in the call for less than 5 minutes' : 'never joined' }}. The consultation is cancelled
           and your {{ peso(appt.payment?.amount) }} payment is refunded in full within 5–7 business days. You can book again any time.
         </p>
         <p v-if="absentError" class="nm-field-error">{{ absentError }}</p>
@@ -780,7 +780,8 @@ const callLeaveAsk = ref(false)
 /* ---------- client: the RND didn't come ---------- */
 const RND_ABSENT_AFTER_MS = 15 * 60 * 1000 // RND_ABSENT_AFTER_MINUTES
 const rndAbsentReady = computed(() => !isRnd.value && appt.value?.status === 'confirmed' && appt.value?.type === 'video'
-  && appt.value?.payment?.status === 'paid' && !appt.value?.attendance?.rnd_joined_at
+  && appt.value?.payment?.status === 'paid' && !appt.value?.attendance?.rnd_in_call
+  && (appt.value?.attendance?.rnd_minutes ?? 0) < 5 // RND_MIN_PRESENT_MINUTES: a brief join doesn't count
   && now.value >= new Date(appt.value.scheduled_at).getTime() + RND_ABSENT_AFTER_MS)
 const absentAsk = ref(false)
 const absentBusy = ref(false)
@@ -805,7 +806,7 @@ onMounted(() => {
   if (isRnd.value) return
   absentTimer = setInterval(() => {
     const a = appt.value
-    if (a?.status === 'confirmed' && a.type === 'video' && !a.attendance?.rnd_joined_at
+    if (a?.status === 'confirmed' && a.type === 'video' && (a.attendance?.rnd_minutes ?? 0) < 5
         && Date.now() >= new Date(a.scheduled_at).getTime()) recheckAppointment()
   }, 60000)
 })

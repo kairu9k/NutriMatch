@@ -119,6 +119,11 @@ class Appointment(models.Model):
     client_left_at = models.DateTimeField(null=True, blank=True)
     together_seconds = models.PositiveIntegerField(default=0)
     together_since = models.DateTimeField(null=True, blank=True)  # both are in the call right now
+    # each person's total time in the call (they can leave and come back)
+    rnd_seconds = models.PositiveIntegerField(default=0)
+    client_seconds = models.PositiveIntegerField(default=0)
+    rnd_in_since = models.DateTimeField(null=True, blank=True)  # in the call right now
+    client_in_since = models.DateTimeField(null=True, blank=True)
 
     # The client disputes a no-show (3 days); the payout waits until an admin decides.
     dispute_opened_at = models.DateTimeField(null=True, blank=True)

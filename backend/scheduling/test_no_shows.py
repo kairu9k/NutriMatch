@@ -184,6 +184,28 @@ class NoShowRulesTests(TestCase):
         record_presence(b.id, "rnd", True, ["client", "rnd"])
         self.assertEqual(self.client_api.post(f"/api/client/appointments/{b.id}/rnd-absent/").status_code, 400)
 
+    def test_a_brief_rnd_join_does_not_count(self):
+        t0 = timezone.now() - timedelta(minutes=20)
+        brief = self.appt(-20)
+        record_presence(brief.id, "client", True, ["client"], now=t0)
+        record_presence(brief.id, "rnd", True, ["client", "rnd"], now=t0 + timedelta(minutes=1))
+        record_presence(brief.id, "rnd", False, ["client"], now=t0 + timedelta(minutes=3))  # 2 min, then left
+        resp = self.client_api.post(f"/api/client/appointments/{brief.id}/rnd-absent/")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        brief.refresh_from_db()
+        self.assertIn("less than 5 minutes", brief.cancellation_reason)
+
+        stayed = self.appt(-25)
+        t1 = timezone.now() - timedelta(minutes=25)
+        record_presence(stayed.id, "client", True, ["client"], now=t1)
+        record_presence(stayed.id, "rnd", True, ["client", "rnd"], now=t1)
+        record_presence(stayed.id, "rnd", False, ["client"], now=t1 + timedelta(minutes=4))
+        record_presence(stayed.id, "rnd", True, ["client", "rnd"], now=t1 + timedelta(minutes=6))
+        record_presence(stayed.id, "rnd", False, ["client"], now=t1 + timedelta(minutes=8))  # 4 + 2 = 6 min in total
+        stayed.refresh_from_db()
+        self.assertEqual(attendance_payload(stayed)["rnd_minutes"], 6)
+        self.assertEqual(self.client_api.post(f"/api/client/appointments/{stayed.id}/rnd-absent/").status_code, 400)
+
     # ---- call didn't work
     def test_call_failed_refunds(self):
         a = self.appt(-5)

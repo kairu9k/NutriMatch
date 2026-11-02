@@ -27,9 +27,16 @@ def record_presence(appointment_id, role, joined, present_roles, now=None):
         if joined and getattr(a, f"{role}_joined_at") is None:
             setattr(a, f"{role}_joined_at", now)
             fields.append(f"{role}_joined_at")
+        since = getattr(a, f"{role}_in_since")
+        if joined and since is None:
+            setattr(a, f"{role}_in_since", now)
+            fields.append(f"{role}_in_since")
         if not joined:
             setattr(a, f"{role}_left_at", now)
-            fields.append(f"{role}_left_at")
+            if since is not None:
+                setattr(a, f"{role}_seconds", getattr(a, f"{role}_seconds") + max(0, int((now - since).total_seconds())))
+                setattr(a, f"{role}_in_since", None)
+            fields += [f"{role}_left_at", f"{role}_seconds", f"{role}_in_since"]
         both = set(ROLES) <= set(present_roles)
         if both and a.together_since is None:
             a.together_since = now
@@ -46,6 +53,15 @@ def together_minutes(a, now=None):
     seconds = a.together_seconds
     if a.together_since is not None:
         seconds += max(0, int(((now or timezone.now()) - a.together_since).total_seconds()))
+    return seconds // 60
+
+
+def minutes_in_call(a, role, now=None):
+    """One person's total minutes in the call, including right now."""
+    seconds = getattr(a, f"{role}_seconds")
+    since = getattr(a, f"{role}_in_since")
+    if since is not None:
+        seconds += max(0, int(((now or timezone.now()) - since).total_seconds()))
     return seconds // 60
 
 
@@ -69,11 +85,13 @@ def attendance_line(a, now=None):
         return "Neither person joined the video call."
     if state == "both":
         mins = together_minutes(a, now)
-        return (f"Both attended. RND joined {format_ph_time(a.rnd_joined_at)}, client {format_ph_time(a.client_joined_at)}, "
-                f"together {mins} min.")
+        return (f"Both attended. RND joined {format_ph_time(a.rnd_joined_at)} (in the call {minutes_in_call(a, 'rnd', now)} min), "
+                f"client {format_ph_time(a.client_joined_at)} ({minutes_in_call(a, 'client', now)} min), together {mins} min.")
     if state == "rnd_only":
-        return f"Only the RND joined ({format_ph_time(a.rnd_joined_at)}). The client never joined."
-    return f"Only the client joined ({format_ph_time(a.client_joined_at)}). The RND never joined."
+        return (f"Only the RND joined ({format_ph_time(a.rnd_joined_at)}, in the call {minutes_in_call(a, 'rnd', now)} min). "
+                "The client never joined.")
+    return (f"Only the client joined ({format_ph_time(a.client_joined_at)}, in the call {minutes_in_call(a, 'client', now)} min). "
+            "The RND never joined.")
 
 
 def attendance_payload(a, now=None):
@@ -85,6 +103,8 @@ def attendance_payload(a, now=None):
         "rnd_joined_at": a.rnd_joined_at, "client_joined_at": a.client_joined_at,
         "rnd_left_at": a.rnd_left_at, "client_left_at": a.client_left_at,
         "together_minutes": together_minutes(a, now),
+        "rnd_minutes": minutes_in_call(a, "rnd", now), "client_minutes": minutes_in_call(a, "client", now),
+        "rnd_in_call": a.rnd_in_since is not None, "client_in_call": a.client_in_since is not None,
         "in_call_now": a.together_since is not None,
         "line": attendance_line(a, now),
     }

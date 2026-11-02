@@ -6,7 +6,8 @@
   (DISPUTE_DAYS, the same as the payout hold), which opens a support request
   and holds the payout until an admin refunds it or rejects the dispute.
 - The RND didn't come: 15 minutes after the start, a client who joined the
-  call while the RND never did can report it. It's cancelled and the payment
+  call can report it if the RND isn't in the call and was in it for less
+  than 5 minutes in total (a brief join doesn't count). It's cancelled and the payment
   goes to refund pending (the attendance record proves it), and it counts as
   one of the RND's late cancels.
 - The call didn't work: the RND ends it as a failed call, the client gets a
@@ -25,9 +26,9 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin, IsClient, IsRnd
 
-from .attendance import attendance_line, dispute_payload
+from .attendance import attendance_line, dispute_payload, minutes_in_call
 from .models import Appointment
-from .serializers import RND_ABSENT_AFTER_MINUTES, AppointmentSerializer
+from .serializers import RND_ABSENT_AFTER_MINUTES, RND_MIN_PRESENT_MINUTES, AppointmentSerializer
 from .views import format_ph_datetime
 
 MIN_DISPUTE_REASON = 20
@@ -150,11 +151,16 @@ class ClientRndAbsentView(APIView):
             raise ValidationError({"detail": f"You can report it {RND_ABSENT_AFTER_MINUTES} minutes after the start."})
         if a.client_joined_at is None:
             raise ValidationError({"detail": "Join the video call first, so NutriMatch can see you were there."})
-        if a.rnd_joined_at is not None:
-            raise ValidationError({"detail": "Your RND joined the call, so this can't be reported as a no-show. "
-                                             "If something went wrong, contact NutriMatch support."})
+        # A brief join doesn't count (2026-11-02): the RND must have been in
+        # the call at least 5 minutes in total, or be in it right now.
+        if a.rnd_in_since is not None:
+            raise ValidationError({"detail": "Your RND is in the call now."})
+        if minutes_in_call(a, "rnd", now) >= RND_MIN_PRESENT_MINUTES:
+            raise ValidationError({"detail": f"Your RND was in the call for {RND_MIN_PRESENT_MINUTES} minutes or more, so this can't be "
+                                             "reported as a no-show. If something went wrong, contact NutriMatch support."})
         a.status = Appointment.Status.CANCELLED
-        a.cancellation_reason = "The RND didn't join the video call."
+        a.cancellation_reason = ("The RND didn't join the video call." if a.rnd_joined_at is None
+                                 else "The RND was in the video call for less than 5 minutes.")
         a.cancelled_by, a.cancelled_at, a.cancelled_late = Appointment.CancelledBy.RND_ABSENT, now, True
         a.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "cancelled_late", "updated_at"])
         settle_cancelled_appointment(a)  # refund pending, the client is told

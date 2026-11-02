@@ -121,6 +121,7 @@ CLIENT_CANCEL_CUTOFF_MINUTES = 30
 PAY_BY_MINUTES = 15
 DISPUTE_DAYS = 3  # a client can dispute a no-show this long (= the payout hold)
 RND_ABSENT_AFTER_MINUTES = 15  # the client can report the RND absent this long after the start
+RND_MIN_PRESENT_MINUTES = 5  # ...if the RND was in the call less than this in total (and isn't in it now)
 
 
 def deadlines(appointment):
