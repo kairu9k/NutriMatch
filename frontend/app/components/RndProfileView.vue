@@ -176,7 +176,7 @@
             <ul class="policy">
               <li><Clock :size="13" aria-hidden="true" /> Your booking is a request until {{ rnd.user.first_name }} confirms it.</li>
               <li><CreditCard :size="13" aria-hidden="true" /> Pay after {{ rnd.user.first_name }} confirms, before the session starts.</li>
-              <li><RotateCcw :size="13" aria-hidden="true" /> Cancel before it starts and a paid session is refunded.</li>
+              <li><RotateCcw :size="13" aria-hidden="true" /> Once confirmed, cancel at least 1 hour before it starts and a paid session is refunded.</li>
             </ul>
 
             <!-- Only for clients who haven't screened yet — the RND can't
@@ -272,7 +272,7 @@
             <p v-if="bookingSummary" class="bk-pick">{{ bookingSummary }}</p>
             <p v-else class="bk-pick muted">{{ bookingHint }}</p>
             <p v-if="bookingError" class="form-error" role="alert">{{ bookingError }}</p>
-            <p v-else class="bk-after">You get an invoice once {{ rnd.user.first_name }} confirms.</p>
+            <p v-else class="bk-after">You get an invoice once {{ rnd.user.first_name }} confirms. You can cancel up to 1 hour before the start.</p>
           </div>
           <button class="nm-btn-dark bk-send" type="button" :disabled="!canConfirmBooking || isBooking" @click="confirmBooking">
             {{ isBooking ? 'Sending…' : 'Send booking request' }}

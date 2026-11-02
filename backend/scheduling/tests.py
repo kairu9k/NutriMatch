@@ -349,6 +349,21 @@ class ClientCancelTests(TestCase):
             appt.refresh_from_db()
             self.assertEqual(appt.status, st)
 
+    def test_confirmed_closes_one_hour_before_pending_does_not(self):
+        soon = timezone.now() + timedelta(minutes=50)
+        appt = self._appt("confirmed", when=soon)
+        resp = self.api.patch(f"/api/client/appointments/{appt.id}/cancel/", {}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("1 hour", resp.data["detail"])
+        appt.refresh_from_db()
+        self.assertEqual(appt.status, "confirmed")
+        # just over an hour away: still allowed
+        later = self._appt("confirmed", when=timezone.now() + timedelta(minutes=65))
+        self.assertEqual(self.api.patch(f"/api/client/appointments/{later.id}/cancel/", {}, format="json").status_code, 200)
+        # an unconfirmed request can still be withdrawn
+        req = self._appt("pending", when=soon + timedelta(minutes=5))
+        self.assertEqual(self.api.patch(f"/api/client/appointments/{req.id}/cancel/", {}, format="json").status_code, 200)
+
     def test_cannot_cancel_someone_elses_appointment(self):
         other = _make_client("other@t.ph")
         rel = RndClientRelationship.objects.create(rnd=self.rnd, client=other, status="active")

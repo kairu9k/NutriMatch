@@ -120,6 +120,12 @@ class ClientAppointmentDetailView(generics.RetrieveAPIView):
         return Appointment.objects.filter(relationship__client=self.request.user)
 
 
+# A client can cancel a confirmed consultation up to 1 hour before it starts
+# (user's rule, 2026-11-02): the RND has set that hour aside. An unconfirmed
+# request can still be withdrawn until its start.
+CLIENT_CANCEL_CUTOFF_MINUTES = 60
+
+
 class ClientAppointmentCancelView(APIView):
     permission_classes = [IsClient]
 
@@ -135,15 +141,23 @@ class ClientAppointmentCancelView(APIView):
                 {"detail": f"This appointment is already {appointment.get_status_display().lower()} and can't be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Once a confirmed consultation has started the client can't cancel it
-        # (it's paid — cancelling would ask for a refund for a session that may
-        # have happened). The RND or an admin can still cancel a no-show.
-        if appointment.status == Appointment.Status.CONFIRMED and appointment.scheduled_at <= timezone.now():
-            return Response(
-                {"detail": "This consultation has already started, so it can't be cancelled. "
-                           "If it didn't take place, message your RND or contact NutriMatch support."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # A confirmed consultation can't be cancelled in its last hour or once
+        # it has started (it's paid, the RND kept the time). The RND or an
+        # admin can still cancel a no-show.
+        if appointment.status == Appointment.Status.CONFIRMED:
+            now = timezone.now()
+            if appointment.scheduled_at <= now:
+                return Response(
+                    {"detail": "This consultation has already started, so it can't be cancelled. "
+                               "If it didn't take place, message your RND or contact NutriMatch support."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if appointment.scheduled_at - now < timedelta(minutes=CLIENT_CANCEL_CUTOFF_MINUTES):
+                return Response(
+                    {"detail": "Consultations can only be cancelled up to 1 hour before they start. "
+                               "If you can't make it, message your RND."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         reason = (request.data.get("reason") or "").strip()[:500]
         appointment.status = Appointment.Status.CANCELLED
         appointment.cancellation_reason = reason
@@ -275,7 +289,8 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             content=(
                 f"RND {appointment.relationship.rnd.full_name} confirmed your "
                 f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
-                f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) before then to start your consultation."
+                f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) before then to start your consultation. "
+                f"You can cancel up to 1 hour before it starts."
             ),
         )
         from communication.reminders import _when

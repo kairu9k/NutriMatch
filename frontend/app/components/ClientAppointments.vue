@@ -58,6 +58,8 @@
               {{ appt.status === 'pending' ? 'Cancel request' : 'Cancel' }}
             </button>
           </div>
+          <p v-if="appt.canCancel && appt.cancelBy" class="cancel-closed">You can cancel until {{ appt.cancelBy }}, 1 hour before the start.</p>
+          <p v-if="appt.cancelClosed" class="cancel-closed">Cancelling closes 1 hour before the start. If you can't make it, message your RND.</p>
           <p v-if="actionError[appt.id]" class="inline-error">{{ actionError[appt.id] }}</p>
         </article>
       </section>
@@ -124,6 +126,7 @@
         <p class="modal-text">
           {{ cancelTarget.typeLabel }} consultation with RND {{ cancelTarget.rnd.name }} on {{ cancelTarget.longDate }}, {{ cancelTarget.timeRange }}.
           RND {{ cancelTarget.rnd.firstName }} will be notified.
+          <template v-if="cancelTarget.cancelBy"> Cancelling closes at {{ cancelTarget.cancelBy }}, 1 hour before the start.</template>
         </p>
         <p v-if="cancelTarget.payment?.status === 'paid'" class="modal-note">
           You paid ₱{{ money(cancelTarget.payment.amount) }} for this consultation. {{ refundMessage(money(cancelTarget.payment.amount), cancelTarget.payment.method) }}
@@ -196,6 +199,7 @@ const TYPES = {
   in_person: { label: 'In person', icon: MapPin },
 }
 const STAR_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' }
+const CANCEL_CUTOFF_MS = 60 * 60 * 1000 // a confirmed consultation can be cancelled up to 1 hour before (CLIENT_CANCEL_CUTOFF_MINUTES)
 
 function money(v) {
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -293,8 +297,10 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     opensLater: phase === 'confirmed' && a.type === 'video' && nowMs < opensAt,
     opensLabel: formatJoinTime(opensAt, nowMs),
     canMessage: relActive,
-    // A confirmed consultation can't be cancelled once it has started (the API refuses too).
-    canCancel: a.status === 'pending' || (a.status === 'confirmed' && nowMs < start.getTime()),
+    // A confirmed consultation can be cancelled up to 1 hour before it starts (the API refuses too).
+    canCancel: a.status === 'pending' || (a.status === 'confirmed' && nowMs < start.getTime() - CANCEL_CUTOFF_MS),
+    cancelBy: a.status === 'confirmed' ? clock(new Date(start.getTime() - CANCEL_CUTOFF_MS)) : '',
+    cancelClosed: a.status === 'confirmed' && nowMs >= start.getTime() - CANCEL_CUTOFF_MS && nowMs < start.getTime(),
     review: reviewByAppt.value[a.id] || null,
     payment,
   }
@@ -486,6 +492,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .placeholder-text { font-size: 0.85rem; color: #6a7a6a; }
 .empty-note { font-size: 0.85rem; color: #6a7a6a; margin: 0; padding: 6px 0; }
 .inline-error { font-size: 0.8rem; color: #a12525; margin: 8px 0 0; }
+.cancel-closed { font-size: 0.8rem; color: #5b6b62; margin: 8px 0 0; }
 
 .section { margin-bottom: 28px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
