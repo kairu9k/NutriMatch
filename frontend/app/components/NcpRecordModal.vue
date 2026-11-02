@@ -148,10 +148,10 @@
             <section v-else-if="stepKey === 'intervention'">
               <header class="step-head"><h3 class="step-title">Nutrition intervention</h3><p class="step-desc">What you prescribe: the energy and macro targets, and the diet itself.</p></header>
               <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Targets carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Adjust them as needed.</p>
-              <!-- TER, Tannhauser's factorial method (utils/ncp.js terSteps) -->
+              <!-- TER, Tannhauser's factorial method on a BMR from the BMI-method DBW (utils/ncp.js terSteps) -->
               <div class="ter-box">
                 <div class="ter-head">
-                  <p class="ter-title">Total Energy Requirement, Tannhauser's method</p>
+                  <p class="ter-title">Total Energy Requirement, BMR by the BMI method</p>
                   <label class="ter-act">
                     <span>Activity</span>
                     <select v-model="i.ter_activity" class="nm-select" :disabled="isReadOnly" aria-label="Physical activity level">
@@ -167,12 +167,13 @@
                   </button>
                 </div>
                 <dl v-if="terCalc && terShowSteps" id="ter-steps" class="ter-steps">
-                  <div><dt>DBW</dt><dd>({{ fmt(a.height_cm) }} − 100) − 10% = <strong>{{ fmt(terCalc.dbw, 1) }} kg</strong></dd></div>
+                  <div><dt>DBW</dt><dd>{{ terCalc.heightM.toFixed(2) }}² × 22 = <strong>{{ fmt(terCalc.dbw, 1) }} kg</strong></dd></div>
                   <div><dt>BMR</dt><dd>{{ fmt(terCalc.dbw, 1) }} × {{ terCalc.perHour.toFixed(1) }} × 24 = <strong>{{ whole(terCalc.bmr) }} kcal</strong></dd></div>
                   <div><dt>Activity</dt><dd>{{ terCalc.act.label }}, {{ terCalc.act.pct }}% of BMR = <strong>{{ whole(terCalc.pa) }} kcal</strong></dd></div>
                   <div><dt>TEF</dt><dd>10% of (BMR + activity) = <strong>{{ whole(terCalc.tef) }} kcal</strong></dd></div>
                   <div class="ter-total"><dt>TER</dt><dd>{{ whole(terCalc.exact) }}, to the nearest 50 = <strong>{{ whole(terCalc.ter) }} kcal</strong></dd></div>
                 </dl>
+                <p v-if="terCalc?.shortStature" class="nm-note plain-note">{{ SHORT_STATURE_NOTE }}</p>
                 <p v-if="!terCalc" class="c-sub">{{ ctx.patient?.sex ? 'Enter the height in Assessment to work out the TER.' : 'The patient\'s sex isn\'t on file, so the TER can\'t be worked out. Type it below.' }}</p>
               </div>
               <div class="ter-field">
@@ -276,6 +277,7 @@
                 <div><dt>TER</dt><dd>{{ whole(ctx.screening.tdee_kcal) }}</dd><small>kcal/day</small></div>
                 <div><dt>BMR</dt><dd>{{ whole(ctx.screening.bmr_kcal) }}</dd><small>kcal/day</small></div>
               </dl>
+              <p v-if="ctx.screening.bmr_note" class="bl-sym">{{ ctx.screening.bmr_note }}</p>
               <p v-if="ctx.screening.symptoms" class="bl-sym"><strong>Symptoms:</strong> {{ ctx.screening.symptoms }}</p>
             </section>
             <template v-if="ctx.meal_plan">
@@ -349,7 +351,7 @@
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, FlaskConical, Info, Lock, Save, X } from 'lucide-vue-next'
 import {
   DEFAULT_MACRO_PCT, KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, TER_ACTIVITY, bmiClass, bmiOf, bpCategory, extraRowErrors,
-  glucoseCategory, hba1cCategory, macroGrams, rangeError, terSteps,
+  glucoseCategory, hba1cCategory, macroGrams, rangeError, terSteps, SHORT_STATURE_NOTE,
 } from '~/utils/ncp'
 import { etiologyGroups } from '~/utils/ncpEtiology'
 import { signGroups } from '~/utils/ncpSigns'
@@ -502,7 +504,7 @@ const weightSince = computed(() => {
   return prev.weight_change_kg
 })
 const liveBmi = computed(() =>(rangeError('weight_kg', a.value.weight_kg) || rangeError('height_cm', a.value.height_cm) ? null : bmiOf(a.value.weight_kg, a.value.height_cm)))
-/* ---------- TER and macro distribution (Tannhauser, utils/ncp.js) ---------- */
+/* ---------- TER and macro distribution (utils/ncp.js) ---------- */
 const MACROS = [
   { key: 'carb', label: 'Carbohydrate', per: KCAL_PER_G.carb },
   { key: 'protein', label: 'Protein', per: KCAL_PER_G.protein },

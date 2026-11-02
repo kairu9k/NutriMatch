@@ -22,7 +22,7 @@ from .serializers import (
 )
 from .services import (
     calculate_bmi,
-    calculate_bmr_tannhauser,
+    calculate_bmr,
     calculate_nrs2002,
     calculate_ter_tannhauser,
     classify_bmi_asia_pacific,
@@ -65,7 +65,7 @@ class ScreeningCreateView(generics.ListCreateAPIView):
         # registration; the form shows it read-only and it's changed in
         # Profile Settings). A typed value is only the fallback — "Prefer not
         # to say" at registration — and is then saved to the profile. A typed
-        # age is accepted but not stored: Tannhauser's BMR doesn't use age.
+        # age is accepted but not stored: the BMR doesn't use age.
         client_profile = getattr(request.user, "client_profile", None)
         serializer.validated_data.pop("age", None)
         sex = serializer.validated_data.pop("sex", None)
@@ -75,10 +75,10 @@ class ScreeningCreateView(generics.ListCreateAPIView):
             client_profile.sex = sex
             client_profile.save(update_fields=["sex", "updated_at"])
 
-        # Tannhauser BMR needs only height and sex (no age, no actual weight).
+        # The BMR needs only height and sex (DBW by the BMI method; no age, no actual weight).
         bmr_kcal = tdee_kcal = None
         if sex:
-            bmr_kcal = calculate_bmr_tannhauser(height_cm, sex)
+            bmr_kcal = calculate_bmr(height_cm, sex)
         if bmr_kcal is not None:
             activity_level = serializer.validated_data.get("activity_level", "sedentary")
             tdee_kcal = calculate_ter_tannhauser(bmr_kcal, activity_level)  # the column holds TER

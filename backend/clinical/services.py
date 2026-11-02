@@ -4,9 +4,12 @@ Implements the exact formulas named in the capstone proposal — do not
 substitute generic/global versions of these without checking
 vault/C1-NUTRIMATCH-FINALv5.pdf first:
 
-- BMR: Tannhauser's method — DBW from height, then BMR from DBW (2026-10-31,
-  asked for by the project's RND resource person; replaces the proposal's
-  Mifflin-St Jeor equation)
+- BMR: from the desirable body weight (DBW) by the BMI method — DBW =
+  height (m)² × 22 for everyone, then BMR = DBW × 1.0 (male) / 0.9 (female)
+  kcal/kg/hour × 24 (2026-11-02, user's call: Tannhauser's DBW, (height − 100)
+  − 10%, which replaced the proposal's Mifflin-St Jeor on 2026-10-31, falls
+  apart for short patients — 0 kg at 100 cm; the BMI method gives a sane
+  value at every height). Below 150 cm the estimate is flagged for review.
 - TER (Total Energy Requirement): Tannhauser's factorial method — BMR +
   physical activity (% of BMR) + TEF (10% of the two), rounded to the nearest
   50 kcal (2026-11-01, the RND resource person's method; replaces BMR ×
@@ -67,20 +70,25 @@ def classify_bmi_asia_pacific(bmi: Decimal) -> str:
     return "Obese II"
 
 
-# kcal per kg of DBW per hour, Tannhauser BMR (values given by the RND resource person).
+# kcal per kg of DBW per hour (values given by the RND resource person).
 BMR_KCAL_PER_KG_HOUR = {"male": Decimal("1.0"), "female": Decimal("0.9")}
+# DBW by the BMI method: the BMI a desirable weight is worked out at (everyone).
+DBW_BMI = Decimal("22")
+# Below this height the BMR is only an estimate (short stature isn't what
+# the method is validated for) — shown as a note, never blocks anything.
+SHORT_STATURE_CM = Decimal("150")
+SHORT_STATURE_NOTE = "Estimate may be less accurate for short stature; consult a dietitian."
 
 
-def calculate_dbw_tannhauser(height_cm: Decimal) -> Decimal:
-    """Desirable body weight, Tannhauser's method:
-    DBW = (height cm - 100) - 10% of (height cm - 100)."""
-    base = height_cm - Decimal("100")
-    return (base - base * Decimal("0.10")).quantize(Decimal("0.01"))
+def calculate_dbw_bmi(height_cm: Decimal) -> Decimal:
+    """Desirable body weight, BMI method: DBW = height (m)² × 22."""
+    height_m = Decimal(height_cm) / Decimal("100")
+    return (height_m * height_m * DBW_BMI).quantize(Decimal("0.01"))
 
 
-def calculate_bmr_tannhauser(height_cm: Decimal, sex: str) -> Decimal | None:
-    """BMR from the Tannhauser DBW — it uses the desirable weight, not the
-    actual weight, and no age:
+def calculate_bmr(height_cm: Decimal, sex: str) -> Decimal | None:
+    """BMR from the desirable body weight (BMI method) — it uses the
+    desirable weight, not the actual weight, and no age:
 
     Male:   BMR = DBW × 1.0 kcal/kg/hour × 24
     Female: BMR = DBW × 0.9 kcal/kg/hour × 24
@@ -90,7 +98,14 @@ def calculate_bmr_tannhauser(height_cm: Decimal, sex: str) -> Decimal | None:
     factor = BMR_KCAL_PER_KG_HOUR.get(sex)
     if factor is None:
         return None
-    return (calculate_dbw_tannhauser(height_cm) * factor * Decimal("24")).quantize(Decimal("0.01"))
+    return (calculate_dbw_bmi(height_cm) * factor * Decimal("24")).quantize(Decimal("0.01"))
+
+
+def bmr_note(height_cm) -> str | None:
+    """The short-stature note for a BMR worked out at this height, else None."""
+    if height_cm is None or Decimal(height_cm) >= SHORT_STATURE_CM:
+        return None
+    return SHORT_STATURE_NOTE
 
 
 def calculate_ter_tannhauser(bmr_kcal: Decimal, activity: str) -> Decimal:

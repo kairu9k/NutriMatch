@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from accounts.permissions import IsRnd
 from accounts.validators import age_on
 
-from .services import SCREENING_TO_TER_ACTIVITY
+from .services import SCREENING_TO_TER_ACTIVITY, bmr_note
 
 
 def _num(v):
@@ -105,6 +105,7 @@ def build_ncp_context(rel, now=None):
         "screening": {
             "date": screening.created_at, "bmi": _num(screening.bmi), "bmi_category": screening.bmi_category,
             "bmr_kcal": _num(screening.bmr_kcal), "tdee_kcal": _num(screening.tdee_kcal),
+            "bmr_note": bmr_note(screening.height_cm) if screening.bmr_kcal is not None else None,
             "activity_level": screening.get_activity_level_display(),
             # The screening's answer on the Tannhauser scale — the TER calculator's starting activity.
             "ter_activity": SCREENING_TO_TER_ACTIVITY.get(screening.activity_level, "sedentary"),

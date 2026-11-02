@@ -99,7 +99,8 @@ export function macroKcal({ carb, protein, fat }) {
   return (Number(carb) || 0) * 4 + (Number(protein) || 0) * 4 + (Number(fat) || 0) * 9
 }
 /* ---------- TER, Tannhauser's factorial method (mirrors clinical/services.py) ----------
-   DBW = (height − 100) − 10%; BMR = DBW × 1.0 (male) / 0.9 (female) × 24;
+   DBW by the BMI method = height (m)² × 22 (2026-11-02, replaced Tannhauser's
+   (height − 100) − 10%); BMR = DBW × 1.0 (male) / 0.9 (female) × 24;
    physical activity = % of BMR; TEF = 10% of (BMR + activity);
    TER = BMR + activity + TEF, to the nearest 50 kcal. */
 export const TER_ACTIVITY = [
@@ -109,6 +110,11 @@ export const TER_ACTIVITY = [
   { value: 'moderate', label: 'Moderate', pct: 75 },
   { value: 'heavy', label: 'Heavy', pct: 100 },
 ]
+// Below this height the BMR is only an estimate (mirrors clinical/services.py bmr_note).
+export const SHORT_STATURE_CM = 150
+export const SHORT_STATURE_NOTE = 'Estimate may be less accurate for short stature; consult a dietitian.'
+// Desirable body weight, BMI method: height (m)² × 22, to 0.01 kg like the API.
+export const dbwOf = (heightCm) => Math.round((Number(heightCm) / 100) ** 2 * 22 * 100) / 100
 export const DEFAULT_MACRO_PCT = { carb: 55, protein: 20, fat: 25 }
 const roundTo = (v, step) => Math.round(v / step) * step
 
@@ -118,11 +124,11 @@ export function terSteps(heightCm, sex, activity) {
   const perHour = { male: 1.0, female: 0.9 }[sex]
   const act = TER_ACTIVITY.find(a => a.value === activity)
   if (!h || !perHour || !act) return null
-  const dbw = (h - 100) * 0.9
+  const dbw = dbwOf(h)
   const bmr = dbw * perHour * 24
   const pa = bmr * act.pct / 100
   const tef = (bmr + pa) * 0.1
-  return { dbw, perHour, bmr, act, pa, tef, exact: bmr + pa + tef, ter: roundTo(bmr + pa + tef, 50) }
+  return { heightM: h / 100, dbw, perHour, bmr, act, pa, tef, exact: bmr + pa + tef, ter: roundTo(bmr + pa + tef, 50), shortStature: h < SHORT_STATURE_CM }
 }
 
 // Grams per day from TER and a % split, each to the nearest 5 g.
