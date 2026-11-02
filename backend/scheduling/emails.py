@@ -66,27 +66,27 @@ def email_no_show(appointment):
 
 def email_confirmed(appointment, invoice):
     from .serializers import deadlines
-    from .views import format_ph_time
+    from .views import format_ph_short
 
     client, rnd = appointment.relationship.client, appointment.relationship.rnd
     d = deadlines(appointment)
-    pay_by = format_ph_time(d["pay_by"])
+    pay_by = format_ph_short(d["pay_by"])
     _send(
         client,
-        subject=f"Your consultation on {_when(appointment.scheduled_at)} is confirmed. Pay by {pay_by}",
+        subject=f"Your consultation on {_when(appointment.scheduled_at)} is confirmed. Pay before {pay_by}",
         heading="Your consultation is confirmed",
         paragraphs=[
             f"RND {rnd.full_name} confirmed your {appointment.get_type_display().lower()} consultation on "
             f"{_when(appointment.scheduled_at)}.",
-            f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) by {pay_by}, 15 minutes before the start. "
-            "If it isn't paid by then, the booking is cancelled and the time is released.",
-            f"Once paid, you can cancel for a full refund until {format_ph_time(d['cancel_by'])}, 30 minutes before the start. "
+            f"You can pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) any time now. The last moment is {pay_by}, "
+            "15 minutes before the start. If it isn't paid by then, the booking is cancelled and the time is released.",
+            f"Once paid, you can cancel for a full refund until {format_ph_short(d['cancel_by'])}, 30 minutes before the start. "
             "If you don't attend, there's no refund.",
         ],
-        highlight=f"Pay ₱{invoice.amount:,.2f} by {pay_by}",
+        highlight=f"Pay ₱{invoice.amount:,.2f} any time before {pay_by}",
         button_label="Pay now",
         button_url=_link("/invoices-billing"),
-        preheader=f"Pay ₱{invoice.amount:,.2f} by {pay_by} to keep your booking.",
+        preheader=f"Pay ₱{invoice.amount:,.2f} any time before {pay_by} to keep your booking.",
     )
 
 

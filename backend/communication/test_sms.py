@@ -150,7 +150,7 @@ class SmsBookingEventTests(TestCase):
         [(number, msg)] = self._texts(post)
         self.assertEqual(number, "09171234567")
         self.assertIn("RND Maria Santos confirmed your consultation", msg)
-        self.assertIn("Please pay P", msg)
+        self.assertIn("in the app anytime before", msg)
         self.assertLessEqual(len(msg), 160)
 
         with mock.patch("communication.sms.httpx.post", return_value=_ok_response()) as post, \

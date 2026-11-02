@@ -505,7 +505,8 @@ class PayBeforeConsultationTests(TestCase):
         invoice = self._confirm()
         self.assertEqual((invoice.status, invoice.amount), ("unpaid", Decimal("800.00")))
         note = NotificationLog.objects.get(recipient=self.client_user, subject__startswith="Appointment confirmed")
-        self.assertIn("Please pay ₱800.00", note.content)
+        self.assertIn("Pay ₱800.00", note.content)
+        self.assertIn("any time before", note.content)
 
     def test_old_video_link_hidden_from_client_until_paid(self):
         # Consultations confirmed before the WebRTC call (2026-10-26) still

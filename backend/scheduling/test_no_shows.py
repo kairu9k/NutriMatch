@@ -277,8 +277,8 @@ class ConsultationEmailTests(_ConsultationSetup, TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self.rnd_api.patch(f"/api/rnd/appointments/{a.id}/confirm/")
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("Pay by", mail.outbox[0].subject)
-        self.assertIn("15 minutes before the start", mail.outbox[0].body)
+        self.assertIn("Pay before", mail.outbox[0].subject)
+        self.assertIn("any time now", mail.outbox[0].body)
 
     def test_rnd_cancel_and_failed_call_email_the_client(self):
         from django.core import mail

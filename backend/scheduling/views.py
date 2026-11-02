@@ -32,6 +32,13 @@ def format_ph_datetime(value):
     return f"{local:%B} {local.day}, {local.year} at {local.hour % 12 or 12}:{local:%M} {local:%p}"
 
 
+def format_ph_short(value):
+    """Date and time, short ("Nov 3, 2:45 PM"): for deadlines, so a pay-by
+    time is never read as today's."""
+    local = value.astimezone(PH_TZ)
+    return f"{local:%b} {local.day}, {local.hour % 12 or 12}:{local:%M} {local:%p}"
+
+
 def format_ph_time(value):
     """Just the time in Philippine time ("2:45 PM")."""
     local = value.astimezone(PH_TZ)
@@ -298,8 +305,8 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             content=(
                 f"RND {appointment.relationship.rnd.full_name} confirmed your "
                 f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
-                f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) by {format_ph_time(deadlines(appointment)['pay_by'])}, "
-                "or it is cancelled automatically. Once paid, you can cancel up to 30 minutes before the start. "
+                f"Pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) any time before {format_ph_short(deadlines(appointment)['pay_by'])} "
+                "(15 minutes before the start), or it is cancelled automatically. Once paid, you can cancel up to 30 minutes before the start. "
                 "If you don't attend, there's no refund."
             ),
         )
@@ -310,8 +317,8 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
         from communication.sms import text_client
 
         text_client(appointment.relationship.client,
-                    f"RND {appointment.relationship.rnd.full_name} confirmed your consultation on {_when(appointment.scheduled_at)}. "
-                    f"Please pay P{invoice.amount:,.2f} by {format_ph_time(deadlines(appointment)['pay_by'])} in the app.")
+                    f"RND {appointment.relationship.rnd.full_name} confirmed your consultation on {format_ph_short(appointment.scheduled_at).replace(', ', ' at ', 1)}. "
+                    f"Pay P{invoice.amount:,.2f} in the app anytime before {format_ph_short(deadlines(appointment)['pay_by'])}.")
 
         return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 

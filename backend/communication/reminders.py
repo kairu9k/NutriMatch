@@ -205,15 +205,15 @@ def run_due_reminders(now=None, client=None):
         if not pref_for(c).payments:
             continue
         from scheduling.serializers import deadlines
-        from scheduling.views import format_ph_time
+        from scheduling.views import format_ph_short
 
-        pay_by = format_ph_time(deadlines(inv.appointment)["pay_by"])
-        content = (f"Please pay ₱{inv.amount:,.2f} (INV-{inv.id:04d}) by {pay_by} for your consultation on "
+        pay_by = format_ph_short(deadlines(inv.appointment)["pay_by"])
+        content = (f"Please pay ₱{inv.amount:,.2f} (INV-{inv.id:04d}) any time before {pay_by} for your consultation on "
                    f"{_when(inv.appointment.scheduled_at)}. Unpaid consultations are cancelled automatically 15 minutes before the start.")
         if _claim(f"pay:{inv.id}", client=c, title="Payment due", message=content, type=Reminder.Type.PAYMENT, send_at=now):
             _deliver(c, pref_for(c), subject="Payment due before your consultation", content=content,
                      notifiable_type="invoice", notifiable_id=inv.id, link="/invoices-billing", link_label="Pay now",
-                     sms_text=f"Please pay P{inv.amount:,.2f} by {pay_by} or your consultation on {_when(inv.appointment.scheduled_at)} is cancelled. Pay in the app.")
+                     sms_text=f"Please pay P{inv.amount:,.2f} in the app before {pay_by}, or your consultation on {format_ph_short(inv.appointment.scheduled_at).replace(', ', ' at ', 1)} is cancelled.")
             sent += 1
 
     # 3) meal logging: during the 2 hours after each planned meal time, if not logged
