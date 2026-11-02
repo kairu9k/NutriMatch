@@ -80,3 +80,15 @@ class PatientSummaryTests(TestCase):
         rows = self.api.get("/api/client/progress/").data
         rows = rows.get("results", rows) if isinstance(rows, dict) else rows
         self.assertNotIn("rnd_notes", rows[0])
+
+    def test_discharged_chart_shows_the_last_plan(self):
+        from nutrition.models import MealPlan
+
+        now = timezone.now()
+        MealPlan.objects.create(relationship=self.rel, name="Old plan", status="archived", sent_at=now - timedelta(days=9),
+                                first_sent_at=now - timedelta(days=20))
+        MealPlan.objects.create(relationship=self.rel, name="Last plan", status="archived", sent_at=now - timedelta(days=2),
+                                first_sent_at=now - timedelta(days=8))
+        RndClientRelationship.objects.filter(pk=self.rel.pk).update(status="discharged", ended_at=now)
+        data = self.api.get(f"/api/rnd/relationships/{self.rel.id}/summary/").data
+        self.assertEqual((data["meal_plan"]["name"], data["meal_plan"]["status"]), ("Last plan", "archived"))

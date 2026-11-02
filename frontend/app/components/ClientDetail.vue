@@ -291,7 +291,7 @@
             <div>
               <h2 class="nm-panel-title">{{ s.meal_plan ? s.meal_plan.name : 'Meal plan' }}</h2>
               <p class="nm-panel-sub" v-if="s.meal_plan">
-                {{ s.meal_plan.status === 'active' ? `Sent ${shortDate(s.meal_plan.sent_at)}` : 'Draft, not sent to the patient yet' }},
+                {{ s.meal_plan.status === 'active' ? `Sent ${shortDate(s.meal_plan.sent_at)}` : s.meal_plan.status === 'archived' ? `Their last plan, sent ${shortDate(s.meal_plan.sent_at)}. It ended with their care` : 'Draft, not sent to the patient yet' }},
                 {{ s.meal_plan.meals_per_week }} meals a week
               </p>
             </div>
@@ -308,6 +308,7 @@
             <div v-if="s.meal_plan.target_protein_g"><span>Protein</span><strong>{{ Math.round(s.meal_plan.target_protein_g) }} g</strong></div>
             <div v-if="s.meal_plan.target_fat_g"><span>Fat</span><strong>{{ Math.round(s.meal_plan.target_fat_g) }} g</strong></div>
           </div>
+          <p v-else-if="!s.meal_plan && p.status !== 'active'" class="nm-muted">No meal plan was sent during their care.</p>
           <p v-else-if="!s.meal_plan && mealPlanReady" class="nm-muted">No meal plan yet.</p>
         </div>
 
