@@ -36,15 +36,27 @@
             </button>
 
             <!-- ASSESSMENT -->
-            <section v-if="stepKey === 'assessment'">
+            <section v-if="stepKey === 'assessment'" :class="{ 'ms-locked': measuresLocked && !isReadOnly }">
               <header class="step-head"><h3 class="step-title">Nutrition assessment</h3><p class="step-desc">Where the patient is today: measurements, labs and how they eat.</p></header>
-              <p v-if="prefilled && !isReadOnly" class="hint-box"><Info :size="14" /> Measurements are filled in from their latest records. Check them with the patient and update what changed.</p>
+              <p v-if="prefilled && !isReadOnly" class="hint-box"><Info :size="14" /> Measurements are filled in from their latest records. Check them with the patient, then press Edit measurements to change what changed.</p>
+              <!-- Measurements are locked until Edit (user's call, 2026-11-02): an accidental
+                   change can't slip in, and every changed value shows what it was. -->
+              <div v-if="!isReadOnly" class="ms-bar">
+                <p class="ms-title">Measurements</p>
+                <button v-if="measuresLocked" type="button" class="nm-btn-soft nm-btn-sm" @click="measuresLocked = false"><PenLine :size="14" aria-hidden="true" /> Edit measurements</button>
+                <template v-else-if="hasOriginals">
+                  <button type="button" class="nm-btn-soft nm-btn-sm" @click="cancelMeasureEdits">{{ changedMeasures.length ? 'Cancel changes' : 'Cancel' }}</button>
+                  <button type="button" class="nm-btn-dark nm-btn-sm" @click="measuresLocked = true"><Check :size="14" aria-hidden="true" /> Done</button>
+                </template>
+              </div>
               <div class="grid g3">
                 <Field label="Height (cm)" required :hint="srcHint('height_cm')" :error="errors.height_cm">
-                  <input v-model="a.height_cm" type="number" :min="L.height_cm.min" :max="L.height_cm.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                  <input v-model="a.height_cm" type="number" :min="L.height_cm.min" :max="L.height_cm.max" step="0.1" class="nm-input" :disabled="isReadOnly || measuresLocked" />
+                  <p v-if="changed('height_cm')" class="was">Was {{ wasText('height_cm', 'cm') }}. <button type="button" class="nm-btn-soft nm-btn-sm" @click="putBack('height_cm')">Put back</button></p>
                 </Field>
                 <Field label="Weight (kg)" required :hint="srcHint('weight_kg')" :error="errors.weight_kg">
-                  <input v-model="a.weight_kg" type="number" :min="L.weight_kg.min" :max="L.weight_kg.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                  <input v-model="a.weight_kg" type="number" :min="L.weight_kg.min" :max="L.weight_kg.max" step="0.1" class="nm-input" :disabled="isReadOnly || measuresLocked" />
+                  <p v-if="changed('weight_kg')" class="was">Was {{ wasText('weight_kg', 'kg') }}. <button type="button" class="nm-btn-soft nm-btn-sm" @click="putBack('weight_kg')">Put back</button></p>
                 </Field>
                 <div class="computed">
                   <span class="k">BMI, WHO Asia-Pacific</span>
@@ -56,22 +68,25 @@
               <div class="grid g3">
                 <Field label="Blood pressure (mmHg)" group :hint="srcHint('blood_pressure')" :error="errors.blood_pressure">
                   <div class="bp">
-                    <input v-model="a.bp_systolic" type="number" :min="L.bp_systolic.min" :max="L.bp_systolic.max" class="nm-input" placeholder="120" aria-label="Systolic" :disabled="isReadOnly" />
+                    <input v-model="a.bp_systolic" type="number" :min="L.bp_systolic.min" :max="L.bp_systolic.max" class="nm-input" placeholder="120" aria-label="Systolic" :disabled="isReadOnly || measuresLocked" />
                     <span>/</span>
-                    <input v-model="a.bp_diastolic" type="number" :min="L.bp_diastolic.min" :max="L.bp_diastolic.max" class="nm-input" placeholder="80" aria-label="Diastolic" :disabled="isReadOnly" />
+                    <input v-model="a.bp_diastolic" type="number" :min="L.bp_diastolic.min" :max="L.bp_diastolic.max" class="nm-input" placeholder="80" aria-label="Diastolic" :disabled="isReadOnly || measuresLocked" />
                   </div>
+                  <p v-if="changed('bp_systolic') || changed('bp_diastolic')" class="was">Was {{ bpWasText }}. <button type="button" class="nm-btn-soft nm-btn-sm" @click="putBack('bp_systolic'); putBack('bp_diastolic')">Put back</button></p>
                   <p v-if="liveBp" class="m-cat" :class="liveBp.level" role="status" title="WHO / ESH grading">
                     <AlertTriangle v-if="liveBp.level !== 'ok'" :size="13" /> {{ liveBp.label }}
                   </p>
                 </Field>
                 <Field label="Fasting glucose (mg/dL)" info="Blood sugar after at least 8 hours without food." :hint="srcHint('blood_glucose')" :error="errors.blood_glucose">
-                  <input v-model="a.blood_glucose" type="number" :min="L.blood_glucose.min" :max="L.blood_glucose.max" step="1" class="nm-input" :disabled="isReadOnly" />
+                  <input v-model="a.blood_glucose" type="number" :min="L.blood_glucose.min" :max="L.blood_glucose.max" step="1" class="nm-input" :disabled="isReadOnly || measuresLocked" />
+                  <p v-if="changed('blood_glucose')" class="was">Was {{ wasText('blood_glucose', 'mg/dL') }}. <button type="button" class="nm-btn-soft nm-btn-sm" @click="putBack('blood_glucose')">Put back</button></p>
                   <p v-if="liveGlucose" class="m-cat" :class="liveGlucose.level" role="status">
                     <AlertTriangle v-if="liveGlucose.level !== 'ok'" :size="13" /> {{ liveGlucose.label }}
                   </p>
                 </Field>
                 <Field label="HbA1c (%)" :info="'Average blood sugar over the past 2⁠–⁠3 months.' /* word joiners keep 2–3 on one line */" :hint="srcHint('hba1c')" :error="errors.hba1c">
-                  <input v-model="a.hba1c" type="number" :min="L.hba1c.min" :max="L.hba1c.max" step="0.1" class="nm-input" :disabled="isReadOnly" />
+                  <input v-model="a.hba1c" type="number" :min="L.hba1c.min" :max="L.hba1c.max" step="0.1" class="nm-input" :disabled="isReadOnly || measuresLocked" />
+                  <p v-if="changed('hba1c')" class="was">Was {{ wasText('hba1c', '%') }}. <button type="button" class="nm-btn-soft nm-btn-sm" @click="putBack('hba1c')">Put back</button></p>
                   <p v-if="liveHba1c" class="m-cat" :class="liveHba1c.level" role="status">
                     <AlertTriangle v-if="liveHba1c.level !== 'ok'" :size="13" /> {{ liveHba1c.label }}
                   </p>
@@ -357,7 +372,7 @@
 // Nothing saves on its own: "Save draft" saves whatever is filled, and
 // "Finalize record" (Review step, with a confirmation) locks it. Required
 // fields mirror NcpRecord.finalize_missing() on the API.
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, FlaskConical, Info, Lock, Save, X } from 'lucide-vue-next'
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, FlaskConical, Info, Lock, PenLine, Save, X } from 'lucide-vue-next'
 import {
   DEFAULT_MACRO_PCT, KCAL_PER_G, MEASURE_TEMPLATES, NCP_LIMITS as L, NCP_TEXT_MAX as TMAX, PES_TERMS, TER_ACTIVITY, bmiClass, bmiOf, bpCategory, extraRowErrors,
   glucoseCategory, hba1cCategory, macroGrams, rangeError, terSteps, SHORT_STATURE_NOTE, BMI_SHORT_STATURE_NOTE, isShortStature,
@@ -428,11 +443,13 @@ const GOALS = [
 ]
 const SEX = { male: 'Male', female: 'Female' }
 
+// "168.00" from the API reads as 168
+const plainNum = v => (v == null || v === '' ? '' : Number(v))
 function hydrate(r = {}) {
   const [sys, dia] = (r.blood_pressure || '').split('/')
   a.value = {
-    height_cm: r.height_cm ?? '', weight_kg: r.weight_kg ?? '', bp_systolic: sys || '', bp_diastolic: dia || '',
-    blood_glucose: r.blood_glucose ?? '', hba1c: r.hba1c ?? '', lab_notes: r.lab_notes ?? '', assessment_notes: r.assessment_notes ?? '',
+    height_cm: plainNum(r.height_cm), weight_kg: plainNum(r.weight_kg), bp_systolic: sys || '', bp_diastolic: dia || '',
+    blood_glucose: plainNum(r.blood_glucose), hba1c: plainNum(r.hba1c), lab_notes: r.lab_notes ?? '', assessment_notes: r.assessment_notes ?? '',
     extra: (r.assessment_extra || []).map(x => ({ ...x })),
   }
   d.value = { pes_problem: r.pes_problem ?? '', pes_etiology: r.pes_etiology ?? '', pes_signs: r.pes_signs ?? '' }
@@ -466,7 +483,7 @@ function prefillBlanks() {
   const pf = ctx.value.prefill || {}
   const blank = v => String(v ?? '').trim() === ''
   for (const f of ['height_cm', 'weight_kg', 'blood_glucose', 'hba1c']) {
-    if (pf[f] && blank(a.value[f])) { a.value[f] = pf[f].value; prefilledFields.value.push(f) }
+    if (pf[f] && blank(a.value[f])) { a.value[f] = plainNum(pf[f].value); prefilledFields.value.push(f) }
   }
   if (pf.blood_pressure && blank(a.value.bp_systolic) && blank(a.value.bp_diastolic)) {
     [a.value.bp_systolic, a.value.bp_diastolic] = String(pf.blood_pressure.value).split('/')
@@ -491,6 +508,38 @@ function prefillBlanks() {
   applyGrams()
   initRxLine()
 }
+/* ---------- measurements: locked until Edit, with the original values kept ---------- */
+const MEASURE_KEYS = ['height_cm', 'weight_kg', 'bp_systolic', 'bp_diastolic', 'blood_glucose', 'hba1c']
+const originals = ref({})
+const measuresLocked = ref(false)
+const hasOriginals = computed(() => MEASURE_KEYS.some(k => String(originals.value[k] ?? '').trim() !== ''))
+// called once the form is filled (saved draft + pre-filled values)
+function rememberMeasures() {
+  originals.value = Object.fromEntries(MEASURE_KEYS.map(k => [k, a.value[k] ?? '']))
+  measuresLocked.value = hasOriginals.value // nothing on file yet: type straight away
+}
+const sameValue = (x, y) => {
+  const sx = String(x ?? '').trim(), sy = String(y ?? '').trim()
+  return sx === sy || (sx !== '' && sy !== '' && Number(sx) === Number(sy))
+}
+function changed(k) {
+  return hasOriginals.value && !isReadOnly.value && !sameValue(a.value[k], originals.value[k])
+}
+const changedMeasures = computed(() => MEASURE_KEYS.filter(changed))
+function wasText(k, unit) {
+  const v = String(originals.value[k] ?? '').trim()
+  return v === '' ? 'empty' : `${Number(v)} ${unit}`
+}
+const bpWasText = computed(() => {
+  const s = String(originals.value.bp_systolic ?? '').trim(), dd = String(originals.value.bp_diastolic ?? '').trim()
+  return s || dd ? `${s || '?'}/${dd || '?'} mmHg` : 'empty'
+})
+function putBack(k) { a.value[k] = originals.value[k] ?? '' }
+function cancelMeasureEdits() {
+  MEASURE_KEYS.forEach(putBack)
+  measuresLocked.value = true
+}
+
 function srcHint(f) {
   const s = ctx.value.prefill?.[f]
   if (!s || isReadOnly.value || !prefilledFields.value.includes(f)) return ''
@@ -922,6 +971,7 @@ async function load() {
       }
       const before = snapshot()
       prefillBlanks()
+      rememberMeasures()
       // A new record starts "unsaved" only if the RND changes something; a
       // resumed draft that just got pre-filled values offers to save them.
       savedSnapshot.value = record.value ? before : snapshot()
@@ -1093,6 +1143,10 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .mt-chev.up { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .mt-chev { transition: none; } }
 .mt-summary { margin: 0 0 12px; font-size: 0.84rem; color: #1a3a1a; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; }
+.ms-locked .grid .nm-input:disabled { background: #f4f6f4; color: #4a5a4a; cursor: not-allowed; }
+.ms-bar { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; }
+.ms-title { margin: 0 auto 0 0; font-size: 0.84rem; font-weight: 700; color: #1a3a1a; }
+.was { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; font-size: 0.76rem; color: #7a5a00; }
 .macro-table { border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; margin: 2px 0 6px; }
 .mt-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid #d9e3dc; font-size: 0.84rem; color: #1a3a1a; }
 .mt-row:first-child { border-top: none; }
