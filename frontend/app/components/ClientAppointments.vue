@@ -58,8 +58,7 @@
               {{ appt.status === 'pending' ? 'Cancel request' : 'Cancel' }}
             </button>
           </div>
-          <p v-if="appt.canCancel && appt.cancelBy" class="cancel-closed">You can cancel until {{ appt.cancelBy }}, 1 hour before the start.</p>
-          <p v-if="appt.cancelClosed" class="cancel-closed">Cancelling closes 1 hour before the start. If you can't make it, message your RND.</p>
+          <p v-if="appt.cancelNote" class="cancel-closed">{{ appt.cancelNote }}</p>
           <p v-if="actionError[appt.id]" class="inline-error">{{ actionError[appt.id] }}</p>
         </article>
       </section>
@@ -93,6 +92,17 @@
                 <p class="h-title">{{ appt.typeLabel }}, {{ appt.startClock }}</p>
                 <p class="h-sub">RND {{ appt.rnd.name }}</p>
                 <p v-if="appt.status === 'cancelled' && appt.cancellationReason" class="h-sub">Reason: {{ appt.cancellationReason }}</p>
+                <p v-if="appt.attendanceLine" class="h-sub">{{ appt.attendanceLine }}</p>
+                <template v-if="appt.status === 'no_show'">
+                  <p class="h-sub">Your RND marked this as not attended, so it isn't refunded.<template v-if="appt.cancellationReason"> Their note: {{ appt.cancellationReason }}</template></p>
+                  <p v-if="appt.dispute?.outcome === 'refunded'" class="refund-note">Your dispute was approved. {{ appt.dispute.note }}</p>
+                  <p v-else-if="appt.dispute?.outcome === 'rejected'" class="h-sub">Your dispute wasn't approved. {{ appt.dispute.note }}</p>
+                  <p v-else-if="appt.dispute?.opened_at" class="h-sub">You disputed this. NutriMatch is reviewing it and will reply in Help &amp; Support.</p>
+                  <p v-else-if="appt.dispute?.can_open" class="h-links">
+                    <button type="button" class="nm-btn-soft nm-btn-sm" @click="openDispute(appt)">Dispute this</button>
+                    <span class="h-sub">Until {{ appt.disputeUntil }}</span>
+                  </p>
+                </template>
                 <p v-if="appt.hint" class="h-sub">{{ appt.hint }}</p>
                 <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
                 <p v-if="appt.status === 'completed'" class="h-links">
@@ -126,7 +136,6 @@
         <p class="modal-text">
           {{ cancelTarget.typeLabel }} consultation with RND {{ cancelTarget.rnd.name }} on {{ cancelTarget.longDate }}, {{ cancelTarget.timeRange }}.
           RND {{ cancelTarget.rnd.firstName }} will be notified.
-          <template v-if="cancelTarget.cancelBy"> Cancelling closes at {{ cancelTarget.cancelBy }}, 1 hour before the start.</template>
         </p>
         <p v-if="cancelTarget.payment?.status === 'paid'" class="modal-note">
           You paid ₱{{ money(cancelTarget.payment.amount) }} for this consultation. {{ refundMessage(money(cancelTarget.payment.amount), cancelTarget.payment.method) }}
@@ -139,6 +148,30 @@
         <div class="nm-modal-actions">
           <button class="nm-btn-soft" type="button" :disabled="isCancelling" @click="closeCancel">Keep it</button>
           <button class="nm-btn-danger solid" type="button" :disabled="isCancelling" @click="confirmCancel">{{ isCancelling ? 'Cancelling…' : 'Yes, cancel' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPUTE A NO-SHOW -->
+    <div v-if="disputeTarget" class="nm-modal-overlay" @click.self="!disputeBusy && (disputeTarget = null)">
+      <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="dispute-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="!disputeBusy && (disputeTarget = null)"><X :size="18" aria-hidden="true" /></button>
+        <h3 id="dispute-title" class="nm-modal-title">Dispute the no-show</h3>
+        <p class="modal-text">
+          {{ disputeTarget.typeLabel }} consultation with RND {{ disputeTarget.rnd.name }} on {{ disputeTarget.longDate }}, {{ disputeTarget.timeRange }}.
+        </p>
+        <p class="modal-note">
+          NutriMatch reviews what you write together with the video call's attendance record, then refunds you or keeps the no-show.
+          Your RND's payment waits until then. You'll get the answer in Help &amp; Support.
+        </p>
+        <label class="field-label" for="dispute-reason">What happened</label>
+        <textarea id="dispute-reason" v-model="disputeReason" data-allow-emoji rows="4" maxlength="2000" class="field-input"
+                  placeholder="e.g. I joined at 3:00 PM but the call kept loading, and I messaged my RND."></textarea>
+        <p class="char-count" :class="{ short: disputeReason.trim().length < 20 }">{{ disputeReason.trim().length < 20 ? `At least 20 characters (${disputeReason.trim().length}/20)` : `${disputeReason.length}/2000` }}</p>
+        <p v-if="disputeError" class="inline-error">{{ disputeError }}</p>
+        <div class="nm-modal-actions">
+          <button class="nm-btn-soft" type="button" :disabled="disputeBusy" @click="disputeTarget = null">Close</button>
+          <button class="nm-btn-dark" type="button" :disabled="disputeBusy || disputeReason.trim().length < 20" @click="sendDispute">{{ disputeBusy ? 'Sending…' : 'Send dispute' }}</button>
         </div>
       </div>
     </div>
@@ -199,7 +232,24 @@ const TYPES = {
   in_person: { label: 'In person', icon: MapPin },
 }
 const STAR_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' }
-const CANCEL_CUTOFF_MS = 60 * 60 * 1000 // a confirmed consultation can be cancelled up to 1 hour before (CLIENT_CANCEL_CUTOFF_MINUTES)
+function cancelRules(a, phase, payment, nowMs, start, payBy, cancelBy) {
+  if (a.status === 'pending') return { canCancel: phase === 'pending', cancelNote: '' }
+  if (a.status !== 'confirmed' || nowMs >= start.getTime()) return { canCancel: false, cancelNote: '' }
+  if (payment?.status === 'unpaid') {
+    return { canCancel: nowMs < payBy.getTime(), cancelNote: nowMs < payBy.getTime() ? 'Not paid yet, so you can cancel at no cost.' : '' }
+  }
+  if (nowMs < cancelBy.getTime()) {
+    return { canCancel: true, cancelNote: `You can cancel until ${clock(cancelBy)}, 30 minutes before the start. If you don't attend, there's no refund.` }
+  }
+  return { canCancel: false, cancelNote: 'Cancelling closed 30 minutes before the start. If you can\'t make it, message your RND. If you don\'t attend, there\'s no refund.' }
+}
+// Only who joined the video call and for how long (nothing from the call is kept).
+function attendanceText(at) {
+  if (at.state === 'both') return `Video call: you and your RND were in it together for ${at.together_minutes} min.`
+  if (at.state === 'client_only') return 'Video call: you joined, your RND didn\'t.'
+  if (at.state === 'rnd_only') return 'Video call: your RND joined, you didn\'t.'
+  return ''
+}
 
 function money(v) {
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -233,8 +283,11 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
   // invoice is "payment due" until it's paid (the API cancels it at the
   // start time if it's still unpaid). Older ones with no invoice are just "confirmed".
   const payment = a.payment || null
+  const payBy = a.pay_by ? new Date(a.pay_by) : start
+  const cancelBy = a.cancel_by ? new Date(a.cancel_by) : start
+  const confirmBy = a.confirm_by ? new Date(a.confirm_by) : start
   let phase = a.status
-  if (a.status === 'pending' && isOver) phase = 'expired'
+  if (a.status === 'pending' && nowMs >= confirmBy.getTime()) phase = 'expired'
   if (a.status === 'confirmed' && isOver) phase = 'ended'
   if (a.status === 'confirmed' && !isOver && payment?.status === 'unpaid') phase = 'payment_due'
 
@@ -244,18 +297,19 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     confirmed: ['Confirmed', 'pill-green'],
     completed: ['Completed', 'pill-muted'],
     cancelled: ['Cancelled', 'pill-red'],
+    no_show: ['No-show', 'pill-red'],
     expired: ['Not confirmed', 'pill-muted'],
     ended: ['Ended', 'pill-muted'],
   }
   const [statusLabel, statusClass] = STATUS[phase] || [a.status, 'pill-muted']
 
   let hint = ''
-  if (phase === 'pending') hint = `Waiting for RND ${rndUser.first_name} to confirm. You'll be asked to pay once they do.`
-  else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} before ${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(start)} to start your consultation. If it isn't paid by then, the booking is cancelled and the slot is released.`
+  if (phase === 'pending') hint = `Waiting for RND ${rndUser.first_name} to confirm (by ${clock(confirmBy)}). You'll be asked to pay once they do.`
+  else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} by ${payBy.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(payBy)}, 15 minutes before the start. If it isn't paid by then, the booking is cancelled and the slot is released.`
   else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)}, 15 minutes before the start.`
   else if (phase === 'confirmed' && a.type === 'video') hint = 'Your video room is open. You can join now.'
   else if (phase === 'confirmed' && a.type === 'in_person') hint = 'Message your RND if you need the clinic address or directions.'
-  else if (phase === 'expired') hint = 'The time passed before your RND confirmed this request.'
+  else if (phase === 'expired') hint = 'Your RND didn\'t confirm this request in time.'
   else if (phase === 'ended') hint = 'Your RND will mark this consultation complete.'
 
   return {
@@ -297,10 +351,13 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     opensLater: phase === 'confirmed' && a.type === 'video' && nowMs < opensAt,
     opensLabel: formatJoinTime(opensAt, nowMs),
     canMessage: relActive,
-    // A confirmed consultation can be cancelled up to 1 hour before it starts (the API refuses too).
-    canCancel: a.status === 'pending' || (a.status === 'confirmed' && nowMs < start.getTime() - CANCEL_CUTOFF_MS),
-    cancelBy: a.status === 'confirmed' ? clock(new Date(start.getTime() - CANCEL_CUTOFF_MS)) : '',
-    cancelClosed: a.status === 'confirmed' && nowMs >= start.getTime() - CANCEL_CUTOFF_MS && nowMs < start.getTime(),
+    // Time rules (the API refuses too): a request can be withdrawn until the RND
+    // confirms; unpaid, until the pay-by time; paid, until 30 minutes before the start.
+    ...cancelRules(a, phase, payment, nowMs, start, payBy, cancelBy),
+    attendanceLine: ['completed', 'no_show', 'cancelled'].includes(a.status) && a.attendance && a.attendance.state !== 'none'
+      ? attendanceText(a.attendance) : '',
+    dispute: a.dispute,
+    disputeUntil: a.dispute?.open_until ? new Date(a.dispute.open_until).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '',
     review: reviewByAppt.value[a.id] || null,
     payment,
   }
@@ -317,12 +374,14 @@ const historyFilters = [
   { key: 'all', label: 'All', empty: 'No past appointments.' },
   { key: 'completed', label: 'Completed', empty: 'No completed consultations yet.' },
   { key: 'cancelled', label: 'Cancelled', empty: 'No cancelled appointments.' },
+  { key: 'no_show', label: 'No-show', empty: 'No missed consultations.' },
   { key: 'expired', label: 'Not confirmed', empty: 'No expired booking requests.' },
 ]
 const historyFilter = ref('all')
 const historyCounts = computed(() => ({
   completed: history.value.filter(a => a.phase === 'completed').length,
   cancelled: history.value.filter(a => a.phase === 'cancelled').length,
+  no_show: history.value.filter(a => a.phase === 'no_show').length,
   expired: history.value.filter(a => a.phase === 'expired').length,
 }))
 const filteredHistory = computed(() =>
@@ -428,6 +487,31 @@ async function confirmCancel() {
   } finally {
     isCancelling.value = false
     busyId.value = null
+  }
+}
+
+/* ---------- Dispute a no-show ---------- */
+const disputeTarget = ref(null)
+const disputeReason = ref('')
+const disputeBusy = ref(false)
+const disputeError = ref('')
+function openDispute(appt) {
+  disputeTarget.value = appt
+  disputeReason.value = ''
+  disputeError.value = ''
+}
+async function sendDispute() {
+  disputeBusy.value = true
+  disputeError.value = ''
+  try {
+    await post(`/client/appointments/${disputeTarget.value.id}/dispute/`, { reason: disputeReason.value.trim() })
+    disputeTarget.value = null
+    await load()
+    showToast('Dispute sent. NutriMatch will reply in Help & Support.')
+  } catch (error) {
+    disputeError.value = error?.data?.reason?.[0] || error?.data?.detail || 'Could not send the dispute. Please try again.'
+  } finally {
+    disputeBusy.value = false
   }
 }
 

@@ -95,6 +95,7 @@
           <span class="appt-state">
             <span class="nm-pill" :class="statusOf(a).pill">{{ statusOf(a).label }}</span>
             <span v-if="a.payment" class="nm-pill" :class="PAY[a.payment.status]?.pill || 'muted'">{{ PAY[a.payment.status]?.label || a.payment.status }}</span>
+            <span v-if="attendanceOf(a)" class="nm-pill" :class="attendanceOf(a).pill">{{ attendanceOf(a).label }}</span>
             <span v-if="attentionOf(a)" class="appt-flag">{{ attentionOf(a) }}</span>
           </span>
           <ChevronRight :size="16" class="appt-go" aria-hidden="true" />
@@ -138,6 +139,17 @@
         </ol>
 
         <p v-if="selected.cancellation_reason" class="nm-note plain-note reason">{{ selected.cancellation_reason }}</p>
+        <p v-if="selected.attendance" class="nm-note reason" :class="selected.attendance.state === 'both' ? 'plain-note' : 'attend-warn'">
+          <strong>Attendance:</strong> {{ selected.attendance.line }}
+        </p>
+        <p v-if="selected.cancelled_late" class="nm-note attend-warn reason">
+          A last-minute cancel by the RND{{ selected.cancel_category ? ` (${CATEGORY[selected.cancel_category] || selected.cancel_category})` : '' }}.
+        </p>
+        <p v-if="selected.dispute?.opened_at" class="nm-note reason" :class="selected.dispute.resolved_at ? 'plain-note' : 'attend-warn'">
+          <strong>No-show dispute:</strong>
+          <template v-if="selected.dispute.resolved_at"> {{ selected.dispute.outcome === 'refunded' ? 'approved, refunded' : 'rejected' }}. {{ selected.dispute.note }}</template>
+          <template v-else> waiting for a decision. <NuxtLink to="/admin-support" class="nm-text-link">Decide on the Support page</NuxtLink>.</template>
+        </p>
 
         <dl class="nm-dl facts">
           <div>
@@ -352,7 +364,19 @@ function statusOf(a) {
     return Date.now() < end ? { label: 'In progress', pill: 'green' } : { label: 'Not marked complete', pill: 'gold' }
   }
   if (a.status === 'completed') return { label: 'Completed', pill: 'muted' }
+  if (a.status === 'no_show') return { label: 'No-show', pill: 'red' }
   return { label: 'Cancelled', pill: 'muted' }
+}
+const CATEGORY = { emergency: 'emergency', technical: 'technical problem', other: 'other' }
+// Who joined the video call (green: both; red: only one or neither). Only for
+// calls that were due, so a future booking shows nothing.
+function attendanceOf(a) {
+  const at = a.attendance
+  if (!at || a.status === 'pending' || new Date(a.scheduled_at) > new Date()) return null
+  if (at.state === 'both') return { label: `Both attended, ${at.together_minutes} min`, pill: 'green' }
+  if (at.state === 'rnd_only') return { label: 'Only the RND joined', pill: 'red' }
+  if (at.state === 'client_only') return { label: 'Only the client joined', pill: 'red' }
+  return a.status === 'cancelled' ? null : { label: 'Neither joined', pill: 'red' }
 }
 // one short gold line when a row needs a look
 function attentionOf(a) {
@@ -398,7 +422,7 @@ const steps = computed(() => {
   const a = selected.value
   if (!a) return []
   const pay = a.payment
-  const cancelled = a.status === 'cancelled'
+  const cancelled = a.status === 'cancelled' || a.status === 'no_show'
   const out = [{ key: 'booked', label: 'Booked by the client', detail: dateTime(a.created_at), state: 'done' }]
   const confirmed = !!pay?.issued_at && a.status !== 'pending'
   out.push({
@@ -414,7 +438,8 @@ const steps = computed(() => {
       state: paid ? 'done' : cancelled ? 'stopped' : 'todo',
     })
   }
-  if (cancelled) out.push({ key: 'end', label: 'Cancelled', detail: dateTime(a.updated_at), state: 'stopped' })
+  if (a.status === 'no_show') out.push({ key: 'end', label: 'Marked as a no-show', detail: a.completed_at ? dateTime(a.completed_at) : '', state: 'stopped' })
+  else if (cancelled) out.push({ key: 'end', label: 'Cancelled', detail: dateTime(a.updated_at), state: 'stopped' })
   else out.push({ key: 'end', label: 'Completed', detail: a.completed_at ? dateTime(a.completed_at) : 'Not yet', state: a.completed_at ? 'done' : 'todo' })
   return out
 })
@@ -550,6 +575,7 @@ async function confirmCancel() {
 .step-text span { font-size: 0.78rem; color: #6a7a6a; }
 .track li.todo .step-text strong { color: #6a7a6a; font-weight: 600; }
 .reason { margin-bottom: 16px; }
+.attend-warn { background: #fdf2f2; border: 1px solid #f1c9c9; border-left: 3px solid #b42318; border-radius: 6px; color: #8a1f1f; }
 .facts .wide { grid-column: 1 / -1; }
 .started { margin: 14px 0 0; }
 

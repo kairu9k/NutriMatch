@@ -84,6 +84,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
         closes_at = end + timedelta(minutes=JOIN_LATE_MINUTES)
         data["join_opens_at"] = opens_at.isoformat()
         data["join_closes_at"] = closes_at.isoformat()
+        for key, when in deadlines(instance).items():
+            data[key] = when.isoformat()
+        from .attendance import attendance_payload, dispute_payload
+
+        data["attendance"] = attendance_payload(instance)
+        data["cancelled_by"] = instance.cancelled_by
+        data["cancel_category"] = instance.cancel_category
+        data["dispute"] = dispute_payload(instance)
 
         request = self.context.get("request")
         viewer_id = getattr(getattr(request, "user", None), "id", None)
@@ -104,7 +112,25 @@ JOIN_LATE_MINUTES = 15
 MIN_SESSION_MINUTES = 15
 MAX_SESSION_MINUTES = 120
 # A booking must start at least this far ahead (mirrored in RndProfileView.vue).
-MIN_BOOKING_LEAD_MINUTES = 10
+# Time rules (2026-11-02, user's plan; protects both sides). For a 3:00 PM
+# consultation: book by 2:15, the RND confirms by 2:30, a paid client cancels
+# by 2:30, the client pays by 2:45 (when the room opens), else it's cancelled.
+MIN_BOOKING_LEAD_MINUTES = 45
+CONFIRM_BY_MINUTES = 30
+CLIENT_CANCEL_CUTOFF_MINUTES = 30
+PAY_BY_MINUTES = 15
+DISPUTE_DAYS = 3  # a client can dispute a no-show this long (= the payout hold)
+RND_ABSENT_AFTER_MINUTES = 15  # the client can report the RND absent this long after the start
+
+
+def deadlines(appointment):
+    """When each rule closes for this consultation."""
+    start = appointment.scheduled_at
+    return {
+        "confirm_by": start - timedelta(minutes=CONFIRM_BY_MINUTES),
+        "cancel_by": start - timedelta(minutes=CLIENT_CANCEL_CUTOFF_MINUTES),
+        "pay_by": start - timedelta(minutes=PAY_BY_MINUTES),
+    }
 # Start times are offered every hour from the start of the RND's hours
 # (2026-10-14, user's call; mirrored in RndProfileView.vue and profiles/public.py).
 SLOT_STEP_MINUTES = 60

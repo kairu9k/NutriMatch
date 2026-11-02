@@ -100,8 +100,10 @@ def invoice_state(invoice, now=None):
     appt = invoice.appointment
     if appt is None:
         return "posted"  # an invoice without an appointment (legacy/manual)
-    if appt.status != "completed" or appt.completed_at is None:
+    if appt.status not in ("completed", "no_show") or appt.completed_at is None:
         return "pending"
+    if appt.dispute_opened_at and not appt.dispute_resolved_at:
+        return "pending"  # the client disputes the no-show: waits for the admin's decision
     now = now or timezone.now()
     return "posted" if appt.completed_at + timedelta(days=HOLD_DAYS) <= now else "pending"
 

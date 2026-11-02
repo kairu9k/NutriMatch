@@ -360,7 +360,8 @@ def notify_rnd_paid(invoice_id):
 # (video link, chat, "Complete") only opens once it's paid.
 # ---------------------------------------------------------------------------
 
-NOT_PAID_REASON = "Not paid before the scheduled start time."
+NOT_PAID_REASON = "Not paid 15 minutes before the start time."
+OLD_NOT_PAID_REASON = "Not paid before the scheduled start time."  # before 2026-11-02 (reports still count these)
 
 
 def appointment_invoice(appointment):
@@ -450,7 +451,7 @@ def settle_cancelled_appointment(appointment):
     return invoice
 
 
-NOT_ANSWERED_REASON = "The RND didn't respond before the requested time."
+NOT_ANSWERED_REASON = "The RND didn't confirm in time (requests must be confirmed 30 minutes before the start)."
 
 
 def expire_unanswered_requests(**scope):
@@ -465,28 +466,35 @@ def expire_unanswered_requests(**scope):
     from scheduling.services import close_reopened_care_if_idle
     from scheduling.views import format_ph_datetime
 
-    due = (Appointment.objects.filter(status=Appointment.Status.PENDING, scheduled_at__lte=timezone.now(), **scope)
+    from datetime import timedelta
+
+    from scheduling.serializers import CONFIRM_BY_MINUTES
+
+    now = timezone.now()
+    due = (Appointment.objects.filter(status=Appointment.Status.PENDING,
+                                      scheduled_at__lte=now + timedelta(minutes=CONFIRM_BY_MINUTES), **scope)
            .select_related("relationship__client", "relationship__rnd"))
     count = 0
     for appt in due:
         appt.status = Appointment.Status.CANCELLED
         appt.cancellation_reason = NOT_ANSWERED_REASON
-        appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        appt.cancelled_by, appt.cancelled_at = Appointment.CancelledBy.SYSTEM, now
+        appt.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
         close_reopened_care_if_idle(appt.relationship)
         when = format_ph_datetime(appt.scheduled_at)
         rnd, client = appt.relationship.rnd, appt.relationship.client
         notify(recipient=client, notifiable_type="appointment", notifiable_id=appt.id, subject="Booking request expired",
-               content=f"RND {rnd.full_name} didn't respond to your request for {when} before that time. You can book another time.")
+               content=f"RND {rnd.full_name} didn't confirm your request for {when} in time. You can book another time.")
         notify(recipient=rnd, notifiable_type="appointment", notifiable_id=appt.id, subject="Booking request expired",
-               content=f"{client.full_name}'s request for {when} expired because it wasn't confirmed or declined in time.")
+               content=f"{client.full_name}'s request for {when} expired because it wasn't confirmed at least 30 minutes before the start.")
         count += 1
     return count
 
 
 def expire_unpaid_appointments(**scope):
-    """Confirmed appointments whose start time passed while their invoice was
-    still unpaid are cancelled ("not paid") and the invoice voided, so the
-    slot is released and it can't be paid late. Run lazily wherever
+    """Confirmed appointments still unpaid 15 minutes before the start
+    (PAY_BY_MINUTES, when the room opens) are cancelled ("not paid") and the
+    invoice voided, so the slot is released and it can't be paid late. Run lazily wherever
     appointments/invoices are listed. Returns how many were expired.
     Unanswered booking requests expire here too (expire_unanswered_requests)."""
     from django.utils import timezone
@@ -497,11 +505,16 @@ def expire_unpaid_appointments(**scope):
     from scheduling.models import Appointment
     from scheduling.services import close_reopened_care_if_idle
 
+    from datetime import timedelta
+
+    from scheduling.serializers import PAY_BY_MINUTES
+
     from .models import Invoice
 
+    now = timezone.now()
     due = Appointment.objects.filter(
         status=Appointment.Status.CONFIRMED,
-        scheduled_at__lte=timezone.now(),
+        scheduled_at__lte=now + timedelta(minutes=PAY_BY_MINUTES),
         invoices__status=Invoice.Status.UNPAID,
         **scope,
     ).exclude(invoices__status=Invoice.Status.PAID).select_related("relationship__client", "relationship__rnd").distinct()
@@ -509,12 +522,13 @@ def expire_unpaid_appointments(**scope):
     for appt in due:
         appt.status = Appointment.Status.CANCELLED
         appt.cancellation_reason = NOT_PAID_REASON
-        appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        appt.cancelled_by, appt.cancelled_at = Appointment.CancelledBy.SYSTEM, now
+        appt.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
         appt.invoices.filter(status=Invoice.Status.UNPAID).update(status=Invoice.Status.CANCELLED)
         close_reopened_care_if_idle(appt.relationship)
         for recipient, text in (
-            (appt.relationship.client, "Your consultation was cancelled because it wasn't paid before the start time. You can book a new time."),
-            (appt.relationship.rnd, f"{appt.relationship.client.full_name}'s consultation was cancelled because it wasn't paid before the start time. The slot is open again."),
+            (appt.relationship.client, "Your consultation was cancelled because it wasn't paid 15 minutes before the start. You can book a new time."),
+            (appt.relationship.rnd, f"{appt.relationship.client.full_name}'s consultation was cancelled because it wasn't paid 15 minutes before the start. The slot is open again."),
         ):
             notify(recipient=recipient, notifiable_type="appointment", notifiable_id=appt.id,
                    subject="Consultation not paid", content=text)

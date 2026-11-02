@@ -99,8 +99,11 @@ class InitiatePaymentView(APIView):
         )
         # Pay before the consultation: no paying for one that already started.
         appt = invoice.appointment
-        if appt is not None and appt.status in ("confirmed", "pending") and appt.scheduled_at <= timezone.now():
-            return Response({"detail": "This consultation has already started, so it can't be paid online."}, status=status.HTTP_400_BAD_REQUEST)
+        from scheduling.serializers import deadlines
+
+        if appt is not None and appt.status in ("confirmed", "pending") and deadlines(appt)["pay_by"] <= timezone.now():
+            return Response({"detail": "Payment closed 15 minutes before the start, so this consultation can't be paid now."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         try:
             result = PayMongoService().create_payment_link(invoice)

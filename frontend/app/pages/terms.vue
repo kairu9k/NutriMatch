@@ -18,6 +18,7 @@
 
       <h2>4. Payments &amp; Billing</h2>
       <p>Consultation fees are set independently by each RND and displayed on their profile prior to booking. Payments are processed through PayMongo, a third-party payment provider. NutriMatch retains a platform commission on completed transactions, frozen at the rate in effect at the time of the transaction.</p>
+      <p>A consultation must be paid at least 15 minutes before its start, or it is cancelled automatically. A paid consultation can be cancelled by the client for a full refund up to 30 minutes before its start. A client who does not attend a paid consultation may be marked as a no-show, and the payment is not refunded; the client may dispute this within 3 days, and NutriMatch decides using the video call's attendance record (join and leave times only; calls are never recorded). If the RND does not attend, cancels, or the video call does not work, the client receives a full refund.</p>
 
       <h2>5. User Conduct</h2>
       <ul>

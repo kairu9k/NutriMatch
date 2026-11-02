@@ -52,7 +52,8 @@
           <button type="button" class="link quiet" @click="exitRoom">Leave the room</button>
         </div>
         <div v-else-if="appt.status !== 'confirmed'" class="state-card">
-          <VideoOff :size="28" /><p>This consultation {{ appt.status === 'cancelled' ? 'was cancelled' : 'isn\'t confirmed yet' }}.</p>
+          <VideoOff :size="28" /><p>This consultation {{ appt.status === 'cancelled' ? 'was cancelled' : appt.status === 'no_show' ? 'was marked as a no-show' : 'isn\'t confirmed yet' }}.</p>
+          <p v-if="!isRnd && appt.payment?.status === 'refund_pending'">Your {{ peso(appt.payment.amount) }} payment is refunded in full within 5–7 business days.</p>
           <button type="button" class="link quiet" @click="exitRoom">Leave the room</button>
         </div>
         <!-- Pay first: the API only sends the client the room link once it's paid. -->
@@ -74,6 +75,11 @@
         <!-- NutriMatch's own video call (WebRTC, 2026-10-26): browser to browser,
              encrypted, not recorded. The RND's End opens Finish consultation. -->
         <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" @peer-left="recheckAppointment" />
+        <!-- The RND never joined: 15 minutes after the start the client can report it (full refund). -->
+        <div v-if="rndAbsentReady" class="absent-note" role="status">
+          <p><strong>{{ other.firstName }} hasn't joined yet.</strong> If they still haven't come, you can report it and get a full refund.</p>
+          <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="absentAsk = true; absentError = ''">Report that {{ other.firstName }} didn't show up</button>
+        </div>
         <!-- pop-ups over the call (outside the v-if chain above) -->
         <div v-if="callPops.length" class="call-pops" aria-live="polite">
           <div v-for="pop in callPops" :key="pop.id" class="call-pop">
@@ -289,8 +295,17 @@
         <template v-if="noShowDone">
           <h2 id="end-title" class="nm-modal-title">Marked as a no-show</h2>
           <p class="nm-modal-text">
-            The consultation was cancelled and {{ other.firstName }} was told why.
-            <template v-if="appt.payment?.status === 'refund_pending'">Their {{ peso(appt.payment.amount) }} payment goes back to them within 5–7 business days.</template>
+            {{ other.firstName }} was told. There's no refund, and your share posts in 3 days unless they dispute it and NutriMatch approves the dispute.
+          </p>
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-dark" @click="leave">Done</button>
+          </div>
+        </template>
+        <template v-else-if="callFailedDone">
+          <h2 id="end-title" class="nm-modal-title">Ended as a call that didn't work</h2>
+          <p class="nm-modal-text">
+            {{ other.firstName }} was told and can book a new time.
+            <template v-if="appt.payment?.status === 'refund_pending'">Their {{ peso(appt.payment.amount) }} payment is refunded in full.</template>
           </p>
           <div class="nm-modal-actions">
             <button type="button" class="nm-btn-dark" @click="leave">Done</button>
@@ -299,8 +314,8 @@
         <template v-else-if="endMode === 'noshow'">
           <h2 id="end-title" class="nm-modal-title">{{ other.firstName }} didn't show up?</h2>
           <p class="nm-modal-text">
-            The consultation is cancelled and {{ other.firstName }} sees your reason.
-            <template v-if="appt.payment?.status === 'paid'">Their {{ peso(appt.payment.amount) }} payment is refunded, so there's no payout for this one.</template>
+            It's marked as a no-show and {{ other.firstName }} sees your note. There's no refund: you're paid for it like a completed consultation.
+            {{ other.firstName }} can dispute it within 3 days, and NutriMatch decides with the call's attendance record.
           </p>
           <label class="ns-label" for="ns-reason">What happened</label>
           <textarea id="ns-reason" v-model="noShowReason" rows="3" maxlength="500" class="nm-input ns-text"
@@ -310,7 +325,21 @@
           <p v-if="endError" class="nm-field-error">{{ endError }}</p>
           <div class="nm-modal-actions">
             <button type="button" class="nm-btn-outline" :disabled="ending" @click="endMode = 'choose'; endError = ''">Back</button>
-            <button type="button" class="nm-btn-danger" :disabled="ending || noShowReason.trim().length < 10" @click="markNoShow">{{ ending ? 'Cancelling…' : 'Cancel as no-show' }}</button>
+            <button type="button" class="nm-btn-danger" :disabled="ending || noShowReason.trim().length < 10" @click="markNoShow">{{ ending ? 'Saving…' : 'Mark as no-show' }}</button>
+          </div>
+        </template>
+        <template v-else-if="endMode === 'callfailed'">
+          <h2 id="end-title" class="nm-modal-title">The video call didn't work?</h2>
+          <p class="nm-modal-text">
+            The consultation is cancelled and {{ other.firstName }} gets a full refund, so there's no payout for this one. They can book a new time.
+          </p>
+          <label class="ns-label" for="cf-note">What went wrong (optional)</label>
+          <textarea id="cf-note" v-model="callFailedNote" rows="2" maxlength="300" class="nm-input ns-text"
+                    placeholder="e.g. We could not hear each other." />
+          <p v-if="endError" class="nm-field-error">{{ endError }}</p>
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-outline" :disabled="ending" @click="endMode = 'choose'; endError = ''">Back</button>
+            <button type="button" class="nm-btn-danger" :disabled="ending" @click="markCallFailed">{{ ending ? 'Ending…' : 'End and refund' }}</button>
           </div>
         </template>
         <template v-else-if="!wrap">
@@ -325,10 +354,16 @@
               <span><strong>{{ ending ? 'Completing…' : 'It\'s done, mark it complete' }}</strong>
                 <small>Your share posts 3 days after today. This can't be undone.</small></span>
             </button>
-            <button v-if="started" type="button" class="choice" :disabled="ending" @click="endMode = 'noshow'; endError = ''">
+            <button v-if="started && !clientJoined" type="button" class="choice" :disabled="ending" @click="endMode = 'noshow'; endError = ''">
               <UserX :size="18" />
               <span><strong>{{ other.firstName }} didn't show up</strong>
-                <small>Cancel with a reason. Their payment is refunded.</small></span>
+                <small>Mark as a no-show. No refund, and you're paid for it.</small></span>
+            </button>
+            <p v-else-if="started && clientJoined" class="ns-hint">{{ other.firstName }} joined the call, so it can't be marked as a no-show.</p>
+            <button v-if="appt.type === 'video'" type="button" class="choice" :disabled="ending" @click="endMode = 'callfailed'; endError = ''">
+              <PhoneOff :size="18" />
+              <span><strong>The video call didn't work</strong>
+                <small>Cancel it. {{ other.firstName }} gets a full refund and can book again.</small></span>
             </button>
             <button type="button" class="choice" :disabled="ending" @click="leaveForNow">
               <LogOut :size="18" />
@@ -371,6 +406,22 @@
       </div>
     </div>
 
+    <div v-if="absentAsk" class="overlay" @click.self="!absentBusy && (absentAsk = false)">
+      <div class="nm-modal" role="alertdialog" aria-modal="true" aria-labelledby="absent-title">
+        <button type="button" class="nm-modal-x" aria-label="Close" @click="!absentBusy && (absentAsk = false)"><X :size="18" aria-hidden="true" /></button>
+        <h2 id="absent-title" class="nm-modal-title">Report that {{ other.firstName }} didn't show up?</h2>
+        <p class="nm-modal-text">
+          NutriMatch's call record shows you joined and {{ other.firstName }} didn't. The consultation is cancelled
+          and your {{ peso(appt.payment?.amount) }} payment is refunded in full within 5–7 business days. You can book again any time.
+        </p>
+        <p v-if="absentError" class="nm-field-error">{{ absentError }}</p>
+        <div class="nm-modal-actions">
+          <button type="button" class="nm-btn-soft" :disabled="absentBusy" @click="absentAsk = false">Keep waiting</button>
+          <button type="button" class="nm-btn-danger solid" :disabled="absentBusy" @click="reportAbsent">{{ absentBusy ? 'Reporting…' : 'Report and get a refund' }}</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="leaveAsk" class="overlay" @click.self="leaveAsk = false">
       <div class="nm-modal" role="alertdialog" aria-labelledby="leave-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="leaveAsk = false"><X :size="18" aria-hidden="true" /></button>
@@ -409,7 +460,7 @@ import { LAB_ACCEPT, labDate, splitLabFiles } from '~/utils/labs'
 
 const route = useRoute()
 const auth = useAuthStore()
-const { get, patch } = useApi()
+const { get, patch, post } = useApi()
 const now = useNow(15000)
 const isRnd = computed(() => auth.user?.role === 'rnd')
 const apptId = route.params.id
@@ -637,11 +688,16 @@ const wrap = ref(null)
 const endMode = ref('choose') // choose | noshow
 const noShowReason = ref('')
 const noShowDone = ref(false)
+const callFailedNote = ref('')
+const callFailedDone = ref(false)
+// From the call's attendance record (the server refuses a no-show too).
+const clientJoined = computed(() => !!appt.value?.attendance?.client_joined_at)
 function openEnd() {
   endError.value = ''
   wrap.value = null
   endMode.value = 'choose'
   endOpen.value = true
+  loadAppointment().catch(() => {}) // fresh attendance: did the client join?
 }
 function closeEnd() {
   endOpen.value = false
@@ -668,11 +724,26 @@ async function markNoShow() {
   endError.value = ''
   try {
     await saveNcpIfDirty()
-    await patch(`/rnd/appointments/${apptId}/cancel/`, { reason: `No-show: ${noShowReason.value.trim()}` })
+    await post(`/rnd/appointments/${apptId}/no-show/`, { note: noShowReason.value.trim() })
     await loadAppointment()
     noShowDone.value = true
   } catch (e) {
-    endError.value = apiError(e, 'Could not cancel this consultation.')
+    endError.value = apiError(e, 'Could not mark this as a no-show.')
+    loadAppointment().catch(() => {})
+  } finally {
+    ending.value = false
+  }
+}
+async function markCallFailed() {
+  ending.value = true
+  endError.value = ''
+  try {
+    await saveNcpIfDirty()
+    await post(`/rnd/appointments/${apptId}/call-failed/`, { note: callFailedNote.value.trim() })
+    await loadAppointment()
+    callFailedDone.value = true
+  } catch (e) {
+    endError.value = apiError(e, 'Could not end this consultation.')
   } finally {
     ending.value = false
   }
@@ -705,6 +776,40 @@ async function completeNow() {
 const leaveAsk = ref(false)
 // the client in a live video call: leaving asks first (Stay / Leave call)
 const callLeaveAsk = ref(false)
+
+/* ---------- client: the RND didn't come ---------- */
+const RND_ABSENT_AFTER_MS = 15 * 60 * 1000 // RND_ABSENT_AFTER_MINUTES
+const rndAbsentReady = computed(() => !isRnd.value && appt.value?.status === 'confirmed' && appt.value?.type === 'video'
+  && appt.value?.payment?.status === 'paid' && !appt.value?.attendance?.rnd_joined_at
+  && now.value >= new Date(appt.value.scheduled_at).getTime() + RND_ABSENT_AFTER_MS)
+const absentAsk = ref(false)
+const absentBusy = ref(false)
+const absentError = ref('')
+async function reportAbsent() {
+  absentBusy.value = true
+  absentError.value = ''
+  try {
+    await post(`/client/appointments/${apptId}/rnd-absent/`)
+    absentAsk.value = false
+    await loadAppointment()
+  } catch (e) {
+    absentError.value = apiError(e, 'Could not report it.')
+    loadAppointment().catch(() => {})
+  } finally {
+    absentBusy.value = false
+  }
+}
+// While the client waits past the start, re-read attendance each minute (did the RND join?).
+let absentTimer = null
+onMounted(() => {
+  if (isRnd.value) return
+  absentTimer = setInterval(() => {
+    const a = appt.value
+    if (a?.status === 'confirmed' && a.type === 'video' && !a.attendance?.rnd_joined_at
+        && Date.now() >= new Date(a.scheduled_at).getTime()) recheckAppointment()
+  }, 60000)
+})
+onBeforeUnmount(() => clearInterval(absentTimer))
 const inLiveCall = computed(() => !isRnd.value && appt.value?.type === 'video' && appt.value?.status === 'confirmed'
   && windowState.value === 'open' && appt.value?.payment?.status === 'paid')
 function stayInCall() {
@@ -759,6 +864,9 @@ function onHangUp() {
 .upload { margin-top: 8px; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .stage { position: relative; }
+.absent-note { position: absolute; left: 14px; right: 14px; bottom: 96px; z-index: 5; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 12px; background: #fff; border: 1px solid #f1c9c9; box-shadow: 0 0 2px rgba(0,77,58,.08), 0 0 24px rgba(0,77,58,.22); }
+.absent-note p { margin: 0; flex: 1 1 240px; font-size: 0.86rem; color: #1a3a1a; }
 .call-pops { position: absolute; top: 14px; right: 14px; z-index: 5; display: flex; flex-direction: column; gap: 8px; width: min(340px, calc(100% - 28px)); }
 .call-pop {
   position: relative; display: flex; gap: 10px; padding: 12px 34px 12px 12px; border-radius: 12px; background: #fff; color: #1a3a1a;

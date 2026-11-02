@@ -40,8 +40,8 @@
                 <span class="nm-pill" :class="a.returning ? 'blue' : 'muted'">{{ a.returning ? 'Returning patient' : 'New patient' }}</span>
               </p>
               <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, {{ a.duration_minutes }} min</p>
-              <p v-if="a.time_passed" class="flag critical"><OctagonAlert :size="13" /> The requested time has passed. Decline it so they can book again.</p>
-              <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Starts in {{ hoursText(a.starts_in_hours) }}. Answer soon.</p>
+              <p v-if="confirmClosed(a)" class="flag critical"><OctagonAlert :size="13" /> Too late to confirm: requests must be confirmed 30 minutes before the start. Decline it so they can book again.</p>
+              <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Confirm by {{ clock(a.confirm_by) }}{{ sameDay(a) ? '' : `, ${longDay(a.confirm_by)}` }}, 30 minutes before the start.</p>
               <div class="chips">
                 <template v-if="a.screening.submitted">
                   <span v-if="a.screening.nrs_score != null" class="chip" :class="{ risk: a.screening.nrs_score >= 3 }">NRS-2002 {{ a.screening.nrs_score }}{{ a.screening.nrs_risk ? `, ${a.screening.nrs_risk.toLowerCase()}` : '' }}</span>
@@ -54,7 +54,7 @@
               <p v-if="a.notes" class="client-note">{{ a.notes }}</p>
             </div>
             <div class="row-actions">
-              <button v-if="!a.time_passed" type="button" class="nm-btn-dark nm-btn-sm" @click="openReview(a)">Review &amp; confirm</button>
+              <button v-if="!confirmClosed(a)" type="button" class="nm-btn-dark nm-btn-sm" @click="openReview(a)">Review &amp; confirm</button>
               <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="openReason(a, 'decline')">Decline</button>
             </div>
           </article>
@@ -121,11 +121,14 @@
             <div class="row-main">
               <p class="who">
                 <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink>
-                <span class="nm-pill" :class="a.status === 'completed' ? 'green' : 'muted'">{{ a.status === 'completed' ? 'Completed' : 'Cancelled' }}</span>
+                <span class="nm-pill" :class="a.status === 'completed' ? 'green' : a.status === 'no_show' ? 'red' : 'muted'">{{ a.status === 'completed' ? 'Completed' : a.status === 'no_show' ? 'No-show' : 'Cancelled' }}</span>
+                <span v-if="a.dispute?.opened_at && !a.dispute.resolved_at" class="nm-pill gold">Disputed, payment on hold</span>
                 <span v-if="a.payment && ['refund_pending', 'refunded'].includes(a.payment.status)" class="nm-pill red">{{ a.payment.status === 'refunded' ? 'Refunded' : 'Refund pending' }}</span>
               </p>
               <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}{{ a.payment?.status === 'paid' ? `, ${peso(a.payment.amount)}` : '' }}</p>
-              <p v-if="a.status === 'cancelled' && a.cancellation_reason" class="nm-row-sub">Reason: {{ a.cancellation_reason }}</p>
+              <p v-if="['cancelled', 'no_show'].includes(a.status) && a.cancellation_reason" class="nm-row-sub">{{ a.status === 'no_show' ? 'Your note' : 'Reason' }}: {{ a.cancellation_reason }}</p>
+              <p v-if="a.attendance && a.attendance.state !== 'none' && a.status !== 'pending'" class="nm-row-sub">{{ a.attendance.line }}</p>
+              <p v-if="a.dispute?.outcome" class="nm-row-sub">Dispute {{ a.dispute.outcome === 'refunded' ? 'approved, payment refunded' : 'not approved, the payment stays yours' }}. {{ a.dispute.note }}</p>
             </div>
             <div v-if="a.status === 'completed'" class="row-actions">
               <button type="button" class="nm-btn-outline nm-btn-sm" @click="summaryId = a.id"><FileText :size="14" /> Summary</button>
@@ -182,6 +185,16 @@
     <div v-if="reason" class="nm-modal-overlay" @click.self="reason = null">
       <form class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="reason-title" @submit.prevent="submitReason">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="reason = null"><X :size="18" aria-hidden="true" /></button>
+        <template v-if="reason.done">
+          <h2 id="reason-title" class="nm-modal-title">Consultation cancelled</h2>
+          <p class="nm-modal-text">{{ reason.appt.client.name }} was told and gets a full refund if they paid. Last-minute cancels are noted for NutriMatch.</p>
+          <p class="nm-modal-text">Away for a while? Block time off so no new bookings land while you're out.</p>
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-soft" @click="reason = null">Close</button>
+            <NuxtLink to="/availability" class="nm-btn-dark">Block time off</NuxtLink>
+          </div>
+        </template>
+        <template v-else>
         <h2 id="reason-title" class="nm-modal-title">{{ reason.kind === 'decline' ? 'Decline this request?' : 'Cancel this consultation?' }}</h2>
         <p class="nm-modal-text">
           {{ reason.appt.client.name }}, {{ longWhen(reason.appt.scheduled_at) }}.
@@ -189,17 +202,28 @@
           <template v-else-if="reason.appt.payment?.status === 'paid'">They already paid, so their invoice goes to <strong>refund pending</strong> and the NutriMatch admin refunds them.</template>
           <template v-else>Their unpaid invoice is voided and they're notified with your reason.</template>
         </p>
-        <label class="nm-label" for="reason-text">Reason (sent to the client)</label>
+        <template v-if="reason.late">
+          <p class="nm-note plain-note">It starts in under 30 minutes, so this is a last-minute cancel. Pick why; you don't have to give details.</p>
+          <label class="nm-label" for="reason-cat">Why you have to cancel</label>
+          <select id="reason-cat" v-model="reason.category" class="nm-select block">
+            <option value="" disabled>Choose a reason</option>
+            <option value="emergency">Emergency (family or health)</option>
+            <option value="technical">Technical problem</option>
+            <option value="other">Other</option>
+          </select>
+        </template>
+        <label class="nm-label" for="reason-text">{{ reason.late && reason.category !== 'other' ? 'Note to the client (optional)' : 'Reason (sent to the client)' }}</label>
         <textarea id="reason-text" v-model="reason.text" class="nm-input" rows="3" maxlength="500"
-                  :placeholder="reason.kind === 'decline' ? 'e.g. I\'m fully booked that day. Please choose another time.' : 'e.g. I have a family emergency. Please book again any day next week.'"></textarea>
+                  :placeholder="reason.kind === 'decline' ? 'e.g. I\'m fully booked that day. Please choose another time.' : 'e.g. Please book again any day next week.'"></textarea>
         <p v-if="reason.error" class="nm-field-error">{{ reason.error }}</p>
-        <p v-else class="nm-hint">At least 10 characters.</p>
+        <p v-else-if="!reason.late || reason.category === 'other'" class="nm-hint">At least 10 characters.</p>
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-outline" @click="reason = null">Keep it</button>
-          <button type="submit" class="nm-btn-danger solid" :disabled="busy || reason.text.trim().length < 10">
+          <button type="submit" class="nm-btn-danger solid" :disabled="busy || !reasonReady">
             {{ busy ? 'Saving…' : reason.kind === 'decline' ? 'Decline request' : 'Cancel consultation' }}
           </button>
         </div>
+        </template>
       </form>
     </div>
 
@@ -369,14 +393,33 @@ async function confirmBooking() {
 const reason = ref(null)
 function openReason(a, kind) {
   review.value = null
-  reason.value = { appt: a, kind, text: '', error: '' }
+  // A confirmed consultation in its last 30 minutes (or started): a last-minute cancel.
+  const late = kind === 'cancel' && now.value >= new Date(a.scheduled_at).getTime() - 30 * 60000
+  reason.value = { appt: a, kind, text: '', error: '', late, category: '', done: false }
+}
+const reasonReady = computed(() => {
+  const r = reason.value
+  if (!r) return false
+  if (r.late) return !!r.category && (r.category !== 'other' || r.text.trim().length >= 10)
+  return r.text.trim().length >= 10
+})
+function confirmClosed(a) {
+  return a.time_passed || (a.confirm_by && now.value >= new Date(a.confirm_by).getTime())
+}
+function sameDay(a) {
+  return new Date(a.confirm_by).toDateString() === new Date(now.value).toDateString()
+}
+function longDay(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 async function submitReason() {
   busy.value = true
   reason.value.error = ''
   try {
-    await patch(`/rnd/appointments/${reason.value.appt.id}/cancel/`, { reason: reason.value.text.trim() })
-    reason.value = null
+    const r = reason.value
+    await patch(`/rnd/appointments/${r.appt.id}/cancel/`, { reason: r.text.trim(), category: r.late ? r.category : undefined })
+    if (r.late) r.done = true
+    else reason.value = null
     await load()
   } catch (e) {
     reason.value.error = apiError(e, 'Could not save this.')

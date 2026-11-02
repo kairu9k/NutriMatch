@@ -19,6 +19,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.core.cache import cache
 
+from .attendance import record_presence
 from .video_call import MAX_PEOPLE, CallDenied, call_access, mark_ended, mark_started
 
 CLOSE_CODES = {"not_signed_in": 4001, "full": 4009}
@@ -63,6 +64,8 @@ class CallConsumer(AsyncWebsocketConsumer):
             "type": "call.event", "skip": self.channel_name,
             "data": {"type": "peer-joined", **self._public(self.me)},
         })
+        await database_sync_to_async(record_presence)(
+            self.appointment_id, self.role, True, [m["role"] for m in members.values()])
         if others:
             await database_sync_to_async(mark_started)(self.appointment_id)
 
@@ -80,6 +83,8 @@ class CallConsumer(AsyncWebsocketConsumer):
                 "type": "call.event", "skip": self.channel_name,
                 "data": {"type": "peer-left", **self._public(me)},
             })
+            await database_sync_to_async(record_presence)(
+                self.appointment_id, me["role"], False, [m["role"] for m in members.values()])
             if not members:
                 await database_sync_to_async(mark_ended)(self.appointment_id)
 

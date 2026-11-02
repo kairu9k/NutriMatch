@@ -45,7 +45,21 @@ class AdminAppointmentSerializer(serializers.ModelSerializer):
         fields = [
             "id", "scheduled_at", "duration_minutes", "type", "type_label", "status", "client", "rnd", "payment",
             "cancellation_reason", "notes", "created_at", "updated_at", "completed_at",
+            "cancelled_by", "cancel_category", "cancelled_late", "attendance", "dispute",
         ]
+
+    attendance = serializers.SerializerMethodField()
+    dispute = serializers.SerializerMethodField()
+
+    def get_attendance(self, obj):
+        from .attendance import attendance_payload
+
+        return attendance_payload(obj)
+
+    def get_dispute(self, obj):
+        from .attendance import dispute_payload
+
+        return dispute_payload(obj)
 
     def _person(self, user):
         return {"id": user.id, "name": user.full_name, "email": user.email, "profile_photo": user.profile_photo}
@@ -104,7 +118,7 @@ class AdminAppointmentListView(generics.ListAPIView):
             qs = qs.filter(status="pending", scheduled_at__gte=now).order_by("created_at")
         elif view == "past":
             # includes requests whose time passed without the RND confirming
-            qs = qs.filter(Q(status="completed") | Q(status__in=["pending", "confirmed"], scheduled_at__lt=now)).order_by("-scheduled_at")
+            qs = qs.filter(Q(status__in=["completed", "no_show"]) | Q(status__in=["pending", "confirmed"], scheduled_at__lt=now)).order_by("-scheduled_at")
         elif view == "cancelled":
             qs = qs.filter(status="cancelled").order_by("-updated_at")
         else:
@@ -207,7 +221,8 @@ class AdminAppointmentCancelView(APIView):
         old_status = appointment.status
         appointment.status = Appointment.Status.CANCELLED
         appointment.cancellation_reason = f"Cancelled by NutriMatch: {reason}"[:500]
-        appointment.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        appointment.cancelled_by, appointment.cancelled_at = Appointment.CancelledBy.ADMIN, timezone.now()
+        appointment.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
         invoice = settle_cancelled_appointment(appointment)
         from .services import close_reopened_care_if_idle
 

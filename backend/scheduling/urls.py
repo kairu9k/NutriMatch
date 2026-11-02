@@ -8,6 +8,7 @@ from .patient_list import RndPatientListView
 from .patient_summary import RndPatientSummaryView
 from .rnd_appointments import RndAppointmentBoardView
 from .consultation_summary import ClientConsultationSummaryView, RndConsultationSummaryView
+from .no_shows import AdminDisputeDecisionView, ClientDisputeView, ClientRndAbsentView, RndCallFailedView, RndNoShowView
 from .video_call import CallConfigView
 from .room import ClientRoomInfoView
 from .rnd_dashboard import RndDashboardView
@@ -51,6 +52,10 @@ urlpatterns = [
     path("rnd/appointments/<int:pk>/confirm/", RndAppointmentConfirmView.as_view(), name="rnd_appointment_confirm"),
     path("rnd/appointments/<int:pk>/complete/", RndAppointmentCompleteView.as_view(), name="rnd_appointment_complete"),
     path("rnd/appointments/<int:pk>/cancel/", RndAppointmentCancelView.as_view(), name="rnd_appointment_cancel"),
+    path("rnd/appointments/<int:pk>/no-show/", RndNoShowView.as_view(), name="rnd_appointment_no_show"),
+    path("rnd/appointments/<int:pk>/call-failed/", RndCallFailedView.as_view(), name="rnd_appointment_call_failed"),
+    path("client/appointments/<int:pk>/rnd-absent/", ClientRndAbsentView.as_view(), name="client_appointment_rnd_absent"),
+    path("client/appointments/<int:pk>/dispute/", ClientDisputeView.as_view(), name="client_appointment_dispute"),
 
     path("client/reviews/", ClientReviewListCreateView.as_view(), name="client_reviews"),
     path("rnd/reviews/", RndReviewListView.as_view(), name="rnd_reviews"),
@@ -60,4 +65,5 @@ urlpatterns = [
     path("admin/appointments/", AdminAppointmentListView.as_view(), name="admin_appointments"),
     path("admin/appointments/summary/", AdminAppointmentSummaryView.as_view(), name="admin_appointment_summary"),
     path("admin/appointments/<int:pk>/cancel/", AdminAppointmentCancelView.as_view(), name="admin_appointment_cancel"),
+    path("admin/appointments/<int:pk>/dispute/", AdminDisputeDecisionView.as_view(), name="admin_appointment_dispute"),
 ]

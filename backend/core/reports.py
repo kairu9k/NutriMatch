@@ -145,7 +145,7 @@ def _rnd_stats(lo, hi):
 
 def build_report(params, today=None):
     from billing.models import Invoice, Payout
-    from billing.services import NOT_PAID_REASON
+    from billing.services import NOT_PAID_REASON, OLD_NOT_PAID_REASON
     from communication.models import SupportTicket
     from profiles.models import RndProfile
     from scheduling.models import Appointment, Review
@@ -155,7 +155,7 @@ def build_report(params, today=None):
     ph = _ph()
     month = lambda dt: dt.astimezone(ph).strftime("%Y-%m")  # noqa: E731
 
-    appts = list(Appointment.objects.filter(status__in=["completed", "cancelled"])
+    appts = list(Appointment.objects.filter(status__in=["completed", "cancelled", "no_show"])
                  .select_related("relationship"))
     completed, cancelled = [], []
     for a in appts:
@@ -200,7 +200,7 @@ def build_report(params, today=None):
     reasons = {"no_show": 0, "not_paid": 0, "other": 0}
     for a, _ in cancelled:
         why = a.cancellation_reason or ""
-        reasons["no_show" if why.startswith("No-show") else "not_paid" if why == NOT_PAID_REASON else "other"] += 1
+        reasons["no_show" if a.status == "no_show" or why.startswith("No-show") else "not_paid" if why in (NOT_PAID_REASON, OLD_NOT_PAID_REASON) else "other"] += 1
 
     by_format = defaultdict(int)
     for a, _ in completed:

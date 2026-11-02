@@ -120,6 +120,34 @@ class CallSocketTests(TransactionTestCase):
         session = await database_sync_to_async(ConsultationSession.objects.get)(pk=session.pk)
         self.assertEqual(session.session_status, "ended")
 
+    async def test_the_call_records_attendance_and_blocks_a_false_no_show(self):
+        """The user's case (2026-11-02): both were in the call, yet the RND
+        could still say the client didn't show up."""
+        await database_sync_to_async(Appointment.objects.filter(pk=self.appt.pk).update)(
+            scheduled_at=timezone.now() - timedelta(minutes=3))
+        rnd, _ = await self._join(self.rnd)
+        client, _ = await self._join(self.client_user)
+        await rnd.receive_from()  # peer-joined
+        a = await database_sync_to_async(Appointment.objects.get)(pk=self.appt.pk)
+        self.assertIsNotNone(a.rnd_joined_at)
+        self.assertIsNotNone(a.client_joined_at)
+        self.assertIsNotNone(a.together_since)  # both in the call now
+
+        api = APIClient()
+        api.force_authenticate(self.rnd)
+        resp = await database_sync_to_async(api.post)(f"/api/rnd/appointments/{self.appt.id}/no-show/", {}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("joined the video call", resp.data["detail"])
+
+        await client.disconnect()
+        await rnd.receive_from()  # peer-left
+        a = await database_sync_to_async(Appointment.objects.get)(pk=self.appt.pk)
+        self.assertIsNone(a.together_since)
+        self.assertIsNotNone(a.client_left_at)
+        await rnd.disconnect()
+        a = await database_sync_to_async(Appointment.objects.get)(pk=self.appt.pk)
+        self.assertEqual(a.status, "confirmed")
+
     async def test_outsider_is_refused(self):
         comm = self._socket(self.outsider)
         await comm.connect()

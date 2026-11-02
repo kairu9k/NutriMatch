@@ -97,7 +97,7 @@ def _attention(now, summary):
 
     add("critical", "unpaid_soon", summary["unpaid_soon"],
         f"{summary['unpaid_soon']} unpaid consultation{'s' if summary['unpaid_soon'] != 1 else ''} starting within 24 h",
-        "They're cancelled automatically at the start time if still unpaid.", "/admin-appointments")
+        "They're cancelled automatically 15 minutes before the start if still unpaid.", "/admin-appointments")
     add("warning", "stale_requests", summary["stale_requests"],
         f"{summary['stale_requests']} booking request{'s' if summary['stale_requests'] != 1 else ''} waiting over {summary['stale_request_hours']} h",
         "The RND hasn't confirmed yet. A nudge may help.", "/admin-appointments")
@@ -136,6 +136,18 @@ def _attention(now, summary):
     add("info", "not_bookable", len(hidden),
         f"{len(hidden)} approved RND{'s' if len(hidden) != 1 else ''} clients can't book yet",
         "Missing a fee, bio or weekly hours. Their dashboard lists what's left.", "/users?tab=rnds", hidden)
+
+    from scheduling.no_shows import LATE_CANCEL_DAYS, LATE_CANCEL_FLAG, late_cancel_flags
+
+    disputes = SupportTicket.objects.filter(category=SupportTicket.Category.DISPUTE, appointment__dispute_resolved_at__isnull=True,
+                                            appointment__dispute_opened_at__isnull=False).count()
+    add("warning", "disputes", disputes, f"{disputes} no-show dispute{'s' if disputes != 1 else ''} to decide",
+        "The RND's payment waits until you refund it or reject the dispute.", "/admin-support")
+    flagged = late_cancel_flags(now)
+    add("info", "late_cancels", len(flagged),
+        f"{len(flagged)} RND{'s' if len(flagged) != 1 else ''} with {LATE_CANCEL_FLAG}+ last-minute cancels",
+        f"Cancelled in the last 30 minutes, or didn't attend, {LATE_CANCEL_FLAG} or more times in {LATE_CANCEL_DAYS} days. Worth a message.",
+        "/users?tab=rnds", [{"id": r.id, "name": f"{r.full_name} ({n})"} for r, n in flagged])
 
     low = list(Review.objects.filter(rating__lte=2, created_at__gte=now - timedelta(days=LOW_RATING_DAYS)).select_related("rnd"))
     add("info", "low_reviews", len(low), f"{len(low)} new 1–2★ review{'s' if len(low) != 1 else ''}",
@@ -201,7 +213,7 @@ def _overview(now):
 
     # Platform: of the consultations due in the last 30 days, how many were cancelled.
     due = Appointment.objects.filter(scheduled_at__gte=now - timedelta(days=30), scheduled_at__lt=now,
-                                     status__in=["completed", "cancelled"])
+                                     status__in=["completed", "cancelled", "no_show"])
     due_n = due.count()
     paid_month = Invoice.objects.filter(paid_at__gte=month_start, paid_at__lt=now).aggregate(g=Sum("amount"))["g"]
 

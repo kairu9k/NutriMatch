@@ -175,8 +175,9 @@
 
             <ul class="policy">
               <li><Clock :size="13" aria-hidden="true" /> Your booking is a request until {{ rnd.user.first_name }} confirms it.</li>
-              <li><CreditCard :size="13" aria-hidden="true" /> Pay after {{ rnd.user.first_name }} confirms, before the session starts.</li>
-              <li><RotateCcw :size="13" aria-hidden="true" /> Once confirmed, cancel at least 1 hour before it starts and a paid session is refunded.</li>
+              <li><CreditCard :size="13" aria-hidden="true" /> Pay after {{ rnd.user.first_name }} confirms, at least 15 minutes before the start.</li>
+              <li><RotateCcw :size="13" aria-hidden="true" /> Once paid, cancel at least 30 minutes before the start for a full refund.</li>
+              <li><UserX :size="13" aria-hidden="true" /> If you don't attend, there's no refund. You can dispute it within 3 days.</li>
             </ul>
 
             <!-- Only for clients who haven't screened yet — the RND can't
@@ -272,7 +273,7 @@
             <p v-if="bookingSummary" class="bk-pick">{{ bookingSummary }}</p>
             <p v-else class="bk-pick muted">{{ bookingHint }}</p>
             <p v-if="bookingError" class="form-error" role="alert">{{ bookingError }}</p>
-            <p v-else class="bk-after">You get an invoice once {{ rnd.user.first_name }} confirms. You can cancel up to 1 hour before the start.</p>
+            <p v-else class="bk-after">You get an invoice once {{ rnd.user.first_name }} confirms. Pay at least 15 minutes before the start. Once paid, cancel at least 30 minutes before. No refund if you don't attend.</p>
           </div>
           <button class="nm-btn-dark bk-send" type="button" :disabled="!canConfirmBooking || isBooking" @click="confirmBooking">
             {{ isBooking ? 'Sending…' : 'Send booking request' }}
@@ -286,7 +287,7 @@
 <script setup>
 import {
   BadgeCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Languages,
-  MapPin, RotateCcw, Star, Video, X,
+  MapPin, RotateCcw, Star, UserX, Video, X,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -575,7 +576,7 @@ const bookingSummary = computed(() => {
 // least MIN_LEAD_MINUTES away.
 const SESSION_MINUTES = 60
 const SLOT_STEP_MINUTES = 60
-const MIN_LEAD_MINUTES = 10
+const MIN_LEAD_MINUTES = 45 // MIN_BOOKING_LEAD_MINUTES: 30 for the RND to confirm + 15 for you to pay
 const timeSlots = computed(() => (selectedDateISO.value ? slotsForDate(selectedDateISO.value) : []))
 
 function slotsForDate(iso) {

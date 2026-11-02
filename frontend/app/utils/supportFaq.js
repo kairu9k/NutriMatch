@@ -18,7 +18,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'When and how do I pay?',
-      a: 'Pay any time after your RND confirms and before the consultation starts, on Billing & Invoice or from My Appointments. GCash, Maya, cards and QR Ph work through PayMongo. A consultation that is still unpaid when it starts is cancelled automatically.',
+      a: 'Pay any time after your RND confirms, at least 15 minutes before the start, on Billing & Invoice or from My Appointments. GCash, Maya, cards and QR Ph work through PayMongo. A consultation that is still unpaid 15 minutes before the start is cancelled automatically.',
       link: { label: 'Billing & Invoice', to: '/invoices-billing' },
     },
     {
@@ -28,7 +28,12 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'Can I cancel, and will I get a refund?',
-      a: 'You can cancel a booking request from My Appointments any time before it starts, and a confirmed consultation up to 1 hour before it starts. After that it can’t be cancelled; if it didn’t take place, message your RND or contact support. If you already paid, you get the full amount back within 5–7 business days. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
+      a: 'From My Appointments you can withdraw a booking request until your RND confirms it, cancel an unpaid consultation at no cost, and cancel a paid one up to 30 minutes before the start for the full amount back within 5–7 business days. After that it can’t be cancelled. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
+    },
+    {
+      q: 'What if I miss my consultation, or my RND does?',
+      a: 'If you don’t attend a paid consultation, your RND can mark it as a no-show and it isn’t refunded. If that’s wrong, press Dispute on it in My Appointments, History, within 3 days: NutriMatch checks the video call’s attendance record (only who joined and when) and refunds you or keeps the no-show. If you joined the video call and your RND still hasn’t 15 minutes after the start, you can report it from the call and get a full refund. If your RND has an emergency and cancels, you also get the full amount back.',
+      link: { label: 'My Appointments', to: '/appointments' },
     },
     {
       q: 'Where do I find my meal plan and log my meals?',
@@ -49,13 +54,17 @@ export const SUPPORT_FAQ = {
   rnd: [
     {
       q: 'How do I confirm or decline a booking?',
-      a: 'New bookings are on the Requests tab of Appointments, with the patient’s screening summary. Confirming issues the invoice. Declining needs a short reason, which the patient sees.',
+      a: 'New bookings are on the Requests tab of Appointments, with the patient’s screening summary. Confirm at least 30 minutes before the start, or the request expires. Confirming issues the invoice, which the patient pays at least 15 minutes before the start. Declining needs a short reason, which the patient sees.',
       link: { label: 'Appointments', to: '/appointments?tab=requests' },
     },
     {
       q: 'When do I get paid?',
       a: 'Your share (fee minus the platform commission) is on hold until 3 days after the consultation is completed, then it clears. On the 5th of each month NutriMatch pays everything that cleared by that day, once it reaches ₱500, to the GCash or bank account in your payout details. Money that clears after the 5th waits for the next month. Payouts are never sent early.',
       link: { label: 'Earnings', to: '/earnings' },
+    },
+    {
+      q: 'What if my patient doesn’t come, or I have to cancel?',
+      a: 'Once the consultation has started, Finish consultation lets you mark a patient who never joined as a no-show: there’s no refund and you’re paid as usual, unless they dispute it within 3 days and NutriMatch approves the dispute. You can’t mark a no-show if they joined the video call. If the call itself doesn’t work, end it as a call that didn’t work and they get a full refund. You can still cancel in the last 30 minutes for an emergency: pick the reason, the patient gets a full refund, and NutriMatch notices if it happens 3 times in 30 days.',
     },
     {
       q: 'Why can’t I mark a consultation complete?',

@@ -88,6 +88,11 @@ class SupportTicketCreateSerializer(serializers.Serializer):
     appointment = serializers.IntegerField(required=False, allow_null=True)
     invoice = serializers.IntegerField(required=False, allow_null=True)
 
+    def validate_category(self, value):
+        if value == SupportTicket.Category.DISPUTE:  # opened from the no-show itself (scheduling/no_shows.py)
+            raise serializers.ValidationError("Use Dispute on the consultation in My Appointments, History.")
+        return value
+
     def validate(self, attrs):
         from billing.models import Invoice
         from scheduling.models import Appointment
@@ -139,6 +144,11 @@ def ticket_detail(t, viewer):
     data = ticket_summary(t, viewer)
     data["appointment"] = _appointment_summary(t.appointment, viewer)
     data["invoice"] = _invoice_summary(t.invoice)
+    if t.category == SupportTicket.Category.DISPUTE and t.appointment_id:
+        from scheduling.attendance import attendance_line, dispute_payload
+
+        data["dispute"] = {"appointment_id": t.appointment_id, "attendance": attendance_line(t.appointment),
+                           **(dispute_payload(t.appointment) or {})}
     data["messages"] = [{
         "id": m.id, "body": m.body, "from_support": m.is_admin, "created_at": m.created_at,
         "sender_name": (m.sender.full_name if viewer.role == User.Role.ADMIN and m.sender else SUPPORT_NAME) if m.is_admin

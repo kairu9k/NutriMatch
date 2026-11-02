@@ -68,6 +68,26 @@ class Appointment(models.Model):
         CONFIRMED = "confirmed", "Confirmed"
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
+        # The paid client didn't come (2026-11-02, user's rule): no refund
+        # unless they win a dispute; the RND is paid like a completed one.
+        NO_SHOW = "no_show", "No-show"
+
+    class CancelledBy(models.TextChoices):
+        CLIENT = "client", "The client"
+        RND = "rnd", "The RND"
+        ADMIN = "admin", "NutriMatch"
+        SYSTEM = "system", "Automatically"
+        RND_ABSENT = "rnd_absent", "The RND didn't attend"
+        CALL_FAILED = "call_failed", "The video call didn't work"
+
+    class CancelCategory(models.TextChoices):
+        EMERGENCY = "emergency", "Emergency (family or health)"
+        TECHNICAL = "technical", "Technical problem"
+        OTHER = "other", "Other"
+
+    class DisputeOutcome(models.TextChoices):
+        REFUNDED = "refunded", "Refunded"
+        REJECTED = "rejected", "Rejected"
 
     relationship = models.ForeignKey(
         RndClientRelationship, on_delete=models.CASCADE, related_name="appointments"
@@ -80,8 +100,32 @@ class Appointment(models.Model):
     meeting_id = models.CharField(max_length=255, null=True, blank=True)
     cancellation_reason = models.CharField(max_length=500, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
-    # When the RND marked it completed — starts the 3-day payout hold.
+    # When the RND marked it completed (or a no-show) — starts the 3-day payout hold.
     completed_at = models.DateTimeField(null=True, blank=True)
+
+    # How it was cancelled (2026-11-02; older rows are empty). A late cancel
+    # is an RND cancelling a confirmed consultation in its last 30 minutes.
+    cancelled_by = models.CharField(max_length=20, choices=CancelledBy.choices, null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_category = models.CharField(max_length=20, choices=CancelCategory.choices, null=True, blank=True)
+    cancelled_late = models.BooleanField(default=False)
+
+    # Attendance in the video call, recorded by the server from the call's
+    # signaling socket (scheduling/attendance.py). Join/leave times only:
+    # nothing from the call itself is kept (RA 10173).
+    rnd_joined_at = models.DateTimeField(null=True, blank=True)
+    client_joined_at = models.DateTimeField(null=True, blank=True)
+    rnd_left_at = models.DateTimeField(null=True, blank=True)
+    client_left_at = models.DateTimeField(null=True, blank=True)
+    together_seconds = models.PositiveIntegerField(default=0)
+    together_since = models.DateTimeField(null=True, blank=True)  # both are in the call right now
+
+    # The client disputes a no-show (3 days); the payout waits until an admin decides.
+    dispute_opened_at = models.DateTimeField(null=True, blank=True)
+    dispute_reason = models.TextField(null=True, blank=True)
+    dispute_resolved_at = models.DateTimeField(null=True, blank=True)
+    dispute_outcome = models.CharField(max_length=10, choices=DisputeOutcome.choices, null=True, blank=True)
+    dispute_note = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

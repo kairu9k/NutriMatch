@@ -62,12 +62,14 @@ class AdminAppointmentTests(TestCase):
         self.assertEqual(self._ids("/api/admin/appointments/?view=all&payment=paid"), [self.upcoming.id, self.done.id])
 
     def test_expired_request_is_cancelled(self):
+        from billing.services import NOT_ANSWERED_REASON
+
         old = self._appt("pending", timezone.now() - timedelta(days=1))
         self.assertNotIn(old.id, self._ids("/api/admin/appointments/?view=requests"))
         self.assertIn(old.id, self._ids("/api/admin/appointments/?view=cancelled"))
         # an unanswered request whose time passed expires (2026-10-25): cancelled, nothing left pending
         old.refresh_from_db()
-        self.assertEqual((old.status, old.cancellation_reason), ("cancelled", "The RND didn't respond before the requested time."))
+        self.assertEqual((old.status, old.cancellation_reason), ("cancelled", NOT_ANSWERED_REASON))
         data = self.api.get("/api/admin/appointments/summary/").data
         self.assertEqual((data["requests"], data["expired_requests"]), (1, 0))
 

@@ -82,6 +82,27 @@
             <NuxtLink v-if="ticket.invoice" to="/billing-commission" class="ref"><Receipt :size="14" aria-hidden="true" /> {{ ticket.invoice.label }}</NuxtLink>
           </div>
 
+          <!-- a no-show dispute: decide it here (the RND's payment waits) -->
+          <div v-if="ticket.dispute" class="dispute" :class="{ decided: ticket.dispute.resolved_at }">
+            <p class="dispute-title">No-show dispute</p>
+            <p class="dispute-line"><strong>Attendance:</strong> {{ ticket.dispute.attendance }}</p>
+            <template v-if="ticket.dispute.resolved_at">
+              <p class="dispute-line"><strong>Decided:</strong> {{ ticket.dispute.outcome === 'refunded' ? 'refund approved' : 'rejected, the RND keeps the payment' }}. {{ ticket.dispute.note }}</p>
+            </template>
+            <template v-else>
+              <p class="dispute-line">The RND's payment is on hold until you decide. Both people see your note.</p>
+              <label class="nm-label" for="dispute-note">Your decision note</label>
+              <textarea id="dispute-note" v-model="decisionNote" class="nm-input" rows="2" maxlength="1000"
+                        placeholder="e.g. The call record shows the client joined at 3:01 PM."></textarea>
+              <p v-if="decisionError" class="nm-field-error">{{ decisionError }}</p>
+              <div class="dispute-actions">
+                <button type="button" class="nm-btn-soft" :disabled="busy || decisionNote.trim().length < 10" @click="decide('reject')">Reject dispute</button>
+                <button type="button" class="nm-btn-dark" :disabled="busy || decisionNote.trim().length < 10" @click="decide('refund')">Approve and refund</button>
+              </div>
+              <p class="reply-hint">Approving sends it to Refunds in Billing and commission, where you refund it through PayMongo.</p>
+            </template>
+          </div>
+
           <!-- the conversation, split by day -->
           <div ref="box" class="msgs">
             <template v-for="g in messageDays" :key="g.key">
@@ -227,6 +248,22 @@ async function act(kind) {
     busy.value = false
   }
 }
+const decisionNote = ref('')
+const decisionError = ref('')
+async function decide(decision) {
+  busy.value = true
+  decisionError.value = ''
+  try {
+    await post(`/admin/appointments/${ticket.value.dispute.appointment_id}/dispute/`, { decision, note: decisionNote.value.trim() })
+    decisionNote.value = ''
+    await select(ticket.value.id)
+    load()
+  } catch (e) {
+    decisionError.value = e?.data?.note?.[0] || e?.data?.detail || 'Could not save the decision. Try again.'
+  } finally {
+    busy.value = false
+  }
+}
 function scroll() { nextTick(() => { if (box.value) box.value.scrollTop = box.value.scrollHeight }) }
 
 watch(() => route.query.ticket, (id) => {
@@ -340,6 +377,11 @@ const messageDays = computed(() => {
 .who { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #edf1ee; }
 .who-text { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: 0.84rem; color: #1a3a1a; }
 .who-text span { font-size: 0.78rem; color: #6a7a6a; overflow-wrap: anywhere; }
+.dispute { margin: 12px 0 4px; padding: 12px 14px; border: 1px solid #f1c9c9; border-left: 3px solid #b42318; border-radius: 10px; background: #fdf7f7; }
+.dispute.decided { border: 1px solid #d9e3dc; background: #f4f6f4; }
+.dispute-title { margin: 0 0 6px; font-weight: 700; color: #1a3a1a; }
+.dispute-line { margin: 0 0 8px; font-size: 0.86rem; color: #3a4a3a; }
+.dispute-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .refs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid #edf1ee; }
 .refs-label { font-size: 0.76rem; font-weight: 600; color: #6a7a6a; }
 .ref {

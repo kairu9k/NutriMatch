@@ -32,7 +32,7 @@ const faqs = [
   { q: 'Which conditions does NutriMatch support?', a: 'NutriMatch supports diabetes, hypertension, renal disease, obesity, malnutrition, and other conditions requiring Medical Nutrition Therapy.' },
   { q: 'What consultation types are available?', a: 'A video call or an in-person visit at your RND\'s clinic, depending on what your RND offers.' },
   { q: 'How do I pay?', a: 'Through PayMongo with GCash, Maya, a card or QR Ph. Your consultation opens once it is paid.' },
-  { q: 'What if a consultation is cancelled?', a: 'If you already paid, you get a full refund within 5 to 7 business days, back to the same wallet or card.' },
+  { q: 'What if a consultation is cancelled?', a: 'If you cancel a paid consultation at least 30 minutes before the start, or your RND cancels, you get a full refund within 5 to 7 business days, back to the same wallet or card. If you don\'t attend, there\'s no refund, but you can dispute it within 3 days.' },
   { q: 'Can I see more than one RND?', a: 'You work with one RND at a time, so your care stays in one place. You can ask to end your care with them in Profile Settings, then book someone else.' },
 ]
 </script>

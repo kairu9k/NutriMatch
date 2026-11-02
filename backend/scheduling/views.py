@@ -32,6 +32,12 @@ def format_ph_datetime(value):
     return f"{local:%B} {local.day}, {local.year} at {local.hour % 12 or 12}:{local:%M} {local:%p}"
 
 
+def format_ph_time(value):
+    """Just the time in Philippine time ("2:45 PM")."""
+    local = value.astimezone(PH_TZ)
+    return f"{local.hour % 12 or 12}:{local:%M} {local:%p}"
+
+
 class RndActiveRelationshipsView(generics.ListAPIView):
     """RND's own active clients — for patient pickers (meal plans, NCP, etc.)."""
 
@@ -120,12 +126,6 @@ class ClientAppointmentDetailView(generics.RetrieveAPIView):
         return Appointment.objects.filter(relationship__client=self.request.user)
 
 
-# A client can cancel a confirmed consultation up to 1 hour before it starts
-# (user's rule, 2026-11-02): the RND has set that hour aside. An unconfirmed
-# request can still be withdrawn until its start.
-CLIENT_CANCEL_CUTOFF_MINUTES = 60
-
-
 class ClientAppointmentCancelView(APIView):
     permission_classes = [IsClient]
 
@@ -141,9 +141,14 @@ class ClientAppointmentCancelView(APIView):
                 {"detail": f"This appointment is already {appointment.get_status_display().lower()} and can't be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # A confirmed consultation can't be cancelled in its last hour or once
-        # it has started (it's paid, the RND kept the time). The RND or an
-        # admin can still cancel a no-show.
+        # Time rules (2026-11-02): a paid consultation can be cancelled up to
+        # 30 minutes before the start (the RND kept that time); an unpaid one
+        # any time before it (nothing was paid; it's cancelled automatically
+        # 15 minutes before anyway). Never once it has started.
+        from billing.services import is_appointment_paid
+
+        from .serializers import CLIENT_CANCEL_CUTOFF_MINUTES, deadlines
+
         if appointment.status == Appointment.Status.CONFIRMED:
             now = timezone.now()
             if appointment.scheduled_at <= now:
@@ -152,16 +157,17 @@ class ClientAppointmentCancelView(APIView):
                                "If it didn't take place, message your RND or contact NutriMatch support."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            if appointment.scheduled_at - now < timedelta(minutes=CLIENT_CANCEL_CUTOFF_MINUTES):
+            if is_appointment_paid(appointment) and deadlines(appointment)["cancel_by"] <= now:
                 return Response(
-                    {"detail": "Consultations can only be cancelled up to 1 hour before they start. "
+                    {"detail": f"Paid consultations can only be cancelled up to {CLIENT_CANCEL_CUTOFF_MINUTES} minutes before they start. "
                                "If you can't make it, message your RND."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         reason = (request.data.get("reason") or "").strip()[:500]
         appointment.status = Appointment.Status.CANCELLED
         appointment.cancellation_reason = reason
-        appointment.save(update_fields=["status", "cancellation_reason", "updated_at"])
+        appointment.cancelled_by, appointment.cancelled_at = Appointment.CancelledBy.CLIENT, timezone.now()
+        appointment.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
 
         from billing.services import settle_cancelled_appointment
 
@@ -250,8 +256,11 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
         appointment = get_object_or_404(
             Appointment.objects.filter(relationship__rnd=request.user), pk=pk
         )
-        if appointment.status == Appointment.Status.PENDING and appointment.scheduled_at <= timezone.now():
-            raise PermissionDenied("This request's time has already passed, so it can't be confirmed.")
+        from .serializers import CONFIRM_BY_MINUTES, deadlines
+
+        if appointment.status == Appointment.Status.PENDING and deadlines(appointment)["confirm_by"] <= timezone.now():
+            raise PermissionDenied(f"Requests must be confirmed at least {CONFIRM_BY_MINUTES} minutes before the start, "
+                                   "so this one can't be confirmed now.")
         has_screening = PreConsultationScreening.objects.filter(
             client_id=appointment.relationship.client_id
         ).exists()
@@ -289,8 +298,9 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             content=(
                 f"RND {appointment.relationship.rnd.full_name} confirmed your "
                 f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
-                f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) before then to start your consultation. "
-                f"You can cancel up to 1 hour before it starts."
+                f"Please pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) by {format_ph_time(deadlines(appointment)['pay_by'])}, "
+                "or it is cancelled automatically. Once paid, you can cancel up to 30 minutes before the start. "
+                "If you don't attend, there's no refund."
             ),
         )
         from communication.reminders import _when
@@ -298,7 +308,7 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
 
         text_client(appointment.relationship.client,
                     f"RND {appointment.relationship.rnd.full_name} confirmed your consultation on {_when(appointment.scheduled_at)}. "
-                    f"Please pay P{invoice.amount:,.2f} in the app before it starts.")
+                    f"Please pay P{invoice.amount:,.2f} by {format_ph_time(deadlines(appointment)['pay_by'])} in the app.")
 
         return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 
@@ -349,8 +359,12 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
 
 
 class RndAppointmentCancelView(_RndAppointmentTransitionView):
-    """Declining a request or cancelling a confirmed consultation — the RND
-    must say why (the client is told the reason)."""
+    """Declining a request or cancelling a confirmed consultation. The RND
+    must say why (the client is told). A **late cancel** (a confirmed
+    consultation in its last 30 minutes, or after the start: an emergency,
+    2026-11-02) also needs a category; the note is then optional unless it's
+    "Other". No proof is asked for (family/health details stay private). Late
+    cancels are counted for the admin (3 in 30 days is flagged)."""
 
     from_statuses = [Appointment.Status.PENDING, Appointment.Status.CONFIRMED]
     to_status = Appointment.Status.CANCELLED
@@ -363,35 +377,61 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
         from billing.services import settle_cancelled_appointment
         from communication.services import notify
 
-        if len(self.cancel_reason(request)) < self.MIN_REASON:
-            raise ValidationError({"reason": f"Tell the client why, in at least {self.MIN_REASON} characters."})
-        response = super().patch(request, pk)
-        appointment = Appointment.objects.select_related("relationship__client", "relationship__rnd").get(pk=pk)
-        settle_cancelled_appointment(appointment)
+        from .serializers import CLIENT_CANCEL_CUTOFF_MINUTES
         from .services import close_reopened_care_if_idle
 
+        appointment = get_object_or_404(
+            Appointment.objects.filter(relationship__rnd=request.user).select_related("relationship__client", "relationship__rnd"), pk=pk)
+        if appointment.status not in self.from_statuses:
+            raise PermissionDenied(f"Cannot transition appointment from '{appointment.status}' to 'cancelled'.")
+        now = timezone.now()
+        late = (appointment.status == Appointment.Status.CONFIRMED
+                and appointment.scheduled_at - timedelta(minutes=CLIENT_CANCEL_CUTOFF_MINUTES) <= now)
+        reason = self.cancel_reason(request)
+        category = str(request.data.get("category") or "").strip() or None
+        if late:
+            if category not in Appointment.CancelCategory.values:
+                raise ValidationError({"category": "Pick why you have to cancel: emergency, technical problem or other."})
+            if category == Appointment.CancelCategory.OTHER and len(reason) < self.MIN_REASON:
+                raise ValidationError({"reason": f"Tell the client why, in at least {self.MIN_REASON} characters."})
+        else:
+            category = None
+            if len(reason) < self.MIN_REASON:
+                raise ValidationError({"reason": f"Tell the client why, in at least {self.MIN_REASON} characters."})
+
+        was_pending = appointment.status == Appointment.Status.PENDING
+        appointment.status = Appointment.Status.CANCELLED
+        appointment.cancellation_reason = reason or Appointment.CancelCategory(category).label
+        appointment.cancelled_by, appointment.cancelled_at = Appointment.CancelledBy.RND, now
+        appointment.cancel_category, appointment.cancelled_late = category, late
+        appointment.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at",
+                                        "cancel_category", "cancelled_late", "updated_at"])
+        settle_cancelled_appointment(appointment)
         close_reopened_care_if_idle(appointment.relationship)
-        reason = (appointment.cancellation_reason or "").strip()
-        notify(
-            recipient=appointment.relationship.client,
-            notifiable_type="appointment",
-            notifiable_id=appointment.id,
-            subject="Appointment cancelled",
-            content=(
-                f"RND {appointment.relationship.rnd.full_name} cancelled your "
-                f"{appointment.get_type_display().lower()} consultation for {format_ph_datetime(appointment.scheduled_at)}."
-                + (f" Reason: {reason}" if reason else "")
-            ),
-        )
+
+        rnd, client = appointment.relationship.rnd, appointment.relationship.client
+        when = format_ph_datetime(appointment.scheduled_at)
+        kind = appointment.get_type_display().lower()
+        if late:
+            why = {"emergency": "because of an emergency", "technical": "because of a technical problem"}.get(category, "")
+            content = (f"RND {rnd.full_name} had to cancel your {kind} consultation for {when}{' ' + why if why else ''}."
+                       + (f" Note: {reason}" if reason else "")
+                       + " If you paid, you get the full amount back. You can book again any time.")
+        elif was_pending:
+            content = f"RND {rnd.full_name} declined your {kind} consultation request for {when}. Reason: {reason}"
+        else:
+            content = f"RND {rnd.full_name} cancelled your {kind} consultation for {when}. Reason: {reason}"
+        notify(recipient=client, notifiable_type="appointment", notifiable_id=appointment.id,
+               subject="Appointment cancelled", content=content)
         # By SMS too, so nobody waits in the room or travels for nothing.
         # The reason stays in the app (it can mention health details).
         from communication.reminders import _when
         from communication.sms import text_client
 
-        text_client(appointment.relationship.client,
-                    f"RND {appointment.relationship.rnd.full_name} cancelled your consultation on {_when(appointment.scheduled_at)}. "
-                    "Open the app for details.")
-        return response
+        text_client(client, f"RND {rnd.full_name} cancelled your consultation on {_when(appointment.scheduled_at)}. "
+                            "Open the app for details.")
+        return Response(AppointmentSerializer(appointment, context={"request": request}).data)
+
 
 class ClientReviewListCreateView(generics.ListCreateAPIView):
     """Reviews the logged-in client has left (GET, newest first) and
