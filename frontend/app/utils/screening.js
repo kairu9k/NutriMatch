@@ -4,7 +4,7 @@
 // PreConsultationScreening.symptoms — so labels must not contain commas.
 //
 // Only the "General" group feeds the NRS-2002 score (poor appetite →
-// reduced intake; elevated blood glucose or recent hospitalization → disease
+// reduced intake; unintended weight loss → weight loss, grade 1; elevated blood glucose or recent hospitalization → disease
 // severity, clinical/services.py). The condition symptoms are recorded for the
 // RND and don't change the score.
 

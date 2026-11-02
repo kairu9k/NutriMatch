@@ -94,6 +94,12 @@ TEMPLATES = {
 }
 # kcal added to the screening TDEE when there's no NCP prescription yet
 KCAL_ADJUST = {"weight_management": -500, "weight_gain": 500}
+# Weight management (2026-11-02, user's call): the cut is 500 kcal or 20% of
+# the TER, whichever is smaller, so a short client's small TER isn't cut to
+# nothing; the 1,200 kcal floor only applies when the TER is above 1,500
+# (it used to plan 1,200 for a TER of 750, more than the TER itself).
+MAX_CUT_PCT = 0.20
+FLOOR_KCAL, FLOOR_FROM_TER = 1200, 1500
 
 SLOTS = [  # (meal slot, time, share of each group: rice, meat, veg, fruit, fat)
     ("breakfast", time(7), {"rice": .30, "meat": .20, "veg": 0, "fruit": .25, "fat": .20}),
@@ -212,8 +218,9 @@ def candidates(tpl, codes, allergens):
 
 def suggested_kcal(rel, key=None):
     """The plan's starting kcal: the latest finalized NCP prescription, else the
-    latest draft's, else the screening TER (minus 500 kcal, min 1,200, for
-    weight management; plus 500 kcal for weight gain)."""
+    latest draft's, else the screening TER (weight management: minus 500 kcal
+    or 20%, whichever is smaller, min 1,200 only for a TER above 1,500; weight
+    gain: plus 500 kcal)."""
     from clinical.models import NcpRecord, PreConsultationScreening
 
     recs = NcpRecord.objects.filter(relationship=rel, target_kcal__isnull=False).order_by("-encounter_date", "-created_at")
@@ -224,9 +231,16 @@ def suggested_kcal(rel, key=None):
     if s and s.tdee_kcal:
         tdee = float(s.tdee_kcal)
         adjust = KCAL_ADJUST.get(key, 0)
+        if adjust < 0:
+            cut = min(-adjust, tdee * MAX_CUT_PCT)
+            value = round((tdee - cut) / 50) * 50
+            if tdee > FLOOR_FROM_TER:
+                value = max(FLOOR_KCAL, value)
+            value = max(MIN_KCAL, min(MAX_KCAL, value))
+            return {"value": int(value), "source": f"screening TER − {round(cut / 50) * 50:.0f} kcal"}
         if adjust:
-            value = max(1200, min(MAX_KCAL, round((tdee + adjust) / 50) * 50))
-            return {"value": int(value), "source": f"screening TER {'+' if adjust > 0 else '−'} {abs(adjust)} kcal"}
+            value = max(MIN_KCAL, min(MAX_KCAL, round((tdee + adjust) / 50) * 50))
+            return {"value": int(value), "source": f"screening TER + {adjust} kcal"}
         return {"value": int(round(tdee / 50) * 50), "source": "screening TER"}
     return {"value": 1800, "source": "default — no NCP target or screening yet"}
 

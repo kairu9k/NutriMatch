@@ -292,9 +292,8 @@ function ageFromDob(dob) {
 
 // All calculations happen server-side (clinical/services.py). The symptom
 // boxes map onto the backend's NRS-2002 inputs: poor appetite -> reduced
-// intake; elevated glucose / recent hospitalization -> disease severity.
-// Weight loss is derived by the backend from screening history, so that box
-// is recorded in `symptoms` for the RND but doesn't change the score.
+// intake and unintended weight loss -> nutritional status (grade 1); elevated
+// glucose / recent hospitalization -> disease severity.
 async function handleCompute() {
   if (!canCompute.value) return
   isSubmitting.value = true
@@ -309,6 +308,7 @@ async function handleCompute() {
       activity_level: form.activityLevel,
       // NRS-2002 inputs come only from the "GENERAL" symptoms (unchanged scoring).
       reduced_intake: !!form.symptoms['Poor appetite'],
+      reported_weight_loss: !!form.symptoms['Unintended weight loss'],
       has_chronic_illness: !!(form.symptoms['Elevated blood glucose'] || form.symptoms['Recent hospitalization']),
       symptoms: checked.length ? checked.join(', ') : undefined,
     })
@@ -422,7 +422,7 @@ const explanation = computed(() => {
     what: 'A standard hospital screening that checks your risk of malnutrition. It looks at your BMI, any weight lost since your last screening, a poor appetite, and health conditions like high blood sugar or a recent hospital stay.',
     formula: [
       { main: 'NRS-2002 score = nutritional status points + disease severity points' },
-      { main: 'Nutritional status (highest that applies):', sub: 'BMI below 18.5 = 3, weight loss of 5% or more = 2, poor appetite = 1' },
+      { main: 'Nutritional status (highest that applies):', sub: 'BMI below 18.5 = 3, weight loss of 5% or more since your last screening = 2, unintended weight loss or poor appetite = 1' },
       { main: 'Disease severity:', sub: 'elevated blood glucose or recent hospitalization = 1' },
     ],
     yours: `a score of ${r.nrs_score ?? '—'}, ${nrsRiskLabel.value || 'not scored'}.`,

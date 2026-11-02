@@ -17,6 +17,7 @@ class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.Mo
     history, not self-reported."""
 
     reduced_intake = serializers.BooleanField(write_only=True, required=False, default=False)
+    reported_weight_loss = serializers.BooleanField(write_only=True, required=False, default=False)
     has_chronic_illness = serializers.BooleanField(write_only=True, required=False, default=False)
     # Optional inputs, not stored here. `sex` is the fallback for the BMR
     # when the profile has none; `age` is still accepted from the form but no
@@ -56,7 +57,7 @@ class PreConsultationScreeningSerializer(NonNegativeNumbersMixin, serializers.Mo
         fields = [
             "id", "appointment", "height_cm", "weight_kg", "bmi", "bmi_category",
             "bmr_kcal", "bmr_note", "tdee_kcal", "activity_level", "nrs_score", "nrs_risk",
-            "reduced_intake", "has_chronic_illness", "age", "sex", "symptoms", "created_at",
+            "reduced_intake", "reported_weight_loss", "has_chronic_illness", "age", "sex", "symptoms", "created_at",
         ]
         read_only_fields = ["bmi", "bmi_category", "bmr_kcal", "tdee_kcal", "nrs_score", "nrs_risk"]
 

@@ -94,12 +94,25 @@ class DietTemplateTests(TestCase):
 
     def test_weight_management_default_deficit(self):
         resp = self.api.post(self.url, {"template": "weight_management"}, format="json")
-        self.assertEqual(MealPlan.objects.get(pk=resp.data["id"]).target_kcal, Decimal("1600"))  # 2100 − 500
+        # 2100 − min(500, 20% = 420) = 1680 → 1700
+        self.assertEqual(MealPlan.objects.get(pk=resp.data["id"]).target_kcal, Decimal("1700"))
+
+    def test_weight_management_cut_for_a_small_ter(self):
+        from nutrition.plan_templates import suggested_kcal
+
+        from clinical.models import PreConsultationScreening
+
+        PreConsultationScreening.objects.filter(client=self.c).update(tdee_kcal=Decimal("1000"))
+        # 1000 − 20% = 800 (no 1,200 floor below a 1,500 TER: it used to plan 1,200, above the TER)
+        self.assertEqual(suggested_kcal(self.rel, "weight_management")["value"], 800)
+        PreConsultationScreening.objects.filter(client=self.c).update(tdee_kcal=Decimal("1550"))
+        # 1550 − 310 = 1240 → 1250, above the 1,200 floor
+        self.assertEqual(suggested_kcal(self.rel, "weight_management")["value"], 1250)
 
     def test_weight_gain_default_surplus_and_snacks(self):
         data = self.api.get(f"/api/rnd/relationships/{self.rel.id}/meal-plan-templates/").data
         by_key = {t["key"]: t["suggested_kcal"]["value"] for t in data["templates"]}
-        self.assertEqual((by_key["weight_gain"], by_key["weight_management"], by_key["general"]), (2600, 1600, 2100))
+        self.assertEqual((by_key["weight_gain"], by_key["weight_management"], by_key["general"]), (2600, 1700, 2100))
         resp = self.api.post(self.url, {"template": "weight_gain"}, format="json")
         plan = MealPlan.objects.get(pk=resp.data["id"])
         self.assertEqual(plan.target_kcal, Decimal("2600"))  # 2100 + 500

@@ -104,6 +104,12 @@ class CalculationEngineTests(TestCase):
         score, risk = calculate_nrs2002(bmi=Decimal("22"))
         self.assertEqual((score, risk), (0, "no_risk"))
 
+    def test_nrs2002_reported_weight_loss_counts(self):
+        # the "Unintended weight loss" box: grade 1, like poor appetite (not added on top)
+        self.assertEqual(calculate_nrs2002(bmi=Decimal("22"), reported_weight_loss=True)[0], 1)
+        self.assertEqual(calculate_nrs2002(bmi=Decimal("22"), reported_weight_loss=True, reduced_intake=True)[0], 1)
+        self.assertEqual(calculate_nrs2002(bmi=Decimal("22"), reported_weight_loss=True, severity_of_disease_points=2), (3, "at_risk"))
+
     def test_nrs2002_underweight_scores_high(self):
         score, risk = calculate_nrs2002(bmi=Decimal("17"))
         self.assertEqual((score, risk), (3, "at_risk"))

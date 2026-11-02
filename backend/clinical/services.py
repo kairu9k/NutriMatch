@@ -133,7 +133,7 @@ def macro_grams(ter_kcal: Decimal, pct: dict | None = None) -> dict:
 
 
 def calculate_nrs2002(bmi: Decimal, weight_loss_pct: Decimal | None = None, reduced_intake: bool = False,
-                        severity_of_disease_points: int = 0) -> tuple[int, str]:
+                        severity_of_disease_points: int = 0, reported_weight_loss: bool = False) -> tuple[int, str]:
     """Adapted NRS-2002 nutritional risk score.
 
     Simplified scoring against the fields this system actually captures:
@@ -145,7 +145,10 @@ def calculate_nrs2002(bmi: Decimal, weight_loss_pct: Decimal | None = None, redu
         nutritional_score = 3
     elif weight_loss_pct is not None and weight_loss_pct >= Decimal("5"):
         nutritional_score = 2
-    elif reduced_intake:
+    elif reduced_intake or reported_weight_loss:
+        # reported_weight_loss: the client ticked "Unintended weight loss"
+        # (2026-11-02; it used to change nothing): NRS-2002 grade 1, weight
+        # loss > 5% in 3 months, the mildest weight-loss grade
         nutritional_score = 1
 
     total = nutritional_score + severity_of_disease_points

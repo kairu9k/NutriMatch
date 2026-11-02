@@ -98,6 +98,7 @@ class ScreeningCreateView(generics.ListCreateAPIView):
             weight_loss_pct=weight_loss_pct,
             reduced_intake=serializer.validated_data.pop("reduced_intake", False),
             severity_of_disease_points=1 if serializer.validated_data.pop("has_chronic_illness", False) else 0,
+            reported_weight_loss=serializer.validated_data.pop("reported_weight_loss", False),
         )
 
         screening = serializer.save(
