@@ -68,12 +68,14 @@ def build_patient_summary(rnd, rel_id, now=None):
     draft = next((r for r in recs if r.status == NcpRecord.Status.DRAFT), None)
 
     plans = care.plans.get(rel.id, [])
-    plan = care.active_plans.get(rel.id) or next((p for p in plans if p.status == MealPlan.Status.DRAFT), None)
+    plan = care.active_plans.get(rel.id)
     if plan is None and rel.status != rel.Status.ACTIVE:
         # discharged care: its plan was archived on discharge, so show the last one
-        # sent instead of "No meal plan yet" (2026-11-02)
+        # sent (not a leftover draft, and not "No meal plan yet"; 2026-11-02)
         plan = (MealPlan.objects.filter(relationship=rel, status=MealPlan.Status.ARCHIVED, first_sent_at__isnull=False)
                 .prefetch_related("meals").order_by("-sent_at", "-id").first())
+    if plan is None:
+        plan = next((p for p in plans if p.status == MealPlan.Status.DRAFT), None)
     meal_plan = None
     if plan:
         meals = list(plan.meals.all())

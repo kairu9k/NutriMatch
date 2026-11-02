@@ -89,6 +89,8 @@ class PatientSummaryTests(TestCase):
                                 first_sent_at=now - timedelta(days=20))
         MealPlan.objects.create(relationship=self.rel, name="Last plan", status="archived", sent_at=now - timedelta(days=2),
                                 first_sent_at=now - timedelta(days=8))
+        MealPlan.objects.create(relationship=self.rel, name="Leftover draft", status="draft")  # never sent
         RndClientRelationship.objects.filter(pk=self.rel.pk).update(status="discharged", ended_at=now)
         data = self.api.get(f"/api/rnd/relationships/{self.rel.id}/summary/").data
         self.assertEqual((data["meal_plan"]["name"], data["meal_plan"]["status"]), ("Last plan", "archived"))
+        self.assertEqual(data["patient"]["stage"]["meal_plan"], "active")  # the care process says Sent

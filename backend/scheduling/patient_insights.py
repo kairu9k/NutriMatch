@@ -201,6 +201,8 @@ class CareData:
         plans = self.plans.get(rel.id, [])
         active_plan = self.active_plans.get(rel.id)
         draft_plan = next((p for p in plans if p.status == "draft"), None)
+        if not active_plan and rel.status != rel.Status.ACTIVE and any(p.first_sent_at for p in plans):
+            active_plan = True  # care ended: its sent plan was archived on discharge, it still counts as sent
         has_intervention = bool(finalized and (finalized[0].diet_prescription or "").strip()) or \
             bool(recs and (recs[0].diet_prescription or "").strip())
         stage = {
