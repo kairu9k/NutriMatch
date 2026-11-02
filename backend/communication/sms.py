@@ -78,7 +78,10 @@ def send_sms(raw_number, text):
     except httpx.HTTPStatusError as exc:
         # e.g. 403 while the Semaphore account is pending / has no credit:
         # keep the text in the log so it can still be shown what was sent.
-        logger.warning("Semaphore refused the SMS (HTTP %s) to %s: %s", exc.response.status_code, mask_mobile(number), message)
+        # Semaphore says why in the body, e.g. "No active sender name found" (HTTP 500)
+        reason = exc.response.text[:300].replace(api_key, "***")
+        logger.warning("Semaphore refused the SMS (HTTP %s) to %s: %s | Semaphore said: %s",
+                       exc.response.status_code, mask_mobile(number), message, reason)
         return False
     except Exception:
         logger.exception("Could not send SMS to %s: %s", mask_mobile(number), message)
