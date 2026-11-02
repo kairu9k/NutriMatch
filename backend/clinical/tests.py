@@ -250,6 +250,22 @@ class ScreeningViewTests(TestCase):
         resp = self.client_api.get("/api/client/screening/latest/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["weight_kg"], "68.00")
+        self.assertIsNone(resp.data["rnd_update"])
+
+    def test_latest_screening_carries_the_rnds_newer_numbers(self):
+        from accounts.models import User as U
+        from core.test_utils import approve_rnd
+        from scheduling.models import RndClientRelationship
+
+        self.client_api.force_authenticate(self.client_user)
+        PreConsultationScreening.objects.create(client=self.client_user, height_cm=160, weight_kg=70)
+        rnd = approve_rnd(U.objects.create_user(email="ru@t.ph", password="x", role="rnd", first_name="Maria", last_name="S"))
+        rel = RndClientRelationship.objects.create(rnd=rnd, client=self.client_user, status="active")
+        NcpRecord.objects.create(relationship=rel, encounter_date="2026-11-01", status="draft", height_cm=150, weight_kg=60, target_kcal=1400)
+        self.assertIsNone(self.client_api.get("/api/client/screening/latest/").data["rnd_update"])  # drafts never show
+        NcpRecord.objects.create(relationship=rel, encounter_date="2026-11-02", status="completed", height_cm=150, weight_kg=62, target_kcal=1600)
+        upd = self.client_api.get("/api/client/screening/latest/").data["rnd_update"]
+        self.assertEqual((upd["height_cm"], upd["weight_kg"], upd["target_kcal"]), (150.0, 62.0, 1600.0))
 
     def test_latest_screening_404_when_none_exist(self):
         self.client_api.force_authenticate(self.client_user)

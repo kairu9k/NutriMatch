@@ -125,6 +125,21 @@ class LatestScreeningView(generics.RetrieveAPIView):
             raise NotFound("No screening on file yet.")
         return obj
 
+    def retrieve(self, request, *args, **kwargs):
+        """Adds `rnd_update`: what the RND measured and prescribed in the
+        latest finalized NCP record (2026-11-02). The screening stays the
+        locked baseline; this tells the client their newer numbers."""
+        resp = super().retrieve(request, *args, **kwargs)
+        rec = (NcpRecord.objects.filter(relationship__client=request.user, status=NcpRecord.Status.COMPLETED)
+               .select_related("relationship__rnd").order_by("-encounter_date", "-created_at").first())
+        resp.data["rnd_update"] = {
+            "date": rec.encounter_date, "rnd_name": rec.relationship.rnd.full_name,
+            "height_cm": float(rec.height_cm) if rec.height_cm is not None else None,
+            "weight_kg": float(rec.weight_kg) if rec.weight_kg is not None else None,
+            "target_kcal": float(rec.target_kcal) if rec.target_kcal is not None else None,
+        } if rec else None
+        return resp
+
 
 class ScreeningDetailView(generics.RetrieveAPIView):
     serializer_class = PreConsultationScreeningSerializer

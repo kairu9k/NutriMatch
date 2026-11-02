@@ -604,6 +604,12 @@ const calorieTarget = computed(() => {
   if (activePlan.value?.target_kcal) {
     return { value: Math.round(Number(activePlan.value.target_kcal)), label: 'Daily calorie target', note: 'Set by your RND in your meal plan' }
   }
+  // no plan yet, but the RND has set a target in a finalized NCP record (newer than the screening)
+  const upd = screening.value?.rnd_update
+  if (upd?.target_kcal) {
+    const when = new Date(`${upd.date}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+    return { value: Math.round(Number(upd.target_kcal)), label: 'Daily calorie target', note: `Set by your RND on ${when}` }
+  }
   if (screening.value?.tdee_kcal) {
     return { value: Math.round(Number(screening.value.tdee_kcal)), label: 'Estimated daily needs (TER)', note: 'Your RND sets your actual target' }
   }

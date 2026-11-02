@@ -19,6 +19,8 @@
           <div><dt>Activity</dt><dd>{{ ACTIVITY_LABELS[form.activityLevel] || '—' }}</dd></div>
         </dl>
         <p class="sum-symptoms"><strong>Symptoms:</strong> {{ savedSymptoms.length ? savedSymptoms.join(', ') : 'None reported' }}</p>
+        <!-- newer numbers from the RND (latest finalized NCP record); the screening itself stays the baseline -->
+        <p v-if="rndUpdateText" class="rnd-update"><Info :size="14" aria-hidden="true" /> <span>{{ rndUpdateText }}</span></p>
       </template>
 
       <fieldset v-else class="form-set">
@@ -273,6 +275,20 @@ const canCompute = computed(() =>
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const result = ref(null)
+const rndUpdate = ref(null)
+// "At your consultation on Nov 2, RND Maria Santos measured 150 cm and 62 kg, and set your daily target at 1,600 kcal."
+const rndUpdateText = computed(() => {
+  const u = rndUpdate.value
+  if (!u) return ''
+  const parts = []
+  if (u.height_cm != null) parts.push(`${Number(u.height_cm)} cm`)
+  if (u.weight_kg != null) parts.push(`${Number(u.weight_kg)} kg`)
+  const when = new Date(`${u.date}T00:00:00`).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
+  const measured = parts.length ? ` measured ${parts.join(' and ')}` : ''
+  const target = u.target_kcal ? `${measured ? ', and' : ''} set your daily target at ${Math.round(u.target_kcal).toLocaleString('en-PH')} kcal` : ''
+  if (!measured && !target) return ''
+  return `At your consultation on ${when}, RND ${u.rnd_name}${measured}${target}. Those are your current numbers; this screening stays as your starting point.`
+})
 const hasActiveRnd = ref(false)
 // A screening already on file is shown read-only (the API refuses a second one).
 const onFile = ref(false)
@@ -456,6 +472,7 @@ onMounted(async () => {
     form.sex = profile.sex
     sexFromProfile.value = true
   }
+  rndUpdate.value = latest?.rnd_update || null
   if (latest) {
     form.height = Number(latest.height_cm)
     form.weight = Number(latest.weight_kg)
@@ -480,6 +497,8 @@ onMounted(async () => {
 .screening-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
 .screening-sub { font-size: 0.87rem; color: #9aaa9a; margin: 0 0 24px; }
 /* on file: a short read-only summary */
+.rnd-update { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; padding: 10px 12px; font-size: 0.84rem; line-height: 1.45; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; }
+.rnd-update svg { flex-shrink: 0; margin-top: 2px; color: #0a4a37; }
 .sum-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0 0 12px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
 .sum-strip > div { display: flex; flex-direction: column-reverse; gap: 2px; padding: 10px 14px; border-left: 1px solid #d9e3dc; min-width: 0; }
 .sum-strip > div:first-child { border-left: none; }
