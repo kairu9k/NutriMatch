@@ -21,6 +21,7 @@ from rest_framework.views import APIView
 from accounts.permissions import IsRnd
 
 from .models import RndTimeOff
+from .hours import end_datetime, end_minutes, start_minutes
 
 MAX_BLOCK_DAYS = 90
 
@@ -57,9 +58,11 @@ class RndTimeOffSerializer(serializers.ModelSerializer):
         if (t1 is None) != (t2 is None):
             raise serializers.ValidationError({"end_time": ["Give both a start and an end time, or block the whole day."]})
         if t1 is not None:
-            if t2 <= t1:
+            from .hours import end_minutes, start_minutes
+
+            if end_minutes(t2) <= start_minutes(t1):  # 12:00 AM = midnight at the end of the day
                 raise serializers.ValidationError({"end_time": ["The end time must be after the start time."]})
-            if (datetime.combine(start, t2) - datetime.combine(start, t1)) < timedelta(hours=1):
+            if end_minutes(t2) - start_minutes(t1) < 60:
                 raise serializers.ValidationError({"end_time": ["Block at least 1 hour."]})
         rnd = self.context.get("rnd")
         if rnd is not None:
@@ -100,7 +103,8 @@ def outside_working_hours(rnd_id, start, end, t1=None, t2=None):
     day = start
     while day <= end:
         blocks = hours_on(day)
-        if blocks and (t1 is None or any(b.start_time < t2 and b.end_time > t1 for b in blocks)):
+        if blocks and (t1 is None or any(start_minutes(b.start_time) < end_minutes(t2) and end_minutes(b.end_time) > start_minutes(t1)
+                                         for b in blocks)):
             return None
         day += timedelta(days=1)
 
@@ -124,7 +128,7 @@ def block_window(block):
     if block.whole_day:
         hi = datetime.combine(block.end_date, time(0), tzinfo=ph) + timedelta(days=1)
     else:
-        hi = datetime.combine(block.end_date, block.end_time, tzinfo=ph)
+        hi = end_datetime(block.end_date, block.end_time, ph)
     return lo, hi
 
 

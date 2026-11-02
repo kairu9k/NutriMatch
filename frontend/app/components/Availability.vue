@@ -195,17 +195,20 @@ function formatTime(t) {
 // Every block must be at least 1 hour, like at sign-up.
 const MIN_BLOCK_MINUTES = 60
 const toMinutes = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+// An END time of 12:00 AM means midnight at the end of the day (profiles/hours.py):
+// compare it as "24:00" so "10 PM to 12 AM" works.
+const endKey = t => (t && t.slice(0, 5) === '00:00' ? '24:00' : (t || '').slice(0, 5))
 
 function rangeError(start, end) {
   if (!start || !end) return 'Pick a start and end time.'
-  if (end <= start) return 'End time must be after start time.'
-  if (toMinutes(end) - toMinutes(start) < MIN_BLOCK_MINUTES) return 'Hours must be at least 1 hour long.'
+  if (endKey(end) <= start) return 'End time must be after start time.'
+  if (toMinutes(endKey(end)) - toMinutes(start) < MIN_BLOCK_MINUTES) return 'Hours must be at least 1 hour long.'
   return ''
 }
 
 const overlapsDay = (dayIndex, [a, b], exceptId = null) => slots.value.some(s =>
   s.day_of_week === dayIndex && s.id !== exceptId
-  && a < s.end_time.slice(0, 5) && b > s.start_time.slice(0, 5))
+  && a < endKey(s.end_time) && endKey(b) > s.start_time.slice(0, 5))
 
 function createSlot(dayIndex, [start, end]) {
   return post('/rnd/availability/', {
@@ -364,7 +367,7 @@ const blockRuleError = computed(() => {
   const to = b.to && b.to > b.from ? b.to : b.from
   const covers = iso => {
     const hours = hoursOn(iso)
-    return hours.length && (b.wholeDay || hours.some(s => s.start_time.slice(0, 5) < b.endTime && s.end_time.slice(0, 5) > b.startTime))
+    return hours.length && (b.wholeDay || hours.some(s => s.start_time.slice(0, 5) < endKey(b.endTime) && endKey(s.end_time) > b.startTime))
   }
   const d = new Date(b.from + 'T00:00:00')
   for (let i = 0; i < 90; i++) {

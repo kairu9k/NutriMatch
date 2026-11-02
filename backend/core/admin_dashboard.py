@@ -204,7 +204,9 @@ def _overview(now):
         rnd_id__in=bookable_users, is_available=True, effective_from__lte=week_end,
     ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
     for b in blocks:
-        weekly_minutes += max(0, (b.end_time.hour * 60 + b.end_time.minute) - (b.start_time.hour * 60 + b.start_time.minute))
+        from profiles.hours import end_minutes, start_minutes
+
+        weekly_minutes += max(0, end_minutes(b.end_time) - start_minutes(b.start_time))
     booked_minutes = sum(
         a.duration_minutes or 60 for a in Appointment.objects.filter(
             relationship__rnd_id__in=bookable_users, status__in=["pending", "confirmed"],

@@ -24,7 +24,9 @@ def _covered(appt, blocks, tz):
             continue
         if getattr(b, "effective_to", None) and b.effective_to < day:
             continue
-        if b.start_time <= start.time() and end.time() <= b.end_time:
+        from .hours import covers
+
+        if covers(b.start_time, b.end_time, start, end):
             return True
     return False
 

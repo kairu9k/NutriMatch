@@ -588,7 +588,7 @@ function slotsForDate(iso) {
   const seen = new Set()
   const slots = []
   for (const s of scheduleForDate(date)) {
-    const end = toMinutes(s.end_time)
+    const end = s.end_time.slice(0, 5) === '00:00' ? 24 * 60 : toMinutes(s.end_time) // 12:00 AM = end of the day
     for (let start = toMinutes(s.start_time); start + SESSION_MINUTES <= end; start += SLOT_STEP_MINUTES) {
       if (isToday && start < nowMinutes + MIN_LEAD_MINUTES) continue
       const h = Math.floor(start / 60)

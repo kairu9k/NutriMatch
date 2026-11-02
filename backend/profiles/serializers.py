@@ -53,7 +53,10 @@ class RndAvailabilityScheduleSerializer(serializers.ModelSerializer):
         # other value so a partial update can't accidentally bypass this.
         start = attrs.get("start_time", getattr(self.instance, "start_time", None))
         end = attrs.get("end_time", getattr(self.instance, "end_time", None))
-        if start is not None and end is not None and end <= start:
+        from .hours import end_minutes, start_minutes
+
+        # 12:00 AM as the end means midnight at the end of the day (profiles/hours.py)
+        if start is not None and end is not None and end_minutes(end) <= start_minutes(start):
             raise serializers.ValidationError("End time must be after start time.")
         return attrs
 

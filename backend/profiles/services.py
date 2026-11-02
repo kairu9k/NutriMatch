@@ -173,7 +173,9 @@ def time_off_intervals(rnd_id, start, end):
                 hi = lo + timedelta(days=1)
             else:
                 lo = datetime.combine(day, block.start_time, tzinfo=ph)
-                hi = datetime.combine(day, block.end_time, tzinfo=ph)
+                from .hours import end_datetime
+
+                hi = end_datetime(day, block.end_time, ph)
             if lo < end and hi > start:
                 out.append((lo, hi))
             day += timedelta(days=1)

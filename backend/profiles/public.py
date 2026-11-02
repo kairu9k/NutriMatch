@@ -13,6 +13,7 @@ from rest_framework import serializers
 from scheduling.models import Appointment, Review, RndClientRelationship
 
 from .models import LANGUAGES, RND_SPECIALIZATIONS, RndProfile
+from .hours import end_datetime
 
 # Same session length as the booking pop-up (RndProfileView.vue); the slot step
 # (SLOT_STEP_MINUTES, hourly) lives with the booking rules in scheduling/serializers.py.
@@ -61,7 +62,7 @@ def next_open_slots(rnd_id, count=3, now=None):
             if b.day_of_week != dow or b.effective_from > day or (b.effective_to and b.effective_to < day):
                 continue
             start = datetime.combine(day, b.start_time, tzinfo=ph)
-            block_end = datetime.combine(day, b.end_time, tzinfo=ph)
+            block_end = end_datetime(day, b.end_time, ph)  # 12:00 AM = end of the day
             while start + timedelta(minutes=SESSION_MINUTES) <= block_end:
                 starts.add(start)
                 start += timedelta(minutes=SLOT_STEP_MINUTES)

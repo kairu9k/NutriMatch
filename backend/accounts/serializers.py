@@ -404,14 +404,16 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
                 raise serializers.ValidationError("Each availability block needs a day, a start time and an end time.")
             if not 0 <= day <= 6:
                 raise serializers.ValidationError("Invalid day of the week.")
-            minutes = (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+            from profiles.hours import end_minutes, start_minutes
+
+            minutes = end_minutes(end) - start_minutes(start)  # 12:00 AM end = midnight
             if minutes < 60:
                 raise serializers.ValidationError("Each availability block must be at least 1 hour long (one consultation).")
             blocks.append((day, start, end))
         for day in range(7):
             same_day = sorted((b for b in blocks if b[0] == day), key=lambda b: b[1])
             for prev, nxt in zip(same_day, same_day[1:]):
-                if nxt[1] < prev[2]:
+                if start_minutes(nxt[1]) < end_minutes(prev[2]):
                     raise serializers.ValidationError("Two availability blocks on the same day overlap.")
         return blocks
 

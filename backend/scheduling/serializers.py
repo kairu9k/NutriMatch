@@ -166,8 +166,12 @@ def fits_rnd_availability(rnd_id, start, end):
     schedules = RndAvailabilitySchedule.objects.filter(rnd_id=rnd_id, is_available=True)
     if not schedules.exists():
         return True
+    from profiles.hours import covers
+
     local_start, local_end = start.astimezone(PH_TZ), end.astimezone(PH_TZ)
-    if local_start.date() != local_end.date():
+    # may end exactly at midnight (a block ending 12:00 AM), never later
+    end_of_day = local_start.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    if local_end > end_of_day:
         return False
     day = local_start.date()
     weekday = (day.weekday() + 1) % 7  # Python Monday=0 -> model Sunday=0
@@ -176,7 +180,7 @@ def fits_rnd_availability(rnd_id, start, end):
             continue
         if block.effective_to and block.effective_to < day:
             continue
-        if block.start_time <= local_start.time() and local_end.time() <= block.end_time:
+        if covers(block.start_time, block.end_time, local_start, local_end):
             offset = (local_start.hour * 60 + local_start.minute) - (block.start_time.hour * 60 + block.start_time.minute)
             if offset % SLOT_STEP_MINUTES == 0 and local_start.second == 0:
                 return True
