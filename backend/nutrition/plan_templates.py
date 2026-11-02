@@ -272,14 +272,27 @@ def build_plan_from_template(rel, key, kcal):
                         continue
                     item = pool[(d + si * 2) % len(pool)]
                     cat = item.category
+                    measure = portion_label(item.household_measure, ex)
                     MealPlanFoodItem.objects.create(
                         meal_plan_meal=meal, food_item=item, food_name=item.name,
-                        source_type=MealPlanFoodItem.SourceType.FEL, exchanges=ex, household_measure=item.household_measure,
+                        source_type=MealPlanFoodItem.SourceType.FEL, exchanges=ex, household_measure=measure,
                         kcal=cat.kcal_per_exchange * ex, carbs_g=(cat.carbs_g or 0) * ex,
                         protein_g=(cat.protein_g or 0) * ex, fat_g=(cat.fat_g or 0) * ex,
                     )
                 meal.recompute_exchanges()
     return plan
+
+
+def portion_label(measure, ex):
+    """What the client reads for `ex` exchanges: "2 × ½ cup" (same as the
+    Meal Planning editor's portionLabel)."""
+    whole = int(ex)
+    frac = ex - whole
+    count = (f"{whole or ''}½" if abs(frac - Decimal("0.5")) < Decimal("0.01")
+             else f"{ex.normalize():f}" if isinstance(ex, Decimal) else str(ex))
+    if not measure:
+        return f"{count} exchange{'' if ex == 1 else 's'}"
+    return measure if ex == 1 else f"{count} × {measure}"
 
 
 # ---------------------------------------------------------------- API

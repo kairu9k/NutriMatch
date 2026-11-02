@@ -344,11 +344,25 @@
                       </template>
                     </div>
                   </div>
-                  <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
-                  <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
-                  <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
-                  <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
-                  <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
+                  <!-- An FNRI food is measured in exchanges: its numbers follow the
+                       count (like grams for USDA). A typed food keeps free numbers. -->
+                  <template v-if="item.foodItemId && fnriById[item.foodItemId]">
+                    <div class="grams-input exch-input" :title="`1 exchange = ${fnriById[item.foodItemId].household_measure || 'one FNRI exchange'}`">
+                      <input :value="item.exchanges" type="number" min="0.5" max="20" step="0.5" aria-label="Exchanges" @input="setExchanges(item, $event.target.value)" />
+                      <span>{{ item.portion || 'exch.' }}</span>
+                    </div>
+                    <input :value="item.kcal ?? ''" type="number" disabled placeholder="—" title="From the FNRI exchange list, per the number of exchanges" />
+                    <input :value="item.carb ?? ''" type="number" disabled placeholder="—" />
+                    <input :value="item.prot ?? ''" type="number" disabled placeholder="—" />
+                    <input :value="item.fat ?? ''" type="number" disabled placeholder="—" />
+                  </template>
+                  <template v-else>
+                    <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
+                    <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
+                    <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
+                    <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
+                    <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
+                  </template>
                 </template>
                 <p v-if="needsNumbers(item)" class="food-hint">Enter its calories and macros, or pick a food from the FNRI list so they fill in.</p>
                 <p v-if="itemWarnings(item).length" class="food-warn" :class="{ allergy: itemAllergyWarnings(item).length }" role="note">
@@ -1271,18 +1285,36 @@ function applyFnriMatch(item, value) {
   const match = Object.values(fnriById.value).find(f => f.name.toLowerCase() === term)
   if (match) applyFnriItem(item, match)
 }
-// Picking an FNRI food fills 1 exchange's household measure and macros from
-// its FNRI category — the RND can still adjust the numbers.
+// Picking an FNRI food starts at 1 exchange; the RND sets how many exchanges
+// and the portion and macros follow from its FNRI category (2026-11-02: they
+// used to stay at 1 exchange whatever the portion said).
 function applyFnriItem(item, match) {
-  const cat = match.category
   item.name = match.name
   item.foodItemId = match.id
-  item.exchanges = 1
-  item.portion = match.household_measure || item.portion
-  item.kcal = num(cat.kcal_per_exchange)
-  item.carb = num(cat.carbs_g)
-  item.prot = num(cat.protein_g)
-  item.fat = num(cat.fat_g)
+  setExchanges(item, 1, match)
+}
+// "½", "1½", "2" for an exchange count
+function fmtExchanges(n) {
+  const whole = Math.floor(n)
+  const half = Math.abs(n - whole - 0.5) < 0.01
+  return half ? `${whole || ''}½` : String(Math.round(n * 100) / 100)
+}
+// The portion the client reads: the FNRI household measure of one exchange, times the count.
+function portionLabel(measure, ex) {
+  if (!measure) return `${fmtExchanges(ex)} exchange${ex === 1 ? '' : 's'}`
+  return ex === 1 ? measure : `${fmtExchanges(ex)} × ${measure}`
+}
+function setExchanges(item, value, food = fnriById.value[item.foodItemId]) {
+  const ex = value === '' || value == null ? null : Math.min(20, Math.max(0, Number(value)))
+  item.exchanges = ex
+  if (!food || !ex) {
+    Object.assign(item, { kcal: null, carb: null, prot: null, fat: null })
+    return
+  }
+  const cat = food.category
+  const times = v => (v == null ? null : Math.round(num(v) * ex * 10) / 10)
+  item.portion = portionLabel(food.household_measure, ex)
+  Object.assign(item, { kcal: times(cat.kcal_per_exchange), carb: times(cat.carbs_g), prot: times(cat.protein_g), fat: times(cat.fat_g) })
 }
 
 /* ---------- Meals, totals ---------- */
@@ -1605,6 +1637,8 @@ function formatTime(t) {
 .usda-tag { display: inline-block; font-size: 0.6rem; font-weight: 700; background: #eef1f8; color: #34508a; border-radius: 5px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px; }
 .grams-input { display: flex; align-items: center; gap: 4px; }
 .grams-input span { font-size: 0.78rem; color: #6a7a6a; }
+.exch-input span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.exch-input input { max-width: 64px; }
 .add-food-row { display: flex; gap: 10px; margin: 6px 24px 22px; }
 .add-food-row .btn-add-food { flex: 1; width: auto; margin: 0; }
 .usda-btn { color: #34508a; border-color: #cfd8ea; }
