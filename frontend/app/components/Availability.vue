@@ -98,11 +98,11 @@
       <div class="block-form">
         <div class="field">
           <label for="off-from">From</label>
-          <input id="off-from" v-model="newBlock.from" type="date" :min="todayIso" />
+          <DateField id="off-from" v-model="newBlock.from" :min="todayIso" placeholder="Select date" />
         </div>
         <div class="field">
           <label for="off-to">To <span class="optional">(optional)</span></label>
-          <input id="off-to" v-model="newBlock.to" type="date" :min="newBlock.from || todayIso" />
+          <DateField id="off-to" v-model="newBlock.to" :min="newBlock.from || todayIso" clearable placeholder="Same day" />
         </div>
         <div class="field">
           <span class="field-label">Time</span>

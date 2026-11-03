@@ -58,8 +58,8 @@
     <div ref="listTop" class="nm-panel agenda-panel">
       <div class="agenda-head">
         <div class="dates">
-          <label class="date-field">From <input v-model="dateFrom" type="date" class="nm-input" /></label>
-          <label class="date-field">To <input v-model="dateTo" type="date" class="nm-input" :min="dateFrom" /></label>
+          <label class="date-field">From <DateField v-model="dateFrom" compact clearable placeholder="Any date" aria-label="From" /></label>
+          <label class="date-field">To <DateField v-model="dateTo" :min="dateFrom" compact clearable placeholder="Any date" aria-label="To" /></label>
           <button v-if="dateFrom || dateTo" type="button" class="nm-btn-soft nm-btn-sm" @click="dateFrom = ''; dateTo = ''">Clear dates</button>
         </div>
         <span class="nm-muted count">{{ loading ? 'Loading…' : `${count} appointment${count === 1 ? '' : 's'}` }}</span>
@@ -517,7 +517,6 @@ async function confirmCancel() {
 .agenda-head { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid #d9e3dc; }
 .dates { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .date-field { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
-.date-field .nm-input { width: auto; padding: 8px 10px; }
 
 .day + .day { margin-top: 6px; }
 .day-title {
@@ -593,7 +592,7 @@ async function confirmCancel() {
   .appt-tools .nm-select { flex: 1; }
   .dates { width: 100%; }
   .date-field { flex: 1; }
-  .date-field .nm-input { flex: 1; min-width: 0; }
+  .date-field :deep(.df-trigger) { flex: 1; min-width: 0; }
   .people { grid-template-columns: 1fr; }
   .fig { padding: 12px 14px; }
   .fig strong { font-size: 1.35rem; }

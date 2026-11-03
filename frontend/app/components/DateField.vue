@@ -5,7 +5,7 @@
   <PopoverRoot v-model:open="open">
     <PopoverTrigger as-child>
       <button
-        :id="id" type="button" class="df-trigger" :class="{ invalid, empty: !value }"
+        :id="id" type="button" class="df-trigger" :class="{ invalid, empty: !value, compact }"
         :disabled="disabled" :aria-invalid="invalid || undefined" :aria-label="ariaLabel || undefined"
       >
         <span class="df-text">{{ display || placeholder }}</span>
@@ -54,6 +54,10 @@
             </CalendarGridBody>
           </CalendarGrid>
         </CalendarRoot>
+        <!-- optional dates (filters, an end date) can be emptied again -->
+        <div v-if="clearable && value" class="df-foot">
+          <button type="button" class="df-clear" @click="clear">Clear date</button>
+        </div>
       </PopoverContent>
     </PopoverPortal>
   </PopoverRoot>
@@ -77,6 +81,8 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   id: { type: String, default: undefined },
   ariaLabel: { type: String, default: '' },
+  compact: { type: Boolean, default: false }, // smaller, for filter bars
+  clearable: { type: Boolean, default: false }, // shows "Clear date" in the pop-up
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -101,6 +107,11 @@ watch(open, (o) => { if (o) view.value = startView() })
 function pick(d) {
   if (!d) return
   emit('update:modelValue', d.toString())
+  open.value = false
+}
+
+function clear() {
+  emit('update:modelValue', '')
   open.value = false
 }
 
@@ -148,6 +159,7 @@ const display = computed(() => {
 .df-trigger.invalid { border-color: #e2a39b; background: #fff8f7; }
 .df-trigger:disabled { background: #f4f6f4; color: #6a7a6a; cursor: not-allowed; }
 .df-icon { color: #3f6b55; flex-shrink: 0; }
+.df-trigger.compact { width: auto; min-width: 158px; min-height: 36px; padding: 6px 10px; font-size: 0.85rem; }
 .df-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* the pop-up: the booking calendar's look */
@@ -180,5 +192,11 @@ const display = computed(() => {
 .df-day[data-outside-view] { color: #b5c0b8; }
 .df-day[data-disabled], .df-day[data-unavailable] { color: #cdd5cf; cursor: not-allowed; }
 .df-day[data-highlighted]:not([data-selected]), .df-day:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.df-foot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid #d9e3dc; }
+.df-clear {
+  min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37;
+  font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.df-clear:hover { background: #d3e7da; }
 @media (max-width: 380px) { .df-day { width: 32px; height: 32px; } }
 </style>

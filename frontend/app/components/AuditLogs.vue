@@ -26,8 +26,8 @@
         <div class="nm-tabs quick-ranges" role="group" aria-label="Date range">
           <button v-for="r in RANGES" :key="r.label" type="button" class="nm-tab" :class="{ active: activeRange === r.label }" @click="setRange(r)">{{ r.label }}</button>
         </div>
-        <label class="date-field">From <input v-model="dateFrom" type="date" class="nm-input" :max="dateTo || today" /></label>
-        <label class="date-field">To <input v-model="dateTo" type="date" class="nm-input" :min="dateFrom" :max="today" /></label>
+        <label class="date-field">From <DateField v-model="dateFrom" :max="dateTo || today" compact clearable placeholder="Any date" aria-label="From" /></label>
+        <label class="date-field">To <DateField v-model="dateTo" :min="dateFrom" :max="today" compact clearable placeholder="Any date" aria-label="To" /></label>
         <label class="admin-only"><input v-model="adminOnly" type="checkbox" /> Admin actions only</label>
       </div>
     </div>
@@ -360,7 +360,6 @@ function toneOf(a) {
 .filter-row .nm-search { max-width: none; flex: 1; min-width: 220px; }
 .filter-row .nm-select { width: auto; min-width: 200px; }
 .date-field { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
-.date-field .nm-input { width: auto; padding: 8px 10px; }
 .admin-only { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #2a3a2a; cursor: pointer; margin-left: auto; }
 .admin-only input { accent-color: #0a4a37; }
 
@@ -413,7 +412,7 @@ function toneOf(a) {
   .quick-ranges { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 12px; }
   .quick-ranges .nm-tab { justify-content: center; padding: 7px 4px; }
   .date-field { flex: 1 1 100%; }
-  .date-field .nm-input { flex: 1; min-width: 0; }
+  .date-field :deep(.df-trigger) { flex: 1; min-width: 0; }
   .admin-only { margin-left: 0; width: 100%; }
   .entry { grid-template-columns: 30px minmax(0, 1fr); row-gap: 2px; }
   .entry-time { grid-column: 2; grid-row: 2; padding-top: 0; font-weight: 500; color: #8a9a8a; }

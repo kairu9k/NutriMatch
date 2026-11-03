@@ -6,9 +6,9 @@
           <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
         </select>
         <template v-if="period === 'custom'">
-          <input v-model="from" type="date" class="nm-input date" aria-label="From" />
+          <DateField v-model="from" :max="to || todayIso" compact placeholder="Start date" aria-label="From" />
           <span class="to">to</span>
-          <input v-model="to" type="date" class="nm-input date" aria-label="To" />
+          <DateField v-model="to" :min="from" :max="todayIso" compact placeholder="End date" aria-label="To" />
         </template>
       </div>
       <div class="exports">
@@ -210,6 +210,7 @@ const PERIODS = [
 ]
 // all time first (user's call, 2026-10-26); a narrower period is one pick away
 const period = ref('all')
+const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
 const from = ref('')
 const to = ref('')
 const r = ref(null)
@@ -343,7 +344,7 @@ function downloadCsv() {
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .period { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .period .nm-select { min-width: 180px; }
-.date { width: 160px; min-height: 42px; }
+.period :deep(.df-trigger) { min-height: 42px; }
 .to { font-size: 0.82rem; color: #6a7a6a; }
 .exports { display: flex; gap: 8px; }
 .tab-row { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
@@ -375,7 +376,7 @@ function downloadCsv() {
   .bar { display: inline-block; width: 120px; vertical-align: middle; margin: 0 6px 0 0; }
   .toolbar, .period { align-items: stretch; }
   .period { width: 100%; }
-  .period .nm-select, .date { flex: 1; min-width: 0; width: auto; }
+  .period .nm-select, .period :deep(.df-trigger) { flex: 1; min-width: 0; width: auto; }
   .exports { width: 100%; }
   .exports button { flex: 1; justify-content: center; }
   .nm-tabs { overflow-x: auto; flex-wrap: nowrap; }

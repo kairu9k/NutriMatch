@@ -51,7 +51,7 @@
 
         <!-- date + fasting -->
         <label class="nm-label" for="lu-date">Date the test was taken</label>
-        <input id="lu-date" v-model="takenOn" type="date" class="nm-input" :max="today" required />
+        <div class="lu-date"><DateField id="lu-date" v-model="takenOn" :max="today" :invalid="!!errors.taken_on" placeholder="Select date" /></div>
         <p v-if="errors.taken_on" class="nm-field-error">{{ errors.taken_on }}</p>
 
         <fieldset v-if="picked.includes('fbs')" class="lu-fieldset">
@@ -183,7 +183,7 @@ async function submit() {
 .lu-radios { display: flex; gap: 18px; }
 .lu-check { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #2a3a2a; cursor: pointer; }
 .lu-check input { accent-color: #00382a; width: 16px; height: 16px; }
-#lu-date { margin-bottom: 14px; }
+.lu-date { margin-bottom: 14px; }
 .nm-field-error { margin-top: 4px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (max-width: 480px) { .lu-tests { grid-template-columns: minmax(0, 1fr); } }
