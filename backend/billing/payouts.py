@@ -256,7 +256,7 @@ def send_payout_email(payout):
         heading="Your payout is on its way 💸",
         paragraphs=[
             f"We've sent your earnings for {count} consultation{'s' if count != 1 else ''} to your {method} account.",
-            "Salamat for caring for your clients on NutriMatch!",
+            "Thank you for caring for your clients on NutriMatch!",
         ],
         highlight=f"Amount: ₱{payout.amount:,.2f} · {method} {payout.account_number} · Reference: {payout.reference}",
         button_label="View my earnings", button_url=f"{_frontend()}/earnings",

@@ -51,7 +51,7 @@ def send_code_email(user, *, subject, heading, intro, code, ttl_minutes, after_c
         f"It expires in {ttl_minutes} minutes.\n\n"
         f"{after_code}\n\n"
         f"{safety_note}\n\n"
-        "Salamat,\nThe NutriMatch Team"
+        "Thank you,\nThe NutriMatch Team"
     )
     send_branded_email(
         to=user.email,
@@ -78,7 +78,7 @@ def send_notice_email(user, *, subject, heading, paragraphs, highlight="", butto
         lines += ["", highlight]
     if button_url:
         lines += ["", f"{button_label}: {button_url}"]
-    lines += ["", "Salamat,", "The NutriMatch Team"]
+    lines += ["", "Thank you,", "The NutriMatch Team"]
     send_branded_email(
         to=user.email,
         subject=subject,

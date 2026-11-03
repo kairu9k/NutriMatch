@@ -60,14 +60,14 @@ def send_client_receipt(invoice):
         "If you cancel before the session starts, your payment is refunded."
     )
     lines = [f"Hi {client.first_name},", "", f"We received your payment of {total} for {ref}.", ""]
-    lines += [f"{r['label']}: {r['value']}" for r in rows] + ["", client_note, "", "Salamat,", "The NutriMatch Team"]
+    lines += [f"{r['label']}: {r['value']}" for r in rows] + ["", client_note, "", "Thank you,", "The NutriMatch Team"]
     send_branded_email(
         to=client.email,
         subject=f"Your NutriMatch receipt — {ref} ({total})",
         template="emails/receipt.html",
         context={
             "first_name": client.first_name,
-            "heading": "Payment received — salamat!",
+            "heading": "Payment received. Thank you!",
             "intro": f"We received your payment of {total}. Here's your receipt.",
             "rows": rows, "total_label": "Total paid", "total": total, "note": client_note,
             "button_label": "View my billing", "button_url": f"{settings.FRONTEND_URL}/invoices-billing",

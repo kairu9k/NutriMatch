@@ -25,21 +25,21 @@
 
       <!-- 1. Welcome -->
       <section v-else-if="step === 'welcome'" class="card">
-        <h1 class="title">Hi {{ auth.user?.first_name }}, sobrang saya namin na nandito ka!</h1>
+        <h1 class="title">Hi {{ auth.user?.first_name }}, we're so glad you're here!</h1>
         <p class="lead">
-          Ang pag-aalaga sa kinakain mo ay isa sa pinakamagandang regalo mo sa sarili mo, at hindi mo kailangang gawin ito mag-isa.
-          Mga 3 minutes lang ito, at gagamitin ito ng RND mo para paghandaan ang first consultation mo.
+          Taking care of what you eat is one of the best gifts you can give yourself, and you don't have to do it alone.
+          This takes about 3 minutes, and your RND will use it to prepare for your first consultation.
         </p>
         <ol class="journey">
-          <li><span class="j-num">1</span><div><strong>Kilalanin ka namin</strong><p>Ang basic details at health background mo, kasama ang food allergies kung meron.</p></div></li>
-          <li><span class="j-num">2</span><div><strong>Mabilis na health screening</strong><p>Height, weight, at activity mo, para ma-estimate ang BMI at daily calorie needs mo.</p></div></li>
-          <li><span class="j-num">3</span><div><strong>Hanapin ang RND mo at mag-book</strong><p>Pumili ng licensed Registered Nutritionist-Dietitian, magbayad bago ang session, then mag-consult sa video call o in person.</p></div></li>
+          <li><span class="j-num">1</span><div><strong>Getting to know you</strong><p>Your basic details and health background, including any food allergies.</p></div></li>
+          <li><span class="j-num">2</span><div><strong>A quick health screening</strong><p>Your height, weight and activity, to estimate your BMI and daily calorie needs.</p></div></li>
+          <li><span class="j-num">3</span><div><strong>Find your RND and book</strong><p>Choose a licensed Registered Nutritionist-Dietitian, pay before the session, then consult by video call or in person.</p></div></li>
         </ol>
         <p class="privacy">
-          <ShieldCheck :size="15" aria-hidden="true" /> Safe ang health information mo. Sa RND mo lang ito ise-share, ayon sa Data Privacy Act of 2012 (RA 10173).
+          <ShieldCheck :size="15" aria-hidden="true" /> Your health information is safe. It is shared only with your RND, under the Data Privacy Act of 2012 (RA 10173).
         </p>
         <div class="actions">
-          <button class="nm-btn-dark" type="button" @click="go('about')">Tara, simulan na natin</button>
+          <button class="nm-btn-dark" type="button" @click="go('about')">Let's get started</button>
         </div>
       </section>
 
