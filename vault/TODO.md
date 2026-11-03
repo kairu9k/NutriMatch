@@ -335,8 +335,8 @@ Steps:
   - [x] Support widget: Mark as resolved.
   - Left as is: mark notifications read (harmless), Messages send (the box clears at once, so a second Enter sends nothing).
   - [x] Delete `components/ClientManagement.vue` (not used anywhere; old admin page).
-- [ ] **6. Check:** click the main actions for each role at desktop and phone width, one forced failure per type (backend stopped); frontend build; commit to `rnd-design-pass`, push only when the user says.
-- [ ] Update CLAUDE.md design rules with the toast rule once built.
+- [x] **6. Check:** (2026-11-03: scripted runs as qa.rnd / qa.client / qa.admin at 1280 px and 390 px, all passing; found and fixed the cursor not landing when the first red field starts with a disabled control) click the main actions for each role at desktop and phone width, one forced failure per type (backend stopped); frontend build; commit to `rnd-design-pass`, push only when the user says.
+- [x] Update CLAUDE.md design rules with the toast rule once built.
 
 ## Phase 8 — Deployment
 - [ ] Django: Railway/Render/Fly.io (or your school's requirement) + Postgres addon

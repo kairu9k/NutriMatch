@@ -20,9 +20,10 @@ export async function focusFirstError(root) {
   if (!first) return 0
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   first.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })
-  const target = first.matches('input, select, textarea, button, [tabindex]')
-    ? first
-    : first.querySelector('input, select, textarea, button, [tabindex]')
+  // the first control that can take the cursor (a disabled one can't: the
+  // RND phone box starts with a country picker fixed to the Philippines)
+  const FOCUSABLE = 'input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  const target = first.matches(FOCUSABLE) ? first : first.querySelector(FOCUSABLE)
   target?.focus({ preventScroll: true })
   return all.length
 }
