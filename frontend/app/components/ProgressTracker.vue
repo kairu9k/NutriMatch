@@ -117,7 +117,7 @@
                 <td>{{ rec.blood_glucose ? `${num(rec.blood_glucose)} mg/dL` : '—' }}</td>
                 <td>{{ rec.adherence_pct !== null ? `${rec.adherence_pct}%` : '—' }}</td>
                 <td>{{ rec.hba1c ? `${num(rec.hba1c)}%` : '—' }}</td>
-                <td><button v-if="rec.source === 'client'" type="button" class="rec-x" aria-label="Delete this reading" @click="removeReading(rec)"><X :size="13" /></button></td>
+                <td><button v-if="rec.source === 'client'" type="button" class="rec-x" aria-label="Delete this reading" :disabled="removing === rec.id" @click="removeReading(rec)"><X :size="13" /></button></td>
               </tr>
             </tbody>
           </table>
@@ -162,11 +162,14 @@ const shortDay = iso => new Date(`${iso}T00:00:00`).toLocaleDateString('en-PH', 
 const weekLabel = w => `${shortDay(w.start)} – ${shortDay(w.end)}`
 
 /* ---------- older self-reported readings (logging was removed 2026-10-16) ---------- */
+const removing = ref(null)
 async function removeReading(rec) {
+  if (removing.value) return
+  removing.value = rec.id
   try {
     await del(`/client/progress/${rec.id}/`)
     records.value = records.value.filter(r => r.id !== rec.id)
-  } catch { toast.error('Could not delete that reading. Please try again.') }
+  } catch { toast.error('Could not delete that reading. Please try again.') } finally { removing.value = null }
 }
 
 /* ---------- printable progress report ---------- */

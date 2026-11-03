@@ -283,7 +283,7 @@
                 <p class="setting-detail">{{ opt.detail }}</p>
               </div>
               <label class="toggle">
-                <input :checked="reminderPrefs[opt.key]" type="checkbox" @change="savePref(opt.key, $event.target.checked)" />
+                <input :checked="reminderPrefs[opt.key]" type="checkbox" :disabled="!!prefSaving" @change="savePref(opt.key, $event.target.checked)" />
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
             </div>
@@ -293,7 +293,7 @@
                 <p class="setting-detail">To {{ auth.user?.email }}. Off by default. In-app notifications are always on.</p>
               </div>
               <label class="toggle">
-                <input :checked="reminderPrefs.email" type="checkbox" @change="savePref('email', $event.target.checked)" />
+                <input :checked="reminderPrefs.email" type="checkbox" :disabled="!!prefSaving" @change="savePref('email', $event.target.checked)" />
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
             </div>
@@ -305,7 +305,7 @@
                 <p v-else class="setting-detail">Add your mobile number (e.g. 0917 123 4567) in Personal Info first.</p>
               </div>
               <label class="toggle">
-                <input :checked="reminderPrefs.sms" :disabled="!reminderPrefs.sms_number && !reminderPrefs.sms" type="checkbox" @change="savePref('sms', $event.target.checked)" />
+                <input :checked="reminderPrefs.sms" :disabled="!!prefSaving || (!reminderPrefs.sms_number && !reminderPrefs.sms)" type="checkbox" @change="savePref('sms', $event.target.checked)" />
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
             </div>
@@ -647,7 +647,11 @@ async function loadReminders() {
     reminderError.value = 'Could not load your reminder settings. Please refresh.'
   }
 }
+// One switch saves at a time (2026-11-03): fast flips could arrive out of order.
+const prefSaving = ref('')
 async function savePref(key, value) {
+  if (prefSaving.value) return
+  prefSaving.value = key
   const before = reminderPrefs.value[key]
   reminderPrefs.value[key] = value
   reminderError.value = ''
@@ -657,6 +661,8 @@ async function savePref(key, value) {
   } catch (error) {
     reminderPrefs.value[key] = before
     toast.error(error?.data?.[key]?.[0] || 'Could not save this setting. Please try again.', { id: 'reminder-pref' })
+  } finally {
+    prefSaving.value = ''
   }
 }
 function fireReminderToast(text) {

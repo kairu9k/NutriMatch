@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -159,8 +161,21 @@ class RndAvailabilityListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         return RndAvailabilitySchedule.objects.filter(rnd=self.request.user).order_by("day_of_week", "start_time")
 
+    def create(self, request, *args, **kwargs):
+        # One hours change per RND at a time, so the overlap check can't pass
+        # two simultaneous requests (a double click, two tabs). 2026-11-03.
+        with transaction.atomic():
+            lock_rnd(request.user)
+            return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(rnd=self.request.user)
+
+
+def lock_rnd(user):
+    """Row lock on the RND's account until the transaction ends (Postgres;
+    SQLite already runs one write at a time)."""
+    get_user_model().objects.select_for_update().filter(pk=user.pk).first()
 
 
 class RndAvailabilityDetailView(generics.UpdateAPIView, generics.DestroyAPIView):
@@ -174,6 +189,11 @@ class RndAvailabilityDetailView(generics.UpdateAPIView, generics.DestroyAPIView)
         return RndAvailabilitySchedule.objects.filter(rnd=self.request.user)
 
     def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            lock_rnd(request.user)
+            return self._update(request, *args, **kwargs)
+
+    def _update(self, request, *args, **kwargs):
         from .availability_guard import bookings_left_outside, refusal
 
         block = self.get_object()

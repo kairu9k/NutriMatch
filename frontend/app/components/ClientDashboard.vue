@@ -238,14 +238,14 @@
 
             <template v-for="(item, i) in todayItems" :key="item.id ? `${item.kind}${item.id}` : i">
               <label v-if="item.kind === 'task'" class="today-row task" :class="{ done: item.done }">
-                <input type="checkbox" class="task-check" :checked="item.done" @change="toggleTask(item, $event.target.checked)" />
+                <input type="checkbox" class="task-check" :checked="item.done" :disabled="taskBusy === item.id" @change="toggleTask(item, $event.target.checked)" />
                 <span class="today-main">
                   <span class="today-title">{{ item.title }}</span>
                   <span v-if="item.note" class="today-note">“{{ item.note }}”</span>
                   <span class="today-detail">{{ item.detail }}</span>
                 </span>
                 <span class="today-time">{{ phClock(item.at) }}</span>
-                <button v-if="item.own" type="button" class="task-x" aria-label="Delete task" @click.prevent="removeTask(item)"><X :size="13" /></button>
+                <button v-if="item.own" type="button" class="task-x" aria-label="Delete task" :disabled="taskBusy === item.id" @click.prevent="removeTask(item)"><X :size="13" /></button>
               </label>
               <NuxtLink v-else :to="item.link" class="today-row" :class="{ done: item.done }">
                 <span v-if="item.kind === 'meal' || item.kind === 'lab'" class="task-check meal" :class="{ on: item.done }" aria-hidden="true"><Check v-if="item.done" :size="12" /></span>
@@ -289,6 +289,7 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { phIso } from '~/utils/phTime'
 import { bmiClass } from '~/utils/ncp'
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -794,12 +795,20 @@ onMounted(loadToday)
 const checkable = computed(() => todayItems.value.filter(i => ['task', 'meal', 'lab'].includes(i.kind)))
 const taskCount = computed(() => checkable.value.length)
 const doneCount = computed(() => checkable.value.filter(i => i.done).length)
+// One request per task at a time (2026-11-03): quick ticks could arrive out of order.
+const taskBusy = ref(null)
+const toast = useToast()
 async function toggleTask(item, done) {
+  if (taskBusy.value === item.id) return
+  taskBusy.value = item.id
   item.done = done
   try {
     item.done = (await post(`/client/reminders/${item.id}/check/`, { done })).done
   } catch {
     item.done = !done
+    toast.error('Could not update this task. Please try again.', { id: 'task' })
+  } finally {
+    taskBusy.value = null
   }
 }
 const addOpen = ref(false)
@@ -827,10 +836,16 @@ async function addTask() {
   }
 }
 async function removeTask(item) {
+  if (taskBusy.value === item.id) return
+  taskBusy.value = item.id
   try {
     await del(`/client/reminders/${item.id}/`)
     todayItems.value = todayItems.value.filter(i => i !== item)
-  } catch { /* leave it */ }
+  } catch {
+    toast.error('Could not delete this task. Please try again.', { id: 'task' })
+  } finally {
+    taskBusy.value = null
+  }
 }
 function phClock(iso) {
   return new Date(iso).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })

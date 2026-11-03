@@ -125,7 +125,7 @@
                 <button type="submit" class="nm-btn-dark" :disabled="sending || reply.trim().length < 2" aria-label="Send reply"><Send :size="15" /></button>
               </form>
               <p v-if="formError" class="nm-error">{{ formError }}</p>
-              <button v-if="ticket.status !== 'closed'" type="button" class="nm-panel-link sw-close-req" @click="closeTicket">Mark as resolved</button>
+              <button v-if="ticket.status !== 'closed'" type="button" class="nm-panel-link sw-close-req" :disabled="sending" @click="closeTicket">Mark as resolved</button>
             </template>
           </template>
         </div>
@@ -243,7 +243,9 @@ async function sendReply() {
   }
 }
 async function closeTicket() {
-  try { ticket.value = await post(`/support/tickets/${ticket.value.id}/close/`) } catch { formError.value = 'Could not close this request.' }
+  if (sending.value) return
+  sending.value = true
+  try { ticket.value = await post(`/support/tickets/${ticket.value.id}/close/`) } catch { formError.value = 'Could not close this request.' } finally { sending.value = false }
 }
 function scrollThread() {
   nextTick(() => { if (threadBox.value) threadBox.value.scrollTop = threadBox.value.scrollHeight })

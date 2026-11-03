@@ -53,13 +53,13 @@
                 <input v-model="editForm.start_time" type="time" class="time-input" />
                 <span class="time-sep">to</span>
                 <input v-model="editForm.end_time" type="time" class="time-input" />
-                <button class="form-btn save" @click="saveEdit(slot)">Save</button>
+                <button class="form-btn save" :disabled="!!busyKey" @click="saveEdit(slot)">{{ busyKey === `edit-${slot.id}` ? 'Saving…' : 'Save' }}</button>
                 <button class="form-btn cancel" @click="cancelEdit">Cancel</button>
                 <p v-if="saveError && errorAt === `edit-${slot.id}`" class="save-error in-form" role="alert">{{ saveError }}</p>
               </div>
               <button v-else class="slot-pill" type="button" :aria-label="`Edit ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click="startEdit(slot)">
                 <PenLine :size="12" class="pill-edit" aria-hidden="true" />
-                {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}                <span class="pill-icon-btn" role="button" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
+                {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}                <span class="pill-icon-btn" role="button" :aria-disabled="!!busyKey || undefined" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
               </button>
             </template>
           </template>
@@ -69,7 +69,7 @@
             <input v-model="addForm.start_time" type="time" class="time-input" />
             <span class="time-sep">to</span>
             <input v-model="addForm.end_time" type="time" class="time-input" />
-            <button class="form-btn save" @click="confirmAddSlot(day.dayIndex)">Add</button>
+            <button class="form-btn save" :disabled="!!busyKey" @click="confirmAddSlot(day.dayIndex)">{{ busyKey === `add-${day.dayIndex}` ? 'Adding…' : 'Add' }}</button>
             <button class="form-btn cancel" @click="addingDay = null">Cancel</button>
             <p v-if="saveError && errorAt === `add-${day.dayIndex}`" class="save-error in-form" role="alert">{{ saveError }}</p>
           </div>
@@ -144,7 +144,7 @@
           <span class="blocked-dates">{{ formatBlockDate(b.start_date) }}<template v-if="b.end_date !== b.start_date"> to {{ formatBlockDate(b.end_date) }}</template></span>
           <span class="blocked-time">{{ b.whole_day ? 'Whole day' : `${formatTime(b.start_time)} to ${formatTime(b.end_time)}` }}</span>
           <span class="blocked-reason">{{ b.reason }}</span>
-          <button class="remove-block-btn" :aria-label="`Remove time off on ${formatBlockDate(b.start_date)}`" @click="removeBlock(b)"><X :size="14" /></button>
+          <button class="remove-block-btn" :disabled="!!busyKey" :aria-label="`Remove time off on ${formatBlockDate(b.start_date)}`" @click="removeBlock(b)"><X :size="14" /></button>
         </div>
       </div>
       <p v-else class="empty-note">No time blocked off.</p>
@@ -175,6 +175,9 @@ const saveError = ref('')
 const errorAt = ref('')
 const toast = useToast()
 function formProblem(where, message) { errorAt.value = where; saveError.value = message }
+// One hours action at a time (2026-11-03): a double click on Add sent two
+// requests at once, and the server's overlap check can miss a simultaneous pair.
+const busyKey = ref('')
 
 const addingDay = ref(null)
 const addForm = reactive({ start_time: '09:00', end_time: '17:00' })
@@ -282,18 +285,22 @@ function startAddSlot(dayIndex) {
 }
 
 async function confirmAddSlot(dayIndex) {
+  if (busyKey.value) return
   saveError.value = ''
   const where = `add-${dayIndex}`
   const problem = rangeError(addForm.start_time, addForm.end_time)
   if (problem) return formProblem(where, problem)
   const hours = [addForm.start_time, addForm.end_time]
   if (overlapsDay(dayIndex, hours)) return formProblem(where, `${DAY_NAMES[dayIndex]} already has hours in that time. Edit them instead.`)
+  busyKey.value = where
   try {
     slots.value.push(await createSlot(dayIndex, hours))
     addingDay.value = null
     toast.dismiss('availability')
   } catch (e) {
     toast.error(apiError(e, `Could not add hours to ${DAY_NAMES[dayIndex]}. Please try again.`), { id: 'availability' })
+  } finally {
+    busyKey.value = ''
   }
 }
 
@@ -357,6 +364,7 @@ function cancelEdit() {
 }
 
 async function saveEdit(slot) {
+  if (busyKey.value) return
   saveError.value = ''
   const where = `edit-${slot.id}`
   const problem = rangeError(editForm.start_time, editForm.end_time)
@@ -364,6 +372,7 @@ async function saveEdit(slot) {
   if (overlapsDay(slot.day_of_week, [editForm.start_time, editForm.end_time], slot.id)) {
     return formProblem(where, `${DAY_NAMES[slot.day_of_week]} already has hours in that time.`)
   }
+  busyKey.value = where
   try {
     const updated = await patch(`/rnd/availability/${slot.id}/`, {
       start_time: `${editForm.start_time}:00`,
@@ -376,17 +385,23 @@ async function saveEdit(slot) {
   } catch (e) {
     // e.g. a booking sits in the hours being taken away (the API names it)
     toast.error(apiError(e, 'Could not update these hours. Try again.'), { id: 'availability' })
+  } finally {
+    busyKey.value = ''
   }
 }
 
 async function removeSlot(slot) {
+  if (busyKey.value) return
   saveError.value = ''
+  busyKey.value = `del-${slot.id}`
   try {
     await del(`/rnd/availability/${slot.id}/`)
     slots.value = slots.value.filter(s => s.id !== slot.id)
     toast.dismiss('availability')
   } catch (e) {
     toast.error(apiError(e, 'Could not remove these hours. Try again.'), { id: 'availability' })
+  } finally {
+    busyKey.value = ''
   }
 }
 
@@ -463,12 +478,16 @@ async function submitBlock() {
   }
 }
 async function removeBlock(b) {
+  if (busyKey.value) return
+  busyKey.value = `off-${b.id}`
   try {
     await del(`/rnd/time-off/${b.id}/`)
     blocks.value = blocks.value.filter(x => x.id !== b.id)
     toast.dismiss('time-off')
   } catch (e) {
     toast.error(apiError(e, 'Could not remove that time off.'), { id: 'time-off' })
+  } finally {
+    busyKey.value = ''
   }
 }
 function formatBlockDate(iso) {
@@ -524,7 +543,9 @@ function formatBlockDate(iso) {
 }
 .form-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .form-btn.save { background: #0a4a37; color: #fff; }
-.form-btn.save:hover { background: #00382a; }
+.form-btn.save:hover:not(:disabled) { background: #00382a; }
+.form-btn:disabled, .remove-block-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.pill-icon-btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
 .form-btn.cancel { background: #e3efe7; color: #0a4a37; }
 .form-btn.cancel:hover { background: #d3e7da; }
 
