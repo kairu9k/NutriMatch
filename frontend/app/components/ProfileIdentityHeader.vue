@@ -84,7 +84,7 @@ async function onPhotoSelected(event) {
     body.append('photo', file)
     await post('/auth/me/photo/', body)
     await auth.fetchMe()
-    emit('photo-changed', 'Photo updated!')
+    emit('photo-changed', 'Photo updated.')
   } catch (error) {
     const data = error?.data || {}
     photoError.value = (Array.isArray(data.photo) ? data.photo[0] : data.photo) || data.detail || 'Could not upload the photo. Please try again.'

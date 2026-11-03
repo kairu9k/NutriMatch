@@ -308,6 +308,36 @@ Why: the room embeds meet.jit.si, which now needs one person to log in before a 
 - [x] **Phase 5, switch over (code):** Jitsi removed from the room and from confirming (no room link is created; `scheduling/services.py` JitsiVideoService deleted, old links kept only for older consultations), CLAUDE.md updated, deployed to main.
 - [ ] **Phase 5, still open:** confirm `CLOUDFLARE_TURN_*` are set on Render (user checking); update the capstone documentation (video = WebRTC with Cloudflare TURN).
 
+## Action feedback: every result visible (planned 2026-11-03, after the adviser check, user's decisions)
+
+Why: the adviser noticed small details like messages the user can't see. Success bars and "Could not save" text sit at the top of the page, so someone who pressed Save at the bottom of a long page never sees whether it went through. Field errors under a field are also missed when the field is scrolled off screen.
+
+Rule: **if the person can't see that an action worked, they get a toast.** Save, send, upload, pay, cancel and delete get one; opening a pop-up, changing tab, ticking a box or adding a row show their own result and get none. Lasting states stay as inline bars (draft not sent, allergy warnings, waiting for payment, lock notes). Field errors stay under their field.
+
+Where we are (checked 2026-11-03): 18 components build their own toast (mostly `nm-toast`, client My Appointments and Profile Settings their own `.toast`), all gone after ~3.5 s including errors; 10 show success as an in-page bar (Meal Planning, Billing, Earnings, Lab results, Reminders, RND verification, Admin profile, Admin user detail, Billing & commission, RND labs tab); failed saves are red text at the top (e.g. `MealPlanning.vue` `errorMessage`); only Client onboarding scrolls to the first error. The NCP form is already fine (Review lists what's missing with a Fix button per item) and stays as is. Quiet background loads stay quiet.
+
+Decisions:
+- **vue-sonner** (user's call: saves time), 2.0.9, its Nuxt module (Nuxt 4). Wrapped in `composables/useToast.js` so pages call `toast.success()` / `toast.error()` / `toast.problem()`, never vue-sonner directly.
+- **Timing, the mix:** success 4 s; form problem ("Check 2 fields before saving", the fields stay red) 6 s; failed action ("Could not save the plan.", "No connection.", "That time was just booked") **stays until closed or retried**. Every toast pauses while hovered or the tab is hidden.
+- **One toast per action (by id):** pressing Save again turns the old error into "Saving…", then "Plan saved." (closes itself) or the error again. No pile of old errors.
+- Look: our design rules. Success dark green `#0a4a37`, error red, light green shadow, sentence case, a plain ×; bottom right on desktop, bottom centre on phones, clear of the support headset button; announced to screen readers.
+
+Steps:
+- [ ] **1. Shared toast:** install vue-sonner, `<Toaster>` once in `layouts/dashboard.vue` (and the auth/onboarding layouts if they need it), `useToast.js` with the timing + id rules, styled to portal.css. Check desktop + phone width.
+- [ ] **2. First three pages (user reviews before the rest):** Meal Planning, Availability (+ Block time off), client and RND Profile Settings. Own toasts and in-page success bars → shared toast; failed actions → error toast; scroll to first error (step 3) on these.
+- [ ] **3. Scroll to the first error:** `utils/focusFirstError.js`: scroll to the first `[aria-invalid="true"]` / `.invalid` field and focus it; inside a pop-up scroll the pop-up (`nm-modal`), not the page; plus a "Check N fields" toast. Apply to screening, lab upload, request labs, reminders, discharge, admin Edit details, payout release, RND/client Profile Settings, Availability.
+- [ ] **4. The other pages:** the rest of the 18 own-toast pages and 10 in-page bars, page by page; delete the per-page `toast` refs and `.toast`/`nm-toast` CSS once unused.
+- [ ] **5. Buttons lock while they work:** every action that sends something says "Saving…" (etc.) and can't be pressed twice. Audit 2026-11-03 (every POST/PATCH/PUT/DELETE in the app, 88 actions + the auth store + payment): already locked = sign in, sign up, check email, Confirm email, Resend code (60 s countdown + server 5/min), Forgot password, booking, Pay (per invoice), cancel / dispute / review, RND confirm / decline / complete / no-show, NCP save / finalize, meal plan create / save / send / delete / template, meal log save / rate, screening, onboarding, Profile Settings save / password / photo, discharge, labs, reminders, resources, support, every admin action (approve / reject, deactivate, edit, refund, payout, commission, settings, add admin). **Not locked, to fix:**
+  - [ ] Availability: per-day **Add** and **Save** (edit hours), the × on hours and on time off (a double click on Add sends two requests at once; the server's overlap check can miss a simultaneous pair). Block time off and Add hours for all week are already locked.
+  - [ ] Client dashboard My tasks: tick / untick and the × on own tasks.
+  - [ ] Client Profile Settings → Notifications switches (fast flips can arrive out of order).
+  - [ ] Progress Tracker: × on a self-reported reading.
+  - [ ] Support widget: Mark as resolved.
+  - Left as is: mark notifications read (harmless), Messages send (the box clears at once, so a second Enter sends nothing).
+  - [ ] Delete `components/ClientManagement.vue` (not used anywhere; old admin page).
+- [ ] **6. Check:** click the main actions for each role at desktop and phone width, one forced failure per type (backend stopped); frontend build; commit to `rnd-design-pass`, push only when the user says.
+- [ ] Update CLAUDE.md design rules with the toast rule once built.
+
 ## Phase 8 — Deployment
 - [ ] Django: Railway/Render/Fly.io (or your school's requirement) + Postgres addon
 - [ ] Nuxt: Vercel/Netlify, or same host as backend

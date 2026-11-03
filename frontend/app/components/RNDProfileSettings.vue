@@ -155,20 +155,22 @@
               <label class="field-label" for="rp-fee">Consultation fee</label>
               <div class="fee-input-wrap">
                 <span class="fee-prefix">₱</span>
-                <input id="rp-fee" v-model="personalInfo.consultationFee" type="number" min="100" step="50" class="field-input fee-input" placeholder="e.g. 750" />
+                <input id="rp-fee" v-model="personalInfo.consultationFee" type="number" min="100" step="50" class="field-input fee-input" :class="{ invalid: fieldErrors.fee }" :aria-invalid="!!fieldErrors.fee || undefined" placeholder="e.g. 750" />
                 <span class="fee-suffix">per session</span>
               </div>
+              <p v-if="fieldErrors.fee" class="field-error">{{ fieldErrors.fee }}</p>
               <p class="field-hint">At least ₱100. Shown to patients on Find an RND and your profile. Changes apply to future invoices only.</p>
             </div>
 
             <div class="field field-bio">
               <label class="field-label">Consultation formats</label>
-              <div class="mode-options">
+              <div class="mode-options" role="group" aria-label="Consultation formats" :aria-invalid="!!fieldErrors.modes || undefined">
                 <label v-for="m in MODE_OPTIONS" :key="m.value" class="mode-option" :class="{ checked: personalInfo.consultationModes.includes(m.value) }">
                   <input v-model="personalInfo.consultationModes" type="checkbox" :value="m.value" />
                   <component :is="m.icon" :size="15" /> {{ m.label }}
                 </label>
               </div>
+              <p v-if="fieldErrors.modes" class="field-error">{{ fieldErrors.modes }}</p>
               <p class="field-hint">Patients can only book the formats you offer.</p>
             </div>
 
@@ -202,7 +204,7 @@
             <p v-if="languageError" class="profile-error lang-error">{{ languageError }}</p>
           </section>
 
-          <p v-if="profileError" class="profile-error">{{ profileError }}</p>
+          <p v-if="profileError" class="profile-error">{{ profileError }}</p><!-- only when the profile could not load -->
 
           <!-- Cancel / Save sit at the end of the form, after everything they save -->
           <div v-if="isEditing" class="edit-actions">
@@ -271,7 +273,6 @@
               <p v-if="pw.confirm && pw.confirm !== pw.next" class="field-error">The passwords don't match.</p>
             </div>
             <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
-            <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
             <div class="pw-actions">
               <button type="submit" class="btn-dark" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change password' }}</button>
               <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
@@ -350,11 +351,6 @@
       </div>
     </div>
 
-    <Transition name="toast-fade">
-      <div v-if="toastVisible" class="toast">
-        <CheckCircle2 :size="16" /> {{ toastMessage }}
-      </div>
-    </Transition>
   </div>
 </template>
 
@@ -364,9 +360,10 @@ import {
   Briefcase, BadgeCheck,
   CalendarClock, X, Shield, History, Printer, ClipboardList,
   CalendarCheck, FileText, UtensilsCrossed, UserRound, Star, Wallet,
-  Video, Users, Lock, FileImage, Pencil, Check, CheckCircle2, Bell, Plus
+  Video, Users, Lock, FileImage, Pencil, Check, Bell, Plus
 } from 'lucide-vue-next'
 import { formatPhone, rndPhoneError } from '~/utils/phone'
+import { fieldsProblemText, focusFirstError } from '~/utils/focusFirstError'
 
 const { get, patch, post, put } = useApi()
 
@@ -411,7 +408,7 @@ const licenseOpen = ref(false)
 const profileLoaded = ref(false)
 // Last loaded profile — Cancel restores the form from it.
 const lastLoaded = ref(null)
-const fieldErrors = reactive({ firstName: '', lastName: '', phone: '', clinicAddress: '' })
+const fieldErrors = reactive({ firstName: '', lastName: '', phone: '', clinicAddress: '', fee: '', modes: '' })
 
 const identityName = computed(() => `RND ${personalInfo.value.firstName} ${personalInfo.value.lastName}`.trim())
 const identitySubtitle = computed(() => {
@@ -437,14 +434,10 @@ function cancelEdit() {
   isEditing.value = false
 }
 
-const toastVisible = ref(false)
-const toastMessage = ref('Profile saved')
-let toastTimer = null
-function fireToast(message = 'Profile saved') {
-  toastMessage.value = message
-  toastVisible.value = true
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastVisible.value = false }, 3500)
+// Results go to the app's toast (2026-11-03), seen wherever the page is scrolled.
+const toast = useToast()
+function fireToast(message = 'Profile saved.') {
+  toast.success(message, { id: 'profile' })
 }
 
 function applyProfile(user, rndProfile) {
@@ -522,7 +515,7 @@ const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑ�
 
 async function saveChanges() {
   profileError.value = ''
-  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.phone = fieldErrors.clinicAddress = ''
+  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.phone = fieldErrors.clinicAddress = fieldErrors.fee = fieldErrors.modes = ''
   personalInfo.value.firstName = personalInfo.value.firstName.trim()
   personalInfo.value.lastName = personalInfo.value.lastName.trim()
   if (!personalInfo.value.firstName) fieldErrors.firstName = 'Enter your first name.'
@@ -530,20 +523,16 @@ async function saveChanges() {
   if (!personalInfo.value.lastName) fieldErrors.lastName = 'Enter your last name.'
   else if (!NAME_RE.test(personalInfo.value.lastName)) fieldErrors.lastName = 'Use letters only (spaces, hyphens and apostrophes are fine).'
   fieldErrors.phone = rndPhoneError(personalInfo.value.phone)
-  if (fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone) return
-  if (!personalInfo.value.consultationModes.length) {
-    profileError.value = 'Offer at least one consultation format.'
-    return
-  }
+  if (!personalInfo.value.consultationModes.length) fieldErrors.modes = 'Offer at least one consultation format.'
   const address = (personalInfo.value.clinicAddress || '').trim()
   if (personalInfo.value.consultationModes.includes('in_person')) {
     if (!address) fieldErrors.clinicAddress = 'Add your clinic address so clients know where to go.'
     else if (address.length < 10) fieldErrors.clinicAddress = 'Enter the full address: building, street, barangay and city.'
-    if (fieldErrors.clinicAddress) return
   }
   const fee = personalInfo.value.consultationFee
-  if (fee === '' || fee === null || Number(fee) < 100) {
-    profileError.value = 'The consultation fee must be at least ₱100.'
+  if (fee === '' || fee === null || Number(fee) < 100) fieldErrors.fee = 'The consultation fee must be at least ₱100.'
+  if (Object.values(fieldErrors).some(Boolean)) {
+    toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
     return
   }
   isSavingProfile.value = true
@@ -574,9 +563,10 @@ async function saveChanges() {
     fieldErrors.lastName = first(data.last_name)
     fieldErrors.phone = first(data.phone)
     fieldErrors.clinicAddress = first(data.clinic_address)
-    profileError.value = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone || fieldErrors.clinicAddress
-      ? ''
-      : data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
+    fieldErrors.fee = first(data.consultation_fee)
+    fieldErrors.modes = first(data.consultation_modes)
+    if (Object.values(fieldErrors).some(Boolean)) toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
+    else toast.error(apiErrorText(error, 'Could not save your changes. Please try again.'), { id: 'profile' })
   } finally {
     isSavingProfile.value = false
   }
@@ -649,11 +639,13 @@ async function changePassword() {
     await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
     Object.assign(pw, { current: '', next: '', confirm: '' })
     showPw.value = false
-    fireToast('Password changed. We emailed you a confirmation.')
+    toast.success('Password changed. We emailed you a confirmation.', { id: 'password' })
   } catch (e) {
     const d = e?.data || {}
     const out = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
-    pwErrors.value = Object.keys(out).length ? out : { detail: 'Could not change your password. Please try again.' }
+    pwErrors.value = out
+    if (out.current_password || out.new_password) toast.problem(fieldsProblemText(await focusFirstError(), 'changing it'), { id: 'password' })
+    else toast.error(apiErrorText(e, 'Could not change your password. Please try again.'), { id: 'password' })
   } finally {
     savingPw.value = false
   }
@@ -744,14 +736,6 @@ onMounted(showActiveTab)
 .field-input.invalid { border-color: #c0392b; }
 .prc-section .info-grid { margin-bottom: 12px; }
 
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
-  display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
-  white-space: nowrap;
-}
-.toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 /* FORM */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 24px; }

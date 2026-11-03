@@ -131,7 +131,6 @@
             </div>
           </template>
 
-          <p v-if="saveError" class="profile-error">{{ saveError }}</p>
           <div v-if="isEditing" class="edit-foot">
             <button class="nm-btn-soft" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
             <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
@@ -257,7 +256,6 @@
               <p v-if="pw.confirm && pw.confirm !== pw.next" class="field-error">The passwords don't match.</p>
             </div>
             <label class="pw-show"><input v-model="showPw" type="checkbox" /> Show passwords</label>
-            <p v-if="pwErrors.detail" class="profile-error">{{ pwErrors.detail }}</p>
             <div class="pw-actions">
               <button type="submit" class="nm-btn-dark" :disabled="savingPw || !canChangePw">{{ savingPw ? 'Changing…' : 'Change password' }}</button>
               <NuxtLink to="/forgot-password" class="pw-forgot">Forgot your current password?</NuxtLink>
@@ -370,11 +368,6 @@
       </div>
     </div>
 
-    <Transition name="toast-fade">
-      <div v-if="toastVisible" class="toast">
-        <CheckCircle2 :size="16" /> {{ toastMessage }}
-      </div>
-    </Transition>
     <ScreeningModal v-if="screeningOpen" @close="screeningOpen = false" />
 
     <div v-if="drOpen" class="nm-modal-overlay" @click.self="drOpen = false" @keydown.esc="drOpen = false">
@@ -421,9 +414,10 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { Bell, CalendarCheck, Check, CheckCircle2, ClipboardList, FileText, HeartPulse, History as HistoryIcon, Pencil, Printer, Shield, ShieldCheck, Stethoscope, User, UtensilsCrossed, X } from 'lucide-vue-next'
+import { Bell, CalendarCheck, Check, ClipboardList, FileText, HeartPulse, History as HistoryIcon, Pencil, Printer, Shield, ShieldCheck, Stethoscope, User, UtensilsCrossed, X } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
+import { fieldsProblemText, focusFirstError } from '~/utils/focusFirstError'
 
 const auth = useAuthStore()
 const { get, patch, post, put, del } = useApi()
@@ -462,7 +456,6 @@ const memberSince = computed(() =>
 /* ---------- Personal info (read-only until Edit Profile) ---------- */
 const form = reactive({ firstName: '', lastName: '', phone: '', dateOfBirth: '', sex: '', languageCode: '' })
 const isSaving = ref(false)
-const saveError = ref('')
 const isEditing = ref(false)
 const profileLoaded = ref(false)
 // Last profile from the API — Cancel restores the form from it.
@@ -496,7 +489,6 @@ function clearFieldErrors() {
   Object.keys(fieldErrors).forEach(k => { fieldErrors[k] = '' })
 }
 function startEdit() {
-  saveError.value = ''
   clearFieldErrors()
   isEditing.value = true
 }
@@ -505,7 +497,6 @@ function cancelEdit() {
     fillForm(lastProfile.value)
     fillCondition(lastProfile.value)
   }
-  saveError.value = ''
   clearFieldErrors()
   isEditing.value = false
 }
@@ -537,8 +528,10 @@ function validatePersonal() {
 
 // One Save for everything on the tab, including the primary condition.
 async function saveProfile() {
-  saveError.value = ''
-  if (!validatePersonal()) return
+  if (!validatePersonal()) {
+    toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
+    return
+  }
   isSaving.value = true
   const primary = conditionChoice.value === '__other' ? conditionOther.value.trim() : conditionChoice.value
   try {
@@ -573,20 +566,17 @@ async function saveProfile() {
     fieldErrors.phone = first(data.phone)
     fieldErrors.dateOfBirth = first(data.date_of_birth)
     const shown = fieldErrors.firstName || fieldErrors.lastName || fieldErrors.phone || fieldErrors.dateOfBirth
-    saveError.value = shown ? '' : data.detail || Object.values(data).flat()[0] || 'Could not save your changes. Please try again.'
+    if (shown) toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
+    else toast.error(apiErrorText(error, 'Could not save your changes. Please try again.'), { id: 'profile' })
   } finally {
     isSaving.value = false
   }
 }
 
-const toastVisible = ref(false)
-const toastMessage = ref('Profile updated!')
-let toastTimer = null
-function fireToast(message = 'Profile updated!') {
-  toastMessage.value = message
-  toastVisible.value = true
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastVisible.value = false }, 3500)
+// Results go to the app's toast (2026-11-03), seen wherever the page is scrolled.
+const toast = useToast()
+function fireToast(message = 'Profile updated.') {
+  toast.success(message, { id: 'profile' })
 }
 
 /* ---------- Health profile ---------- */
@@ -665,7 +655,7 @@ async function savePref(key, value) {
     fireReminderToast(value ? 'Turned on.' : 'Turned off.')
   } catch (error) {
     reminderPrefs.value[key] = before
-    reminderError.value = error?.data?.[key]?.[0] || 'Could not save. Please try again.'
+    toast.error(error?.data?.[key]?.[0] || 'Could not save this setting. Please try again.', { id: 'reminder-pref' })
   }
 }
 function fireReminderToast(text) {
@@ -846,11 +836,13 @@ async function changePassword() {
     await post('/auth/me/password/', { current_password: pw.current, new_password: pw.next })
     Object.assign(pw, { current: '', next: '', confirm: '' })
     showPw.value = false
-    fireToast('Password changed. We emailed you a confirmation.')
+    toast.success('Password changed. We emailed you a confirmation.', { id: 'password' })
   } catch (e) {
     const d = e?.data || {}
     const out = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
-    pwErrors.value = Object.keys(out).length ? out : { detail: 'Could not change your password. Please try again.' }
+    pwErrors.value = out
+    if (out.current_password || out.new_password) toast.problem(fieldsProblemText(await focusFirstError(), 'changing it'), { id: 'password' })
+    else toast.error(apiErrorText(e, 'Could not change your password. Please try again.'), { id: 'password' })
   } finally {
     savingPw.value = false
   }
@@ -965,7 +957,6 @@ useAutoRefresh(refreshCare)
 .field select { min-height: 47px; font-size: 0.88rem; }
 .field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
 .section-hint { margin: -8px 0 16px; }
-.profile-error { font-size: 0.82rem; color: #a12525; margin: 0 0 12px; }
 
 .save-btn {
   display: flex; align-items: center; gap: 6px;
@@ -1042,15 +1033,6 @@ useAutoRefresh(refreshCare)
 .empty-icon { color: #d5dad5; margin-bottom: 8px; }
 .empty-sub { font-size: 0.78rem; margin-top: 4px !important; }
 
-/* TOAST */
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
-  display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-  white-space: nowrap;
-}
-.toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 /* MOBILE — tabs become a sideways-scrolling strip above the panel. */
 @media (max-width: 900px) {

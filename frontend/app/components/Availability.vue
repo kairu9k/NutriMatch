@@ -31,8 +31,8 @@
           {{ weekSaving ? 'Adding…' : `Add to ${weekForm.days.length} day${weekForm.days.length === 1 ? '' : 's'}` }}
         </button>
       </div>
+      <p v-if="saveError && errorAt === 'week'" class="save-error in-form" role="alert">{{ saveError }}</p>
     </div>
-    <p v-if="weekResult" class="week-result" role="status">{{ weekResult }}</p>
 
     <!-- the two things people get wrong (Calendly's forum has the same questions) -->
     <p class="nm-note plain-note avail-hint">
@@ -55,6 +55,7 @@
                 <input v-model="editForm.end_time" type="time" class="time-input" />
                 <button class="form-btn save" @click="saveEdit(slot)">Save</button>
                 <button class="form-btn cancel" @click="cancelEdit">Cancel</button>
+                <p v-if="saveError && errorAt === `edit-${slot.id}`" class="save-error in-form" role="alert">{{ saveError }}</p>
               </div>
               <button v-else class="slot-pill" type="button" :aria-label="`Edit ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click="startEdit(slot)">
                 <PenLine :size="12" class="pill-edit" aria-hidden="true" />
@@ -70,6 +71,7 @@
             <input v-model="addForm.end_time" type="time" class="time-input" />
             <button class="form-btn save" @click="confirmAddSlot(day.dayIndex)">Add</button>
             <button class="form-btn cancel" @click="addingDay = null">Cancel</button>
+            <p v-if="saveError && errorAt === `add-${day.dayIndex}`" class="save-error in-form" role="alert">{{ saveError }}</p>
           </div>
           <!-- what clients actually get: 1-hour consultations every hour from each block's start -->
           <p v-if="day.slots.length" class="day-preview">
@@ -82,7 +84,6 @@
       </div>
     </div>
 
-    <p v-if="saveError" class="save-error">{{ saveError }}</p>
 
     <!-- BLOCK TIME OFF — whole days or part of a day on specific dates
          (RndTimeOff, /api/rnd/time-off/). Clients can't book it. -->
@@ -131,7 +132,7 @@
         </div>
         <button class="block-btn" :disabled="!newBlock.from || !!blockRuleError || blockSaving" @click="submitBlock">{{ blockSaving ? 'Blocking…' : 'Block' }}</button>
       </div>
-      <p v-if="blockRuleError || blockError" class="save-error" role="alert">{{ blockRuleError || blockError }}</p>
+      <p v-if="blockRuleError" class="save-error" role="alert">{{ blockRuleError }}</p>
       <div v-if="conflicts.length" class="conflicts" role="status">
         <p><strong>You already have {{ conflicts.length }} consultation{{ conflicts.length === 1 ? '' : 's' }} in this time.</strong> They weren't cancelled. Cancel or move them from Appointments.</p>
         <ul><li v-for="c in conflicts" :key="c.id">{{ when(c.scheduled_at) }}, {{ c.client_name }}, {{ c.type_label.toLowerCase() }}</li></ul>
@@ -166,7 +167,13 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 
 const slots = ref([])
 const loading = ref(true)
+// A problem with the hours typed shows inside the form being used (errorAt says
+// which one). What an action did, or a failure from the server, goes to the
+// toast (2026-11-03) so it shows wherever the page is scrolled.
 const saveError = ref('')
+const errorAt = ref('')
+const toast = useToast()
+function formProblem(where, message) { errorAt.value = where; saveError.value = message }
 
 const addingDay = ref(null)
 const addForm = reactive({ start_time: '09:00', end_time: '17:00' })
@@ -275,32 +282,29 @@ function startAddSlot(dayIndex) {
 
 async function confirmAddSlot(dayIndex) {
   saveError.value = ''
+  const where = `add-${dayIndex}`
   const problem = rangeError(addForm.start_time, addForm.end_time)
-  if (problem) { saveError.value = problem; return }
+  if (problem) return formProblem(where, problem)
   const hours = [addForm.start_time, addForm.end_time]
-  if (overlapsDay(dayIndex, hours)) {
-    saveError.value = `${DAY_NAMES[dayIndex]} already has hours in that time. Edit them instead.`
-    return
-  }
+  if (overlapsDay(dayIndex, hours)) return formProblem(where, `${DAY_NAMES[dayIndex]} already has hours in that time. Edit them instead.`)
   try {
     slots.value.push(await createSlot(dayIndex, hours))
     addingDay.value = null
-  } catch {
-    saveError.value = 'Could not add slot. Please try again.'
+    toast.dismiss('availability')
+  } catch (e) {
+    toast.error(apiError(e, `Could not add hours to ${DAY_NAMES[dayIndex]}. Please try again.`), { id: 'availability' })
   }
 }
 
 /* ---------- ADD HOURS FOR ALL WEEK ---------- */
 const weekOpen = ref(false)
 const weekSaving = ref(false)
-const weekResult = ref('')
 const weekForm = reactive({ start_time: '09:00', end_time: '17:00', days: [] })
 
 function openWeekForm() {
   addingDay.value = null
   editingId.value = null
   saveError.value = ''
-  weekResult.value = ''
   Object.assign(weekForm, { start_time: '09:00', end_time: '17:00', days: [...DISPLAY_ORDER] })
   weekOpen.value = true
 }
@@ -314,9 +318,8 @@ const dayList = days => days.map(d => DAY_NAMES[d].slice(0, 3)).join(', ')
 
 async function addWeekHours() {
   saveError.value = ''
-  weekResult.value = ''
   const problem = rangeError(weekForm.start_time, weekForm.end_time)
-  if (problem) { saveError.value = problem; return }
+  if (problem) return formProblem('week', problem)
   const hours = [weekForm.start_time, weekForm.end_time]
   const days = DISPLAY_ORDER.filter(d => weekForm.days.includes(d))
   const added = [], skipped = [], failed = []
@@ -335,7 +338,9 @@ async function addWeekHours() {
   if (added.length) parts.push(`Added ${formatTime(hours[0])} – ${formatTime(hours[1])} to ${dayList(added)}.`)
   if (skipped.length) parts.push(`Skipped ${dayList(skipped)} (already has hours at that time).`)
   if (failed.length) parts.push(`Couldn't save ${dayList(failed)}. Please try again.`)
-  weekResult.value = parts.join(' ')
+  if (failed.length) toast.error(parts.join(' '), { id: 'availability' })
+  else if (added.length) toast.success(parts.join(' '), { id: 'availability', duration: skipped.length ? 6000 : 4000 })
+  else toast.problem(parts.join(' '), { id: 'availability' })
   if (!failed.length) weekOpen.value = false
 }
 
@@ -352,11 +357,11 @@ function cancelEdit() {
 
 async function saveEdit(slot) {
   saveError.value = ''
+  const where = `edit-${slot.id}`
   const problem = rangeError(editForm.start_time, editForm.end_time)
-  if (problem) { saveError.value = problem; return }
+  if (problem) return formProblem(where, problem)
   if (overlapsDay(slot.day_of_week, [editForm.start_time, editForm.end_time], slot.id)) {
-    saveError.value = `${DAY_NAMES[slot.day_of_week]} already has hours in that time.`
-    return
+    return formProblem(where, `${DAY_NAMES[slot.day_of_week]} already has hours in that time.`)
   }
   try {
     const updated = await patch(`/rnd/availability/${slot.id}/`, {
@@ -366,9 +371,10 @@ async function saveEdit(slot) {
     const idx = slots.value.findIndex(s => s.id === slot.id)
     if (idx !== -1) slots.value[idx] = updated
     editingId.value = null
+    toast.dismiss('availability')
   } catch (e) {
     // e.g. a booking sits in the hours being taken away (the API names it)
-    saveError.value = apiError(e, 'Could not update these hours. Try again.')
+    toast.error(apiError(e, 'Could not update these hours. Try again.'), { id: 'availability' })
   }
 }
 
@@ -377,8 +383,9 @@ async function removeSlot(slot) {
   try {
     await del(`/rnd/availability/${slot.id}/`)
     slots.value = slots.value.filter(s => s.id !== slot.id)
+    toast.dismiss('availability')
   } catch (e) {
-    saveError.value = apiError(e, 'Could not remove these hours. Try again.')
+    toast.error(apiError(e, 'Could not remove these hours. Try again.'), { id: 'availability' })
   }
 }
 
@@ -391,7 +398,6 @@ const blocks = ref([])
 const blankBlock = () => ({ from: '', to: '', wholeDay: true, startTime: '13:00', endTime: '17:00', reason: '' })
 const newBlock = ref(blankBlock())
 const blockSaving = ref(false)
-const blockError = ref('')
 const conflicts = ref([])
 const when = v => new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
@@ -438,7 +444,6 @@ async function submitBlock() {
   const b = newBlock.value
   if (!b.from || blockRuleError.value) return
   blockSaving.value = true
-  blockError.value = ''
   conflicts.value = []
   try {
     const saved = await post('/rnd/time-off/', {
@@ -449,19 +454,20 @@ async function submitBlock() {
     blocks.value = [...blocks.value, block].sort((x, y) => x.start_date.localeCompare(y.start_date) || String(x.start_time).localeCompare(String(y.start_time)))
     conflicts.value = found || []
     newBlock.value = blankBlock()
+    toast.success(found?.length ? 'Time off blocked. You already have consultations in it, listed under the form.' : "Time off blocked. Clients can't book it.", { id: 'time-off', duration: found?.length ? 6000 : 4000 })
   } catch (e) {
-    blockError.value = apiError(e, 'Could not block that time. Please try again.')
+    toast.error(apiError(e, 'Could not block that time. Please try again.'), { id: 'time-off' })
   } finally {
     blockSaving.value = false
   }
 }
 async function removeBlock(b) {
-  blockError.value = ''
   try {
     await del(`/rnd/time-off/${b.id}/`)
     blocks.value = blocks.value.filter(x => x.id !== b.id)
+    toast.dismiss('time-off')
   } catch (e) {
-    blockError.value = apiError(e, 'Could not remove that time off.')
+    toast.error(apiError(e, 'Could not remove that time off.'), { id: 'time-off' })
   }
 }
 function formatBlockDate(iso) {
@@ -541,7 +547,6 @@ function formatBlockDate(iso) {
 .day-chip:focus-visible, .chip-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 .chip-link { background: none; border: none; color: #0a4a37; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 4px; }
 .week-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.week-result { font-size: 0.82rem; color: #1e4a26; background: #e3efe7; border-radius: 8px; padding: 8px 12px; margin: 0 0 14px; }
 
 .day-action-link {
   display: inline-flex; align-items: center; gap: 4px; background: #e3efe7; border: none; border-radius: 8px; color: #0a4a37; font-family: inherit;
@@ -552,6 +557,7 @@ function formatBlockDate(iso) {
 
 .empty-note { font-size: 0.82rem; color: #6a7a6a; margin: 0; }
 .save-error { font-size: 0.82rem; color: #c0483a; margin: 12px 0 0; }
+.save-error.in-form { flex-basis: 100%; margin: 4px 0 2px; }
 
 /* BLOCK A DAY OFF */
 .block-panel { background: #f4f8f5; border: 1px solid #d9e3dc; border-radius: 12px; padding: 22px; margin-top: 20px; }

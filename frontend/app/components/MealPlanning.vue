@@ -17,7 +17,6 @@
     </div>
 
     <p v-if="errorMessage" class="form-error no-print">{{ errorMessage }}</p>
-    <p v-if="notice" class="form-notice no-print"><CheckCircle2 :size="15" /> {{ notice }}</p>
 
     <p v-if="isLoading" class="macro-note">Loading…</p>
 
@@ -211,7 +210,7 @@
           <div class="form-row-6">
             <div class="field">
               <label>Plan name</label>
-              <input v-model="planMeta.name" type="text" placeholder="e.g., Diabetic-Friendly Plan" />
+              <input v-model="planMeta.name" type="text" placeholder="e.g., Diabetic-Friendly Plan" :class="{ invalid: nameMissing && !planMeta.name.trim() }" :aria-invalid="(nameMissing && !planMeta.name.trim()) || undefined" />
             </div>
             <div class="field">
               <label>Condition</label>
@@ -532,12 +531,13 @@
 
 <script setup>
 import {
-  Eye, Plus, ChevronLeft, Printer, Pencil, Send, X, CheckCircle2,
+  Eye, Plus, ChevronLeft, Printer, Pencil, Send, X,
   Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle, Trash2, Undo2, Lock
 } from 'lucide-vue-next'
 import { usdaPortion } from '~/utils/usda'
 import { MEASURE_TEMPLATES, TER_ACTIVITY, bmiClass, bmiOf } from '~/utils/ncp'
 import { allergyWarnings, conditionKeys, foodWarnings } from '~/utils/foodWarnings'
+import { focusFirstError } from '~/utils/focusFirstError'
 
 const route = useRoute()
 const router = useRouter()
@@ -576,14 +576,15 @@ const mode = ref('view')
 const isLoading = ref(true)
 const isSaving = ref(false)
 const isSending = ref(false)
+// errorMessage: only when the page itself could not load (it stays on the page).
+// What an action did (saved, sent, failed) goes to the toast (2026-11-03), so
+// it shows wherever the RND has scrolled. One toast slot for the page's actions.
 const errorMessage = ref('')
-const notice = ref('')
-let noticeTimer = null
-function flash(message) {
-  notice.value = message
-  clearTimeout(noticeTimer)
-  noticeTimer = setTimeout(() => { notice.value = '' }, 4000)
-}
+const toast = useToast()
+const TOAST_ID = 'meal-plan'
+function flash(message, opts = {}) { toast.success(message, { id: TOAST_ID, ...opts }) }
+function failed(message) { toast.error(message, { id: TOAST_ID }) }
+const nameMissing = ref(false)
 function apiError(error, fallback) {
   const data = error?.data || {}
   return data.detail || Object.values(data).flat().find(v => typeof v === 'string') || fallback
@@ -674,7 +675,7 @@ function copyDay() {
     for (const type of mealOrder) weeklyPlan[d][type] = JSON.parse(JSON.stringify(weeklyPlan[from][type]))
   }
   copyTarget.value = ''
-  flash(`Copied ${DAY_FULL[from]}'s meals to ${targets.map(d => DAY_FULL[d]).join(', ')}. Press Undo if that wasn't right.`)
+  flash(`Copied ${DAY_FULL[from]}'s meals to ${targets.map(d => DAY_FULL[d]).join(', ')}. Press Undo if that wasn't right.`, { duration: 6000 })
 }
 
 // A food typed by hand (not from FNRI or USDA) with no numbers adds nothing to the totals.
@@ -855,7 +856,7 @@ async function deleteDraft() {
     flash('Draft deleted.')
   } catch (error) {
     confirmDelete.value = false
-    errorMessage.value = apiError(error, 'Could not delete the draft.')
+    failed(apiError(error, 'Could not delete the draft.'))
   } finally {
     isDeleting.value = false
   }
@@ -1028,7 +1029,7 @@ function weekPayload() {
 function onTemplateCreated(plan, label) {
   replacePlan(plan)
   selectPlan(plan.id)
-  flash(`Draft built from the ${label} template. Check each day and adjust, then send it to ${selectedPatientName.value}.`)
+  flash(`Draft built from the ${label} template. Check each day and adjust, then send it to ${selectedPatientName.value}.`, { duration: 6000 })
 }
 
 function replacePlan(updated) {
@@ -1047,9 +1048,9 @@ async function createPlan() {
     })
     replacePlan(created)
     selectedPlanId.value = created.id
-    flash('Plan created as a draft. Add meals for each day, then send it to your patient.')
+    flash('Plan created as a draft. Add meals for each day, then send it to your patient.', { duration: 6000 })
   } catch (error) {
-    errorMessage.value = apiError(error, 'Could not create the plan.')
+    failed(apiError(error, 'Could not create the plan.'))
   } finally {
     isSaving.value = false
   }
@@ -1058,7 +1059,9 @@ async function createPlan() {
 async function savePlan({ quiet = false } = {}) {
   if (!selectedPlan.value) return false
   if (!planMeta.name.trim()) {
-    errorMessage.value = 'Plan name is required.'
+    nameMissing.value = true
+    toast.problem('Give the plan a name before saving.', { id: TOAST_ID })
+    focusFirstError()
     return false
   }
   isSaving.value = true
@@ -1069,9 +1072,10 @@ async function savePlan({ quiet = false } = {}) {
     replacePlan(saved)
     fillFromPlan(saved)
     if (!quiet) flash('Plan saved.')
+    else toast.dismiss(TOAST_ID) // a quiet save (before sending) still clears an old error
     return true
   } catch (error) {
-    errorMessage.value = apiError(error, 'Could not save the plan.')
+    failed(apiError(error, 'Could not save the plan.'))
     return false
   } finally {
     isSaving.value = false
@@ -1212,7 +1216,7 @@ async function sendToPatient() {
     flash(wasActive ? `Updated plan sent to ${selectedPatientName.value}.` : `Plan sent to ${selectedPatientName.value}.`)
     mode.value = 'view'
   } catch (error) {
-    errorMessage.value = apiError(error, 'Could not send the plan.')
+    failed(apiError(error, 'Could not send the plan.'))
   } finally {
     isSending.value = false
   }
@@ -1559,6 +1563,7 @@ function formatTime(t) {
   border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
 }
 .field textarea { resize: vertical; }
+.field input.invalid { border-color: #e2a39b; background: #fff8f7; }
 
 /* NUTRIENT TARGET ROWS (Measured Variable / Value / Unit) */
 .targets-section { border-top: 1px dashed #e0e5e0; padding-top: 14px; margin-bottom: 14px; }
@@ -1681,11 +1686,6 @@ function formatTime(t) {
 .form-error {
   background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
   border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
-}
-.form-notice {
-  display: flex; align-items: center; gap: 8px;
-  background: #e3f3ea; border: 1px solid #b8dcc6; color: #1f8f5c;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; margin: 0 0 16px;
 }
 .plan-subtitle { font-size: 0.8rem; color: #7a8a7a; margin: 4px 0 0; }
 .status-text { font-weight: 600; }
