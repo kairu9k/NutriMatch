@@ -1,5 +1,5 @@
 <template>
-  <!-- One-time "Welcome sa NutriMatch" (Taglish), per role. Shown by
+  <!-- One-time "Welcome to NutriMatch" (English since 2026-11-03, was Taglish), per role. Shown by
        layouts/dashboard.vue the first time a client/RND reaches their
        dashboard (User.welcome_seen_at is null), and reopened any time from
        the account menu ("How NutriMatch works"). -->
@@ -54,34 +54,34 @@ const emit = defineEmits(['close'])
 
 const COPY = {
   client: (name) => ({
-    title: `Welcome sa NutriMatch${name ? `, ${name}` : ''}! 💚`,
-    intro: "Sobrang saya namin na nandito ka. Ang pag-aalaga sa kinakain mo ay isa sa pinakamagandang regalo mo sa sarili mo, at hindi mo kailangang gawin ito mag-isa.",
-    howto: 'Ganito tayo magsisimula:',
+    title: `Welcome to NutriMatch${name ? `, ${name}` : ''}! 💚`,
+    intro: "We're so glad you're here. Taking care of what you eat is one of the best gifts you can give yourself, and you don't have to do it alone.",
+    howto: "Here's how we'll get started:",
     steps: [
-      { title: 'Hanapin ang RND mo', text: 'Pumili ng licensed Registered Nutritionist-Dietitian na kabisado ang pagkaing Pinoy at ang health needs mo.' },
-      { title: 'Mag-book at magbayad in advance', text: 'Pumili ng oras na swak sa schedule mo, then bayaran ito bago ang session.' },
-      { title: 'Makipag-consult', text: 'Sa video call o in person, kung saan ka komportable.' },
-      { title: 'Sundan ang meal plan mo', text: "Ginawa para sa'yo, meal by meal, gamit ang mga pagkaing gusto mo na." },
-      { title: 'Bantayan ang progress mo', text: 'I-log ang meals mo para makita mo kung gaano ka na kalayo.' },
+      { title: 'Find your RND', text: 'Choose a licensed Registered Nutritionist-Dietitian who knows Filipino food and your health needs.' },
+      { title: 'Book and pay in advance', text: 'Pick a time that fits your schedule, then pay for it before the session.' },
+      { title: 'Have your consultation', text: "By video call or in person, whichever you're comfortable with." },
+      { title: 'Follow your meal plan', text: 'Made for you, meal by meal, using foods you already enjoy.' },
+      { title: 'Track your progress', text: "Log your meals so you can see how far you've come." },
     ],
-    closing: "Kaya mo 'to. Kasama mo kami sa bawat hakbang. 🌱",
-    primary: { label: 'Hanapin ang RND ko', to: '/find-rnd' },
-    secondary: { label: 'Tingnan ang dashboard ko', to: '/client-dashboard' },
+    closing: "You've got this. We're with you every step of the way. 🌱",
+    primary: { label: 'Find my RND', to: '/find-rnd' },
+    secondary: { label: 'View my dashboard', to: '/client-dashboard' },
   }),
   rnd: (name) => ({
-    title: `Welcome sa NutriMatch family${name ? `, RND ${name}` : ''}!`,
-    intro: 'Maraming salamat sa pag-share ng expertise mo sa mga Pilipinong nangangailangan nito. Bawat consultation mo ay tumutulong sa isang tao na kumain nang tama at mamuhay nang mas healthy.',
-    howto: '🌿 Ganito gumagana ang NutriMatch para sa’yo:',
+    title: `Welcome to the NutriMatch family${name ? `, RND ${name}` : ''}!`,
+    intro: 'Thank you for sharing your expertise with Filipinos who need it. Every consultation you give helps someone eat right and live a healthier life.',
+    howto: "🌿 Here's how NutriMatch works for you:",
     steps: [
-      { title: 'Hahanapin ka ng clients', text: 'Magbu-book sila sa loob ng weekly hours na sinet mo.' },
-      { title: 'I-review at i-accept', text: 'Tingnan muna ang health screening nila bago i-confirm ang booking.' },
-      { title: 'Bayad muna bago consult', text: 'Magbubukas ang consultation kapag bayad na. Puwede kang mag-join 15 minutes before.' },
-      { title: 'Alagaan ang clients mo', text: 'Gawin ang NCP record at ang weekly meal plan nila, at sundan ang meal logs nila.' },
-      { title: 'Kumita', text: 'Ipinapadala ang kita mo tuwing ika-5 ng buwan sa GCash o bank mo. I-add ang payout details mo sa Earnings page.' },
+      { title: 'Clients will find you', text: 'They book within the weekly hours you set.' },
+      { title: 'Review and accept', text: 'Look over their health screening before you confirm the booking.' },
+      { title: 'Payment comes before the consultation', text: "The consultation opens once it's paid. You can join 15 minutes before." },
+      { title: 'Care for your clients', text: 'Write their NCP record and weekly meal plan, and follow their meal logs.' },
+      { title: 'Get paid', text: 'Your earnings are sent on the 5th of every month to your GCash or bank account. Add your payout details on the Earnings page.' },
     ],
-    closing: 'Excited na kaming makita ang impact mo! 💚',
-    primary: { label: 'Pumunta sa dashboard ko', to: '/rnd-dashboard' },
-    secondary: { label: 'I-set ang availability ko', to: '/profile-settings?tab=availability' },
+    closing: "We can't wait to see your impact! 💚",
+    primary: { label: 'Go to my dashboard', to: '/rnd-dashboard' },
+    secondary: { label: 'Set my availability', to: '/profile-settings?tab=availability' },
   }),
 }
 const copy = computed(() => (COPY[props.role] || COPY.client)(props.firstName))
