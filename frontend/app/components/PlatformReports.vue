@@ -6,9 +6,7 @@
           <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
         </select>
         <template v-if="period === 'custom'">
-          <input v-model="from" type="date" class="nm-input date" aria-label="From" />
-          <span class="to">to</span>
-          <input v-model="to" type="date" class="nm-input date" aria-label="To" />
+          <DatePicker v-model:from="from" v-model:to="to" range size="sm" :block="false" class="date" placeholder="Pick dates" aria-label="Report dates" />
         </template>
       </div>
       <div class="exports">
@@ -343,8 +341,7 @@ function downloadCsv() {
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .period { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .period .nm-select { min-width: 180px; }
-.date { width: 160px; min-height: 42px; }
-.to { font-size: 0.82rem; color: #6a7a6a; }
+.date { width: 250px; }
 .exports { display: flex; gap: 8px; }
 .tab-row { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
 .period-label { margin: 0; }

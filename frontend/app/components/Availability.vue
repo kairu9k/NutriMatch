@@ -96,13 +96,19 @@
       </div>
 
       <div class="block-form">
-        <div class="field">
-          <label for="off-from">From</label>
-          <input id="off-from" v-model="newBlock.from" type="date" :min="todayIso" />
-        </div>
-        <div class="field">
-          <label for="off-to">To <span class="optional">(optional)</span></label>
-          <input id="off-to" v-model="newBlock.to" type="date" :min="newBlock.from || todayIso" />
+        <div class="field field-cal">
+          <label for="off-dates">Dates</label>
+          <DatePicker
+            id="off-dates"
+            v-model:from="newBlock.from"
+            v-model:to="newBlock.to"
+            range
+            :min="todayIso"
+            :max-days="90"
+            :is-working-day="iso => hoursOn(iso).length > 0"
+            :blocks="blocks"
+            aria-label="Dates"
+          />
         </div>
         <div class="field">
           <span class="field-label">Time</span>
@@ -562,6 +568,7 @@ function formatBlockDate(iso) {
 
 .block-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; align-items: end; margin-bottom: 16px; }
 .field-wide { grid-column: span 2; }
+.field-cal { grid-column: span 2; }
 .field-label { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
 .seg { display: flex; border: 1px solid #d9e3dc; border-radius: 8px; overflow: hidden; background: #fff; }
 .seg button { flex: 1; border: 0; background: none; padding: 10px 8px; font-family: inherit; font-size: 0.8rem; color: #4a5a4a; cursor: pointer; white-space: nowrap; }
@@ -600,7 +607,7 @@ function formatBlockDate(iso) {
   .day-row { flex-wrap: wrap; gap: 8px 16px; }
   .day-content { flex-basis: 100%; order: 3; }
   .block-form { grid-template-columns: 1fr; }
-  .field-wide { grid-column: auto; }
+  .field-wide, .field-cal { grid-column: auto; }
   .blocked-item { flex-wrap: wrap; }
 }
 </style>

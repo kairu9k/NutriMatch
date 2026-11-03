@@ -79,7 +79,7 @@
               </div>
               <div class="field">
                 <label class="field-label" for="pi-dob">Date of birth</label>
-                <input id="pi-dob" v-model="form.dateOfBirth" type="date" class="field-input" :class="{ invalid: fieldErrors.dateOfBirth }" :max="latestBirthDate" min="1900-01-01" />
+                <DatePicker id="pi-dob" v-model="form.dateOfBirth" year-select size="lg" :max="latestBirthDate" min="1900-01-01" :open-at="birthOpenAt" :invalid="!!fieldErrors.dateOfBirth" placeholder="Pick your birth date" />
                 <p v-if="fieldErrors.dateOfBirth" class="field-error">{{ fieldErrors.dateOfBirth }}</p>
               </div>
               <div class="field">
@@ -476,6 +476,8 @@ const latestBirthDate = computed(() => {
   d.setFullYear(d.getFullYear() - MIN_CLIENT_AGE)
   return d.toISOString().slice(0, 10)
 })
+// The birth-date calendar opens on this month 30 years ago (not today).
+const birthOpenAt = (() => { const t = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); return `${Number(t.slice(0, 4)) - 30}${t.slice(4)}` })()
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑñ]+)*\.?$/
 
 const sexLabel = computed(() => ({ female: 'Female', male: 'Male' }[form.sex] || ''))

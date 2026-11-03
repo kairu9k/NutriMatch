@@ -50,7 +50,7 @@
         <div class="grid-2">
           <div class="field">
             <label for="ob-dob">Date of birth <span class="req">Required</span></label>
-            <input id="ob-dob" v-model="about.dob" type="date" :max="latestBirthDate" min="1900-01-01" :class="{ invalid: aboutErrors.dob }" />
+            <DatePicker id="ob-dob" v-model="about.dob" year-select size="lg" :max="latestBirthDate" min="1900-01-01" :open-at="birthOpenAt" :invalid="!!aboutErrors.dob" placeholder="Pick your birth date" />
             <p v-if="aboutErrors.dob" class="field-error">{{ aboutErrors.dob }}</p>
           </div>
           <div class="field">
@@ -269,6 +269,8 @@ const latestBirthDate = computed(() => {
   d.setFullYear(d.getFullYear() - 18)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 })
+// The birth-date calendar opens on this month 30 years ago (not today).
+const birthOpenAt = (() => { const t = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); return `${Number(t.slice(0, 4)) - 30}${t.slice(4)}` })()
 
 const screeningDone = ref(false)
 const screeningDate = ref('')

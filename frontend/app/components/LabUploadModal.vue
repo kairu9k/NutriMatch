@@ -51,7 +51,7 @@
 
         <!-- date + fasting -->
         <label class="nm-label" for="lu-date">Date the test was taken</label>
-        <input id="lu-date" v-model="takenOn" type="date" class="nm-input" :max="today" required />
+        <DatePicker id="lu-date" v-model="takenOn" :max="today" :invalid="!!errors.taken_on" />
         <p v-if="errors.taken_on" class="nm-field-error">{{ errors.taken_on }}</p>
 
         <fieldset v-if="picked.includes('fbs')" class="lu-fieldset">

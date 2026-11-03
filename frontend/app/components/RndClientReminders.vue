@@ -90,7 +90,7 @@
           </div>
           <div>
             <label class="nm-label" for="rem-date">{{ form.repeat === 'once' ? 'Date' : 'Starting' }}</label>
-            <input id="rem-date" v-model="form.date" type="date" class="nm-input" :min="todayIso" />
+            <DatePicker id="rem-date" v-model="form.date" :min="todayIso" />
           </div>
           <div>
             <label class="nm-label" for="rem-time">Time</label>

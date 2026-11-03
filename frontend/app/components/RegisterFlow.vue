@@ -146,7 +146,7 @@
               <div class="field-row">
                 <div class="field">
                   <label>Date of birth</label>
-                  <input v-model="form.dob" type="date" :max="latestBirthDate" min="1900-01-01" :class="{ invalid: dobError }" required />
+                  <DatePicker v-model="form.dob" year-select size="lg" :max="latestBirthDate" min="1900-01-01" :open-at="birthOpenAt" :invalid="!!dobError" placeholder="Pick your birth date" aria-label="Date of birth" />
                   <span v-if="dobError" class="field-error">{{ dobError }}</span>
                 </div>
                 <div class="field">
@@ -181,7 +181,7 @@
               </div>
               <div class="field">
                 <label>Date of birth</label>
-                <input v-model="form.dob" type="date" :max="latestBirthDate" min="1900-01-01" :class="{ invalid: dobError }" required />
+                <DatePicker v-model="form.dob" year-select size="lg" :max="latestBirthDate" min="1900-01-01" :open-at="birthOpenAt" :invalid="!!dobError" placeholder="Pick your birth date" aria-label="Date of birth" />
                 <span v-if="dobError" class="field-error">{{ dobError }}</span>
               </div>
               <div class="field">
@@ -669,6 +669,8 @@ const latestBirthDate = computed(() => {
   d.setFullYear(d.getFullYear() - minAge.value)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 })
+// The birth-date calendar opens on this month 30 years ago (not today).
+const birthOpenAt = (() => { const t = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); return `${Number(t.slice(0, 4)) - 30}${t.slice(4)}` })()
 const dobError = computed(() => {
   if (!form.dob) return ''
   if (form.dob > todayIso) return "Date of birth can't be in the future."
