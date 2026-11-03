@@ -138,6 +138,22 @@ class RndConsultationModeTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("consultation_fee", resp.data)
 
+    def test_bio_is_optional_but_not_too_short(self):
+        # An RND who skipped the bio at sign-up can still save the rest of
+        # Profile Settings (2026-11-03 fix); a written bio needs 50 characters.
+        self.client_api.force_authenticate(self.rnd)
+
+        empty = self.client_api.patch("/api/rnd/profile/", {"bio": "", "consultation_fee": "900.00"}, format="json")
+        self.assertEqual(empty.status_code, 200, empty.data)
+        self.assertIsNone(RndProfile.objects.get(user=self.rnd).bio)
+        self.assertEqual(RndProfile.objects.get(user=self.rnd).consultation_fee, Decimal("900.00"))
+
+        short = self.client_api.patch("/api/rnd/profile/", {"bio": "abc"}, format="json")
+        good = self.client_api.patch("/api/rnd/profile/", {"bio": "I help adults with type 2 diabetes plan Filipino meals they enjoy."}, format="json")
+        self.assertEqual(short.status_code, 400)
+        self.assertIn("bio", short.data)
+        self.assertEqual(good.status_code, 200, good.data)
+
     def test_modes_cannot_be_empty_or_unknown(self):
         self.client_api.force_authenticate(self.rnd)
 

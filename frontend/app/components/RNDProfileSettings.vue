@@ -146,9 +146,12 @@
                 maxlength="500"
                 rows="4"
                 class="field-input bio-textarea"
+                :class="{ invalid: fieldErrors.bio }"
+                :aria-invalid="!!fieldErrors.bio || undefined"
                 placeholder="Tell patients about your background, specialization, and approach to nutrition care..."
               ></textarea>
-              <p class="field-hint">Shown on your public profile when patients search for an RND.</p>
+              <p v-if="fieldErrors.bio" class="field-error">{{ fieldErrors.bio }}</p>
+              <p class="field-hint">Shown on your public profile. Clients can find you once it's written (at least 50 characters).</p>
             </div>
 
             <div class="field field-bio fee-field">
@@ -409,7 +412,7 @@ const licenseOpen = ref(false)
 const profileLoaded = ref(false)
 // Last loaded profile — Cancel restores the form from it.
 const lastLoaded = ref(null)
-const fieldErrors = reactive({ firstName: '', lastName: '', phone: '', clinicAddress: '', fee: '', modes: '' })
+const fieldErrors = reactive({ firstName: '', lastName: '', phone: '', clinicAddress: '', fee: '', modes: '', bio: '' })
 
 const identityName = computed(() => `RND ${personalInfo.value.firstName} ${personalInfo.value.lastName}`.trim())
 const identitySubtitle = computed(() => {
@@ -423,7 +426,7 @@ function startEdit() {
   profileError.value = ''
   languageError.value = ''
   newLanguage.value = ''
-  fieldErrors.firstName = fieldErrors.lastName = ''
+  Object.keys(fieldErrors).forEach(k => { fieldErrors[k] = '' })
   isEditing.value = true
 }
 function cancelEdit() {
@@ -431,7 +434,7 @@ function cancelEdit() {
   profileError.value = ''
   languageError.value = ''
   newLanguage.value = ''
-  fieldErrors.firstName = fieldErrors.lastName = ''
+  Object.keys(fieldErrors).forEach(k => { fieldErrors[k] = '' })
   isEditing.value = false
 }
 
@@ -516,7 +519,7 @@ const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ]+(?:[ '.-][A-Za-zÀ-ÖØ-öø-ÿÑ�
 
 async function saveChanges() {
   profileError.value = ''
-  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.phone = fieldErrors.clinicAddress = fieldErrors.fee = fieldErrors.modes = ''
+  fieldErrors.firstName = fieldErrors.lastName = fieldErrors.phone = fieldErrors.clinicAddress = fieldErrors.fee = fieldErrors.modes = fieldErrors.bio = ''
   personalInfo.value.firstName = personalInfo.value.firstName.trim()
   personalInfo.value.lastName = personalInfo.value.lastName.trim()
   if (!personalInfo.value.firstName) fieldErrors.firstName = 'Enter your first name.'
@@ -532,6 +535,9 @@ async function saveChanges() {
   }
   const fee = personalInfo.value.consultationFee
   if (fee === '' || fee === null || Number(fee) < 100) fieldErrors.fee = 'The consultation fee must be at least ₱100.'
+  // optional, but a written bio needs 50 characters (same rule as sign-up and the API)
+  const bioLength = (personalInfo.value.bio || '').trim().length
+  if (bioLength > 0 && bioLength < 50) fieldErrors.bio = `Write at least 50 characters (${bioLength} so far), or leave it empty for now.`
   if (Object.values(fieldErrors).some(Boolean)) {
     toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
     return
@@ -566,6 +572,7 @@ async function saveChanges() {
     fieldErrors.clinicAddress = first(data.clinic_address)
     fieldErrors.fee = first(data.consultation_fee)
     fieldErrors.modes = first(data.consultation_modes)
+    fieldErrors.bio = first(data.bio)
     if (Object.values(fieldErrors).some(Boolean)) toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
     else toast.error(apiErrorText(error, 'Could not save your changes. Please try again.'), { id: 'profile' })
   } finally {

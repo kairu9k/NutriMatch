@@ -165,9 +165,14 @@ class RndProfileUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_bio(self, value):
+        # Optional, like at sign-up (2026-11-03 fix: an RND who skipped it could
+        # not save anything else in Profile Settings). Empty keeps them off Find
+        # an RND (bookable_rnd_profiles); a written bio needs 50 characters.
         value = (value or "").strip()
+        if not value:
+            return None
         if len(value) < 50:
-            raise serializers.ValidationError("Write at least 50 characters — clients read this before booking.")
+            raise serializers.ValidationError("Write at least 50 characters, or leave it empty for now. Clients read this before booking.")
         return value
 
     def validate_languages(self, value):
