@@ -250,6 +250,8 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
+const toast = useToast() // the app's toast (2026-11-03)
 import {
   AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, FileText, History, Inbox, MapPin, MessageSquare, OctagonAlert, Search, Users, Video, X,
 } from 'lucide-vue-next'
@@ -380,6 +382,7 @@ async function confirmBooking() {
   review.value.actionError = ''
   try {
     await patch(`/rnd/appointments/${review.value.appt.id}/confirm/`)
+    toast.success(`Booking confirmed. ${review.value.appt.client.first_name} was sent the invoice.`)
     review.value = null
     await load()
   } catch (e) {
@@ -419,7 +422,10 @@ async function submitReason() {
     const r = reason.value
     await patch(`/rnd/appointments/${r.appt.id}/cancel/`, { reason: r.text.trim(), category: r.late ? r.category : undefined })
     if (r.late) r.done = true
-    else reason.value = null
+    else {
+      toast.success(`${r.kind === 'decline' ? 'Booking declined' : 'Consultation cancelled'}. ${r.appt.client.first_name} was told why.`)
+      reason.value = null
+    }
     await load()
   } catch (e) {
     reason.value.error = apiError(e, 'Could not save this.')

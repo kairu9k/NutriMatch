@@ -203,11 +203,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   CheckCircle2, Download, ExternalLink, Eye, EyeOff, FileEdit, FileText,
@@ -389,12 +389,9 @@ async function saveSharing() {
   }
 }
 
-const toast = ref('')
-let toastTimer = null
-function showToast(text) {
-  toast.value = text
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toast.value = '' }, 3500)
+const toast = useToast() // the app's toast (2026-11-03)
+function showToast(text, opts) {
+  toast.success(text, opts)
 }
 
 async function toggleActive(r) {
@@ -405,7 +402,7 @@ async function toggleActive(r) {
     r.is_active = !r.is_active
     showToast(r.is_active ? 'Patients you shared it with can see it again.' : 'Hidden. Patients can no longer see it.')
   } catch {
-    errorMessage.value = 'Could not update this resource. Please try again.'
+    toast.error('Could not update this resource. Please try again.')
   } finally {
     busyId.value = null
   }

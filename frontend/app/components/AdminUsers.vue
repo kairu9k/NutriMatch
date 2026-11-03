@@ -29,7 +29,6 @@
         </div>
       </form>
     </div>
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
 
     <p v-if="error" class="nm-error">{{ error }}</p>
 
@@ -104,6 +103,7 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { CheckCircle2, Search, UserPlus, Users, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
@@ -113,7 +113,7 @@ const showAdd = ref(false)
 const adding = ref(false)
 const addForm = reactive({ first_name: '', last_name: '', email: '', reason: '' })
 const addErrors = ref({})
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 function openAddAdmin() {
   Object.assign(addForm, { first_name: '', last_name: '', email: '', reason: '' })
   addErrors.value = {}
@@ -131,8 +131,7 @@ async function addAdmin() {
     lists.admins.unshift(created)
     showAdd.value = false
     tab.value = 'admins'
-    toast.value = `Invite sent to ${created.email}.`
-    setTimeout(() => { toast.value = '' }, 3500)
+    toast.success(`Invite sent to ${created.email}.`)
   } catch (e) {
     const d = e?.data || {}
     addErrors.value = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))

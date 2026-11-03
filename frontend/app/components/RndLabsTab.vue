@@ -72,7 +72,6 @@
       v-if="requestOpen && data" :relationship-id="relationshipId" :patient-name="patientFirstName" :tests="data.tests"
       :next-consultation="data.next_consultation" @close="requestOpen = false" @sent="onSent"
     />
-    <div v-if="toast" class="nm-toast" role="status">{{ toast }}</div>
       <LabFileModal
       v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName" :review-path="viewing.reviewPath"
       @close="viewing = null" @opened="onViewed" @reviewed="onReviewed"
@@ -81,6 +80,7 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { AlertTriangle, Eye, FileText, FlaskConical } from 'lucide-vue-next'
 import { FASTED_LABEL, consultGap, labDate, labDay, labDayTime } from '~/utils/labs'
 
@@ -98,7 +98,7 @@ const loading = ref(true)
 const error = ref('')
 const requestOpen = ref(false)
 const cancelling = ref(null)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 
 const validResults = computed(() => (data.value?.results || []).filter(r => !r.declined_at))
 const declinedResults = computed(() => (data.value?.results || []).filter(r => r.declined_at))
@@ -121,9 +121,8 @@ async function load({ quiet = false } = {}) {
 onMounted(load)
 useAutoRefresh(() => load({ quiet: true }))
 
-function flash(msg) {
-  toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+function flash(msg, opts) {
+  toast.success(msg, opts)
 }
 
 async function onSent() {
@@ -140,7 +139,7 @@ async function cancel(r) {
     await load()
     emit('changed')
   } catch (e) {
-    flash(e?.data?.detail || 'Could not cancel it.')
+    toast.error(e?.data?.detail || 'Could not cancel this lab request. Please try again.')
   } finally {
     cancelling.value = null
   }

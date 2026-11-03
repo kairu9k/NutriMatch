@@ -251,11 +251,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import {
   CheckCircle2, ChevronRight, Mail, Printer, Search, X,
 } from 'lucide-vue-next'
@@ -289,7 +289,7 @@ const tab = ref('all')
 const search = ref('')
 const row = ref(null)
 const payout = ref(null)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 const resending = ref(false)
 
 async function load({ quiet = false } = {}) {
@@ -412,7 +412,7 @@ async function resendPayout(p) {
   try {
     flash((await post(`/rnd/payouts/${p.id}/resend/`)).detail)
   } catch (err) {
-    flash(apiError(err, 'Could not send the email. Please try again.'))
+    toast.error(apiError(err, 'Could not send the email. Please try again.'), { id: 'payout-email' })
   } finally {
     resending.value = false
   }
@@ -427,7 +427,7 @@ function printStatement(p) {
       ...p.invoices.map(i => [`INV-${pad(i.invoice_id)}`, i.client_name, i.consultation_at ? shortDate(i.consultation_at) : '—', peso(i.amount), peso(i.share)])],
     total: ['Total paid out', peso(p.amount)],
   })
-  if (!ok) flash('Allow pop-ups for this site to print the statement.')
+  if (!ok) toast.problem('Allow pop-ups for this site to print the statement.')
 }
 
 /* payout details: an e-wallet (GCash, Maya, GoTyme, MariBank) or a bank from
@@ -503,9 +503,8 @@ async function saveAccount() {
   }
 }
 
-function flash(text) {
-  toast.value = text
-  setTimeout(() => { toast.value = '' }, 3500)
+function flash(text, opts) {
+  toast.success(text, opts)
 }
 const pad = n => String(n).padStart(4, '0')
 const peso0 = v => `₱${Number(v || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`

@@ -310,11 +310,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { CheckCircle2, Receipt, Search, X } from 'lucide-vue-next'
 
 const { get, patch, post } = useApi()
@@ -334,11 +334,10 @@ const error = ref('')
 const invoices = ref([])
 const search = ref('')
 const statusFilter = ref('')
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 
-function flash(msg) {
-  toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3500)
+function flash(msg, opts) {
+  toast.success(msg, opts)
 }
 
 async function loadInvoices({ quiet = false } = {}) {

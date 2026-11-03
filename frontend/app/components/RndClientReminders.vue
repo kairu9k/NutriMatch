@@ -119,11 +119,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { Check, CheckCircle2, Pause, Pencil, Play, Plus, Trash2, X } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -149,7 +149,7 @@ const reminders = ref([])
 const loading = ref(true)
 const error = ref('')
 const busyId = ref(null)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 const form = ref(null)
 const formError = ref('')
 const saving = ref(false)
@@ -174,9 +174,8 @@ onMounted(load)
 // "Done today" ticks from the client show without a reload
 useAutoRefresh(() => load({ quiet: true }))
 
-function flash(text) {
-  toast.value = text
-  setTimeout(() => { toast.value = '' }, 3000)
+function flash(text, opts) {
+  toast.success(text, opts)
 }
 
 function openForm(r = null) {
@@ -221,7 +220,7 @@ async function toggle(r) {
     Object.assign(r, await patch(`/rnd/reminders/${r.id}/`, { is_active: !r.is_active }))
     flash(r.is_active ? 'Reminder resumed.' : 'Reminder paused.')
   } catch (e) {
-    error.value = apiError(e, 'Could not update this reminder.')
+    toast.error(apiError(e, 'Could not update this reminder. Please try again.'))
   } finally {
     busyId.value = null
   }
@@ -235,7 +234,7 @@ async function remove(r) {
     confirmDelete.value = null
     flash('Reminder deleted.')
   } catch (e) {
-    error.value = apiError(e, 'Could not delete this reminder.')
+    toast.error(apiError(e, 'Could not delete this reminder. Please try again.'))
   } finally {
     busyId.value = null
   }

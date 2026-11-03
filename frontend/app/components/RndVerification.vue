@@ -256,11 +256,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import {
   ArrowLeft, BadgeCheck, CalendarClock, Check, CheckCircle2, ChevronRight, ExternalLink, IdCard, MapPin, Maximize2, Search, ShieldCheck,
   UserRound, Video, X,
@@ -304,7 +304,7 @@ const rnds = ref([])
 const search = ref('')
 const tab = ref('pending')
 const busy = ref(false)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 const selectedId = ref(null)
 const checks = reactive({ name: false, number: false, photo: false })
 
@@ -416,9 +416,8 @@ watch(filtered, (list) => {
   if (!selectedId.value && isWide() && list.length) select(list[0].id)
 })
 
-function flash(msg) {
-  toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+function flash(msg, opts) {
+  toast.success(msg, opts)
 }
 
 // After a decision, open the application that was below it (or the first).
@@ -442,7 +441,7 @@ async function approve() {
     next()
     flash(`${r.first_name} is approved. We emailed them.`)
   } catch (e) {
-    error.value = apiError(e, 'Could not approve this RND. Please try again.')
+    toast.error(apiError(e, 'Could not approve this RND. Please try again.'))
   } finally {
     busy.value = false
   }

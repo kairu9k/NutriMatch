@@ -52,21 +52,20 @@
       </form>
     </section>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 // The signed-in admin's own profile: name/phone (PATCH /api/auth/me/) and
 // password (POST /api/auth/me/password/, accounts/admin_accounts.py).
 import { Check, CheckCircle2 } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const { patch, post } = useApi()
-const toast = ref('')
-function flash(msg) {
-  toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+const toast = useToast() // the app's toast (2026-11-03)
+function flash(msg, opts) {
+  toast.success(msg, opts)
 }
 function fieldErrors(e) {
   const d = e?.data || {}

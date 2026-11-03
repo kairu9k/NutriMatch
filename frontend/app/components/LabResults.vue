@@ -85,11 +85,11 @@
       v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName"
       @close="viewing = null" 
     />
-    <div v-if="toast" class="nm-toast" role="status">{{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { AlertTriangle, Eye, FileText, FlaskConical, RefreshCw, Trash2, Upload } from 'lucide-vue-next'
 import { FASTED_LABEL, LAB_ACCEPT, fileSize, labDate, labDay, neededBefore, splitLabFiles } from '~/utils/labs'
 
@@ -102,7 +102,7 @@ const picked = ref([])
 const pickedFor = ref(null)
 const replacing = ref(null)
 const deleting = ref(null)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 
 const openRequests = computed(() => (data.value?.requests || []).filter(r => r.status === 'open'))
 // a fasting blood glucose test taken while not fasting: flagged red
@@ -124,9 +124,8 @@ async function load() {
 onMounted(load)
 useAutoRefresh(load)
 
-function flash(msg) {
-  toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+function flash(msg, opts) {
+  toast.success(msg, opts)
 }
 
 async function pick(e, requestId) {
@@ -159,7 +158,7 @@ async function remove(r) {
     flash('Lab result deleted.')
     await load()
   } catch (e) {
-    flash(e?.data?.detail || 'Could not delete it.')
+    toast.error(e?.data?.detail || 'Could not delete this lab result. Please try again.')
   } finally {
     deleting.value = null
   }

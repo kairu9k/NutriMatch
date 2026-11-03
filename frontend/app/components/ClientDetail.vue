@@ -507,6 +507,8 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
+const toast = useToast() // the app's toast (2026-11-03)
 import {
   AlertTriangle, Check, CheckCircle2, Eye, FileText, Pencil, FlaskConical, Info, Lock, MessageSquare, MoreHorizontal, OctagonAlert, Video,
 } from 'lucide-vue-next'
@@ -690,6 +692,7 @@ const summaryId = ref(null) // consultation summary pop-up
 const showDischarge = ref(false)
 function onDischarged() {
   showDischarge.value = false
+  toast.success('Patient discharged. We emailed them.')
   load()
 }
 

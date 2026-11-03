@@ -296,11 +296,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { payoutVia } from '~/utils/payout'
 import { CalendarClock, Check, CheckCircle2, ChevronRight, Copy, Eye, Printer, Send, ShieldAlert, Wallet, X } from 'lucide-vue-next'
 
@@ -316,7 +316,7 @@ const reference = ref('')
 const notes = ref('')
 const releaseError = ref('')
 const busy = ref(false)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 const copied = ref(false)
 const sentChecked = ref(false)
 const detailsChecked = ref(false)
@@ -498,8 +498,7 @@ async function release() {
     })
     releasing.value = null
     await load()
-    toast.value = `${peso(p.amount)} recorded as paid out to ${p.rnd_name}.`
-    setTimeout(() => { toast.value = '' }, 3000)
+    toast.success(`${peso(p.amount)} recorded as paid out to ${p.rnd_name}.`)
   } catch (e) {
     releaseError.value = apiError(e)
   } finally {
@@ -577,8 +576,7 @@ function printSlip() {
     note: p.notes || '',
   })
   if (!ok) {
-    toast.value = 'Allow pop-ups for this site to print the slip.'
-    setTimeout(() => { toast.value = '' }, 3000)
+    toast.problem('Allow pop-ups for this site to print the slip.')
   }
 }
 

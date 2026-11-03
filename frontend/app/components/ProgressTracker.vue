@@ -134,6 +134,8 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
+const toast = useToast() // the app's toast (2026-11-03)
 import { LineChart, Printer, X } from 'lucide-vue-next'
 import { printDocument } from '~/utils/printDoc'
 
@@ -164,7 +166,7 @@ async function removeReading(rec) {
   try {
     await del(`/client/progress/${rec.id}/`)
     records.value = records.value.filter(r => r.id !== rec.id)
-  } catch { errorMessage.value = 'Could not delete that reading.' }
+  } catch { toast.error('Could not delete that reading. Please try again.') }
 }
 
 /* ---------- printable progress report ---------- */

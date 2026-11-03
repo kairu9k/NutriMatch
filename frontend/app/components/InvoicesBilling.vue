@@ -162,11 +162,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import {
   AlarmClock, CheckCircle2, CreditCard, FileText, Mail, Printer, Receipt, Search, X,
 } from 'lucide-vue-next'
@@ -200,7 +200,7 @@ const tab = ref('all')
 const search = ref('')
 const current = ref(null)
 const resending = ref(false)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 
 async function load({ quiet = false } = {}) {
   if (!quiet) {
@@ -225,7 +225,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
 useAutoRefresh(() => load({ quiet: true }), { paused: () => !!payingId.value })
-watch(payError, (msg) => { if (msg) error.value = msg })
+watch(payError, (msg) => { if (msg) toast.error(msg, { id: 'pay' }) })
 
 const due = computed(() => invoices.value.filter(i => i.status === 'unpaid' && i.pay_by)
   .sort((a, b) => new Date(a.pay_by) - new Date(b.pay_by)))
@@ -274,14 +274,13 @@ async function resend(inv) {
     const r = await post(`/client/invoices/${inv.id}/resend-receipt/`)
     flash(r.detail)
   } catch (e) {
-    flash(apiError(e, 'Could not send the receipt. Please try again.'))
+    toast.error(apiError(e, 'Could not send the receipt. Please try again.'), { id: 'receipt' })
   } finally {
     resending.value = false
   }
 }
-function flash(text) {
-  toast.value = text
-  setTimeout(() => { toast.value = '' }, 3500)
+function flash(text, opts) {
+  toast.success(text, opts)
 }
 function printReceipt(inv) {
   const ok = printDocument({
@@ -299,7 +298,7 @@ function printReceipt(inv) {
     total: ['Total paid', peso(inv.amount)],
     note: inv.refund ? 'This consultation was cancelled and the payment is being refunded (or has been).' : 'Thank you for choosing NutriMatch.',
   })
-  if (!ok) flash('Allow pop-ups for this site to print the receipt.')
+  if (!ok) toast.problem('Allow pop-ups for this site to print the receipt.')
 }
 
 const auth = useAuthStore()

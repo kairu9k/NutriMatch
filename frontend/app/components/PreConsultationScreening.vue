@@ -183,15 +183,12 @@
       </template>
     </div>
 
-    <Transition name="toast-fade">
-      <div v-if="toastVisible" class="toast">
-        <CheckCircle2 :size="16" /> Screening computed and saved!
-      </div>
-    </Transition>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
+import { focusFirstError } from '~/utils/focusFirstError'
 import { CheckCircle2, Info, Lock, X } from 'lucide-vue-next'
 import { BMI_SHORT_STATURE_NOTE, dbwOf, isShortStature } from '~/utils/ncp'
 import { parseSymptoms, symptomGroups } from '~/utils/screening'
@@ -295,8 +292,7 @@ const onFile = ref(false)
 const onFileDate = computed(() => (result.value?.created_at
   ? new Date(result.value.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : ''))
 
-const toastVisible = ref(false)
-let toastTimer = null
+const toast = useToast() // the app's toast (2026-11-03)
 
 function ageFromDob(dob) {
   const d = new Date(`${dob}T00:00:00`)
@@ -329,9 +325,7 @@ async function handleCompute() {
       symptoms: checked.length ? checked.join(', ') : undefined,
     })
     emit('completed', result.value)
-    toastVisible.value = !props.embedded
-    clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => { toastVisible.value = false }, 4000)
+    if (!props.embedded) toast.success('Screening saved. Your results are below.')
   } catch (error) {
     const data = error?.data || {}
     const first = (v) => (Array.isArray(v) ? v[0] : v) || ''
@@ -342,6 +336,7 @@ async function handleCompute() {
     errorMessage.value = fieldError
       ? ''
       : data.detail || Object.values(data).flat()[0] || 'Could not save your screening. Please try again.'
+    if (fieldError) focusFirstError()
   } finally {
     isSubmitting.value = false
   }
@@ -604,14 +599,6 @@ onMounted(async () => {
   padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; margin-top: 14px;
 }
 
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
-  display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 999px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-  white-space: nowrap;
-}
-.toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 @media (max-width: 640px) {
   .panel { padding: 22px 18px; }

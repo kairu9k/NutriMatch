@@ -204,11 +204,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { Ban, CalendarX, Check, CheckCircle2, ChevronRight, MapPin, Search, Video, X } from 'lucide-vue-next'
 
 const { get, post } = useApi()
@@ -245,7 +245,7 @@ const count = ref(0)
 const pages = computed(() => Math.max(1, Math.ceil(count.value / PER_PAGE)))
 const loading = ref(true)
 const error = ref('')
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 const selected = ref(null)
 const listTop = ref(null)
 
@@ -478,10 +478,9 @@ async function confirmCancel() {
     const updated = await post(`/admin/appointments/${selected.value.id}/cancel/`, { reason: reason.value.trim() })
     closeCancel()
     selected.value = null
-    toast.value = updated.payment?.status === 'refund_pending'
+    toast.success(updated.payment?.status === 'refund_pending'
       ? 'Appointment cancelled. The payment is now under Refunds in Billing and commission.'
-      : 'Appointment cancelled. Both people were notified.'
-    setTimeout(() => { toast.value = '' }, 3500)
+      : 'Appointment cancelled. Both people were notified.')
     load()
     loadSummary()
   } catch (e) {

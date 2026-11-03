@@ -61,11 +61,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { CheckCircle2, FileCheck2, Lock, ScrollText, ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 
@@ -95,7 +95,7 @@ const settings = ref([])
 const drafts = reactive({})
 const errors = reactive({})
 const savingKey = ref(null)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 
 onMounted(async () => {
   try {
@@ -115,8 +115,7 @@ async function save(s) {
     const updated = await patch(`/admin/settings/${s.key}/`, { value: String(drafts[s.key] ?? '') })
     Object.assign(s, updated)
     drafts[s.key] = updated.value
-    toast.value = `${META[s.key]?.label || s.key} saved.`
-    setTimeout(() => { toast.value = '' }, 2500)
+    toast.success(`${META[s.key]?.label || s.key} saved.`)
   } catch (e) {
     errors[s.key] = apiError(e, 'Could not save. Please try again.')
   } finally {

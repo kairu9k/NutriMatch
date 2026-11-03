@@ -202,14 +202,12 @@
       </div>
     </div>
 
-    <Transition name="toast-fade">
-      <div v-if="toast" class="toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
-    </Transition>
     <ConsultationSummaryModal v-if="summaryId" :appointment-id="summaryId" role="client" @close="summaryId = null" />
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   CalendarPlus, CalendarDays, Video, MessageCircle, MessageSquare, MapPin, Star,
@@ -440,7 +438,7 @@ function payNow(appt) {
     onClosed: load,
   })
 }
-watch(payError, (msg) => { if (msg) showToast(msg) })
+watch(payError, (msg) => { if (msg) toast.error(msg, { id: 'pay' }) })
 // Coming back to this tab after paying re-checks.
 function onVisible() {
   if (document.visibilityState === 'visible' && upcoming.value.some(a => a.phase === 'payment_due')) load()
@@ -448,12 +446,9 @@ function onVisible() {
 onMounted(() => document.addEventListener('visibilitychange', onVisible))
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
 
-const toast = ref('')
-let toastTimer = null
-function showToast(message) {
-  toast.value = message
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toast.value = '' }, 3500)
+const toast = useToast() // the app's toast (2026-11-03)
+function showToast(message, opts) {
+  toast.success(message, opts)
 }
 
 /* ---------- Cancel ---------- */
@@ -690,14 +685,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .star-btn:focus-visible { outline: 2px solid #D4A017; }
 .star-label { font-size: 0.82rem; color: #6a7a6a; font-weight: 600; margin-left: 10px; }
 
-/* TOAST */
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 400;
-  display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); white-space: nowrap;
-}
-.toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 @media (max-width: 640px) {
   .page-header { flex-direction: column; }

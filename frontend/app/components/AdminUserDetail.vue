@@ -321,11 +321,11 @@
       </div>
     </div>
 
-    <div v-if="toast" class="nm-toast"><CheckCircle2 :size="16" /> {{ toast }}</div>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import {
   ArrowLeft, Ban, CalendarClock, CheckCircle2, ExternalLink, IdCard, KeyRound, MapPin, Maximize2, Pencil, RotateCcw, ShieldCheck,
   UserRound, Video, X,
@@ -340,7 +340,7 @@ const data = ref(null)
 const loading = ref(true)
 const error = ref('')
 const busy = ref(false)
-const toast = ref('')
+const toast = useToast() // the app's toast (2026-11-03)
 const showDeactivate = ref(false)
 const reason = ref('')
 const reasonError = ref('')
@@ -420,9 +420,8 @@ onMounted(load)
 // looked, not a timer.
 useAutoRefresh(() => load({ quiet: true }), { interval: 300000, paused: () => !data.value || data.value.user?.role === 'client' })
 
-function flash(msg) {
-  toast.value = msg
-  setTimeout(() => { toast.value = '' }, 3000)
+function flash(msg, opts) {
+  toast.success(msg, opts)
 }
 
 /* ---------- edit details (PATCH /api/admin/users/<id>/edit/, accounts/admin_edit.py) ---------- */
@@ -513,7 +512,7 @@ async function reactivate() {
     await load()
     flash('Account reactivated. We emailed the user.')
   } catch (e) {
-    error.value = apiError(e)
+    toast.error(apiError(e, 'Could not reactivate this account. Please try again.'))
   } finally {
     busy.value = false
   }
@@ -527,7 +526,7 @@ async function sendReset() {
     await load()
     flash(`Password reset code sent to ${u.value.email}.`)
   } catch (e) {
-    error.value = apiError(e)
+    toast.error(apiError(e, 'Could not send the reset code. Please try again.'))
   } finally {
     busy.value = false
   }

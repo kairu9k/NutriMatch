@@ -163,15 +163,11 @@
       <p class="empty-desc">Your RND makes your meal plan after your consultation. It shows here, meal by meal.</p>
     </div>
 
-    <Transition name="toast-fade">
-      <div v-if="toastVisible" class="toast">
-        <CheckCircle2 :size="16" /> {{ toastMessage }}
-      </div>
-    </Transition>
   </div>
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
 import { phIso, phWeekday } from '~/utils/phTime'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { Info, ClipboardList, Sunrise, Coffee, Sun, Moon, UploadCloud, Save, CheckCircle2, X, AlertTriangle, Lock, Download } from 'lucide-vue-next'
@@ -384,14 +380,9 @@ const completionPct = computed(() => {
 /* ---------- SAVE + NOTIFY RND ---------- */
 const isSavingLog = ref(false)
 const logError = ref('')
-const toastVisible = ref(false)
-const toastMessage = ref('')
-let toastTimer = null
-function fireToast(msg) {
-  toastMessage.value = msg
-  toastVisible.value = true
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastVisible.value = false }, 4000)
+const toast = useToast() // the app's toast (2026-11-03)
+function fireToast(msg, opts) {
+  toast.success(msg, opts)
 }
 
 async function saveMealLog() {
@@ -634,15 +625,6 @@ useAutoRefresh(() => loadMealPlans({ quiet: true }), {
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.85rem; color: #6a7a6a; margin: 0; }
 
-/* TOAST */
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 200;
-  display: flex; align-items: center; gap: 8px; background: #00382a; color: #fff;
-  padding: 13px 22px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
-  white-space: nowrap;
-}
-.toast-fade-enter-active, .toast-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 @media (max-width: 800px) {
   .plan-grid { grid-template-columns: minmax(0, 1fr); }

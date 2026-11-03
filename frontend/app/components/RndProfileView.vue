@@ -285,6 +285,8 @@
 </template>
 
 <script setup>
+import { useToast } from '~/composables/useToast'
+const toast = useToast() // the app's toast (2026-11-03)
 import {
   BadgeCheck, CalendarPlus, ChevronLeft, ChevronRight, Clock, CreditCard, ExternalLink, Languages,
   MapPin, RotateCcw, Star, UserX, Video, X,
@@ -684,8 +686,10 @@ async function confirmBooking() {
       duration_minutes: SESSION_MINUTES,
       notes: bookingNotes.value || undefined,
     })
+    const rndName = rnd.value.user.first_name
     closeBookingModal()
     await navigateTo('/appointments')
+    toast.success(`Booking request sent. We'll tell you when RND ${rndName} confirms it.`, { duration: 6000 })
   } catch (error) {
     const data = error?.data || {}
     bookingError.value = data.detail || data.non_field_errors?.[0] || data.scheduled_at?.[0] || data.type?.[0]

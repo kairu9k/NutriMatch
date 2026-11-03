@@ -38,7 +38,7 @@
         </template>
 
         <!-- tests -->
-        <fieldset class="lu-fieldset">
+        <fieldset class="lu-fieldset" :aria-invalid="!!errors.tests || undefined">
           <legend class="nm-label">Which tests are in {{ files.length > 1 ? 'these files' : 'this file' }}?</legend>
           <div class="lu-tests">
             <label v-for="t in tests" :key="t.code" class="lu-check">
@@ -54,7 +54,7 @@
         <div class="lu-date"><DateField id="lu-date" v-model="takenOn" :max="today" :invalid="!!errors.taken_on" placeholder="Select date" /></div>
         <p v-if="errors.taken_on" class="nm-field-error">{{ errors.taken_on }}</p>
 
-        <fieldset v-if="picked.includes('fbs')" class="lu-fieldset">
+        <fieldset v-if="picked.includes('fbs')" class="lu-fieldset" :aria-invalid="!!errors.fasted || undefined">
           <legend class="nm-label">Did you fast for 8+ hours before the glucose test?</legend>
           <div class="lu-radios">
             <label class="lu-check"><input v-model="fasted" type="radio" value="yes" /> Yes</label>
@@ -74,6 +74,7 @@
 </template>
 
 <script setup>
+import { focusFirstError } from '~/utils/focusFirstError'
 import { FileText, Plus, X } from 'lucide-vue-next'
 import { LAB_ACCEPT, LAB_MAX_FILES, LAB_MAX_MB, fileSize, labDay, labFilesError, splitLabFiles } from '~/utils/labs'
 
@@ -134,7 +135,10 @@ async function submit() {
   if (!takenOn.value) errors.value.taken_on = 'Enter the date the test was taken.'
   else if (takenOn.value > today) errors.value.taken_on = 'The test date can\'t be in the future.'
   if (picked.value.includes('fbs') && !fasted.value) errors.value.fasted = 'Choose yes or no.'
-  if (error.value || Object.keys(errors.value).length) return
+  if (error.value || Object.keys(errors.value).length) {
+    focusFirstError()
+    return
+  }
 
   const fd = new FormData()
   files.value.forEach(f => fd.append('files', f))
