@@ -48,7 +48,7 @@ class RndSearchView(generics.ListAPIView):
     def get_queryset(self):
         from .services import bookable_rnd_profiles
 
-        # Approved + fee + bio + availability (bookable_rnd_profiles), and
+        # Approved + fee + availability (bookable_rnd_profiles), and
         # taking new clients.
         qs = bookable_rnd_profiles().filter(available_for_new_clients=True).select_related("user")
 

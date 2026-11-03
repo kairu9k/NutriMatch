@@ -332,6 +332,11 @@ const needGroups = computed(() => {
       detail: `Still to do: ${requiredMissing.value.map(m => m.label.toLowerCase()).join('; ')}.`,
       to: requiredMissing.value.length === 1 && requiredMissing.value[0].key === 'availability' ? '/profile-settings?tab=availability' : '/profile-settings' })
   }
+  // the bio is optional (clients can find the RND without it), but worth a nudge
+  if (needsBio.value) {
+    todo.push({ key: 'bio', title: 'Add a bio to your profile', tone: 'todo', action: 'Write bio', to: '/profile-settings',
+      detail: 'Clients see it on Find an RND and your profile. It helps them choose you.' })
+  }
   if (needsClinicAddress.value) {
     todo.push({ key: 'clinic', title: 'Add your clinic address', tone: 'todo', action: 'Add address', to: '/profile-settings',
       detail: "Clients can't book your in-person consultations until it's added." })
@@ -352,6 +357,7 @@ const needGroups = computed(() => {
 })
 const requiredMissing = computed(() => setupMissing.value.filter(m => !m.optional))
 const needsClinicAddress = computed(() => setupMissing.value.some(m => m.key === 'clinic_address'))
+const needsBio = computed(() => setupMissing.value.some(m => m.key === 'bio'))
 
 const PH = { timeZone: 'Asia/Manila' }
 const phDate = v => new Date(v).toLocaleDateString('en-CA', PH)

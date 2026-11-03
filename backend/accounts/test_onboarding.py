@@ -174,9 +174,10 @@ class RndListingRuleTests(TestCase):
         no_hours = self._rnd("nohours@t.ph")
         RndAvailabilitySchedule.objects.filter(rnd=no_hours).delete()
         listed = {r["user"]["id"] for r in self.api.get("/api/client/rnds/").data}
-        self.assertEqual(listed, {ready.id})
+        # no bio is fine (2026-11-03): the bio is optional and doesn't hide the RND
+        self.assertEqual(listed, {ready.id, no_bio.id})
         when = booking_slot(1).isoformat()
-        for rnd in (cheap, no_bio, no_hours):
+        for rnd in (cheap, no_hours):
             resp = self.api.post("/api/client/appointments/", {"rnd_id": rnd.id, "scheduled_at": when, "type": "video"}, format="json")
             self.assertEqual(resp.status_code, 400)
             self.assertIn("isn't taking bookings", str(resp.data))

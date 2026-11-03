@@ -85,7 +85,7 @@
           <span v-if="rnd.is_my_rnd" class="nm-pill green my-rnd">Your RND</span>
         </div>
 
-        <p class="card-bio">{{ rnd.bio }}</p>
+        <p v-if="rnd.bio" class="card-bio">{{ rnd.bio }}</p>
 
         <div class="chips">
           <span v-for="l in rnd.languages" :key="l.code" class="chip">{{ l.language_name.replace(/ \(.*\)/, '') }}</span>

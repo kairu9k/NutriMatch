@@ -260,7 +260,7 @@
               ></textarea>
               <div class="bio-meta">
                 <span v-if="bioError" class="field-error">{{ bioError }}</span>
-                <span v-else class="license-hint">You can add it later in Profile Settings. Clients find you once it's there. If you write one now, at least 50 characters.</span>
+                <span v-else class="license-hint">You can add it later in Profile Settings. It helps clients choose you. If you write one now, at least 50 characters.</span>
                 <span class="char-count" :class="{ short: form.bio.trim().length > 0 && form.bio.trim().length < 50 }">{{ form.bio.trim().length }}/1000</span>
               </div>
             </div>

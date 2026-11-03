@@ -135,7 +135,7 @@ def _attention(now, summary):
               RndProfile.objects.filter(is_verified=True, user__is_active=True).select_related("user") if p.pk not in bookable]
     add("info", "not_bookable", len(hidden),
         f"{len(hidden)} approved RND{'s' if len(hidden) != 1 else ''} clients can't book yet",
-        "Missing a fee, bio or weekly hours. Their dashboard lists what's left.", "/users?tab=rnds", hidden)
+        "Missing a fee or weekly hours. Their dashboard lists what's left.", "/users?tab=rnds", hidden)
 
     from scheduling.no_shows import LATE_CANCEL_DAYS, LATE_CANCEL_FLAG, late_cancel_flags
 

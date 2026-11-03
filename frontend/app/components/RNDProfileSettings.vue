@@ -151,7 +151,7 @@
                 placeholder="Tell patients about your background, specialization, and approach to nutrition care..."
               ></textarea>
               <p v-if="fieldErrors.bio" class="field-error">{{ fieldErrors.bio }}</p>
-              <p class="field-hint">Shown on your public profile. Clients can find you once it's written (at least 50 characters).</p>
+              <p class="field-hint">Optional, at least 50 characters. Shown on Find an RND and your profile, and it helps clients choose you.</p>
             </div>
 
             <div class="field field-bio fee-field">

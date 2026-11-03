@@ -106,8 +106,9 @@ def destroy_profile_photo(url: str | None) -> None:
 # ---------------------------------------------------------------------------
 
 def bookable_rnd_profiles():
-    """RNDs clients can find and book: approved, fee >= MIN_CONSULTATION_FEE,
-    a bio, and at least one weekly availability block."""
+    """RNDs clients can find and book: approved, fee >= MIN_CONSULTATION_FEE
+    and at least one weekly availability block. The bio is optional
+    (2026-11-03, user's call: it is optional at sign-up, so it doesn't hide them)."""
     from .models import MIN_CONSULTATION_FEE, RndProfile
 
     return (
@@ -116,8 +117,6 @@ def bookable_rnd_profiles():
             consultation_fee__gte=MIN_CONSULTATION_FEE,
             user__availability_schedules__is_available=True,
         )
-        .exclude(bio__isnull=True)
-        .exclude(bio="")
         .distinct()
     )
 
@@ -130,7 +129,8 @@ def rnd_missing_setup(profile):
     if (profile.consultation_fee or 0) < MIN_CONSULTATION_FEE:
         missing.append({"key": "fee", "label": f"Set a consultation fee of at least \u20b1{MIN_CONSULTATION_FEE}"})
     if not (profile.bio or "").strip():
-        missing.append({"key": "bio", "label": "Write your professional bio"})
+        # optional: doesn't hide them, but clients choose more easily with one
+        missing.append({"key": "bio", "label": "Write your professional bio", "optional": True})
     if not profile.user.availability_schedules.filter(is_available=True).exists():
         missing.append({"key": "availability", "label": "Add your weekly availability"})
     if "in_person" in (profile.consultation_modes or []) and not (profile.clinic_address or "").strip():
