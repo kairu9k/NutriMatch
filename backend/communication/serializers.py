@@ -322,6 +322,18 @@ class NotificationDetailSerializer(NotificationLogSerializer):
             return None
         return {**result_payload(res), "with": self._other_party(res.relationship, user)}
 
+    def _related_meal_log(self, pk, user):
+        # Only the patient's RND gets meal-log notifications; clicking one
+        # opens that patient's chart (Meal plan tab) at the log.
+        from nutrition.models import MealLog
+
+        log = MealLog.objects.filter(pk=pk, meal_plan_meal__meal_plan__relationship__rnd=user).select_related(
+            "meal_plan_meal__meal_plan"
+        ).first()
+        if log is None:
+            return None
+        return {"id": log.id, "relationship_id": log.meal_plan_meal.meal_plan.relationship_id, "status": log.status}
+
     def _related_payout(self, pk, user):
         from billing.models import Payout
 

@@ -352,7 +352,7 @@
             <table class="nm-table">
               <thead><tr><th>Date</th><th>Meal</th><th>Logged at</th><th>Their note</th><th>Your rating</th></tr></thead>
               <tbody>
-                <tr v-for="l in s.recent_logs" :key="l.id">
+                <tr v-for="l in s.recent_logs" :id="`meal-log-${l.id}`" :key="l.id" :class="{ 'row-flash': flashLog === l.id }">
                   <td>{{ shortDate(l.date) }}</td>
                   <td>{{ l.meal }}</td>
                   <td>{{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</td>
@@ -547,6 +547,7 @@ const refresh = load
 useAutoRefresh(() => load({ quiet: true }))
 onMounted(async () => {
   await load()
+  if (route.query.log) showLog(Number(route.query.log))
   // "Continue in chart" (NCP Records page) lands here with ?open=draft.
   if (route.query.open === 'draft' && s.value?.patient.status === 'active') {
     tab.value = 'ncp'
@@ -563,6 +564,30 @@ function setTab(k) {
   tab.value = k
   router.replace({ query: { ...route.query, tab: k === 'overview' ? undefined : k } })
 }
+// A notification can open this chart while it's already showing
+// (?tab=meal&log=<id> for "Meal log to review"): follow the URL, and bring
+// that meal log into view with a short highlight.
+const flashLog = ref(null)
+async function showLog(id) {
+  if (!id) return
+  await nextTick()
+  const row = document.getElementById(`meal-log-${id}`)
+  if (row) {
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    flashLog.value = id
+    setTimeout(() => { if (flashLog.value === id) flashLog.value = null }, 3000)
+  }
+  const { log, ...rest } = route.query
+  router.replace({ query: rest })
+}
+watch(() => [route.query.tab, route.query.log], async ([t, log]) => {
+  const next = TAB_KEYS.includes(t) ? t : 'overview'
+  if (next !== tab.value) tab.value = next
+  if (log) {
+    await load({ quiet: true })
+    showLog(Number(log))
+  }
+})
 const TABS = computed(() => [
   { key: 'overview', label: 'Overview' },
   { key: 'ncp', label: 'NCP records', count: ncpRecords.value.length || null },
@@ -773,6 +798,10 @@ const trends = computed(() => {
 </script>
 
 <style scoped>
+.row-flash td { background: #e3efe7; }
+@media (prefers-reduced-motion: no-preference) {
+  .row-flash td { transition: background 0.6s ease; }
+}
 .crumb { font-size: 0.8rem; color: #8a9a8a; margin: 0 0 12px; }
 .crumb a { color: #1f6f46; text-decoration: none; font-weight: 600; }
 

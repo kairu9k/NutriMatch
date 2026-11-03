@@ -310,6 +310,23 @@ class NotificationDetailTests(TestCase):
         n2 = notify(other_rnd, "relationship", self.rel.id, "x", "y")  # not their patient
         self.assertIsNone(self._get(n2, other_rnd).data["related"])
 
+    def test_meal_log_detail_points_at_the_patient_chart(self):
+        # Clicking "Meal log to review" opens the chart at the log (2026-11-03).
+        from nutrition.models import MealLog, MealPlan, MealPlanMeal
+
+        from .services import notify
+
+        plan = MealPlan.objects.create(relationship=self.rel, name="Plan")
+        meal = MealPlanMeal.objects.create(meal_plan=plan, meal_time="breakfast")
+        log = MealLog.objects.create(meal_plan_meal=meal, client=self.client_user, log_date="2026-11-03")
+        n = notify(self.rnd, "meal_log", log.id, "Meal log to review", "C L logged breakfast.")
+        rel = self._get(n, self.rnd).data["related"]
+        self.assertEqual(rel["id"], log.id)
+        self.assertEqual(rel["relationship_id"], self.rel.id)
+        other_rnd = _make_rnd("other.rnd2@t.ph")
+        n2 = notify(other_rnd, "meal_log", log.id, "x", "y")  # not their patient
+        self.assertIsNone(self._get(n2, other_rnd).data["related"])
+
     def test_other_users_cannot_open_it(self):
         other = _make_client("other@t.ph")
         self.assertEqual(self._get(self.n_appt, other).status_code, 404)
