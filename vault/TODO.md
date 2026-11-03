@@ -327,14 +327,14 @@ Steps:
 - [x] **2. First three pages (user reviews before the rest):** Meal Planning, Availability (+ Block time off), client and RND Profile Settings. Own toasts and in-page success bars → shared toast; failed actions → error toast; scroll to first error (step 3) on these.
 - [x] **3. Scroll to the first error:** `utils/focusFirstError.js`: scroll to the first `[aria-invalid="true"]` / `.invalid` field and focus it; inside a pop-up scroll the pop-up (`nm-modal`), not the page; plus a "Check N fields" toast. Apply to screening, lab upload, request labs, reminders, discharge, admin Edit details, payout release, RND/client Profile Settings, Availability.
 - [x] **4. The other pages:** (done 2026-11-03: all 17 pages + success toasts where the result leaves the screen; short pop-ups keep their error next to the button, which is in view) the rest of the 18 own-toast pages and 10 in-page bars, page by page; delete the per-page `toast` refs and `.toast`/`nm-toast` CSS once unused.
-- [ ] **5. Buttons lock while they work:** every action that sends something says "Saving…" (etc.) and can't be pressed twice. Audit 2026-11-03 (every POST/PATCH/PUT/DELETE in the app, 88 actions + the auth store + payment): already locked = sign in, sign up, check email, Confirm email, Resend code (60 s countdown + server 5/min), Forgot password, booking, Pay (per invoice), cancel / dispute / review, RND confirm / decline / complete / no-show, NCP save / finalize, meal plan create / save / send / delete / template, meal log save / rate, screening, onboarding, Profile Settings save / password / photo, discharge, labs, reminders, resources, support, every admin action (approve / reject, deactivate, edit, refund, payout, commission, settings, add admin). **Not locked, to fix:**
-  - [ ] Availability: per-day **Add** and **Save** (edit hours), the × on hours and on time off (a double click on Add sends two requests at once; the server's overlap check can miss a simultaneous pair). Block time off and Add hours for all week are already locked.
-  - [ ] Client dashboard My tasks: tick / untick and the × on own tasks.
-  - [ ] Client Profile Settings → Notifications switches (fast flips can arrive out of order).
-  - [ ] Progress Tracker: × on a self-reported reading.
-  - [ ] Support widget: Mark as resolved.
+- [x] **5. Buttons lock while they work:** every action that sends something says "Saving…" (etc.) and can't be pressed twice. Audit 2026-11-03 (every POST/PATCH/PUT/DELETE in the app, 88 actions + the auth store + payment): already locked = sign in, sign up, check email, Confirm email, Resend code (60 s countdown + server 5/min), Forgot password, booking, Pay (per invoice), cancel / dispute / review, RND confirm / decline / complete / no-show, NCP save / finalize, meal plan create / save / send / delete / template, meal log save / rate, screening, onboarding, Profile Settings save / password / photo, discharge, labs, reminders, resources, support, every admin action (approve / reject, deactivate, edit, refund, payout, commission, settings, add admin). **Not locked, to fix:**
+  - [x] Availability: per-day **Add** and **Save** (edit hours), the × on hours and on time off (a double click on Add sends two requests at once; the server's overlap check can miss a simultaneous pair). Block time off and Add hours for all week are already locked.
+  - [x] Client dashboard My tasks: tick / untick and the × on own tasks.
+  - [x] Client Profile Settings → Notifications switches (fast flips can arrive out of order).
+  - [x] Progress Tracker: × on a self-reported reading.
+  - [x] Support widget: Mark as resolved.
   - Left as is: mark notifications read (harmless), Messages send (the box clears at once, so a second Enter sends nothing).
-  - [ ] Delete `components/ClientManagement.vue` (not used anywhere; old admin page).
+  - [x] Delete `components/ClientManagement.vue` (not used anywhere; old admin page).
 - [ ] **6. Check:** click the main actions for each role at desktop and phone width, one forced failure per type (backend stopped); frontend build; commit to `rnd-design-pass`, push only when the user says.
 - [ ] Update CLAUDE.md design rules with the toast rule once built.
 
