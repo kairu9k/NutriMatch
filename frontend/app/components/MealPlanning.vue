@@ -538,6 +538,7 @@ import { usdaPortion } from '~/utils/usda'
 import { MEASURE_TEMPLATES, TER_ACTIVITY, bmiClass, bmiOf } from '~/utils/ncp'
 import { allergyWarnings, conditionKeys, foodWarnings } from '~/utils/foodWarnings'
 import { focusFirstError } from '~/utils/focusFirstError'
+import { useToast } from '~/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()

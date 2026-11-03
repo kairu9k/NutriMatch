@@ -418,6 +418,7 @@ import { Bell, CalendarCheck, Check, ClipboardList, FileText, HeartPulse, Histor
 import { useAuthStore } from '~/stores/auth'
 import { formatPhone, phoneError } from '~/utils/phone'
 import { fieldsProblemText, focusFirstError } from '~/utils/focusFirstError'
+import { apiErrorText, useToast } from '~/composables/useToast'
 
 const auth = useAuthStore()
 const { get, patch, post, put, del } = useApi()
