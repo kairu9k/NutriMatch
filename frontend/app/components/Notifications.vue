@@ -20,7 +20,7 @@
         :key="n.id"
         class="notif-item clickable"
         :class="{ unread: !n.is_read }"
-        role="button" tabindex="0"
+        role="link" tabindex="0" :aria-busy="opening === n.id"
         @click="openNotification(n)" @keydown.enter="openNotification(n)"
       >
         <img v-if="n.meal_log?.photo_url" :src="n.meal_log.photo_url" alt="" class="notif-photo" />
@@ -32,9 +32,9 @@
           <p v-if="n.content" class="notif-text">{{ n.content }}</p>
           <p v-if="n.meal_log" class="notif-log-row">
             <span class="notif-log-status" :class="`log-${n.meal_log.status}`">{{ n.meal_log.status_label }}</span>
-            <span class="notif-log-link">View log</span>
+            <span class="notif-log-link">Open in chart</span>
           </p>
-          <span class="notif-time" :title="new Date(n.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })">{{ timeAgo(n.created_at) }}</span>
+          <span class="notif-time" :title="new Date(n.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })">{{ opening === n.id ? 'Opening…' : timeAgo(n.created_at) }}</span>
         </div>
       </div>
       </template>
@@ -50,8 +50,6 @@
       <p class="empty-desc">Updates about your consultations, payments and care show up here.</p>
     </div>
 
-    <MealLogPopup v-if="openMealLog" :meal-log-id="openMealLog.id" :initial="openMealLog" @close="openMealLog = null" />
-    <NotificationDetailModal v-if="openDetail" :notification="openDetail" @close="openDetail = null" />
   </div>
 </template>
 
@@ -130,15 +128,13 @@ async function loadNotifications() {
   }
 }
 
-// Clicking a notification opens its full detail (NotificationDetailModal).
-// "Meal log update" notifications carry the log itself (RND only) — those
-// open the log with the photo and what was planned instead.
-const openMealLog = ref(null)
-const openDetail = ref(null)
+// Clicking a notification goes straight to the page it's about (no pop-up,
+// 2026-11-03, user's call — utils/notificationLink.js). With nowhere to go it
+// is just marked read: the row already shows the full text.
+const { opening, openNotification: goTo } = useOpenNotification()
 function openNotification(n) {
   if (!n.is_read) markRead(n)
-  if (n.meal_log) openMealLog.value = n.meal_log
-  else openDetail.value = n
+  goTo(n)
 }
 
 function goPage(n) {

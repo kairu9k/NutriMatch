@@ -292,6 +292,10 @@ function setTab(k) {
   tab.value = k
   router.replace({ query: { ...route.query, tab: k } })
 }
+// A notification can switch the tab while this page is already open.
+watch(() => route.query.tab, (t) => {
+  if (TABS.some(x => x.key === t) && t !== tab.value) { tab.value = t; load({ quiet: true }) }
+})
 onMounted(async () => {
   await load()
   if (!tab.value && board.value) tab.value = board.value.requests.length ? 'requests' : board.value.to_complete.length && !board.value.upcoming.length ? 'to_complete' : 'upcoming'

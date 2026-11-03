@@ -59,16 +59,13 @@ async function markRead(n) {
   }
 }
 
-// Clicking a notification opens its full detail (NotificationDetailModal).
-// "Meal log update" notifications carry the log itself (RND only) — those
-// open the log with the photo and what was planned instead.
-const openMealLog = ref(null)
-const openDetail = ref(null)
-function openNotification(n) {
+// Clicking a notification goes straight to the page it's about (no pop-up,
+// 2026-11-03, user's call — utils/notificationLink.js). With nowhere to go it
+// is just marked read: the row already shows the full text.
+const { opening, openNotification: goTo } = useOpenNotification()
+async function openNotification(n) {
   markRead(n)
-  if (n.meal_log) openMealLog.value = n.meal_log
-  else openDetail.value = n
-  close()
+  if (await goTo(n)) close()
 }
 const STATUS_CLASS = {
   followed: 'bg-emerald-50 text-emerald-700',
@@ -131,7 +128,7 @@ onUnmounted(() => clearInterval(fallbackTimer))
             v-for="n in notifications"
             :key="n.id"
             class="flex items-start gap-3 px-5 py-3 hover:bg-cream-soft transition-colors border-b border-forest/5 last:border-0 cursor-pointer"
-            role="button" tabindex="0"
+            role="link" tabindex="0" :aria-busy="opening === n.id"
             @click="openNotification(n)" @keydown.enter="openNotification(n)"
           >
             <!-- meal log: photo thumbnail -->
@@ -142,9 +139,9 @@ onUnmounted(() => clearInterval(fallbackTimer))
               <p class="text-xs text-forest/60">{{ n.content }}</p>
               <p v-if="n.meal_log" class="mt-1 flex items-center gap-2">
                 <span class="text-[11px] font-semibold rounded-full px-2 py-0.5" :class="STATUS_CLASS[n.meal_log.status]">{{ n.meal_log.status_label }}</span>
-                <span class="text-[11px] font-semibold text-emerald-700">View log</span>
+                <span class="text-[11px] font-semibold text-emerald-700">Open in chart</span>
               </p>
-              <p class="text-xs text-forest/50 mt-0.5">{{ timeAgo(n.created_at) }}</p>
+              <p class="text-xs text-forest/50 mt-0.5">{{ opening === n.id ? 'Opening…' : timeAgo(n.created_at) }}</p>
             </div>
             <span v-if="!n.is_read" class="w-2 h-2 rounded-full bg-gold mt-1.5 shrink-0" aria-label="Unread"></span>
           </div>
@@ -152,8 +149,6 @@ onUnmounted(() => clearInterval(fallbackTimer))
       </div>
     </Transition>
 
-    <MealLogPopup v-if="openMealLog" :meal-log-id="openMealLog.id" :initial="openMealLog" @close="openMealLog = null" />
-    <NotificationDetailModal v-if="openDetail" :notification="openDetail" @close="openDetail = null" />
   </div>
 </template>
 
