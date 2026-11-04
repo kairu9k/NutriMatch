@@ -30,6 +30,10 @@ LANGUAGE_NAMES = dict(LANGUAGES)
 # The lowest consultation fee an RND can set (no free consultations — a
 # ₱0 invoice can't be charged, and pay-first would then cancel the booking).
 MIN_CONSULTATION_FEE = 100
+# Consultation + meal plan (2026-11-04, user's call): the package must cost at
+# least this much more than consultation only. An empty meal_plan_fee means
+# the RND doesn't offer meal plans.
+MIN_MEAL_PLAN_EXTRA = 100
 
 # RND specializations offered at registration (a dropdown). Each contains the
 # keyword the client-side "Find an RND" filter searches for (FindRnd.vue).
@@ -62,6 +66,10 @@ class RndProfile(models.Model):
     language_codes = models.JSONField(null=True, blank=True, help_text="Array of language codes")
     bio = models.TextField(null=True, blank=True)
     consultation_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    # Price of "Consultation + meal plan" (the whole package, not the extra).
+    # Null = meal plans not offered. Add-on after a consultation-only visit
+    # costs meal_plan_fee - consultation_fee (billing/meal_plans.py).
+    meal_plan_fee = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     consultation_modes = models.JSONField(default=default_consultation_modes, help_text="Subset of video/chat/in_person")
     # Where in-person consultations happen — required once "in_person" is offered.
     clinic_address = models.CharField(max_length=255, null=True, blank=True)

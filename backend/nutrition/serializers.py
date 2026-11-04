@@ -112,12 +112,12 @@ class MealPlanSerializer(NonNegativeNumbersMixin, serializers.ModelSerializer):
             "target_protein_g", "target_carb_g", "target_fat_g", "nutrient_targets",
             "total_vegetable", "total_fruit", "total_milk", "total_rice",
             "total_meat", "total_fat", "total_sugar", "notes", "allergies_restrictions",
-            "status", "sent_at", "meals", "created_at", "updated_at",
+            "status", "sent_at", "first_sent_at", "invoice", "meals", "created_at", "updated_at",
         ]
         # Status only changes through "Send to Patient" (RndMealPlanSendView),
         # which also archives the previous plan and notifies the client.
         # The macro columns are derived from nutrient_targets (see validate).
-        read_only_fields = ["status", "sent_at", "target_protein_g", "target_carb_g", "target_fat_g"]
+        read_only_fields = ["status", "sent_at", "first_sent_at", "invoice", "target_protein_g", "target_carb_g", "target_fat_g"]
 
     def validate_relationship(self, value):
         request = self.context["request"]

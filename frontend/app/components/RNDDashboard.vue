@@ -318,7 +318,7 @@ const infoAlerts = computed(() => shownAlerts.value.filter(a => a.level === 'inf
 const TODO_TEXT = {
   done: ['Mark each one complete after the call, so the client gets their summary.', 'Mark complete'],
   ncp: ['Finish the records you started.', 'Finish'],
-  plan: ['They have a finished NCP record and no meal plan yet.', 'Create plan'],
+  plan: ["They paid for a meal plan you haven't sent yet.", 'Create plan'],
   logs: ['Rate how well each meal followed the plan.', 'Rate'],
   labs: ['Open each upload, then accept or decline it.', 'Review'],
   msg: ['Reply in Messages.', 'Reply'],
@@ -335,6 +335,11 @@ const needGroups = computed(() => {
   if (needsClinicAddress.value) {
     todo.push({ key: 'clinic', title: 'Add your clinic address', tone: 'todo', action: 'Add address', to: '/profile-settings',
       detail: "Clients can't book your in-person consultations until it's added." })
+  }
+  if (setupMissing.value.some(m => m.key === 'meal_plan_fee')) {
+    // optional (2026-11-04): without it clients can only book consultation only
+    todo.push({ key: 'meal_fee', title: 'Set your meal plan price', tone: 'todo', action: 'Set price', to: '/profile-settings',
+      detail: 'Offer "Consultation + meal plan" so clients can book a meal plan with you.' })
   }
   if (!d.value.earnings.has_payout_account) {
     const waiting = Number(d.value.earnings.pending) + Number(d.value.earnings.posted)
@@ -367,7 +372,7 @@ const todoItems = computed(() => {
   return [
     { key: 'done', count: t.to_complete, label: `consultation${t.to_complete === 1 ? '' : 's'} to mark complete`, to: '/appointments?tab=to_complete', icon: ClipboardList },
     { key: 'ncp', count: t.ncp_drafts, label: `NCP draft${t.ncp_drafts === 1 ? '' : 's'} to finish`, to: '/ncp-records', icon: ClipboardList },
-    { key: 'plan', count: t.need_meal_plan, label: `patient${t.need_meal_plan === 1 ? '' : 's'} ready for a meal plan`,
+    { key: 'plan', count: t.need_meal_plan, label: `paid meal plan${t.need_meal_plan === 1 ? '' : 's'} to send`,
       to: t.need_meal_plan_first ? `/meal-planning?relationship=${t.need_meal_plan_first}` : '/meal-planning', icon: Target },
     { key: 'logs', count: t.meal_logs_to_review, label: `meal log${t.meal_logs_to_review === 1 ? '' : 's'} to rate`,
       to: t.meal_logs_to_review_first ? `/client-detail/${t.meal_logs_to_review_first}?tab=meal` : '/my-patients', icon: Utensils },

@@ -112,9 +112,15 @@
               <dd :class="{ muted: !personalInfo.bio }" class="bio-text">{{ personalInfo.bio || 'Not provided' }}</dd>
             </div>
             <div class="info-item">
-              <dt>Consultation fee</dt>
+              <dt>Consultation only</dt>
               <dd :class="{ muted: personalInfo.consultationFee === '' }">
                 {{ personalInfo.consultationFee === '' ? 'Not set' : `₱${Number(personalInfo.consultationFee).toLocaleString()} per session` }}
+              </dd>
+            </div>
+            <div class="info-item">
+              <dt>Consultation + meal plan</dt>
+              <dd :class="{ muted: personalInfo.mealPlanFee === '' }">
+                {{ personalInfo.mealPlanFee === '' ? 'Not offered' : `₱${Number(personalInfo.mealPlanFee).toLocaleString()} (meal plan after a consultation: ₱${(Number(personalInfo.mealPlanFee) - Number(personalInfo.consultationFee || 0)).toLocaleString()})` }}
               </dd>
             </div>
             <div class="info-item">
@@ -152,13 +158,33 @@
             </div>
 
             <div class="field field-bio fee-field">
-              <label class="field-label" for="rp-fee">Consultation fee</label>
+              <label class="field-label" for="rp-fee">Consultation only</label>
               <div class="fee-input-wrap">
                 <span class="fee-prefix">₱</span>
                 <input id="rp-fee" v-model="personalInfo.consultationFee" type="number" min="100" step="50" class="field-input fee-input" placeholder="e.g. 750" />
                 <span class="fee-suffix">per session</span>
               </div>
               <p class="field-hint">At least ₱100. Shown to patients on Find an RND and your profile. Changes apply to future invoices only.</p>
+            </div>
+
+            <div class="field field-bio fee-field">
+              <label class="field-label meal-fee-toggle">
+                <input v-model="offerMealPlans" type="checkbox" />
+                Offer consultation + meal plan
+              </label>
+              <template v-if="offerMealPlans">
+                <div class="fee-input-wrap">
+                  <span class="fee-prefix">₱</span>
+                  <input id="rp-meal-fee" v-model="personalInfo.mealPlanFee" type="number" :min="minMealPlanFee" step="50" class="field-input fee-input" :class="{ invalid: mealFeeError }" placeholder="e.g. 1500" aria-label="Consultation + meal plan price" />
+                  <span class="fee-suffix">consultation + 7-day meal plan</span>
+                </div>
+                <p v-if="mealFeeError" class="field-error">{{ mealFeeError }}</p>
+                <p v-else class="field-hint">
+                  At least ₱{{ minMealPlanFee.toLocaleString() }} (₱100 more than consultation only).
+                  <template v-if="Number(personalInfo.mealPlanFee) > Number(personalInfo.consultationFee)">A patient who booked consultation only pays ₱{{ (Number(personalInfo.mealPlanFee) - Number(personalInfo.consultationFee)).toLocaleString() }} if you recommend a plan later.</template>
+                </p>
+              </template>
+              <p v-else class="field-hint">Without it, patients book consultation only and you can't send meal plans.</p>
             </div>
 
             <div class="field field-bio">
@@ -398,8 +424,19 @@ const MODE_OPTIONS = [
   { value: 'in_person', label: 'In person', icon: Users },
 ]
 
+// Consultation + meal plan price (2026-11-04): optional, at least ₱100 more
+// than consultation only (profiles.models.MIN_MEAL_PLAN_EXTRA).
+const offerMealPlans = ref(false)
+const minMealPlanFee = computed(() => Math.max(200, Number(personalInfo.value.consultationFee || 0) + 100))
+const mealFeeError = computed(() => {
+  if (!offerMealPlans.value) return ''
+  const v = personalInfo.value.mealPlanFee
+  if (v === '' || v === null) return 'Enter the consultation + meal plan price, or untick it.'
+  if (Number(v) < minMealPlanFee.value) return `Make it at least ₱${minMealPlanFee.value.toLocaleString()} (₱100 more than consultation only).`
+  return ''
+})
 const personalInfo = ref({
-  firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '',
+  firstName: '', lastName: '', email: '', phone: '', bio: '', consultationFee: '', mealPlanFee: '',
   consultationModes: [], clinicAddress: '', initials: '', avatarColor: '#D4A017',
   prcVerified: false, prcNumber: '', prcVerifiedOn: '', prcPhotoUrl: '',
   specialization: '', acceptingNewClients: true,
@@ -456,6 +493,8 @@ function applyProfile(user, rndProfile) {
   personalInfo.value.phone = user.phone || ''
   personalInfo.value.bio = rndProfile.bio || ''
   personalInfo.value.consultationFee = rndProfile.consultation_fee != null ? Number(rndProfile.consultation_fee) : ''
+  personalInfo.value.mealPlanFee = rndProfile.meal_plan_fee != null ? Number(rndProfile.meal_plan_fee) : ''
+  offerMealPlans.value = rndProfile.meal_plan_fee != null
   personalInfo.value.consultationModes = [...(rndProfile.consultation_modes || [])]
   personalInfo.value.clinicAddress = rndProfile.clinic_address || ''
   personalInfo.value.specialization = rndProfile.specialization || ''
@@ -546,6 +585,7 @@ async function saveChanges() {
     profileError.value = 'The consultation fee must be at least ₱100.'
     return
   }
+  if (mealFeeError.value) return
   isSavingProfile.value = true
   try {
     const [user, rndProfile] = await Promise.all([
@@ -557,6 +597,7 @@ async function saveChanges() {
       patch('/rnd/profile/', {
         bio: personalInfo.value.bio,
         consultation_fee: Number(fee).toFixed(2),
+        meal_plan_fee: offerMealPlans.value ? Number(personalInfo.value.mealPlanFee).toFixed(2) : null,
         consultation_modes: personalInfo.value.consultationModes,
         clinic_address: personalInfo.value.consultationModes.includes('in_person') ? address : (address || null),
         languages: languages.value.map(l => l.code),
@@ -800,6 +841,8 @@ onMounted(showActiveTab)
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
 .fee-input { flex: 1; min-width: 0; }
 .fee-suffix { font-size: 0.8rem; color: #9aaa9a; white-space: nowrap; }
+.meal-fee-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.meal-fee-toggle input { width: 16px; height: 16px; accent-color: #0a4a37; }
 .mode-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .mode-option {
   display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid #d9e3dc; border-radius: 10px;

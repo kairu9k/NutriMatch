@@ -27,15 +27,17 @@
       </ul>
 
       <h2>5. Payments, Cancellations &amp; Refunds</h2>
-      <p>Consultation fees are set independently by each RND and displayed on their profile prior to booking. You pay after the RND confirms, through PayMongo, a third-party payment provider (GCash, Maya, cards, and QR Ph). NutriMatch retains a platform commission, fixed at the rate in effect when the invoice is issued.</p>
+      <p>Fees are set independently by each RND and displayed on their profile prior to booking. When you book, you choose Consultation only (the consultation, your nutrition assessment and a written summary with your diet prescription) or, if the RND offers it, Consultation + meal plan (all of that plus a 7-day meal plan made for you). You pay after the RND confirms, through PayMongo, a third-party payment provider (GCash, Maya, cards, and QR Ph). NutriMatch retains a platform commission, fixed at the rate in effect when the invoice is issued.</p>
       <ul>
         <li>You can pay any time after the RND confirms. A consultation still unpaid 15 minutes before its start is cancelled automatically, and nothing is charged.</li>
         <li>You can cancel a paid consultation for a full refund up to 30 minutes before its start. After that it cannot be cancelled.</li>
         <li>If you do not attend a paid consultation, the RND may mark it as a no-show, and the payment is not refunded. You may dispute this within 3 days from My Appointments; NutriMatch reviews your reason together with the video call's attendance record and either refunds you or keeps the no-show.</li>
-        <li>Refunds are always the full amount, within 5 to 7 business days. Payments made by GCash, Maya, or card go back to the same account; for QR Ph payments, we send a PayMongo link to claim the refund to your bank or e-wallet.</li>
+        <li>If you booked Consultation only, your RND may recommend a meal plan afterwards. You pay the difference between the two prices within 7 days, or decline it. Each payment covers one meal plan; once sent, a meal plan cannot be changed, and a new or updated plan needs a new payment.</li>
+        <li>If your care ends before a meal plan you paid for is sent, that payment is refunded. If a Consultation + meal plan booking took place but the plan was never sent, NutriMatch refunds the meal plan part.</li>
+        <li>Refunds of a cancelled consultation or meal plan are the full amount paid for it, within 5 to 7 business days. Payments made by GCash, Maya, or card go back to the same account; for QR Ph payments, we send a PayMongo link to claim the refund to your bank or e-wallet.</li>
         <li>Receipts issued in NutriMatch are payment receipts. They are not official receipts registered with the Bureau of Internal Revenue.</li>
       </ul>
-      <p>For RNDs, your share of each paid consultation is held for 3 days after you mark it complete (or as a no-show), then becomes payable. NutriMatch sends payouts by GCash or bank transfer once a month, on the 5th, for balances of at least ₱500; smaller balances carry over. A consultation under dispute is not paid out until NutriMatch decides.</p>
+      <p>For RNDs, your share of each paid consultation is held for 3 days after you mark it complete (or as a no-show), then becomes payable. Your share of a meal plan add-on is held for 3 days after you send the plan. NutriMatch sends payouts by GCash or bank transfer once a month, on the 5th, for balances of at least ₱500; smaller balances carry over. A consultation under dispute is not paid out until NutriMatch decides.</p>
 
       <h2>6. Care &amp; Discharge</h2>
       <p>Your RND may end your care (discharge) with a reason. You may also request a discharge from Profile Settings; if your RND does not act on it within 3 days, your care ends automatically. After care ends you keep access to your past records and can book any RND.</p>

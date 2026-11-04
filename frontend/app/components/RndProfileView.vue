@@ -28,8 +28,8 @@
             <p v-if="offeredFormats.length" class="hero-line"><component :is="offeredFormats[0].icon" :size="14" aria-hidden="true" /> {{ formatsText }}</p>
           </div>
           <div class="hero-fee">
-            <p class="fee-amount">₱{{ formatFee(rnd.consultation_fee) }}</p>
-            <p class="fee-unit">per {{ SESSION_MINUTES }}-minute session</p>
+            <p class="fee-amount"><span v-if="offersMealPlans" class="fee-from">From </span>₱{{ formatFee(rnd.consultation_fee) }}</p>
+            <p class="fee-unit">per {{ SESSION_MINUTES }}-minute session<template v-if="offersMealPlans">, ₱{{ formatFee(rnd.meal_plan_fee) }} with a meal plan</template></p>
             <button v-if="!rnd.booking_blocked_by && offeredFormats.length && rnd.next_open_slots.length" type="button" class="hero-book" @click="openBookingModal()">
               <CalendarPlus :size="15" aria-hidden="true" /> Book
             </button>
@@ -148,6 +148,7 @@
             </template>
 
             <p class="book-fee">₱{{ formatFee(rnd.consultation_fee) }} <span>/ {{ SESSION_MINUTES }}-min session</span></p>
+            <p v-if="offersMealPlans" class="book-fee-plan">₱{{ formatFee(rnd.meal_plan_fee) }} with a 7-day meal plan</p>
             <!-- One RND at a time: booking someone else waits until the current RND discharges them. -->
             <div v-if="rnd.booking_blocked_by" class="one-rnd">
               <p v-if="rnd.booking_blocked_by.status === 'active'">
@@ -213,8 +214,20 @@
                 @click="bookingType = f.key"
               ><component :is="f.icon" :size="15" aria-hidden="true" /> {{ f.label }}</button>
             </div>
-            <p class="bk-fee"><strong>₱{{ formatFee(rnd.consultation_fee) }}</strong>, {{ SESSION_MINUTES }} minutes</p>
+            <p class="bk-fee"><strong>₱{{ formatFee(bookingPrice) }}</strong>, {{ SESSION_MINUTES }} minutes</p>
           </div>
+
+          <!-- Consultation only or with a meal plan (2026-11-04, user's call) -->
+          <section v-if="offersMealPlans" class="bk-section" aria-labelledby="bk-service-h">
+            <h3 id="bk-service-h" class="section-h">What would you like?</h3>
+            <div class="bk-services" role="radiogroup" aria-labelledby="bk-service-h">
+              <button v-for="o in serviceOptions" :key="o.key" type="button" role="radio" :aria-checked="bookingService === o.key"
+                      class="bk-service" :class="{ active: bookingService === o.key }" @click="bookingService = o.key">
+                <span class="bk-service-top"><strong>{{ o.label }}</strong><span class="bk-service-price">₱{{ formatFee(o.price) }}</span></span>
+                <span class="bk-service-text">{{ o.text }}</span>
+              </button>
+            </div>
+          </section>
           <p v-if="bookingType === 'in_person'" class="address booking-address"><MapPin :size="13" aria-hidden="true" /> {{ rnd.clinic_address }}</p>
 
           <section class="bk-section" aria-labelledby="bk-day-h">
@@ -330,6 +343,16 @@ function shortTime(t) {
 function compactHours(start, end) {
   return `${shortTime(start)}–${shortTime(end)}`
 }
+// Consultation only, or consultation + a 7-day meal plan (2026-11-04).
+const bookingService = ref('consultation')
+const offersMealPlans = computed(() => !!rnd.value?.meal_plan_fee && Number(rnd.value.meal_plan_fee) > Number(rnd.value.consultation_fee))
+const bookingPrice = computed(() => (bookingService.value === 'consultation_meal_plan' && offersMealPlans.value ? rnd.value.meal_plan_fee : rnd.value?.consultation_fee))
+const serviceOptions = computed(() => [
+  { key: 'consultation', label: 'Consultation only', price: rnd.value?.consultation_fee,
+    text: 'Your consultation, your nutrition assessment, and a written summary with your diet prescription and advice.' },
+  { key: 'consultation_meal_plan', label: 'Consultation + meal plan', price: rnd.value?.meal_plan_fee,
+    text: 'All of that, plus a 7-day meal plan made for you, meal logging and progress tracking with your RND.' },
+])
 function formatFee(fee) {
   return Number(fee).toLocaleString('en-PH', { maximumFractionDigits: 2 })
 }
@@ -642,6 +665,7 @@ function isSlotTaken(iso, minutes) {
 }
 async function openBookingModal(slotIso = null) {
   bookingType.value = offeredFormats.value[0]?.key || 'video'
+  bookingService.value = 'consultation'
   selectedDateISO.value = ''
   selectedTime.value = ''
   bookingNotes.value = ''
@@ -681,6 +705,7 @@ async function confirmBooking() {
       rnd_id: rnd.value.user.id,
       scheduled_at: new Date(`${selectedDateISO.value}T${selectedTime.value}`).toISOString(),
       type: bookingType.value,
+      service: offersMealPlans.value ? bookingService.value : 'consultation',
       duration_minutes: SESSION_MINUTES,
       notes: bookingNotes.value || undefined,
     })
@@ -857,6 +882,19 @@ async function confirmBooking() {
 .seg-btn.active { background: #0a4a37; color: #fff; }
 .seg-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 1px; }
 .bk-fee { margin: 0; font-size: 0.86rem; color: #4a5a4a; }
+.bk-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.bk-service {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px 14px; border-radius: 12px;
+  border: 1.5px solid #d9e3dc; background: #fff; font-family: inherit; color: #1a3a1a; cursor: pointer;
+}
+.bk-service:hover:not(.active) { border-color: #3f9a6b; }
+.bk-service.active { border-color: #0a4a37; background: #eef5f0; }
+.bk-service:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.bk-service-top { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; }
+.bk-service-price { font-family: 'Playfair Display', serif; font-weight: 700; }
+.bk-service-text { font-size: 0.78rem; color: #4a5a4a; line-height: 1.45; }
+.fee-from { font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; }
+.book-fee-plan { margin: 2px 0 0; font-size: 0.82rem; color: #4a5a4a; }
 .bk-fee strong { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin-right: 1px; }
 .booking-address { margin: -10px 0 20px; }
 

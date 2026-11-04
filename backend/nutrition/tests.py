@@ -150,6 +150,13 @@ class WeeklyMealPlanTests(TestCase):
         category = FoodExchangeCategory.objects.create(code="rice_a", name="Rice A")
         self.rice = FoodExchangeItem.objects.create(category=category, name="Rice, boiled")
         self.client_api.force_authenticate(self.rnd)
+        # The patient paid for a meal plan (2026-11-04: sending needs a paid credit).
+        from django.utils import timezone
+
+        from billing.models import Invoice
+
+        Invoice.objects.create(relationship=self.rel, kind=Invoice.Kind.MEAL_PLAN_ADDON, amount=Decimal("700.00"),
+                               status=Invoice.Status.PAID, paid_at=timezone.now())
 
     def _week(self, items_monday_breakfast, extra=None):
         meals = [{

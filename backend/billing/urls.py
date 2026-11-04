@@ -21,6 +21,10 @@ from .views import (
     InitiatePaymentView,
     PayMongoWebhookView,
     RndInvoiceListView,
+    RndMealPlanAccessView,
+    RndMealPlanOfferView,
+    ClientMealPlanOfferDeclineView,
+    ClientMealPlanStatusView,
 )
 
 urlpatterns = [
@@ -31,6 +35,10 @@ urlpatterns = [
     path("rnd/payouts/<int:payout_id>/", RndPayoutDetailView.as_view(), name="rnd_payout_detail"),
     path("rnd/payouts/<int:payout_id>/resend/", RndResendPayoutEmailView.as_view(), name="rnd_payout_resend"),
     path("rnd/invoices/", RndInvoiceListView.as_view(), name="rnd_invoice_list"),
+    path("rnd/relationships/<int:relationship_id>/meal-plan-access/", RndMealPlanAccessView.as_view(), name="rnd_meal_plan_access"),
+    path("rnd/relationships/<int:relationship_id>/meal-plan-offer/", RndMealPlanOfferView.as_view(), name="rnd_meal_plan_offer"),
+    path("client/meal-plan-status/", ClientMealPlanStatusView.as_view(), name="client_meal_plan_status"),
+    path("client/invoices/<int:invoice_id>/decline-offer/", ClientMealPlanOfferDeclineView.as_view(), name="client_meal_plan_decline"),
     path("admin/invoices/", AdminInvoiceListView.as_view(), name="admin_invoice_list"),
     path("admin/invoices/<int:invoice_id>/", AdminInvoiceDetailView.as_view(), name="admin_invoice_detail"),
     path("admin/payouts/", AdminPayoutListView.as_view(), name="admin_payout_list"),

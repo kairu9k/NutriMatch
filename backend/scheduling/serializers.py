@@ -57,11 +57,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
-            "id", "relationship", "scheduled_at", "type", "status", "duration_minutes",
+            "id", "relationship", "service", "scheduled_at", "type", "status", "duration_minutes",
             "video_session_url", "meeting_id", "cancellation_reason", "notes",
             "consultation_sessions", "created_at",
         ]
-        read_only_fields = ["status", "video_session_url", "meeting_id"]
+        read_only_fields = ["status", "video_session_url", "meeting_id", "service"]
 
     def to_representation(self, instance):
         """Adds `payment` ({invoice_id, status, amount} or None). The video
@@ -71,6 +71,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
         from billing.services import appointment_invoice
 
         data = super().to_representation(instance)
+        data["service_label"] = instance.get_service_display()
         invoice = appointment_invoice(instance)
         data["payment"] = (
             {"invoice_id": invoice.id, "status": invoice.status, "amount": str(invoice.amount),
@@ -196,7 +197,7 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Appointment
-        fields = ["rnd_id", "scheduled_at", "type", "duration_minutes", "notes"]
+        fields = ["rnd_id", "service", "scheduled_at", "type", "duration_minutes", "notes"]
 
     def validate_rnd_id(self, value):
         from profiles.services import bookable_rnd_profiles
@@ -253,6 +254,11 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This RND isn't accepting new clients right now.")
         if attrs.get("type", Appointment.Type.VIDEO) not in (profile.consultation_modes or []):
             raise serializers.ValidationError({"type": ["This RND doesn't offer that consultation format."]})
+        if attrs.get("service") == Appointment.Service.CONSULTATION_MEAL_PLAN:
+            from billing.meal_plans import offers_meal_plans
+
+            if not offers_meal_plans(profile):
+                raise serializers.ValidationError({"service": ["This RND doesn't offer meal plans. Book a consultation only."]})
         if attrs.get("type") == Appointment.Type.IN_PERSON and not (profile.clinic_address or "").strip():
             raise serializers.ValidationError({"type": ["This RND hasn't added a clinic address yet, so in-person consultations can't be booked."]})
 

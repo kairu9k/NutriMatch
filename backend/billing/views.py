@@ -587,3 +587,79 @@ class AdminPayoutListView(generics.ListAPIView):
         qs = Payout.objects.select_related("rnd", "released_by")
         rnd = self.request.query_params.get("rnd")
         return qs.filter(rnd_id=rnd) if rnd else qs
+
+
+# ---------------------------------------------------------------------------
+# Meal plans (2026-11-04): what a patient's meal plan access is, the RND
+# recommending a plan (add-on offer), the client saying not now.
+# ---------------------------------------------------------------------------
+
+class RndMealPlanAccessView(APIView):
+    """GET → can a plan be sent (paid credit), is an offer open, prices."""
+
+    permission_classes = [IsRnd]
+
+    def get(self, request, relationship_id):
+        from scheduling.models import RndClientRelationship
+
+        from .meal_plans import expire_offers, meal_plan_access
+
+        rel = get_object_or_404(RndClientRelationship.objects.select_related("rnd__rnd_profile"),
+                                pk=relationship_id, rnd=request.user)
+        expire_offers(relationship=rel)
+        return Response(meal_plan_access(rel))
+
+
+class RndMealPlanOfferView(APIView):
+    """POST {note?} → recommend a meal plan: an add-on invoice for the client."""
+
+    permission_classes = [IsRnd]
+
+    def post(self, request, relationship_id):
+        from scheduling.models import RndClientRelationship
+
+        from .meal_plans import OFFER_NOTE_MAX, create_offer, expire_offers, meal_plan_access
+
+        rel = get_object_or_404(RndClientRelationship.objects.select_related("rnd__rnd_profile", "client"),
+                                pk=relationship_id, rnd=request.user)
+        expire_offers(relationship=rel)
+        note = str(request.data.get("note") or "")
+        if len(note.strip()) > OFFER_NOTE_MAX:
+            return Response({"note": [f"Keep the note under {OFFER_NOTE_MAX} characters."]}, status=status.HTTP_400_BAD_REQUEST)
+        create_offer(rel, request.user, note)
+        return Response(meal_plan_access(rel), status=status.HTTP_201_CREATED)
+
+
+class ClientMealPlanOfferDeclineView(APIView):
+    """POST → the client says not now to a meal plan their RND recommended."""
+
+    permission_classes = [IsClient]
+
+    def post(self, request, invoice_id):
+        from .meal_plans import decline_offer
+
+        invoice = get_object_or_404(Invoice.objects.select_related("relationship__rnd"),
+                                    pk=invoice_id, relationship__client=request.user)
+        decline_offer(invoice, request.user)
+        return Response({"status": "cancelled"})
+
+
+class ClientMealPlanStatusView(APIView):
+    """GET → the client's meal plan situation with their current RND: an open
+    offer to pay, a paid plan on its way, prices."""
+
+    permission_classes = [IsClient]
+
+    def get(self, request):
+        from scheduling.models import RndClientRelationship
+
+        from .meal_plans import expire_offers, meal_plan_access
+
+        expire_offers(relationship__client=request.user)
+        rel = (RndClientRelationship.objects.filter(client=request.user, status="active")
+               .select_related("rnd__rnd_profile").order_by("-updated_at").first())
+        if rel is None:
+            return Response({"relationship_id": None})
+        data = meal_plan_access(rel)
+        data.pop("can_offer", None)
+        return Response({"relationship_id": rel.id, "rnd_name": rel.rnd.full_name, **data})

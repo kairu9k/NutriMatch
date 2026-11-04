@@ -114,7 +114,7 @@ def build_patient_summary(rnd, rel_id, now=None):
         end = a.scheduled_at + timedelta(minutes=a.duration_minutes or 60)
         appointments.append({
             "id": a.id, "scheduled_at": a.scheduled_at, "duration_minutes": a.duration_minutes or 60,
-            "type": a.type, "type_label": a.get_type_display(), "status": a.status,
+            "service": a.service, "service_label": a.get_service_display(), "type": a.type, "type_label": a.get_type_display(), "status": a.status,
             "payment": inv.status if inv else None, "amount": _num(inv.amount) if inv else None,
             "notes": a.notes, "cancellation_reason": a.cancellation_reason,
             "join_opens_at": a.scheduled_at - timedelta(minutes=JOIN_EARLY_MINUTES),
@@ -141,12 +141,20 @@ def build_patient_summary(rnd, rel_id, now=None):
         "care_plan": care_plan,
         "ncp_draft_id": draft.id if draft else None,
         "meal_plan": meal_plan,
+        # Paid meal plans (2026-11-04): can a plan be sent, is one on offer.
+        "meal_plan_access": _meal_plan_access(rel),
         "adherence_days": days,
         "recent_logs": logs,
         "progress": progress,
         "appointments": appointments,
         "labs": _labs(rel, now),
     }
+
+
+def _meal_plan_access(rel):
+    from billing.meal_plans import meal_plan_access
+
+    return meal_plan_access(rel)
 
 
 def _labs(rel, now):

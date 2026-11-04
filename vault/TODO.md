@@ -308,6 +308,13 @@ Why: the room embeds meet.jit.si, which now needs one person to log in before a 
 - [x] **Phase 5, switch over (code):** Jitsi removed from the room and from confirming (no room link is created; `scheduling/services.py` JitsiVideoService deleted, old links kept only for older consultations), CLAUDE.md updated, deployed to main.
 - [ ] **Phase 5, still open:** confirm `CLOUDFLARE_TURN_*` are set on Render (user checking); update the capstone documentation (video = WebRTC with Cloudflare TURN).
 
+## Consultation only vs consultation + meal plan (BUILT 2026-11-04, user's plan "1 + 2")
+- [x] RND sets two prices (meal plan price optional, ≥ ₱100 more); client picks the service when booking; invoice by service
+- [x] RND recommends a meal plan after a consultation-only visit (add-on = difference, 7 days to pay, Not now)
+- [x] One payment = one sent plan; sent plans are locked (copy to a new draft to change)
+- [x] Payouts (add-on posts after the plan is sent), discharge refund, admin alert, reports by service
+- [ ] Mention to the adviser: the proposal describes a single consultation fee
+
 ## Phase 8 — Deployment
 - [ ] Django: Railway/Render/Fly.io (or your school's requirement) + Postgres addon
 - [ ] Nuxt: Vercel/Netlify, or same host as backend

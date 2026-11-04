@@ -60,7 +60,7 @@ def build_board(rnd, now=None):
         row = {
             "id": a.id, "bucket": bucket, "status": a.status,
             "scheduled_at": a.scheduled_at, "ends_at": end, "duration_minutes": minutes,
-            "type": a.type, "type_label": a.get_type_display(),
+            "service": a.service, "service_label": a.get_service_display(), "type": a.type, "type_label": a.get_type_display(),
             "client": person(c), "relationship_id": rel.id, "relationship_status": rel.status,
             "returning": rel.id in completed_before and completed_before[rel.id] < a.scheduled_at,
             "payment": {"status": inv.status, "amount": inv.amount} if inv else None,

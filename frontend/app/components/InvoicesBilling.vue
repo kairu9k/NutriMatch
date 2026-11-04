@@ -1,6 +1,6 @@
 <template>
   <div class="nm-page">
-    <p class="nm-page-sub intro">Pay for your consultations and keep your receipts. Each invoice appears when your RND confirms a booking.</p>
+    <p class="nm-page-sub intro">Pay for your consultations and meal plans, and keep your receipts. A consultation invoice appears when your RND confirms a booking.</p>
     <p v-if="error" class="nm-error">{{ error }}</p>
     <p v-if="paidNotice" class="nm-success"><CheckCircle2 :size="15" /> {{ paidNotice }}</p>
 
@@ -14,7 +14,7 @@
       <div class="fig">
         <p class="fig-label">Paid in {{ thisYear }}</p>
         <p class="fig-value">{{ peso(paidThisYear) }}</p>
-        <p class="fig-note">{{ paidCount }} consultation{{ paidCount === 1 ? '' : 's' }}</p>
+        <p class="fig-note">{{ paidCount }} payment{{ paidCount === 1 ? '' : 's' }}</p>
       </div>
       <div class="fig">
         <p class="fig-label">Refunds in progress</p>
@@ -30,20 +30,24 @@
 
     <!-- due -->
     <div v-if="due.length" class="nm-panel due-panel">
-      <h2 class="nm-panel-title">Pay before your consultation</h2>
-      <p class="nm-panel-sub">Unpaid consultations are cancelled automatically at their start time.</p>
+      <h2 class="nm-panel-title">To pay</h2>
+      <p class="nm-panel-sub">Unpaid consultations are cancelled automatically 15 minutes before the start. A recommended meal plan stays open for 7 days.</p>
       <div v-for="inv in due" :key="inv.id" class="due-row">
         <img v-if="inv.consultation.rnd.profile_photo" :src="inv.consultation.rnd.profile_photo" class="nm-avatar" alt="" />
         <span v-else class="nm-avatar">{{ nameInitials(inv.consultation.rnd.name) }}</span>
         <div class="due-main">
-          <p class="nm-row-title">{{ typeLabel(inv.consultation.type_label) }} with RND {{ inv.consultation.rnd.name }}</p>
-          <p class="nm-row-sub">{{ invNo(inv) }}, {{ when(inv.consultation.scheduled_at) }}</p>
+          <p class="nm-row-title">{{ serviceText(inv) }}</p>
+          <p class="nm-row-sub">{{ invNo(inv) }}<template v-if="inv.consultation.scheduled_at">, {{ when(inv.consultation.scheduled_at) }}</template></p>
+          <p v-if="inv.offer?.note" class="nm-row-sub offer-note">"{{ inv.offer.note }}"</p>
           <p class="deadline"><AlarmClock :size="13" aria-hidden="true" /> Pay by {{ when(inv.pay_by) }} <span class="left">({{ timeLeft(inv.pay_by) }})</span></p>
         </div>
         <div class="due-end">
           <p class="due-amount">{{ peso(inv.amount) }}</p>
           <button class="nm-btn-dark" :disabled="payingId === inv.id" @click="payInvoice(inv)">
             <CreditCard :size="15" /> {{ payingId === inv.id ? 'Opening…' : 'Pay now' }}
+          </button>
+          <button v-if="inv.kind === 'meal_plan_addon'" class="nm-btn-soft nm-btn-sm" :disabled="decliningId === inv.id" @click="declineOffer(inv)">
+            {{ decliningId === inv.id ? 'Saving…' : 'Not now' }}
           </button>
           <p class="methods">GCash, Maya, card or QR Ph</p>
         </div>
@@ -80,7 +84,7 @@
             <tr v-for="inv in filtered" :key="inv.id" class="clickable" @click="open(inv)">
               <td data-label="Invoice"><strong>{{ invNo(inv) }}</strong><span class="nm-row-sub" style="display: block">Issued {{ shortDate(inv.created_at) }}</span></td>
               <td data-label="Consultation">
-                {{ typeLabel(inv.consultation.type_label) }} with RND {{ inv.consultation.rnd.name }}
+                {{ serviceText(inv) }}
                 <span v-if="inv.consultation.scheduled_at" class="nm-row-sub" style="display: block">{{ when(inv.consultation.scheduled_at) }}</span>
               </td>
               <td data-label="Amount" class="nm-num">{{ peso(inv.amount) }}</td>
@@ -101,7 +105,7 @@
         <li v-for="inv in filtered" :key="inv.id" class="inv-item">
           <button type="button" class="inv-open" @click="open(inv)">
             <span class="inv-line"><strong>{{ invNo(inv) }}</strong><strong>{{ peso(inv.amount) }}</strong></span>
-            <span class="inv-what">{{ typeLabel(inv.consultation.type_label) }} with RND {{ inv.consultation.rnd.name }}</span>
+            <span class="inv-what">{{ serviceText(inv) }}</span>
             <span v-if="inv.consultation.scheduled_at" class="inv-sub">{{ when(inv.consultation.scheduled_at) }}</span>
             <span class="inv-status"><span class="nm-pill" :class="STATUS[inv.status]?.pill">{{ STATUS[inv.status]?.label || inv.status }}</span> <span class="inv-sub">{{ statusDetail(inv) }}</span></span>
           </button>
@@ -125,7 +129,8 @@
 
         <dl class="nm-dl rm-dl">
           <div><dt>RND</dt><dd>{{ current.consultation.rnd.name }}</dd></div>
-          <div><dt>Consultation</dt><dd>{{ current.consultation.type_label ? typeLabel(current.consultation.type_label) : '—' }}<template v-if="current.consultation.duration_minutes">, {{ current.consultation.duration_minutes }} min</template></dd></div>
+          <div><dt>Service</dt><dd>{{ current.kind_label || 'Consultation' }}</dd></div>
+          <div v-if="current.consultation.type_label"><dt>Consultation</dt><dd>{{ typeLabel(current.consultation.type_label) }}<template v-if="current.consultation.duration_minutes">, {{ current.consultation.duration_minutes }} min</template></dd></div>
           <div><dt>Scheduled</dt><dd>{{ current.consultation.scheduled_at ? when(current.consultation.scheduled_at) : '—' }}</dd></div>
           <div><dt>Issued</dt><dd>{{ when(current.created_at) }}</dd></div>
           <template v-if="current.receipt">
@@ -246,6 +251,27 @@ function inTab(i, key) {
 }
 // The server sends "In Person"; the app writes it in sentence case.
 const typeLabel = t => (t ? t.charAt(0) + t.slice(1).toLowerCase() : 'Consultation')
+// What the invoice is for (2026-11-04): consultation only, with a meal plan, or a meal plan add-on.
+function serviceText(inv) {
+  const rnd = `RND ${inv.consultation.rnd.name}`
+  if (inv.kind === 'meal_plan_addon') return `Meal plan from ${rnd}`
+  const what = `${typeLabel(inv.consultation.type_label)}${inv.kind === 'package' ? ' + meal plan' : ''}`
+  return `${what} with ${rnd}`
+}
+// "Not now" on a meal plan the RND recommended.
+const decliningId = ref(null)
+async function declineOffer(inv) {
+  decliningId.value = inv.id
+  error.value = ''
+  try {
+    await post(`/client/invoices/${inv.id}/decline-offer/`)
+    await load({ quiet: true })
+  } catch (e) {
+    error.value = apiError(e, 'Could not update the offer. Please try again.')
+  } finally {
+    decliningId.value = null
+  }
+}
 const countOf = key => invoices.value.filter(i => inTab(i, key)).length
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -290,7 +316,8 @@ function printReceipt(inv) {
     rows: [
       ['Billed to', `${auth.user?.first_name || ''} ${auth.user?.last_name || ''}`.trim() || '—'],
       ['RND', inv.consultation.rnd.name],
-      ['Consultation', `${typeLabel(inv.consultation.type_label)}${inv.consultation.scheduled_at ? ', ' + when(inv.consultation.scheduled_at) : ''}`],
+      ['Service', inv.kind_label || 'Consultation'],
+      ...(inv.consultation.type_label ? [['Consultation', `${typeLabel(inv.consultation.type_label)}${inv.consultation.scheduled_at ? ', ' + when(inv.consultation.scheduled_at) : ''}`]] : []),
       ['Paid on', when(inv.receipt.paid_at)],
       ['Paid via', paidVia(inv)],
       ...(inv.receipt.reference ? [['Payment reference', inv.receipt.reference]] : []),
@@ -328,8 +355,8 @@ function statusDetail(inv) {
   if (inv.status === 'unpaid') return inv.pay_by ? `Pay by ${shortDate(inv.pay_by)}` : ''
   if (inv.status === 'paid') return `${shortDate(inv.paid_at)}${inv.payment_method_label ? ', ' + inv.payment_method_label : ''}`
   if (inv.status === 'refunded') return inv.refund?.refunded_at ? `Refunded ${shortDate(inv.refund.refunded_at)}` : ''
-  if (inv.status === 'refund_pending') return 'Consultation cancelled'
-  if (inv.status === 'cancelled') return 'Nothing to pay'
+  if (inv.status === 'refund_pending') return inv.kind === 'meal_plan_addon' ? 'Refund on the way' : 'Consultation cancelled'
+  if (inv.status === 'cancelled') return inv.kind === 'meal_plan_addon' ? 'Offer ended' : 'Nothing to pay'
   return ''
 }
 function nameInitials(name) {
@@ -339,6 +366,7 @@ function nameInitials(name) {
 </script>
 
 <style scoped>
+.offer-note { font-style: italic; }
 .intro { margin: 0 0 16px; }
 .nm-success { display: flex; align-items: center; gap: 8px; }
 /* figures: one divided panel */

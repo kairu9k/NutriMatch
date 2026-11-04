@@ -38,6 +38,7 @@
             <component :is="appt.typeIcon" :size="15" aria-hidden="true" /> {{ appt.typeLabel }} with
             <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}`" class="up-rnd">RND {{ appt.rnd.name }}</NuxtLink>
           </p>
+          <p v-if="appt.withMealPlan" class="appt-service">Meal plan included</p>
           <p v-if="appt.notes" class="appt-notes"><span>Your notes:</span> {{ appt.notes }}</p>
           <p v-if="appt.hint" class="appt-hint" :class="{ 'hint-due': appt.phase === 'payment_due' }">{{ appt.hint }}</p>
 
@@ -90,7 +91,7 @@
               <p class="h-date">{{ appt.shortDate }}</p>
               <div class="h-main">
                 <p class="h-title">{{ appt.typeLabel }}, {{ appt.startClock }}</p>
-                <p class="h-sub">RND {{ appt.rnd.name }}</p>
+                <p class="h-sub">RND {{ appt.rnd.name }}<template v-if="appt.withMealPlan">, meal plan included</template></p>
                 <p v-if="appt.status === 'cancelled' && appt.cancellationReason" class="h-sub">Reason: {{ appt.cancellationReason }}</p>
                 <p v-if="appt.attendanceLine" class="h-sub">{{ appt.attendanceLine }}</p>
                 <template v-if="appt.status === 'no_show'">
@@ -340,6 +341,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     tone: phase === 'completed' ? 'green' : { 'pill-gold': 'gold', 'pill-green': 'green', 'pill-red': 'red' }[statusClass] || 'grey',
     typeLabel: type.label,
     typeIcon: type.icon,
+    withMealPlan: a.service === 'consultation_meal_plan',
     notes: (a.notes || '').trim(),
     cancellationReason: (a.cancellation_reason || '').trim(),
     statusLabel,
@@ -564,6 +566,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
+.appt-service { margin: 2px 0 0; font-size: 0.8rem; font-weight: 600; color: #1f6f46; }
 /* Same tokens as the client dashboard (ClientDashboard.vue) and Profile Settings. */
 * { box-sizing: border-box; }
 .appointments-page { font-family: 'Inter', sans-serif; }

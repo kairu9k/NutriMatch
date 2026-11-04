@@ -33,9 +33,20 @@ class Invoice(models.Model):
         CASH = "cash", "Cash"
         OTHER = "other", "Other"
 
+    class Kind(models.TextChoices):
+        # What the invoice is for (2026-11-04). A package or add-on invoice,
+        # once paid, is a meal-plan credit until a sent plan uses it
+        # (MealPlan.invoice, billing/meal_plans.py).
+        CONSULTATION = "consultation", "Consultation"
+        PACKAGE = "package", "Consultation + meal plan"
+        MEAL_PLAN_ADDON = "meal_plan_addon", "Meal plan add-on"
+
     relationship = models.ForeignKey(
         RndClientRelationship, on_delete=models.CASCADE, related_name="invoices"
     )
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.CONSULTATION)
+    # The RND's note when recommending a meal plan (add-on offers only).
+    offer_note = models.TextField(null=True, blank=True)
     # The monthly payout that paid the RND's share of this invoice (once).
     payout = models.ForeignKey("Payout", on_delete=models.PROTECT, null=True, blank=True, related_name="invoices")
     appointment = models.ForeignKey(

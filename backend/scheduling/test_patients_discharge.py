@@ -110,7 +110,7 @@ class MealPlanSummaryTests(TestCase):
         return self.api.get("/api/rnd/patients/").data[0]["meal_plan"]
 
     def test_ready_plan_and_outdated(self):
-        self.assertEqual(self._mp(), {"ready": False, "plan": None, "outdated": False})
+        self.assertEqual(self._mp(), {"paid": False, "offer_open": False, "ready": False, "plan": None, "outdated": False})
         today = timezone.now().date()
         NcpRecord.objects.create(relationship=self.rel, status="completed", encounter_date=today - timedelta(days=20), diet_prescription="1500 kcal")
         self.assertTrue(self._mp()["ready"])

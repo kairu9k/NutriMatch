@@ -13,7 +13,7 @@ export const SUPPORT_FAQ = {
   client: [
     {
       q: 'How do I book a consultation?',
-      a: 'Open Find an RND, pick a dietitian and press Book. Choose an open time and the format (video call or in person). Your RND confirms the booking, and then you can pay.',
+      a: 'Open Find an RND, pick a dietitian and press Book. Choose an open time, the format (video call or in person), and Consultation only or Consultation + meal plan if your RND offers both. Your RND confirms the booking, and then you can pay.',
       link: { label: 'Find an RND', to: '/find-rnd' },
     },
     {
@@ -34,6 +34,11 @@ export const SUPPORT_FAQ = {
       q: 'What if I miss my consultation, or my RND does?',
       a: 'If you don’t attend a paid consultation, your RND can mark it as a no-show and it isn’t refunded. If that’s wrong, press Dispute on it in My Appointments, History, within 3 days: NutriMatch checks the video call’s attendance record (only who joined and when) and refunds you or keeps the no-show. If you joined the video call and your RND still hasn’t 15 minutes after the start, you can report it from the call and get a full refund. If your RND has an emergency and cancels, you also get the full amount back.',
       link: { label: 'My Appointments', to: '/appointments' },
+    },
+    {
+      q: 'Do I get a meal plan?',
+      a: 'When you book, choose Consultation only or Consultation + meal plan (if your RND offers it). Consultation only gives you the consultation and a written summary with your diet prescription and advice. With a meal plan, your RND also makes you a 7-day plan after the consultation. Booked consultation only? Your RND can recommend a meal plan later. You pay the difference in Billing within 7 days, or say Not now. If your care ends before the plan is sent, that payment is refunded.',
+      link: { label: 'My Meal Plan', to: '/meal-plan-view' },
     },
     {
       q: 'Where do I find my meal plan and log my meals?',
@@ -82,12 +87,12 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'How do I send a meal plan?',
-      a: 'Open Meal Planning and pick the patient. Start from a diet template or build the week yourself (FNRI foods, or USDA foods by grams), then send it to the patient.',
+      a: 'Open Meal Planning and pick the patient. Start from a diet template or build the week yourself (FNRI foods, or USDA foods by grams), then send it to the patient. Sending needs their payment for a meal plan: a Consultation + meal plan booking, or a plan you recommended that they paid for (Recommend a meal plan, in their chart or Meal Planning). You can edit a draft as much as you like, but a sent plan is final. To change it, start a new plan from it; sending that needs another payment.',
       link: { label: 'Meal Planning', to: '/meal-planning' },
     },
     {
       q: 'How do I change my availability or fee?',
-      a: 'In Profile Settings, change your fee under Professional profile (press Edit profile) and your hours under Availability. Patients only see open times inside your weekly hours.',
+      a: 'In Profile Settings, under Professional profile (press Edit profile), set your consultation only fee and, if you offer meal plans, your Consultation + meal plan price (at least ₱100 more). A patient who booked consultation only pays the difference if you recommend a plan later. Your hours are under Availability. Patients only see open times inside your weekly hours.',
       link: { label: 'Profile Settings', to: '/profile-settings' },
     },
   ],

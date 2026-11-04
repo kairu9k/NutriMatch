@@ -231,6 +231,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
     reviewed_at = serializers.DateTimeField(source="rnd_profile.reviewed_at")
     bio = serializers.CharField(source="rnd_profile.bio", allow_null=True)
     consultation_fee = serializers.DecimalField(source="rnd_profile.consultation_fee", max_digits=8, decimal_places=2)
+    meal_plan_fee = serializers.DecimalField(source="rnd_profile.meal_plan_fee", max_digits=8, decimal_places=2, allow_null=True)
     consultation_modes = serializers.JSONField(source="rnd_profile.consultation_modes")
     date_of_birth = serializers.DateField(source="rnd_profile.date_of_birth", allow_null=True)
     clinic_address = serializers.CharField(source="rnd_profile.clinic_address", allow_null=True)
@@ -247,7 +248,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
             "id", "first_name", "last_name", "email", "phone", "is_active", "created_at",
             "prc_license_number", "prc_license_image_url", "specialization", "is_verified", "verified_at",
             "submitted_at", "patients", "consultations", "average_rating", "revenue",
-            "review_status", "rejection_reason", "reviewed_at", "bio", "consultation_fee", "consultation_modes",
+            "review_status", "rejection_reason", "reviewed_at", "bio", "consultation_fee", "meal_plan_fee", "consultation_modes",
             "date_of_birth", "languages", "availability", "profile_photo", "email_verified_at", "clinic_address",
         ]
         read_only_fields = fields
@@ -348,6 +349,8 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     consultation_fee = serializers.DecimalField(max_digits=8, decimal_places=2, min_value=MIN_CONSULTATION_FEE, max_value=100000, error_messages={
         "min_value": f"The consultation fee must be at least \u20b1{MIN_CONSULTATION_FEE}.",
     })
+    # Consultation + meal plan (optional; empty = meal plans not offered).
+    meal_plan_fee = serializers.DecimalField(max_digits=8, decimal_places=2, max_value=100000, required=False, allow_null=True)
     consultation_modes = JsonListField()
     languages = JsonListField()
     # Optional: RNDs set their weekly hours in Profile Settings after approval.
@@ -358,6 +361,9 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        from profiles.serializers import check_meal_plan_fee
+
+        check_meal_plan_fee(attrs.get("consultation_fee"), attrs.get("meal_plan_fee"))
         address = (attrs.get("clinic_address") or "").strip()
         if "in_person" in (attrs.get("consultation_modes") or []):
             if not address:
@@ -474,6 +480,7 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             specialization=validated_data["specialization"],
             bio=validated_data.get("bio") or None,
             consultation_fee=validated_data["consultation_fee"],
+            meal_plan_fee=validated_data.get("meal_plan_fee") or None,
             consultation_modes=validated_data["consultation_modes"],
             clinic_address=validated_data.get("clinic_address") if "in_person" in validated_data["consultation_modes"] else None,
             language_codes=validated_data["languages"],

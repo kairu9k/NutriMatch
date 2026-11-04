@@ -85,6 +85,8 @@ def in_run(invoice, run_day):
     """A Posted share belongs to the run of `run_day` if it posted on or
     before that day (an invoice with no completed appointment counts)."""
     until = posted_until(invoice)
+    if until is None and invoice.kind == invoice.Kind.MEAL_PLAN_ADDON:
+        return False
     return until is None or ph_date(until) <= run_day
 
 
@@ -97,6 +99,13 @@ def invoice_state(invoice, now=None):
         return None
     if invoice.payout_id:
         return "paid_out"
+    if invoice.kind == Invoice.Kind.MEAL_PLAN_ADDON:
+        # A meal-plan add-on clears HOLD_DAYS after its plan is sent; never
+        # sent = never paid out (refunded if care ends, billing/meal_plans.py).
+        until = posted_until(invoice)
+        if until is None:
+            return "pending"
+        return "posted" if until <= (now or timezone.now()) else "pending"
     appt = invoice.appointment
     if appt is None:
         return "posted"  # an invoice without an appointment (legacy/manual)
@@ -108,7 +117,15 @@ def invoice_state(invoice, now=None):
     return "posted" if appt.completed_at + timedelta(days=HOLD_DAYS) <= now else "pending"
 
 
+def addon_sent_at(invoice):
+    plan = invoice.meal_plans.filter(first_sent_at__isnull=False).order_by("first_sent_at").first()
+    return plan.first_sent_at if plan else None
+
+
 def posted_until(invoice):
+    if invoice.kind == invoice.Kind.MEAL_PLAN_ADDON:
+        sent = addon_sent_at(invoice)
+        return sent + timedelta(days=HOLD_DAYS) if sent else None
     appt = invoice.appointment
     if appt is not None and appt.completed_at:
         return appt.completed_at + timedelta(days=HOLD_DAYS)
@@ -141,6 +158,8 @@ def rnd_earnings(rnd, now=None):
             "invoice_id": inv.id,
             "client_name": inv.relationship.client.full_name,
             "appointment_date": inv.appointment.scheduled_at if inv.appointment else None,
+            "kind": inv.kind,
+            "kind_label": inv.get_kind_display(),
             "amount": inv.amount,
             "commission": inv.commission_amt,
             "share": share,
@@ -293,6 +312,8 @@ def rnd_statement(rnd, now=None):
             "client_name": inv.relationship.client.full_name,
             "consultation_at": appt.scheduled_at if appt else None,
             "consultation_type": appt.get_type_display() if appt else None,
+            "kind": inv.kind,
+            "kind_label": inv.get_kind_display(),
             "amount": inv.amount,
             "commission_pct": inv.commission_pct,
             "commission": inv.commission_amt,

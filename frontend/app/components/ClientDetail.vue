@@ -296,11 +296,30 @@
               </p>
             </div>
             <template v-if="p.status === 'active'">
-              <NuxtLink v-if="mealPlanReady" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm">
-                {{ s.meal_plan ? (s.meal_plan.status === 'draft' ? 'Finish and send plan' : 'Update meal plan') : 'Create meal plan' }}
+              <NuxtLink v-if="mealPlanReady && (access?.can_send || s.meal_plan?.status === 'draft')" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm">
+                {{ s.meal_plan?.status === 'draft' ? 'Finish and send plan' : 'Create meal plan' }}
               </NuxtLink>
+              <NuxtLink v-else-if="s.meal_plan" :to="`/meal-planning?relationship=${relationshipId}`" class="nm-btn-soft nm-btn-sm">Open meal plan</NuxtLink>
             </template>
           </div>
+          <!-- Paid meal plans (2026-11-04): a plan is sent only once the patient paid for it. -->
+          <template v-if="p.status === 'active' && access">
+            <p v-if="access.can_send" class="nm-note plain-note meal-access">
+              {{ p.client.first_name }} paid for a meal plan ({{ access.credit.kind === 'package' ? 'consultation + meal plan' : 'meal plan add-on' }}). Create and send it once the NCP Intervention is done.
+            </p>
+            <p v-else-if="access.offer" class="nm-note plain-note meal-access">
+              You recommended a meal plan ({{ peso(access.offer.amount) }}). Waiting for {{ p.client.first_name }}'s payment until {{ shortDate(access.offer.expires_at) }}.
+            </p>
+            <div v-else-if="access.can_offer" class="nm-note todo-note meal-access access-row">
+              <span>{{ s.meal_plan?.status === 'active' ? `${p.client.first_name}'s plan is sent and final. A new plan needs a new payment.` : `${p.client.first_name} booked consultation only, so no meal plan is included.` }}</span>
+              <button type="button" class="nm-btn-dark nm-btn-sm" @click="recommendOpen = true">Recommend a meal plan</button>
+            </div>
+            <p v-else-if="!access.offered" class="nm-note plain-note meal-access">
+              {{ p.client.first_name }} hasn't paid for a meal plan. <NuxtLink to="/profile-settings?tab=professional" class="nm-text-link">Set your meal plan price</NuxtLink> to offer one.
+            </p>
+          </template>
+          <RecommendMealPlanModal v-if="recommendOpen" :relationship-id="relationshipId" :patient-name="p.client.name"
+                                  :price="access?.addon_price" @close="recommendOpen = false" @done="onRecommended" />
           <p v-if="p.status === 'active' && !mealPlanReady && !s.meal_plan" class="nm-note todo-note" style="margin: 0">Finish the NCP Intervention (diet prescription and target calories) before creating a meal plan.</p>
           <div v-if="s.meal_plan?.target_kcal" class="targets">
             <div><span>Calories</span><strong>{{ Math.round(s.meal_plan.target_kcal).toLocaleString('en-PH') }} kcal</strong></div>
@@ -518,6 +537,14 @@ const router = useRouter()
 const { get } = useApi()
 const now = useNow()
 const relationshipId = route.params.relationshipId
+// Paid meal plans (2026-11-04): what the patient paid for, any open recommendation.
+const access = computed(() => s.value?.meal_plan_access || null)
+const recommendOpen = ref(false)
+const peso = v => `₱${Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+function onRecommended(next) {
+  if (s.value) s.value.meal_plan_access = next
+  recommendOpen.value = false
+}
 
 const s = ref(null)
 const ncpRecords = ref([])
@@ -798,6 +825,8 @@ const trends = computed(() => {
 </script>
 
 <style scoped>
+.meal-access { margin: 10px 0 0; }
+.access-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .row-flash td { background: #e3efe7; }
 @media (prefers-reduced-motion: no-preference) {
   .row-flash td { transition: background 0.6s ease; }

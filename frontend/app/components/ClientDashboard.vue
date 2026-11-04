@@ -137,10 +137,20 @@
                 </div>
               </div>
             </template>
+            <div v-else-if="mealOffer && !pastRnd" class="empty-state">
+              <UtensilsCrossed :size="24" class="empty-icon" />
+              <p>Your RND recommends a meal plan.</p>
+              <p class="empty-sub">A 7-day plan made for you, {{ peso(mealOffer.amount) }}. Pay by {{ whenShort(mealOffer.pay_by) }} and your RND will start it.<template v-if="mealOffer.offer?.note"> "{{ mealOffer.offer.note }}"</template></p>
+              <NuxtLink to="/invoices-billing" class="nm-btn-dark nm-btn-sm">Pay for the meal plan</NuxtLink>
+            </div>
             <div v-else class="empty-state">
               <UtensilsCrossed :size="24" class="empty-icon" />
-              <p>{{ pastRnd ? 'Your meal plan ended with your care.' : 'No meal plan yet.' }}</p>
-              <p class="empty-sub">{{ pastRnd ? 'When you start care with an RND again, your new plan shows up here.' : 'Your RND prepares your meal plan after your consultation. It will show up here, meal by meal.' }}</p>
+              <p>{{ pastRnd ? 'Your meal plan ended with your care.' : mealStatus?.can_send ? 'Your meal plan is on its way.' : mealStatus?.relationship_id ? 'Your booking doesn\'t include a meal plan.' : 'No meal plan yet.' }}</p>
+              <p class="empty-sub">{{
+                pastRnd ? 'When you start care with an RND again, your new plan shows up here.'
+                : mealStatus?.can_send ? 'You paid for a meal plan. Your RND prepares it after your consultation, and it shows up here meal by meal.'
+                : mealStatus?.relationship_id ? 'Your diet prescription and advice are in your consultation summary (My Appointments, History). Your RND can recommend a meal plan if you need one.'
+                : 'Book "Consultation + meal plan" to get a 7-day plan made for you. It shows up here, meal by meal.' }}</p>
             </div>
           </div>
 
@@ -388,7 +398,10 @@ const careRnd = computed(() => {
 })
 
 /* ---------- Billing ---------- */
-const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid'))
+const unpaidInvoices = computed(() => invoices.value.filter(i => i.status === 'unpaid' && i.kind !== 'meal_plan_addon'))
+// A meal plan the RND recommended (2026-11-04): an add-on invoice to pay within 7 days.
+const mealOffer = computed(() => invoices.value.find(i => i.status === 'unpaid' && i.kind === 'meal_plan_addon') || null)
+const mealStatus = ref(null)
 
 /* ---------- Needs you ---------- */
 const HOUR = 3600000
@@ -436,6 +449,12 @@ const needsUrgent = computed(() => {
 const needsTodo = computed(() => {
   const out = []
   const urgent = new Set(needsUrgent.value.map(n => n.key))
+  if (mealOffer.value) {
+    out.push({
+      key: `offer${mealOffer.value.id}`, title: `Your RND recommends a meal plan, ${peso(mealOffer.value.amount)}.`,
+      detail: `Pay by ${whenShort(mealOffer.value.pay_by)}, or say not now in Billing.`, action: 'Pay', to: '/invoices-billing',
+    })
+  }
   if (!screening.value) {
     out.push({ key: 'screening', title: 'Complete your health screening.', detail: 'Your RND needs it before your first consultation. It takes about a minute.', action: 'Start screening', to: '/pre-consultation-screening' })
   }
@@ -739,7 +758,7 @@ async function loadDashboard({ quiet = false } = {}) {
     errorMessage.value = ''
   }
   try {
-    const [appts, rels, latestScreening, progress, plans, logs, invs, notes, labData] = await Promise.all([
+    const [appts, rels, latestScreening, progress, plans, logs, invs, notes, labData, mealPlanStatus] = await Promise.all([
       get('/client/appointments/'),
       get('/client/relationships/'),
       get('/client/screening/latest/').catch(() => null),
@@ -749,7 +768,9 @@ async function loadDashboard({ quiet = false } = {}) {
       get('/client/invoices/').catch(() => []),
       get('/notifications/').catch(() => []),
       get('/client/labs/').catch(() => null),
+      get('/client/meal-plan-status/').catch(() => null),
     ])
+    mealStatus.value = mealPlanStatus
     labs.value = labData
     appointments.value = appts
     relationships.value = rels

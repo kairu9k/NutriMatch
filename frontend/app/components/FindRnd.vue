@@ -102,6 +102,10 @@
         </div>
 
         <div class="card-foot">
+          <p class="card-price">
+            <span v-if="rnd.meal_plan_fee" class="from">From </span><strong>₱{{ Number(rnd.consultation_fee).toLocaleString('en-PH') }}</strong>
+            <span v-if="rnd.meal_plan_fee" class="nm-muted">, meal plan available</span>
+          </p>
           <div class="card-actions">
             <NuxtLink :to="`/rnd-profile-view/${rnd.user.id}`" class="nm-btn-soft">View profile</NuxtLink>
             <NuxtLink v-if="rnd.next_open_slots.length && !rnd.booking_blocked_by" :to="`/rnd-profile-view/${rnd.user.id}?book=1`" class="nm-btn-dark">Book</NuxtLink>
@@ -218,6 +222,9 @@ function slotText(iso) {
 </script>
 
 <style scoped>
+.card-price { margin: 0; font-size: 0.85rem; color: #4a5a4a; }
+.card-price strong { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; }
+.card-price .from { font-weight: 600; }
 .intro { margin: 0 0 16px; }
 .filters { margin-bottom: 14px; }
 .filter-top { display: flex; gap: 10px; }
@@ -251,7 +258,7 @@ function slotText(iso) {
 .where svg { flex-shrink: 0; margin-top: 2px; }
 .next { display: flex; align-items: center; gap: 8px; background: #e3efe7; color: #1e4a26; border-radius: 8px; padding: 9px 12px; font-size: 0.82rem; }
 .next.none { background: #f4f6f4; color: #6a7a6a; }
-.card-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #d9e3dc; flex-wrap: wrap; }
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #d9e3dc; flex-wrap: wrap; }
 .card-actions { display: flex; gap: 8px; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
 

@@ -20,7 +20,8 @@ def receipt_rows(invoice):
     from .services import payment_receipt
 
     rel = invoice.relationship
-    rows = [{"label": "Receipt no.", "value": f"INV-{invoice.id:04d}"}]
+    rows = [{"label": "Receipt no.", "value": f"INV-{invoice.id:04d}"},
+            {"label": "Service", "value": invoice.get_kind_display()}]
     appt = invoice.appointment
     if appt is not None:
         rows.append({"label": "Consultation", "value": f"{appt.get_type_display()} with RND {rel.rnd.full_name}"})
@@ -53,11 +54,15 @@ def send_client_receipt(invoice):
     refund = invoice.status in (Invoice.Status.REFUND_PENDING, Invoice.Status.REFUNDED)
     total = _peso(invoice.amount)
     ref = f"INV-{invoice.id:04d}"
+    addon = invoice.kind == Invoice.Kind.MEAL_PLAN_ADDON
     client_note = (
-        "This consultation was cancelled, so this payment is being refunded (or already has been)."
+        ("This payment is being refunded (or already has been)." if addon else
+         "This consultation was cancelled, so this payment is being refunded (or already has been).")
         if refund else
-        "Keep this email as your receipt. Join from My Appointments starting 15 minutes before the start. "
-        "If you cancel before the session starts, your payment is refunded."
+        ("Keep this email as your receipt. Your RND has been told and will send your meal plan to My Meal Plan. "
+         "If your care ends before the plan is sent, this payment is refunded." if addon else
+         "Keep this email as your receipt. Join from My Appointments starting 15 minutes before the start. "
+         "If you cancel before the session starts, your payment is refunded.")
     )
     lines = [f"Hi {client.first_name},", "", f"We received your payment of {total} for {ref}.", ""]
     lines += [f"{r['label']}: {r['value']}" for r in rows] + ["", client_note, "", "Salamat,", "The NutriMatch Team"]

@@ -154,6 +154,14 @@
             <div class="fig" :class="{ warn: r.money.refund_pending.count }"><dt>Waiting for a refund</dt><dd>{{ peso(r.money.refund_pending.amount) }}</dd><p>{{ r.money.refund_pending.count }} to send</p></div>
           </dl>
         </section>
+        <!-- what the kept payments were for (2026-11-04) -->
+        <section v-if="r.money.by_service" class="nm-panel">
+          <h2 class="nm-panel-title">By service</h2>
+          <p class="nm-panel-sub">Payments kept in this period, by what the client paid for</p>
+          <dl class="figs service-figs">
+            <div v-for="sv in r.money.by_service" :key="sv.kind" class="fig"><dt>{{ sv.label }}</dt><dd>{{ peso(sv.amount) }}</dd><p>{{ sv.count }} payment{{ sv.count === 1 ? '' : 's' }}</p></div>
+          </dl>
+        </section>
         <section v-if="hasMonths" class="nm-panel">
           <h2 class="nm-panel-title">Money per month</h2>
           <p class="nm-panel-sub chart-sub">Payments kept, split into the RNDs' share and the platform commission</p>
@@ -269,6 +277,7 @@ function print() {
       ['Refunded', `${x.money.refunded.count}, ${peso(x.money.refunded.amount)}`],
       ['Waiting for refund', `${x.money.refund_pending.count}, ${peso(x.money.refund_pending.amount)}`],
       ['Payouts sent', `${x.money.payouts_sent.count}, ${peso(x.money.payouts_sent.amount)}`],
+      ...(x.money.by_service || []).map(sv => [`  ${sv.label}`, `${sv.count}, ${peso(sv.amount)}`]),
       ['Support requests', String(x.people.support_requests)],
     ] },
     { heading: 'Clients', rows: [
@@ -312,6 +321,7 @@ function downloadCsv() {
     ['Payments', x.money.payments], ['Payments received (PHP)', x.money.gross], ['Platform commission (PHP)', x.money.commission],
     ["RNDs' share (PHP)", x.money.rnd_share], ['Refunded (PHP)', x.money.refunded.amount], ['Waiting for refund (PHP)', x.money.refund_pending.amount],
     ['Payouts sent', x.money.payouts_sent.count], ['Payouts sent (PHP)', x.money.payouts_sent.amount], ['Take rate (%)', x.money.take_rate_pct ?? ''],
+    ...(x.money.by_service || []).flatMap(sv => [[`Kept - ${sv.label}`, sv.count], [`Kept - ${sv.label} (PHP)`, sv.amount]]),
     ['New clients', x.clients.new], ['Finished onboarding (of new)', x.clients.onboarded_of_new], ['In active care now', x.clients.in_care_now],
     ['Clients seen', x.clients.consulted], ['Came back (%)', x.clients.repeat_pct ?? ''], ['Days to first consultation (median)', x.clients.days_to_first_median ?? ''],
     ['Discharged', x.clients.discharged], ['RND applications', x.rnd_stats.applications], ['RNDs approved', x.rnd_stats.approved],
@@ -336,6 +346,7 @@ function downloadCsv() {
 </script>
 
 <style scoped>
+.service-figs { margin-top: 12px; }
 .reports { display: flex; flex-direction: column; gap: 16px; }
 .reports > * { margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }

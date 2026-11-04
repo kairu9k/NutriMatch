@@ -9,6 +9,7 @@ from .models import (
     LANGUAGE_NAMES,
     LANGUAGES,
     MIN_CONSULTATION_FEE,
+    MIN_MEAL_PLAN_EXTRA,
     ClientHealthProfile,
     ClientProfile,
     RndAvailabilitySchedule,
@@ -88,7 +89,7 @@ class RndProfileSerializer(serializers.ModelSerializer):
         model = RndProfile
         fields = [
             "id", "user", "prc_license_number", "prc_expiry_date", "specialization",
-            "language_codes", "bio", "consultation_fee", "consultation_modes", "available_for_new_clients",
+            "language_codes", "bio", "consultation_fee", "meal_plan_fee", "consultation_modes", "available_for_new_clients",
             "is_verified", "verified_at", "languages", "average_rating", "review_count", "clinic_address",
         ]
         # PRC details are set at registration and checked by the admin —
@@ -126,6 +127,17 @@ class MyRndProfileSerializer(RndProfileSerializer):
         return prc_license_image_url(obj.prc_license_image)
 
 
+def check_meal_plan_fee(consultation_fee, meal_plan_fee):
+    """Consultation + meal plan must cost at least MIN_MEAL_PLAN_EXTRA more
+    than consultation only (2026-11-04). Empty = meal plans not offered."""
+    if meal_plan_fee in (None, ""):
+        return
+    if consultation_fee is not None and meal_plan_fee < consultation_fee + MIN_MEAL_PLAN_EXTRA:
+        raise serializers.ValidationError({"meal_plan_fee": [
+            f"Consultation + meal plan must cost at least ₱{MIN_MEAL_PLAN_EXTRA} more than consultation only "
+            f"(at least ₱{consultation_fee + MIN_MEAL_PLAN_EXTRA:,.0f})."]})
+
+
 class RndProfileUpdateSerializer(serializers.ModelSerializer):
     """For the RND editing their own profile — excludes verification fields.
     `languages` (codes from LANGUAGES) replaces their RndLanguage rows."""
@@ -135,7 +147,7 @@ class RndProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RndProfile
         fields = [
-            "specialization", "language_codes", "bio", "consultation_fee",
+            "specialization", "language_codes", "bio", "consultation_fee", "meal_plan_fee",
             "consultation_modes", "available_for_new_clients", "languages", "clinic_address",
         ]
         # Specialization is picked at registration (from RND_SPECIALIZATIONS) and
@@ -149,6 +161,11 @@ class RndProfileUpdateSerializer(serializers.ModelSerializer):
         return value or None
 
     def validate(self, attrs):
+        if "meal_plan_fee" in attrs or "consultation_fee" in attrs:
+            check_meal_plan_fee(
+                attrs.get("consultation_fee", getattr(self.instance, "consultation_fee", None)),
+                attrs["meal_plan_fee"] if "meal_plan_fee" in attrs else getattr(self.instance, "meal_plan_fee", None),
+            )
         # Checked when formats or the address are being saved (the Professional
         # Profile form), so an unrelated edit (e.g. languages) never gets stuck.
         if "consultation_modes" not in attrs and "clinic_address" not in attrs:

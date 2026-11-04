@@ -82,7 +82,7 @@
               </td>
               <td data-label="Client and RND">
                 {{ inv.client_name }}
-                <span class="cell-sub">with RND {{ inv.rnd_name }}</span>
+                <span class="cell-sub">with RND {{ inv.rnd_name }}<template v-if="inv.kind && inv.kind !== 'consultation'">, {{ inv.kind_label.toLowerCase() }}</template></span>
               </td>
               <td data-label="Paid with">{{ inv.payment_method ? (METHOD_LABELS[inv.payment_method] || inv.payment_method) : '—' }}</td>
               <td data-label="Fee" class="nm-num mono">{{ peso(inv.amount) }}</td>

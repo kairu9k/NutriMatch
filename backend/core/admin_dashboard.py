@@ -114,6 +114,17 @@ def _attention(now, summary):
     add("warning", "refunds", refunds, f"{refunds} refund{'s' if refunds != 1 else ''} to send",
         "Refund in PayMongo, then press Mark as refunded.", "/billing-commission?tab=refunds")
 
+    # Paid meal plans not sent after 7 days (2026-11-04). An add-on is refunded
+    # if care ends; a package's meal-plan part is settled by hand.
+    from billing.meal_plans import NOT_SENT_ALERT_DAYS, undelivered_plans
+
+    late = list(undelivered_plans(now))
+    add("warning", "meal_plans_not_sent", len(late),
+        f"{len(late)} paid meal plan{'s' if len(late) != 1 else ''} not sent after {NOT_SENT_ALERT_DAYS} days",
+        "The client paid for a meal plan the RND hasn't sent. Remind the RND, or refund the meal plan part.",
+        "/billing-commission",
+        [{"id": i.relationship.rnd_id, "name": f"{i.relationship.rnd.full_name} for {i.relationship.client.full_name}"} for i in late])
+
     no_details, due = [], []
     for rnd in User.objects.filter(role=User.Role.RND, rnd_profile__is_verified=True, is_active=True):
         e = rnd_earnings(rnd, now)

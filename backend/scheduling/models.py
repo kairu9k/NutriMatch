@@ -89,9 +89,16 @@ class Appointment(models.Model):
         REFUNDED = "refunded", "Refunded"
         REJECTED = "rejected", "Rejected"
 
+    class Service(models.TextChoices):
+        # What the client paid for (2026-11-04, user's call). Bookings made
+        # before this existed count as consultation + meal plan.
+        CONSULTATION = "consultation", "Consultation only"
+        CONSULTATION_MEAL_PLAN = "consultation_meal_plan", "Consultation + meal plan"
+
     relationship = models.ForeignKey(
         RndClientRelationship, on_delete=models.CASCADE, related_name="appointments"
     )
+    service = models.CharField(max_length=30, choices=Service.choices, default=Service.CONSULTATION)
     scheduled_at = models.DateTimeField()
     type = models.CharField(max_length=20, choices=Type.choices, default=Type.VIDEO)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)

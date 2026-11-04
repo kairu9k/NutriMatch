@@ -72,6 +72,9 @@ class MealPlan(models.Model):
     relationship = models.ForeignKey(
         RndClientRelationship, on_delete=models.CASCADE, related_name="meal_plans"
     )
+    # The paid package / add-on invoice this plan used up when it was sent
+    # (2026-11-04: one payment = one sent plan; sent plans are locked).
+    invoice = models.ForeignKey("billing.Invoice", on_delete=models.SET_NULL, null=True, blank=True, related_name="meal_plans")
     name = models.CharField(max_length=255)
     condition = models.CharField(max_length=20, choices=Condition.choices, default=Condition.GENERAL)
     target_kcal = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)

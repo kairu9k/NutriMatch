@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsClient, IsRnd
 from scheduling.discharge import ensure_open
+from billing.meal_plans import LOCKED_MESSAGE, NO_CREDIT_MESSAGE, ensure_editable, unused_credit
 from communication.services import notify
 
 from .models import FoodExchangeCategory, FoodExchangeItem, MealLog, MealPlan, MealPlanFoodItem, MealPlanMeal
@@ -87,6 +88,7 @@ class RndMealPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         ensure_open(serializer.instance.relationship)
+        ensure_editable(serializer.instance)
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -96,7 +98,7 @@ class RndMealPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         if instance.status != MealPlan.Status.DRAFT or instance.first_sent_at or \
                 MealLog.objects.filter(meal_plan_meal__meal_plan=instance).exists():
-            raise PermissionDenied("This plan was sent to the client, so it can't be deleted. Edit it and resend, or send a new plan.")
+            raise PermissionDenied("This plan was sent to the client, so it can't be deleted.")
         AuditLog.objects.create(
             user=self.request.user, action="meal_plan.deleted", table_name="meal_plans", record_id=instance.id,
             old_values={"name": instance.name, "status": instance.status, "relationship_id": instance.relationship_id},
@@ -115,6 +117,7 @@ class RndMealPlanMealCreateView(generics.CreateAPIView):
             MealPlan.objects.filter(relationship__rnd=self.request.user),
             pk=self.kwargs["meal_plan_id"],
         )
+        ensure_editable(meal_plan)
         serializer.save(meal_plan=meal_plan)
 
 
@@ -126,6 +129,14 @@ class RndMealPlanMealDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return MealPlanMeal.objects.filter(meal_plan__relationship__rnd=self.request.user)
+
+    def perform_update(self, serializer):
+        ensure_editable(serializer.instance.meal_plan)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        ensure_editable(instance.meal_plan)
+        instance.delete()
 
 
 class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
@@ -141,6 +152,7 @@ class RndMealPlanFoodItemCreateView(generics.CreateAPIView):
             MealPlanMeal.objects.filter(meal_plan__relationship__rnd=self.request.user),
             pk=self.kwargs["meal_id"],
         )
+        ensure_editable(meal.meal_plan)
         serializer.save(meal_plan_meal=meal)
         meal.recompute_exchanges()
 
@@ -156,6 +168,7 @@ class RndMealPlanFoodItemDeleteView(generics.DestroyAPIView):
 
     def perform_destroy(self, instance):
         meal = instance.meal_plan_meal
+        ensure_editable(meal.meal_plan)
         instance.delete()
         meal.recompute_exchanges()
 
@@ -174,6 +187,7 @@ class RndMealPlanWeekView(APIView):
     def put(self, request, pk):
         plan = get_object_or_404(MealPlan.objects.filter(relationship__rnd=request.user), pk=pk)
         ensure_open(plan.relationship)
+        ensure_editable(plan)
         serializer = MealPlanWeekSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -243,8 +257,9 @@ class RndMealPlanWeekView(APIView):
 
 class RndMealPlanSendView(APIView):
     """"Send to Patient": makes the plan the client's active plan (archiving
-    any other active plan for that client) and notifies them. Re-sending an
-    already-active plan after edits just notifies them of the update."""
+    any other active plan for that client) and notifies them. Needs a paid
+    meal-plan credit, which the plan then uses (2026-11-04); a sent plan is
+    final, so it can't be sent again."""
 
     permission_classes = [IsRnd]
 
@@ -253,10 +268,14 @@ class RndMealPlanSendView(APIView):
             MealPlan.objects.select_related("relationship__client").filter(relationship__rnd=request.user), pk=pk,
         )
         ensure_open(plan.relationship)
+        if plan.first_sent_at:
+            raise serializers.ValidationError({"detail": LOCKED_MESSAGE})
         if not plan.meals.filter(food_items__isnull=False).exists():
             raise serializers.ValidationError({"detail": "Add at least one food item before sending the plan."})
+        credit = unused_credit(plan.relationship)
+        if credit is None:
+            raise serializers.ValidationError({"detail": NO_CREDIT_MESSAGE, "code": "no_credit"})
 
-        was_active = plan.status == MealPlan.Status.ACTIVE
         with transaction.atomic():
             MealPlan.objects.filter(
                 relationship=plan.relationship, status=MealPlan.Status.ACTIVE
@@ -264,21 +283,53 @@ class RndMealPlanSendView(APIView):
             plan.status = MealPlan.Status.ACTIVE
             plan.sent_at = timezone.now()
             plan.first_sent_at = plan.first_sent_at or plan.sent_at  # adherence counts from here
-            plan.save(update_fields=["status", "sent_at", "first_sent_at", "updated_at"])
+            plan.invoice = credit
+            plan.save(update_fields=["status", "sent_at", "first_sent_at", "invoice", "updated_at"])
 
         notify(
             recipient=plan.relationship.client,
             notifiable_type="meal_plan",
             notifiable_id=plan.id,
-            subject="Meal plan updated" if was_active else "New meal plan",
-            content=(
-                f"{request.user.full_name} "
-                f"{'updated your meal plan' if was_active else 'sent you a new meal plan'}: {plan.name}."
-            ),
+            subject="New meal plan",
+            content=f"{request.user.full_name} sent you a new meal plan: {plan.name}.",
         )
 
         plan = MealPlan.objects.prefetch_related("meals__food_items").get(pk=plan.pk)
         return Response(MealPlanSerializer(plan, context={"request": request}).data)
+
+
+class RndMealPlanCopyView(APIView):
+    """"Start a new plan from this one": a sent plan is final, so changes go
+    into a new draft copy (targets, notes, every meal and food). Sending the
+    copy needs a new meal-plan credit."""
+
+    permission_classes = [IsRnd]
+
+    def post(self, request, pk):
+        source = get_object_or_404(
+            MealPlan.objects.filter(relationship__rnd=request.user).prefetch_related("meals__food_items"), pk=pk,
+        )
+        ensure_open(source.relationship)
+        if MealPlan.objects.filter(relationship=source.relationship, status=MealPlan.Status.DRAFT).exists():
+            raise serializers.ValidationError({"detail": "This patient already has a draft plan. Finish or delete it first."})
+        copy_fields = ["relationship", "condition", "target_kcal", "target_protein_g", "target_carb_g", "target_fat_g",
+                       "nutrient_targets", "total_vegetable", "total_fruit", "total_milk", "total_rice", "total_meat",
+                       "total_fat", "total_sugar", "notes", "allergies_restrictions"]
+        with transaction.atomic():
+            plan = MealPlan.objects.create(name=f"{source.name} (new)"[:255], status=MealPlan.Status.DRAFT,
+                                           **{f: getattr(source, f) for f in copy_fields})
+            for meal in source.meals.all():
+                items = list(meal.food_items.all())
+                meal.pk = None
+                meal.meal_plan = plan
+                meal.created_at = None  # part of the plan from the start (adherence)
+                meal.save()
+                for item in items:
+                    item.pk = None
+                    item.meal_plan_meal = meal
+                MealPlanFoodItem.objects.bulk_create(items)
+        plan = MealPlan.objects.prefetch_related("meals__food_items").get(pk=plan.pk)
+        return Response(MealPlanSerializer(plan, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
 class ClientMealPlanListView(generics.ListAPIView):

@@ -379,7 +379,11 @@
           <h2 id="end-title" class="nm-modal-title"><CheckCircle2 :size="18" class="ok-icon" /> Consultation complete</h2>
           <p class="nm-modal-text">{{ wrap.todo.length ? 'Before you move on:' : 'Everything for this visit is done.' }}</p>
           <ul v-if="wrap.todo.length" class="todo">
-            <li v-for="t in wrap.todo" :key="t.text"><NuxtLink :to="t.link" class="nm-panel-link">{{ t.text }}</NuxtLink></li>
+            <li v-for="t in wrap.todo" :key="t.text">
+              <button v-if="t.action === 'recommend'" type="button" class="nm-panel-link" @click="recommendOpen = true">{{ t.text }}</button>
+              <span v-else-if="!t.link" class="todo-done">{{ t.text }}</span>
+              <NuxtLink v-else :to="t.link" class="nm-panel-link">{{ t.text }}</NuxtLink>
+            </li>
           </ul>
           <div class="nm-modal-actions">
             <button type="button" class="nm-btn-outline" @click="summaryOpen = true">View summary</button>
@@ -441,6 +445,8 @@
     <RequestLabsModal v-if="labRequest" :relationship-id="appt.relationship.id" :patient-name="other.firstName" :tests="labRequest.tests"
                       :next-consultation="labRequest.next_consultation" @close="labRequest = null" @sent="onLabsSent" />
     <ConsultationSummaryModal v-if="summaryOpen && appt" :appointment-id="appt.id" :role="isRnd ? 'rnd' : 'client'" @close="summaryOpen = false" />
+    <RecommendMealPlanModal v-if="recommendOpen && appt && s" :relationship-id="appt.relationship.id" :patient-name="other.name"
+                            :price="s.meal_plan_access?.addon_price" @close="recommendOpen = false" @done="onRecommended" />
       <LabFileModal
       v-if="viewing" :path="viewing.path" :title="viewing.title" :sub="viewing.sub" :file-name="viewing.fileName" :review-path="viewing.reviewPath"
       @close="viewing = null" @opened="onViewed" @reviewed="onReviewed"
@@ -760,15 +766,32 @@ async function completeNow() {
     const todo = []
     if (s.value?.ncp_draft_id) todo.push({ text: 'Finish and finalize the NCP record', link: `/client-detail/${rel}?tab=ncp&open=draft` })
     else if (!s.value?.care_plan || s.value.care_plan.encounter_date < todayIso) todo.push({ text: 'Write an NCP record for this visit', link: `/client-detail/${rel}?tab=ncp` })
+    // Paid meal plans (2026-11-04): create one only if they paid; otherwise
+    // the RND can recommend one (an add-on the client pays for).
     const mp = s.value?.patient.meal_plan
-    if (mp?.ready && (!mp.plan || mp.plan.status === 'draft' || mp.outdated)) {
-      todo.push({ text: !mp.plan ? 'Create a meal plan' : mp.plan.status === 'draft' ? 'Send the meal plan' : 'Update the meal plan', link: `/meal-planning?relationship=${rel}` })
+    const access = s.value?.meal_plan_access
+    if (access?.can_send) {
+      todo.push({ text: mp?.plan?.status === 'draft' ? 'Finish and send the meal plan (paid)' : 'Create and send the meal plan (paid)', link: `/meal-planning?relationship=${rel}${mp?.ready ? '&edit=1' : ''}` })
+    } else if (access?.offer) {
+      todo.push({ text: 'Meal plan recommended, waiting for payment' })
+    } else if (access?.can_offer) {
+      todo.push({ text: 'Recommend a meal plan', action: 'recommend' })
     }
     wrap.value = { todo }
   } catch (e) {
     endError.value = apiError(e, 'Could not complete this consultation.')
   } finally {
     ending.value = false
+  }
+}
+
+// "Recommend a meal plan" from the wrap-up (RecommendMealPlanModal).
+const recommendOpen = ref(false)
+function onRecommended(next) {
+  recommendOpen.value = false
+  if (s.value) s.value.meal_plan_access = next
+  if (wrap.value) {
+    wrap.value = { todo: wrap.value.todo.map(t => (t.action === 'recommend' ? { text: 'Meal plan recommended, waiting for payment' } : t)) }
   }
 }
 
@@ -859,6 +882,7 @@ function onHangUp() {
 </script>
 
 <style scoped>
+.todo-done { font-size: 0.84rem; color: #4a5a4a; }
 * { box-sizing: border-box; }
 .lab-ask { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 6px; font-size: 0.82rem; color: #7a560f; font-weight: 600; }
 .lab-ask svg { flex-shrink: 0; margin-top: 2px; }

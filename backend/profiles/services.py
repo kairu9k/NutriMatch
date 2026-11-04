@@ -138,6 +138,9 @@ def rnd_missing_setup(profile):
         missing.append({"key": "clinic_address", "label": "Add your clinic address for in-person consultations", "optional": True, "warn": True})
     if not profile.user.languages.exists():
         missing.append({"key": "languages", "label": "Add the languages you consult in", "optional": True})
+    if not profile.meal_plan_fee:
+        # Optional (2026-11-04): without it the RND offers consultations only.
+        missing.append({"key": "meal_plan_fee", "label": "Set your meal plan price to offer consultation + meal plan", "optional": True})
     return missing
 
 

@@ -9,12 +9,34 @@
         <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="showView">
           <Eye :size="15" /> View plan
         </button>
-        <button class="mode-btn" :class="{ active: mode === 'create' }" :disabled="!patients.length" @click="openCreate">
+        <button class="mode-btn" :class="{ active: mode === 'create' }" :disabled="!patients.length || isLocked" @click="openCreate">
           <Plus :size="15" /> {{ selectedPlan ? 'Edit plan' : 'Create plan' }}
         </button>
       </div>
 
     </div>
+
+    <!-- Paid meal plans (2026-11-04): sending needs the patient's payment. -->
+    <div v-if="selectedRelId && !isLoading && access" class="access-note no-print">
+      <p v-if="access.can_send" class="nm-note plain-note">
+        {{ patientFirstName }} paid for a meal plan
+        ({{ access.credit.kind === 'package' ? 'consultation + meal plan' : 'meal plan add-on' }}). Send it when it's ready.
+      </p>
+      <p v-else-if="access.offer" class="nm-note plain-note">
+        You recommended a meal plan ({{ peso(access.offer.amount) }}). Waiting for {{ patientFirstName }}'s payment until {{ shortDate(access.offer.expires_at) }}.
+        You can prepare a draft meanwhile.
+      </p>
+      <div v-else-if="access.can_offer" class="nm-note todo-note access-row">
+        <span>{{ patientFirstName }} hasn't paid for a meal plan. You can prepare a draft, but sending it needs their payment.</span>
+        <button type="button" class="nm-btn-dark nm-btn-sm" @click="recommendOpen = true">Recommend a meal plan</button>
+      </div>
+      <p v-else-if="!access.offered" class="nm-note plain-note">
+        {{ patientFirstName }} hasn't paid for a meal plan, and you don't offer meal plans yet.
+        <NuxtLink to="/profile-settings?tab=professional" class="nm-text-link">Set your meal plan price</NuxtLink> to offer them.
+      </p>
+    </div>
+    <RecommendMealPlanModal v-if="recommendOpen" :relationship-id="selectedRelId" :patient-name="selectedPatientName"
+                            :price="access?.addon_price" @close="recommendOpen = false" @done="onRecommended" />
 
     <p v-if="errorMessage" class="form-error no-print">{{ errorMessage }}</p>
     <p v-if="notice" class="form-notice no-print"><CheckCircle2 :size="15" /> {{ notice }}</p>
@@ -97,12 +119,18 @@
         </div>
 
         <div class="plan-actions no-print">
+          <p v-if="isLocked" class="sent-lock"><Lock :size="13" /> Sent to {{ patientFirstName }} on {{ shortDate(selectedPlan.first_sent_at) }}, so it can't be changed or deleted. To make changes, start a new plan from it.</p>
           <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
           <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print plan</button>
-          <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit plan</button>
-          <button class="btn-primary" :disabled="isSending" @click="requestSend(sendToPatient)">
-            <Send :size="15" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to patient' : 'Send to patient' }}
-          </button>
+          <template v-if="isLocked">
+            <button class="btn-primary" :disabled="isCopying" @click="copyPlan"><Plus :size="15" /> {{ isCopying ? 'Starting…' : 'Start a new plan from this one' }}</button>
+          </template>
+          <template v-else>
+            <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit plan</button>
+            <button class="btn-primary" :disabled="isSending || !access?.can_send" :title="access?.can_send ? '' : noPayTitle" @click="requestSend(sendToPatient)">
+              <Send :size="15" /> {{ isSending ? 'Sending…' : 'Send to patient' }}
+            </button>
+          </template>
         </div>
       </div>
 
@@ -112,7 +140,7 @@
         <div class="panel">
           <div class="side-header-row">
             <h4 class="side-title">Instructions for the patient</h4>
-            <button class="nm-btn-soft nm-btn-sm" type="button" @click="mode = 'create'"><Pencil :size="13" aria-hidden="true" /> Edit</button>
+            <button v-if="!isLocked" class="nm-btn-soft nm-btn-sm" type="button" @click="mode = 'create'"><Pencil :size="13" aria-hidden="true" /> Edit</button>
           </div>
           <p v-if="patientAllergies.length" class="instr-allergy" role="note">
             <AlertTriangle :size="14" aria-hidden="true" /> {{ patientFirstName }}'s recorded allergies: {{ patientAllergies.join(', ') }}
@@ -379,14 +407,13 @@
 
           <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay}, ${usdaMeal.type}`" :allergies="patientAllergies" :patient-name="patientFirstName" @close="usdaMeal = null" @pick="addUsdaFood" />
 
-          <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client, so this plan can't be deleted. Edit it and resend, or send a new plan.</p>
-          <p v-else class="sent-lock"><Lock :size="13" /> Draft. Only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
+          <p class="sent-lock"><Lock :size="13" /> Draft. Only you can see it, and you can still change or delete it. Once you send it to the client, it can't be changed or deleted.</p>
           <div class="plan-actions create-actions">
             <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
             <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
             <button class="btn-secondary" @click="discardChanges">Discard changes</button>
-            <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : selectedPlan.status === 'draft' ? 'Save draft' : 'Save changes' }}</button>
-            <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; send to patient</button>
+            <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : 'Save draft' }}</button>
+            <button class="btn-primary" :disabled="isSaving || isSending || !access?.can_send" :title="access?.can_send ? '' : noPayTitle" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; send to patient</button>
           </div>
         </template>
       </div>
@@ -494,11 +521,10 @@
     <div v-if="sendCheck" class="nm-modal-overlay no-print" @click.self="sendCheck = null">
       <div class="nm-modal send-check" role="dialog" aria-modal="true" aria-labelledby="send-check-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="sendCheck = null"><X :size="18" aria-hidden="true" /></button>
-        <h3 id="send-check-title" class="nm-modal-title">{{ isResend ? 'Send the updated plan' : 'Send this plan' }} to {{ selectedPatientName || 'the patient' }}?</h3>
+        <h3 id="send-check-title" class="nm-modal-title">Send this plan to {{ selectedPatientName || 'the patient' }}?</h3>
         <p class="send-consequence">
           <Lock :size="14" />
-          <span v-if="isResend">{{ patientFirstName }} sees the changes right away. Their past meal logs are kept.</span>
-          <span v-else><strong>Once sent, this plan can't be deleted.</strong> {{ patientFirstName }} sees it right away and starts logging meals against it. After that you can only edit and resend it, or replace it by sending a new plan.</span>
+          <span><strong>Once sent, this plan can't be changed or deleted.</strong> {{ patientFirstName }} sees it right away and starts logging meals against it. It uses the meal plan they paid for, so a new or updated plan later needs another payment.</span>
         </p>
 
         <template v-if="allergyHits.length">
@@ -522,7 +548,7 @@
         <div class="nm-modal-actions">
           <button class="btn-secondary" type="button" @click="sendCheck = null">Go back and edit</button>
           <button class="btn-primary" type="button" :disabled="sendWait > 0 || (allergyHits.length > 0 && !allergyAck)" @click="confirmSend">
-            <Send :size="15" /> {{ planWarnings.length ? 'Send anyway' : isResend ? 'Resend to patient' : 'Send to patient' }}<template v-if="sendWait > 0"> ({{ sendWait }})</template>
+            <Send :size="15" /> {{ planWarnings.length ? 'Send anyway' : 'Send to patient' }}<template v-if="sendWait > 0"> ({{ sendWait }})</template>
           </button>
         </div>
       </div>
@@ -890,6 +916,7 @@ function startNewPlan() {
 }
 
 function openCreate() {
+  if (isLocked.value) return
   if (selectedPlan.value) fillFromPlan(selectedPlan.value)
   else { resetForm(); startWith.value = null }
   mode.value = 'create'
@@ -918,6 +945,7 @@ async function loadPatientPlans() {
   ])
   plans.value = planList
   loadPatientConditions(selectedRelId.value)
+  loadAccess()
   const ncp = ncpList[0]
   ncpTargets.value = ncp && ncp.target_kcal
     ? {
@@ -933,7 +961,7 @@ async function loadPatientPlans() {
   const preferred = planList.find(p => p.status === 'active') || planList.find(p => p.status === 'draft') || planList[0]
   if (preferred) {
     selectPlan(preferred.id)
-    if (route.query.edit) mode.value = 'create'
+    if (route.query.edit && !isLocked.value) mode.value = 'create'
   } else {
     selectedPlanId.value = null
     resetForm()
@@ -1168,7 +1196,6 @@ const planWarnings = computed(() => {
 const allergyHits = computed(() => planWarnings.value.filter(w => w.allergy.length))
 const conditionHits = computed(() => planWarnings.value.filter(w => w.condition.length))
 const allergyAck = ref(false)
-const isResend = computed(() => selectedPlan.value?.status === 'active')
 const patientFirstName = computed(() => (selectedPatientName.value || 'the patient').split(' ')[0])
 const warningDays = computed(() => new Set(planWarnings.value.map(w => w.day)))
 // Every send asks first: what sending means (a sent plan can't be deleted),
@@ -1203,18 +1230,58 @@ function confirmSend() {
 async function sendToPatient() {
   isSending.value = true
   errorMessage.value = ''
-  const wasActive = selectedPlan.value?.status === 'active'
   try {
     const sent = await post(`/rnd/meal-plans/${selectedPlanId.value}/send/`)
     // Sending archives any other active plan for this patient.
     plans.value = plans.value.map(p => (p.status === 'active' && p.id !== sent.id ? { ...p, status: 'archived' } : p))
     replacePlan(sent)
-    flash(wasActive ? `Updated plan sent to ${selectedPatientName.value}.` : `Plan sent to ${selectedPatientName.value}.`)
+    flash(`Plan sent to ${selectedPatientName.value}.`)
     mode.value = 'view'
   } catch (error) {
     errorMessage.value = apiError(error, 'Could not send the plan.')
   } finally {
     isSending.value = false
+    loadAccess()
+  }
+}
+
+/* ---------- Paid meal plans (2026-11-04) ---------- */
+// access: can a plan be sent (the patient paid), is a recommendation open.
+const access = ref(null)
+const recommendOpen = ref(false)
+const isCopying = ref(false)
+const noPayTitle = "Sending needs the patient's payment for a meal plan"
+// A sent plan is final: changes go into a new draft copy.
+const isLocked = computed(() => !!selectedPlan.value?.first_sent_at)
+const peso = v => `₱${Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const shortDate = v => (v ? new Date(v).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
+async function loadAccess() {
+  if (!selectedRelId.value) { access.value = null; return }
+  try {
+    access.value = await get(`/rnd/relationships/${selectedRelId.value}/meal-plan-access/`)
+  } catch {
+    access.value = null
+  }
+}
+function onRecommended(next) {
+  access.value = next
+  recommendOpen.value = false
+  flash(`Recommendation sent. ${patientFirstName.value} has 7 days to pay for it.`)
+}
+async function copyPlan() {
+  if (!selectedPlan.value) return
+  isCopying.value = true
+  errorMessage.value = ''
+  try {
+    const draft = await post(`/rnd/meal-plans/${selectedPlan.value.id}/copy/`)
+    plans.value = [draft, ...plans.value]
+    selectPlan(draft.id)
+    mode.value = 'create'
+    flash('New draft started from the sent plan. Make your changes, then send it once the patient has paid.')
+  } catch (error) {
+    errorMessage.value = apiError(error, 'Could not start a new plan.')
+  } finally {
+    isCopying.value = false
   }
 }
 
@@ -1506,6 +1573,10 @@ function formatTime(t) {
 .btn-danger.solid { margin-right: 0; }
 .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 .sent-lock { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; font-size: 0.78rem; color: #6a7a6a; }
+.access-note { margin: 0 0 14px; }
+.access-note .nm-note { margin: 0; }
+.access-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.plan-actions .sent-lock { flex-basis: 100%; margin: 0 0 4px; }
 
 /* SIDE COLUMN (shared) */
 .side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }

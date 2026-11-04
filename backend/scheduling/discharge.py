@@ -70,6 +70,10 @@ def discharge(relationship, by, reason, *, ended_by=RndClientRelationship.EndedB
         # Open lab requests end with the care: the client can't upload to a closed chart.
         labs_cancelled = LabRequest.objects.filter(relationship=relationship, status=LabRequest.Status.OPEN).update(
             status=LabRequest.Status.CANCELLED, cancelled_at=now)
+        # A meal-plan offer ends too; a paid add-on whose plan was never sent is refunded.
+        from billing.meal_plans import settle_on_discharge
+
+        settle_on_discharge(relationship)
         AuditLog.objects.create(
             user=by, action="relationship.discharged", table_name="rnd_client_relationships", record_id=relationship.id,
             old_values={"status": "active"},

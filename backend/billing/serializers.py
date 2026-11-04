@@ -9,7 +9,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
         fields = [
-            "id", "relationship", "appointment", "amount", "commission_pct", "commission_amt",
+            "id", "relationship", "appointment", "kind", "amount", "commission_pct", "commission_amt",
             "status", "payment_gateway", "payment_method", "gateway_reference_id",
             "payment_url", "paid_at", "notes", "created_at",
         ]
@@ -29,13 +29,23 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     receipt = serializers.SerializerMethodField()
     refund = serializers.SerializerMethodField()
     payment_method_label = serializers.SerializerMethodField()
+    kind_label = serializers.CharField(source="get_kind_display", read_only=True)
+    offer = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
         fields = [
-            "id", "amount", "status", "payment_method", "payment_method_label", "paid_at", "created_at",
-            "consultation", "pay_by", "receipt", "refund",
+            "id", "kind", "kind_label", "amount", "status", "payment_method", "payment_method_label", "paid_at", "created_at",
+            "consultation", "pay_by", "receipt", "refund", "offer",
         ]
+
+    def get_offer(self, obj):
+        """A meal plan the RND recommended: their note and when the offer ends."""
+        if obj.kind != Invoice.Kind.MEAL_PLAN_ADDON:
+            return None
+        from .meal_plans import offer_expires_at
+
+        return {"note": obj.offer_note or "", "expires_at": offer_expires_at(obj)}
 
     def _txns(self, obj):
         return list(obj.transactions.all())
@@ -53,6 +63,10 @@ class InvoiceListSerializer(serializers.ModelSerializer):
 
     def get_pay_by(self, obj):
         a = obj.appointment
+        if obj.kind == Invoice.Kind.MEAL_PLAN_ADDON:
+            from .meal_plans import offer_expires_at
+
+            return offer_expires_at(obj) if obj.status == Invoice.Status.UNPAID else None
         return a.scheduled_at if obj.status == Invoice.Status.UNPAID and a and a.status == "confirmed" else None
 
     def get_payment_method_label(self, obj):
@@ -99,7 +113,7 @@ class RndInvoiceListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
         fields = [
-            "id", "client_name", "appointment_date", "amount", "commission_amt",
+            "id", "kind", "client_name", "appointment_date", "amount", "commission_amt",
             "net", "status", "paid_at", "created_at",
         ]
 
@@ -121,11 +135,12 @@ class AdminInvoiceListSerializer(serializers.ModelSerializer):
     # The PayMongo payment id (pay_...) when it was paid through PayMongo —
     # those are refunded through PayMongo, the rest (demo data) by hand.
     paymongo_payment_id = serializers.SerializerMethodField()
+    kind_label = serializers.CharField(source="get_kind_display", read_only=True)
 
     class Meta:
         model = Invoice
         fields = [
-            "id", "client_name", "rnd_name", "amount", "commission_pct", "commission_amt",
+            "id", "kind", "kind_label", "client_name", "rnd_name", "amount", "commission_pct", "commission_amt",
             "net", "status", "payment_method", "paid_at", "created_at", "paymongo_payment_id",
         ]
 

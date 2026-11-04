@@ -92,7 +92,7 @@ class PublicRndProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = RndProfile
         fields = [
-            "id", "user", "prc_license_number", "specialization", "bio", "consultation_fee", "consultation_modes",
+            "id", "user", "prc_license_number", "specialization", "bio", "consultation_fee", "meal_plan_fee", "consultation_modes",
             "available_for_new_clients", "verified_at", "languages", "average_rating", "review_count",
             "consultations_completed", "active_patients", "member_since", "next_open_slots", "clinic_address", "is_my_rnd", "booking_blocked_by",
         ]

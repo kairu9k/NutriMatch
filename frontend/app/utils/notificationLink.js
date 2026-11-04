@@ -37,7 +37,10 @@ export function notificationLink(n, related, role, route) {
       case 'message': return messages
       case 'meal_plan': return { path: '/meal-planning', query: r?.relationship_id ? { relationship: r.relationship_id } : {} }
       case 'meal_log': return r ? { path: `/client-detail/${r.relationship_id}`, query: { tab: 'meal', log: r.id } } : '/my-patients'
-      case 'relationship': return chart()
+      case 'relationship':
+        // "Meal plan paid / declined / offer expired" (2026-11-04) open Meal Planning for that patient
+        if (/^Meal plan/.test(n.subject || '') && r?.relationship_id) return { path: '/meal-planning', query: { relationship: r.relationship_id } }
+        return chart()
       case 'lab_result':
       case 'lab_request': return chart('labs')
       default: return null

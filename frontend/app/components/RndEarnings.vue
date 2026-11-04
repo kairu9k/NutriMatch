@@ -79,7 +79,7 @@
             <tbody>
               <tr v-for="r in pagedRows" :key="r.invoice_id" class="clickable" @click="row = r">
                 <td data-label="Invoice"><strong>INV-{{ pad(r.invoice_id) }}</strong></td>
-                <td data-label="Patient">{{ r.client_name }}<span class="nm-row-sub" style="display: block">{{ r.consultation_type }}, {{ r.consultation_at ? shortDate(r.consultation_at) : 'no date' }}</span></td>
+                <td data-label="Patient">{{ r.client_name }}<span class="nm-row-sub" style="display: block">{{ r.kind === 'meal_plan_addon' ? 'Meal plan add-on' : `${r.consultation_type}${r.kind === 'package' ? ' + meal plan' : ''}` }}, {{ r.consultation_at ? shortDate(r.consultation_at) : shortDate(r.issued_at) }}</span></td>
                 <td data-label="Fee" class="nm-num">{{ peso(r.amount) }}</td>
                 <td data-label="Commission" class="nm-num">− {{ peso(r.commission) }} <span class="nm-muted">({{ Number(r.commission_pct) }}%)</span></td>
                 <td data-label="Your share" class="nm-num"><strong>{{ countsAsEarning(r) ? peso(r.share) : '—' }}</strong></td>
@@ -189,7 +189,7 @@
         <div class="inv-head nm-modal-head">
           <div class="inv-who">
             <h3 class="inv-title">{{ row.client_name }}</h3>
-            <p class="inv-sub">INV-{{ pad(row.invoice_id) }}, {{ row.consultation_type.toLowerCase() }} consultation{{ row.consultation_at ? ` on ${when(row.consultation_at)}` : '' }}</p>
+            <p class="inv-sub">INV-{{ pad(row.invoice_id) }}, {{ row.kind === 'meal_plan_addon' ? 'meal plan add-on (clears 3 days after the plan is sent)' : `${(row.consultation_type || '').toLowerCase()} consultation${row.kind === 'package' ? ' + meal plan' : ''}${row.consultation_at ? ` on ${when(row.consultation_at)}` : ''}` }}</p>
           </div>
           <span class="nm-pill" :class="STATE[row.state]?.pill || 'muted'">{{ STATE[row.state]?.label }}</span>
           <button class="close-btn" aria-label="Close" @click="row = null"><X :size="18" /></button>

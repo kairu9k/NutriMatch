@@ -42,7 +42,6 @@ def build_dashboard(rnd, now=None):
     from clinical.models import NcpRecord
     from clinical.services import classify_bmi_asia_pacific
     from communication.models import Message
-    from nutrition.models import MealPlan
 
     from .models import Appointment, Review, RndClientRelationship
     from .serializers import JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES
@@ -88,9 +87,14 @@ def build_dashboard(rnd, now=None):
     latest_ncp = {}
     for rec in NcpRecord.objects.filter(relationship_id__in=rel_ids).order_by("relationship_id", "-created_at"):
         latest_ncp.setdefault(rec.relationship_id, rec)
-    active_plans = {p.relationship_id: p for p in MealPlan.objects.filter(relationship_id__in=rel_ids, status="active")}
-    need_plan = [by_rel[rid] for rid, rec in latest_ncp.items()
-                 if (rec.diet_prescription or "").strip() and rid not in active_plans]
+    # Paid for a meal plan that hasn't been sent yet (2026-11-04: plans are paid).
+    from billing.models import Invoice
+
+    paid_for_plan = set(
+        Invoice.objects.filter(relationship_id__in=rel_ids, status=Invoice.Status.PAID,
+                               kind__in=[Invoice.Kind.PACKAGE, Invoice.Kind.MEAL_PLAN_ADDON])
+        .exclude(meal_plans__first_sent_at__isnull=False).values_list("relationship_id", flat=True))
+    need_plan = [by_rel[rid] for rid in paid_for_plan if rid in by_rel]
     unread = Message.objects.filter(relationship__rnd=rnd, is_read=False).exclude(sender=rnd).count()
 
     # ---------------------------------------------------------------- adherence + attention

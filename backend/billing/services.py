@@ -66,11 +66,11 @@ class PayMongoService:
         frontend = getattr(settings, "FRONTEND_URL", "").rstrip("/")
         attributes = {
             "line_items": [{
-                "name": f"NutriMatch consultation (INV-{invoice.id:04d})",
+                "name": f"NutriMatch {invoice.get_kind_display().lower()} (INV-{invoice.id:04d})",
                 "amount": amount_centavos, "currency": "PHP", "quantity": 1,
             }],
             "payment_method_types": CHECKOUT_PAYMENT_METHODS,
-            "description": f"NutriMatch Consultation Invoice #{invoice.id}",
+            "description": f"NutriMatch {invoice.get_kind_display().lower()}, invoice #{invoice.id}",
             "reference_number": f"INV-{invoice.id:04d}",
             "metadata": {"invoice_id": str(invoice.id)},
             # NutriMatch emails its own receipt (billing/receipts.py).
@@ -294,6 +294,7 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
         invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
         if invoice.status == Invoice.Status.PAID:
             return False
+        was_cancelled = invoice.status == Invoice.Status.CANCELLED
         PaymentTransaction.objects.create(
             invoice=invoice,
             transaction_type=PaymentTransaction.TransactionType.PAYMENT,
@@ -313,6 +314,11 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
         appt = invoice.appointment
         if appt is not None and appt.status == appt.Status.CANCELLED:
             invoice.status = Invoice.Status.REFUND_PENDING
+        # A meal-plan add-on paid after the offer ended (declined/expired) or
+        # after care ended: keep the money on record, flag a refund.
+        is_addon = invoice.kind == Invoice.Kind.MEAL_PLAN_ADDON
+        if is_addon and (was_cancelled or invoice.relationship.status != "active"):
+            invoice.status = Invoice.Status.REFUND_PENDING
         invoice.save(update_fields=update_fields)
         AuditLog.objects.create(
             action="invoice.paid",
@@ -330,6 +336,10 @@ def record_successful_payment(invoice, reference_id: str, payload: dict, source:
         # payment that landed on an already-cancelled one: that's a refund).
         if appt is not None and invoice.status == Invoice.Status.PAID:
             transaction.on_commit(lambda: notify_rnd_paid(invoice_id))
+        if is_addon and invoice.status == Invoice.Status.PAID:
+            from .meal_plans import notify_rnd_plan_paid
+
+            transaction.on_commit(lambda: notify_rnd_plan_paid(invoice_id))
     return True
 
 
@@ -376,30 +386,30 @@ def is_appointment_paid(appointment) -> bool:
 
 
 def create_appointment_invoice(appointment):
-    """Create the invoice for an appointment (once). Amount is the RND's
-    consultation fee now; commission % is frozen at creation (proposal
-    rule) from SystemSetting `platform_commission_pct` or the model default."""
-    from decimal import Decimal, InvalidOperation
-
-    from core.models import SystemSetting
-
+    """Create the invoice for an appointment (once). Amount is the RND's price
+    for the booked service now (consultation fee, or the consultation + meal
+    plan package); commission % is frozen at creation (proposal rule) from
+    SystemSetting `platform_commission_pct` or the model default."""
+    from .meal_plans import commission_kwargs, offers_meal_plans
     from .models import Invoice
 
     existing = appointment.invoices.exclude(status=Invoice.Status.CANCELLED).first()
     if existing:
         return existing, False
     rnd_profile = getattr(appointment.relationship.rnd, "rnd_profile", None)
+    package = (appointment.service == appointment.Service.CONSULTATION_MEAL_PLAN and offers_meal_plans(rnd_profile))
+    if appointment.service == appointment.Service.CONSULTATION_MEAL_PLAN and not package:
+        # The RND stopped offering meal plans after the booking: it's billed
+        # (and shown) as consultation only.
+        appointment.service = appointment.Service.CONSULTATION
+        appointment.save(update_fields=["service", "updated_at"])
     kwargs = {
         "relationship": appointment.relationship,
         "appointment": appointment,
-        "amount": rnd_profile.consultation_fee if rnd_profile else 0,
+        "kind": Invoice.Kind.PACKAGE if package else Invoice.Kind.CONSULTATION,
+        "amount": (rnd_profile.meal_plan_fee if package else rnd_profile.consultation_fee) if rnd_profile else 0,
+        **commission_kwargs(),
     }
-    setting = SystemSetting.objects.filter(key="platform_commission_pct").first()
-    if setting and setting.value:
-        try:
-            kwargs["commission_pct"] = Decimal(setting.value)
-        except (InvalidOperation, TypeError):
-            pass
     return Invoice.objects.create(**kwargs), True
 
 
@@ -499,7 +509,10 @@ def expire_unpaid_appointments(**scope):
     Unanswered booking requests expire here too (expire_unanswered_requests)."""
     from django.utils import timezone
 
+    from .meal_plans import expire_offers
+
     expire_unanswered_requests(**scope)
+    expire_offers(**scope)
 
     from communication.services import notify
     from scheduling.models import Appointment

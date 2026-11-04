@@ -25,7 +25,12 @@ def meal_plan_summary(care, rel):
     ready = any((r.diet_prescription or "").strip() or r.target_kcal for r in recs)
     outdated = bool(plan and plan.status == "active" and plan.sent_at and any(
         r.status == "completed" and r.encounter_date > plan.sent_at.astimezone(care.ph).date() for r in recs))
+    # Paid meal plans (2026-11-04): a plan can be sent only with a paid credit.
+    from billing.meal_plans import open_offer, unused_credit
+
     return {
+        "paid": unused_credit(rel) is not None,
+        "offer_open": open_offer(rel) is not None,
         "ready": ready,
         "plan": {
             "id": plan.id, "name": plan.name, "status": plan.status, "sent_at": plan.sent_at,

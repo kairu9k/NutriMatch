@@ -59,9 +59,9 @@ const COPY = {
     howto: "Here's how we'll get started:",
     steps: [
       { title: 'Find your RND', text: 'Choose a licensed Registered Nutritionist-Dietitian who knows Filipino food and your health needs.' },
-      { title: 'Book and pay in advance', text: 'Pick a time that fits your schedule, then pay for it before the session.' },
+      { title: 'Book and pay in advance', text: 'Pick a time that fits your schedule, choose consultation only or with a meal plan, then pay before the session.' },
       { title: 'Have your consultation', text: "By video call or in person, whichever you're comfortable with." },
-      { title: 'Follow your meal plan', text: 'Made for you, meal by meal, using foods you already enjoy.' },
+      { title: 'Follow your meal plan', text: "If you chose one, it's made for you, meal by meal, using foods you already enjoy." },
       { title: 'Track your progress', text: "Log your meals so you can see how far you've come." },
     ],
     closing: "You've got this. We're with you every step of the way. 🌱",

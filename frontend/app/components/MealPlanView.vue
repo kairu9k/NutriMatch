@@ -159,8 +159,24 @@
 
     <div v-else class="empty-state">
       <div class="empty-icon"><ClipboardList :size="28" /></div>
-      <p class="empty-title">No meal plan yet</p>
-      <p class="empty-desc">Your RND makes your meal plan after your consultation. It shows here, meal by meal.</p>
+      <!-- Paid meal plans (2026-11-04): what the client paid for decides what this says. -->
+      <template v-if="mealStatus?.offer">
+        <p class="empty-title">Your RND recommends a meal plan</p>
+        <p class="empty-desc">A 7-day plan made for you, ₱{{ Number(mealStatus.offer.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}. Pay in Billing and RND {{ mealStatus.rnd_name }} will start it.<template v-if="mealStatus.offer.note"> "{{ mealStatus.offer.note }}"</template></p>
+        <NuxtLink to="/invoices-billing" class="nm-btn-dark nm-btn-sm empty-action">Go to Billing</NuxtLink>
+      </template>
+      <template v-else-if="mealStatus?.can_send">
+        <p class="empty-title">Your meal plan is on its way</p>
+        <p class="empty-desc">You paid for a meal plan. RND {{ mealStatus.rnd_name }} prepares it after your consultation, and it shows here, meal by meal.</p>
+      </template>
+      <template v-else-if="mealStatus?.relationship_id">
+        <p class="empty-title">Your booking didn't include a meal plan</p>
+        <p class="empty-desc">Your diet prescription and advice are in your consultation summary (My Appointments, History). If you'd like a plan, ask RND {{ mealStatus.rnd_name }} in Messages. They can recommend one for you.</p>
+      </template>
+      <template v-else>
+        <p class="empty-title">No meal plan yet</p>
+        <p class="empty-desc">Book "Consultation + meal plan" with an RND to get a 7-day plan made for you. It shows here, meal by meal.</p>
+      </template>
     </div>
 
     <Transition name="toast-fade">
@@ -419,18 +435,21 @@ async function saveMealLog() {
   }
 }
 
+const mealStatus = ref(null)
 async function loadMealPlans({ quiet = false } = {}) {
   if (!quiet) {
     isLoading.value = true
     errorMessage.value = ''
   }
   try {
-    const [mealPlans, logs, profile] = await Promise.all([
+    const [mealPlans, logs, profile, status] = await Promise.all([
       get('/client/meal-plans/'),
       get(`/client/meal-logs/?date=${todayIso}`),
       get('/client/profile/').catch(() => null),
+      get('/client/meal-plan-status/').catch(() => null),
     ])
     plans.value = mealPlans
+    mealStatus.value = status
     todaysLogs.value = logs
     myAllergies.value = profile?.health_profile?.allergies || []
     if (quiet) return // a background refresh keeps the meal the client is on
@@ -633,6 +652,7 @@ useAutoRefresh(() => loadMealPlans({ quiet: true }), {
 }
 .empty-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a3a1a; margin: 0 0 6px; }
 .empty-desc { font-size: 0.85rem; color: #6a7a6a; margin: 0; }
+.empty-action { margin-top: 12px; }
 
 /* TOAST */
 .toast {

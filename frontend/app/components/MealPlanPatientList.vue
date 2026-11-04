@@ -48,7 +48,7 @@
                   <span class="plan-name">{{ p.meal_plan.plan.name }}</span>
                   <span class="sub">{{ planLine(p) }}</span>
                 </template>
-                <span v-else class="sub">No plan yet</span>
+                <span v-else class="sub">{{ p.meal_plan.offer_open ? 'Recommended, waiting for payment' : p.meal_plan.paid ? 'Paid, no plan yet' : 'No plan yet' }}</span>
               </td>
               <td class="num adh">
                 <strong v-if="p.meal_plan.plan?.status === 'active'" :class="adhTone(p)">{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : 'No logs' }}</strong>
@@ -93,22 +93,27 @@ onMounted(load)
 useAutoRefresh(() => load({ quiet: true }))
 
 const active = computed(() => rows.value.filter(p => p.status === 'active'))
+// Paid meal plans (2026-11-04): a plan can be sent only once the patient paid
+// (a consultation + meal plan booking, or a recommended add-on).
 function bucket(p) {
   const mp = p.meal_plan
   if (mp.plan?.status === 'draft') return 'draft'
+  if (mp.paid) return mp.ready ? 'needs_plan' : 'not_ready'
   if (mp.plan && mp.outdated) return 'needs_update'
   if (mp.plan) return 'on_plan'
-  return mp.ready ? 'needs_plan' : 'not_ready'
+  return mp.ready ? 'no_plan' : 'not_ready'
 }
 const DEFS = [
-  { key: 'needs_plan', label: 'Needs a meal plan', tone: 'gold', action: 'Create plan', primary: true,
-    why: 'Their NCP Intervention is done.' },
+  { key: 'needs_plan', label: 'Paid, needs a meal plan', tone: 'gold', action: 'Create plan', primary: true,
+    why: 'They paid for a meal plan and their NCP Intervention is done.' },
   { key: 'draft', label: 'Draft not sent', tone: 'gold', action: 'Continue', primary: true,
-    why: "The patient can't see a draft until you send it." },
-  { key: 'needs_update', label: 'Needs an update', tone: 'red', action: 'Update plan', primary: true,
-    why: 'A newer NCP record was finalized after the plan was sent.' },
+    why: "The patient can't see a draft until you send it. Sending needs their payment." },
+  { key: 'needs_update', label: 'Newer NCP since the plan', tone: 'red', action: 'Open',
+    why: 'A newer NCP record was finalized after the plan was sent. Sent plans are final, so recommend a new plan if it needs changes.' },
   { key: 'on_plan', label: 'On a plan', tone: 'green', action: 'Open',
     why: 'The patient is following a sent plan.' },
+  { key: 'no_plan', label: 'No meal plan', tone: 'muted', action: 'Open',
+    why: 'Consultation only. Recommend a meal plan if they need one.' },
   { key: 'not_ready', label: 'Not ready yet', tone: 'muted',
     why: 'A plan needs the NCP Intervention (diet prescription and TER), written at or after their consultation.' },
 ]

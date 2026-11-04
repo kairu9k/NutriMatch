@@ -251,6 +251,13 @@ def build_report(params, today=None):
             "payouts_sent": {"count": len(payouts), "amount": _money(sum((x.amount for x in payouts), Decimal("0")))},
             "refunded": {"count": len(refunded), "amount": _money(sum((i.amount for i in refunded), Decimal("0")))},
             "refund_pending": {"count": len(refund_pending), "amount": _money(sum((i.amount for i in refund_pending), Decimal("0")))},
+            # Kept payments by service (2026-11-04): consultation only,
+            # consultation + meal plan, meal plan add-on.
+            "by_service": [
+                {"kind": k, "label": label, "count": len(rows), "amount": _money(sum((i.amount for i in rows), Decimal("0")))}
+                for k, label in Invoice.Kind.choices
+                for rows in [[i for i in kept if i.kind == k]]
+            ],
         },
         "people": {
             "new_clients": User.objects.filter(role=User.Role.CLIENT, created_at__gte=lo, created_at__lt=hi).count(),

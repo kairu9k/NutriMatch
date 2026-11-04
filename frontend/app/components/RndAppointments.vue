@@ -39,7 +39,7 @@
                 <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink>
                 <span class="nm-pill" :class="a.returning ? 'blue' : 'muted'">{{ a.returning ? 'Returning patient' : 'New patient' }}</span>
               </p>
-              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, {{ a.duration_minutes }} min</p>
+              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, {{ a.duration_minutes }} min<template v-if="a.service === 'consultation_meal_plan'">, meal plan included</template></p>
               <p v-if="confirmClosed(a)" class="flag critical"><OctagonAlert :size="13" /> Too late to confirm: requests must be confirmed 30 minutes before the start. Decline it so they can book again.</p>
               <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Confirm by {{ clock(a.confirm_by) }}{{ sameDay(a) ? '' : `, ${longDay(a.confirm_by)}` }}, 30 minutes before the start.</p>
               <div class="chips">
@@ -74,7 +74,7 @@
                   <span v-else class="nm-pill muted">Not paid yet</span>
                 </p>
                 <p class="nm-row-sub with-icon">
-                  <component :is="TYPE_ICONS[a.type]" :size="13" class="ti" /> {{ a.type_label }}, until {{ clock(a.ends_at) }}
+                  <component :is="TYPE_ICONS[a.type]" :size="13" class="ti" /> {{ a.type_label }}, until {{ clock(a.ends_at) }}<template v-if="a.service === 'consultation_meal_plan'">, meal plan included</template>
                 </p>
                 <p v-if="a.type === 'in_person'" class="nm-row-sub addr with-icon">
                   <MapPin :size="13" class="ti" /> {{ a.clinic_address || 'No clinic address set. Add it in Profile Settings.' }}
@@ -104,7 +104,7 @@
             <DateBlock :at="a.scheduled_at" tone="muted" />
             <div class="row-main">
               <p class="who"><NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink></p>
-              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, ended {{ ago(a.ends_at) }}</p>
+              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, ended {{ ago(a.ends_at) }}<template v-if="a.service === 'consultation_meal_plan'">, meal plan included</template></p>
             </div>
             <div class="row-actions">
               <button v-if="a.payment && a.payment.status !== 'paid'" type="button" class="nm-btn-outline nm-btn-sm" disabled title="Can't complete an unpaid consultation">Waiting for payment</button>
@@ -125,7 +125,7 @@
                 <span v-if="a.dispute?.opened_at && !a.dispute.resolved_at" class="nm-pill gold">Disputed, payment on hold</span>
                 <span v-if="a.payment && ['refund_pending', 'refunded'].includes(a.payment.status)" class="nm-pill red">{{ a.payment.status === 'refunded' ? 'Refunded' : 'Refund pending' }}</span>
               </p>
-              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}{{ a.payment?.status === 'paid' ? `, ${peso(a.payment.amount)}` : '' }}</p>
+              <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}{{ a.service === 'consultation_meal_plan' ? ', with meal plan' : '' }}{{ a.payment?.status === 'paid' ? `, ${peso(a.payment.amount)}` : '' }}</p>
               <p v-if="['cancelled', 'no_show'].includes(a.status) && a.cancellation_reason" class="nm-row-sub">{{ a.status === 'no_show' ? 'Your note' : 'Reason' }}: {{ a.cancellation_reason }}</p>
               <p v-if="a.attendance && a.attendance.state !== 'none' && a.status !== 'pending'" class="nm-row-sub">{{ a.attendance.line }}</p>
               <p v-if="a.dispute?.outcome" class="nm-row-sub">Dispute {{ a.dispute.outcome === 'refunded' ? 'approved, payment refunded' : 'not approved, the payment stays yours' }}. {{ a.dispute.note }}</p>
@@ -144,7 +144,7 @@
       <div class="nm-modal wide review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
         <button type="button" class="nm-modal-x" aria-label="Close" @click="review = null"><X :size="18" /></button>
         <h2 id="review-title" class="nm-modal-title">{{ review.appt.client.name }}</h2>
-        <p class="nm-modal-text">{{ longWhen(review.appt.scheduled_at) }}, {{ review.appt.type_label.toLowerCase() }}, {{ review.appt.duration_minutes }} min</p>
+        <p class="nm-modal-text">{{ longWhen(review.appt.scheduled_at) }}, {{ review.appt.type_label.toLowerCase() }}, {{ review.appt.duration_minutes }} min<template v-if="review.appt.service === 'consultation_meal_plan'">, meal plan included</template></p>
         <p v-if="review.loading" class="nm-muted">Loading screening…</p>
         <p v-else-if="review.error" class="nm-error">{{ review.error }}</p>
         <template v-else-if="review.data">

@@ -289,7 +289,7 @@
 
           <form class="details-form" novalidate @submit.prevent="goToConfirm">
             <div class="field">
-              <label>Consultation fee <span class="required-tag">Required</span></label>
+              <label>Consultation only <span class="required-tag">Required</span></label>
               <div class="fee-wrap">
                 <span class="fee-prefix">₱</span>
                 <input v-model.number="form.fee" type="number" inputmode="numeric" min="100" step="50" placeholder="e.g. 800" :class="{ invalid: feeError }" />
@@ -297,6 +297,17 @@
               </div>
               <span v-if="feeError" class="field-error">{{ feeError }}</span>
               <span v-else class="license-hint">At least ₱100. Clients pay this before each consultation.</span>
+            </div>
+
+            <div class="field">
+              <label>Consultation + meal plan <span class="optional-tag">Optional</span></label>
+              <div class="fee-wrap">
+                <span class="fee-prefix">₱</span>
+                <input v-model.number="form.mealPlanFee" type="number" inputmode="numeric" :min="minMealPlanFee" step="50" placeholder="e.g. 1500" :class="{ invalid: mealFeeError }" aria-label="Consultation + meal plan price" />
+                <span class="fee-suffix">with a 7-day meal plan</span>
+              </div>
+              <span v-if="mealFeeError" class="field-error">{{ mealFeeError }}</span>
+              <span v-else class="license-hint">Leave it empty to offer consultations only. If you set it, make it at least ₱100 more than consultation only. You can change it later.</span>
             </div>
 
             <div class="field">
@@ -361,7 +372,8 @@
               <div class="confirm-row"><span>PRC license photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
               <div class="confirm-row"><span>Specialization</span><strong>{{ form.specialization || '—' }}</strong></div>
               <div class="confirm-row"><span>Languages</span><strong>{{ form.languages.map(languageName).join(', ') }}</strong></div>
-              <div class="confirm-row"><span>Consultation fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
+              <div class="confirm-row"><span>Consultation only</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
+              <div class="confirm-row"><span>Consultation + meal plan</span><strong>{{ hasMealPlanFee ? `₱${Number(form.mealPlanFee).toLocaleString()}` : 'Not offered' }}</strong></div>
               <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
               <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
               <div class="confirm-row confirm-block"><span>Bio</span><p class="confirm-bio">{{ form.bio.trim() || 'Not added yet. You can add it in Profile Settings.' }}</p></div>
@@ -516,6 +528,7 @@ const form = reactive({
   bio: '',
   languages: [],
   fee: '',
+  mealPlanFee: '',
   modes: ['video'],
   clinicAddress: '',
 })
@@ -805,8 +818,18 @@ const clinicAddressError = computed(() => {
   return v.length < 10 ? 'Enter the full address: building, street, barangay and city.' : ''
 })
 const clinicAddressOk = computed(() => !form.modes.includes('in_person') || (form.clinicAddress.trim().length >= 10))
+// Consultation + meal plan (2026-11-04): optional, at least ₱100 more than
+// consultation only (the API checks the same, profiles.serializers.check_meal_plan_fee).
+const hasMealPlanFee = computed(() => form.mealPlanFee !== '' && form.mealPlanFee !== null)
+const minMealPlanFee = computed(() => Math.max(MIN_FEE, Number(form.fee) || 0) + 100)
+const mealFeeError = computed(() => {
+  if (!hasMealPlanFee.value) return ''
+  if (!Number.isFinite(Number(form.mealPlanFee)) || Number(form.mealPlanFee) < minMealPlanFee.value) return `Make it at least ₱${minMealPlanFee.value.toLocaleString()}, or leave it empty.`
+  if (Number(form.mealPlanFee) > 100000) return 'Enter a realistic price.'
+  return ''
+})
 const consultationValid = computed(() =>
-  Number(form.fee) >= MIN_FEE && !feeError.value && form.modes.length > 0 && clinicAddressOk.value
+  Number(form.fee) >= MIN_FEE && !feeError.value && !mealFeeError.value && form.modes.length > 0 && clinicAddressOk.value
 )
 function goToConsultation() {
   if (!profileValid.value) {
@@ -902,6 +925,8 @@ async function submitRegistration() {
         specialization: form.specialization,
         bio: form.bio.trim(),
         consultation_fee: Number(form.fee).toFixed(2),
+        // empty = consultations only (left out of the multipart form)
+        meal_plan_fee: hasMealPlanFee.value ? Number(form.mealPlanFee).toFixed(2) : undefined,
         // List fields travel as JSON strings in the multipart form.
         consultation_modes: JSON.stringify(form.modes),
         clinic_address: form.modes.includes('in_person') ? form.clinicAddress.trim() : undefined,
@@ -932,7 +957,7 @@ async function submitRegistration() {
   } catch (error) {
     const data = error?.data
     const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
-      'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
+      'bio', 'languages', 'profile_photo', 'consultation_fee', 'meal_plan_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
     const code = error?.statusCode || error?.status || error?.response?.status
     // no answer at all: the upload never finished (slow or dropped connection)
@@ -947,7 +972,7 @@ async function submitRegistration() {
     // Send them back to the step that has the problem.
     if (selectedRole.value === 'rnd' && failed) {
       if (['bio', 'languages', 'profile_photo'].includes(failed)) currentStep.value = 5
-      else if (['consultation_fee', 'consultation_modes', 'clinic_address'].includes(failed)) currentStep.value = 6
+      else if (['consultation_fee', 'meal_plan_fee', 'consultation_modes', 'clinic_address'].includes(failed)) currentStep.value = 6
       else if (!['accept_terms', 'data_privacy_consent'].includes(failed)) currentStep.value = 2
     }
   } finally {
