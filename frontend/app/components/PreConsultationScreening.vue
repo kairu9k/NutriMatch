@@ -195,8 +195,12 @@ import { parseSymptoms, symptomGroups } from '~/utils/screening'
 
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
 // which shows its own "finish" step instead of the Find-an-RND banner.
-const props = defineProps({ embedded: { type: Boolean, default: false } })
-const emit = defineEmits(['completed', 'worked-out', 'changed'])
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  // Onboarding: answers typed before moving to another step (keep-draft hands them back).
+  draft: { type: Object, default: null },
+})
+const emit = defineEmits(['completed', 'worked-out', 'changed', 'keep-draft'])
 
 const { get, post } = useApi()
 
@@ -506,8 +510,20 @@ onMounted(async () => {
     for (const label of savedSymptoms.value) form.symptoms[label] = true
     result.value = latest
     onFile.value = true
+  } else if (props.draft) {
+    // Back from another onboarding step: the typed answers return. The results
+    // don't, so they're worked out again from whatever the other step changed.
+    form.height = props.draft.height
+    form.weight = props.draft.weight
+    form.activityLevel = props.draft.activityLevel
+    form.symptoms = { ...props.draft.symptoms }
+    if (!ageFromProfile.value) form.age = props.draft.age
+    if (!sexFromProfile.value) form.sex = props.draft.sex
   }
   hasActiveRnd.value = relationships.length > 0
+})
+onBeforeUnmount(() => {
+  if (props.embedded && !onFile.value) emit('keep-draft', { ...form, symptoms: { ...form.symptoms } })
 })
 </script>
 

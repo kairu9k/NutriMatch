@@ -175,7 +175,7 @@
           </div>
         </template>
         <template v-else>
-          <PreConsultationScreening embedded @worked-out="answers => pendingScreening = answers" @changed="pendingScreening = null" />
+          <PreConsultationScreening embedded :draft="screeningDraft" @keep-draft="keepScreeningDraft" @worked-out="answers => pendingScreening = answers" @changed="pendingScreening = null" />
           <p v-if="pendingScreening" class="hint finish-note">Nothing is saved yet. Check your results, then finish setup. Your screening can't be changed after that.</p>
           <div v-if="screeningDone || pendingScreening" class="actions">
             <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
@@ -350,6 +350,12 @@ async function saveHealth() {
 
 // What "Work out my results" calculated, saved only by Finish setup.
 const pendingScreening = ref(null)
+// Answers typed on the Screening step, kept while the client visits other steps.
+const screeningDraft = ref(null)
+function keepScreeningDraft(answers) {
+  screeningDraft.value = answers
+  pendingScreening.value = null // results are worked out again on return
+}
 
 const isFinishing = ref(false)
 const finishError = ref('')
