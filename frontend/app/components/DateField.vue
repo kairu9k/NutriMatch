@@ -13,7 +13,8 @@
       </button>
     </PopoverTrigger>
     <PopoverPortal>
-      <PopoverContent class="df-pop" side="bottom" align="start" :side-offset="6" :collision-padding="12">
+      <div v-if="open && sheet" class="df-backdrop" aria-hidden="true" />
+      <PopoverContent class="df-pop" :class="{ sheet }" side="bottom" align="start" :side-offset="6" :collision-padding="12">
         <CalendarRoot
           v-slot="{ grid, weekDays }"
           v-model:placeholder="view"
@@ -60,7 +61,10 @@
         <div class="df-foot">
           <p class="df-summary">{{ summary }}</p>
           <!-- optional dates (filters, an end date) can be emptied again -->
-          <button v-if="clearable && value" type="button" class="nm-btn-soft nm-btn-sm" @click="clear">Clear</button>
+          <div class="df-actions">
+            <button v-if="clearable && value" type="button" class="nm-btn-soft nm-btn-sm" @click="clear">Clear</button>
+            <button v-if="sheet" type="button" class="nm-btn-dark nm-btn-sm" @click="open = false">Done</button>
+          </div>
         </div>
       </PopoverContent>
     </PopoverPortal>
@@ -106,13 +110,21 @@ const todayPh = today('Asia/Manila')
 // The month shown when it opens: the chosen date, else today, kept inside min/max.
 function startView() {
   if (value.value) return value.value
+  // a date of birth is decades back: start nearer to it than the newest allowed date
+  if (props.yearSelect) return clampView(todayPh.subtract({ years: 30 }))
   if (maxDate.value && maxDate.value.compare(todayPh) < 0) return maxDate.value
   if (minDate.value && minDate.value.compare(todayPh) > 0) return minDate.value
   return todayPh
 }
 const view = ref(startView())
 const open = ref(false)
-watch(open, (o) => { if (o) view.value = startView() })
+// Phones get a sheet from the bottom of the screen instead of a pop-over.
+const sheet = ref(false)
+watch(open, (o) => {
+  if (!o) return
+  view.value = startView()
+  sheet.value = window.matchMedia('(max-width: 640px)').matches
+})
 
 function pick(d) {
   if (!d) return
@@ -236,5 +248,21 @@ const display = computed(() => {
 
 .df-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 7px; padding-top: 10px; border-top: 1px solid #d9e3dc; }
 .df-summary { margin: 0; font-size: 0.78rem; color: #4a5a4a; line-height: 1.45; }
+.df-actions { display: flex; gap: 6px; flex: none; }
 @media (max-width: 640px) { .df-day { min-height: 44px; } .df-note { font-size: 0.54rem; } }
+
+/* phones: a sheet from the bottom. Reka positions a wrapper around the pop-up, so that is what moves. */
+.df-backdrop { position: fixed; inset: 0; z-index: 1199; background: rgba(20, 30, 20, 0.55); }
+[data-reka-popper-content-wrapper]:has(> .df-pop.sheet) {
+  position: fixed !important; top: auto !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
+  transform: none !important; min-width: 0 !important; width: 100% !important;
+}
+.df-pop.sheet {
+  box-sizing: border-box; width: 100%; max-width: none; border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .df-pop.sheet { animation: df-sheet-up 0.2s ease-out; }
+}
+@keyframes df-sheet-up { from { transform: translateY(24px); opacity: 0.6; } }
 </style>
