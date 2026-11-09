@@ -26,21 +26,20 @@
           class="df-cal"
           @update:model-value="pick"
         >
-          <CalendarHeader class="df-head">
+          <CalendarHeader class="df-head" :class="{ 'df-head-years': yearsOpen }">
             <CalendarPrev class="df-nav" aria-label="Previous month"><ChevronLeft :size="16" aria-hidden="true" /></CalendarPrev>
-            <!-- year-select: month and year jump straight there (a date of birth is decades back) -->
-            <div v-if="yearSelect" class="df-selects">
-              <select class="nm-select df-sel" :value="view.month" aria-label="Month" @change="setMonth(Number($event.target.value))">
-                <option v-for="(m, i) in MONTHS" :key="m" :value="i + 1" :disabled="monthOff(view.year, i + 1)">{{ m.slice(0, 3) }}</option>
-              </select>
-              <select class="nm-select df-sel" :value="view.year" aria-label="Year" @change="setYear(Number($event.target.value))">
-                <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-              </select>
-            </div>
+            <!-- year-select (dates of birth, decades back): the title opens a list of years -->
+            <button
+              v-if="yearSelect" type="button" class="df-month df-month-btn" :aria-expanded="yearsOpen"
+              :aria-label="`${monthLabel}. Choose a year`" @click="toggleYears"
+            >
+              {{ monthLabel }}
+              <ChevronDown :size="14" class="df-month-chev" :class="{ open: yearsOpen }" aria-hidden="true" />
+            </button>
             <p v-else class="df-month" aria-live="polite">{{ monthLabel }}</p>
             <CalendarNext class="df-nav" aria-label="Next month"><ChevronRight :size="16" aria-hidden="true" /></CalendarNext>
           </CalendarHeader>
-          <CalendarGrid v-for="month in grid" :key="month.value.toString()" class="df-grid">
+          <CalendarGrid v-for="month in grid" v-show="!yearsOpen" :key="month.value.toString()" class="df-grid">
             <CalendarGridHead>
               <CalendarGridRow class="df-row">
                 <CalendarHeadCell v-for="d in weekDays" :key="d" class="df-wd">{{ d }}</CalendarHeadCell>
@@ -57,6 +56,12 @@
               </CalendarGridRow>
             </CalendarGridBody>
           </CalendarGrid>
+          <div v-if="yearsOpen" ref="yearList" class="df-years" role="group" aria-label="Year">
+            <button
+              v-for="y in years" :key="y" type="button" class="df-year" :class="{ on: y === view.year }"
+              :aria-pressed="y === view.year" @click="pickYear(y)"
+            >{{ y }}</button>
+          </div>
         </CalendarRoot>
         <div class="df-foot">
           <p class="df-summary">{{ summary }}</p>
@@ -73,7 +78,7 @@
 
 <script setup>
 import { parseDate, today } from '@internationalized/date'
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import {
   CalendarCell, CalendarCellTrigger, CalendarGrid, CalendarGridBody, CalendarGridHead, CalendarGridRow,
   CalendarHeadCell, CalendarHeader, CalendarNext, CalendarPrev, CalendarRoot,
@@ -91,7 +96,7 @@ const props = defineProps({
   ariaLabel: { type: String, default: '' },
   compact: { type: Boolean, default: false }, // smaller, for filter bars
   clearable: { type: Boolean, default: false }, // shows "Clear" in the pop-up
-  yearSelect: { type: Boolean, default: false }, // month and year drop-downs (dates of birth)
+  yearSelect: { type: Boolean, default: false }, // the title opens a list of years (dates of birth)
   hint: { type: String, default: '' }, // the line under the calendar before a day is picked
   // Block time off only: iso -> true when there are working hours that day
   isWorkingDay: { type: Function, default: null },
@@ -122,6 +127,7 @@ const open = ref(false)
 const sheet = ref(false)
 watch(open, (o) => {
   if (!o) return
+  yearsOpen.value = false
   view.value = startView()
   sheet.value = window.matchMedia('(max-width: 640px)').matches
 })
@@ -145,18 +151,29 @@ const years = computed(() => {
   for (let y = hi; y >= lo; y--) out.push(y)
   return out
 })
-function monthOff(year, month) {
-  if (minDate.value && (year < minDate.value.year || (year === minDate.value.year && month < minDate.value.month))) return true
-  if (maxDate.value && (year > maxDate.value.year || (year === maxDate.value.year && month > maxDate.value.month))) return true
-  return false
-}
 function clampView(d) {
   if (minDate.value && d.compare(minDate.value) < 0) return minDate.value.set({ day: 1 })
   if (maxDate.value && d.compare(maxDate.value) > 0) return maxDate.value.set({ day: 1 })
   return d
 }
-function setMonth(m) { view.value = clampView(view.value.set({ month: m, day: 1 })) }
-function setYear(y) { view.value = clampView(view.value.set({ year: y, day: 1 })) }
+
+// The list of years opens at the year on show, inside its own scroll area.
+const yearsOpen = ref(false)
+const yearList = ref(null)
+async function toggleYears() {
+  yearsOpen.value = !yearsOpen.value
+  if (!yearsOpen.value) return
+  await nextTick()
+  const box = yearList.value
+  const current = box?.querySelector('[aria-pressed="true"]')
+  if (!current) return
+  box.scrollTop = current.offsetTop - box.clientHeight / 2 + current.offsetHeight / 2
+  current.focus({ preventScroll: true })
+}
+function pickYear(y) {
+  view.value = clampView(view.value.set({ year: y, day: 1 }))
+  yearsOpen.value = false
+}
 
 const monthLabel = computed(() => `${MONTHS[view.value.month - 1]} ${view.value.year}`)
 
@@ -174,6 +191,7 @@ function mark(d) {
 
 // The line under the calendar: "Monday, November 9, 2026", or what to do.
 const summary = computed(() => {
+  if (yearsOpen.value) return 'Pick a year.'
   const d = value.value
   if (!d) return props.hint || 'Pick a day.'
   return new Date(Date.UTC(d.year, d.month - 1, d.day))
@@ -214,8 +232,15 @@ const display = computed(() => {
 }
 .df-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .df-month { margin: 0; font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1rem; }
-.df-selects { display: flex; gap: 6px; flex: 1; justify-content: center; min-width: 0; }
-.df-sel { flex: 1.3; min-width: 0; min-height: 34px; padding-top: 4px; padding-bottom: 4px; font-size: 0.86rem; }
+.df-month-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: none; border-radius: 8px;
+  background: none; color: inherit; cursor: pointer;
+}
+.df-month-btn:hover, .df-month-btn[aria-expanded="true"] { background: #e3efe7; }
+.df-month-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.df-month-chev { color: #3f6b55; }
+.df-month-chev.open { transform: rotate(180deg); }
+.df-head-years .df-nav { visibility: hidden; }
 .df-nav {
   display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0;
   border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37; cursor: pointer;
@@ -245,6 +270,18 @@ const display = computed(() => {
 .df-day.part { background: linear-gradient(180deg, #f7faf8 50%, #e8ebe8 50%); }
 .df-day[data-selected] { background: #0a4a37; border-color: #0a4a37; color: #fff; }
 .df-day[data-selected] .df-note { color: #9fd0b4; }
+
+.df-years {
+  position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px;
+  height: 252px; overflow-y: auto; align-content: start;
+}
+.df-year {
+  min-height: 40px; border: 1px solid transparent; border-radius: 8px; background: #f7faf8; color: #1a3a1a;
+  font: inherit; font-size: 0.86rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; cursor: pointer;
+}
+.df-year:hover:not(.on) { border-color: #3f9a6b; }
+.df-year:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.df-year.on { background: #0a4a37; border-color: #0a4a37; color: #fff; }
 
 .df-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 7px; padding-top: 10px; border-top: 1px solid #d9e3dc; }
 .df-summary { margin: 0; font-size: 0.78rem; color: #4a5a4a; line-height: 1.45; }
