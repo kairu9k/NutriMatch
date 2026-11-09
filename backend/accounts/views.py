@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -376,16 +377,30 @@ class OnboardingStatusView(APIView):
 
 
 class OnboardingCompleteView(APIView):
-    """Client finishes onboarding — only once the required steps are done."""
+    """Client finishes onboarding — only once the required steps are done.
+    Finish setup sends the screening it worked out (`screening`), which is saved
+    here together with completing: if either fails, neither happens."""
 
     permission_classes = [IsClient]
 
+    @transaction.atomic
     def post(self, request):
+        from clinical.models import PreConsultationScreening
+        from clinical.screening import save_screening
+        from clinical.serializers import PreConsultationScreeningSerializer
+
         from .onboarding import onboarding_status
+
+        answers = request.data.get("screening")
+        if answers and not PreConsultationScreening.objects.filter(client=request.user).exists():
+            serializer = PreConsultationScreeningSerializer(data=answers)
+            serializer.is_valid(raise_exception=True)
+            save_screening(request.user, serializer)
 
         state = onboarding_status(request.user)
         pending = [s["label"] for s in state["steps"] if s["required"] and not s["done"]]
         if pending:
+            transaction.set_rollback(True)  # nothing is kept, including the screening above
             return Response({"detail": "Finish these first: " + "; ".join(pending) + "."}, status=status.HTTP_400_BAD_REQUEST)
         if request.user.onboarding_completed_at is None:
             # The welcome pop-up still shows next, on the dashboard (user's call, 2026-10-20).

@@ -196,7 +196,7 @@ import { parseSymptoms, symptomGroups } from '~/utils/screening'
 // `embedded`: used as the last step of client onboarding (ClientOnboarding.vue),
 // which shows its own "finish" step instead of the Find-an-RND banner.
 const props = defineProps({ embedded: { type: Boolean, default: false } })
-const emit = defineEmits(['completed'])
+const emit = defineEmits(['completed', 'worked-out', 'changed'])
 
 const { get, post } = useApi()
 
@@ -324,7 +324,7 @@ async function handleCompute() {
   errorMessage.value = ''
   try {
     const checked = groups.value.flatMap(g => g.items).filter(label => form.symptoms[label])
-    result.value = await post('/client/screening/', {
+    const answers = {
       height_cm: form.height,
       weight_kg: form.weight,
       age: ageFromProfile.value ? undefined : form.age,
@@ -335,9 +335,17 @@ async function handleCompute() {
       reported_weight_loss: !!form.symptoms['Unintended weight loss'],
       has_chronic_illness: !!(form.symptoms['Elevated blood glucose'] || form.symptoms['Recent hospitalization']),
       symptoms: checked.length ? checked.join(', ') : undefined,
-    })
-    emit('completed', result.value)
-    if (!props.embedded) toast.success('Screening saved. Your results are below.')
+    }
+    // Onboarding only calculates here: the screening is taken once, so it's
+    // saved by Finish setup, and a typo can still be fixed until then.
+    if (props.embedded) {
+      result.value = await post('/client/screening/preview/', answers)
+      emit('worked-out', answers)
+    } else {
+      result.value = await post('/client/screening/', answers)
+      emit('completed', result.value)
+      toast.success('Screening saved. Your results are below.')
+    }
   } catch (error) {
     const data = error?.data || {}
     const first = (v) => (Array.isArray(v) ? v[0] : v) || ''
@@ -360,6 +368,14 @@ function toggleMetric(key) {
   openMetric.value = openMetric.value === key ? '' : key
 }
 watch(result, () => { openMetric.value = '' })
+// Onboarding: results belong to the answers they came from. Editing any answer
+// clears them, so Finish setup can't save numbers that no longer match.
+watch(() => JSON.stringify(form), () => {
+  if (props.embedded && result.value) {
+    result.value = null
+    emit('changed')
+  }
+})
 
 const ACTIVITY_LABELS = Object.fromEntries(activityLevels.map(l => [l.value, l.label]))
 // Tannhauser physical activity as % of BMR — same as clinical/services.py
@@ -499,6 +515,9 @@ onMounted(async () => {
 * { box-sizing: border-box; }
 .screening-page { font-family: 'Inter', sans-serif; max-width: 760px; margin: 0 auto; }
 .screening-page.embedded .panel { border: none; padding: 0; }
+/* same as the other onboarding steps (.title and .lead in ClientOnboarding.vue) */
+.screening-page.embedded .screening-title { font-size: 1.8rem; font-weight: inherit; line-height: 1.25; margin: 0 0 8px; }
+.screening-page.embedded .screening-sub { font-size: 1.1rem; color: #4a5a4a; line-height: 1.55; margin: 0 0 22px; }
 
 .panel { background: #fff; border-radius: 16px; border: 1px solid #eceeec; padding: 28px 30px; }
 .screening-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }

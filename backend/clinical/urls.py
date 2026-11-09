@@ -10,6 +10,7 @@ from .views import (
     ClientProgressRecordDetailView,
     ClientProgressRecordListView,
     LatestScreeningView,
+    ScreeningPreviewView,
     NcpRecordDetailView,
     NcpRecordFinalizeView,
     NcpRecordListCreateView,
@@ -22,6 +23,7 @@ from .views import (
 
 urlpatterns = [
     path("client/screening/", ScreeningCreateView.as_view(), name="screening_create"),
+    path("client/screening/preview/", ScreeningPreviewView.as_view(), name="screening_preview"),
     path("client/screening/latest/", LatestScreeningView.as_view(), name="screening_latest"),
     path("client/screening/<int:appointment_id>/", ScreeningDetailView.as_view(), name="screening_detail"),
 

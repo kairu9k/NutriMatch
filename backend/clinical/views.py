@@ -20,13 +20,8 @@ from .serializers import (
     ClientSelfLogSerializer,
     ProgressRecordSerializer,
 )
-from .services import (
-    calculate_bmi,
-    calculate_bmr,
-    calculate_nrs2002,
-    calculate_ter_tannhauser,
-    classify_bmi_asia_pacific,
-)
+from .screening import save_screening, work_out_screening
+from .services import calculate_bmi
 
 
 def _age_from_dob(dob: date) -> int:
@@ -56,59 +51,26 @@ class ScreeningCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        weight_kg = serializer.validated_data["weight_kg"]
-        height_cm = serializer.validated_data["height_cm"]
-        bmi = calculate_bmi(weight_kg, height_cm)
-        bmi_category = classify_bmi_asia_pacific(bmi)
-
-        # Sex always comes from the profile when it has it (given at
-        # registration; the form shows it read-only and it's changed in
-        # Profile Settings). A typed value is only the fallback — "Prefer not
-        # to say" at registration — and is then saved to the profile. A typed
-        # age is accepted but not stored: the BMR doesn't use age.
-        client_profile = getattr(request.user, "client_profile", None)
-        serializer.validated_data.pop("age", None)
-        sex = serializer.validated_data.pop("sex", None)
-        if client_profile and client_profile.sex:
-            sex = client_profile.sex
-        elif sex and client_profile:
-            client_profile.sex = sex
-            client_profile.save(update_fields=["sex", "updated_at"])
-
-        # The BMR needs only height and sex (DBW by the BMI method; no age, no actual weight).
-        bmr_kcal = tdee_kcal = None
-        if sex:
-            bmr_kcal = calculate_bmr(height_cm, sex)
-        if bmr_kcal is not None:
-            activity_level = serializer.validated_data.get("activity_level", "sedentary")
-            tdee_kcal = calculate_ter_tannhauser(bmr_kcal, activity_level)  # the column holds TER
-
-        # Weight-loss % is derived from the client's own screening history,
-        # never self-reported — the most recent prior screening's weight is
-        # the baseline. A first-ever screening has no prior data (contributes 0).
-        weight_loss_pct = None
-        previous = PreConsultationScreening.objects.filter(
-            client=request.user
-        ).order_by("-created_at").first()
-        if previous and previous.weight_kg and previous.weight_kg > weight_kg:
-            weight_loss_pct = ((previous.weight_kg - weight_kg) / previous.weight_kg * Decimal("100")).quantize(Decimal("0.01"))
-
-        nrs_score, nrs_risk = calculate_nrs2002(
-            bmi=bmi,
-            weight_loss_pct=weight_loss_pct,
-            reduced_intake=serializer.validated_data.pop("reduced_intake", False),
-            severity_of_disease_points=1 if serializer.validated_data.pop("has_chronic_illness", False) else 0,
-            reported_weight_loss=serializer.validated_data.pop("reported_weight_loss", False),
-        )
-
-        screening = serializer.save(
-            client=request.user, bmi=bmi, bmi_category=bmi_category,
-            bmr_kcal=bmr_kcal, tdee_kcal=tdee_kcal,
-            nrs_score=nrs_score, nrs_risk=nrs_risk,
-        )
+        screening = save_screening(request.user, serializer)
         return Response(
             PreConsultationScreeningSerializer(screening).data, status=status.HTTP_201_CREATED
         )
+
+
+class ScreeningPreviewView(APIView):
+    """POST the screening form, get the results back, save nothing. Onboarding's
+    Work out my results: the screening is taken once and can't be changed, so
+    it's only saved by Finish setup (accounts.views.OnboardingCompleteView)."""
+
+    permission_classes = [IsClient]
+
+    def post(self, request):
+        serializer = PreConsultationScreeningSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        fields, _ = work_out_screening(request.user, data)
+        preview = PreConsultationScreening(client=request.user, **data, **fields)
+        return Response(PreConsultationScreeningSerializer(preview).data)
 
 
 class LatestScreeningView(generics.RetrieveAPIView):

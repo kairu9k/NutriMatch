@@ -175,8 +175,9 @@
           </div>
         </template>
         <template v-else>
-          <PreConsultationScreening embedded @completed="onScreened" />
-          <div v-if="screeningDone" class="actions">
+          <PreConsultationScreening embedded @worked-out="answers => pendingScreening = answers" @changed="pendingScreening = null" />
+          <p v-if="pendingScreening" class="hint finish-note">Nothing is saved yet. Check your results, then finish setup. Your screening can't be changed after that.</p>
+          <div v-if="screeningDone || pendingScreening" class="actions">
             <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
             <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
           </div>
@@ -347,12 +348,8 @@ async function saveHealth() {
   }
 }
 
-function onScreened() {
-  screeningDone.value = true
-  // Keep the form (now showing its results) on screen rather than swapping
-  // to the "on file" view — the client should see their BMI/TDEE first.
-  redoScreening.value = true
-}
+// What "Work out my results" calculated, saved only by Finish setup.
+const pendingScreening = ref(null)
 
 const isFinishing = ref(false)
 const finishError = ref('')
@@ -360,11 +357,11 @@ async function finish() {
   isFinishing.value = true
   finishError.value = ''
   try {
-    await post('/auth/me/onboarding/complete/')
+    await post('/auth/me/onboarding/complete/', pendingScreening.value ? { screening: pendingScreening.value } : undefined)
     await auth.fetchMe()
     await navigateTo('/client-dashboard')  // the welcome pop-up opens there
   } catch (error) {
-    finishError.value = error?.data?.detail || 'Could not finish setup. Please try again.'
+    finishError.value = firstError(error?.data, 'detail', 'height_cm', 'weight_kg', 'age', 'sex') || 'Could not finish setup. Please try again.'
   } finally {
     isFinishing.value = false
   }
@@ -469,6 +466,7 @@ onMounted(async () => {
 .field .invalid { border-color: #c0392b; }
 .mt-8 { margin-top: 8px; }
 .hint { font-size: 0.76rem; color: #8a9a8a; margin: 0; }
+.finish-note { margin: 16px 0 0; font-size: 0.84rem; color: #4a5a4a; }
 .field-error { font-size: 0.78rem; color: #c0392b; margin: 0; }
 .form-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 12px 0 0; }
 

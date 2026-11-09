@@ -236,6 +236,70 @@ class ClientOnboardingTests(TestCase):
         self.assertIsNotNone(self.user.onboarding_completed_at)
         self.assertIsNotNone(self.api.get("/api/auth/me/").data["onboarding_completed_at"])
 
+    def _answer_the_steps(self):
+        self.api.patch("/api/client/profile/", {"sex": "female", "allergies": []}, format="json")
+        self.user = User.objects.get(pk=self.user.pk)  # a real request loads the user fresh
+        self.api.force_authenticate(self.user)
+
+    def test_working_out_results_saves_nothing(self):
+        from clinical.models import PreConsultationScreening
+
+        self._answer_the_steps()
+        resp = self.api.post("/api/client/screening/preview/", {"height_cm": "160", "weight_kg": "60", "activity_level": "sedentary"}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(str(resp.data["bmi"]), "23.44")
+        self.assertIsNotNone(resp.data["tdee_kcal"])
+        self.assertIsNone(resp.data["id"])
+        self.assertFalse(PreConsultationScreening.objects.filter(client=self.user).exists())
+        _, steps = self._steps()
+        self.assertFalse(steps["screening"])
+        bad = self.api.post("/api/client/screening/preview/", {"height_cm": "999", "weight_kg": "60"}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("height_cm", bad.data)
+
+    def test_preview_matches_what_is_saved(self):
+        self._answer_the_steps()
+        body = {"height_cm": "148", "weight_kg": "71.5", "activity_level": "moderately_active", "reduced_intake": True}
+        preview = self.api.post("/api/client/screening/preview/", body, format="json").data
+        saved = self.api.post("/api/client/screening/", body, format="json").data
+        for key in ("bmi", "bmi_category", "bmr_kcal", "bmr_note", "tdee_kcal", "nrs_score", "nrs_risk"):
+            self.assertEqual(preview[key], saved[key], key)
+
+    def test_preview_does_not_touch_the_profile(self):
+        self.api.post("/api/client/screening/preview/", {"height_cm": "160", "weight_kg": "60", "sex": "male"}, format="json")
+        self.assertIsNone(ClientProfile.objects.get(user=self.user).sex)
+
+    def test_finish_setup_saves_the_screening_and_completes(self):
+        from clinical.models import PreConsultationScreening
+
+        self._answer_the_steps()
+        done = self.api.post("/api/auth/me/onboarding/complete/", {"screening": {"height_cm": "160", "weight_kg": "60"}}, format="json")
+        self.assertEqual(done.status_code, 200, done.data)
+        self.assertTrue(done.data["complete"])
+        self.assertEqual(PreConsultationScreening.objects.filter(client=self.user).count(), 1)
+        # pressed twice: no second screening
+        self.api.post("/api/auth/me/onboarding/complete/", {"screening": {"height_cm": "170", "weight_kg": "70"}}, format="json")
+        self.assertEqual(str(PreConsultationScreening.objects.get(client=self.user).height_cm), "160.00")
+
+    def test_finish_setup_keeps_nothing_if_it_fails(self):
+        from clinical.models import PreConsultationScreening
+
+        # the health step isn't answered yet, so finishing is refused
+        refused = self.api.post("/api/auth/me/onboarding/complete/", {"screening": {"height_cm": "160", "weight_kg": "60"}}, format="json")
+        self.assertEqual(refused.status_code, 400)
+        self.assertFalse(PreConsultationScreening.objects.filter(client=self.user).exists())
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.onboarding_completed_at)
+
+        # a bad screening: not saved, not completed
+        self._answer_the_steps()
+        bad = self.api.post("/api/auth/me/onboarding/complete/", {"screening": {"height_cm": "999", "weight_kg": "60"}}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("height_cm", bad.data)
+        self.assertFalse(PreConsultationScreening.objects.filter(client=self.user).exists())
+        self.user.refresh_from_db()
+        self.assertIsNone(self.user.onboarding_completed_at)
+
     def test_rnd_onboarding_status_lists_missing_setup(self):
         rnd = User.objects.create_user(email="old@t.ph", password="x", role="rnd", first_name="O", last_name="R")
         RndProfile.objects.create(user=rnd, prc_license_number="P-old")
