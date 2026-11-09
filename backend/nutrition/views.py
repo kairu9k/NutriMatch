@@ -310,7 +310,8 @@ class RndMealLogDetailView(generics.RetrieveAPIView):
 class RndMealLogReviewView(APIView):
     """PATCH {status} — the RND rates a client's meal log as followed /
     partially followed / not followed (only the patient's own RND, only
-    while care is active). It can be changed later."""
+    while care is active). It can be changed later; a change (not the first
+    rating) leaves an audit row with the old and new rating (RA 10173)."""
 
     permission_classes = [IsRnd]
 
@@ -323,10 +324,20 @@ class RndMealLogReviewView(APIView):
         value = request.data.get("status")
         if value not in MealLog.MealStatus.values:
             raise serializers.ValidationError({"status": ["Choose Followed, Partly followed or Not followed."]})
+        from core.models import AuditLog
+
+        previous = log.status
         log.status = value
         log.reviewed_by = request.user
         log.reviewed_at = timezone.now()
-        log.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+        with transaction.atomic():
+            log.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+            if previous and previous != value:
+                label = dict(MealLog.MealStatus.choices)
+                AuditLog.objects.create(
+                    user=request.user, action="meal_log.rating_changed", table_name="meal_logs", record_id=log.id,
+                    old_values={"rating": label.get(previous, previous)}, new_values={"rating": label[value]},
+                )
         return Response(RndMealLogSerializer(log).data)
 
 

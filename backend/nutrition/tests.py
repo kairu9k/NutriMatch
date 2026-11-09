@@ -384,6 +384,25 @@ class RndMealLogNotificationTests(TestCase):
         resp = self.client_api.post(f"/api/client/meals/{self.meal.id}/log/", {"reason_notes": "  "}, format="json")
         self.assertEqual(resp.status_code, 400)
 
+    def test_changing_a_rating_is_audited_but_the_first_rating_is_not(self):
+        from core.models import AuditLog
+
+        url = f"/api/rnd/meal-logs/{self.log_id}/review/"
+        rows = AuditLog.objects.filter(action="meal_log.rating_changed", record_id=self.log_id)
+        self.client_api.force_authenticate(self.rnd)
+
+        self.assertEqual(self.client_api.patch(url, {"status": "followed"}, format="json").status_code, 200)
+        self.assertEqual(rows.count(), 0)  # the first rating
+        self.assertEqual(self.client_api.patch(url, {"status": "followed"}, format="json").status_code, 200)
+        self.assertEqual(rows.count(), 0)  # pressed again, nothing changed
+
+        self.assertEqual(self.client_api.patch(url, {"status": "partially_followed"}, format="json").status_code, 200)
+        row = rows.get()
+        self.assertEqual(row.user, self.rnd)
+        self.assertEqual(row.table_name, "meal_logs")
+        self.assertEqual(row.old_values, {"rating": "Followed"})
+        self.assertEqual(row.new_values, {"rating": "Partly followed"})
+
     def test_only_the_rnd_rates_and_a_rated_log_is_final(self):
         from .models import MealLog
 

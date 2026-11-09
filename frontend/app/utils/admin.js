@@ -61,6 +61,7 @@ export const AUDIT_ACTIONS = {
   'relationship.discharge_requested': 'Client asked to be discharged',
   'ncp_record.deleted': 'NCP draft deleted',
   'meal_plan.deleted': 'Meal plan draft deleted',
+  'meal_log.rating_changed': 'Meal log rating changed',
 }
 
 export function auditLabel(action) {

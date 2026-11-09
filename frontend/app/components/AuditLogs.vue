@@ -128,7 +128,7 @@ import { useAuthStore } from '~/stores/auth'
 const { get } = useApi()
 
 const ROLE_LABELS = { client: 'Client', rnd: 'RND', admin: 'Admin' }
-const TABLE_LABELS = { users: 'Account', rnd_profiles: 'RND profile', invoices: 'Invoice', system_settings: 'Setting', payouts: 'Payout', rnd_payout_accounts: 'Payout details', appointments: 'Appointment', audit_logs: 'Audit log' }
+const TABLE_LABELS = { meal_logs: 'Meal log', users: 'Account', rnd_profiles: 'RND profile', invoices: 'Invoice', system_settings: 'Setting', payouts: 'Payout', rnd_payout_accounts: 'Payout details', appointments: 'Appointment', audit_logs: 'Audit log' }
 
 // Filtering and paging happen on the server (core/audit.py), PAGE_SIZE a page.
 const route = useRoute()
