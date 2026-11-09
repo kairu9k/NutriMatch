@@ -58,8 +58,8 @@
     <div ref="listTop" class="nm-panel agenda-panel">
       <div class="agenda-head">
         <div class="dates">
-          <label class="date-field">From <DateField v-model="dateFrom" compact clearable placeholder="Any date" aria-label="From" /></label>
-          <label class="date-field">To <DateField v-model="dateTo" :min="dateFrom" compact clearable placeholder="Any date" aria-label="To" /></label>
+          <label class="date-field">From <DateField v-model="dateFrom" compact clearable hint="Pick the first day." placeholder="Any date" aria-label="From" /></label>
+          <label class="date-field">To <DateField v-model="dateTo" :min="dateFrom" compact clearable hint="Pick the last day." placeholder="Any date" aria-label="To" /></label>
           <button v-if="dateFrom || dateTo" type="button" class="nm-btn-soft nm-btn-sm" @click="dateFrom = ''; dateTo = ''">Clear dates</button>
         </div>
         <span class="nm-muted count">{{ loading ? 'Loading…' : `${count} appointment${count === 1 ? '' : 's'}` }}</span>

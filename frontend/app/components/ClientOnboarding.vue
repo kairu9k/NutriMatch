@@ -50,7 +50,7 @@
         <div class="grid-2">
           <div class="field">
             <label for="ob-dob">Date of birth <span class="req">Required</span></label>
-            <DateField id="ob-dob" v-model="about.dob" :max="latestBirthDate" min="1900-01-01" :invalid="!!aboutErrors.dob" placeholder="Select date" />
+            <DateField id="ob-dob" v-model="about.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!aboutErrors.dob" placeholder="Select date" />
             <p v-if="aboutErrors.dob" class="field-error">{{ aboutErrors.dob }}</p>
           </div>
           <div class="field">

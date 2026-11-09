@@ -99,11 +99,11 @@
       <div class="block-form">
         <div class="field">
           <label for="off-from">From</label>
-          <DateField id="off-from" v-model="newBlock.from" :min="todayIso" placeholder="Select date" />
+          <DateField id="off-from" v-model="newBlock.from" :min="todayIso" :is-working-day="iso => hoursOn(iso).length > 0" :blocks="blocks" hint="Pick the first day." placeholder="Select date" />
         </div>
         <div class="field">
           <label for="off-to">To <span class="optional">(optional)</span></label>
-          <DateField id="off-to" v-model="newBlock.to" :min="newBlock.from || todayIso" clearable placeholder="Same day" />
+          <DateField id="off-to" v-model="newBlock.to" :min="newBlock.from || todayIso" :is-working-day="iso => hoursOn(iso).length > 0" :blocks="blocks" clearable hint="Pick the last day." placeholder="Same day" />
         </div>
         <div class="field">
           <span class="field-label">Time</span>

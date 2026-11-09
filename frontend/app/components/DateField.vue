@@ -22,14 +22,13 @@
           :max-value="maxDate"
           locale="en-US"
           weekday-format="short"
-          fixed-weeks
           class="df-cal"
           @update:model-value="pick"
         >
           <CalendarHeader class="df-head">
             <CalendarPrev class="df-nav" aria-label="Previous month"><ChevronLeft :size="16" aria-hidden="true" /></CalendarPrev>
-            <!-- month and year jump straight there (a date of birth is decades back) -->
-            <div class="df-selects">
+            <!-- year-select: month and year jump straight there (a date of birth is decades back) -->
+            <div v-if="yearSelect" class="df-selects">
               <select class="nm-select df-sel" :value="view.month" aria-label="Month" @change="setMonth(Number($event.target.value))">
                 <option v-for="(m, i) in MONTHS" :key="m" :value="i + 1" :disabled="monthOff(view.year, i + 1)">{{ m.slice(0, 3) }}</option>
               </select>
@@ -37,26 +36,31 @@
                 <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
               </select>
             </div>
+            <p v-else class="df-month" aria-live="polite">{{ monthLabel }}</p>
             <CalendarNext class="df-nav" aria-label="Next month"><ChevronRight :size="16" aria-hidden="true" /></CalendarNext>
           </CalendarHeader>
           <CalendarGrid v-for="month in grid" :key="month.value.toString()" class="df-grid">
             <CalendarGridHead>
               <CalendarGridRow class="df-row">
-                <CalendarHeadCell v-for="d in weekDays" :key="d" class="df-wd">{{ d.slice(0, 2) }}</CalendarHeadCell>
+                <CalendarHeadCell v-for="d in weekDays" :key="d" class="df-wd">{{ d }}</CalendarHeadCell>
               </CalendarGridRow>
             </CalendarGridHead>
             <CalendarGridBody>
               <CalendarGridRow v-for="(week, wi) in month.rows" :key="wi" class="df-row">
                 <CalendarCell v-for="d in week" :key="d.toString()" :date="d" class="df-cell">
-                  <CalendarCellTrigger :day="d" :month="month.value" class="df-day" />
+                  <CalendarCellTrigger :day="d" :month="month.value" class="df-day" :class="mark(d).cls">
+                    <span class="df-num">{{ d.day }}</span>
+                    <span v-if="mark(d).note" class="df-note">{{ mark(d).note }}</span>
+                  </CalendarCellTrigger>
                 </CalendarCell>
               </CalendarGridRow>
             </CalendarGridBody>
           </CalendarGrid>
         </CalendarRoot>
-        <!-- optional dates (filters, an end date) can be emptied again -->
-        <div v-if="clearable && value" class="df-foot">
-          <button type="button" class="df-clear" @click="clear">Clear date</button>
+        <div class="df-foot">
+          <p class="df-summary">{{ summary }}</p>
+          <!-- optional dates (filters, an end date) can be emptied again -->
+          <button v-if="clearable && value" type="button" class="nm-btn-soft nm-btn-sm" @click="clear">Clear</button>
         </div>
       </PopoverContent>
     </PopoverPortal>
@@ -82,7 +86,13 @@ const props = defineProps({
   id: { type: String, default: undefined },
   ariaLabel: { type: String, default: '' },
   compact: { type: Boolean, default: false }, // smaller, for filter bars
-  clearable: { type: Boolean, default: false }, // shows "Clear date" in the pop-up
+  clearable: { type: Boolean, default: false }, // shows "Clear" in the pop-up
+  yearSelect: { type: Boolean, default: false }, // month and year drop-downs (dates of birth)
+  hint: { type: String, default: '' }, // the line under the calendar before a day is picked
+  // Block time off only: iso -> true when there are working hours that day
+  isWorkingDay: { type: Function, default: null },
+  // Block time off only: existing time off [{ start_date, end_date, whole_day }]
+  blocks: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -136,6 +146,28 @@ function clampView(d) {
 function setMonth(m) { view.value = clampView(view.value.set({ month: m, day: 1 })) }
 function setYear(y) { view.value = clampView(view.value.set({ year: y, day: 1 })) }
 
+const monthLabel = computed(() => `${MONTHS[view.value.month - 1]} ${view.value.year}`)
+
+// A label under the day number (Block time off): existing time off, or no hours.
+const NO_MARK = { note: '', cls: '' }
+function mark(d) {
+  const iso = d.toString()
+  if ((props.min && iso < props.min) || (props.max && iso > props.max)) return NO_MARK
+  const hits = props.blocks.filter(b => b.start_date <= iso && iso <= (b.end_date || b.start_date))
+  if (hits.some(b => b.whole_day)) return { note: 'Day off', cls: 'off' }
+  if (hits.length) return { note: 'Part off', cls: 'part' }
+  if (props.isWorkingDay && !props.isWorkingDay(iso)) return { note: 'No hours', cls: 'idle' }
+  return NO_MARK
+}
+
+// The line under the calendar: "Monday, November 9, 2026", or what to do.
+const summary = computed(() => {
+  const d = value.value
+  if (!d) return props.hint || 'Pick a day.'
+  return new Date(Date.UTC(d.year, d.month - 1, d.day))
+    .toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+})
+
 // "March 14, 1995"
 const display = computed(() => {
   const d = value.value
@@ -162,41 +194,47 @@ const display = computed(() => {
 .df-trigger.compact { width: auto; min-width: 158px; min-height: 36px; padding: 6px 10px; font-size: 0.85rem; }
 .df-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* the pop-up: the booking calendar's look */
+/* the pop-up: the calendar look the team picked (2026-11-09) */
 .df-pop {
-  z-index: 1000; width: 316px; max-width: calc(100vw - 24px); padding: 12px; background: #fff; border-radius: 14px;
-  border: 1px solid #d9e3dc; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
+  z-index: 1200; width: 332px; max-width: calc(100vw - 24px); padding: 12px; background: #fff; border-radius: 14px;
+  color: #1a3a1a; font-family: 'Inter', sans-serif;
+  box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
 }
-.df-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-.df-selects { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.df-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.df-month { margin: 0; font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1rem; }
+.df-selects { display: flex; gap: 6px; flex: 1; justify-content: center; min-width: 0; }
 .df-sel { flex: 1.3; min-width: 0; min-height: 34px; padding-top: 4px; padding-bottom: 4px; font-size: 0.86rem; }
 .df-nav {
   display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0;
   border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37; cursor: pointer;
 }
-.df-nav:hover:not([data-disabled]) { background: #d3e7da; }
+.df-nav:hover:not([data-disabled]) { background: #d3e6d9; }
 .df-nav[data-disabled] { opacity: 0.4; cursor: not-allowed; }
 .df-nav:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
-.df-grid { width: 100%; border-collapse: collapse; }
-.df-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
-.df-wd { padding: 4px 0 6px; font-size: 0.74rem; font-weight: 600; color: #6a7a6a; text-align: center; }
-.df-cell { display: flex; justify-content: center; }
+.df-grid, .df-grid thead, .df-grid tbody { display: block; width: 100%; }
+.df-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 3px; }
+.df-wd { padding: 0 0 2px; font-size: 0.72rem; font-weight: 600; color: #6a7a6a; text-align: center; }
+.df-cell { display: block; min-width: 0; padding: 0; }
 .df-day {
-  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px;
-  font-size: 0.86rem; color: #1a3a1a; cursor: pointer; user-select: none;
+  box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 100%; min-height: 40px; padding: 2px; border: 1px solid transparent; border-radius: 8px;
+  background: #f7faf8; color: #1a3a1a; cursor: pointer; user-select: none;
 }
-.df-day:hover:not([data-disabled]):not([data-selected]) { background: #e3efe7; }
-.df-day[data-today]:not([data-selected]) { box-shadow: inset 0 0 0 1.5px #3f9a6b; font-weight: 700; }
-.df-day[data-selected] { background: #0a4a37; color: #fff; font-weight: 700; }
-.df-day[data-outside-view] { color: #b5c0b8; }
-.df-day[data-disabled], .df-day[data-unavailable] { color: #cdd5cf; cursor: not-allowed; }
-.df-day[data-highlighted]:not([data-selected]), .df-day:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.df-foot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid #d9e3dc; }
-.df-clear {
-  min-height: 32px; padding: 0 12px; border: none; border-radius: 8px; background: #e3efe7; color: #0a4a37;
-  font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
-}
-.df-clear:hover { background: #d3e7da; }
-@media (max-width: 380px) { .df-day { width: 32px; height: 32px; } }
+.df-num { font-size: 0.86rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
+.df-note { font-size: 0.56rem; font-weight: 600; white-space: nowrap; color: #6a7a6a; }
+.df-day:hover:not([data-disabled]):not([data-selected]) { border-color: #3f9a6b; }
+.df-day:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.df-day[data-today] .df-num { text-decoration: underline; text-underline-offset: 3px; }
+.df-day[data-outside-view] { visibility: hidden; }
+.df-day[data-disabled], .df-day[data-unavailable] { background: none; color: #c0c9c0; cursor: not-allowed; }
+.df-day.idle { background: none; color: #8a9a8a; }
+.df-day.off { background: repeating-linear-gradient(135deg, #f3f5f3, #f3f5f3 4px, #e8ebe8 4px, #e8ebe8 8px); color: #8a9a8a; }
+.df-day.part { background: linear-gradient(180deg, #f7faf8 50%, #e8ebe8 50%); }
+.df-day[data-selected] { background: #0a4a37; border-color: #0a4a37; color: #fff; }
+.df-day[data-selected] .df-note { color: #9fd0b4; }
+
+.df-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 7px; padding-top: 10px; border-top: 1px solid #d9e3dc; }
+.df-summary { margin: 0; font-size: 0.78rem; color: #4a5a4a; line-height: 1.45; }
+@media (max-width: 640px) { .df-day { min-height: 44px; } .df-note { font-size: 0.54rem; } }
 </style>

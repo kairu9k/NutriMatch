@@ -79,7 +79,7 @@
               </div>
               <div class="field">
                 <label class="field-label" for="pi-dob">Date of birth</label>
-                <DateField id="pi-dob" v-model="form.dateOfBirth" :max="latestBirthDate" min="1900-01-01" :invalid="!!fieldErrors.dateOfBirth" placeholder="Select date" />
+                <DateField id="pi-dob" v-model="form.dateOfBirth" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!fieldErrors.dateOfBirth" placeholder="Select date" />
                 <p v-if="fieldErrors.dateOfBirth" class="field-error">{{ fieldErrors.dateOfBirth }}</p>
               </div>
               <div class="field">

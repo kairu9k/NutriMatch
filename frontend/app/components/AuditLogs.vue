@@ -26,8 +26,8 @@
         <div class="nm-tabs quick-ranges" role="group" aria-label="Date range">
           <button v-for="r in RANGES" :key="r.label" type="button" class="nm-tab" :class="{ active: activeRange === r.label }" @click="setRange(r)">{{ r.label }}</button>
         </div>
-        <label class="date-field">From <DateField v-model="dateFrom" :max="dateTo || today" compact clearable placeholder="Any date" aria-label="From" /></label>
-        <label class="date-field">To <DateField v-model="dateTo" :min="dateFrom" :max="today" compact clearable placeholder="Any date" aria-label="To" /></label>
+        <label class="date-field">From <DateField v-model="dateFrom" :max="dateTo || today" compact clearable hint="Pick the first day." placeholder="Any date" aria-label="From" /></label>
+        <label class="date-field">To <DateField v-model="dateTo" :min="dateFrom" :max="today" compact clearable hint="Pick the last day." placeholder="Any date" aria-label="To" /></label>
         <label class="admin-only"><input v-model="adminOnly" type="checkbox" /> Admin actions only</label>
       </div>
     </div>

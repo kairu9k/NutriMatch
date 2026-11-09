@@ -146,7 +146,7 @@
               <div class="field-row">
                 <div class="field">
                   <label>Date of birth</label>
-                  <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
+                  <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
                   <span v-if="dobError" class="field-error">{{ dobError }}</span>
                 </div>
                 <div class="field">
@@ -181,7 +181,7 @@
               </div>
               <div class="field">
                 <label>Date of birth</label>
-                <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
+                <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
                 <span v-if="dobError" class="field-error">{{ dobError }}</span>
               </div>
               <div class="field">

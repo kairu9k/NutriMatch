@@ -6,9 +6,9 @@
           <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
         </select>
         <template v-if="period === 'custom'">
-          <DateField v-model="from" :max="to || todayIso" compact placeholder="Start date" aria-label="From" />
+          <DateField v-model="from" :max="to || todayIso" compact hint="Pick the first day." placeholder="Start date" aria-label="From" />
           <span class="to">to</span>
-          <DateField v-model="to" :min="from" :max="todayIso" compact placeholder="End date" aria-label="To" />
+          <DateField v-model="to" :min="from" :max="todayIso" compact hint="Pick the last day." placeholder="End date" aria-label="To" />
         </template>
       </div>
       <div class="exports">
