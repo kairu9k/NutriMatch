@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .admin_dashboard import AdminDashboardView
+from .public_stats import PublicLandingStatsView
 from .reports import AdminReportView
 from .views import (
     AdminAuditLogActionsView,
@@ -12,6 +13,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("public/stats/", PublicLandingStatsView.as_view(), name="public_stats"),
     path("admin/platform-stats/", AdminPlatformStatsView.as_view(), name="admin_platform_stats"),
     path("admin/reports/", AdminReportView.as_view(), name="admin_reports"),
     path("admin/dashboard/", AdminDashboardView.as_view(), name="admin_dashboard"),

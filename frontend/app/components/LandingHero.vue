@@ -62,13 +62,13 @@
         </div>
 
         <div class="stat-card stat-top">
-          <div class="stat-number">200+</div>
-          <div class="stat-label">Verified RNDs</div>
+          <div class="stat-number">{{ stats[0].number }}</div>
+          <div class="stat-label">{{ stats[0].label }}</div>
         </div>
 
         <div class="stat-card stat-bottom">
-          <div class="stat-number">5,000+</div>
-          <div class="stat-label">Clients served</div>
+          <div class="stat-number">{{ stats[1].number }}</div>
+          <div class="stat-label">{{ stats[1].label }}</div>
         </div>
 
         <div class="screening-card">
@@ -106,15 +106,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { Check, ShieldCheck, FileText, Activity } from 'lucide-vue-next'
 
-const stats = [
-  { number: '200+', label: 'Verified RNDs' },
-  { number: '5,000+', label: 'Clients served' },
+// Real totals from the API, loaded in the browser so a sleeping server never
+// holds up the page; a dash shows until they arrive.
+const { get } = useApi()
+const totals = ref(null)
+const count = n => (n == null ? '—' : Number(n).toLocaleString('en-US'))
+const stats = computed(() => [
+  { number: count(totals.value?.verified_rnds), label: totals.value?.verified_rnds === 1 ? 'Verified RND' : 'Verified RNDs' },
+  { number: count(totals.value?.clients_served), label: totals.value?.clients_served === 1 ? 'Client served' : 'Clients served' },
   { number: '8', label: 'Core modules' },
   { number: 'RA 10173', label: 'Compliant' },
-]
+])
 
 const heroImages = [
   'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900&q=80',
@@ -130,6 +135,7 @@ function goToSlide(i) {
 }
 
 onMounted(() => {
+  get('/public/stats/').then((data) => { totals.value = data }).catch(() => {})
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   if (!prefersReducedMotion) {
     carouselTimer = setInterval(() => {
