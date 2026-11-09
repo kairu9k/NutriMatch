@@ -356,7 +356,7 @@
                   <td>{{ shortDate(l.date) }}</td>
                   <td>{{ l.meal }}</td>
                   <td>{{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</td>
-                  <td class="note-cell">{{ l.note || 'No note' }}<a v-if="l.photo_url" :href="l.photo_url" target="_blank" rel="noopener" class="nm-panel-link photo-link">Photo</a></td>
+                  <td class="note-cell">{{ l.note || 'No note' }}<button v-if="l.photo_url" type="button" class="nm-panel-link photo-link" @click="photoLog = l">Photo</button></td>
                   <td>
                     <MealLogRating v-if="p.status === 'active'" :log-id="l.id" :status="l.status" compact
                                    :label="`${l.meal} on ${shortDate(l.date)}`" @rated="load" />
@@ -365,6 +365,7 @@
                 </tr>
               </tbody>
             </table>
+            <MealPhotoModal v-if="photoLog" :url="photoLog.photo_url" :title="`${photoLog.meal}, ${shortDate(photoLog.date)}`" :note="photoLog.note || ''" @close="photoLog = null" />
           </div>
           <p v-else class="nm-muted" style="margin-top: 10px">No meals logged yet.</p>
         </div>
@@ -570,6 +571,7 @@ function setTab(k) {
 // (?tab=meal&log=<id> for "Meal log to review"): follow the URL, and bring
 // that meal log into view with a short highlight.
 const flashLog = ref(null)
+const photoLog = ref(null) // the meal log whose photo is open
 async function showLog(id) {
   if (!id) return
   await nextTick()
