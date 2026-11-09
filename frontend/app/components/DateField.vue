@@ -133,7 +133,7 @@ watch(open, (o) => {
 })
 
 function pick(d) {
-  if (!d) return
+  if (!d) { open.value = false; return } // the day already picked: keep it and close
   emit('update:modelValue', d.toString())
   open.value = false
 }
