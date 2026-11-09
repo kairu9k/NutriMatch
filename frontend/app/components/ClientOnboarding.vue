@@ -49,18 +49,20 @@
         <p class="lead">We use your age and sex to calculate your calorie needs accurately.</p>
         <div class="grid-2">
           <div class="field">
-            <label for="ob-dob">Date of birth <span class="req">Required</span></label>
-            <DateField id="ob-dob" v-model="about.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!aboutErrors.dob" placeholder="Select date" />
+            <label for="ob-dob">Date of birth</label>
+            <DateField id="ob-dob" v-model="about.dob" :max="latestBirthDate" min="1900-01-01" year-select :disabled="knownDob" :invalid="!!aboutErrors.dob" placeholder="Select date" />
             <p v-if="aboutErrors.dob" class="field-error">{{ aboutErrors.dob }}</p>
+            <p v-else-if="knownDob" class="hint">From your sign-up. You can change it later in Profile Settings.</p>
           </div>
           <div class="field">
-            <label for="ob-sex">Sex <span class="req">Required</span></label>
-            <select class="nm-select block" id="ob-sex" v-model="about.sex" :class="{ invalid: aboutErrors.sex }">
+            <label for="ob-sex">Sex</label>
+            <select class="nm-select block" id="ob-sex" v-model="about.sex" :disabled="knownSex" :class="{ invalid: aboutErrors.sex }">
               <option value="" disabled>Select</option>
               <option value="female">Female</option>
               <option value="male">Male</option>
             </select>
             <p v-if="aboutErrors.sex" class="field-error">{{ aboutErrors.sex }}</p>
+            <p v-else-if="knownSex" class="hint">From your sign-up. You can change it later in Profile Settings.</p>
             <p v-else class="hint">Biological sex. It changes how calories are calculated.</p>
           </div>
           <div class="field">
@@ -204,6 +206,10 @@ const STEPS = [
   { key: 'screening', label: 'Screening' },
 ]
 const step = ref('welcome')
+// Read-only in About you when sign-up already gave them (2026-11-09, user's call).
+// Still asked if one is missing: the calorie calculation needs both.
+const knownDob = ref(false)
+const knownSex = ref(false)
 const stepIndex = computed(() => STEPS.findIndex(s => s.key === step.value))
 function go(key) {
   saveError.value = ''
@@ -382,6 +388,8 @@ onMounted(async () => {
     }
     about.dob = profile.date_of_birth || ''
     about.sex = profile.sex || ''
+    knownDob.value = !!about.dob
+    knownSex.value = !!about.sex
     about.language = profile.language_code || ''
     about.phone = profile.user?.phone || ''
     const hp = profile.health_profile || {}

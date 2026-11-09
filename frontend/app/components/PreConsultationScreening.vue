@@ -30,7 +30,7 @@
           <input
             id="scr-height" v-model.number="form.height" type="number" inputmode="decimal"
             :min="LIMITS.height.min" :max="LIMITS.height.max" step="0.1" placeholder="e.g. 162"
-            :class="{ invalid: shownError('height') }" @blur="touched.height = true"
+            :class="{ invalid: shownError('height') }" @blur="touched.height = true" @input="limitDigits('height', $event)"
           />
           <span v-if="shownError('height')" class="field-error">{{ shownError('height') }}</span>
           <span v-else class="field-hint">{{ LIMITS.height.min }}–{{ LIMITS.height.max }} cm</span>
@@ -40,7 +40,7 @@
           <input
             id="scr-weight" v-model.number="form.weight" type="number" inputmode="decimal"
             :min="LIMITS.weight.min" :max="LIMITS.weight.max" step="0.1" placeholder="e.g. 72"
-            :class="{ invalid: shownError('weight') }" @blur="touched.weight = true"
+            :class="{ invalid: shownError('weight') }" @blur="touched.weight = true" @input="limitDigits('weight', $event)"
           />
           <span v-if="shownError('weight')" class="field-error">{{ shownError('weight') }}</span>
           <span v-else class="field-hint">{{ LIMITS.weight.min }}–{{ LIMITS.weight.max }} kg</span>
@@ -237,6 +237,18 @@ const ageFromProfile = ref(false)
 const sexFromProfile = ref(false)
 const sexLabel = computed(() => ({ female: 'Female', male: 'Male' }[form.sex] || ''))
 const touched = reactive({ height: false, weight: false, age: false })
+// Height and weight: at most 3 whole digits and 1 decimal (162.5). Number boxes
+// ignore maxlength, so longer typing or pasting is cut here. Out-of-range
+// values stay for the form's own range message.
+function limitDigits(key, e) {
+  const raw = e.target.value
+  if (raw === '') return // empty, or a half-typed number like "12."
+  const [whole, decimal] = raw.replace(/[^0-9.]/g, '').split('.')
+  const clean = whole.slice(0, 3) + (decimal ? `.${decimal.slice(0, 1)}` : '')
+  if (clean === raw) return
+  e.target.value = clean
+  form[key] = clean === '' ? '' : Number(clean)
+}
 const serverErrors = reactive({ height: '', weight: '', age: '' })
 
 function rangeError(key) {
