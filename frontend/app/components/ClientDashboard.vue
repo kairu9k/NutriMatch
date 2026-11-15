@@ -1062,8 +1062,8 @@ function phClock(iso) {
   .up-time { font-size: 32px; }
   .up-time.small { font-size: 24px; }
   .up-empty { flex-direction: column; align-items: stretch; }
-  /* the one action on the card: a full-size tap target on a phone, not the 40px desktop button */
-  .nm-upnext .up-empty-btn { width: 100%; height: 52px; justify-content: center; font-size: 16px; border-radius: 12px; }
+  /* in this column the shared `.nm-hero-btn { flex: 1 }` (portal.css, <= 900px) collapses the button to its text height; `none` keeps the same 40px button as the RND dashboard */
+  .nm-upnext .up-empty-btn { flex: none; width: 100%; justify-content: center; }
 }
 
 /* Buttons */
