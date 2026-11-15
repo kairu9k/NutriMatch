@@ -11,6 +11,37 @@ MIDNIGHT = time(0)
 DAY_MINUTES = 24 * 60
 
 
+def clean_availability_blocks(value):
+    """[{day_of_week, start_time "HH:MM", end_time "HH:MM"}, ...] -> [(day, start, end)].
+    Each block at least an hour (one session), no overlaps per day. Raises a
+    DRF ValidationError, so serializers can call it from a validate_ method."""
+    from rest_framework import serializers
+
+    if not value:
+        return []
+    if len(value) > 50:
+        raise serializers.ValidationError("Too many availability blocks.")
+    blocks = []
+    for item in value:
+        try:
+            day = int(item["day_of_week"])
+            start = datetime.strptime(str(item["start_time"])[:5], "%H:%M").time()
+            end = datetime.strptime(str(item["end_time"])[:5], "%H:%M").time()
+        except (KeyError, TypeError, ValueError):
+            raise serializers.ValidationError("Each availability block needs a day, a start time and an end time.")
+        if not 0 <= day <= 6:
+            raise serializers.ValidationError("Invalid day of the week.")
+        if end_minutes(end) - start_minutes(start) < 60:  # 12:00 AM end = midnight
+            raise serializers.ValidationError("Each availability block must be at least 1 hour long (one consultation).")
+        blocks.append((day, start, end))
+    for day in range(7):
+        same_day = sorted((b for b in blocks if b[0] == day), key=lambda b: b[1])
+        for prev, nxt in zip(same_day, same_day[1:]):
+            if start_minutes(nxt[1]) < end_minutes(prev[2]):
+                raise serializers.ValidationError("Two availability blocks on the same day overlap.")
+    return blocks
+
+
 def start_minutes(t):
     return t.hour * 60 + t.minute
 

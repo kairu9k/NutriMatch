@@ -330,17 +330,16 @@ class AdminVerifyRndView(APIView):
         profile.rejection_reason = None
         profile.reviewed_at = now
         profile.save(update_fields=["is_verified", "verified_at", "review_status", "rejection_reason", "reviewed_at"])
-        if user.onboarding_completed_at is None:
-            user.onboarding_completed_at = now  # the application held everything onboarding needs
-            user.save(update_fields=["onboarding_completed_at"])
+        # onboarding_completed_at stays empty: the RND sets up their profile, hours
+        # and payout in the onboarding on first sign-in (2026-11-16).
         AuditLog.objects.create(user=request.user, action="rnd.approved", table_name="rnd_profiles", record_id=profile.id, new_values={"review_status": "approved"})
         send_notice_email(
             user,
             subject="Your NutriMatch RND account is approved",
             heading="You're approved! 🎉",
             paragraphs=[
-                "Good news — our team has reviewed your PRC license and profile, and your NutriMatch RND account is now active.",
-                "You can sign in now. Add your weekly hours in Profile Settings — then clients can find your profile, book consultations within those hours, and pay before each session.",
+                "Good news — our team has reviewed your PRC license, and your NutriMatch RND account is now active.",
+                "Sign in to finish setting up: your profile, consultation fee and formats, and weekly hours. Once that's done, clients can find you, book within those hours, and pay before each session.",
             ],
             button_label="Sign in to NutriMatch",
             button_url=f"{settings.FRONTEND_URL}/login",
@@ -406,14 +405,20 @@ class OnboardingStatusView(APIView):
 
 
 class OnboardingCompleteView(APIView):
-    """Client finishes onboarding — only once the required steps are done.
-    Finish setup sends the screening it worked out (`screening`), which is saved
-    here together with completing: if either fails, neither happens."""
+    """Finish onboarding. Client: only once the required steps are done; Finish
+    setup sends the screening it worked out (`screening`), saved here together
+    with completing: if either fails, neither happens. RND (after approval):
+    the profile, weekly hours and optional payout details in one request
+    (accounts/rnd_onboarding.py)."""
 
-    permission_classes = [IsClient]
+    permission_classes = [permissions.IsAuthenticated]
 
     @transaction.atomic
     def post(self, request):
+        if request.user.role == User.Role.RND:
+            return self._rnd(request)
+        if request.user.role != User.Role.CLIENT:
+            return Response({"detail": "Only clients and RNDs have an onboarding."}, status=status.HTTP_403_FORBIDDEN)
         from clinical.models import PreConsultationScreening
         from clinical.screening import save_screening
         from clinical.serializers import PreConsultationScreeningSerializer
@@ -435,6 +440,18 @@ class OnboardingCompleteView(APIView):
             # The welcome pop-up still shows next, on the dashboard (user's call, 2026-10-20).
             request.user.onboarding_completed_at = timezone.now()
             request.user.save(update_fields=["onboarding_completed_at"])
+        return Response(onboarding_status(request.user))
+
+
+    def _rnd(self, request):
+        from .onboarding import onboarding_status
+        from .rnd_onboarding import complete_rnd_onboarding
+
+        profile = getattr(request.user, "rnd_profile", None)
+        if profile is None or not profile.is_verified:
+            return Response({"detail": "Your application hasn't been approved yet."}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.onboarding_completed_at is None:
+            complete_rnd_onboarding(request.user, request.data)
         return Response(onboarding_status(request.user))
 
 

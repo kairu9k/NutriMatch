@@ -8,7 +8,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from core.validators import validate_phone, validate_rnd_phone
-from profiles.models import MIN_CONSULTATION_FEE, ClientHealthProfile, ClientProfile, RndProfile
+from profiles.models import MIN_CONSULTATION_FEE, ClientHealthProfile, ClientProfile, RndProfile, default_consultation_modes
 from profiles.services import (
     ALLOWED_LICENSE_IMAGE_TYPES,
     MAX_LICENSE_IMAGE_BYTES,
@@ -374,11 +374,14 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     bio = serializers.CharField(required=False, allow_blank=True, min_length=50, max_length=1000, trim_whitespace=True, error_messages={
         "min_length": "Write at least 50 characters about your background and approach, or leave it empty for now.",
     })
-    consultation_fee = serializers.DecimalField(max_digits=8, decimal_places=2, min_value=MIN_CONSULTATION_FEE, max_value=100000, error_messages={
+    # Fee, formats and languages are asked after approval, in the RND onboarding
+    # (2026-11-16, panel feedback: sign-up should only ask what approval needs).
+    # Still accepted here, so an older client of the API keeps working.
+    consultation_fee = serializers.DecimalField(max_digits=8, decimal_places=2, min_value=MIN_CONSULTATION_FEE, max_value=100000, required=False, error_messages={
         "min_value": f"The consultation fee must be at least \u20b1{MIN_CONSULTATION_FEE}.",
     })
-    consultation_modes = JsonListField()
-    languages = JsonListField()
+    consultation_modes = JsonListField(required=False)
+    languages = JsonListField(required=False)
     # Optional: RNDs set their weekly hours in Profile Settings after approval.
     availability = JsonListField(required=False, default=list)
     profile_photo = serializers.FileField(write_only=True, required=False)
@@ -415,36 +418,9 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         return list(dict.fromkeys(value))
 
     def validate_availability(self, value):
-        """[{day_of_week, start_time "HH:MM", end_time "HH:MM"}, ...] — optional;
-        each block at least an hour (one session), no overlaps per day."""
-        from datetime import datetime
+        from profiles.hours import clean_availability_blocks
 
-        if not value:
-            return []
-        if len(value) > 50:
-            raise serializers.ValidationError("Too many availability blocks.")
-        blocks = []
-        for item in value:
-            try:
-                day = int(item["day_of_week"])
-                start = datetime.strptime(str(item["start_time"])[:5], "%H:%M").time()
-                end = datetime.strptime(str(item["end_time"])[:5], "%H:%M").time()
-            except (KeyError, TypeError, ValueError):
-                raise serializers.ValidationError("Each availability block needs a day, a start time and an end time.")
-            if not 0 <= day <= 6:
-                raise serializers.ValidationError("Invalid day of the week.")
-            from profiles.hours import end_minutes, start_minutes
-
-            minutes = end_minutes(end) - start_minutes(start)  # 12:00 AM end = midnight
-            if minutes < 60:
-                raise serializers.ValidationError("Each availability block must be at least 1 hour long (one consultation).")
-            blocks.append((day, start, end))
-        for day in range(7):
-            same_day = sorted((b for b in blocks if b[0] == day), key=lambda b: b[1])
-            for prev, nxt in zip(same_day, same_day[1:]):
-                if start_minutes(nxt[1]) < end_minutes(prev[2]):
-                    raise serializers.ValidationError("Two availability blocks on the same day overlap.")
-        return blocks
+        return clean_availability_blocks(value)
 
     def validate_profile_photo(self, value):
         from profiles.services import ALLOWED_PROFILE_PHOTO_TYPES, MAX_PROFILE_PHOTO_BYTES
@@ -518,17 +494,18 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             date_of_birth=validated_data["date_of_birth"],
             specialization=validated_data["specializations"],
             bio=validated_data.get("bio") or None,
-            consultation_fee=validated_data["consultation_fee"],
-            consultation_modes=validated_data["consultation_modes"],
-            clinic_address=validated_data.get("clinic_address") if "in_person" in validated_data["consultation_modes"] else None,
-            language_codes=validated_data["languages"],
+            consultation_fee=validated_data.get("consultation_fee", 0),
+            consultation_modes=validated_data.get("consultation_modes") or default_consultation_modes(),
+            clinic_address=validated_data.get("clinic_address") if "in_person" in (validated_data.get("consultation_modes") or []) else None,
+            language_codes=validated_data.get("languages"),
             is_verified=False,
             review_status=RndProfile.ReviewStatus.PENDING,
         )
         from profiles.models import RndAvailabilitySchedule
         from profiles.services import set_rnd_languages
 
-        set_rnd_languages(user, validated_data["languages"])
+        if validated_data.get("languages"):
+            set_rnd_languages(user, validated_data["languages"])
         from core.ph_time import ph_today
 
         today = ph_today()

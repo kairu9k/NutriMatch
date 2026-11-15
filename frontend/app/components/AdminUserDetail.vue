@@ -388,7 +388,7 @@ const stripCells = computed(() => {
     { label: 'Last sign-in', value: a.last_login ? dateTime(a.last_login) : 'Never' },
     { label: 'Email', value: a.email_verified_at ? `Confirmed ${shortDate(a.email_verified_at)}` : 'Not confirmed', warn: !a.email_verified_at },
   ]
-  if (client.value) cells.push({ label: 'Onboarding', value: a.onboarding_completed_at ? `Finished ${shortDate(a.onboarding_completed_at)}` : 'Not finished', warn: !a.onboarding_completed_at })
+  if (client.value || (rnd.value && rnd.value.profile.review_status === 'approved')) cells.push({ label: rnd.value ? 'Setup' : 'Onboarding', value: a.onboarding_completed_at ? `Finished ${shortDate(a.onboarding_completed_at)}` : 'Not finished', warn: !a.onboarding_completed_at })
   if (rnd.value) cells.push({ label: 'Application', value: reviewLabel.value || 'Not sent', warn: rnd.value.profile.review_status === 'pending' })
   if (u.value.role !== 'admin') {
     const both = a.terms_accepted_at && a.data_consent_at

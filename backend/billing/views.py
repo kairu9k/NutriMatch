@@ -323,25 +323,10 @@ class RndPayoutAccountView(APIView):
         return Response(RndPayoutAccountSerializer(account).data if account else None)
 
     def put(self, request):
-        from core.models import AuditLog
-
-        from .models import RndPayoutAccount
+        from .payout_account import save_payout_account
         from .serializers import RndPayoutAccountSerializer
 
-        account = RndPayoutAccount.objects.filter(rnd=request.user).first()
-        before = (account.method, account.account_name, account.account_number, account.bank_name) if account else None
-        serializer = RndPayoutAccountSerializer(account, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        saved = serializer.save(rnd=request.user)
-        changed = before != (saved.method, saved.account_name, saved.account_number, saved.bank_name)
-        if changed:
-            saved.details_changed_at = timezone.now()
-            saved.save(update_fields=["details_changed_at"])
-        AuditLog.objects.create(
-            user=request.user, action="payout_account.updated", table_name="rnd_payout_accounts",
-            record_id=saved.id, new_values={"method": saved.method, "details_changed": changed},
-        )
-        return Response(RndPayoutAccountSerializer(saved).data)
+        return Response(RndPayoutAccountSerializer(save_payout_account(request.user, request.data)).data)
 
 
 class RndEarningsView(APIView):

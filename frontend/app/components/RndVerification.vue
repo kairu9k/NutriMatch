@@ -135,7 +135,11 @@
               </div>
             </div>
 
-            <!-- 2. what approving publishes -->
+            <!-- 2. the profile: applicants since 2026-11-16 set it up after approval, in the RND onboarding -->
+            <p v-if="!hasProfileInfo" class="nm-note plain-note">
+              Their profile, fee, formats and weekly hours are set after approval, when they first sign in. Clients can't find them until then.
+            </p>
+            <template v-else>
             <h3 class="desk-title">What clients will see once approved</h3>
             <article class="preview">
               <div class="pv-head">
@@ -170,6 +174,7 @@
                 <span v-else>Weekly hours are added after approval</span>
               </div>
             </article>
+            </template>
 
             <!-- 3. contact details, for the admin only -->
             <h3 class="desk-title">Contact</h3>
@@ -329,6 +334,8 @@ const busy = ref(false)
 const toast = useToast() // the app's toast (2026-11-03)
 const selectedId = ref(null)
 const checks = reactive({ name: false, number: false, face: false, photo: false })
+// an application from before the onboarding already holds a fee, languages or a bio
+const hasProfileInfo = computed(() => Number(selected.value?.consultation_fee) >= 100 || !!(selected.value?.bio || '').trim() || (selected.value?.languages || []).length > 0)
 const zoomUrl = computed(() => (zoom.value === 'selfie' ? selected.value?.prc_selfie_image_url : selected.value?.prc_license_image_url) || '')
 
 // review_status comes from the RND's application (pending → approved /

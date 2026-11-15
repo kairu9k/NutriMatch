@@ -114,6 +114,7 @@ def bookable_rnd_profiles():
     return (
         RndProfile.objects.filter(
             is_verified=True,
+            user__onboarding_completed_at__isnull=False,  # onboarding finished (2026-11-16)
             consultation_fee__gte=MIN_CONSULTATION_FEE,
             user__availability_schedules__is_available=True,
         )

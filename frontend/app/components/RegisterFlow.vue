@@ -248,100 +248,6 @@
           </form>
         </div>
 
-        <!-- RND STEP 3: PROFESSIONAL PROFILE (stage 5) -->
-        <div v-else-if="currentStep === 5">
-          <h2>Public profile</h2>
-          <p class="subtitle">Step 3 of {{ steps.length }}. What clients see before they book you.</p>
-
-          <form class="details-form" novalidate @submit.prevent="goToConsultation">
-            <div class="field">
-              <label>Profile photo <span class="optional-tag">Optional</span></label>
-              <div class="photo-row">
-                <img v-if="photoPreview" :src="photoPreview" alt="Profile photo preview" class="photo-preview" />
-                <div v-else class="photo-placeholder">{{ (form.firstName[0] || '') + (form.lastName[0] || '') }}</div>
-                <div class="photo-actions">
-                  <label class="photo-btn">
-                    <input ref="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="license-input" @change="onPhotoSelected" />
-                    {{ form.profilePhoto ? 'Change photo' : 'Upload photo' }}
-                  </label>
-                  <button v-if="form.profilePhoto" type="button" class="license-remove" @click="removePhoto">Remove</button>
-                  <span class="license-hint">A clear, friendly headshot. JPG, PNG or WEBP, up to 2 MB.</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>Bio <span class="optional-tag">Optional</span></label>
-              <textarea
-                v-model="form.bio" rows="5" maxlength="1000" class="bio-input" :class="{ invalid: bioError }"
-                placeholder="e.g. Registered Nutritionist-Dietitian with 6 years of hospital experience, helping adults manage diabetes and lose weight through practical Filipino meals."
-              ></textarea>
-              <div class="bio-meta">
-                <span v-if="bioError" class="field-error">{{ bioError }}</span>
-                <span v-else class="license-hint">You can add it later in Profile Settings. It helps clients choose you. If you write one now, at least 50 characters.</span>
-                <span class="char-count" :class="{ short: form.bio.trim().length > 0 && form.bio.trim().length < 50 }">{{ form.bio.trim().length }}/1000</span>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>Languages you consult in <span class="required-tag">Required</span></label>
-              <div class="chip-grid">
-                <label v-for="lang in LANGUAGES" :key="lang.code" class="choice-chip" :class="{ checked: form.languages.includes(lang.code) }">
-                  <input v-model="form.languages" type="checkbox" :value="lang.code" />
-                  {{ lang.name }}
-                </label>
-              </div>
-            </div>
-
-            <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-            <div class="form-nav">
-              <button type="submit" class="btn-primary" :disabled="!profileValid">Continue</button>
-            </div>
-          </form>
-        </div>
-
-        <!-- RND STEP 4: CONSULTATION SETUP (stage 6) -->
-        <div v-else-if="currentStep === 6">
-          <h2>Fee and formats</h2>
-          <p class="subtitle">Step 4 of {{ steps.length }}. Your fee and how you consult.</p>
-
-          <form class="details-form" novalidate @submit.prevent="goToConfirm">
-            <div class="field">
-              <label>Consultation fee <span class="required-tag">Required</span></label>
-              <div class="fee-wrap">
-                <span class="fee-prefix">₱</span>
-                <input v-model.number="form.fee" type="number" inputmode="numeric" min="100" step="50" placeholder="e.g. 800" :class="{ invalid: feeError }" />
-                <span class="fee-suffix">per session</span>
-              </div>
-              <span v-if="feeError" class="field-error">{{ feeError }}</span>
-              <span v-else class="license-hint">At least ₱100. Clients pay this before each consultation.</span>
-            </div>
-
-            <div class="field">
-              <label>Consultation formats <span class="required-tag">Required</span></label>
-              <div class="chip-grid">
-                <label v-for="(label, key) in MODE_LABELS" :key="key" class="choice-chip" :class="{ checked: form.modes.includes(key) }">
-                  <input v-model="form.modes" type="checkbox" :value="key" />
-                  {{ label }}
-                </label>
-              </div>
-            </div>
-
-            <div v-if="form.modes.includes('in_person')" class="field">
-              <label for="reg-clinic">Clinic address <span class="required-tag">Required</span></label>
-              <input id="reg-clinic" v-model="form.clinicAddress" type="text" maxlength="255"
-                placeholder="e.g. 2F Bajada Medical Bldg, J.P. Laurel Ave, Bajada, Davao City" />
-              <span v-if="clinicAddressError" class="field-error">{{ clinicAddressError }}</span>
-              <span v-else class="license-hint">Where clients go for in-person consultations. It's shown on your profile.</span>
-            </div>
-
-            <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-            <div class="form-nav">
-              <button type="submit" class="btn-primary" :disabled="!consultationValid">Continue</button>
-            </div>
-          </form>
-        </div>
-
         <!-- RND: APPLICATION UNDER REVIEW (stage 7, after verifying the email) -->
         <div v-else-if="currentStep === 7" class="review-stage">
           <div class="review-icon"><ClipboardCheck :size="28" aria-hidden="true" /></div>
@@ -350,9 +256,9 @@
             Thank you, {{ form.firstName }}. Your email is confirmed and your application is with our admin team.
           </p>
           <ol class="review-steps">
-            <li><strong>We review your PRC license and profile.</strong> It usually takes 1 to 2 business days.</li>
+            <li><strong>We review your PRC license.</strong> It usually takes 1 to 2 business days.</li>
             <li><strong>We email you at {{ form.email }}</strong> once your account is approved, or if we need anything fixed.</li>
-            <li><strong>Then you can sign in.</strong> Add your weekly hours in Profile Settings and clients can find and book you.</li>
+            <li><strong>Then you can sign in.</strong> You'll set up your profile, fee and weekly hours, and clients can find and book you.</li>
           </ol>
           <p class="review-small">You can't sign in until your application is approved.</p>
           <button type="button" class="btn-primary" @click="navigateTo('/')">Back to home</button>
@@ -379,17 +285,11 @@
               <div class="confirm-row"><span>PRC license photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
               <div class="confirm-row"><span>Specializations</span><strong>{{ pickedSpecs.join(', ') || '—' }}</strong></div>
               <div class="confirm-row"><span>Selfie with your PRC license</span><img v-if="selfiePreview" :src="selfiePreview" alt="Selfie with your PRC license" class="confirm-license" /></div>
-              <div class="confirm-row"><span>Languages</span><strong>{{ form.languages.map(languageName).join(', ') }}</strong></div>
-              <div class="confirm-row"><span>Consultation fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
-              <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
-              <div v-if="form.modes.includes('in_person')" class="confirm-row"><span>Clinic address</span><strong>{{ form.clinicAddress.trim() }}</strong></div>
-              <div class="confirm-row confirm-block"><span>Bio</span><p class="confirm-bio">{{ form.bio.trim() || 'Not added yet. You can add it in Profile Settings.' }}</p></div>
-              <div v-if="photoPreview" class="confirm-row"><span>Profile photo</span><img :src="photoPreview" alt="Profile photo" class="confirm-photo" /></div>
             </template>
           </div>
           <p v-if="selectedRole === 'rnd'" class="review-note">
-            Our admin team reviews your PRC license and profile before your account is activated. It usually takes 1 to 2 business days,
-            and you can sign in once it's approved.
+            Our admin team reviews your PRC license before your account is activated. It usually takes 1 to 2 business days.
+            Once it's approved, you finish setting up your profile, fee and weekly hours when you first sign in.
           </p>
 
           <!-- Informed consent (RA 10173) — two boxes the person ticks
@@ -532,13 +432,6 @@ const form = reactive({
   phone: '',
   specializations: [],   // up to 3, one may be typed
   prcSelfieImage: null,
-  // RND application (onboarding): reviewed by the admin before sign-in.
-  profilePhoto: null,
-  bio: '',
-  languages: [],
-  fee: '',
-  modes: ['video'],
-  clinicAddress: '',
 })
 
 // Both consent boxes on the Confirm step must be ticked by the person (RA
@@ -748,9 +641,7 @@ const topBack = computed(() => {
   switch (currentStep.value) {
     case 1:
     case 2: return { label: 'Back to sign in', to: '/login' }
-    case 5: return { label: 'Back to account and license', step: 2 }
-    case 6: return { label: 'Back to public profile', step: 5 }
-    case 3: return rnd ? { label: 'Back to fee and formats', step: 6 } : { label: 'Back to your details', step: 2 }
+    case 3: return { label: rnd ? 'Back to account and license' : 'Back to your details', step: 2 }
     default: return null
   }
 })
@@ -813,103 +704,20 @@ async function goToConfirm() {
     errorMessage.value = 'Please upload a photo of your PRC license.'
     return
   }
-  if (selectedRole.value === 'rnd' && currentStep.value === 2) {
-    errorMessage.value = ''
-    currentStep.value = 5
-    return
-  }
-  if (selectedRole.value === 'rnd' && !consultationValid.value) {
-    errorMessage.value = 'Please fix the highlighted fields first.'
-    return
-  }
   errorMessage.value = ''
   currentStep.value = 3
 }
 
-/* ---------- RND application: profile + consultation setup ---------- */
-// Same lists/rules the API enforces (profiles/models.py LANGUAGES,
-// MIN_CONSULTATION_FEE; accounts/serializers.py RegisterRndSerializer).
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'tl', name: 'Filipino (Tagalog)' },
-  { code: 'ceb', name: 'Bisaya (Cebuano)' },
-  { code: 'ilo', name: 'Ilocano' },
-  { code: 'hil', name: 'Hiligaynon (Ilonggo)' },
-  { code: 'war', name: 'Waray' },
-  { code: 'pam', name: 'Kapampangan' },
-  { code: 'bcl', name: 'Bicolano' },
-]
-const languageName = (code) => LANGUAGES.find(l => l.code === code)?.name || code
-const MODE_LABELS = { video: 'Video call', in_person: 'In-person' }
-const MIN_FEE = 100
-const bioError = computed(() => {
-  const len = form.bio.trim().length
-  return len > 0 && len < 50 ? `Write at least 50 characters (${50 - len} more), or leave it empty for now.` : ''
-})
-const feeError = computed(() => {
-  if (form.fee === '' || form.fee === null) return ''
-  if (!Number.isFinite(Number(form.fee)) || Number(form.fee) < MIN_FEE) return `The fee must be at least ₱${MIN_FEE}.`
-  if (Number(form.fee) > 100000) return 'Enter a realistic fee.'
-  return ''
-})
-// The bio is optional (2026-11-01, user's call) — only a too-short one blocks.
-const profileValid = computed(() => !bioError.value && form.languages.length > 0)
-// Only asked for (and required) when they offer in-person consultations.
-const clinicAddressError = computed(() => {
-  if (!form.modes.includes('in_person')) return ''
-  const v = form.clinicAddress.trim()
-  if (!v) return ''
-  return v.length < 10 ? 'Enter the full address: building, street, barangay and city.' : ''
-})
-const clinicAddressOk = computed(() => !form.modes.includes('in_person') || (form.clinicAddress.trim().length >= 10))
-const consultationValid = computed(() =>
-  Number(form.fee) >= MIN_FEE && !feeError.value && form.modes.length > 0 && clinicAddressOk.value
-)
-function goToConsultation() {
-  if (!profileValid.value) {
-    errorMessage.value = form.languages.length ? 'Your bio needs at least 50 characters, or leave it empty for now.' : 'Choose at least one language.'
-    return
-  }
-  errorMessage.value = ''
-  currentStep.value = 6
-}
-
-const MAX_PHOTO_BYTES = 2 * 1024 * 1024
-const photoPreview = ref('')
-const photoInput = ref(null)
-function onPhotoSelected(e) {
-  const file = e.target.files?.[0]
-  e.target.value = ''
-  if (!file) return
-  errorMessage.value = ''
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    errorMessage.value = 'Use a JPG, PNG, or WEBP image for your profile photo.'
-    return
-  }
-  if (file.size > MAX_PHOTO_BYTES) {
-    errorMessage.value = 'The profile photo must be 2 MB or smaller.'
-    return
-  }
-  if (photoPreview.value) URL.revokeObjectURL(photoPreview.value)
-  form.profilePhoto = file
-  photoPreview.value = URL.createObjectURL(file)
-}
-function removePhoto() {
-  if (photoPreview.value) URL.revokeObjectURL(photoPreview.value)
-  photoPreview.value = ''
-  form.profilePhoto = null
-}
-onBeforeUnmount(() => { if (photoPreview.value) URL.revokeObjectURL(photoPreview.value) })
-
 const genderToSex = { Male: 'male', Female: 'female' }
 
-// RNDs fill in a full application (reviewed by an admin before they can sign
-// in); clients keep the short form. Stage numbers: 1 role, 2 details,
-// 5 profile, 6 consultation, 3 confirm, 4 verify email, 7 under review.
+// RNDs apply with what approval needs (account, PRC license, selfie,
+// specializations); their profile, fee, hours and payout come after approval, in
+// the RND onboarding (2026-11-16). Stage numbers: 1 role, 2 details, 3 confirm,
+// 4 verify email, 7 under review.
 const steps = computed(() => (selectedRole.value === 'rnd'
-  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Public profile' }, { label: 'Fee and formats' }, { label: 'Review and submit' }]
+  ? [{ label: 'Choose a role' }, { label: 'Account and license' }, { label: 'Review and submit' }]
   : [{ label: 'Choose a role' }, { label: 'Your details' }, { label: 'Review and create' }]))
-const STAGE_ORDER = { patient: [1, 2, 3], rnd: [1, 2, 5, 6, 3] }
+const STAGE_ORDER = { patient: [1, 2, 3], rnd: [1, 2, 3] }
 const stageIndex = computed(() => {
   if ([4, 7].includes(currentStep.value)) return steps.value.length // all done
   const order = STAGE_ORDER[selectedRole.value] || STAGE_ORDER.patient
@@ -958,13 +766,6 @@ async function submitRegistration() {
         phone: form.phone,
         date_of_birth: form.dob,
         specializations: JSON.stringify(pickedSpecs.value),
-        bio: form.bio.trim(),
-        consultation_fee: Number(form.fee).toFixed(2),
-        // List fields travel as JSON strings in the multipart form.
-        consultation_modes: JSON.stringify(form.modes),
-        clinic_address: form.modes.includes('in_person') ? form.clinicAddress.trim() : undefined,
-        languages: JSON.stringify(form.languages),
-        profile_photo: form.profilePhoto || undefined,
         accept_terms: consent.terms,
         data_privacy_consent: consent.data,
       })
@@ -990,23 +791,21 @@ async function submitRegistration() {
   } catch (error) {
     const data = error?.data
     const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'prc_selfie_image', 'specializations',
-      'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
+      'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
     const code = error?.statusCode || error?.status || error?.response?.status
     // no answer at all: the upload never finished (slow or dropped connection)
     const fallback = !error?.response && !data
         ? "Your application didn't finish sending. Your internet connection may have dropped or been too slow. Check it and press Submit again."
       : code === 413
-        ? 'The photos are too large to send. Choose a smaller license or profile photo and try again.'
+        ? 'The photos are too large to send. Choose a smaller license photo or selfie and try again.'
         : code >= 500
           ? 'Something went wrong on our side while saving your application. Wait a minute and press Submit again.'
           : 'Registration failed. Please check your details and try again.'
     errorMessage.value = (failed && data[failed][0]) || data?.detail || fallback
     // Send them back to the step that has the problem.
     if (selectedRole.value === 'rnd' && failed) {
-      if (['bio', 'languages', 'profile_photo'].includes(failed)) currentStep.value = 5
-      else if (['consultation_fee', 'consultation_modes', 'clinic_address'].includes(failed)) currentStep.value = 6
-      else if (!['accept_terms', 'data_privacy_consent'].includes(failed)) currentStep.value = 2
+      if (!['accept_terms', 'data_privacy_consent'].includes(failed)) currentStep.value = 2
     }
   } finally {
     isSubmitting.value = false

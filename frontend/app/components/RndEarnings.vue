@@ -140,42 +140,7 @@
         <button type="button" class="nm-modal-x" aria-label="Close" :disabled="saving" @click="editing = false"><X :size="18" /></button>
         <h3 id="pd-title" class="nm-modal-title">{{ account ? 'Change payout details' : 'Add payout details' }}</h3>
         <p class="nm-modal-text">Where NutriMatch sends your earnings on the 5th. Only NutriMatch admins can see these.</p>
-        <div class="pd-methods" role="radiogroup" aria-label="Send my earnings by">
-          <label class="pd-method" :class="{ on: form.kind === 'ewallet' }"><input v-model="form.kind" type="radio" value="ewallet" /> E-wallet</label>
-          <label class="pd-method" :class="{ on: form.kind === 'bank' }"><input v-model="form.kind" type="radio" value="bank" /> Bank transfer</label>
-        </div>
-        <div class="pd-fields">
-          <div v-if="form.kind === 'ewallet'">
-            <label class="nm-label" for="pd-wallet">E-wallet</label>
-            <select id="pd-wallet" v-model="form.wallet" class="nm-select block">
-              <option v-for="w in WALLETS" :key="w.value" :value="w.value">{{ w.label }}</option>
-            </select>
-          </div>
-          <div v-else>
-            <label class="nm-label" for="pd-bank">Bank</label>
-            <select id="pd-bank" v-model="form.bankChoice" class="nm-select block" :class="{ invalid: formErrors.bank_name }">
-              <option value="" disabled>Choose your bank</option>
-              <option v-for="b in BANKS" :key="b" :value="b">{{ b }}</option>
-              <option value="__other">Other bank</option>
-            </select>
-            <input v-if="form.bankChoice === '__other'" v-model="form.otherBank" class="nm-input pd-other" maxlength="100" placeholder="Name of your bank" aria-label="Name of your bank" />
-            <p v-if="formErrors.bank_name" class="nm-field-error">{{ formErrors.bank_name }}</p>
-          </div>
-          <div>
-            <label class="nm-label" for="pd-name">Account name</label>
-            <input id="pd-name" v-model="form.account_name" class="nm-input" maxlength="150" placeholder="Name on the account" />
-            <p v-if="formErrors.account_name" class="nm-field-error">{{ formErrors.account_name }}</p>
-          </div>
-          <div>
-            <label class="nm-label" for="pd-number">{{ numberLabel }}</label>
-            <input id="pd-number" :value="form.account_number" class="nm-input" :class="{ invalid: numberMessage }" inputmode="numeric" autocomplete="off"
-                   :maxlength="numberMax" :placeholder="isMobileWallet(formMethod) ? '09171234567' : 'Digits only'"
-                   :aria-invalid="!!numberMessage" aria-describedby="pd-number-help" @input="onNumberInput" @blur="numberTouched = true" />
-            <p v-if="numberMessage" id="pd-number-help" class="nm-field-error">{{ numberMessage }}</p>
-            <p v-else id="pd-number-help" class="nm-hint pd-count">{{ isMobileWallet(formMethod) ? `${form.account_number.length} of 11 digits` : '6 to 20 digits' }}</p>
-          </div>
-        </div>
-        <p v-if="formErrors.detail" class="nm-field-error">{{ formErrors.detail }}</p>
+        <PayoutDetailsFields ref="payoutFields" :account="account" />
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-outline" :disabled="saving" @click="editing = false">Cancel</button>
           <button type="submit" class="nm-btn-dark" :disabled="saving">{{ saving ? 'Saving…' : 'Save payout details' }}</button>
@@ -259,7 +224,7 @@ import { useToast } from '~/composables/useToast'
 import {
   CheckCircle2, ChevronRight, Mail, Printer, Search, X,
 } from 'lucide-vue-next'
-import { BANKS, WALLETS, isMobileWallet, payoutVia } from '~/utils/payout'
+import { payoutVia } from '~/utils/payout'
 
 const { get, put, post } = useApi()
 const route = useRoute()
@@ -436,68 +401,21 @@ function printStatement(p) {
 const account = ref(null)
 const editing = ref(false)
 const saving = ref(false)
-const form = reactive({ kind: 'ewallet', wallet: 'gcash', bankChoice: '', otherBank: '', account_name: '', account_number: '' })
-const formErrors = reactive({})
-const formMethod = computed(() => (form.kind === 'bank' ? 'bank' : form.wallet))
-const formBank = computed(() => (form.bankChoice === '__other' ? form.otherBank.trim() : form.bankChoice))
-// account number: digits only, capped per method, checked while typing
-const numberTouched = ref(false)
-const numberMax = computed(() => (isMobileWallet(formMethod.value) ? 11 : 20))
-function onNumberInput(ev) {
-  const digits = ev.target.value.replace(/\D/g, '').slice(0, numberMax.value)
-  form.account_number = digits
-  if (ev.target.value !== digits) ev.target.value = digits
-  delete formErrors.account_number
-}
-watch(numberMax, (max) => { form.account_number = form.account_number.slice(0, max) })
-const numberError = computed(() => {
-  const v = form.account_number
-  const name = payoutVia(formMethod.value)
-  if (isMobileWallet(formMethod.value)) {
-    if (v.length >= 2 && !v.startsWith('09')) return `${name} numbers start with 09.`
-    if (numberTouched.value && v.length !== 11) return v ? `Enter the 11-digit ${name} number, e.g. 09171234567.` : `Enter your ${name} number.`
-  } else if (numberTouched.value && v.length < 6) {
-    return v ? 'Account numbers are 6 to 20 digits.' : 'Enter your account number.'
-  }
-  return ''
-})
-const numberMessage = computed(() => formErrors.account_number || numberError.value)
-const numberLabel = computed(() => (isMobileWallet(formMethod.value) ? `${payoutVia(formMethod.value)} number` : 'Account number'))
+const payoutFields = ref(null)
 function startEdit() {
-  const a = account.value
-  const isBank = a?.method === 'bank'
-  Object.assign(form, {
-    kind: isBank ? 'bank' : 'ewallet',
-    wallet: !a || isBank ? 'gcash' : a.method,
-    bankChoice: isBank ? (BANKS.includes(a.bank_name) ? a.bank_name : '__other') : '',
-    otherBank: isBank && !BANKS.includes(a.bank_name) ? a.bank_name || '' : '',
-    account_name: a?.account_name || '',
-    account_number: a?.account_number || '',
-  })
-  numberTouched.value = false
-  for (const k of Object.keys(formErrors)) delete formErrors[k]
-  editing.value = true
+  editing.value = true // the form mounts fresh, filled from `account`
 }
 async function saveAccount() {
-  for (const k of Object.keys(formErrors)) delete formErrors[k]
-  if (!form.account_name.trim()) formErrors.account_name = 'Enter the name on the account.'
-  numberTouched.value = true
-  if (numberError.value) formErrors.account_number = numberError.value
-  if (form.kind === 'bank' && !formBank.value) formErrors.bank_name = form.bankChoice === '__other' ? 'Type the name of your bank.' : 'Choose your bank.'
-  if (Object.keys(formErrors).length) return
+  const fields = payoutFields.value
+  if (!fields.validate()) return
   saving.value = true
   try {
-    account.value = await put('/rnd/payout-account/', {
-      method: formMethod.value, account_name: form.account_name.trim(), account_number: form.account_number.trim(),
-      bank_name: form.kind === 'bank' ? formBank.value : '',
-    })
+    account.value = await put('/rnd/payout-account/', fields.payload())
     editing.value = false
     e.value = await get('/rnd/earnings/')
     flash('Payout details saved.')
   } catch (err) {
-    const data = err?.data || {}
-    for (const k of ['account_name', 'account_number', 'bank_name']) if (data[k]) formErrors[k] = Array.isArray(data[k]) ? data[k][0] : data[k]
-    if (!Object.keys(formErrors).length) formErrors.detail = apiError(err, 'Could not save. Please try again.')
+    fields.setErrors(err?.data, apiError(err, 'Could not save. Please try again.'))
   } finally {
     saving.value = false
   }
@@ -567,13 +485,6 @@ function longDate(v) {
 .bar-val { font-size: 0.66rem; color: #6a7a6a; white-space: nowrap; }
 .bar-label { font-size: 0.74rem; color: #8a9a8a; }
 .pd-modal { position: relative; max-width: 460px; }
-.pd-fields { display: flex; flex-direction: column; gap: 12px; }
-.pd-other { margin-top: 8px; }
-.pd-count { margin: 4px 0 0; font-variant-numeric: tabular-nums; }
-.pd-methods { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-.pd-method { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #d5dad5; border-radius: 10px; padding: 9px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-.pd-method.on { border-color: #1f8f5c; background: #f2f9f4; }
-.pd-method input { accent-color: #163a1c; }
 /* saved payout details */
 
 /* invoice pop-up */

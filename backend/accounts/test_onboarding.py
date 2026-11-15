@@ -112,7 +112,8 @@ class RndApplicationTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         user.refresh_from_db()
         self.assertEqual(user.rnd_profile.review_status, "approved")
-        self.assertIsNotNone(user.onboarding_completed_at)
+        # approval leaves the setup (profile, fee, hours, payout) to the RND onboarding (2026-11-16)
+        self.assertIsNone(user.onboarding_completed_at)
         self.assertEqual(len(mail.outbox), 2)  # verification code + approval
         approval = mail.outbox[-1]
         self.assertIn("approved", approval.subject)

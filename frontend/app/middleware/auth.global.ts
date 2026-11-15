@@ -40,15 +40,16 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo(auth.user?.role === 'rnd' ? '/rnd-dashboard' : '/client-dashboard')
   }
 
-  // Strict client onboarding: until it's finished, a client is sent to
-  // /onboarding (Profile Settings stays reachable). A session saved before
+  // Strict onboarding: until it's finished, a client (health screening) or an
+  // approved RND (profile, fee, hours; 2026-11-16) is sent to /onboarding
+  // (Profile Settings stays reachable for clients). A session saved before
   // onboarding existed has no `onboarding_completed_at` key at all — those
   // accounts were marked onboarded, so only an explicit null redirects.
   const user = auth.user
-  const needsOnboarding = user?.role === 'client'
+  const needsOnboarding = (user?.role === 'client' || user?.role === 'rnd')
     && Object.prototype.hasOwnProperty.call(user, 'onboarding_completed_at')
     && !user.onboarding_completed_at
-  if (needsOnboarding && !['/onboarding', '/profile-settings'].includes(path)) {
+  if (needsOnboarding && !['/onboarding', ...(user?.role === 'client' ? ['/profile-settings'] : [])].includes(path)) {
     return navigateTo('/onboarding')
   }
   if (path === '/onboarding' && !needsOnboarding) {
