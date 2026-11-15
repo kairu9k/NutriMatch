@@ -82,6 +82,7 @@ class RegistrationConsentMixin(serializers.Serializer):
 
 
 EMAIL_TAKEN_MESSAGE = "An account with this email already exists."
+PRC_TAKEN_MESSAGE = "This PRC license number is already registered."
 
 
 def email_blocks_registration(existing):
@@ -115,16 +116,37 @@ class ReplaceUnverifiedAccountMixin(serializers.Serializer):
         return value
 
     def remove_unverified_account(self):
-        """Call inside create(), before creating the new user."""
-        old = getattr(self, "_unverified_to_replace", None)
-        if old is None:
-            return
-        license_id = getattr(getattr(old, "rnd_profile", None), "prc_license_image", None)
-        old.delete()
-        if license_id:
-            from django.db import transaction as db_transaction
+        """Call inside create(), before creating the new user. Removes the
+        unfinished account that held the same email and, for an RND, any
+        unfinished or rejected application that held the same PRC number."""
+        olds = []
+        for old in [getattr(self, "_unverified_to_replace", None), *getattr(self, "_prc_holders_to_replace", [])]:
+            if old is not None and all(old.pk != o.pk for o in olds):
+                olds.append(old)
+        for old in olds:
+            license_id = getattr(getattr(old, "rnd_profile", None), "prc_license_image", None)
+            old.delete()
+            if license_id:
+                from django.db import transaction as db_transaction
 
-            db_transaction.on_commit(lambda: _destroy_license_image(license_id))
+                db_transaction.on_commit(lambda license_id=license_id: _destroy_license_image(license_id))
+
+
+def prc_number_holders(value, *, ignore_user=None):
+    """(blocked, replaceable) for a PRC license number. Another RND's number
+    can be taken over only while that application is unfinished (its email was
+    never verified) or was rejected, the same rule as an email. A verified RND
+    waiting for review, or an approved one, still blocks it, because an admin
+    has to decide those."""
+    blocked, replaceable = False, []
+    for profile in RndProfile.objects.filter(prc_license_number=value).select_related("user"):
+        if ignore_user is not None and profile.user_id == ignore_user.pk:
+            continue
+        if email_blocks_registration(profile.user):
+            blocked = True
+        else:
+            replaceable.append(profile.user)
+    return blocked, replaceable
 
 
 def _destroy_license_image(public_id):
@@ -433,12 +455,10 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         value = value.strip()
         if not re.fullmatch(r"\d{7}", value):
             raise serializers.ValidationError("Enter your 7-digit PRC license number (numbers only, e.g. 0123456).")
-        taken = RndProfile.objects.filter(prc_license_number=value)
-        replacing = getattr(self, "_unverified_to_replace", None)
-        if replacing is not None:
-            taken = taken.exclude(user=replacing)
-        if taken.exists():
-            raise serializers.ValidationError("This PRC license number is already registered.")
+        blocked, replaceable = prc_number_holders(value, ignore_user=getattr(self, "_unverified_to_replace", None))
+        if blocked:
+            raise serializers.ValidationError(PRC_TAKEN_MESSAGE)
+        self._prc_holders_to_replace = replaceable  # removed in create(), with the same-email account
         return value
 
     def validate_prc_license_image(self, value):

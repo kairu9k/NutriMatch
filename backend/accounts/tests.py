@@ -685,6 +685,62 @@ class RegistrationEmailAndRndFieldTests(TestCase):
         self.assertEqual(again.status_code, 201, again.data)
         self.assertEqual(RndProfile.objects.filter(prc_license_number="0123456").count(), 1)
 
+    @patch("accounts.serializers._destroy_license_image")
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/x")
+    def test_unfinished_signup_releases_its_prc_number_for_another_email(self, mock_upload, mock_destroy):
+        # The code never arrived (or the email had a typo), so the RND tries again
+        # with another address: their own unfinished sign-up must not block them.
+        self.assertEqual(self._rnd(email="typo@t.ph").status_code, 201)
+
+        again = self._rnd(email="right@t.ph")
+
+        self.assertEqual(again.status_code, 201, again.data)
+        self.assertFalse(User.objects.filter(email="typo@t.ph").exists())
+        self.assertEqual(RndProfile.objects.filter(prc_license_number="0123456").count(), 1)
+        self.assertEqual(RndProfile.objects.get(prc_license_number="0123456").user.email, "right@t.ph")
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/x")
+    def test_rejected_application_releases_its_prc_number(self, mock_upload):
+        self.assertEqual(self._rnd(email="old@t.ph").status_code, 201)
+        old = User.objects.get(email="old@t.ph")
+        User.objects.filter(pk=old.pk).update(email_verified_at=timezone.now())
+        RndProfile.objects.filter(user=old).update(review_status="rejected")
+
+        self.assertEqual(self._rnd(email="new@t.ph").status_code, 201)
+
+        self.assertFalse(User.objects.filter(email="old@t.ph").exists())
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/x")
+    def test_prc_number_of_a_verified_pending_or_approved_rnd_is_never_released(self, mock_upload):
+        self.assertEqual(self._rnd(email="holder@t.ph").status_code, 201)
+        holder = User.objects.get(email="holder@t.ph")
+        User.objects.filter(pk=holder.pk).update(email_verified_at=timezone.now())
+
+        for status_value in ("pending", "approved"):
+            RndProfile.objects.filter(user=holder).update(review_status=status_value)
+            resp = self._rnd(email="thief@t.ph")
+            self.assertEqual(resp.status_code, 400, status_value)
+            self.assertIn("already registered", str(resp.data["prc_license_number"]))
+            self.assertTrue(User.objects.filter(email="holder@t.ph").exists(), status_value)
+
+    def test_check_prc_before_the_last_step(self):
+        url = "/api/auth/register/check-prc/"
+        with patch("accounts.serializers.upload_prc_license_image", return_value="prc-licenses/x"):
+            self.assertEqual(self.client_api.post(url, {"prc_license_number": "0123456"}).data, {"available": True})
+
+            self.assertEqual(self._rnd(email="first@t.ph").status_code, 201)
+            # unfinished: free for anyone, and for the same person
+            self.assertTrue(self.client_api.post(url, {"prc_license_number": "0123456", "email": "other@t.ph"}).data["available"])
+            self.assertTrue(self.client_api.post(url, {"prc_license_number": "0123456", "email": "FIRST@t.ph"}).data["available"])
+
+            User.objects.filter(email="first@t.ph").update(email_verified_at=timezone.now())
+            resp = self.client_api.post(url, {"prc_license_number": "0123456", "email": "other@t.ph"})
+            self.assertFalse(resp.data["available"])
+            self.assertEqual(resp.data["detail"], "This PRC license number is already registered.")
+
+        self.assertEqual(self.client_api.post(url, {"prc_license_number": "12345"}).status_code, 400)
+        self.assertEqual(self.client_api.post(url, {}).status_code, 400)
+
 
 PHOTO_URL = "https://res.cloudinary.com/demo/image/upload/c_fill,g_face,h_400,w_400/v1/profile-photos/{}.jpg"
 

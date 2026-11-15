@@ -445,6 +445,7 @@
           <h2>Check your inbox</h2>
           <p class="subtitle">
             We sent a 6-digit code to <strong>{{ form.email }}</strong>. Enter it to confirm your email.
+            It can take a minute, so check your spam or junk folder too.
           </p>
 
           <form class="details-form" @submit.prevent="submitVerification">
@@ -607,9 +608,16 @@ watch(() => form.prcNumber, v => {
   const digits = v.replace(/\D/g, '').slice(0, 7)
   if (digits !== v) form.prcNumber = digits
 })
-const prcNumberError = computed(() =>
-  form.prcNumber && !/^\d{7}$/.test(form.prcNumber) ? 'Enter all 7 digits of your PRC license number.' : ''
-)
+// Set by the "already registered" check on Continue; editing the number clears it.
+const takenPrc = ref('')
+const prcNumberError = computed(() => {
+  if (form.prcNumber && !/^\d{7}$/.test(form.prcNumber)) return 'Enter all 7 digits of your PRC license number.'
+  if (takenPrc.value && form.prcNumber === takenPrc.value) return 'This PRC license number is already registered.'
+  return ''
+})
+watch(() => form.prcNumber, v => {
+  if (takenPrc.value && v !== takenPrc.value && errorMessage.value.includes('already registered')) errorMessage.value = ''
+})
 
 /* ---------- Step 2 validation (the API enforces the same rules) ---------- */
 // Letters in any language plus spaces, hyphens, apostrophes and periods
@@ -688,7 +696,7 @@ const detailsValid = computed(() => {
   if (selectedRole.value === 'patient') return !!(form.dob && !dobError.value && form.gender && form.healthConcern)
   if (selectedRole.value === 'rnd') {
     return !!(form.prcLicenseImage && form.dob && !dobError.value
-      && /^\d{7}$/.test(form.prcNumber) && form.specialization && !rndPhoneError(form.phone))
+      && /^\d{7}$/.test(form.prcNumber) && !prcNumberError.value && form.specialization && !rndPhoneError(form.phone))
   }
   return false
 })
@@ -744,8 +752,17 @@ async function goToConfirm() {
         errorMessage.value = res.detail || 'An account with this email already exists.'
         return
       }
+      // An RND's PRC number is checked the same way (a verified or approved RND owns it).
+      if (selectedRole.value === 'rnd') {
+        const prc = await auth.checkRegistrationPrc(form.prcNumber, form.email)
+        if (!prc.available) {
+          takenPrc.value = form.prcNumber
+          errorMessage.value = prc.detail || 'This PRC license number is already registered.'
+          return
+        }
+      }
     } catch {
-      // Can't reach the check — carry on; registration itself still refuses a taken email.
+      // Can't reach the check — carry on; registration itself still refuses a taken email or PRC number.
     } finally {
       checkingEmail.value = false
     }

@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Prefetch
@@ -14,6 +16,7 @@ from .models import User
 from .permissions import IsAdmin, IsClient
 from .serializers import (
     EMAIL_TAKEN_MESSAGE,
+    PRC_TAKEN_MESSAGE,
     AdminClientListSerializer,
     AdminRndListSerializer,
     MeUpdateSerializer,
@@ -26,6 +29,7 @@ from .serializers import (
     UserSerializer,
     VerifyEmailSerializer,
     email_blocks_registration,
+    prc_number_holders,
 )
 from .services import (
     InvalidResetCodeError,
@@ -73,6 +77,31 @@ class RegisterEmailCheckView(APIView):
         existing = User.objects.filter(email__iexact=email).first()
         if email_blocks_registration(existing):
             return Response({"available": False, "detail": EMAIL_TAKEN_MESSAGE})
+        return Response({"available": True})
+
+
+class RegisterPrcCheckView(APIView):
+    """POST {prc_license_number, email?} → {available}. The RND sign-up asks
+    this on its first step, like the email check, so a number that is really
+    taken (a verified or approved RND) shows at once. A number held only by an
+    unfinished or rejected application counts as free, and the new sign-up
+    replaces that old one. `email` is the address being used now, so the same
+    person redoing their own sign-up is never blocked by it."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register_email_check"
+
+    def post(self, request):
+        number = str(request.data.get("prc_license_number") or "").strip()
+        if not re.fullmatch(r"\d{7}", number):
+            return Response({"prc_license_number": ["Enter your 7-digit PRC license number (numbers only, e.g. 0123456)."]},
+                            status=status.HTTP_400_BAD_REQUEST)
+        email = str(request.data.get("email") or "").strip()
+        same_email = User.objects.filter(email__iexact=email).first() if email else None
+        blocked, _ = prc_number_holders(number, ignore_user=same_email)
+        if blocked:
+            return Response({"available": False, "detail": PRC_TAKEN_MESSAGE})
         return Response({"available": True})
 
 

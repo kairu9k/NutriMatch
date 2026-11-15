@@ -167,6 +167,13 @@ export const useAuthStore = defineStore('auth', {
       return await post<{ available: boolean, detail?: string }>('/auth/register/check-email/', { email }, { skipAuth: true })
     },
 
+    // Same idea for an RND's PRC license number: a number held only by an
+    // unfinished sign-up counts as free (the new one replaces it).
+    async checkRegistrationPrc(prcLicenseNumber: string, email: string) {
+      const { post } = useApi()
+      return await post<{ available: boolean, detail?: string }>('/auth/register/check-prc/', { prc_license_number: prcLicenseNumber, email }, { skipAuth: true })
+    },
+
     async verifyEmail(email: string, code: string) {
       const { post } = useApi()
       return await post<{ detail: string }>('/auth/verify-email/', { email, code }, { skipAuth: true })
