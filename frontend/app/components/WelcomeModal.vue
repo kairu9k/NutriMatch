@@ -81,7 +81,8 @@ const COPY = {
     ],
     closing: "We can't wait to see the difference you'll make! 💚",
     primary: { label: 'Go to my dashboard', to: '/rnd-dashboard' },
-    secondary: { label: 'Set my availability', to: '/profile-settings?tab=availability' },
+    // hours are set in the RND onboarding now, so the next thing is where the money goes
+    secondary: { label: 'Add payout details', to: '/earnings?payout=1' },
   }),
 }
 const copy = computed(() => (COPY[props.role] || COPY.client)(props.firstName))
