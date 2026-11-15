@@ -632,6 +632,8 @@ function countText(counts) {
 .cred { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
 .photo-label { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
+.photos .license img { width: 100%; height: 200px; max-height: none; object-fit: contain; background: #f1f4f2; }
+.photos .license-missing { min-height: 200px; display: flex; align-items: center; justify-content: center; }
 .cred .facts { grid-template-columns: 1fr; margin: 0; }
 .cred .facts > div:nth-child(2) { border-top: 1px solid #edf2ee; }
 .license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }

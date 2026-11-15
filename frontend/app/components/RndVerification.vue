@@ -136,7 +136,7 @@
             </div>
 
             <!-- 2. the profile: applicants since 2026-11-16 set it up after approval, in the RND onboarding -->
-            <p v-if="!hasProfileInfo" class="nm-note plain-note">
+            <p v-if="!hasProfileInfo" class="nm-note plain-note desk-note">
               Their profile, fee, formats and weekly hours are set after approval, when they first sign in. Clients can't find them until then.
             </p>
             <template v-else>
@@ -566,7 +566,10 @@ async function confirmReject() {
 .photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
 .photo-cell { min-width: 0; }
 .photo-label { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
-.photos .license img { max-height: 240px; }
+/* both photos get the same frame, so a wide license and a tall selfie line up */
+.photos .license img { width: 100%; height: 230px; max-height: none; object-fit: contain; background: #f1f4f2; }
+.photos .license-missing, .photos .license-none { min-height: 230px; display: flex; align-items: center; justify-content: center; }
+.desk-note { margin: 16px 0 0; }
 .license-none { padding: 36px 12px; text-align: center; color: #4a5a4a; background: #f4f6f4; border-color: #d9e3dc; font-size: 0.82rem; cursor: default; }
 .license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; text-decoration: none; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
 .license:hover img { opacity: 0.92; }
