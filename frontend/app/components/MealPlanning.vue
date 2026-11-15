@@ -414,7 +414,7 @@
             <div v-if="planMeta.kcalPerDay || filledRows(macroRows).length" class="target-list">
               <!-- TER first, then the macros it's split into (user's call, 2026-11-01) -->
               <div v-if="planMeta.kcalPerDay" class="target-row target-ter">
-                <span>TER</span><span>{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
+                <span>TER (Total Energy Requirement)</span><span>{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
               </div>
               <div v-for="row in filledRows(macroRows)" :key="row.label" class="target-row">
                 <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
@@ -1593,7 +1593,8 @@ function formatTime(t) {
 .preview-summary-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
 .target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
 .target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
-.target-ter { font-weight: 700; color: #1a3a1a; }
+.target-ter { font-weight: 700; color: #1a3a1a; gap: 12px; }
+.target-ter span:last-child { white-space: nowrap; }
 .target-list-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
 .target-list-title span { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9aaa9a; }
 
