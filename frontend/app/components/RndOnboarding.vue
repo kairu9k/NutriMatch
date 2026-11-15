@@ -421,7 +421,8 @@ onMounted(async () => {
 .confirm-item { display: flex; align-items: flex-start; gap: 10px; margin: 20px 0 0; font-size: 0.86rem; color: #1a3a1a; line-height: 1.5; cursor: pointer; }
 .confirm-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
 
-.actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
+.actions > :only-child { margin-left: auto; }
 
 @media (max-width: 640px) {
   .card { padding: 20px; }
@@ -429,6 +430,6 @@ onMounted(async () => {
   .onb-step.active .onb-step-label { display: inline; }
   .title { font-size: 1.5rem; }
   .actions { flex-direction: column-reverse; }
-  .actions > button { width: 100%; }
+  .actions > * { width: 100%; }
 }
 </style>
