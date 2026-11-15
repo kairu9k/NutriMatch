@@ -87,7 +87,7 @@
 
     <!-- BLOCK TIME OFF — whole days or part of a day on specific dates
          (RndTimeOff, /api/rnd/time-off/). Clients can't book it. -->
-    <div class="block-panel">
+    <div v-if="!hideTimeOff" class="block-panel">
       <div class="block-header">
         <CalendarOff :size="18" class="block-icon" aria-hidden="true" />
         <div>
@@ -160,7 +160,8 @@ import { useToast } from '~/composables/useToast'
 
 definePageMeta({ layout: 'dashboard', title: 'Availability' })
 
-defineProps({ embedded: { type: Boolean, default: false } })
+// hideTimeOff: the RND onboarding uses this same editor, without the time-off panel
+defineProps({ embedded: { type: Boolean, default: false }, hideTimeOff: { type: Boolean, default: false } })
 
 const { get, post, patch, del } = useApi()
 
@@ -316,7 +317,7 @@ function openWeekForm() {
   Object.assign(weekForm, { start_time: '09:00', end_time: '17:00', days: [...DISPLAY_ORDER] })
   weekOpen.value = true
 }
-defineExpose({ openWeekForm })
+defineExpose({ openWeekForm, hasHours: computed(() => slots.value.length > 0) })
 
 function toggleWeekDay(d) {
   weekForm.days = weekForm.days.includes(d) ? weekForm.days.filter(x => x !== d) : [...weekForm.days, d]

@@ -4,7 +4,8 @@ onboarding). Nothing is saved until the RND presses Finish setup: one request
 validates everything and saves it in one transaction.
 
   profile       {bio?, languages, consultation_fee, consultation_modes, clinic_address?}
-  availability  [{day_of_week, start_time, end_time}, ...]   at least one block
+  availability  optional [{day_of_week, start_time, end_time}, ...] replaces the hours; left out, the hours
+                the weekly hours editor already saved are used. Either way at least one block.
   payout        {method, account_name, account_number, bank_name?}   optional
 """
 from django.utils import timezone
@@ -38,24 +39,27 @@ def complete_rnd_onboarding(user, data):
     if not serializer.is_valid():
         errors.update(serializer.errors)
 
-    blocks = []
-    try:
-        blocks = clean_availability_blocks(data.get("availability"))
-        if not blocks:
-            errors["availability"] = ["Add at least one block of weekly hours. Clients can only book inside them."]
-    except serializers.ValidationError as exc:
-        errors["availability"] = exc.detail if isinstance(exc.detail, list) else [exc.detail]
+    blocks = None  # None: keep the hours already saved
+    if data.get("availability") is not None:
+        try:
+            blocks = clean_availability_blocks(data.get("availability"))
+        except serializers.ValidationError as exc:
+            errors["availability"] = exc.detail if isinstance(exc.detail, list) else [exc.detail]
+    saved_hours = user.availability_schedules.filter(is_available=True).count()
+    if not errors.get("availability") and not (blocks if blocks is not None else saved_hours):
+        errors["availability"] = ["Add at least one block of weekly hours. Clients can only book inside them."]
 
     if errors:
         raise serializers.ValidationError(errors)
 
     serializer.save()
     today = ph_today()
-    user.availability_schedules.all().delete()  # nothing can be booked before onboarding, so replacing is safe
-    RndAvailabilitySchedule.objects.bulk_create([
-        RndAvailabilitySchedule(rnd=user, day_of_week=day, start_time=start, end_time=end, effective_from=today)
-        for day, start, end in blocks
-    ])
+    if blocks is not None:
+        user.availability_schedules.all().delete()  # nothing can be booked before onboarding, so replacing is safe
+        RndAvailabilitySchedule.objects.bulk_create([
+            RndAvailabilitySchedule(rnd=user, day_of_week=day, start_time=start, end_time=end, effective_from=today)
+            for day, start, end in blocks
+        ])
 
     payout = data.get("payout")
     if payout:
@@ -67,5 +71,5 @@ def complete_rnd_onboarding(user, data):
     user.onboarding_completed_at = timezone.now()
     user.save(update_fields=["onboarding_completed_at"])
     AuditLog.objects.create(user=user, action="rnd.onboarding_completed", table_name="rnd_profiles", record_id=profile.id,
-                            new_values={"availability_blocks": len(blocks), "payout_added": bool(payout)})
+                            new_values={"availability_blocks": user.availability_schedules.count(), "payout_added": bool(payout)})
     return user

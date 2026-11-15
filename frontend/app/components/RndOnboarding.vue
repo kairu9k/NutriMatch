@@ -131,7 +131,10 @@
       <section v-else-if="step === 'hours'" class="card">
         <h1 class="title">Your weekly hours</h1>
         <p class="lead">When clients can book you. You can change these any time in Profile Settings, and block days off.</p>
-        <WeeklyHoursDraft v-model="hours" />
+        <div class="hours-tools">
+          <button class="nm-btn-soft nm-btn-sm" type="button" @click="availabilityRef?.openWeekForm()">Add hours for all week</button>
+        </div>
+        <Availability ref="availabilityRef" embedded hide-time-off />
         <span v-if="errors.availability" class="field-error hours-error">{{ errors.availability }}</span>
         <div class="actions">
           <button class="nm-btn-soft" type="button" @click="go('consult')">Back</button>
@@ -183,10 +186,10 @@ const loadError = ref('')
 const firstName = computed(() => auth.user?.first_name || '')
 const initials = computed(() => `${auth.user?.first_name?.[0] || ''}${auth.user?.last_name?.[0] || ''}`)
 
-// Everything is kept here until Finish setup. Whatever the application already
-// held (an applicant from before this change) is filled in.
+// The profile answers are kept here until Finish setup (the weekly hours are saved as they're added). Whatever the
+// application already held (an applicant from before this change) is filled in.
 const profile = reactive({ bio: '', languages: [], fee: '', modes: ['video'], clinicAddress: '' })
-const hours = ref([])
+const availabilityRef = ref(null) // the same weekly hours editor as Profile Settings; it saves each change as it's made
 const existingPayout = ref(null)
 const payoutFields = ref(null)
 const errors = reactive({})
@@ -224,7 +227,7 @@ function removePhoto() {
 onBeforeUnmount(() => { if (photoPreview.value) URL.revokeObjectURL(photoPreview.value) })
 
 // a field's error goes away once the answer changes
-watch([profile, hours], () => { for (const k of Object.keys(errors)) delete errors[k] }, { deep: true })
+watch(profile, () => { for (const k of Object.keys(errors)) delete errors[k] }, { deep: true })
 
 function go(key) {
   for (const k of Object.keys(errors)) delete errors[k]
@@ -245,7 +248,7 @@ function stepProblem(key) {
     const address = addressProblem(profile.modes, profile.clinicAddress)
     if (address) return { clinic_address: address }
   }
-  if (key === 'hours' && !hours.value.length) return { availability: 'Add at least one block of weekly hours. Clients can only book inside them.' }
+  if (key === 'hours' && !availabilityRef.value?.hasHours) return { availability: 'Add at least one block of weekly hours. Clients can only book inside them.' }
   return null
 }
 function next(from, to) {
@@ -282,7 +285,6 @@ async function finish() {
         consultation_modes: profile.modes,
         clinic_address: profile.modes.includes('in_person') ? profile.clinicAddress.trim() : '',
       },
-      availability: hours.value,
       ...(withPayout ? { payout: fields.payload() } : {}),
     })
     if (photo.value) {
@@ -324,10 +326,9 @@ function signOut() {
 
 onMounted(async () => {
   try {
-    const [status, mine, blocks, payout] = await Promise.all([
+    const [status, mine, payout] = await Promise.all([
       get('/auth/me/onboarding/'),
       get('/rnd/profile/'),
-      get('/rnd/availability/').catch(() => []),
       get('/rnd/payout-account/').catch(() => null),
     ])
     if (status.complete) {
@@ -339,10 +340,6 @@ onMounted(async () => {
     profile.fee = Number(mine.consultation_fee) >= 100 ? Number(mine.consultation_fee) : ''
     profile.modes = mine.consultation_modes?.length ? [...mine.consultation_modes] : ['video']
     profile.clinicAddress = mine.clinic_address || ''
-    const list = Array.isArray(blocks) ? blocks : blocks?.results || []
-    hours.value = list.filter(b => b.is_available !== false).map(b => ({
-      day_of_week: b.day_of_week, start_time: String(b.start_time).slice(0, 5), end_time: String(b.end_time).slice(0, 5),
-    }))
     existingPayout.value = payout && payout.method ? payout : null
   } catch {
     loadError.value = 'Could not load your account. Please refresh the page.'
@@ -398,6 +395,7 @@ onMounted(async () => {
 .optional-tag { color: #6a7a6a; font-size: 0.74rem; font-weight: 600; margin-left: 4px; }
 .field-error { font-size: 0.78rem; color: #c0392b; }
 .hours-error { display: block; margin-top: 10px; }
+.hours-tools { display: flex; justify-content: flex-end; margin: -6px 0 12px; }
 .form-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 12px 0 0; }
 
 .photo-row { display: flex; align-items: center; gap: 14px; }

@@ -18,6 +18,11 @@ URL = "/api/auth/me/onboarding/complete/"
 HOURS = [{"day_of_week": d, "start_time": "09:00", "end_time": "17:00"} for d in range(1, 6)]
 
 
+def saved(block):
+    """A block the way the weekly hours editor posts it."""
+    return {**block, "effective_from": "2026-01-01"}
+
+
 def valid(**over):
     body = {
         "profile": {"bio": "", "languages": ["en", "tl"], "consultation_fee": "600", "consultation_modes": ["video"]},
@@ -43,7 +48,7 @@ class RndOnboardingTests(TestCase):
         self.assertFalse(bookable_rnd_profiles().filter(user=self.rnd).exists())
         # even with a fee and hours already on file (e.g. an applicant from before this change)
         RndProfile.objects.filter(user=self.rnd).update(consultation_fee=Decimal("500"))
-        self.api.post("/api/rnd/availability/", HOURS[0], format="json")
+        self.assertEqual(self.api.post("/api/rnd/availability/", saved(HOURS[0]), format="json").status_code, 201)
         self.assertFalse(bookable_rnd_profiles().filter(user=self.rnd).exists())
 
     def test_finish_saves_everything_and_makes_them_findable(self):
@@ -58,6 +63,21 @@ class RndOnboardingTests(TestCase):
         self.assertEqual(self.rnd.availability_schedules.count(), 5)
         self.assertEqual(RndPayoutAccount.objects.get(rnd=self.rnd).account_number, "09171234567")
         self.assertTrue(bookable_rnd_profiles().filter(user=self.rnd).exists())
+
+    def test_hours_already_saved_by_the_editor_are_used(self):
+        for block in HOURS[:2]:
+            self.assertEqual(self.api.post("/api/rnd/availability/", saved(block), format="json").status_code, 201)
+        body = valid()
+        del body["availability"]
+        self.assertEqual(self.api.post(URL, body, format="json").status_code, 200)
+        self.assertEqual(self.rnd.availability_schedules.count(), 2)  # kept, not replaced
+
+    def test_no_hours_at_all_is_refused(self):
+        body = valid()
+        del body["availability"]
+        resp = self.api.post(URL, body, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("availability", resp.data)
 
     def test_payout_can_be_skipped(self):
         self.assertEqual(self.api.post(URL, valid(), format="json").status_code, 200)
