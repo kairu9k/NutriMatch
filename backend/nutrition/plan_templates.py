@@ -8,7 +8,8 @@ food-exchange method:
   2. fixed vegetable/fruit/milk exchanges per condition, then rice exchanges
      fill the remaining carbohydrate, meat the remaining protein and fat
      exchanges the remaining fat (FNRI Food Exchange Lists, 4th ed., 2020);
-  3. the day's exchanges are spread over 5 meals and filled with FNRI foods
+  3. the day's exchanges are spread over 6 meals every 3 hours from 6 AM (5 for
+     weight management, the bedtime snack left to the RND) and filled with FNRI foods
      allowed for the condition (ok_for_* flags, low-GI first for diabetes,
      only low-protein Rice A starches for renal; no high-sodium foods for DASH, no
      high-K/P/Na foods for renal), varied by day, skipping foods that
@@ -31,6 +32,25 @@ from rest_framework.views import APIView
 from accounts.permissions import IsRnd
 
 from .models import FoodExchangeItem, MealPlan, MealPlanFoodItem, MealPlanMeal
+
+# Meals every 3 hours from 6 AM (2026-11-15, user's call after RNDs asked for
+# a bedtime snack). (meal slot, time, share of each group: rice, meat, veg, fruit, fat)
+SLOTS = [
+    ("breakfast", time(6), {"rice": .25, "meat": .20, "veg": 0, "fruit": .25, "fat": .20}),
+    ("am_snack", time(9), {"rice": 0, "meat": 0, "veg": 0, "fruit": .25, "fat": 0}),
+    ("lunch", time(12), {"rice": .30, "meat": .35, "veg": .50, "fruit": 0, "fat": .35}),
+    ("pm_snack", time(15), {"rice": 0, "meat": 0, "veg": 0, "fruit": .25, "fat": 0}),
+    ("dinner", time(18), {"rice": .30, "meat": .35, "veg": .50, "fruit": 0, "fat": .35}),
+    ("bedtime_snack", time(21), {"rice": .15, "meat": .10, "veg": 0, "fruit": .25, "fat": .10}),
+]
+# the old 5-meal split at the new times, for templates without a bedtime snack
+FIVE_SLOTS = [
+    ("breakfast", time(6), {"rice": .30, "meat": .20, "veg": 0, "fruit": .25, "fat": .20}),
+    ("am_snack", time(9), {"rice": 0, "meat": 0, "veg": 0, "fruit": .35, "fat": 0}),
+    ("lunch", time(12), {"rice": .35, "meat": .40, "veg": .50, "fruit": 0, "fat": .40}),
+    ("pm_snack", time(15), {"rice": 0, "meat": 0, "veg": 0, "fruit": .40, "fat": 0}),
+    ("dinner", time(18), {"rice": .35, "meat": .40, "veg": .50, "fruit": 0, "fat": .40}),
+]
 
 TEMPLATES = {
     "diabetes": {
@@ -63,6 +83,8 @@ TEMPLATES = {
         "label": "Weight management", "condition": MealPlan.Condition.WEIGHT_LOSS, "split": (45, 25, 30),
         "veg": 5, "fruit": 3, "milk": 1, "milk_code": "milk_nonfat", "sugar": 0,
         "rice_codes": ["rice_b", "rice_c"], "meat_codes": ["meat_low"], "flag": None,
+        # no bedtime snack: the RND adds one if this patient needs it (user's call, 2026-11-15)
+        "slots": FIVE_SLOTS,
         "description": "Calorie deficit with higher protein and lots of vegetables to stay full.",
         "guidance": "Half the plate vegetables, a quarter rice, a quarter lean protein. One cup of rice per meal at most; "
                     "water instead of sweetened drinks; avoid fried and fatty dishes.",
@@ -73,11 +95,12 @@ TEMPLATES = {
         "rice_codes": ["rice_b", "rice_c"], "meat_codes": ["meat_low"], "flag": None,
         # snacks carry rice and protein too, so the extra calories come in smaller meals
         "slots": [
-            ("breakfast", time(7), {"rice": .25, "meat": .20, "veg": 0, "fruit": .30, "fat": .20}),
-            ("am_snack", time(10), {"rice": .10, "meat": .10, "veg": 0, "fruit": .35, "fat": .10}),
-            ("lunch", time(12), {"rice": .25, "meat": .30, "veg": .50, "fruit": 0, "fat": .30}),
-            ("pm_snack", time(15, 30), {"rice": .10, "meat": .10, "veg": 0, "fruit": .35, "fat": .10}),
-            ("dinner", time(19), {"rice": .30, "meat": .30, "veg": .50, "fruit": 0, "fat": .30}),
+            ("breakfast", time(6), {"rice": .20, "meat": .20, "veg": 0, "fruit": .25, "fat": .20}),
+            ("am_snack", time(9), {"rice": .10, "meat": .10, "veg": 0, "fruit": .25, "fat": .10}),
+            ("lunch", time(12), {"rice": .25, "meat": .25, "veg": .50, "fruit": 0, "fat": .25}),
+            ("pm_snack", time(15), {"rice": .10, "meat": .10, "veg": 0, "fruit": .25, "fat": .10}),
+            ("dinner", time(18), {"rice": .25, "meat": .25, "veg": .50, "fruit": 0, "fat": .25}),
+            ("bedtime_snack", time(21), {"rice": .10, "meat": .10, "veg": 0, "fruit": .25, "fat": .10}),
         ],
         "description": "Calorie surplus with more protein, full-cream milk and real snacks between meals.",
         "guidance": "Eat every 3 hours and don't skip snacks. Add an extra spoon of rice or a slice of bread when you can; "
@@ -101,13 +124,6 @@ KCAL_ADJUST = {"weight_management": -500, "weight_gain": 500}
 MAX_CUT_PCT = 0.20
 FLOOR_KCAL, FLOOR_FROM_TER = 1200, 1500
 
-SLOTS = [  # (meal slot, time, share of each group: rice, meat, veg, fruit, fat)
-    ("breakfast", time(7), {"rice": .30, "meat": .20, "veg": 0, "fruit": .25, "fat": .20}),
-    ("am_snack", time(10), {"rice": 0, "meat": 0, "veg": 0, "fruit": .35, "fat": 0}),
-    ("lunch", time(12), {"rice": .35, "meat": .40, "veg": .50, "fruit": 0, "fat": .40}),
-    ("pm_snack", time(15, 30), {"rice": 0, "meat": 0, "veg": 0, "fruit": .40, "fat": 0}),
-    ("dinner", time(19), {"rice": .35, "meat": .40, "veg": .50, "fruit": 0, "fat": .40}),
-]
 # never picked by a template: very high fat / sodium items an RND would rarely prescribe
 SKIP_NAMES = ("pork crackling", "coconut cream", "margarine", "sausage", "pork belly", "balut", "leche flan", "condensed")
 MIN_KCAL, MAX_KCAL = 800, 5000

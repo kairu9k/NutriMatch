@@ -41,7 +41,8 @@ class DietTemplateTests(TestCase):
             self.assertEqual(resp.status_code, 201, resp.data)
             plan = MealPlan.objects.get(pk=resp.data["id"])
             self.assertEqual((plan.status, plan.condition), ("draft", TEMPLATES[key]["condition"]))
-            self.assertEqual(plan.meals.count(), 35)  # 7 days × 5 meals
+            # 7 days × 6 meals; weight management leaves the bedtime snack to the RND
+            self.assertEqual(plan.meals.count(), 35 if key == "weight_management" else 42, key)
             self.assertAlmostEqual(float(self._day_kcal(plan)), 1600, delta=1600 * 0.08)
 
     def test_condition_rules_and_allergies(self):
@@ -119,6 +120,19 @@ class DietTemplateTests(TestCase):
         snack = plan.meals.get(day_of_week=1, meal_time="am_snack")
         groups = set(snack.food_items.values_list("food_item__category__code", flat=True))
         self.assertTrue({"milk_whole", "meat_low"} <= groups, groups)  # a real snack, not just fruit
+
+    def test_meal_times_and_shares(self):
+        from datetime import time
+        from nutrition.plan_templates import FIVE_SLOTS, SLOTS
+        self.assertEqual([at for _, at, _ in SLOTS], [time(h) for h in (6, 9, 12, 15, 18, 21)])
+        self.assertEqual([s for s, _, _ in FIVE_SLOTS], ["breakfast", "am_snack", "lunch", "pm_snack", "dinner"])
+        for slots in [SLOTS, FIVE_SLOTS] + [t["slots"] for t in TEMPLATES.values() if "slots" in t]:
+            for group in ("rice", "meat", "veg", "fruit", "fat"):
+                self.assertAlmostEqual(sum(sh[group] for _, _, sh in slots), 1, places=6, msg=group)
+        resp = self.api.post(self.url, {"template": "diabetes", "target_kcal": 1600}, format="json")
+        bedtime = MealPlan.objects.get(pk=resp.data["id"]).meals.get(day_of_week=1, meal_time="bedtime_snack")
+        self.assertEqual(bedtime.scheduled_time, time(21))
+        self.assertTrue(bedtime.food_items.exists())
 
     def test_guards(self):
         self.assertEqual(self.api.post(self.url, {"template": "keto"}, format="json").status_code, 400)

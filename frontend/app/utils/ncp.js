@@ -206,7 +206,7 @@ export const MEASURE_TEMPLATES = {
 /* ---------- dietary intake tools (mirrors backend clinical/dietary.py) ---------- */
 export const RECALL_MEALS = [
   { value: 'breakfast', label: 'Breakfast' }, { value: 'am_snack', label: 'AM snack' }, { value: 'lunch', label: 'Lunch' },
-  { value: 'pm_snack', label: 'PM snack' }, { value: 'dinner', label: 'Dinner' }, { value: 'bedtime_snack', label: 'Late-night snack' },
+  { value: 'pm_snack', label: 'PM snack' }, { value: 'dinner', label: 'Dinner' }, { value: 'bedtime_snack', label: 'Bedtime snack' },
 ]
 export const RECALL_MAX_ROWS = 80
 export const FFQ_GROUPS = [

@@ -21,7 +21,7 @@ from rest_framework import serializers
 
 RECALL_MEALS = [
     ("breakfast", "Breakfast"), ("am_snack", "AM snack"), ("lunch", "Lunch"),
-    ("pm_snack", "PM snack"), ("dinner", "Dinner"), ("bedtime_snack", "Late-night snack"),
+    ("pm_snack", "PM snack"), ("dinner", "Dinner"), ("bedtime_snack", "Bedtime snack"),
 ]
 
 FFQ_GROUPS = [

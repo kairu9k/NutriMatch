@@ -532,7 +532,7 @@
 <script setup>
 import {
   Eye, Plus, ChevronLeft, Printer, Pencil, Send, X,
-  Sun, Coffee, Utensils, Apple, Moon, Search, AlertTriangle, Trash2, Undo2, Lock
+  Sun, Coffee, Utensils, Apple, Moon, Bed, Search, AlertTriangle, Trash2, Undo2, Lock
 } from 'lucide-vue-next'
 import { usdaPortion } from '~/utils/usda'
 import { MEASURE_TEMPLATES, TER_ACTIVITY, bmiClass, bmiOf } from '~/utils/ncp'
@@ -567,11 +567,13 @@ const DAY_FULL = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursd
 const activeDay = ref(days[(new Date().getDay() + 6) % 7])
 
 // Design meal slots → nutrition.MealPlanMeal.MealTime.
-const mealOrder = ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner']
-const MEAL_TIME = { Breakfast: 'breakfast', 'Morning Snack': 'am_snack', Lunch: 'lunch', 'Afternoon Snack': 'pm_snack', Dinner: 'dinner' }
+const mealOrder = ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'Bedtime Snack']
+const MEAL_TIME = { Breakfast: 'breakfast', 'Morning Snack': 'am_snack', Lunch: 'lunch', 'Afternoon Snack': 'pm_snack', Dinner: 'dinner', 'Bedtime Snack': 'bedtime_snack' }
+// every 3 hours from 6 AM, filled into empty slots (same as the diet templates)
+const DEFAULT_TIME = { Breakfast: '06:00', 'Morning Snack': '09:00', Lunch: '12:00', 'Afternoon Snack': '15:00', Dinner: '18:00', 'Bedtime Snack': '21:00' }
 const MEAL_TYPE = Object.fromEntries(Object.entries(MEAL_TIME).map(([k, v]) => [v, k]))
-const mealIcons = { Breakfast: Sun, 'Morning Snack': Coffee, Lunch: Utensils, 'Afternoon Snack': Apple, Dinner: Moon }
-const mealAccents = { Breakfast: 'green', 'Morning Snack': 'gold', Lunch: 'blue', 'Afternoon Snack': 'gold', Dinner: 'blue' }
+const mealIcons = { Breakfast: Sun, 'Morning Snack': Coffee, Lunch: Utensils, 'Afternoon Snack': Apple, Dinner: Moon, 'Bedtime Snack': Bed }
+const mealAccents = { Breakfast: 'green', 'Morning Snack': 'gold', Lunch: 'blue', 'Afternoon Snack': 'gold', Dinner: 'blue', 'Bedtime Snack': 'gold' }
 
 const mode = ref('view')
 const isLoading = ref(true)
@@ -689,7 +691,7 @@ function emptyWeek() {
   const week = {}
   for (const day of days) {
     week[day] = {}
-    for (const type of mealOrder) week[day][type] = { time: '', items: [] }
+    for (const type of mealOrder) week[day][type] = { time: DEFAULT_TIME[type], items: [] }
   }
   return week
 }
@@ -710,7 +712,7 @@ function fillFromPlan(plan) {
     const day = days.find(d => DAY_INDEX[d] === meal.day_of_week)
     if (!type || !day) continue
     weeklyPlan[day][type] = {
-      time: meal.scheduled_time ? meal.scheduled_time.slice(0, 5) : '',
+      time: meal.scheduled_time ? meal.scheduled_time.slice(0, 5) : DEFAULT_TIME[type],
       items: meal.food_items.map(i => ({
         foodItemId: i.food_item,
         name: i.food_name,
