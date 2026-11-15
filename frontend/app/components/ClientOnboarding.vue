@@ -169,17 +169,25 @@
         <template v-if="screeningDone && !redoScreening">
           <h1 class="title">Your screening is on file</h1>
           <p class="lead">Recorded {{ screeningDate }}. It's your starting point and can't be changed. New readings go in the Progress Tracker.</p>
+          <label class="confirm-item">
+            <input v-model="infoConfirmed" type="checkbox" :disabled="isFinishing" />
+            <span>I confirm that all the information I entered here is correct and complete to the best of my knowledge.</span>
+          </label>
           <div class="actions">
             <button class="nm-btn-soft" type="button" @click="redoScreening = true">View it</button>
-            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
+            <button class="nm-btn-dark" type="button" :disabled="isFinishing || !infoConfirmed" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
           </div>
         </template>
         <template v-else>
           <PreConsultationScreening embedded :draft="screeningDraft" @keep-draft="keepScreeningDraft" @worked-out="answers => pendingScreening = answers" @changed="pendingScreening = null" />
           <p v-if="pendingScreening" class="hint finish-note">Nothing is saved yet. Check your results, then finish setup. Your screening can't be changed after that.</p>
+          <label v-if="screeningDone || pendingScreening" class="confirm-item">
+            <input v-model="infoConfirmed" type="checkbox" :disabled="isFinishing" />
+            <span>I confirm that all the information I entered here is correct and complete to the best of my knowledge.</span>
+          </label>
           <div v-if="screeningDone || pendingScreening" class="actions">
             <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
-            <button class="nm-btn-dark" type="button" :disabled="isFinishing" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
+            <button class="nm-btn-dark" type="button" :disabled="isFinishing || !infoConfirmed" @click="finish">{{ isFinishing ? 'Finishing…' : 'Finish setup' }}</button>
           </div>
           <div v-else class="actions">
             <button class="nm-btn-soft" type="button" @click="go('health')">Back</button>
@@ -359,7 +367,10 @@ function keepScreeningDraft(answers) {
 
 const isFinishing = ref(false)
 const finishError = ref('')
+// The client states their answers are correct before setup can finish.
+const infoConfirmed = ref(false)
 async function finish() {
+  if (!infoConfirmed.value) return
   isFinishing.value = true
   finishError.value = ''
   try {
@@ -472,6 +483,8 @@ onMounted(async () => {
 .field .invalid { border-color: #c0392b; }
 .mt-8 { margin-top: 8px; }
 .hint { font-size: 0.76rem; color: #8a9a8a; margin: 0; }
+.confirm-item { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 0; font-size: 0.86rem; color: #1a3a1a; line-height: 1.5; cursor: pointer; }
+.confirm-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
 .finish-note { margin: 16px 0 0; font-size: 0.84rem; color: #4a5a4a; }
 .field-error { font-size: 0.78rem; color: #c0392b; margin: 0; }
 .form-error { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 12px 0 0; }
