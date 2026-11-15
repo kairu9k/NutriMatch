@@ -79,13 +79,26 @@
             </p>
 
             <!-- 1. the license, with the checks beside it -->
-            <h3 class="desk-title">Check the license</h3>
+            <h3 class="desk-title">Check the identity</h3>
             <div class="desk">
-              <button v-if="selected.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="licenseOpen = true">
-                <img :src="selected.prc_license_image_url" alt="PRC license photo" />
-                <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
-              </button>
-              <div v-else class="license license-missing">No license photo on file. The license can't be checked.</div>
+              <div class="photos">
+                <div class="photo-cell">
+                  <p class="photo-label">PRC license</p>
+                  <button v-if="selected.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="zoom = 'license'">
+                    <img :src="selected.prc_license_image_url" alt="PRC license photo" />
+                    <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+                  </button>
+                  <div v-else class="license license-missing">No license photo on file. The license can't be checked.</div>
+                </div>
+                <div class="photo-cell">
+                  <p class="photo-label">Selfie with the license</p>
+                  <button v-if="selected.prc_selfie_image_url" type="button" class="license" aria-haspopup="dialog" @click="zoom = 'selfie'">
+                    <img :src="selected.prc_selfie_image_url" alt="Selfie holding the PRC license" />
+                    <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+                  </button>
+                  <div v-else class="license license-none">No selfie on file. This application was sent before selfies were asked for.</div>
+                </div>
+              </div>
 
               <div class="checks">
                 <label class="check-row" :class="{ done: checks.name }">
@@ -103,6 +116,13 @@
                     <a href="https://verification.prc.gov.ph/" target="_blank" rel="noopener" class="nm-panel-link prc-link" @click.stop>
                       Check on the PRC website <ExternalLink :size="12" aria-hidden="true" />
                     </a>
+                  </span>
+                </label>
+                <label v-if="selected.prc_selfie_image_url" class="check-row" :class="{ done: checks.face }">
+                  <input v-model="checks.face" type="checkbox" />
+                  <span class="check-text">
+                    <span>The face in the selfie matches the license photo</span>
+                    <small>The ID in the selfie is the same license, with the same name.</small>
                   </span>
                 </label>
                 <label class="check-row" :class="{ done: checks.photo }">
@@ -215,20 +235,20 @@
     </div>
 
     <!-- LICENSE PHOTO, full size (the client Resources preview pop-up) -->
-    <div v-if="licenseOpen && selected?.prc_license_image_url" class="nm-modal-overlay" @click.self="licenseOpen = false">
+    <div v-if="zoom && zoomUrl" class="nm-modal-overlay" @click.self="zoom = null">
       <div class="nm-modal license-modal" role="dialog" aria-modal="true" aria-labelledby="license-title">
         <div class="lm-head nm-modal-head">
           <span class="lm-icon"><IdCard :size="18" aria-hidden="true" /></span>
           <div style="flex: 1; min-width: 0">
-            <h3 id="license-title" class="nm-modal-title" style="margin: 0">PRC license, {{ selected.first_name }} {{ selected.last_name }}</h3>
+            <h3 id="license-title" class="nm-modal-title" style="margin: 0">{{ zoom === 'selfie' ? 'Selfie with the license' : 'PRC license' }}, {{ selected.first_name }} {{ selected.last_name }}</h3>
             <p class="nm-panel-sub">License no. {{ selected.prc_license_number || 'not given' }}</p>
           </div>
-          <button type="button" class="nm-modal-x" aria-label="Close" @click="licenseOpen = false"><X :size="18" aria-hidden="true" /></button>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="zoom = null"><X :size="18" aria-hidden="true" /></button>
         </div>
-        <div class="lm-photo"><img :src="selected.prc_license_image_url" alt="PRC license photo, full size" /></div>
+        <div class="lm-photo"><img :src="zoomUrl" :alt="zoom === 'selfie' ? 'Selfie holding the PRC license, full size' : 'PRC license photo, full size'" /></div>
         <div class="nm-modal-actions">
-          <a :href="selected.prc_license_image_url" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
-          <button type="button" class="nm-btn-dark" @click="licenseOpen = false">Done</button>
+          <a :href="zoomUrl" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
+          <button type="button" class="nm-btn-dark" @click="zoom = null">Done</button>
         </div>
       </div>
     </div>
@@ -279,17 +299,19 @@ const tabs = [
 const CHECKS = [
   { key: 'name', label: 'The name matches the PRC license' },
   { key: 'number', label: 'The PRC license number is valid on the PRC website' },
+  { key: 'face', label: 'The face in the selfie matches the license photo' },
   { key: 'photo', label: 'The license photo is clear and not expired' },
 ]
 const QUICK_REASONS = [
   'The PRC license photo is blurry. Please upload a clearer photo of the front of your license.',
   "The name on your application doesn't match the name on your PRC license.",
+  "We couldn't match your selfie with your PRC license. Please upload a clear selfie holding your license next to your face.",
   "We couldn't verify your PRC license number on the PRC website. Please check it and apply again.",
   'Your PRC license appears to be expired. Please renew it and apply again.',
 ]
 
 const MODE_ICONS = { video: Video, in_person: UserRound }
-const licenseOpen = ref(false)
+const zoom = ref(null) // 'license' | 'selfie' while a photo is open full size
 
 // How long an application has waited; gold after 3 days.
 const waitDays = r => Math.max(0, Math.floor((Date.now() - new Date(r.submitted_at)) / 86400000))
@@ -306,7 +328,8 @@ const tab = ref('pending')
 const busy = ref(false)
 const toast = useToast() // the app's toast (2026-11-03)
 const selectedId = ref(null)
-const checks = reactive({ name: false, number: false, photo: false })
+const checks = reactive({ name: false, number: false, face: false, photo: false })
+const zoomUrl = computed(() => (zoom.value === 'selfie' ? selected.value?.prc_selfie_image_url : selected.value?.prc_license_image_url) || '')
 
 // review_status comes from the RND's application (pending → approved /
 // rejected); a deactivated account is listed separately.
@@ -338,7 +361,8 @@ const { page, pages, paged: pagedList } = usePager(filtered, { resetOn: () => [t
 const selected = computed(() => (tab.value === 'pending' ? filtered.value.find(r => r.id === selectedId.value) : null) || null)
 const position = computed(() => filtered.value.findIndex(r => r.id === selectedId.value) + 1)
 const hours = computed(() => availabilityLines(selected.value?.availability))
-const allChecked = computed(() => CHECKS.every(c => checks[c.key]))
+// applications sent before selfies were asked for have none, so that check doesn't apply
+const allChecked = computed(() => CHECKS.every(c => checks[c.key] || (c.key === 'face' && !selected.value?.prc_selfie_image_url)))
 const canApprove = computed(() => !!selected.value?.email_verified_at && allChecked.value)
 const approveHint = computed(() => {
   if (!selected.value) return ''
@@ -531,7 +555,12 @@ async function confirmReject() {
 .desk-title { font-family: inherit; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 22px 0 10px; }
 
 /* 1. license + checks side by side */
-.desk { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.desk { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.photo-cell { min-width: 0; }
+.photo-label { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
+.photos .license img { max-height: 240px; }
+.license-none { padding: 36px 12px; text-align: center; color: #4a5a4a; background: #f4f6f4; border-color: #d9e3dc; font-size: 0.82rem; cursor: default; }
 .license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; text-decoration: none; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
 .license:hover img { opacity: 0.92; }
 .license img { display: block; width: 100%; max-height: 340px; object-fit: contain; }

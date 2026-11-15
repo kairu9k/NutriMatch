@@ -27,7 +27,7 @@ const toggle = (i) => { openIndex.value = openIndex.value === i ? null : i }
 
 const faqs = [
   { q: 'Is NutriMatch free to use?', a: 'Creating an account is free. Each RND sets their own consultation fee, shown on their profile. You pay it once your RND confirms the booking, any time before the consultation starts.' },
-  { q: 'How are RNDs verified on the platform?', a: 'All RNDs upload a photo of their PRC license during registration, which our admin team verifies against PRC records before their profile goes live.' },
+  { q: 'How are RNDs verified on the platform?', a: 'All RNDs upload a photo of their PRC license and a selfie holding it during registration. Our admin team checks both against PRC records before their profile goes live.' },
   { q: 'Is my health data kept private?', a: 'Yes. NutriMatch follows the Data Privacy Act of 2012 (RA 10173). Only you and your RND see your health records, your data travels over an encrypted connection, and every time someone opens your records it is logged.' },
   { q: 'Which conditions does NutriMatch support?', a: 'NutriMatch supports diabetes, hypertension, renal disease, obesity, malnutrition, and other conditions requiring Medical Nutrition Therapy.' },
   { q: 'What consultation types are available?', a: 'A video call or an in-person visit at your RND\'s clinic, depending on what your RND offers.' },

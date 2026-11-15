@@ -8,7 +8,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from core.validators import validate_phone, validate_rnd_phone
-from profiles.models import MIN_CONSULTATION_FEE, RND_SPECIALIZATIONS, ClientHealthProfile, ClientProfile, RndProfile
+from profiles.models import MIN_CONSULTATION_FEE, ClientHealthProfile, ClientProfile, RndProfile
 from profiles.services import (
     ALLOWED_LICENSE_IMAGE_TYPES,
     MAX_LICENSE_IMAGE_BYTES,
@@ -123,13 +123,14 @@ class ReplaceUnverifiedAccountMixin(serializers.Serializer):
         for old in [getattr(self, "_unverified_to_replace", None), *getattr(self, "_prc_holders_to_replace", [])]:
             if old is not None and all(old.pk != o.pk for o in olds):
                 olds.append(old)
-        for old in olds:
-            license_id = getattr(getattr(old, "rnd_profile", None), "prc_license_image", None)
-            old.delete()
-            if license_id:
-                from django.db import transaction as db_transaction
+        from django.db import transaction as db_transaction
 
-                db_transaction.on_commit(lambda license_id=license_id: _destroy_license_image(license_id))
+        for old in olds:
+            profile = getattr(old, "rnd_profile", None)
+            photo_ids = [i for i in (getattr(profile, "prc_license_image", None), getattr(profile, "prc_selfie_image", None)) if i]
+            old.delete()
+            for photo_id in photo_ids:
+                db_transaction.on_commit(lambda photo_id=photo_id: _destroy_license_image(photo_id))
 
 
 def prc_number_holders(value, *, ignore_user=None):
@@ -244,6 +245,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
 
     prc_license_number = serializers.CharField(source="rnd_profile.prc_license_number", allow_null=True)
     prc_license_image_url = serializers.SerializerMethodField()
+    prc_selfie_image_url = serializers.SerializerMethodField()
     specialization = serializers.CharField(source="rnd_profile.specialization")
     is_verified = serializers.BooleanField(source="rnd_profile.is_verified")
     verified_at = serializers.DateTimeField(source="rnd_profile.verified_at")
@@ -267,7 +269,7 @@ class AdminRndListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "first_name", "last_name", "email", "phone", "is_active", "created_at",
-            "prc_license_number", "prc_license_image_url", "specialization", "is_verified", "verified_at",
+            "prc_license_number", "prc_license_image_url", "prc_selfie_image_url", "specialization", "is_verified", "verified_at",
             "submitted_at", "patients", "consultations", "average_rating", "revenue",
             "review_status", "rejection_reason", "reviewed_at", "bio", "consultation_fee", "consultation_modes",
             "date_of_birth", "languages", "availability", "profile_photo", "email_verified_at", "clinic_address",
@@ -285,6 +287,9 @@ class AdminRndListSerializer(serializers.ModelSerializer):
 
     def get_prc_license_image_url(self, obj):
         return prc_license_image_url(obj.rnd_profile.prc_license_image)
+
+    def get_prc_selfie_image_url(self, obj):
+        return prc_license_image_url(obj.rnd_profile.prc_selfie_image)
 
     def get_patients(self, obj):
         return len([rel for rel in getattr(obj, "_prefetched_relationships", []) if rel.status == "active"])
@@ -356,10 +361,12 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
     password = serializers.CharField(write_only=True, validators=[validate_password])
     prc_license_number = serializers.CharField(max_length=20)
     prc_license_image = serializers.FileField(write_only=True)
+    prc_selfie_image = serializers.FileField(write_only=True)
     # Required, Philippine mobile only (user's rule, 2026-10-19).
     phone = serializers.CharField(max_length=30, allow_blank=True)
     date_of_birth = serializers.DateField(validators=[validate_rnd_birth_date])
-    specialization = serializers.ChoiceField(choices=RND_SPECIALIZATIONS)
+    # Up to 3, one may be typed (profiles/specializations.py)
+    specializations = JsonListField()
     # The rest of the application (reviewed by the admin before the RND can
     # sign in). List fields arrive as JSON strings in the multipart form.
     # Optional at sign-up (2026-11-01, user's call); a bio that is written still
@@ -468,6 +475,18 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             raise serializers.ValidationError("The license photo must be 10 MB or smaller.")
         return value
 
+    def validate_prc_selfie_image(self, value):
+        if getattr(value, "content_type", None) not in ALLOWED_LICENSE_IMAGE_TYPES:
+            raise serializers.ValidationError("Upload a JPG, PNG, or WEBP selfie holding your PRC license.")
+        if value.size > MAX_LICENSE_IMAGE_BYTES:
+            raise serializers.ValidationError("The selfie must be 10 MB or smaller.")
+        return value
+
+    def validate_specializations(self, value):
+        from profiles.specializations import clean_specializations
+
+        return clean_specializations(value)
+
     @transaction.atomic
     def create(self, validated_data):
         # Upload first so a failed upload never leaves a half-created account.
@@ -475,6 +494,11 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
             license_image_id = upload_prc_license_image(validated_data["prc_license_image"])
         except LicenseImageUploadError as exc:
             raise serializers.ValidationError({"prc_license_image": [str(exc)]})
+        try:
+            selfie_image_id = upload_prc_license_image(validated_data["prc_selfie_image"], folder="prc-selfies", what="selfie")
+        except LicenseImageUploadError as exc:
+            _destroy_license_image(license_image_id)
+            raise serializers.ValidationError({"prc_selfie_image": [str(exc)]})
 
         self.remove_unverified_account()
         user = User.objects.create_user(
@@ -489,9 +513,10 @@ class RegisterRndSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccountMi
         RndProfile.objects.create(
             user=user,
             prc_license_image=license_image_id,
+            prc_selfie_image=selfie_image_id,
             prc_license_number=validated_data["prc_license_number"],
             date_of_birth=validated_data["date_of_birth"],
-            specialization=validated_data["specialization"],
+            specialization=validated_data["specializations"],
             bio=validated_data.get("bio") or None,
             consultation_fee=validated_data["consultation_fee"],
             consultation_modes=validated_data["consultation_modes"],

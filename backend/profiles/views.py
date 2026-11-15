@@ -9,6 +9,7 @@ from accounts.permissions import IsClient, IsRnd
 from scheduling.models import Review, RndClientRelationship
 
 from .models import ClientProfile, RndAvailabilitySchedule, RndProfile
+from .specializations import specialization_filter_regex
 from .serializers import (
     ClientProfileSerializer,
     ClientProfileUpdateSerializer,
@@ -54,7 +55,7 @@ class RndSearchView(generics.ListAPIView):
 
         specialty = self.request.query_params.get("specialty")
         if specialty:
-            qs = qs.filter(specialization__icontains=specialty)
+            qs = qs.filter(specialization__regex=specialization_filter_regex(specialty))
 
         language = self.request.query_params.get("language")
         if language:

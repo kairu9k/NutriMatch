@@ -32,7 +32,7 @@
         <li>Payment information from PayMongo: payment method, the last 4 digits of a card, amounts, and references. We never receive or store full card numbers.</li>
         <li>The date and time you accepted these terms and gave consent to process your health data</li>
       </ul>
-      <p>RNDs additionally provide their PRC license number and a photo of their license for verification, and payout details (GCash or bank account) for payments. The license photo is stored privately and is visible only to NutriMatch administrators.</p>
+      <p>RNDs additionally provide their PRC license number, a photo of their license and a selfie holding it for identity verification, and payout details (GCash or bank account) for payments. The license photo and the selfie are used only to verify identity, are stored privately and are visible only to NutriMatch administrators.</p>
 
       <h2 id="use">2. How We Use Your Information</h2>
       <ul>
@@ -52,14 +52,14 @@
         <li><strong>PayMongo:</strong> payments and refunds.</li>
         <li><strong>Semaphore:</strong> text messages, if you turn them on. It receives only your mobile number and the message, which never includes health details.</li>
         <li><strong>Brevo:</strong> sending email.</li>
-        <li><strong>Cloudinary:</strong> file storage. PRC license photos, lab result files, and meal photos are stored privately.</li>
+        <li><strong>Cloudinary:</strong> file storage. PRC license photos, PRC selfies, lab result files, and meal photos are stored privately.</li>
         <li><strong>Render, Neon, and Vercel:</strong> hosting for the application and its database.</li>
         <li><strong>USDA FoodData Central:</strong> food nutrient lookups by your RND. No personal data is sent.</li>
       </ul>
       <p>These providers are bound by their own data protection obligations and do not receive more data than necessary to perform their function.</p>
 
       <h2 id="security">4. Security Measures</h2>
-      <p>NutriMatch implements SSL/TLS encryption for all data in transit, salted PBKDF2 password hashing, role-based access controls, and automated audit logging of significant data mutations. Private files (PRC license photos, lab results, meal photos) are opened only through the application, and meal photo links expire after 10 minutes. Communications are protected at the transport layer via HTTPS; please note this is not end-to-end encryption at the application layer.</p>
+      <p>NutriMatch implements SSL/TLS encryption for all data in transit, salted PBKDF2 password hashing, role-based access controls, and automated audit logging of significant data mutations. Private files (PRC license photos and selfies, lab results, meal photos) are opened only through the application, and meal photo links expire after 10 minutes. Communications are protected at the transport layer via HTTPS; please note this is not end-to-end encryption at the application layer.</p>
 
       <h2 id="rights">5. Your Rights Under RA 10173</h2>
       <p>As a data subject under the Data Privacy Act of 2012, you have the right to be informed, the right to access your personal data, the right to object to processing, the right to correct inaccurate data, the right to request erasure or blocking where the law allows, the right to data portability, and the right to file a complaint with the National Privacy Commission. You can correct most personal details yourself in Profile Settings. To exercise your other rights, contact us using the information below.</p>

@@ -151,10 +151,6 @@ function clearFilters() {
   mode.value = ''
 }
 
-// RND specializations are free text for older accounts (e.g. "Diabetes &
-// Weight Management"), so filter by the option's first word.
-const specialtyKeyword = s => s.split(/[ /&]/)[0]
-
 let requestId = 0
 async function load({ quiet = false } = {}) {
   const id = ++requestId
@@ -165,7 +161,7 @@ async function load({ quiet = false } = {}) {
   }
   const query = {}
   if (search.value.trim()) query.search = search.value.trim()
-  if (specialization.value) query.specialty = specialtyKeyword(specialization.value)
+  if (specialization.value) query.specialty = specialization.value // one whole name; an RND may list up to 3
   if (language.value) query.language = language.value
   if (mode.value) query.mode = mode.value
   try {

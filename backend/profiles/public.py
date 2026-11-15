@@ -14,6 +14,7 @@ from scheduling.models import Appointment, Review, RndClientRelationship
 
 from .models import LANGUAGES, RND_SPECIALIZATIONS, RndProfile
 from .hours import end_datetime
+from .specializations import split_specializations
 
 # Same session length as the booking pop-up (RndProfileView.vue); the slot step
 # (SLOT_STEP_MINUTES, hourly) lives with the booking rules in scheduling/serializers.py.
@@ -179,7 +180,7 @@ def search_options():
     from .services import bookable_rnd_profiles
 
     profiles = list(bookable_rnd_profiles().filter(available_for_new_clients=True))
-    specs = {p.specialization for p in profiles if p.specialization}
+    specs = {name for p in profiles for name in split_specializations(p.specialization)}
     codes = set(RndLanguage.objects.filter(rnd_id__in=[p.user_id for p in profiles]).values_list("language_code", flat=True))
     modes = {m for p in profiles for m in (p.consultation_modes or [])}
     return {

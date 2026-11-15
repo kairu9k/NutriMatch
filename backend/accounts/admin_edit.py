@@ -17,6 +17,8 @@ from rest_framework.views import APIView
 
 from core.validators import validate_phone, validate_rnd_phone
 
+from profiles.specializations import split_specializations
+
 from .models import User
 from .permissions import IsAdmin
 from .validators import validate_person_name
@@ -33,7 +35,7 @@ class AdminUserEditSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=254, required=False)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
     prc_license_number = serializers.CharField(max_length=20, required=False)
-    specialization = serializers.CharField(max_length=100, required=False)
+    specialization = serializers.CharField(max_length=255, required=False)
     reason = serializers.CharField(min_length=10, max_length=500,
                                    error_messages={"min_length": "Explain the change in at least 10 characters — it goes in the audit log."})
 
@@ -68,11 +70,9 @@ class AdminUserEditSerializer(serializers.Serializer):
         return value
 
     def validate_specialization(self, value):
-        from profiles.models import RND_SPECIALIZATIONS
+        from profiles.specializations import clean_specializations
 
-        if value not in RND_SPECIALIZATIONS:
-            raise serializers.ValidationError("Pick a specialization from the list.")
-        return value
+        return clean_specializations(split_specializations(value))
 
     def validate(self, attrs):
         user = self.context["user"]

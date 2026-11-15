@@ -89,6 +89,17 @@ class PublicRndTests(TestCase):
         self.assertEqual([lang["code"] for lang in data["languages"]], ["ceb"])
         self.assertEqual([m["value"] for m in data["modes"]], ["video", "in_person"])
 
+    def test_several_specializations_are_each_filterable(self):
+        # 2026-11-16: an RND may list up to 3; the filter matches a whole name, not a part of one
+        RndProfile.objects.filter(user=self.rnd).update(specialization="Diabetes Management, Pediatric Renal Nutrition, Sports Nutrition")
+        data = self.api.get("/api/client/rnds/options/").data
+        self.assertEqual(data["specializations"], ["Diabetes Management", "Sports Nutrition", "Pediatric Renal Nutrition"])
+        found = lambda q: len(self.api.get("/api/client/rnds/", {"specialty": q}).data)
+        self.assertEqual(found("Sports Nutrition"), 1)
+        self.assertEqual(found("Diabetes Management"), 1)
+        self.assertEqual(found("Pediatric Renal Nutrition"), 1)
+        self.assertEqual(found("Renal Nutrition"), 0)  # only part of "Pediatric Renal Nutrition"
+
 
 class ClinicAddressTests(TestCase):
     def setUp(self):

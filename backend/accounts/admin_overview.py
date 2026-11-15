@@ -97,6 +97,7 @@ def user_overview(user, *, viewer, request=None):
             "profile": {
                 "prc_license_number": profile.prc_license_number if profile else None,
                 "prc_license_image_url": prc_license_image_url(profile.prc_license_image) if profile else None,
+                "prc_selfie_image_url": prc_license_image_url(profile.prc_selfie_image) if profile else None,
                 "specialization": profile.specialization if profile else None,
                 "bio": profile.bio if profile else None,
                 "consultation_fee": profile.consultation_fee if profile else None,

@@ -29,20 +29,20 @@ def _configure():
     )
 
 
-def upload_prc_license_image(file) -> str:
-    """Uploads an RND's PRC license photo as an *authenticated* Cloudinary
-    asset — it shows the RND's face and ID, so it must not sit at a public
-    URL (RA 10173). Returns the public_id; admins view it via
-    prc_license_image_url()."""
+def upload_prc_license_image(file, folder="prc-licenses", what="license photo") -> str:
+    """Uploads an RND's PRC license photo (or, with folder="prc-selfies", the
+    selfie holding it) as an *authenticated* Cloudinary asset. Both show the
+    RND's face and ID, so they must not sit at a public URL (RA 10173).
+    Returns the public_id; admins view it via prc_license_image_url()."""
     _configure()
     try:
         result = cloudinary.uploader.upload(
-            file, folder="prc-licenses", resource_type="image", type="authenticated",
+            file, folder=folder, resource_type="image", type="authenticated",
         )
     except cloudinary.exceptions.Error as exc:
         # Cloudinary's own error is technical; it goes to the log, not the person
-        logger.warning("PRC license upload failed: %s", exc)
-        raise LicenseImageUploadError(f"We couldn't upload your license photo. Please try again in a moment.") from exc
+        logger.warning("PRC %s upload failed: %s", what, exc)
+        raise LicenseImageUploadError(f"We couldn't upload your {what}. Please try again in a moment.") from exc
     return result["public_id"]
 
 

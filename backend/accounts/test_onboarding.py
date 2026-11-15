@@ -24,8 +24,9 @@ def _apply(api, **overrides):
     payload = {
         "first_name": "Rhea", "last_name": "Santos", "email": "rhea@t.ph", "password": "StrongPass123!",
         "accept_terms": True, "data_privacy_consent": True, "date_of_birth": "1990-03-01",
-        "specialization": "Diabetes Management", "prc_license_number": "1234567",
+        "specializations": '["Diabetes Management"]', "prc_license_number": "1234567",
         "prc_license_image": SimpleUploadedFile("license.jpg", b"fake", content_type="image/jpeg"),
+        "prc_selfie_image": SimpleUploadedFile("selfie.jpg", b"fake", content_type="image/jpeg"),
         **RND_APPLICATION,
     }
     payload.update(overrides)

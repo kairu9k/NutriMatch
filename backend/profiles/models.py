@@ -31,8 +31,8 @@ LANGUAGE_NAMES = dict(LANGUAGES)
 # ₱0 invoice can't be charged, and pay-first would then cancel the booking).
 MIN_CONSULTATION_FEE = 100
 
-# RND specializations offered at registration (a dropdown). Each contains the
-# keyword the client-side "Find an RND" filter searches for (FindRnd.vue).
+# RND specializations offered at registration (up to 3 picks, or one typed;
+# profiles/specializations.py has the rules).
 RND_SPECIALIZATIONS = [
     "Diabetes Management",
     "Weight Management",
@@ -51,6 +51,13 @@ class RndProfile(models.Model):
     # the number is optional (NULLs don't collide under the unique constraint).
     prc_license_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
     prc_license_image = models.CharField(
+        max_length=255, null=True, blank=True,
+        help_text="Cloudinary public_id of an authenticated (non-public) upload",
+    )
+    # A selfie holding the PRC license (2026-11-16, panel feedback): the admin
+    # compares the face with the license before approving. Same private
+    # storage as the license photo; null for RNDs who applied before.
+    prc_selfie_image = models.CharField(
         max_length=255, null=True, blank=True,
         help_text="Cloudinary public_id of an authenticated (non-public) upload",
     )

@@ -144,11 +144,24 @@
                 <NuxtLink v-if="rnd.profile.review_status === 'pending'" :to="`/rnd-verification?open=${u.id}`" class="nm-panel-link">Review application</NuxtLink>
               </div>
               <div class="cred">
-                <button v-if="rnd.profile.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="licenseOpen = true">
-                  <img :src="rnd.profile.prc_license_image_url" alt="PRC license photo" />
-                  <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
-                </button>
-                <div v-else class="license license-missing">No license photo on file</div>
+                <div class="photos">
+                  <div>
+                    <p class="photo-label">PRC license</p>
+                    <button v-if="rnd.profile.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="zoom = 'license'">
+                      <img :src="rnd.profile.prc_license_image_url" alt="PRC license photo" />
+                      <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+                    </button>
+                    <div v-else class="license license-missing">No license photo on file</div>
+                  </div>
+                  <div>
+                    <p class="photo-label">Selfie with the license</p>
+                    <button v-if="rnd.profile.prc_selfie_image_url" type="button" class="license" aria-haspopup="dialog" @click="zoom = 'selfie'">
+                      <img :src="rnd.profile.prc_selfie_image_url" alt="Selfie holding the PRC license" />
+                      <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
+                    </button>
+                    <div v-else class="license license-missing">No selfie on file</div>
+                  </div>
+                </div>
                 <dl class="facts">
                   <div><dt>PRC license no.</dt><dd class="mono">{{ rnd.profile.prc_license_number || 'Not given' }}</dd></div>
                   <div><dt>Specialization</dt><dd>{{ rnd.profile.specialization || 'Not given' }}</dd></div>
@@ -283,11 +296,9 @@
             <label class="edit-field"><span class="nm-label">PRC license no.</span>
               <input v-model="editForm.prc_license_number" class="nm-input" inputmode="numeric" maxlength="7" placeholder="7 digits" :class="{ invalid: editErrors.prc_license_number }" />
               <small v-if="editErrors.prc_license_number" class="nm-field-error">{{ editErrors.prc_license_number }}</small></label>
-            <label class="edit-field"><span class="nm-label">Specialization</span>
-              <select v-model="editForm.specialization" class="nm-select block" :class="{ invalid: editErrors.specialization }">
-                <option v-for="sp in specializations" :key="sp" :value="sp">{{ sp }}</option>
-              </select>
-              <small v-if="editErrors.specialization" class="nm-field-error">{{ editErrors.specialization }}</small></label>
+            <div class="edit-field"><span class="nm-label">Specializations</span>
+              <SpecializationPicker v-model="editSpecs" v-model:error="editSpecError" />
+              <small v-if="editErrors.specialization" class="nm-field-error">{{ editErrors.specialization }}</small></div>
           </template>
         </div>
         <label class="nm-label" for="edit-reason">Reason for the change</label>
@@ -303,20 +314,20 @@
     </div>
 
     <!-- LICENSE PHOTO, full size (same pop-up as RND Applications) -->
-    <div v-if="licenseOpen && rnd?.profile.prc_license_image_url" class="nm-modal-overlay" @click.self="licenseOpen = false">
+    <div v-if="zoom && zoomUrl" class="nm-modal-overlay" @click.self="zoom = null">
       <div class="nm-modal license-modal" role="dialog" aria-modal="true" aria-labelledby="license-title">
         <div class="lm-head nm-modal-head">
           <span class="lm-icon"><IdCard :size="18" aria-hidden="true" /></span>
           <div style="flex: 1; min-width: 0">
-            <h3 id="license-title" class="nm-modal-title" style="margin: 0">PRC license, {{ u.first_name }} {{ u.last_name }}</h3>
+            <h3 id="license-title" class="nm-modal-title" style="margin: 0">{{ zoom === 'selfie' ? 'Selfie with the license' : 'PRC license' }}, {{ u.first_name }} {{ u.last_name }}</h3>
             <p class="nm-panel-sub">License no. {{ rnd.profile.prc_license_number || 'not given' }}</p>
           </div>
-          <button type="button" class="nm-modal-x" aria-label="Close" @click="licenseOpen = false"><X :size="18" aria-hidden="true" /></button>
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="zoom = null"><X :size="18" aria-hidden="true" /></button>
         </div>
-        <div class="lm-photo"><img :src="rnd.profile.prc_license_image_url" alt="PRC license photo, full size" /></div>
+        <div class="lm-photo"><img :src="zoomUrl" :alt="zoom === 'selfie' ? 'Selfie holding the PRC license, full size' : 'PRC license photo, full size'" /></div>
         <div class="nm-modal-actions">
-          <a :href="rnd.profile.prc_license_image_url" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
-          <button type="button" class="nm-btn-dark" @click="licenseOpen = false">Done</button>
+          <a :href="zoomUrl" target="_blank" rel="noopener noreferrer" class="nm-btn-soft"><ExternalLink :size="14" aria-hidden="true" /> Open in new tab</a>
+          <button type="button" class="nm-btn-dark" @click="zoom = null">Done</button>
         </div>
       </div>
     </div>
@@ -344,7 +355,8 @@ const toast = useToast() // the app's toast (2026-11-03)
 const showDeactivate = ref(false)
 const reason = ref('')
 const reasonError = ref('')
-const licenseOpen = ref(false)
+const zoom = ref(null) // 'license' | 'selfie' while a photo is open full size
+const zoomUrl = computed(() => (zoom.value === 'selfie' ? rnd.value?.profile.prc_selfie_image_url : rnd.value?.profile.prc_license_image_url) || '')
 const MODE_ICONS = { video: Video, in_person: UserRound }
 
 const u = computed(() => data.value?.user || {})
@@ -429,7 +441,10 @@ const EDIT_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'prc_license_n
 const showEdit = ref(false)
 const editForm = reactive({ reason: '' })
 const editErrors = ref({})
-const specializations = ref([])
+// up to 3, one may be typed; the API stores them as one comma-joined text
+const editSpecs = ref([])
+const editSpecError = ref('')
+watch(editSpecs, v => { editForm.specialization = v.join(', ') })
 const editBefore = computed(() => ({
   first_name: u.value.first_name || '', last_name: u.value.last_name || '', email: u.value.email || '', phone: u.value.phone || '',
   ...(rnd.value ? { prc_license_number: rnd.value.profile.prc_license_number || '', specialization: rnd.value.profile.specialization || '' } : {}),
@@ -437,12 +452,9 @@ const editBefore = computed(() => ({
 const editChanged = computed(() => Object.keys(editBefore.value).some(k => String(editForm[k] ?? '').trim() !== editBefore.value[k]))
 async function openEdit() {
   Object.assign(editForm, editBefore.value, { reason: '' })
+  editSpecs.value = (editBefore.value.specialization || '').split(',').map(x => x.trim()).filter(Boolean)
   editErrors.value = {}
   showEdit.value = true
-  if (rnd.value && !specializations.value.length) {
-    try { specializations.value = (await get('/client/rnds/options/')).specializations || [] } catch { /* keep the current value only */ }
-    if (editForm.specialization && !specializations.value.includes(editForm.specialization)) specializations.value.unshift(editForm.specialization)
-  }
 }
 async function saveEdit() {
   editErrors.value = {}
@@ -457,6 +469,11 @@ async function saveEdit() {
     editErrors.value = { phone: phoneMsg }
     return
   }
+  if (rnd.value && (editSpecError.value || !editSpecs.value.length)) {
+    editErrors.value = { specialization: editSpecError.value || 'Pick at least one specialization.' }
+    return
+  }
+  if (rnd.value) editForm.specialization = editSpecs.value.join(', ')
   const body = { reason: editForm.reason.trim() }
   for (const k of EDIT_FIELDS) {
     if (k in editBefore.value && String(editForm[k] ?? '').trim() !== editBefore.value[k]) body[k] = String(editForm[k] ?? '').trim()
@@ -612,7 +629,9 @@ function countText(counts) {
 .h-time { font-size: 0.76rem; color: #6a7a6a; }
 
 /* RND credentials + the client-facing card */
-.cred { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.cred { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.photo-label { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
 .cred .facts { grid-template-columns: 1fr; margin: 0; }
 .cred .facts > div:nth-child(2) { border-top: 1px solid #edf2ee; }
 .license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }

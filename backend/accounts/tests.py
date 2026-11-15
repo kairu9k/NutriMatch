@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -74,8 +75,9 @@ class RegisterViewTests(TestCase):
         return {
             "first_name": "Ivy", "last_name": "Alba", "email": email, "password": "StrongPass123!",
             "accept_terms": True, "data_privacy_consent": True,
-            "date_of_birth": "1990-01-15", "specialization": "Diabetes Management", "prc_license_number": "0123456",
+            "date_of_birth": "1990-01-15", "specializations": '["Diabetes Management"]', "prc_license_number": "0123456",
             "prc_license_image": image or SimpleUploadedFile("license.jpg", b"fake-jpeg-bytes", content_type="image/jpeg"),
+            "prc_selfie_image": SimpleUploadedFile("selfie.jpg", b"fake-selfie", content_type="image/jpeg"),
             **RND_APPLICATION,
         }
 
@@ -84,10 +86,12 @@ class RegisterViewTests(TestCase):
         resp = self.client_api.post("/api/auth/register/rnd/", self._rnd_payload(), format="multipart")
 
         self.assertEqual(resp.status_code, 201, resp.data)
-        mock_upload.assert_called_once()
+        self.assertEqual(mock_upload.call_count, 2)  # the license photo and the selfie holding it
+        self.assertEqual(mock_upload.call_args.kwargs["folder"], "prc-selfies")
         profile = RndProfile.objects.get(user__email="ivy@t.ph")
         self.assertFalse(profile.is_verified)
         self.assertEqual(profile.prc_license_image, "prc-licenses/abc123")
+        self.assertEqual(profile.prc_selfie_image, "prc-licenses/abc123")
         self.assertEqual(profile.prc_license_number, "0123456")
         self.assertEqual(profile.user.phone, "+639171234567")
 
@@ -485,9 +489,10 @@ class RegistrationValidationTests(TestCase):
             return self.client_api.post("/api/auth/register/rnd/", {
                 "first_name": "Ivy", "last_name": "Alba", "email": email, "password": "StrongPass123!",
             "accept_terms": True, "data_privacy_consent": True,
-                "date_of_birth": dob, "specialization": "Sports Nutrition",
+                "date_of_birth": dob, "specializations": '["Sports Nutrition"]',
                 "prc_license_number": str(abs(hash(email)) % 10_000_000).zfill(7),
                 "prc_license_image": SimpleUploadedFile("license.jpg", b"fake", content_type="image/jpeg"),
+                "prc_selfie_image": SimpleUploadedFile("selfie.jpg", b"fake", content_type="image/jpeg"),
                 **RND_APPLICATION,
             }, format="multipart")
 
@@ -613,9 +618,10 @@ class RegistrationEmailAndRndFieldTests(TestCase):
         cache.clear()  # registration is rate-limited (5/min)
         payload = {
             "first_name": "Ivy", "last_name": "Alba", "email": "rnd-redo@t.ph", "password": "StrongPass123!",
-            "date_of_birth": "1990-01-15", "prc_license_number": "0123456", "specialization": "Renal Nutrition",
+            "date_of_birth": "1990-01-15", "prc_license_number": "0123456", "specializations": '["Renal Nutrition"]',
             "accept_terms": True, "data_privacy_consent": True,
             "prc_license_image": SimpleUploadedFile("license.jpg", b"fake", content_type="image/jpeg"),
+            "prc_selfie_image": SimpleUploadedFile("selfie.jpg", b"fake", content_type="image/jpeg"),
             **RND_APPLICATION,
         }
         payload.update(overrides)
@@ -662,8 +668,11 @@ class RegistrationEmailAndRndFieldTests(TestCase):
     def test_rnd_prc_number_and_specialization(self, mock_upload):
         for bad in ["12345", "12345678", "01234ab", ""]:
             self.assertEqual(self._rnd(prc_license_number=bad).status_code, 400, bad)
-        self.assertEqual(self._rnd(specialization="Astrology").status_code, 400)
-
+        # specializations: 1 to 3, one may be typed, General stands alone
+        spec = lambda *names: self._rnd(specializations=json.dumps(list(names)))
+        for bad in [[], ["Astro123"], ["Ab"], ["Renal Nutrition", "Sports Nutrition", "Weight Management", "Diabetes Management"],
+                    ["General / Clinical Nutrition", "Sports Nutrition"], ["Pediatric Nutrition", "Oncology Nutrition"]]:
+            self.assertEqual(spec(*bad).status_code, 400, bad)
         ok = self._rnd()
         self.assertEqual(ok.status_code, 201, ok.data)
         profile = RndProfile.objects.get(user__email="rnd-redo@t.ph")
@@ -837,3 +846,59 @@ class BrandedEmailTests(TestCase):
 
         request_password_reset(self.user)
         self._check("password reset code", "Reset your password")
+
+
+class RndSpecializationAndSelfieTests(TestCase):
+    """2026-11-16 (panel feedback): up to 3 specializations, one may be typed,
+    General / Clinical Nutrition stands alone; a selfie holding the PRC license
+    is required and stored privately."""
+
+    def setUp(self):
+        cache.clear()  # the register endpoint is throttled per client
+        self.api = APIClient()
+
+    def _post(self, picks, **drop):
+        payload = {
+            "first_name": "Ivy", "last_name": "Cruz", "email": "multi@t.ph", "password": "Str0ng!Pass1", "phone": "+639171234567",
+            "date_of_birth": "1990-01-15", "specializations": json.dumps(picks), "prc_license_number": "0123456",
+            "accept_terms": "true", "data_privacy_consent": "true", "consultation_fee": "500",
+            "consultation_modes": '["video"]', "languages": '["en"]',
+            "prc_license_image": SimpleUploadedFile("license.jpg", b"fake", content_type="image/jpeg"),
+            "prc_selfie_image": SimpleUploadedFile("selfie.jpg", b"fake", content_type="image/jpeg"),
+        }
+        for key in drop:
+            payload.pop(key, None)
+        return self.api.post("/api/auth/register/rnd/", payload, format="multipart")
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc/x")
+    def test_up_to_three_with_one_typed(self, upload):
+        resp = self._post(["Diabetes Management", "renal nutrition", "  Pediatric   Nutrition "])
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(RndProfile.objects.get(user__email="multi@t.ph").specialization,
+                         "Diabetes Management, Renal Nutrition, Pediatric Nutrition")
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc/x")
+    def test_typed_one_is_capitalized_like_names(self, upload):
+        self.assertEqual(self._post(["pediatric nutrition"]).status_code, 201)
+        self.assertEqual(RndProfile.objects.get(user__email="multi@t.ph").specialization, "Pediatric Nutrition")
+        self.assertEqual(self._post(["Pediatric 2 Nutrition"]).status_code, 400)  # digits are refused
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc/x")
+    def test_general_alone_is_fine(self, upload):
+        self.assertEqual(self._post(["General / Clinical Nutrition"]).status_code, 201)
+
+    @patch("accounts.serializers.upload_prc_license_image", return_value="prc/x")
+    def test_selfie_is_required_and_images_only(self, upload):
+        resp = self._post(["Sports Nutrition"], prc_selfie_image=True)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("prc_selfie_image", resp.data)
+        upload.assert_not_called()
+
+    @patch("accounts.serializers._destroy_license_image")
+    @patch("accounts.serializers.upload_prc_license_image", side_effect=["prc/license", LicenseImageUploadError("nope")])
+    def test_failed_selfie_upload_removes_the_license_photo(self, upload, destroy):
+        resp = self._post(["Sports Nutrition"])
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("prc_selfie_image", resp.data)
+        destroy.assert_called_once_with("prc/license")
+        self.assertFalse(User.objects.filter(email="multi@t.ph").exists())

@@ -137,9 +137,10 @@ export const useAuthStore = defineStore('auth', {
       password: string
       prc_license_number: string
       prc_license_image: File
+      prc_selfie_image: File
       phone: string
       date_of_birth: string
-      specialization: string
+      specializations: string // JSON list, up to 3
       // The rest of the application, reviewed by an admin before sign-in.
       // List fields (modes/languages/availability) are JSON strings.
       bio: string

@@ -43,7 +43,11 @@ class AdminUserEditTests(TestCase):
         self.rnd.rnd_profile.refresh_from_db()
         self.assertEqual(self.rnd.rnd_profile.prc_license_number, "1234567")
         self.assertEqual(self.edit(self.rnd, prc_license_number="12345").status_code, 400)
-        self.assertEqual(self.edit(self.rnd, specialization="Astrology").status_code, 400)
+        self.assertEqual(self.edit(self.rnd, specialization="Astro123").status_code, 400)
+        self.assertEqual(self.edit(self.rnd, specialization="Renal Nutrition, Pediatric Nutrition").status_code, 200)
+        self.rnd.rnd_profile.refresh_from_db()
+        self.assertEqual(self.rnd.rnd_profile.specialization, "Renal Nutrition, Pediatric Nutrition")
+        self.assertEqual(self.edit(self.rnd, specialization="Sports Nutrition, Renal Nutrition, Weight Management, Diabetes Management").status_code, 400)
         self.assertEqual(self.edit(self.client_user, prc_license_number="7654321").status_code, 400)
 
     def test_rules(self):

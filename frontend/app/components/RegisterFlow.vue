@@ -214,11 +214,29 @@
                 <span class="license-hint">Only our admin team sees this photo, to verify your license.</span>
               </div>
               <div class="field">
-                <label>Specialization <span class="required-tag">Required</span></label>
-                <select class="nm-select block" v-model="form.specialization" required>
-                  <option disabled value="">Select</option>
-                  <option v-for="sp in SPECIALIZATIONS" :key="sp" :value="sp">{{ sp }}</option>
-                </select>
+                <label>Selfie with your PRC license <span class="required-tag">Required</span></label>
+                <p class="license-hint">Hold your PRC ID next to your face so we can see it's really you. Your face and the whole ID are in the photo, the name on the ID is readable, and no sunglasses, mask or cap.</p>
+                <label class="license-upload" :class="{ 'has-file': selfiePreview }">
+                  <input ref="selfieInput" type="file" accept="image/jpeg,image/png,image/webp" class="license-input" @change="onSelfieSelected" />
+                  <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="license-preview" />
+                  <span v-else class="license-placeholder">
+                    <strong>Upload a selfie holding your PRC ID</strong>
+                    JPG, PNG or WEBP, up to 10 MB
+                  </span>
+                </label>
+                <label class="selfie-camera nm-btn-soft nm-btn-sm">
+                  <input type="file" accept="image/*" capture="user" class="license-input" @change="onSelfieSelected" />
+                  Take a selfie now
+                </label>
+                <div v-if="form.prcSelfieImage" class="license-file-row">
+                  <span class="license-filename">{{ form.prcSelfieImage.name }}. Click the photo to change it.</span>
+                  <button type="button" class="license-remove" @click="removeSelfie">Remove</button>
+                </div>
+                <span class="license-hint">Only our admin team sees this photo, to confirm your identity.</span>
+              </div>
+              <div class="field">
+                <label>Specializations <span class="required-tag">Required</span></label>
+                <SpecializationPicker v-model="form.specializations" v-model:error="specError" />
               </div>
             </template>
 
@@ -359,7 +377,8 @@
               <div class="confirm-row"><span>Mobile number</span><strong>{{ formatPhone(form.phone) }}</strong></div>
               <div class="confirm-row"><span>PRC license number</span><strong>{{ form.prcNumber }}</strong></div>
               <div class="confirm-row"><span>PRC license photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
-              <div class="confirm-row"><span>Specialization</span><strong>{{ form.specialization || '—' }}</strong></div>
+              <div class="confirm-row"><span>Specializations</span><strong>{{ pickedSpecs.join(', ') || '—' }}</strong></div>
+              <div class="confirm-row"><span>Selfie with your PRC license</span><img v-if="selfiePreview" :src="selfiePreview" alt="Selfie with your PRC license" class="confirm-license" /></div>
               <div class="confirm-row"><span>Languages</span><strong>{{ form.languages.map(languageName).join(', ') }}</strong></div>
               <div class="confirm-row"><span>Consultation fee</span><strong>₱{{ Number(form.fee).toLocaleString() }} per session</strong></div>
               <div class="confirm-row"><span>Formats</span><strong>{{ form.modes.map(m => MODE_LABELS[m]).join(', ') }}</strong></div>
@@ -396,7 +415,7 @@
               <input v-model="consent.data" type="checkbox" :disabled="isSubmitting || !termsViewed" />
               <span>
                 I consent to NutriMatch collecting and processing my personal and health information
-                {{ selectedRole === 'rnd' ? '(including my PRC license photo, for verification)' : '(including my screening and nutrition records)' }}
+                {{ selectedRole === 'rnd' ? '(including my PRC license photo and selfie, for verification)' : '(including my screening and nutrition records)' }}
                 to provide nutrition care services, as described in the Privacy Policy, in accordance with
                 Republic Act No. 10173 (Data Privacy Act of 2012).
               </span>
@@ -511,7 +530,8 @@ const form = reactive({
   prcLicenseImage: null,
   prcNumber: '',
   phone: '',
-  specialization: '',
+  specializations: [],   // up to 3, one may be typed
+  prcSelfieImage: null,
   // RND application (onboarding): reviewed by the admin before sign-in.
   profilePhoto: null,
   bio: '',
@@ -562,26 +582,51 @@ const consentGiven = computed(() => consent.terms && consent.data)
 const MAX_LICENSE_BYTES = 10 * 1024 * 1024
 const licensePreview = ref('')
 
+// Checks and shrinks a picked image (license or selfie); null when refused.
+async function acceptPhoto(picked, what) {
+  errorMessage.value = ''
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(picked.type)) {
+    errorMessage.value = `Upload a JPG, PNG, or WEBP ${what}. iPhone HEIC photos: take a screenshot of it, or set the camera to "Most compatible".`
+    return null
+  }
+  if (picked.size > MAX_LICENSE_BYTES) {
+    errorMessage.value = `That photo is ${(picked.size / 1024 / 1024).toFixed(1)} MB. The ${what} must be 10 MB or smaller.`
+    return null
+  }
+  // shrink it before it's sent, so the upload is quick on a phone connection
+  return await shrinkImage(picked)
+}
 async function onLicenseSelected(e) {
   const picked = e.target.files?.[0]
   if (!picked) return
-  errorMessage.value = ''
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(picked.type)) {
-    errorMessage.value = 'Upload a JPG, PNG, or WEBP photo of your PRC license. iPhone HEIC photos: take a screenshot of it, or set the camera to "Most compatible".'
-    return
-  }
-  if (picked.size > MAX_LICENSE_BYTES) {
-    errorMessage.value = `That photo is ${(picked.size / 1024 / 1024).toFixed(1)} MB. The license photo must be 10 MB or smaller.`
-    return
-  }
-  // shrink it before it's sent, so the upload is quick on a phone connection
-  const file = await shrinkImage(picked)
+  const file = await acceptPhoto(picked, 'photo of your PRC license')
+  if (!file) return
   if (licensePreview.value) URL.revokeObjectURL(licensePreview.value)
   form.prcLicenseImage = file
   licensePreview.value = URL.createObjectURL(file)
 }
+
+const selfiePreview = ref('')
+const selfieInput = ref(null)
+async function onSelfieSelected(e) {
+  const picked = e.target.files?.[0]
+  if (!picked) return
+  const file = await acceptPhoto(picked, 'selfie holding your PRC license')
+  e.target.value = ''
+  if (!file) return
+  if (selfiePreview.value) URL.revokeObjectURL(selfiePreview.value)
+  form.prcSelfieImage = file
+  selfiePreview.value = URL.createObjectURL(file)
+}
+function removeSelfie() {
+  if (selfiePreview.value) URL.revokeObjectURL(selfiePreview.value)
+  selfiePreview.value = ''
+  form.prcSelfieImage = null
+  if (selfieInput.value) selfieInput.value.value = ''
+}
 onBeforeUnmount(() => {
   if (licensePreview.value) URL.revokeObjectURL(licensePreview.value)
+  if (selfiePreview.value) URL.revokeObjectURL(selfiePreview.value)
 })
 const licenseInput = ref(null)
 function removeLicense() {
@@ -592,16 +637,11 @@ function removeLicense() {
   if (licenseInput.value) licenseInput.value.value = ''
 }
 
-// Same list the API accepts (profiles/models.py RND_SPECIALIZATIONS); each
-// contains the keyword the "Find an RND" filter searches for.
-const SPECIALIZATIONS = [
-  'Diabetes Management',
-  'Weight Management',
-  'Renal Nutrition',
-  'Hypertension & Cardiac Care',
-  'Sports Nutrition',
-  'General / Clinical Nutrition',
-]
+// Up to 3 specializations, one may be typed: SpecializationPicker.vue holds the
+// rules (same as profiles/specializations.py). specError is why they aren't valid yet.
+const specError = ref('')
+const pickedSpecs = computed(() => form.specializations)
+
 // Digits only, max 7 — applied after v-model stores the keystroke (an
 // @input handler runs before v-model and would write back the old value).
 watch(() => form.prcNumber, v => {
@@ -696,7 +736,8 @@ const detailsValid = computed(() => {
   if (selectedRole.value === 'patient') return !!(form.dob && !dobError.value && form.gender && form.healthConcern)
   if (selectedRole.value === 'rnd') {
     return !!(form.prcLicenseImage && form.dob && !dobError.value
-      && /^\d{7}$/.test(form.prcNumber) && !prcNumberError.value && form.specialization && !rndPhoneError(form.phone))
+      && /^\d{7}$/.test(form.prcNumber) && !prcNumberError.value && form.prcSelfieImage
+      && pickedSpecs.value.length >= 1 && !specError.value && !rndPhoneError(form.phone))
   }
   return false
 })
@@ -730,7 +771,8 @@ const detailsProblem = computed(() => {
   if (rndPhoneError(form.phone)) return 'your mobile number'
   if (!/^\d{7}$/.test(form.prcNumber)) return 'your PRC license number'
   if (!form.prcLicenseImage) return 'your PRC license photo'
-  if (!form.specialization) return 'your specialization'
+  if (!form.prcSelfieImage) return 'your selfie with your PRC license'
+  if (!pickedSpecs.value.length || specError.value) return 'your specializations'
   return ''
 })
 
@@ -912,9 +954,10 @@ async function submitRegistration() {
         password: form.password,
         prc_license_number: form.prcNumber,
         prc_license_image: form.prcLicenseImage,
+        prc_selfie_image: form.prcSelfieImage,
         phone: form.phone,
         date_of_birth: form.dob,
-        specialization: form.specialization,
+        specializations: JSON.stringify(pickedSpecs.value),
         bio: form.bio.trim(),
         consultation_fee: Number(form.fee).toFixed(2),
         // List fields travel as JSON strings in the multipart form.
@@ -946,7 +989,7 @@ async function submitRegistration() {
     startResendTimer()
   } catch (error) {
     const data = error?.data
-    const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'specialization',
+    const FIELDS = ['email', 'first_name', 'last_name', 'password', 'phone', 'date_of_birth', 'prc_license_number', 'prc_license_image', 'prc_selfie_image', 'specializations',
       'bio', 'languages', 'profile_photo', 'consultation_fee', 'consultation_modes', 'clinic_address', 'accept_terms', 'data_privacy_consent']
     const failed = FIELDS.find(f => data?.[f]?.[0])
     const code = error?.statusCode || error?.status || error?.response?.status
@@ -1148,6 +1191,9 @@ function changeEmail() {
 }
 .choice-chip input { width: 16px; height: 16px; flex-shrink: 0; accent-color: #0a4a37; margin: 0; }
 .choice-chip.checked { border-color: #0a4a37; background: #e3efe7; color: #0a4a37; }
+/* the camera button only where a camera is the usual way to add a photo */
+.selfie-camera { display: none; align-self: flex-start; cursor: pointer; }
+@media (pointer: coarse) { .selfie-camera { display: inline-flex; align-items: center; } }
 .fee-wrap { display: flex; align-items: center; gap: 8px; max-width: 280px; }
 .fee-wrap input { flex: 1; min-width: 0; }
 .fee-prefix { font-weight: 700; color: #1a3a1a; }
