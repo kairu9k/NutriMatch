@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NutriMatch system review and Q&amp;A</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  :root { --green: #0b3d2e; --green2: #0a4a37; --gold: #b8860b; --line: #d9e3dc; --pale: #edf4ef; --qbg: #f7faf8; --ink: #1f2a24; --muted: #5d6b63; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--ink); font: 10.4pt/1.55 "Segoe UI", "Noto Sans", Arial, sans-serif; }
+  h1, h2, h3, .brand { font-family: Georgia, "Times New Roman", serif; color: var(--green); }
+  h2 { font-size: 17pt; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--green); break-after: avoid; }
+  h3 { font-size: 12pt; margin: 14px 0 6px; break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin: 0 0 4px; }
+  b, strong { color: #14271f; }
+  code { font-family: Consolas, monospace; font-size: 9pt; background: #f0f3f1; padding: 1px 4px; border-radius: 3px; }
+  .chapter { break-before: page; }
+  .keep { break-inside: avoid; }
+
+  /* cover */
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; }
+  .brand { font-size: 15pt; font-weight: 700; margin-bottom: 26px; }
+  .brand span { color: var(--gold); }
+  .cover h1 { font-size: 30pt; margin: 0 0 14px; }
+  .cover .sub { font-size: 12pt; color: #3c4a42; max-width: 150mm; margin-bottom: 22px; }
+  .cover .meta { border-top: 1px solid var(--line); padding-top: 14px; color: var(--muted); font-size: 9.5pt; line-height: 1.7; }
+  .cover .what { margin-top: 18px; background: #fbf6ea; border-left: 4px solid var(--gold); padding: 10px 14px; font-size: 9.6pt; border-radius: 0 6px 6px 0; max-width: 165mm; }
+
+  /* contents */
+  .toc { columns: 2; column-gap: 30px; padding-left: 22px; margin: 0 0 14px; }
+  .toc li { margin-bottom: 5px; }
+  .tip { background: #fbf6ea; border-left: 4px solid var(--gold); padding: 9px 13px; border-radius: 0 6px 6px 0; font-size: 9.8pt; }
+  .new { display: inline-block; font-size: 7.5pt; font-weight: 700; color: var(--gold); border: 1px solid var(--gold); border-radius: 9px; padding: 0 6px; margin-left: 6px; vertical-align: 2px; font-family: "Segoe UI", Arial, sans-serif; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 9.4pt; break-inside: auto; }
+  th { background: var(--pale); color: var(--green); text-align: left; padding: 7px 8px; font-weight: 700; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr { break-inside: avoid; }
+  table.gloss td:first-child { font-weight: 700; width: 90px; }
+
+  /* Q&A */
+  .qa { background: var(--qbg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 13px; margin: 0 0 9px; break-inside: avoid; }
+  .qa .q { font-weight: 700; color: #14271f; margin-bottom: 3px; }
+  .qa .q::before { content: "Q. "; color: var(--gold); }
+  .qa p:last-child { margin: 0; }
+
+  /* steps */
+  ol.steps { list-style: none; padding-left: 0; counter-reset: s; margin: 0 0 10px; }
+  ol.steps li { counter-increment: s; position: relative; padding-left: 26px; margin-bottom: 5px; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 17px; height: 17px; border-radius: 50%; background: var(--green2); color: #fff; font-size: 8pt; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+  .example { background: #eef5f0; border-left: 4px solid var(--green2); padding: 9px 13px; border-radius: 0 6px 6px 0; margin: 4px 0 12px; break-inside: avoid; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .two ul, .two ol { font-size: 9.4pt; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="brand">Nutri<span>Match</span></div>
+  <h1>System review and Q&amp;A</h1>
+  <p class="sub">A study guide to the whole system: what it does, how each part works, the rules behind it, and the questions a panel is likely to ask.</p>
+  <div class="meta">
+    NutriMatch: Web-Based Clinical Nutrition Consultation Management System<br>
+    Capstone project, STI College Davao, BSIT<br>
+    Updated edition. Reflects the live system as of November 18, 2026 (branch main)
+  </div>
+  <div class="what"><b>What changed since the November 2 edition:</b> consultations now close themselves from the video call's attendance record (no overtime), the RND can offer a new time instead of a refund, disputes go through Help &amp; Support, and RND sign-up is a short application with a selfie and up to 3 specializations, followed by an onboarding after approval. Chapters marked <span class="new">Updated</span> changed the most.</div>
+</section>
+
+<section class="chapter">
+  <h2>Contents</h2>
+  <ol class="toc">
+    <li>The system at a glance</li>
+    <li>Roles and their journeys <span class="new">Updated</span></li>
+    <li>Accounts, sign-up and consent <span class="new">Updated</span></li>
+    <li>Finding an RND and booking</li>
+    <li>Time rules for consultations <span class="new">Updated</span></li>
+    <li>Payments, refunds and payouts</li>
+    <li>The consultation room and video calls <span class="new">Updated</span></li>
+    <li>How a consultation ends <span class="new">New</span></li>
+    <li>Screening and the calculations</li>
+    <li>The Nutrition Care Process (NCP) record</li>
+    <li>Lab results</li>
+    <li>Meal planning and meal logs</li>
+    <li>Progress, adherence and care stages</li>
+    <li>Messages, notifications, email and SMS</li>
+    <li>Discharge and ending care</li>
+    <li>The admin side <span class="new">Updated</span></li>
+    <li>Privacy and security (RA 10173)</li>
+    <li>Architecture and deployment</li>
+    <li>Changes from the proposal <span class="new">Updated</span></li>
+    <li>Likely panel questions <span class="new">Updated</span></li>
+    <li>Known limitations and open items</li>
+    <li>Glossary</li>
+  </ol>
+  <p class="tip">How to use this guide: read the "How it works" part of each chapter first, then cover the answers and try the Q&amp;A on your own. Chapter 8 (how a consultation ends) and the panel questions in chapter 20 are the ones most worth practising out loud.</p>
+
+  <h2>1. The system at a glance</h2>
+  <p>NutriMatch connects clients with licensed Registered Nutritionist-Dietitians (RNDs) in the Philippines for Medical Nutrition Therapy. Care follows the <b>Nutrition Care Process</b> (Assessment, Diagnosis, Intervention, Monitoring and Evaluation) of the Academy of Nutrition and Dietetics. Around that clinical core the system handles booking, payments, video consultations, meal plans, lab results, progress tracking, reminders and administration.</p>
+  <table>
+    <tr><th style="width:110px">Part</th><th>What is used</th></tr>
+    <tr><td>Frontend</td><td>Nuxt 4 (Vue), Tailwind CSS, Lucide icons. Hosted on Vercel.</td></tr>
+    <tr><td>Backend</td><td>Django 6 with Django REST Framework, SimpleJWT sign-in, Django Channels for live features. Hosted on Render.</td></tr>
+    <tr><td>Database</td><td>PostgreSQL on Neon (SQLite during development). About 40 tables.</td></tr>
+    <tr><td>Files</td><td>Cloudinary. PRC licenses, the license selfie, lab results and meal photos are private.</td></tr>
+    <tr><td>Payments</td><td>PayMongo Checkout (GCash, Maya, cards, QR Ph), test mode.</td></tr>
+    <tr><td>Video</td><td>Our own browser-to-browser WebRTC call, with a Cloudflare relay (TURN).</td></tr>
+    <tr><td>Email and SMS</td><td>Brevo (email in production), Semaphore (SMS).</td></tr>
+    <tr><td>Food data</td><td>FNRI Food Exchange Lists (main), USDA FoodData Central (second source).</td></tr>
+  </table>
+  <p><b>Live addresses:</b> frontend <code>nutrimatch-theta.vercel.app</code>, API <code>nutrimatch-api.onrender.com/api</code>.</p>
+  <div class="qa"><div class="q">In one sentence, what problem does NutriMatch solve?</div><p>It gives Filipino clients structured, documented nutrition care from licensed RNDs online, and gives RNDs one place to run that care from screening to meal plan to follow-up.</p></div>
+  <div class="qa"><div class="q">Who are the three users?</div><p>Clients (patients), RNDs (licensed dietitians, approved by an admin) and admins (NutriMatch staff who verify RNDs, handle support and disputes, refunds, payouts and reports).</p></div>
+  <div class="qa"><div class="q">Is the NCP something the team invented?</div><p>No. It is the standard clinical method of the Academy of Nutrition and Dietetics. The system follows its four phases and its standard terminology (PES statements, etiology matrix, assessment terms).</p></div>
+</section>
+
+<section>
+  <h2>2. Roles and their journeys</h2>
+  <h3>Client</h3>
+  <ol class="steps">
+    <li>Signs up, confirms the 6-digit email code, ticks the Terms and the separate health-data consent.</li>
+    <li>Onboarding: language and mobile, health background (allergies are required), then the pre-consultation screening. Nothing is saved until Finish setup.</li>
+    <li>Finds an RND (filters by specialty, language and format) and books a time.</li>
+    <li>Pays after the RND confirms, at least 15 minutes before the start.</li>
+    <li>Joins the video call (or meets at the clinic for in-person).</li>
+    <li>Receives a consultation summary, a meal plan and lab requests; logs meals with a photo or note.</li>
+    <li>Follows progress, books follow-ups, answers a new time if the RND offers one, disputes through Help &amp; Support if needed, and can request a discharge.</li>
+  </ol>
+  <h3>RND</h3>
+  <ol class="steps">
+    <li>Applies in 3 steps: account, PRC license number and photo, a selfie holding the license, up to 3 specializations. An admin approves.</li>
+    <li>On first sign-in after approval, finishes onboarding: photo and bio (optional), languages, fee and formats, weekly hours, payout details (can be added later).</li>
+    <li>Confirms or declines booking requests (with the client's screening summary).</li>
+    <li>Runs the consultation: video, patient panel, NCP form, lab requests. A video consultation closes by itself at the end.</li>
+    <li>Finalizes the NCP record, builds and sends the weekly meal plan, rates meal logs.</li>
+    <li>If a paid consultation can't happen, offers a new time instead of refunding. Sees earnings, gets paid monthly, discharges the patient when care is done.</li>
+  </ol>
+  <h3>Admin</h3>
+  <ol class="steps">
+    <li>Reviews RND applications: license photo, selfie, PRC number; approve or reject with a reason.</li>
+    <li>Watches the dashboard's Needs attention list.</li>
+    <li>Answers support requests and decides disputes (refund or keep).</li>
+    <li>Sends refunds through PayMongo and releases monthly RND payouts.</li>
+    <li>Reads reports and the audit log; manages users and admins.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>3. Accounts, sign-up and consent</h2>
+  <h3>How it works</h3>
+  <ul>
+    <li><b>Email verification:</b> a 6-digit code by email; sign-in is refused until it is confirmed.</li>
+    <li><b>Passwords:</b> upper case, lower case, a number and a special character. Stored hashed (PBKDF2), never readable, even by admins.</li>
+    <li><b>Ages:</b> clients 18 or older, RNDs 21 or older.</li>
+    <li><b>Consent (RA 10173):</b> two separate boxes the person ticks themselves: the Terms and Privacy Policy, and consent to process health data. Both stay locked until the person opens both documents. The time of consent is saved and logged.</li>
+    <li><b>RND application (3 steps):</b> name, email, password, Philippine mobile, date of birth, 7-digit PRC number, a photo of the license, a <b>selfie holding the license</b>, and <b>up to 3 specializations</b> (Other opens a text box; General / Clinical Nutrition stands alone for an RND who covers more). Then review and submit. The license photo and selfie are private files only admins see.</li>
+    <li><b>RND onboarding after approval:</b> profile (optional photo and bio, languages), fee of at least ₱100 and formats (video, in person, with a clinic address), weekly hours, payout details (optional). Finish setup saves it all at once.</li>
+    <li><b>An RND is visible to clients</b> only when approved, onboarding finished, a fee set and at least one block of weekly hours. The bio is optional (a written bio needs 50 characters).</li>
+    <li><b>Mobile numbers:</b> optional for clients (any country), required and Philippine-only for RNDs.</li>
+  </ul>
+  <div class="qa"><div class="q">Why are there two consent boxes instead of one?</div><p>The Data Privacy Act treats health data as sensitive personal information. Consent to process it must be specific, so it is kept separate from accepting the Terms, and nothing ticks either box automatically.</p></div>
+  <div class="qa"><div class="q">How do you know the RND is really the license holder?</div><p>Besides the license photo and number, the RND uploads a selfie holding the license. The admin must tick that the face matches the license photo, that the name matches, that the number is valid on the PRC website and that the license isn't expired before Approve unlocks. Until approved, the RND cannot use any RND feature.</p></div>
+  <div class="qa"><div class="q">Why does the application ask so little now?</div><p>Panel feedback at the mock defense: an RND shouldn't fill in a whole profile for something that may be rejected. The application asks only what approval needs; the profile, fee and hours come in the onboarding after approval.</p></div>
+  <div class="qa"><div class="q">What if someone signs up but never confirms the email?</div><p>Registering again with the same email replaces the unfinished account. The same goes for a PRC number held by an unfinished or rejected application, so an RND who mistyped their email isn't locked out. A verified or approved RND's number stays blocked.</p></div>
+</section>
+
+<section>
+  <h2>4. Finding an RND and booking</h2>
+  <ul>
+    <li><b>Find an RND</b> shows only bookable RNDs, soonest available first. Filters (specialty, language, format) only list values some RND actually has. The fee shows on the profile and in the booking pop-up.</li>
+    <li><b>Client-facing RND data is public information only:</b> name, photo, specializations, bio, fee, formats, languages, PRC number, rating. Never email or phone.</li>
+    <li><b>One RND at a time:</b> a client with active care cannot book a different RND until discharged.</li>
+    <li><b>Booking times</b> start every hour from the start of the RND's block (a block 8:00 AM to 12:00 PM gives 8, 9, 10, 11 AM). Booked and blocked times stay visible but greyed out.</li>
+    <li><b>A first booking needs a screening</b> before the RND can confirm it.</li>
+    <li><b>Availability:</b> several blocks a day are allowed (for example a lunch break: 8 to 12 and 1 to 5), never overlapping. A block can end at 12:00 AM, meaning midnight. Each day shows a "Clients can book…" preview. Time off blocks whole days or part of a day.</li>
+  </ul>
+  <div class="qa"><div class="q">Why only one RND at a time?</div><p>Clinical safety and clear responsibility: two RNDs could give conflicting plans. A client who wants to change can request a discharge, which ends automatically after 3 days if the RND does nothing, so nobody is trapped.</p></div>
+  <div class="qa"><div class="q">How does an RND set a lunch break?</div><p>By adding two blocks on the same day, for example 8:00 AM to 12:00 PM and 1:00 PM to 5:00 PM. The page shows exactly which hours clients can book, so the gap is visible.</p></div>
+</section>
+
+<section>
+  <h2>5. Time rules for consultations</h2>
+  <p>These rules protect both sides: the client always has time to pay, the RND knows early whether a session is happening, and both know exactly when it ends.</p>
+  <table>
+    <tr><th style="width:190px">Example: consultation 3:00 to 4:00 PM</th><th>Rule</th></tr>
+    <tr><td>Latest booking 2:15 PM</td><td>A booking must start at least 45 minutes from now.</td></tr>
+    <tr><td>RND confirms by 2:30 PM</td><td>Otherwise the request expires and the client is told.</td></tr>
+    <tr><td>Paid client can cancel until 2:30 PM</td><td>Full refund. After that, no cancelling.</td></tr>
+    <tr><td>Client pays by 2:45 PM</td><td>Any time after confirming. Still unpaid at 2:45 the booking is cancelled automatically and the invoice voided.</td></tr>
+    <tr><td>Room opens 2:45 PM</td><td>15 minutes before the start.</td></tr>
+    <tr><td>No-show or "RND didn't come" from 3:15 PM</td><td>15 minutes after the start, so the other person has time to arrive (chapter 8).</td></tr>
+    <tr><td>3:45 and 3:55 PM</td><td>A "15 minutes left" and a "5 minutes left" note over the call; the timer turns gold.</td></tr>
+    <tr><td>Room closes 4:00 PM</td><td><b>No overtime.</b> The call ends at the scheduled end and the consultation is closed from the attendance record.</td></tr>
+  </table>
+  <div class="qa"><div class="q">Can a client pay a day early?</div><p>Yes. They can pay any time after the RND confirms. 15 minutes before the start is only the last moment. The texts say "Pay any time before Nov 3, 2:45 PM" so it is not mistaken for today.</p></div>
+  <div class="qa"><div class="q">Why 45 minutes ahead?</div><p>It is 30 minutes for the RND to confirm plus 15 minutes for the client to pay. Anything shorter could leave the client no time to pay.</p></div>
+  <div class="qa"><div class="q">Why no overtime?</div><p>The next client may be booked at the next hour, and an open-ended room made it unclear when a consultation was over. With a fixed end both people get warnings at 15 and 5 minutes, and the system can close the consultation the moment the room closes.</p></div>
+  <div class="qa"><div class="q">What if the RND never answers a request?</div><p>It expires 30 minutes before the start. Both are notified and the client can book another time.</p></div>
+</section>
+
+<section>
+  <h2>6. Payments, refunds and payouts</h2>
+  <h3>Paying</h3>
+  <ul>
+    <li>The invoice is created when the RND confirms. The platform commission (default 10%) is <b>frozen</b> on the invoice at that moment.</li>
+    <li>The client pays through a PayMongo Checkout page: GCash, Maya, card or QR Ph. PayMongo tells the server through a signed webhook; the Billing page also checks PayMongo directly in case a webhook is missed.</li>
+    <li>Every payment sends a branded email receipt. Receipts are payment receipts, not BIR official receipts. The client never sees the commission split.</li>
+    <li>The client only gets into the video call once paid.</li>
+  </ul>
+  <h3>Refunds</h3>
+  <ul>
+    <li>Always the full amount, within 5 to 7 business days. A refund is owed when a paid consultation is cancelled, the RND didn't come, the call never happened, or an admin approves a dispute. It then waits on the admin's Refunds list.</li>
+    <li>The admin sends it through PayMongo. GCash, Maya and card payments go back to the same account. QR Ph payments get a PayMongo claim link.</li>
+    <li>An invoice only turns "Refunded" when PayMongo reports the refund succeeded.</li>
+  </ul>
+  <h3>RND payouts</h3>
+  <ul>
+    <li>RND share = fee minus the frozen commission.</li>
+    <li>On hold for 3 days after the consultation is completed (or marked a no-show), then cleared. A dispute keeps it on hold until the admin decides.</li>
+    <li>Paid monthly on the 5th, only balances of at least ₱500 that cleared by that day; smaller balances carry over. No early payouts.</li>
+    <li>Money is sent outside the app (GCash or bank); the admin records the receipt reference. Safeguards: the amount must match, the reference must be real, and changed payout details within 7 days need extra confirmation.</li>
+  </ul>
+  <div class="qa"><div class="q">Why is the commission frozen?</div><p>So changing the commission rate later never changes what was already agreed on past invoices.</p></div>
+  <div class="qa"><div class="q">Is real money involved?</div><p>No. PayMongo runs in test mode. Going live needs PayMongo business verification. The PayMongo sandbox cannot complete QR Ph refunds; GCash, Maya and card refunds work in test mode.</p></div>
+</section>
+
+<section>
+  <h2>7. The consultation room and video calls</h2>
+  <ul>
+    <li><b>Video is our own WebRTC call:</b> browser to browser, encrypted by WebRTC, one-on-one, never recorded. A Cloudflare relay (TURN) helps calls connect on mobile data and strict networks; it relays the encrypted stream without storing it. The server only introduces the two browsers (signaling) and checks who may join.</li>
+    <li><b>Who may join:</b> the appointment's RND and client, a confirmed video consultation, inside the window (15 minutes before the start until the scheduled end), and the client must have paid.</li>
+    <li><b>RND side panel:</b> Patient (allergies, figures, care plan, meal logs, labs) and NCP (the record form). Lab tests can be requested during the call. Once the call has ended the NCP tab and lab requests lock, so nothing is added to a consultation after it; the record is finished from the patient chart.</li>
+    <li><b>Attendance:</b> the server records when each person joined and left, the minutes each was in the call, and the minutes they were in it together. Only times, nothing from the call.</li>
+    <li><b>Notes over the call:</b> the RND sees "waiting for the client" with when a no-show can be marked; the client sees when they can report the RND absent; both see the 15 and 5 minute wrap-up notes. These update the moment the other person joins.</li>
+    <li><b>Rejoining:</b> both can leave and rejoin until the room closes. A busy camera is retried, and a "Tap to hear" button appears if the browser blocks sound.</li>
+  </ul>
+  <div class="qa"><div class="q">Why not Jitsi or Zoom?</div><p>Embedded Jitsi needed a moderator login and cut calls after about 5 minutes; Daily.co needed a credit card. Our own WebRTC call has no login, no time limit, no cost besides the free Cloudflare relay tier, and keeps calls private.</p></div>
+  <div class="qa"><div class="q">Are calls recorded?</div><p>No. Only join and leave times are stored, for attendance and disputes. This follows RA 10173's data minimization.</p></div>
+  <div class="qa"><div class="q">Why do two laptops in the same room howl?</div><p>One device's microphone picks up the other's speakers. Echo cancellation can only remove a device's own sound. Use earphones or separate rooms; it is not a bug.</p></div>
+</section>
+
+<section>
+  <h2>8. How a consultation ends <span class="new">New</span></h2>
+  <p>Nobody presses "Mark complete" for a video consultation. When the room closes at the scheduled end, the system reads the call's attendance record and closes the consultation, so money never waits on a button the record already answers. The same check also runs whenever someone opens the app and when the reminder job runs.</p>
+  <h3>Video consultations</h3>
+  <table>
+    <tr><th style="width:145px">What the record shows</th><th>What happens</th><th style="width:150px">Money</th></tr>
+    <tr><td>Both were in the call together 5 minutes or more</td><td>Completed by itself. The client gets the consultation summary.</td><td>RND paid (3-day hold).</td></tr>
+    <tr><td>The RND waited, the client never joined</td><td>From 15 minutes after the start, and once the RND has been in the call 5 minutes, the RND can mark a no-show with a note. If the room closes first, it closes as a no-show.</td><td>No refund; RND paid. Client may dispute for 3 days.</td></tr>
+    <tr><td>The client joined, the RND didn't (under 5 minutes in total)</td><td>From 15 minutes after the start the client reports it from the room.</td><td>Full refund; counts as an RND late cancel.</td></tr>
+    <tr><td>Anything else: nobody joined, the call broke, under 5 minutes together</td><td>Closed as a refund when the room closes. The RND can also end it as "the call didn't work".</td><td>Full refund; RND not paid.</td></tr>
+  </table>
+  <h3>In-person consultations</h3>
+  <ul>
+    <li>Nothing records an in-person visit, so the RND closes it: Mark complete (from Appointments, To complete, or Open room), or a no-show from 15 minutes after the start.</li>
+    <li>The client can dispute a completed in-person visit for 3 days ("Didn't take place?").</li>
+    <li>It never closes by itself. The RND is reminded the next day, and after 3 days it shows on the admin's Needs attention.</li>
+  </ul>
+  <h3>Disputes</h3>
+  <ul>
+    <li>Through <b>Help &amp; Support</b> (bottom right), topic <b>Dispute a consultation</b>. There is no separate Dispute button: under each disputable consultation My Appointments says where to go and until when.</li>
+    <li>Only the client's own no-shows and completed in-person visits within 3 days can be picked; the message needs 20 characters.</li>
+    <li>The RND's payout is held. The admin sees the attendance record on the Support page and approves (full refund) or rejects (the RND keeps it) with a note. Both are told.</li>
+    <li>A plain "Payment or refund" request about a disputable consultation shows "Switch to a dispute", because a plain request wouldn't hold the payout.</li>
+  </ul>
+  <h3>When the RND can't make a paid consultation: rescheduling</h3>
+  <ul>
+    <li>Cancel asks the RND to <b>Offer a new time</b> or <b>Cancel with full refund</b>. The client never pays again for a new time.</li>
+    <li>The new time must be <b>later</b> than the booked time (never earlier, so it can't cut into the client's plans), at least 2 hours ahead, within 14 days and inside the RND's weekly hours.</li>
+    <li>The client accepts, proposes another time, or takes a full refund. The RND answers a client's proposal the same way. At most 3 proposals.</li>
+    <li>Each proposal waits 48 hours, or until an hour before its time. Unanswered, the consultation is cancelled with a full refund. A waiting proposal holds its time slot.</li>
+    <li>Accepting moves the same appointment with the same paid invoice, resets attendance and re-arms the reminders.</li>
+  </ul>
+  <h3>Other cancellations</h3>
+  <ul>
+    <li><b>RND cancels in the last 30 minutes:</b> picks a reason (emergency, technical, other). Full refund. 3 late cancels in 30 days flags the RND for the admin.</li>
+    <li><b>Client cancels:</b> paid, up to 30 minutes before (full refund); unpaid, any time before the pay deadline.</li>
+  </ul>
+  <div class="qa"><div class="q">Who marks a video consultation complete?</div><p>Nobody has to. If both were together at least 5 minutes, it completes itself when the room closes. The RND's Mark complete is refused without those 5 minutes, so a consultation can't be called complete when it didn't happen.</p></div>
+  <div class="qa"><div class="q">Can an RND fake a no-show?</div><p>Not for video: the server refuses it unless the RND was in the call 5 minutes and the client never joined, and only from 15 minutes after the start. For in-person there is no call record, so the client's dispute and the admin's judgement are the check.</p></div>
+  <div class="qa"><div class="q">Why disputes through Help &amp; Support instead of a button?</div><p>The team's decision: one place for talking to NutriMatch. Choosing "Dispute a consultation" still does everything the button did: it holds the payout, attaches the attendance record, enforces the 3-day deadline and gives the admin Approve and Reject.</p></div>
+  <div class="qa"><div class="q">Why offer a new time instead of only refunding?</div><p>The adviser's idea: the client shouldn't have to book and pay again because the RND couldn't make it. The client still chooses; a refund is always one of the answers.</p></div>
+  <div class="qa"><div class="q">What if nobody ever opens the app after a consultation?</div><p>The call itself closes it when the room closes, and the same check runs when anyone loads their appointments, billing or the admin pages, so it closes the next time the system is used.</p></div>
+</section>
+
+<section>
+  <h2>9. Screening and the calculations</h2>
+  <p>The pre-consultation screening is taken once at onboarding and then locked. It is the starting point progress is measured from; newer measurements come from the RND's NCP records. In onboarding, "Work out my results" only calculates; nothing is saved until Finish setup, and date of birth and sex come from sign-up.</p>
+  <h3>Formulas</h3>
+  <table>
+    <tr><th style="width:120px">Value</th><th>Formula</th></tr>
+    <tr><td>BMI</td><td>weight (kg) ÷ height (m)². Classified with the <b>WHO Asia-Pacific</b> cut-offs: under 18.5 underweight, 18.5 to 22.9 normal, 23 to 24.9 overweight, 25 to 29.9 Obese I, 30 and over Obese II. Shown with one decimal.</td></tr>
+    <tr><td>Desirable body weight (DBW)</td><td><b>BMI method:</b> height (m)² × 22.</td></tr>
+    <tr><td>BMR</td><td>DBW × 1.0 (male) or 0.9 (female) kcal per kg per hour × 24.</td></tr>
+    <tr><td>TER (Tannhauser factorial)</td><td>BMR + physical activity (bed rest 10%, sedentary 30%, light 50%, moderate 75%, heavy 100% of BMR) + TEF (10% of BMR plus activity), rounded to the nearest 50 kcal.</td></tr>
+    <tr><td>Macros</td><td>TER × % ÷ 4 kcal/g (carbohydrate, protein) or ÷ 9 kcal/g (fat), rounded to 5 g. Default 55 / 20 / 25%.</td></tr>
+    <tr><td>NRS-2002</td><td>Nutritional status (BMI under 18.5 = 3; weight loss of 5% or more since the last screening = 2; unintended weight loss or poor appetite = 1) plus disease severity (1 for elevated glucose or recent hospitalization). 3 or more = at risk, 5 or more = high risk.</td></tr>
+  </table>
+  <div class="example"><b>Worked example</b> (male, 170 cm, 85 kg, light activity, checked against the live app): BMI = 85 ÷ 1.70² = 29.4, Obese I. DBW = 1.70² × 22 = 63.58 kg. BMR = 63.58 × 1.0 × 24 = 1,526 kcal. Activity = 50% = 763 kcal. TEF = 10% of 2,289 = 229 kcal. Total 2,518, so <b>TER = 2,500 kcal</b>. Macros at 55/20/25: carbohydrate 345 g, protein 125 g, fat 70 g.</div>
+  <div class="qa"><div class="q">The proposal says Mifflin-St Jeor. Why is the BMR different?</div><p>On the request of our RND resource person we switched to Tannhauser's desirable-weight method, which is how Philippine dietetics computes energy needs. Tannhauser's DBW, (height − 100) − 10%, gives 0 kg at 100 cm and fails for short stature, so the team adopted the BMI method (height² × 22) for the DBW. The RND confirmed the BMI method for short clients.</p></div>
+  <div class="qa"><div class="q">Why WHO Asia-Pacific BMI cut-offs?</div><p>Health risks for Asian adults start at lower BMI values, so the Asia-Pacific ranges are lower than the global ones (for example, overweight starts at 23, not 25).</p></div>
+  <div class="qa"><div class="q">What about very short clients?</div><p>Below 150 cm the BMR and BMI carry a note that the estimate may be less accurate and the RND reviews it. Heights from 100 cm are allowed. The RND always sets the final target.</p></div>
+  <div class="qa"><div class="q">Why is the screening locked?</div><p>It is the baseline. If a client could edit it, weight change and BMI change could not be measured honestly. New measurements come from the RND's NCP record, and the client's screening page shows those newer numbers too.</p></div>
+</section>
+
+<section>
+  <h2>10. The Nutrition Care Process (NCP) record</h2>
+  <ul>
+    <li><b>One record, four phases:</b> Assessment, Diagnosis, Intervention, then Monitoring on follow-ups. Stored as one longitudinal row, not four tables.</li>
+    <li><b>Started in the consultation room</b> and linked to that consultation; continued later from the patient chart.</li>
+    <li><b>Assessment:</b> height, weight, blood pressure, fasting glucose, HbA1c (pre-filled from the latest records and locked until "Edit measurements"; a changed value shows what it was, with Put back), other measurements, lab and assessment notes. Warning labels for BP, glucose and HbA1c categories (never blocking).</li>
+    <li><b>Diagnosis (PES):</b> Problem, Etiology and Signs/symptoms, each a searchable picker from the AND's official lists (238 etiologies from the 2020 Etiology Matrix; 1,147 assessment terms), free text still allowed.</li>
+    <li><b>Intervention:</b> calculated TER with "Show calculation", the TER the RND sets, macros in %, grams calculated, <b>other targets</b> (nutrients, minerals, vitamins, goals), and the diet prescription (its first lines are written from the numbers).</li>
+    <li><b>Monitoring</b> (follow-ups): previous goals, weight change since, adherence, and goal status.</li>
+    <li><b>Save draft</b> any time; <b>Finalize</b> needs the clinical minimum (height, weight, PES, prescription, TER, goal status on follow-ups). A finalized record is permanent and no NCP record can be deleted.</li>
+    <li>Finalizing copies the measurements into the client's Progress Tracker.</li>
+  </ul>
+  <div class="qa"><div class="q">Why can't an NCP record be deleted, even a draft?</div><p>A record only starts from a real consultation, so even a draft is clinical work. Keeping it preserves an honest medical history.</p></div>
+  <div class="qa"><div class="q">Where do the dropdown terms come from?</div><p>From the Academy of Nutrition and Dietetics' 2020 Etiology Matrix and the 2020 Nutrition Assessment and Monitoring terminology sheet (both in the vault folder). The wording is copied, not invented.</p></div>
+</section>
+
+<section>
+  <h2>11. Lab results</h2>
+  <ul>
+    <li>The RND requests tests from the chart or the room; "needed before" is always the next consultation.</li>
+    <li>The client uploads PDF, JPG or PNG files (up to 5 files, 10 MB each) with the test date and, for glucose, whether they fasted. The upload opens at the top of the screen, full screen on phones.</li>
+    <li>Files are private Cloudinary files streamed only through the app; admins cannot open them. Opening one is logged.</li>
+    <li>The RND accepts (final) or declines with a reason (the client uploads again). In the NCP form "View lab results" opens them in a pop-up.</li>
+    <li>Values are typed into the NCP by the RND; nothing is read from the files automatically.</li>
+    <li>Discharging a client cancels any lab request still open.</li>
+  </ul>
+  <div class="qa"><div class="q">Why can't admins see lab files?</div><p>They are health records needed only by the treating RND. Data minimization: only the people who need them can open them.</p></div>
+</section>
+
+<section>
+  <h2>12. Meal planning and meal logs</h2>
+  <ul>
+    <li><b>Weekly plans</b>, meals per day with times, built from FNRI foods (in exchanges) or USDA foods (in grams).</li>
+    <li><b>FNRI exchanges:</b> the RND sets the number of exchanges (in halves); calories and macros follow, and the portion reads like "2 × ½ cup".</li>
+    <li><b>Diet templates:</b> diabetes, hypertension (DASH), renal, weight management, weight gain, general. They start from the NCP target (else the screening TER), fill a full week of 6 meals every 3 hours from 6 AM (breakfast to bedtime snack), use foods allowed for the condition, and skip the client's allergens. Weight management cuts 500 kcal or 20% of the TER, whichever is smaller, plans 5 meals and leaves the bedtime snack for the RND.</li>
+    <li><b>Warnings:</b> foods that may not suit the condition are amber; allergens are red. Sending asks for confirmation, and if an allergen is in the plan the RND must tick a box confirming it is safe.</li>
+    <li><b>Draft vs sent:</b> drafts can be deleted; a sent plan cannot (the client logs against it). Undo and Discard changes are available while editing.</li>
+    <li><b>Meal logs:</b> the client logs a photo and/or note; the server stamps the time. The RND rates it Followed, Partly or Not followed, which is final for the client; a changed rating is audit-logged.</li>
+    <li>Meal photos are private and their links expire after 10 minutes. The client can <b>Download / print</b> the whole week's plan.</li>
+  </ul>
+  <div class="qa"><div class="q">Why store only the food name from USDA or FNRI?</div><p>Data minimization from the proposal: the system keeps only what it needs (the food name and the amount), not whole external records.</p></div>
+  <div class="qa"><div class="q">How is adherence calculated?</div><p>Followed counts 1, partly followed 0.5, not followed or not logged 0, over the planned meals since the plan was sent. Logs still waiting for a rating are left out.</p></div>
+</section>
+
+<section>
+  <h2>13. Progress, adherence and care stages</h2>
+  <ul>
+    <li><b>Progress Tracker (client):</b> weight, BMI, blood pressure, glucose and HbA1c charts from the screening and the RND's finalized NCP records, weekly adherence, and a printable report.</li>
+    <li><b>Patient chart (RND):</b> Overview, NCP records timeline, Meal plan, Progress (trend charts), Lab results, Consultations, Tasks and reminders.</li>
+    <li><b>Care stages:</b> screening, NCP, meal plan, follow-up, with a "next step" for the RND.</li>
+    <li><b>Alerts</b> on the RND dashboard: no logs for 3 days, adherence under 50%, NRS-2002 risk, a big weight change, an idle NCP draft.</li>
+    <li><b>Consultation summary</b> after each completed visit, printable; the client never sees the RND's private notes.</li>
+    <li><b>Earnings (RND):</b> "Earned this month" counts consultations completed this month.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>14. Messages, notifications, email and SMS</h2>
+  <ul>
+    <li><b>Messages:</b> client-RND chat, live, only while care is active (history stays readable).</li>
+    <li><b>Notifications:</b> in-app, live; a bell for clients and RNDs. Clicking one opens the page it belongs to.</li>
+    <li><b>Reminders:</b> 24 hours and 1 hour before a consultation, payment due, meal logging, lab uploads, tasks the RND sets (the client ticks them off in My tasks), and for the RND a "close your consultation" reminder for in-person visits.</li>
+    <li><b>Emails always sent:</b> booking confirmed with the pay-by time, cancelled by the RND, a new time offered, marked as not attending (with the dispute deadline), receipts, approvals, care ended, support replies. Support emails are sent in the background so the page doesn't wait. Reminder emails are opt-in.</li>
+    <li><b>SMS (Semaphore):</b> opt-in, Philippine mobile only. Texts: the 1-hour reminder, payment due, booking confirmed, cancellation, and a new time offered. Texts never contain health details. Waiting for Semaphore to approve the "NutriMatch" sender name.</li>
+  </ul>
+  <div class="qa"><div class="q">Why no health details in texts?</div><p>An SMS can be read by anyone holding the phone. Health information stays inside the app, where access is controlled.</p></div>
+</section>
+
+<section>
+  <h2>15. Discharge and ending care</h2>
+  <ul>
+    <li>The RND discharges with a reason. It is blocked while a consultation is upcoming or not yet completed, or while an NCP draft is open.</li>
+    <li>Discharge archives the active meal plan, stops the RND's reminders, cancels open lab requests, logs it, and notifies and emails the client.</li>
+    <li>The client can request a discharge (with a reason); if the RND does nothing within 3 days, care ends automatically.</li>
+    <li>A discharged record is read-only. The client keeps their history and can book the same or another RND; booking the same RND again reopens the care.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>16. The admin side</h2>
+  <table>
+    <tr><th style="width:125px">Page</th><th>What it is for</th></tr>
+    <tr><td>Dashboard</td><td>Today's figures, Needs attention (unpaid soon, waiting requests, support, applications, refunds, payouts due, disputes, in-person visits left open 3 days, RNDs with many late cancels), month vs last month.</td></tr>
+    <tr><td>RND Applications</td><td>License photo and selfie side by side, PRC number with a link to check it; approve only after the identity checklist, or reject with a reason.</td></tr>
+    <tr><td>Users</td><td>Every account; deactivate or reactivate with a reason; send a password reset; edit details with a reason; add admins.</td></tr>
+    <tr><td>Appointments</td><td>Every consultation with its payment, attendance label, dispute status and reschedule history; cancel with a reason.</td></tr>
+    <tr><td>Support</td><td>Requests from clients and RNDs; reply, close; decide disputes (approve and refund, or reject) with a note.</td></tr>
+    <tr><td>Billing and commission</td><td>Invoices, receipts, the Refunds list, refunds through PayMongo.</td></tr>
+    <tr><td>Payouts</td><td>Monthly payout runs with safeguards.</td></tr>
+    <tr><td>Reports</td><td>Consultations, payments, commission (only on payments kept, never on refunds), new clients, per RND; print or CSV.</td></tr>
+    <tr><td>Audit log</td><td>Who did what and when (immutable).</td></tr>
+  </table>
+  <div class="qa"><div class="q">Can an admin see a client's health record?</div><p>Yes, for support and compliance, and every view is logged in the audit log. Admins cannot open lab files or meal photos, and never see passwords.</p></div>
+</section>
+
+<section>
+  <h2>17. Privacy and security (RA 10173)</h2>
+  <ul>
+    <li><b>Consent:</b> separate, explicit consent for health data, with timestamps.</li>
+    <li><b>Access control:</b> role-based on the server and on every page (a client can't open RND or admin pages and the other way round); an RND only sees their own patients; clinical data only within active care.</li>
+    <li><b>Encryption in transit:</b> HTTPS everywhere; video encrypted by WebRTC.</li>
+    <li><b>Passwords:</b> salted PBKDF2 hashes.</li>
+    <li><b>Private files:</b> licenses, license selfies, lab results and meal photos are private, opened only through the app; photo links expire in 10 minutes. Selfies are never shown to clients.</li>
+    <li><b>Audit log:</b> immutable rows for significant actions (consent, record views, refunds, disputes, discharges, edits).</li>
+    <li><b>Data minimization:</b> only food names from external sources; no call recordings, only join and leave times; no health data in SMS; clients never see the commission.</li>
+    <li><b>Out of scope (per the proposal):</b> NPC registration, end-to-end encryption, automatic retention schedules, granular consent withdrawal.</li>
+  </ul>
+  <div class="qa"><div class="q">Is NutriMatch registered with the National Privacy Commission?</div><p>No. It is an academic capstone. Anyone deploying it for real clinical use would have to register it; the Privacy Policy says so.</p></div>
+</section>
+
+<section>
+  <h2>18. Architecture and deployment</h2>
+  <div class="two">
+    <div>
+      <h3>Backend apps (Django)</h3>
+      <ul>
+        <li><b>accounts:</b> users, sign-up, verification, onboarding, admin user tools</li>
+        <li><b>profiles:</b> RND and client profiles, specializations, availability, time off</li>
+        <li><b>scheduling:</b> relationships, appointments, video call, attendance, closing, no-shows, rescheduling, discharge</li>
+        <li><b>clinical:</b> screening, NCP, progress, labs, calculations</li>
+        <li><b>nutrition:</b> FNRI foods, meal plans, templates, meal logs, USDA</li>
+        <li><b>communication:</b> messages, notifications, reminders, SMS, support and disputes</li>
+        <li><b>billing:</b> invoices, PayMongo, refunds, payouts</li>
+        <li><b>core:</b> settings, audit log, reports, admin dashboard</li>
+      </ul>
+    </div>
+    <div>
+      <h3>How a request flows</h3>
+      <ol>
+        <li>The Nuxt page calls the REST API with a JWT.</li>
+        <li>Django checks the role and ownership, applies the rules, saves to PostgreSQL.</li>
+        <li>Side effects run after the save: notifications (pushed live over WebSockets), emails, SMS, audit rows.</li>
+        <li>External services: PayMongo, Cloudinary, Brevo, Semaphore, Cloudflare TURN, USDA.</li>
+      </ol>
+    </div>
+  </div>
+  <ul>
+    <li><b>Deployment:</b> pushing to the main branch deploys automatically: Render (backend, migrations run on start) and Vercel (frontend). Free tiers; Render sleeps after 15 minutes idle (about a minute to wake).</li>
+    <li><b>Time:</b> all "today" decisions use Philippine time on the server's clock, so changing a phone's date changes nothing.</li>
+    <li><b>Testing:</b> 642 automated backend tests and a production build run before every push. Before the November 18 release the whole journey (sign-up to payout) was walked through in the browser, on desktop and at phone width; findings are in <code>vault/test-findings-2026-11-18.md</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>19. Changes from the proposal</h2>
+  <table>
+    <tr><th style="width:140px">Proposal</th><th style="width:150px">Built system</th><th>Why</th></tr>
+    <tr><td>Laravel 11, MySQL</td><td>Django, PostgreSQL</td><td>Team decision; Django's admin, ORM and REST framework fit; free hosting on Render and Neon.</td></tr>
+    <tr><td>21 tables</td><td>About 40 tables</td><td>Added features: labs, time off, support, payouts, resource sharing, attendance, rescheduling and more.</td></tr>
+    <tr><td>Mifflin-St Jeor BMR, TDEE</td><td>BMI-method DBW, Tannhauser TER</td><td>RND resource person's method; the BMI method handles short stature.</td></tr>
+    <tr><td>Chat consultations</td><td>Video or in person only</td><td>Adviser's call; chat stays as messaging.</td></tr>
+    <tr><td>Third-party video (Jitsi)</td><td>Own WebRTC call</td><td>No login, no time limit, private.</td></tr>
+    <tr><td>Payment after the consultation</td><td>Pay before the consultation</td><td>Protects the RND's time; clear refund rules.</td></tr>
+    <tr><td>RND marks the consultation complete</td><td>Closed from the call's attendance record</td><td>Money follows what actually happened; no consultation left open, no complete without the client.</td></tr>
+    <tr><td>Cancel means refund</td><td>The RND can offer a new time</td><td>Adviser's idea: the client shouldn't pay again because the RND couldn't make it.</td></tr>
+    <tr><td>Long RND registration</td><td>Short application, onboarding after approval</td><td>Mock defense panel: ask only what approval needs.</td></tr>
+    <tr><td>One specialization, license photo</td><td>Up to 3 specializations, plus a selfie holding the license</td><td>Mock defense panel: RNDs cover several areas, and someone could use another RND's credentials.</td></tr>
+    <tr><td>bcrypt</td><td>PBKDF2</td><td>Django's standard password hashing.</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>20. Likely panel questions</h2>
+  <div class="qa"><div class="q">Walk us through what happens from booking to meal plan.</div><p>The client books a time at least 45 minutes ahead; the RND reviews the screening and confirms; an invoice is created and the client pays; at the time they meet in the video room; when the room closes the consultation completes itself from the attendance record; the RND fills and finalizes the NCP record, generates a meal plan from a template, checks it and sends it; the client logs meals and the RND rates them; progress shows on both sides.</p></div>
+  <div class="qa"><div class="q">How do you make sure the calculations are correct?</div><p>They use named clinical formulas (WHO Asia-Pacific BMI, BMI-method DBW, Tannhauser TER, NRS-2002), were checked against hand calculations, and are covered by automated tests. The steps are shown to the RND with "Show calculation".</p></div>
+  <div class="qa"><div class="q">How do you protect patients with allergies?</div><p>Allergies are required at onboarding. Templates skip allergens. Allergens show in red in every food picker and plan, and sending a plan with an allergen requires the RND to confirm it is safe.</p></div>
+  <div class="qa"><div class="q">What stops a client from not paying and still joining?</div><p>The server only lets a paid client into the call, and unpaid bookings are cancelled 15 minutes before the start.</p></div>
+  <div class="qa"><div class="q">What if the client doesn't show up?</div><p>The RND waits in the call. From 15 minutes after the start, once they have been in it 5 minutes, they can mark a no-show; the RND is paid. The client can dispute it for 3 days through Help &amp; Support, and an admin decides with the attendance record.</p></div>
+  <div class="qa"><div class="q">And if the RND doesn't show up?</div><p>The client, in the call, can report it from 15 minutes after the start if the RND was in it under 5 minutes. The consultation is cancelled, the client is refunded in full, and it counts as a late cancel against the RND.</p></div>
+  <div class="qa"><div class="q">What if the RND's internet fails during the call?</div><p>The call reconnects by itself and both can rejoin until the scheduled end. If they never get 5 minutes together, the consultation closes as a full refund when the room closes; it can't be completed by phone, because the system can't see that.</p></div>
+  <div class="qa"><div class="q">What if the RND can't make a consultation the client already paid for?</div><p>The RND offers a later time instead of cancelling. The client accepts, suggests another time, or takes a full refund, and never pays twice.</p></div>
+  <div class="qa"><div class="q">How is data privacy handled?</div><p>Explicit separate consent, role-based access, HTTPS, hashed passwords, private files with expiring links, no call recordings, no health details in SMS, and an immutable audit log, including every admin view of a client record.</p></div>
+  <div class="qa"><div class="q">Why should a client trust an RND on NutriMatch?</div><p>Every RND's PRC license and a selfie holding it are checked by an admin before they can practise on the platform, the PRC number is shown on their profile, and clients leave ratings and reviews.</p></div>
+  <div class="qa"><div class="q">How does NutriMatch earn?</div><p>A platform commission (default 10%) on each paid consultation, frozen on the invoice. RNDs receive the rest monthly. Refunded payments earn no commission.</p></div>
+  <div class="qa"><div class="q">Can it scale?</div><p>The backend is stateless apart from live features; with more traffic, Render can run more instances with Redis for live updates (supported by the code via REDIS_URL), and Neon PostgreSQL scales separately.</p></div>
+  <div class="qa"><div class="q">What would you add next?</div><p>Live PayMongo after business verification, SMS once the sender name is approved, automatic payouts, a scheduler so consultations close even when nobody uses the app, a per-client no-show count for admins, a client data download, and validated energy equations for special populations.</p></div>
+</section>
+
+<section>
+  <h2>21. Known limitations and open items</h2>
+  <ul>
+    <li>PayMongo is in test mode; QR Ph refunds can't complete in the sandbox.</li>
+    <li>SMS waits for Semaphore to approve the "NutriMatch" sender name.</li>
+    <li>The free Render plan has no background scheduler: a consultation closes when the call ends or the next time someone uses the app, not exactly on the minute if the room was never opened.</li>
+    <li>The video call has been tested between browsers on the same network; wider testing on phones and mobile data is still worth doing.</li>
+    <li>In-person visits have no attendance record; disputes rely on the admin's judgement.</li>
+    <li>Admins see no-shows as a platform total in the reports, not per client.</li>
+    <li>The minimum calorie target is 800 kcal; very short clients may have a TER below it (waiting on the RND resource person).</li>
+    <li>BMR and TER are estimates from desirable weight; the RND sets the final target.</li>
+    <li>Payouts are recorded manually.</li>
+    <li>The free Render plan sleeps when idle (about a minute to wake).</li>
+    <li>Not NPC-registered (academic project).</li>
+  </ul>
+</section>
+
+<section>
+  <h2>22. Glossary</h2>
+  <table class="gloss">
+    <tr><td>RND</td><td>Registered Nutritionist-Dietitian, licensed by the PRC.</td></tr>
+    <tr><td>PRC</td><td>Professional Regulation Commission.</td></tr>
+    <tr><td>MNT</td><td>Medical Nutrition Therapy.</td></tr>
+    <tr><td>NCP</td><td>Nutrition Care Process: Assessment, Diagnosis, Intervention, Monitoring and Evaluation.</td></tr>
+    <tr><td>PES</td><td>Problem, Etiology, Signs/symptoms: the format of a nutrition diagnosis.</td></tr>
+    <tr><td>DBW</td><td>Desirable body weight.</td></tr>
+    <tr><td>BMR</td><td>Basal metabolic rate: calories burned at rest.</td></tr>
+    <tr><td>TER</td><td>Total Energy Requirement: calories needed per day.</td></tr>
+    <tr><td>TEF</td><td>Thermic effect of food (energy to digest food, 10%).</td></tr>
+    <tr><td>NRS-2002</td><td>Nutritional Risk Screening 2002.</td></tr>
+    <tr><td>FNRI</td><td>Food and Nutrition Research Institute; its Food Exchange Lists.</td></tr>
+    <tr><td>Exchange</td><td>A standard portion of a food group with known calories and macros.</td></tr>
+    <tr><td>Attendance record</td><td>When each person joined and left the video call and the minutes they were in it together; only times, nothing from the call.</td></tr>
+    <tr><td>No-show</td><td>The client never joined a consultation the RND attended; not refunded, the RND is paid.</td></tr>
+    <tr><td>Dispute</td><td>A client's request, through Help &amp; Support, to review a no-show or a completed in-person visit within 3 days; the payout waits for the admin's decision.</td></tr>
+    <tr><td>Reschedule</td><td>Moving a paid consultation to a later time instead of refunding it, agreed by both sides.</td></tr>
+    <tr><td>Late cancel</td><td>An RND cancelling in the last 30 minutes (or not attending); 3 in 30 days flags the RND.</td></tr>
+    <tr><td>WebRTC</td><td>Browser technology for direct, encrypted audio and video.</td></tr>
+    <tr><td>TURN</td><td>A relay server that helps calls connect through strict networks.</td></tr>
+    <tr><td>RA 10173</td><td>Data Privacy Act of 2012.</td></tr>
+    <tr><td>JWT</td><td>JSON Web Token, used for signing in to the API.</td></tr>
+  </table>
+</section>
+
+</body>
+</html>
