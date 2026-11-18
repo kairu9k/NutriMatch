@@ -20,10 +20,10 @@
         <span v-if="appt && appt.status === 'confirmed'" class="timer" :class="timerTone">{{ timerText }}</span>
         <!-- RND: once the consultation can start, the only way out is Finish
              (mark complete / leave for now / no-show) — no plain Exit. -->
-        <button v-if="mustFinish" type="button" class="end-btn" @click="openEnd">
+        <button v-if="mustFinish && !callShowsEnd && windowState !== 'closed'" type="button" class="end-btn" @click="openEnd">
           <CheckCircle2 :size="15" /> Finish consultation
         </button>
-        <button v-else type="button" class="exit-btn" @click="inLiveCall ? (callLeaveAsk = true) : exitRoom()">
+        <button v-else-if="!mustFinish" type="button" class="exit-btn" @click="inLiveCall ? (callLeaveAsk = true) : exitRoom()">
           <template v-if="!isRnd && appt?.status === 'confirmed' && windowState === 'open'"><PhoneOff :size="15" /> Leave call</template>
           <template v-else><ArrowLeft :size="15" /> Leave</template>
         </button>
@@ -39,7 +39,7 @@
         <div v-else-if="appt.status === 'completed' && !isRnd" class="state-card done">
           <span class="done-mark"><CheckCircle2 :size="30" aria-hidden="true" /></span>
           <p class="big">Your consultation is finished</p>
-          <p>Thank you for your time, {{ auth.user?.first_name }}. {{ other.firstName }} has marked it complete.</p>
+          <p>Thank you for your time, {{ auth.user?.first_name }}. Your consultation with {{ other.firstName }} is complete.</p>
           <p>Your summary is ready. Any updates to your meal plan and care plan show up in NutriMatch once {{ other.firstName }} sends them.</p>
           <div class="done-actions">
             <button type="button" class="link" @click="summaryOpen = true">View the summary</button>
@@ -52,7 +52,7 @@
           <button type="button" class="link quiet" @click="exitRoom">Leave the room</button>
         </div>
         <div v-else-if="appt.status !== 'confirmed'" class="state-card">
-          <VideoOff :size="28" /><p>This consultation {{ appt.status === 'cancelled' ? 'was cancelled' : appt.status === 'no_show' ? 'was marked as a no-show' : 'isn\'t confirmed yet' }}.</p>
+          <VideoOff :size="28" /><p>This consultation {{ appt.status === 'cancelled' ? 'was cancelled' : appt.status === 'no_show' ? 'was marked as a no-show' : appt.status === 'rescheduling' ? 'is being moved to a new time. Answer it in Appointments' : 'isn\'t confirmed yet' }}.</p>
           <p v-if="!isRnd && appt.payment?.status === 'refund_pending'">Your {{ peso(appt.payment.amount) }} payment is refunded in full within 5–7 business days.</p>
           <button type="button" class="link quiet" @click="exitRoom">Leave the room</button>
         </div>
@@ -68,17 +68,33 @@
           <p>The room opens {{ clock(appt.join_opens_at) }}, 15 minutes before the start. This page opens it automatically.</p>
         </div>
         <div v-else-if="windowState === 'closed'" class="state-card">
-          <VideoOff :size="28" /><p>This consultation's room has closed.</p>
+          <VideoOff :size="28" /><p>The consultation time is over, so the room has closed.</p>
           <button v-if="isRnd" type="button" class="link" @click="openEnd">Finish this consultation</button>
         </div>
         <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation. Meet {{ isRnd ? 'your patient' : 'your RND' }} at the clinic{{ isRnd ? ' and use the panel for your notes' : '' }}.</p></div>
         <!-- NutriMatch's own video call (WebRTC, 2026-10-26): browser to browser,
              encrypted, not recorded. The RND's End opens Finish consultation. -->
-        <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" @peer-left="recheckAppointment" />
+        <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" @peer-joined="onPeerJoined" @peer-left="recheckAppointment" @time-up="onTimeUp" />
         <!-- The RND never joined: 15 minutes after the start the client can report it (full refund). -->
         <div v-if="rndAbsentReady" class="absent-note" role="status">
           <p><strong>{{ appt.attendance?.rnd_joined_at ? `${other.firstName} left the call.` : `${other.firstName} hasn't joined yet.` }}</strong> If they don't come back, you can report it and get a full refund.</p>
           <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="absentAsk = true; absentError = ''">Report that {{ other.firstName }} didn't show up</button>
+        </div>
+        <!-- Notes over the top of the call (never over the camera views at the bottom): the RND waiting for a client
+             who hasn't joined (when a no-show can be marked, 15 minutes after the start), and the no-overtime wrap-up. -->
+        <div class="top-notes">
+        <div v-if="rndWaiting" class="wrap-note wait-note" role="status">
+          <p v-if="noShowOpen && closeOpts.no_show"><strong>{{ other.firstName }} hasn't joined.</strong> You've waited long enough. You can mark a no-show now, or keep waiting.</p>
+          <p v-else-if="noShowOpen"><strong>{{ other.firstName }} hasn't joined.</strong> Stay in the call {{ Math.max(1, 5 - (appt.attendance?.rnd_minutes ?? 0)) === 1 ? '1 more minute' : `${Math.max(1, 5 - (appt.attendance?.rnd_minutes ?? 0))} more minutes` }}, then you can mark a no-show.</p>
+          <p v-else><strong>Waiting for {{ other.firstName }}.</strong> You can mark a no-show from {{ clock(noShowFrom) }}, 15 minutes after the start ({{ dur(noShowFrom - now) }} to go).</p>
+          <button v-if="noShowOpen && closeOpts.no_show" type="button" class="nm-btn-danger solid nm-btn-sm" @click="startNoShow">Mark a no-show</button>
+        </div>
+        <!-- No overtime (2026-11-16): 15 and 5 minutes before the scheduled end, both people are told to wrap up. -->
+        <div v-if="wrapShown && windowState === 'open'" class="wrap-note" role="status" aria-live="polite">
+          <Clock :size="16" aria-hidden="true" />
+          <p v-if="wrapShown === 15"><strong>{{ minsLeftText }} left.</strong> Time to wrap up. The call ends at {{ clock(endsAt) }}.</p>
+          <p v-else><strong>{{ minsLeftText }} left.</strong> The call ends at {{ clock(endsAt) }} and the room closes.</p>
+        </div>
         </div>
         <!-- pop-ups over the call (outside the v-if chain above) -->
         <div v-if="callPops.length" class="call-pops" aria-live="polite">
@@ -100,10 +116,12 @@
       <!-- RND WORK PANEL -->
       <aside v-if="isRnd && appt" class="panel">
         <nav class="tabs" role="tablist" aria-label="Consultation tools">
-          <button v-for="t in RND_TABS" :key="t.key" type="button" role="tab" class="tab" :class="{ on: tab === t.key }" :aria-selected="tab === t.key" @click="tab = t.key">
+          <button v-for="t in RND_TABS" :key="t.key" type="button" role="tab" class="tab" :class="{ on: tab === t.key }" :aria-selected="tab === t.key"
+                  :disabled="callEnded && t.key === 'ncp'" @click="tab = t.key">
             <component :is="t.icon" :size="14" /> {{ t.label }}
           </button>
         </nav>
+        <p v-if="callEnded" class="ended-note">The video call has ended, so requesting lab tests and writing the NCP record are locked here. Continue from the patient's chart.</p>
 
         <div class="panel-body">
           <p v-if="!s" class="muted">Loading patient…</p>
@@ -124,7 +142,7 @@
                 <button type="button" class="tile" @click="statInfo = 'bmi'">
                   <span>BMI</span><strong>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</strong>
                   <small>{{ p.progress.bmi_class || '' }}</small>
-                  <small v-if="p.progress.bmi_origin">from the {{ figureSource(p.progress.bmi_origin) }} weight</small>
+                  <small v-if="p.progress.bmi_origin">from the weight on {{ figureSource(p.progress.bmi_origin) }}</small>
                 </button>
                 <button type="button" class="tile" @click="statInfo = 'adherence'">
                   <span>Adherence, 7 days</span><strong>{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</strong>
@@ -209,7 +227,7 @@
             <section class="block">
               <div class="block-head">
                 <h3>Lab results</h3>
-                <button type="button" class="link small" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
+                <button type="button" class="link small" :disabled="labsLoading || callEnded" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
               </div>
               <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted">None yet.</p>
               <p v-if="labsSent" class="ok">
@@ -260,7 +278,8 @@
             <p v-if="info.meal_plan.target_kcal" class="muted">{{ whole(info.meal_plan.target_kcal) }} kcal a day{{ info.meal_plan.target_carb_g ? `, ${whole(info.meal_plan.target_carb_g)} g carbs, ${whole(info.meal_plan.target_protein_g)} g protein, ${whole(info.meal_plan.target_fat_g)} g fat` : '' }}</p>
           </section>
           <!-- lab results: upload mid-call; the RND sees them straight away -->
-          <section v-if="labs" class="block">
+          <!-- only while the consultation is still on: a cancelled or finished one has no call to prepare for -->
+          <section v-if="labs && appt.status === 'confirmed'" class="block">
             <h3>Lab results</h3>
             <p v-for="r in openLabRequests" :key="r.id" class="lab-ask">
               <FlaskConical :size="13" aria-hidden="true" /> {{ info?.rnd.first_name || 'Your RND' }} asked for: {{ r.test_names.join(', ') }}
@@ -274,7 +293,7 @@
             <p v-if="labsUploaded" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Uploaded. {{ info?.rnd.first_name || 'Your RND' }} can open it now.</p>
           </section>
 
-          <section class="block">
+          <section v-if="appt.status === 'confirmed'" class="block">
             <h3>Before your call</h3>
             <ul class="check">
               <li>Allow your camera and microphone when the browser asks.</li>
@@ -283,7 +302,7 @@
               <li>Write down questions you want to ask.</li>
             </ul>
           </section>
-          <p class="muted small">Having trouble joining? Message {{ info?.rnd.first_name || 'your RND' }} from Messages.</p>
+          <p v-if="appt.status === 'confirmed'" class="muted small">Having trouble joining? Message {{ info?.rnd.first_name || 'your RND' }} from Messages.</p>
         </div>
       </aside>
     </div>
@@ -349,17 +368,17 @@
           <p v-if="ncpDirty" class="unsaved"><PenLine :size="14" aria-hidden="true" /> Your NCP form has unsaved changes. They'll be saved as a draft first.</p>
           <p v-if="endError" class="nm-field-error">{{ endError }}</p>
           <div class="finish-choices">
-            <button type="button" class="choice main" :disabled="ending || (appt.payment && appt.payment.status !== 'paid')" @click="completeNow">
+            <p v-if="closeHint" class="ns-hint">{{ closeHint }}</p>
+            <button v-if="closeOpts.complete" type="button" class="choice main" :disabled="ending || (appt.payment && appt.payment.status !== 'paid')" @click="completeNow">
               <CheckCircle2 :size="18" />
               <span><strong>{{ ending ? 'Completing…' : 'It\'s done, mark it complete' }}</strong>
                 <small>Your share posts 3 days after today. This can't be undone.</small></span>
             </button>
-            <button v-if="started && !clientJoined" type="button" class="choice" :disabled="ending" @click="endMode = 'noshow'; endError = ''">
+            <button v-if="started && closeOpts.no_show" type="button" class="choice" :disabled="ending" @click="endMode = 'noshow'; endError = ''">
               <UserX :size="18" />
               <span><strong>{{ other.firstName }} didn't show up</strong>
                 <small>Mark as a no-show. No refund, and you're paid for it.</small></span>
             </button>
-            <p v-else-if="started && clientJoined" class="ns-hint">{{ other.firstName }} joined the call, so it can't be marked as a no-show.</p>
             <button v-if="appt.type === 'video'" type="button" class="choice" :disabled="ending" @click="endMode = 'callfailed'; endError = ''">
               <PhoneOff :size="18" />
               <span><strong>The video call didn't work</strong>
@@ -368,7 +387,7 @@
             <button type="button" class="choice" :disabled="ending" @click="leaveForNow">
               <LogOut :size="18" />
               <span><strong>Leave for now, I'll come back</strong>
-                <small>It stays in To complete. Your payment for it starts only once you mark it complete.</small></span>
+                <small>It stays in To complete. {{ appt.type === 'video' ? 'It closes by itself when the room closes, from the call record.' : 'Your payment for it starts only once you mark it complete.' }}</small></span>
             </button>
           </div>
           <div class="nm-modal-actions">
@@ -478,6 +497,10 @@ async function recheckAppointment() {
   if (isRnd.value) return
   try { await loadAppointment() } catch { /* keep what is shown */ }
 }
+// the other person just joined: re-read attendance for both sides (waiting and absent notes)
+function onPeerJoined() {
+  loadAppointment().catch(() => {})
+}
 async function loadAppointment() {
   appt.value = await get(isRnd.value ? `/rnd/appointments/${apptId}/` : `/client/appointments/${apptId}/`)
 }
@@ -507,6 +530,8 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  // "Close it" in To complete opens the room with the finish choices ready
+  if (route.query.finish && isRnd.value && appt.value?.status === 'confirmed') openEnd()
 })
 
 /* ---------- client: lab results during the call ---------- */
@@ -604,17 +629,55 @@ const timerText = computed(() => {
   const end = endsAt.value.getTime()
   if (now.value < start) return `Starts in ${dur(start - now.value)}`
   if (now.value <= end) return end - now.value <= 5 * 60000 ? `Ends in ${dur(end - now.value)}` : `${dur(end - now.value)} left`
-  return `Overtime ${dur(now.value - end)}`
+  return 'Ended'
 })
 const timerTone = computed(() => {
   const end = endsAt.value.getTime()
   if (now.value > end) return 'over'
-  return end - now.value <= 5 * 60000 && now.value >= new Date(appt.value.scheduled_at).getTime() ? 'soon' : ''
+  return end - now.value <= 15 * 60000 && now.value >= new Date(appt.value.scheduled_at).getTime() ? 'soon' : ''
 })
 const started = computed(() => !!appt.value && now.value >= new Date(appt.value.scheduled_at).getTime())
+// 15 and 5 minutes before the scheduled end: a note over the call for ~25 s each
+const wrapLevel = computed(() => {
+  const a = appt.value
+  if (!a || a.status !== 'confirmed' || a.type !== 'video' || !started.value) return 0
+  const left = (endsAt.value.getTime() - now.value) / 60000
+  return left <= 0 ? 0 : left <= 5 ? 5 : left <= 15 ? 15 : 0
+})
+const wrapShown = ref(0)
+// the real time left (joining with 10 minutes to go says 10, not 15)
+const minsLeftText = computed(() => {
+  // rounded like the top timer (dur), so the note and the timer never disagree
+  const m = Math.max(1, Math.round((endsAt.value.getTime() - now.value) / 60000))
+  return `${m} minute${m === 1 ? '' : 's'}`
+})
+let wrapTimer = null
+watch(wrapLevel, (level, before) => {
+  if (!level || level === before) return
+  wrapShown.value = level
+  clearTimeout(wrapTimer)
+  wrapTimer = setTimeout(() => { wrapShown.value = 0 }, 25000)
+}, { immediate: true })
+onBeforeUnmount(() => clearTimeout(wrapTimer))
+// The server ended the call at the scheduled end and closed the consultation if the call record decides it.
+function onTimeUp() {
+  wrapShown.value = 0
+  setTimeout(async () => {
+    try { await loadAppointment() } catch { /* keep what is shown */ }
+    if (isRnd.value) refreshSummary()
+  }, 1500)
+}
 // The RND can't just walk out of a consultation that could have started: they
 // finish it (mark complete, leave for now, or no-show).
 const mustFinish = computed(() => isRnd.value && appt.value?.status === 'confirmed' && windowState.value !== 'early')
+// While the video call is up its End button opens the same finish choices, so the top bar doesn't repeat it
+// (an in-person consultation has no End button, so it keeps "Finish consultation"; a closed room shows the
+// same button in the middle of the screen, so the top bar doesn't repeat it).
+// The video call is over (the room closes at the scheduled end): the work panel's actions are locked,
+// so nothing gets added to a consultation after the call (2026-11-16). Reading the patient's info still works.
+const callEnded = computed(() => isRnd.value && appt.value?.type === 'video' && windowState.value === 'closed')
+watch(callEnded, (ended) => { if (ended && tab.value === 'ncp') tab.value = 'patient' })
+const callShowsEnd = computed(() => isRnd.value && appt.value?.type === 'video' && appt.value?.status === 'confirmed' && windowState.value === 'open')
 // The client gets the room link only inside the window — fetch it when it opens.
 let refetched = false
 watch(windowState, (state, prev) => {
@@ -692,6 +755,39 @@ const callFailedNote = ref('')
 const callFailedDone = ref(false)
 // From the call's attendance record (the server refuses a no-show too).
 const clientJoined = computed(() => !!appt.value?.attendance?.client_joined_at)
+// What the call record allows (scheduling/closing.py): a video consultation completes by itself
+// when both were together for 5 minutes; a no-show needs the RND to have waited.
+const closeOpts = computed(() => appt.value?.close_options || { complete: true, no_show: true, refund: true })
+// A no-show opens 15 minutes after the start (NO_SHOW_AFTER_MINUTES), so the client has time to arrive.
+const noShowFrom = computed(() => (appt.value?.no_show_opens_at ? new Date(appt.value.no_show_opens_at).getTime() : 0))
+const noShowOpen = computed(() => !!noShowFrom.value && now.value >= noShowFrom.value)
+// one sentence saying why a choice is missing
+const closeHint = computed(() => {
+  const a = appt.value
+  if (!a) return ''
+  const name = other.value.firstName || 'the patient'
+  const early = !!noShowFrom.value && !noShowOpen.value
+  if (a.type !== 'video') return early ? `A no-show can be marked from ${clock(noShowFrom.value)}, 15 minutes after the start, so ${name} has time to arrive.` : ''
+  if (closeOpts.value.complete) return ''
+  if (closeOpts.value.no_show) return `${name} never joined, so it can’t be marked complete. You can mark a no-show or end it with a refund.`
+  if (!a.attendance?.client_joined_at && early) return `${name} hasn’t joined yet. You can mark a no-show from ${clock(noShowFrom.value)}, 15 minutes after the start.`
+  if ((a.attendance?.rnd_minutes ?? 0) < 5) return 'You weren’t in the video call for 5 minutes, so it can only be refunded.'
+  return `You and ${name} weren’t in the call together for 5 minutes, so it can only be refunded.`
+})
+// the RND is on this page waiting for a client who hasn't joined (the note's own refresh tells them when they've waited enough)
+const rndWaiting = computed(() => isRnd.value && appt.value?.status === 'confirmed' && appt.value?.type === 'video'
+  && started.value && windowState.value === 'open' && !appt.value?.attendance?.client_joined_at)
+// the answer to "can I mark it yet?" changes with the clock: re-read it when the wait is over, and each minute while waiting
+watch(noShowOpen, (open) => { if (open && isRnd.value) loadAppointment().catch(() => {}) })
+let waitTimer = null
+onMounted(() => {
+  waitTimer = setInterval(() => { if (rndWaiting.value) loadAppointment().catch(() => {}) }, 30000)
+})
+onBeforeUnmount(() => clearInterval(waitTimer))
+function startNoShow() {
+  openEnd()
+  endMode.value = 'noshow'
+}
 function openEnd() {
   endError.value = ''
   wrap.value = null
@@ -865,6 +961,14 @@ function onHangUp() {
 .upload { margin-top: 8px; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .stage { position: relative; }
+.top-notes { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: calc(100% - 28px); }
+.wrap-note { display: flex; align-items: center; gap: 10px; max-width: 100%;
+  background: #fdf1d6; color: #5c4400; border: 1px solid #e7c874; border-radius: 12px; padding: 10px 14px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
+.wrap-note p { margin: 0; font-size: 0.88rem; }
+.wait-note { background: #fff; color: #1a3a1a; border-color: #d9e3dc; flex-wrap: wrap; }
+.wait-note p { flex: 1 1 200px; }
+.ended-note { margin: 0; padding: 10px 16px; font-size: 0.82rem; color: #6a7a6a; background: #f2f5f2; border-bottom: 1px solid #d9e3dc; }
+.tab:disabled, .panel .link:disabled { opacity: 0.45; cursor: not-allowed; }
 .absent-note { position: absolute; left: 14px; right: 14px; bottom: 96px; z-index: 5; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
   padding: 12px 14px; border-radius: 12px; background: #fff; border: 1px solid #f1c9c9; box-shadow: 0 0 2px rgba(0,77,58,.08), 0 0 24px rgba(0,77,58,.22); }
 .absent-note p { margin: 0; flex: 1 1 240px; font-size: 0.86rem; color: #1a3a1a; }
@@ -902,10 +1006,10 @@ function onHangUp() {
 .who-text { display: flex; flex-direction: column; min-width: 0; }
 .who-text strong { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .who-text small { font-size: 0.72rem; color: #a9c2b0; }
-.timer { font-size: 0.78rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.timer { display: inline-flex; align-items: center; min-height: 34px; font-size: 0.8rem; font-weight: 700; padding: 0 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .timer.soon { background: #D4A017; color: #1a3a1a; }
 .timer.over { background: #c0392b; }
-.end-btn, .exit-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 7px 14px; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.end-btn, .exit-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; border-radius: 999px; padding: 7px 14px; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .end-btn { background: #D4A017; color: #1a3a1a; border: none; }
 .end-btn:hover { background: #e2b02a; }
 .exit-btn { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }

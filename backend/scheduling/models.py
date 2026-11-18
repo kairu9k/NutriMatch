@@ -59,7 +59,7 @@ class RndClientRelationship(models.Model):
 
 class Appointment(models.Model):
     class Type(models.TextChoices):
-        IN_PERSON = "in_person", "In Person"
+        IN_PERSON = "in_person", "In person"
         VIDEO = "video", "Video"
         CHAT = "chat", "Chat"
 
@@ -71,6 +71,14 @@ class Appointment(models.Model):
         # The paid client didn't come (2026-11-02, user's rule): no refund
         # unless they win a dispute; the RND is paid like a completed one.
         NO_SHOW = "no_show", "No-show"
+        # The RND can't make a paid, confirmed consultation and offered a new
+        # time (2026-11-16, adviser's idea): it waits for an answer
+        # (scheduling/reschedule.py). Reminders, the pay deadline and the join
+        # window only follow "confirmed", so they pause on their own.
+        RESCHEDULING = "rescheduling", "Rescheduling"
+
+    # Still to happen: blocks discharge and keeps the care open.
+    OPEN_STATUSES = (Status.PENDING, Status.CONFIRMED, Status.RESCHEDULING)
 
     class CancelledBy(models.TextChoices):
         CLIENT = "client", "The client"
@@ -212,3 +220,39 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review by {self.client.full_name} for {self.rnd.full_name} ({self.rating}★)"
+
+
+class RescheduleProposal(models.Model):
+    """A new time offered for a paid consultation the RND can't make (added
+    after the proposal, 2026-11-16). The RND makes the first one; the client
+    can accept, propose another time or take a refund, and so on, at most
+    MAX_PROPOSALS in all. A waiting proposal holds its slot."""
+
+    class By(models.TextChoices):
+        RND = "rnd", "The RND"
+        CLIENT = "client", "The client"
+
+    class Status(models.TextChoices):
+        WAITING = "waiting", "Waiting for an answer"
+        ACCEPTED = "accepted", "Accepted"
+        COUNTERED = "countered", "Another time proposed"
+        REFUNDED = "refunded", "Cancelled with a full refund"
+        EXPIRED = "expired", "Not answered in time"
+
+    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name="reschedule_proposals")
+    proposed_by = models.CharField(max_length=10, choices=By.choices)
+    from_at = models.DateTimeField()  # the consultation's time when this was proposed
+    scheduled_at = models.DateTimeField()
+    note = models.CharField(max_length=500, blank=True, default="")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.WAITING)
+    expires_at = models.DateTimeField()
+    answered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "reschedule_proposals"
+        ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["status", "expires_at"])]
+
+    def __str__(self):
+        return f"Proposal {self.id} for appointment {self.appointment_id}: {self.scheduled_at} ({self.status})"

@@ -62,3 +62,17 @@ def booking_slot(days=1, hour=10):
     ph = ZoneInfo("Asia/Manila")
     day = timezone.now().astimezone(ph).date() + timedelta(days=days)
     return datetime.combine(day, time(hour), tzinfo=ph)
+
+
+def together_in_call(appointment, minutes=20):
+    """Both were in the video call together (what a video consultation needs to
+    be completed, scheduling/closing.py)."""
+    from datetime import timedelta
+
+    from scheduling.attendance import record_presence
+
+    t = appointment.scheduled_at
+    record_presence(appointment.id, "rnd", True, ["rnd"], now=t)
+    record_presence(appointment.id, "client", True, ["rnd", "client"], now=t)
+    record_presence(appointment.id, "client", False, ["rnd"], now=t + timedelta(minutes=minutes))
+    record_presence(appointment.id, "rnd", False, [], now=t + timedelta(minutes=minutes))

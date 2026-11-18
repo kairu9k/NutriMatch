@@ -60,7 +60,7 @@
                 </Field>
                 <div class="computed">
                   <span class="k">BMI, WHO Asia-Pacific</span>
-                  <strong>{{ liveBmi ?? '—' }}</strong>
+                  <strong>{{ liveBmi != null ? liveBmi.toFixed(1) : '—' }}</strong>
                   <span class="c-sub">{{ liveBmi ? bmiClass(liveBmi) : (errors.weight_kg || errors.height_cm) ? 'Check height and weight' : 'Enter height and weight' }}</span>
                   <span v-if="liveBmi && isShortStature(a.height_cm)" class="c-sub">{{ BMI_SHORT_STATURE_NOTE }}</span>
                 </div>
@@ -97,7 +97,7 @@
                 <textarea v-model="a.lab_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
                 <p v-if="ctx.labs?.total_results && !isReadOnly" class="lab-link">
                   <FlaskConical :size="13" /> {{ ctx.labs.total_results }} lab result{{ ctx.labs.total_results === 1 ? '' : 's' }} uploaded<template v-if="ctx.labs.new_results"> ({{ ctx.labs.new_results }} new)</template>.
-                  <NuxtLink :to="`/client-detail/${relationshipId}?tab=labs`" target="_blank">View them in a new tab</NuxtLink>
+                  <button type="button" class="nm-text-link" @click="showLabs = true">View lab results</button>
                 </p>
               </Field>
               <Field label="Assessment notes">
@@ -221,7 +221,7 @@
               </div>
               <p v-if="errors.macro_pct" class="mt-err" role="alert">{{ errors.macro_pct }}</p>
               <p v-else-if="!isReadOnly && macrosOpen" class="c-sub">Starts at 55 / 20 / 25. Grams are TER × % ÷ 4 kcal/g (carbs, protein) or ÷ 9 kcal/g (fat), to the nearest 5 g.</p>
-              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity and more. Pick from the list or type your own." />
+              <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" title="Other targets" item="Target" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity and more. Pick from the list or type your own." />
               <Field label="Diet prescription" required group :hint="isReadOnly ? '' : 'The first lines are written from the TER, macros and other measurements above and update with them. Add the diet itself after them; you can edit everything.'">
                 <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="4" placeholder="e.g. Low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
                 <p v-if="!isReadOnly && rxBlock && rxCurrent !== rxBlock" class="macro-line rx-outdated">
@@ -296,7 +296,7 @@
               <p class="bl-title">Screening baseline</p>
               <p class="bl-sub">{{ shortDate(ctx.screening.date) }}. The starting point progress is measured from.</p>
               <dl class="bl-grid">
-                <div><dt>BMI</dt><dd>{{ ctx.screening.bmi ?? '—' }}</dd><small>{{ ctx.screening.bmi_category }}</small></div>
+                <div><dt>BMI</dt><dd>{{ ctx.screening.bmi != null ? Number(ctx.screening.bmi).toFixed(1) : '—' }}</dd><small>{{ ctx.screening.bmi_category }}</small></div>
                 <div :class="{ risk: (ctx.screening.nrs_score ?? 0) >= 3 }"><dt>NRS-2002</dt><dd>{{ ctx.screening.nrs_score ?? '—' }}</dd><small>{{ ctx.screening.nrs_risk }}</small></div>
                 <div><dt>TER</dt><dd>{{ whole(ctx.screening.tdee_kcal) }}</dd><small>kcal/day</small></div>
                 <div><dt>BMR</dt><dd>{{ whole(ctx.screening.bmr_kcal) }}</dd><small>kcal/day</small></div>
@@ -340,6 +340,19 @@
           <div class="nm-modal-actions">
             <button type="button" class="nm-btn-outline" @click="confirmFinalize = false">Not yet</button>
             <button type="button" class="nm-btn-dark" :disabled="saving" @click="finalize">{{ saving ? 'Finalizing…' : 'Finalize record' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAB RESULTS: over the form, so nothing typed is lost (files open
+           in their own pop-up from here, never a new tab) -->
+      <div v-if="showLabs" class="inner-overlay" @click.self="showLabs = false">
+        <div class="nm-modal labs-modal" role="dialog" aria-labelledby="labs-title">
+          <button type="button" class="nm-modal-x" aria-label="Close" @click="showLabs = false"><X :size="18" aria-hidden="true" /></button>
+          <h3 id="labs-title" class="nm-modal-title">Lab results</h3>
+          <RndLabsTab :relationship-id="relationshipId" :patient-first-name="patientName.split(' ')[0]" />
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-soft" @click="showLabs = false">Back to the record</button>
           </div>
         </div>
       </div>
@@ -426,6 +439,7 @@ const prefilled = ref(false)
 const carried = ref(false)
 const confirmFinalize = ref(false)
 const confirmLeave = ref(false)
+const showLabs = ref(false)
 const lastSavedAt = ref('')
 
 const a = ref({}); const d = ref({}); const i = ref({}); const m = ref({})
@@ -825,7 +839,7 @@ const errors = computed(() => {
   }
   const rowsBad = rows => rows.some(row => Object.keys(extraRowErrors(row)).length)
   if (rowsBad(a.value.extra)) e.assessment_extra = 'Fix the other measurements.'
-  if (rowsBad(i.value.extra)) e.intervention_extra = 'Fix the other measurements.'
+  if (rowsBad(i.value.extra)) e.intervention_extra = 'Fix the other targets.'
   const pcts = MACROS.map(m2 => i.value[`${m2.key}_pct`])
   if (pcts.some(p => p === '' || p == null || !Number.isInteger(Number(p)) || p < 0 || p > 100)) e.macro_pct = 'Each % must be a whole number from 0 to 100.'
   else if (pctTotal.value !== 100) e.macro_pct = `Carbs, protein and fat must add up to 100% (now ${pctTotal.value}%).`
@@ -857,7 +871,7 @@ function stepState(index) {
 
 const measureLine = computed(() => [
   filled(a.value.weight_kg) ? `${a.value.weight_kg} kg` : null, filled(a.value.height_cm) ? `${a.value.height_cm} cm` : null,
-  liveBmi.value ? `BMI ${liveBmi.value} (${bmiClass(liveBmi.value)})` : null,
+  liveBmi.value ? `BMI ${liveBmi.value.toFixed(1)} (${bmiClass(liveBmi.value)})` : null,
   filled(a.value.bp_systolic) ? `BP ${a.value.bp_systolic}/${a.value.bp_diastolic}` : null,
   filled(a.value.blood_glucose) ? `FBS ${a.value.blood_glucose} mg/dL` : null, filled(a.value.hba1c) ? `HbA1c ${a.value.hba1c}%` : null,
 ].filter(Boolean).join(', ') || 'Not filled in')
@@ -1213,6 +1227,7 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .foot-right { display: flex; gap: 8px; flex-wrap: wrap; }
 .foot-right .nm-btn-outline { display: inline-flex; align-items: center; gap: 6px; }
 .inner-overlay { position: absolute; inset: 0; background: rgba(20, 30, 20, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 30; }
+.labs-modal { max-width: 720px; }
 
 @media (max-width: 900px) {
   .ncp-body { grid-template-columns: minmax(0, 1fr); }
@@ -1220,6 +1235,12 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
   .strip.open { display: block; grid-row: 1; }
   .strip-toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d5dad5; background: #fff; border-radius: 8px; padding: 6px 10px; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #1a3a1a; cursor: pointer; margin: 0 0 12px; }
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* A long pop-up goes full screen on phones, like the lab file pop-up. */
+@media (max-width: 640px) {
+  .ncp-overlay { padding: 0; }
+  .ncp:not(.is-inline) { max-width: none; max-height: none; height: 100%; border-radius: 0; }
+  .ncp:not(.is-inline) .ncp-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 560px) {
   .ncp-head, .steps, .ncp-form, .ncp-foot { padding-left: 16px; padding-right: 16px; }

@@ -1,19 +1,19 @@
 <template>
   <div class="extra">
     <div class="extra-head">
-      <span class="field-label">Other measurements</span>
+      <span class="field-label">{{ title }}</span>
       <button v-if="!readOnly && rows.length < 30" type="button" class="nm-panel-link add" @click="add"><Plus :size="13" /> Add</button>
     </div>
     <p v-if="!rows.length" class="field-hint">{{ readOnly ? 'None recorded.' : empty }}</p>
-    <div v-if="rows.length" class="extra-cols" aria-hidden="true"><span>Measurement</span><span>Value</span><span>Unit</span><span /></div>
+    <div v-if="rows.length" class="extra-cols" aria-hidden="true"><span>{{ item }}</span><span>Value</span><span>Unit</span><span /></div>
     <div v-for="(row, idx) in rows" :key="idx" class="extra-row-wrap">
       <div class="extra-row">
-        <MeasureNameCombo :row="row" :templates="templates" :disabled="readOnly" :bad="!!errs[idx].label" :aria-label="`Measurement ${idx + 1} name`" />
+        <MeasureNameCombo :row="row" :templates="templates" :disabled="readOnly" :bad="!!errs[idx].label" :aria-label="`${item} ${idx + 1} name`" />
         <input :value="row.value" class="nm-input" :class="{ bad: errs[idx].value }" inputmode="decimal" placeholder="0" maxlength="10" :disabled="readOnly"
-               :aria-label="`Measurement ${idx + 1} value`" @input="onValue(row, $event)" />
+               :aria-label="`${item} ${idx + 1} value`" @input="onValue(row, $event)" />
         <input :value="row.unit" class="nm-input" :class="{ bad: errs[idx].unit }" placeholder="cm" maxlength="30" :disabled="readOnly"
-               :aria-label="`Measurement ${idx + 1} unit`" @input="onUnit(row, $event)" />
-        <button v-if="!readOnly" type="button" class="row-x" :aria-label="`Remove measurement ${idx + 1}`" @click="rows.splice(idx, 1)"><X :size="14" /></button>
+               :aria-label="`${item} ${idx + 1} unit`" @input="onUnit(row, $event)" />
+        <button v-if="!readOnly" type="button" class="row-x" :aria-label="`Remove ${item.toLowerCase()} ${idx + 1}`" @click="rows.splice(idx, 1)"><X :size="14" /></button>
       </div>
       <p v-if="errs[idx].label || errs[idx].value || errs[idx].unit" class="row-err">
         {{ [errs[idx].label, errs[idx].value, errs[idx].unit].filter(Boolean).join(', ') }}
@@ -34,6 +34,9 @@ const props = defineProps({
   templates: { type: Array, default: () => [] },
   readOnly: { type: Boolean, default: false },
   empty: { type: String, default: '' },
+  // the Assessment's rows are measurements, the Intervention's are targets
+  title: { type: String, default: 'Other measurements' },
+  item: { type: String, default: 'Measurement' },
 })
 
 const errs = computed(() => props.rows.map(extraRowErrors))

@@ -34,8 +34,10 @@ def discharge_blockers(relationship):
     from clinical.models import NcpRecord
 
     blockers = []
-    open_appts = relationship.appointments.filter(status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED])
-    if open_appts.filter(scheduled_at__gt=timezone.now()).exists():
+    open_appts = relationship.appointments.filter(status__in=Appointment.OPEN_STATUSES)
+    if open_appts.filter(status=Appointment.Status.RESCHEDULING).exists():
+        blockers.append("Settle the new time for their consultation first (or cancel it with a refund).")
+    elif open_appts.filter(scheduled_at__gt=timezone.now()).exists():
         blockers.append("Cancel their upcoming consultation first.")
     elif open_appts.exists():
         blockers.append("Mark their last consultation as complete first.")

@@ -77,7 +77,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
              "method": invoice.payment_method} if invoice else None
         )
         # Join window: the room opens JOIN_EARLY_MINUTES before the start and
-        # closes JOIN_LATE_MINUTES after the scheduled end.
+        # closes at the scheduled end (JOIN_LATE_MINUTES = 0, no overtime).
         start = instance.scheduled_at
         end = start + timedelta(minutes=instance.duration_minutes or DEFAULT_SESSION_MINUTES)
         opens_at = start - timedelta(minutes=JOIN_EARLY_MINUTES)
@@ -89,9 +89,18 @@ class AppointmentSerializer(serializers.ModelSerializer):
         from .attendance import attendance_payload, dispute_payload
 
         data["attendance"] = attendance_payload(instance)
+        from .closing import close_options
+
+        data["close_options"] = close_options(instance)  # what the call record lets the RND choose
+        from .closing import no_show_opens_at
+
+        data["no_show_opens_at"] = no_show_opens_at(instance).isoformat()
         data["cancelled_by"] = instance.cancelled_by
         data["cancel_category"] = instance.cancel_category
         data["dispute"] = dispute_payload(instance)
+        from .reschedule import payload as reschedule_payload
+
+        data["reschedule"] = reschedule_payload(instance)
 
         request = self.context.get("request")
         viewer_id = getattr(getattr(request, "user", None), "id", None)
@@ -108,7 +117,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 DEFAULT_SESSION_MINUTES = 60
 JOIN_EARLY_MINUTES = 15
-JOIN_LATE_MINUTES = 15
+JOIN_LATE_MINUTES = 0  # no overtime (2026-11-16): the call ends at the scheduled end
 MIN_SESSION_MINUTES = 15
 MAX_SESSION_MINUTES = 120
 # A booking must start at least this far ahead (mirrored in RndProfileView.vue).
@@ -119,8 +128,15 @@ MIN_BOOKING_LEAD_MINUTES = 45
 CONFIRM_BY_MINUTES = 30
 CLIENT_CANCEL_CUTOFF_MINUTES = 30
 PAY_BY_MINUTES = 15
-DISPUTE_DAYS = 3  # a client can dispute a no-show this long (= the payout hold)
+DISPUTE_DAYS = 3  # a client can dispute a no-show (or a completed in-person visit) this long (= the payout hold)
+# How a consultation closes (2026-11-16, scheduling/closing.py): a video consultation
+# completes by itself when both were in the call together this long (else a no-show or
+# a refund) when the room closes; an in-person one is closed by the RND and reaches
+# the admin's Needs attention list when it's still open AUTO_CLOSE_DAYS after the end.
+MIN_TOGETHER_MINUTES = 5
+AUTO_CLOSE_DAYS = 3
 RND_ABSENT_AFTER_MINUTES = 15  # the client can report the RND absent this long after the start
+NO_SHOW_AFTER_MINUTES = 15  # ...and the RND can mark a no-show this long after the start (2026-11-16), so the client has time to arrive
 RND_MIN_PRESENT_MINUTES = 5  # ...if the RND was in the call less than this in total (and isn't in it now)
 
 
@@ -153,6 +169,16 @@ def overlapping_appointments(start, end, **scope):
         a.id for a in candidates
         if a.scheduled_at + timedelta(minutes=a.duration_minutes or DEFAULT_SESSION_MINUTES) > start
     ]
+    # A consultation being rescheduled holds the time its waiting proposal offers.
+    from .models import RescheduleProposal
+
+    held = RescheduleProposal.objects.filter(
+        status=RescheduleProposal.Status.WAITING, appointment__status=Appointment.Status.RESCHEDULING,
+        scheduled_at__lt=end, scheduled_at__gt=start - timedelta(minutes=MAX_SESSION_MINUTES),
+        **{f"appointment__{k}": v for k, v in scope.items()},
+    ).select_related("appointment")
+    ids += [p.appointment_id for p in held
+            if p.scheduled_at + timedelta(minutes=p.appointment.duration_minutes or DEFAULT_SESSION_MINUTES) > start]
     return Appointment.objects.filter(id__in=ids)
 
 

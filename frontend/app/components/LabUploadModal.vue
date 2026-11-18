@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div class="nm-modal-overlay" @click.self="!saving && emit('close')">
+    <div class="nm-modal-overlay lu-overlay" @click.self="!saving && emit('close')">
       <form class="nm-modal lu-modal" role="dialog" aria-modal="true" aria-labelledby="lu-title" @submit.prevent="submit">
         <div class="lu-head nm-modal-head">
           <h3 id="lu-title" class="nm-modal-title">{{ replace ? 'Replace lab result' : 'Upload lab results' }}</h3>
@@ -190,5 +190,8 @@ async function submit() {
 .lu-date { margin-bottom: 14px; }
 .nm-field-error { margin-top: 4px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+/* Pinned to the top: the pop-up grows when the fasting question appears, and
+   centring it made everything jump up under the pointer (2026-11-16 test). */
+.lu-overlay { align-items: flex-start; padding-top: max(20px, 8vh); }
 @media (max-width: 480px) { .lu-tests { grid-template-columns: minmax(0, 1fr); } }
 </style>

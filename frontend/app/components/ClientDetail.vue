@@ -92,7 +92,7 @@
             <p class="fig-label">BMI</p>
             <p class="fig-value">{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</p>
             <p class="fig-note">{{ p.progress.bmi_class ? `${p.progress.bmi_class}, Asia-Pacific` : 'Not measured yet' }}</p>
-            <p v-if="p.progress.bmi_origin" class="fig-note">From the {{ figureSource(p.progress.bmi_origin) }} weight</p>
+            <p v-if="p.progress.bmi_origin" class="fig-note">From the weight on {{ figureSource(p.progress.bmi_origin) }}</p>
           </div>
           <div class="fig">
             <p class="fig-label">7-day meal-plan adherence</p>

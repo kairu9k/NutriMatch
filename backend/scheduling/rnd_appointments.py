@@ -20,6 +20,8 @@ def build_board(rnd, now=None):
     from clinical.models import PreConsultationScreening
 
     from .attendance import attendance_payload, dispute_payload
+    from .closing import close_options, no_show_opens_at
+    from .reschedule import payload as reschedule_payload
     from .serializers import JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES, deadlines
 
     now = now or timezone.now()
@@ -31,7 +33,7 @@ def build_board(rnd, now=None):
     appts = list(
         Appointment.objects.filter(relationship__rnd=rnd)
         .select_related("relationship__client", "relationship__client__health_profile")
-        .prefetch_related("invoices")
+        .prefetch_related("invoices", "reschedule_proposals")
         .order_by("scheduled_at")
     )
     client_ids = {a.relationship.client_id for a in appts}
@@ -53,6 +55,8 @@ def build_board(rnd, now=None):
         end = a.scheduled_at + timedelta(minutes=minutes)
         if a.status == Appointment.Status.PENDING:
             bucket = "requests"
+        elif a.status == Appointment.Status.RESCHEDULING:
+            bucket = "rescheduling"  # a new time offered, waiting for an answer
         elif a.status == Appointment.Status.CONFIRMED:
             bucket = "upcoming" if end > now else "to_complete"
         else:
@@ -72,6 +76,10 @@ def build_board(rnd, now=None):
             "attendance": attendance_payload(a, now),
             "dispute": dispute_payload(a, now),
             "cancelled_by": a.cancelled_by, "cancel_category": a.cancel_category,
+            "reschedule": reschedule_payload(a),
+            # what can close it (scheduling/closing.py) and when it closes by itself if nobody acts
+            "close_options": close_options(a, now) if bucket in ("upcoming", "to_complete") else None,
+            "no_show_opens_at": no_show_opens_at(a),
         }
         if bucket == "requests":
             health = getattr(c, "health_profile", None)
@@ -98,9 +106,11 @@ def build_board(rnd, now=None):
             "today": sum(1 for a in active if a.scheduled_at.astimezone(ph).date() == today),
             "this_week": sum(1 for a in active if week_start <= a.scheduled_at < week_start + timedelta(days=7)),
             "requests": len(pick("requests")),
+            "rescheduling": len(pick("rescheduling")),
             "to_complete": len(pick("to_complete")),
         },
         "requests": pick("requests"),
+        "rescheduling": pick("rescheduling"),
         "upcoming": pick("upcoming"),
         "to_complete": pick("to_complete"),
         "history": history,

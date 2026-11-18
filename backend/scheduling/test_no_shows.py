@@ -30,6 +30,10 @@ class _ConsultationSetup:
         self.client_api.force_authenticate(self.client_user)
         self.admin_api.force_authenticate(self.admin)
 
+    def waited(self, a, minutes=6):
+        """The RND has been in the call for a while: a no-show needs that."""
+        record_presence(a.id, "rnd", True, ["rnd"], now=timezone.now() - timedelta(minutes=minutes))
+
     def appt(self, minutes_from_now, status="confirmed", paid=True, type_="video"):
         a = Appointment.objects.create(relationship=self.rel, type=type_, status=status, duration_minutes=60,
                                        scheduled_at=timezone.now() + timedelta(minutes=minutes_from_now))
@@ -115,8 +119,8 @@ class NoShowRulesTests(_ConsultationSetup, TestCase):
         self.assertEqual(self.rnd_api.post(f"/api/rnd/appointments/{a.id}/no-show/", {}, format="json").status_code, 400)
 
     def test_no_show_pays_the_rnd_and_dispute_holds_then_refunds(self):
-        a = self.appt(-5)
-        record_presence(a.id, "rnd", True, ["rnd"])
+        a = self.appt(-20)
+        self.waited(a)
         resp = self.rnd_api.post(f"/api/rnd/appointments/{a.id}/no-show/", {"note": "Waited 15 minutes"}, format="json")
         self.assertEqual(resp.status_code, 200, resp.data)
         a.refresh_from_db()
@@ -151,7 +155,8 @@ class NoShowRulesTests(_ConsultationSetup, TestCase):
         self.assertTrue(NotificationLog.objects.filter(recipient=self.client_user, subject="Dispute approved").exists())
 
     def test_rejected_dispute_pays_the_rnd(self):
-        a = self.appt(-5)
+        a = self.appt(-20)
+        self.waited(a)
         self.rnd_api.post(f"/api/rnd/appointments/{a.id}/no-show/", {}, format="json")
         self.client_api.post(f"/api/client/appointments/{a.id}/dispute/", {"reason": "I really did try to join it."}, format="json")
         resp = self.admin_api.post(f"/api/admin/appointments/{a.id}/dispute/", {"decision": "reject", "note": "You never joined the call."}, format="json")
@@ -161,7 +166,8 @@ class NoShowRulesTests(_ConsultationSetup, TestCase):
         self.assertEqual(invoice_state(inv, timezone.now() + timedelta(days=4)), "posted")
 
     def test_dispute_window_is_three_days(self):
-        a = self.appt(-5)
+        a = self.appt(-20)
+        self.waited(a)
         self.rnd_api.post(f"/api/rnd/appointments/{a.id}/no-show/", {}, format="json")
         Appointment.objects.filter(pk=a.pk).update(completed_at=timezone.now() - timedelta(days=3, minutes=1))
         resp = self.client_api.post(f"/api/client/appointments/{a.id}/dispute/", {"reason": "I really did try to join it."}, format="json")
@@ -258,7 +264,8 @@ class ConsultationEmailTests(_ConsultationSetup, TestCase):
     def test_no_show_emails_the_client_with_the_dispute_deadline(self):
         from django.core import mail
 
-        a = self.appt(-5)
+        a = self.appt(-20)
+        self.waited(a)
         with self.captureOnCommitCallbacks(execute=True):
             self.rnd_api.post(f"/api/rnd/appointments/{a.id}/no-show/", {"note": "Waited 15 minutes"}, format="json")
         self.assertEqual(len(mail.outbox), 1)

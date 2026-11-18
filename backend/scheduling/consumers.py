@@ -10,19 +10,35 @@ Messages from the browser: {"type": "signal", "data": {...}} and
 {"type": "peer-left", ...}, {"type": "signal", "from", "data"},
 {"type": "media", "from", ...}, {"type": "replaced"} (opened in another tab).
 
+Time (2026-11-16, no overtime): {"type": "time-left", "minutes": 15 | 5} warns
+both people before the scheduled end; at the end the server sends
+{"type": "ended"}, closes the socket (code 4011) and closes the consultation
+from the call record (scheduling/closing.py).
+
 Who is in a call is kept in the Django cache (one process: the in-memory
 cache; several processes need a shared cache such as Redis)."""
 
+import asyncio
 import json
+from datetime import timedelta
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.core.cache import cache
+from django.utils import timezone
 
 from .attendance import record_presence
-from .video_call import MAX_PEOPLE, CallDenied, call_access, mark_ended, mark_started
+from .video_call import MAX_PEOPLE, CallDenied, call_access, end_of, mark_ended, mark_started
 
-CLOSE_CODES = {"not_signed_in": 4001, "full": 4009}
+CLOSE_CODES = {"not_signed_in": 4001, "full": 4009, "ended": 4011}
+WRAP_UP_MINUTES = (15, 5)  # "N minutes left, time to wrap up"
+
+
+def close_after_call(appointment_id):
+    """The call has ended: close the consultation if the call record decides it."""
+    from .closing import auto_close_due
+
+    auto_close_due(pk=appointment_id)
 
 
 def _members_key(appointment_id):
@@ -35,7 +51,7 @@ class CallConsumer(AsyncWebsocketConsumer):
         self.group_name = f"call_{self.appointment_id}"
         user = self.scope["user"]
         try:
-            _, self.role = await database_sync_to_async(call_access)(user, self.appointment_id)
+            appointment, self.role = await database_sync_to_async(call_access)(user, self.appointment_id)
         except CallDenied as denied:
             await self.accept()
             await self.send(text_data=json.dumps({"type": "denied", "code": denied.code, "message": denied.message}))
@@ -68,8 +84,29 @@ class CallConsumer(AsyncWebsocketConsumer):
             self.appointment_id, self.role, True, [m["role"] for m in members.values()])
         if others:
             await database_sync_to_async(mark_started)(self.appointment_id)
+        self.clock = asyncio.ensure_future(self._watch_clock(end_of(appointment)))
+
+    async def _watch_clock(self, ends_at):
+        """Warn at 15 and 5 minutes before the scheduled end, then end the call."""
+        try:
+            for minutes in WRAP_UP_MINUTES:
+                wait = (ends_at - timedelta(minutes=minutes) - timezone.now()).total_seconds()
+                if wait > 0:  # joining later than this mark skips it
+                    await asyncio.sleep(wait)
+                    await self.send(text_data=json.dumps({"type": "time-left", "minutes": minutes}))
+            wait = (ends_at - timezone.now()).total_seconds()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            await self.send(text_data=json.dumps({"type": "ended"}))
+            await database_sync_to_async(close_after_call)(self.appointment_id)
+            await self.close(code=CLOSE_CODES["ended"])
+        except asyncio.CancelledError:
+            raise
 
     async def disconnect(self, close_code):
+        clock = getattr(self, "clock", None)
+        if clock and clock is not asyncio.current_task():  # the clock itself closes the socket at the end
+            clock.cancel()
         me = getattr(self, "me", None)
         if not me:
             return

@@ -44,7 +44,7 @@ def close_reopened_care_if_idle(relationship):
 
     relationship.refresh_from_db()
     appts = relationship.appointments
-    if appts.filter(status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED]).exists():
+    if appts.filter(status__in=Appointment.OPEN_STATUSES).exists():
         return
     if relationship.status == RndClientRelationship.Status.PENDING and relationship.discharge_reason:
         relationship.status = RndClientRelationship.Status.DISCHARGED

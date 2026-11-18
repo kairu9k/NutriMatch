@@ -21,7 +21,9 @@
       <ul>
         <li>Consultations are held by video call or in person. A booking must start at least 45 minutes from the time it is made.</li>
         <li>Your booking is a request until the RND confirms it. The RND must confirm at least 30 minutes before the start; otherwise the request expires and you can book another time.</li>
-        <li>The video call opens 15 minutes before the start and closes 15 minutes after the scheduled end. Video calls are never recorded. NutriMatch keeps only who joined the call, when, and for how long, so attendance can be checked if there is a dispute.</li>
+        <li>The video call opens 15 minutes before the start and closes at the scheduled end, with no overtime. You and your RND are told 15 and 5 minutes before the end so you can wrap up. Video calls are never recorded. NutriMatch keeps only who joined the call, when, and for how long, so attendance can be checked if there is a dispute.</li>
+        <li>If an RND cannot make a paid consultation, they may offer a later time from their open hours instead of cancelling (never an earlier one). You do not pay again. You can accept it, propose another time, or take a full refund at any time. At most three times are proposed in all, and each one waits up to 48 hours (or until an hour before that time); if it is not answered, the consultation is cancelled with a full refund. Only the RND can start a reschedule.</li>
+        <li>A video consultation is completed automatically when you and your RND were in the call together for at least 5 minutes. If your RND never joined or was there for less than 5 minutes, it is cancelled and you receive a full refund. If you never joined while your RND waited in the call for at least 5 minutes, it can be marked as a no-show, but not before 15 minutes after the start, so you have time to arrive. This happens by itself when the call ends, so nobody has to press a button. An in-person consultation leaves no call record, so your RND closes it, and you can dispute the result within 3 days.</li>
         <li>An RND may cancel a confirmed consultation, including at short notice for an emergency; you then receive a full refund. If you join the call and your RND has not joined 15 minutes after the start, you can report it from the call and receive a full refund.</li>
         <li>If the video call does not work, the RND can end the consultation as a failed call, and you receive a full refund.</li>
       </ul>
@@ -31,7 +33,7 @@
       <ul>
         <li>You can pay any time after the RND confirms. A consultation still unpaid 15 minutes before its start is cancelled automatically, and nothing is charged.</li>
         <li>You can cancel a paid consultation for a full refund up to 30 minutes before its start. After that it cannot be cancelled.</li>
-        <li>If you do not attend a paid consultation, the RND may mark it as a no-show, and the payment is not refunded. You may dispute this within 3 days from My Appointments; NutriMatch reviews your reason together with the video call's attendance record and either refunds you or keeps the no-show.</li>
+        <li>If you do not attend a paid video consultation, and your RND waited in the call for at least 5 minutes, it may be marked as a no-show from 15 minutes after the start, and the payment is not refunded. You may dispute this within 3 days from Help &amp; Support (Dispute a consultation); NutriMatch reviews your reason together with the video call's attendance record and either refunds you or keeps the no-show.</li>
         <li>Refunds are always the full amount, within 5 to 7 business days. Payments made by GCash, Maya, or card go back to the same account; for QR Ph payments, we send a PayMongo link to claim the refund to your bank or e-wallet.</li>
         <li>Receipts issued in NutriMatch are payment receipts. They are not official receipts registered with the Bureau of Internal Revenue.</li>
       </ul>

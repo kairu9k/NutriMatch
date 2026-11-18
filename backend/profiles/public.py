@@ -28,11 +28,12 @@ def _ph():
     return PH_TZ
 
 
-def next_open_slots(rnd_id, count=3, now=None):
-    """The next `count` bookable 60-minute starts (hourly from the start of
-    each block, at least MIN_BOOKING_LEAD_MINUTES away; ISO, aware) inside the
-    RND's weekly hours that don't overlap their pending/confirmed bookings or
-    time they blocked off."""
+def next_open_slots(rnd_id, count=3, now=None, lead_minutes=None, days=SLOT_LOOKAHEAD_DAYS, minutes=SESSION_MINUTES):
+    """The next `count` bookable starts of `minutes` (hourly from the start of
+    each block, at least `lead_minutes` (MIN_BOOKING_LEAD_MINUTES) away and
+    within `days`; ISO, aware) inside the RND's weekly hours that don't
+    overlap their pending/confirmed bookings, a time held by a waiting
+    reschedule proposal, or time they blocked off."""
     from scheduling.serializers import MIN_BOOKING_LEAD_MINUTES, SLOT_STEP_MINUTES
 
     from .services import time_off_intervals
@@ -44,7 +45,10 @@ def next_open_slots(rnd_id, count=3, now=None):
     blocks = list(RndAvailabilitySchedule.objects.filter(rnd_id=rnd_id, is_available=True))
     if not blocks:
         return []
-    horizon = now + timedelta(days=SLOT_LOOKAHEAD_DAYS)
+    from scheduling.reschedule import held_intervals
+
+    lead = MIN_BOOKING_LEAD_MINUTES if lead_minutes is None else lead_minutes
+    horizon = now + timedelta(days=days)
     booked = [
         (a.scheduled_at, a.scheduled_at + timedelta(minutes=a.duration_minutes or SESSION_MINUTES))
         for a in Appointment.objects.filter(
@@ -52,10 +56,11 @@ def next_open_slots(rnd_id, count=3, now=None):
             scheduled_at__gte=now - timedelta(hours=3), scheduled_at__lt=horizon,
         )
     ]
+    booked += held_intervals(rnd_id=rnd_id)
     booked += time_off_intervals(rnd_id, now, horizon)
     slots = []
     today = now.astimezone(ph).date()
-    for offset in range(SLOT_LOOKAHEAD_DAYS):
+    for offset in range(days + 1):
         day = today + timedelta(days=offset)
         dow = (day.weekday() + 1) % 7  # Sunday=0, like the app
         starts = set()
@@ -64,12 +69,14 @@ def next_open_slots(rnd_id, count=3, now=None):
                 continue
             start = datetime.combine(day, b.start_time, tzinfo=ph)
             block_end = end_datetime(day, b.end_time, ph)  # 12:00 AM = end of the day
-            while start + timedelta(minutes=SESSION_MINUTES) <= block_end:
+            while start + timedelta(minutes=minutes) <= block_end:
                 starts.add(start)
                 start += timedelta(minutes=SLOT_STEP_MINUTES)
         for start in sorted(starts):
-            end = start + timedelta(minutes=SESSION_MINUTES)
-            if start < now + timedelta(minutes=MIN_BOOKING_LEAD_MINUTES) or any(s < end and e > start for s, e in booked):
+            end = start + timedelta(minutes=minutes)
+            if start >= horizon:
+                return slots
+            if start < now + timedelta(minutes=lead) or any(s < end and e > start for s, e in booked):
                 continue
             slots.append(start.isoformat())
             if len(slots) >= count:

@@ -18,7 +18,7 @@
         <div class="nm-tabs" role="tablist" aria-label="Appointment lists">
           <button v-for="t in TABS" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" role="tab"
                   :aria-selected="tab === t.key" @click="setTab(t.key)">
-            {{ t.label }}<span v-if="t.key !== 'history'" class="nm-count">{{ list(t.key).length }}</span>
+            {{ t.label }}<span v-if="t.key !== 'history'" class="nm-count">{{ list(t.key).length + (t.key === 'upcoming' ? list('rescheduling').length : 0) }}</span>
           </button>
         </div>
         <label v-if="tab === 'history'" class="nm-search">
@@ -37,7 +37,7 @@
             <div class="row-main">
               <p class="who">
                 <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink>
-                <span class="nm-pill" :class="a.returning ? 'blue' : 'muted'">{{ a.returning ? 'Returning patient' : 'New patient' }}</span>
+                <span class="nm-pill" :class="a.returning ? 'green' : 'muted'">{{ a.returning ? 'Returning patient' : 'New patient' }}</span>
               </p>
               <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, {{ a.duration_minutes }} min</p>
               <p v-if="confirmClosed(a)" class="flag critical"><OctagonAlert :size="13" /> Too late to confirm: requests must be confirmed 30 minutes before the start. Decline it so they can book again.</p>
@@ -62,7 +62,22 @@
 
         <!-- ============ UPCOMING ============ -->
         <template v-else-if="tab === 'upcoming'">
-          <div v-if="!list('upcoming').length" class="nm-empty"><CalendarDays :size="26" /><p>No confirmed consultations coming up.</p></div>
+          <section v-if="list('rescheduling').length" class="day">
+            <p class="day-label">Rescheduling</p>
+            <article v-for="a in list('rescheduling')" :key="a.id" class="row">
+              <DateBlock :at="a.scheduled_at" tone="gold" />
+              <div class="row-main">
+                <p class="who">
+                  <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink>
+                  <span class="nm-pill gold">{{ a.reschedule?.turn === 'rnd' ? 'Your answer needed' : 'Waiting for the patient' }}</span>
+                  <span class="nm-pill green">Paid</span>
+                </p>
+                <p class="nm-row-sub">Booked for {{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}</p>
+                <RescheduleAnswer :appointment="a" role="rnd" :other-name="a.client.name" @changed="load" @cancel="openReason(a, 'cancel', 'refund')" />
+              </div>
+            </article>
+          </section>
+          <div v-if="!list('upcoming').length && !list('rescheduling').length" class="nm-empty"><CalendarDays :size="26" /><p>No confirmed consultations coming up.</p></div>
           <section v-for="g in upcomingByDay" :key="g.key" class="day">
             <p class="day-label">{{ g.label }}</p>
             <article v-for="a in g.items" :key="a.id" class="row">
@@ -84,8 +99,9 @@
               <div class="row-actions">
                 <template v-if="inWindow(a)">
                   <NuxtLink v-if="a.type === 'video'" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="14" /> Join</NuxtLink>
+                  <NuxtLink v-else :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Users :size="14" /> Open room</NuxtLink>
                 </template>
-                <span v-else-if="a.type !== 'in_person'" class="opens">Opens {{ clock(a.join_opens_at) }}</span>
+                <span v-else class="opens">Opens {{ clock(a.join_opens_at) }}</span>
                 <button type="button" class="nm-btn-danger solid nm-btn-sm" @click="openReason(a, 'cancel')">Cancel</button>
               </div>
             </article>
@@ -94,7 +110,7 @@
 
         <!-- ============ TO COMPLETE ============ -->
         <template v-else-if="tab === 'to_complete'">
-          <p class="tab-intro">These consultations have ended. Mark each one complete so it's closed, and your share starts its 3-day hold before payout.</p>
+          <p class="tab-intro">Video consultations close by themselves when the room closes, from the call's attendance record: completed, a no-show, or refunded. So only in-person consultations wait here. Nothing records an in-person visit, so you mark it complete or a no-show. NutriMatch is told if one stays open for 3 days.</p>
           <p v-if="justCompleted" class="done-note">
             <CheckCircle2 :size="15" /> {{ justCompleted.client.first_name }}'s consultation is complete. Next:
             <NuxtLink :to="`/client-detail/${justCompleted.relationship_id}?tab=ncp`" class="nm-panel-link">Finish the NCP record</NuxtLink>
@@ -105,10 +121,14 @@
             <div class="row-main">
               <p class="who"><NuxtLink :to="`/client-detail/${a.relationship_id}`" class="name-link">{{ a.client.name }}</NuxtLink></p>
               <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, ended {{ ago(a.ends_at) }}</p>
+              <p v-if="a.type === 'video'" class="nm-row-sub">This video consultation closes by itself from the call's attendance record.</p>
             </div>
             <div class="row-actions">
               <button v-if="a.payment && a.payment.status !== 'paid'" type="button" class="nm-btn-outline nm-btn-sm" disabled title="Can't complete an unpaid consultation">Waiting for payment</button>
-              <button v-else type="button" class="nm-btn-dark nm-btn-sm" @click="completeTarget = a">Mark complete</button>
+              <template v-else-if="a.type !== 'video'">
+                <NuxtLink :to="`/consultation-room/${a.id}`" class="nm-btn-soft nm-btn-sm">Open room</NuxtLink>
+                <button type="button" class="nm-btn-dark nm-btn-sm" @click="completeTarget = a">Mark complete</button>
+              </template>
             </div>
           </article>
         </template>
@@ -159,7 +179,7 @@
           <template v-if="review.data.screening">
             <p class="section-k">Screening, submitted {{ shortDate(review.data.screening.created_at) }}</p>
             <div class="results">
-              <div><strong>{{ review.data.screening.bmi ?? '—' }}</strong><span>BMI, {{ review.data.screening.bmi_category || '—' }}</span></div>
+              <div><strong>{{ review.data.screening.bmi != null ? Number(review.data.screening.bmi).toFixed(1) : '—' }}</strong><span>BMI, {{ review.data.screening.bmi_category || '—' }}</span></div>
               <div><strong>{{ whole(review.data.screening.bmr_kcal) }}</strong><span>BMR kcal/day</span></div>
               <div><strong>{{ whole(review.data.screening.tdee_kcal) }}</strong><span>TER kcal/day</span></div>
               <div :class="{ risk: (review.data.screening.nrs_score ?? 0) >= 3 }"><strong>{{ review.data.screening.nrs_score ?? '—' }}</strong><span>NRS-2002, {{ RISK[review.data.screening.nrs_risk] || '—' }}</span></div>
@@ -194,17 +214,40 @@
             <NuxtLink to="/availability" class="nm-btn-dark">Block time off</NuxtLink>
           </div>
         </template>
+        <template v-else-if="reason.choice === 'ask'">
+          <h2 id="reason-title" class="nm-modal-title">Can't make this consultation?</h2>
+          <p class="nm-modal-text">{{ reason.appt.client.name }}, {{ longWhen(reason.appt.scheduled_at) }}. They already paid, so you can move it instead of cancelling. They don't pay again.</p>
+          <div class="choices">
+            <button type="button" class="choice" @click="reason.choice = 'offer'">
+              <strong>Offer a new time</strong>
+              <span>Pick a time from your open hours. {{ reason.appt.client.first_name }} accepts it, picks another time or takes a full refund.</span>
+            </button>
+            <button type="button" class="choice" @click="reason.choice = 'refund'">
+              <strong>Cancel with full refund</strong>
+              <span>The consultation is cancelled and the NutriMatch admin refunds them.</span>
+            </button>
+          </div>
+          <div class="nm-modal-actions">
+            <button type="button" class="nm-btn-soft" @click="reason = null">Keep it</button>
+          </div>
+        </template>
         <template v-else>
-        <h2 id="reason-title" class="nm-modal-title">{{ reason.kind === 'decline' ? 'Decline this request?' : 'Cancel this consultation?' }}</h2>
+        <h2 id="reason-title" class="nm-modal-title">{{ reason.kind === 'decline' ? 'Decline this request?' : reason.choice === 'offer' ? 'Offer a new time' : 'Cancel this consultation?' }}</h2>
         <p class="nm-modal-text">
           {{ reason.appt.client.name }}, {{ longWhen(reason.appt.scheduled_at) }}.
-          <template v-if="reason.kind === 'decline'">They're notified with your reason and can book another time.</template>
+          <template v-if="reason.choice === 'offer'">The consultation keeps its payment. They have 48 hours (or until an hour before the new time) to answer, or it's cancelled with a full refund.</template>
+          <template v-else-if="reason.kind === 'decline'">They're notified with your reason and can book another time.</template>
           <template v-else-if="reason.appt.payment?.status === 'paid'">They already paid, so their invoice goes to <strong>refund pending</strong> and the NutriMatch admin refunds them.</template>
           <template v-else>Their unpaid invoice is voided and they're notified with your reason.</template>
         </p>
+        <template v-if="reason.choice === 'offer'">
+          <p class="nm-label">New time</p>
+          <RescheduleSlotPicker v-model="reason.at" :appointment-id="reason.appt.id" empty-hint="Add hours in Availability, or cancel with a full refund." />
+          <div class="gap" />
+        </template>
         <template v-if="reason.late">
-          <p class="nm-note plain-note">It starts in under 30 minutes, so this is a last-minute cancel. Pick why; you don't have to give details.</p>
-          <label class="nm-label" for="reason-cat">Why you have to cancel</label>
+          <p class="nm-note plain-note">It starts in under 30 minutes, so this counts as a last-minute cancel even if you move it. Pick why; you don't have to give details.</p>
+          <label class="nm-label" for="reason-cat">Why you can't make it</label>
           <select id="reason-cat" v-model="reason.category" class="nm-select block">
             <option value="" disabled>Choose a reason</option>
             <option value="emergency">Emergency (family or health)</option>
@@ -214,12 +257,13 @@
         </template>
         <label class="nm-label" for="reason-text">{{ reason.late && reason.category !== 'other' ? 'Note to the client (optional)' : 'Reason (sent to the client)' }}</label>
         <textarea id="reason-text" v-model="reason.text" class="nm-input" rows="3" maxlength="500"
-                  :placeholder="reason.kind === 'decline' ? 'e.g. I\'m fully booked that day. Please choose another time.' : 'e.g. Please book again any day next week.'"></textarea>
+                  :placeholder="reason.kind === 'decline' ? 'e.g. I\'m fully booked that day. Please choose another time.' : reason.choice === 'offer' ? 'e.g. I have a hospital shift that morning.' : 'e.g. Please book again any day next week.'"></textarea>
         <p v-if="reason.error" class="nm-field-error">{{ reason.error }}</p>
         <p v-else-if="!reason.late || reason.category === 'other'" class="nm-hint">At least 10 characters.</p>
         <div class="nm-modal-actions">
-          <button type="button" class="nm-btn-outline" @click="reason = null">Keep it</button>
-          <button type="submit" class="nm-btn-danger solid" :disabled="busy || !reasonReady">
+          <button type="button" class="nm-btn-soft" @click="reason.canChoose ? (reason.choice = 'ask') : (reason = null)">{{ reason.canChoose ? 'Back' : 'Keep it' }}</button>
+          <button v-if="reason.choice === 'offer'" type="submit" class="nm-btn-dark" :disabled="busy || !reasonReady">{{ busy ? 'Sending…' : 'Send new time' }}</button>
+          <button v-else type="submit" class="nm-btn-danger solid" :disabled="busy || !reasonReady">
             {{ busy ? 'Saving…' : reason.kind === 'decline' ? 'Decline request' : 'Cancel consultation' }}
           </button>
         </div>
@@ -256,7 +300,7 @@ import {
   AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, FileText, History, Inbox, MapPin, MessageSquare, OctagonAlert, Search, Users, Video, X,
 } from 'lucide-vue-next'
 
-const { get, patch } = useApi()
+const { get, patch, post } = useApi()
 const route = useRoute()
 const router = useRouter()
 const now = useNow()
@@ -398,15 +442,20 @@ async function confirmBooking() {
 
 /* ---------- decline / cancel ---------- */
 const reason = ref(null)
-function openReason(a, kind) {
+function openReason(a, kind, choice = null) {
   review.value = null
+  const rescheduling = a.status === 'rescheduling'
   // A confirmed consultation in its last 30 minutes (or started): a last-minute cancel.
-  const late = kind === 'cancel' && now.value >= new Date(a.scheduled_at).getTime() - 30 * 60000
-  reason.value = { appt: a, kind, text: '', error: '', late, category: '', done: false }
+  // (Being rescheduled: that was settled when the new time was offered.)
+  const late = kind === 'cancel' && !rescheduling && now.value >= new Date(a.scheduled_at).getTime() - 30 * 60000
+  // A paid, confirmed consultation can be moved instead (2026-11-16).
+  const canChoose = kind === 'cancel' && !rescheduling && a.status === 'confirmed' && a.payment?.status === 'paid'
+  reason.value = { appt: a, kind, text: '', error: '', late, category: '', done: false, canChoose, choice: choice || (canChoose ? 'ask' : null), at: '' }
 }
 const reasonReady = computed(() => {
   const r = reason.value
   if (!r) return false
+  if (r.choice === 'offer' && !r.at) return false
   if (r.late) return !!r.category && (r.category !== 'other' || r.text.trim().length >= 10)
   return r.text.trim().length >= 10
 })
@@ -424,6 +473,13 @@ async function submitReason() {
   reason.value.error = ''
   try {
     const r = reason.value
+    if (r.choice === 'offer') {
+      await post(`/rnd/appointments/${r.appt.id}/reschedule/`, { action: 'offer', scheduled_at: r.at, reason: r.text.trim(), category: r.late ? r.category : undefined })
+      toast.success(`New time sent. ${r.appt.client.first_name} was told and can answer in My Appointments.`)
+      reason.value = null
+      await load()
+      return
+    }
     await patch(`/rnd/appointments/${r.appt.id}/cancel/`, { reason: r.text.trim(), category: r.late ? r.category : undefined })
     if (r.late) r.done = true
     else {
@@ -502,6 +558,14 @@ async function completeNow() {
 
 /* modals */
 .nm-modal.wide { max-width: 620px; }
+.choices { display: grid; gap: 8px; margin: 4px 0 8px; }
+.choice { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid #d9e3dc;
+  background: #fff; font-family: inherit; cursor: pointer; color: #1a3a1a; }
+.choice strong { font-size: 0.9rem; }
+.choice span { font-size: 0.8rem; color: #6a7a6a; line-height: 1.4; }
+.choice:hover { border-color: #3f9a6b; }
+.choice:focus-visible { outline: 2px solid #0a4a37; outline-offset: 2px; }
+.gap { height: 14px; }
 .review-modal { position: relative; }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0 0 12px; }
 .facts dt { font-size: 0.72rem; color: #8a9a8a; margin: 0; }

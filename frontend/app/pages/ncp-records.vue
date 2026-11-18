@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'NCP Records' })
+definePageMeta({ layout: 'dashboard', role: 'rnd', title: 'NCP Records' })
 </script>

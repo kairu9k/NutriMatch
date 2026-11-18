@@ -82,9 +82,9 @@
             <NuxtLink v-if="ticket.invoice" to="/billing-commission" class="ref"><Receipt :size="14" aria-hidden="true" /> {{ ticket.invoice.label }}</NuxtLink>
           </div>
 
-          <!-- a no-show dispute: decide it here (the RND's payment waits) -->
+          <!-- a dispute (a no-show, or an in-person visit marked complete): decide it here (the RND's payment waits) -->
           <div v-if="ticket.dispute" class="dispute" :class="{ decided: ticket.dispute.resolved_at }">
-            <p class="dispute-title">No-show dispute</p>
+            <p class="dispute-title">Consultation dispute</p>
             <p class="dispute-line"><strong>Attendance:</strong> {{ ticket.dispute.attendance }}</p>
             <template v-if="ticket.dispute.resolved_at">
               <p class="dispute-line"><strong>Decided:</strong> {{ ticket.dispute.outcome === 'refunded' ? 'refund approved' : 'rejected, the RND keeps the payment' }}. {{ ticket.dispute.note }}</p>

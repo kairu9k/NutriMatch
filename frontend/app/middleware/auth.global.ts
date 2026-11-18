@@ -39,6 +39,11 @@ export default defineNuxtRouteMiddleware((to) => {
   if (isAdminPage && auth.user?.role !== 'admin') {
     return navigateTo(auth.user?.role === 'rnd' ? '/rnd-dashboard' : '/client-dashboard')
   }
+  // RND-only and client-only pages (meta `role`) send anyone else to their
+  // own dashboard, instead of a page whose requests all fail with 403.
+  if (to.meta.role && auth.user?.role !== to.meta.role) {
+    return navigateTo(DASHBOARDS[auth.user?.role] || '/')
+  }
 
   // Strict onboarding: until it's finished, a client (health screening) or an
   // approved RND (profile, fee, hours; 2026-11-16) is sent to /onboarding

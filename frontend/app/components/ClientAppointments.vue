@@ -40,6 +40,7 @@
           </p>
           <p v-if="appt.notes" class="appt-notes"><span>Your notes:</span> {{ appt.notes }}</p>
           <p v-if="appt.hint" class="appt-hint" :class="{ 'hint-due': appt.phase === 'payment_due' }">{{ appt.hint }}</p>
+          <RescheduleAnswer v-if="appt.phase === 'rescheduling'" :appointment="appt" role="client" :other-name="appt.rnd.name" @changed="load" />
 
           <div class="appt-actions">
             <button
@@ -98,10 +99,14 @@
                   <p v-if="appt.dispute?.outcome === 'refunded'" class="refund-note">Your dispute was approved. {{ appt.dispute.note }}</p>
                   <p v-else-if="appt.dispute?.outcome === 'rejected'" class="h-sub">Your dispute wasn't approved. {{ appt.dispute.note }}</p>
                   <p v-else-if="appt.dispute?.opened_at" class="h-sub">You disputed this. NutriMatch is reviewing it and will reply in Help &amp; Support.</p>
-                  <p v-else-if="appt.dispute?.can_open" class="h-links">
-                    <button type="button" class="nm-btn-soft nm-btn-sm" @click="openDispute(appt)">Dispute this</button>
-                    <span class="h-sub">Until {{ appt.disputeUntil }}</span>
-                  </p>
+                  <p v-else-if="appt.dispute?.can_open" class="h-sub">Think this is wrong? Use Help &amp; Support (bottom right), Dispute a consultation, until {{ appt.disputeUntil }}.</p>
+                </template>
+                <!-- an in-person visit marked complete: nothing records it, so the client can say it didn't happen -->
+                <template v-else-if="appt.status === 'completed' && appt.dispute">
+                  <p v-if="appt.dispute.outcome === 'refunded'" class="refund-note">Your dispute was approved. {{ appt.dispute.note }}</p>
+                  <p v-else-if="appt.dispute.outcome === 'rejected'" class="h-sub">Your dispute wasn't approved. {{ appt.dispute.note }}</p>
+                  <p v-else-if="appt.dispute.opened_at" class="h-sub">You disputed this. NutriMatch is reviewing it and will reply in Help &amp; Support.</p>
+                  <p v-else-if="appt.dispute.can_open" class="h-sub">Didn’t take place? Use Help &amp; Support (bottom right), Dispute a consultation, until {{ appt.disputeUntil }}.</p>
                 </template>
                 <p v-if="appt.hint" class="h-sub">{{ appt.hint }}</p>
                 <p v-if="appt.payment?.status === 'refund_pending'" class="refund-note">{{ refundMessage(money(appt.payment.amount), appt.payment.method) }}</p>
@@ -152,30 +157,6 @@
       </div>
     </div>
 
-    <!-- DISPUTE A NO-SHOW -->
-    <div v-if="disputeTarget" class="nm-modal-overlay" @click.self="!disputeBusy && (disputeTarget = null)">
-      <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="dispute-title">
-        <button type="button" class="nm-modal-x" aria-label="Close" @click="!disputeBusy && (disputeTarget = null)"><X :size="18" aria-hidden="true" /></button>
-        <h3 id="dispute-title" class="nm-modal-title">Dispute the no-show</h3>
-        <p class="modal-text">
-          {{ disputeTarget.typeLabel }} consultation with RND {{ disputeTarget.rnd.name }} on {{ disputeTarget.longDate }}, {{ disputeTarget.timeRange }}.
-        </p>
-        <p class="modal-note">
-          NutriMatch reviews what you write together with the video call's attendance record, then refunds you or keeps the no-show.
-          Your RND's payment waits until then. You'll get the answer in Help &amp; Support.
-        </p>
-        <label class="field-label" for="dispute-reason">What happened</label>
-        <textarea id="dispute-reason" v-model="disputeReason" data-allow-emoji rows="4" maxlength="2000" class="field-input"
-                  placeholder="e.g. I joined at 3:00 PM but the call kept loading, and I messaged my RND."></textarea>
-        <p class="char-count" :class="{ short: disputeReason.trim().length < 20 }">{{ disputeReason.trim().length < 20 ? `At least 20 characters (${disputeReason.trim().length}/20)` : `${disputeReason.length}/2000` }}</p>
-        <p v-if="disputeError" class="inline-error">{{ disputeError }}</p>
-        <div class="nm-modal-actions">
-          <button class="nm-btn-soft" type="button" :disabled="disputeBusy" @click="disputeTarget = null">Close</button>
-          <button class="nm-btn-dark" type="button" :disabled="disputeBusy || disputeReason.trim().length < 20" @click="sendDispute">{{ disputeBusy ? 'Sending…' : 'Send dispute' }}</button>
-        </div>
-      </div>
-    </div>
-
     <!-- REVIEW MODAL -->
     <div v-if="reviewTarget" class="nm-modal-overlay" @click.self="closeReview">
       <div class="nm-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
@@ -207,6 +188,7 @@
 </template>
 
 <script setup>
+import { useSupportPanel } from '~/composables/useSupportPanel'
 import { useToast } from '~/composables/useToast'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
@@ -291,6 +273,7 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
 
   const STATUS = {
     pending: ['Waiting for your RND', 'pill-gold'],
+    rescheduling: ['Rescheduling', 'pill-gold'],
     payment_due: ['Payment due', 'pill-gold'],
     confirmed: ['Confirmed', 'pill-green'],
     completed: ['Completed', 'pill-muted'],
@@ -358,14 +341,15 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     disputeUntil: a.dispute?.open_until ? new Date(a.dispute.open_until).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '',
     review: reviewByAppt.value[a.id] || null,
     payment,
+    reschedule: a.reschedule,
   }
 }))
 
 const upcoming = computed(() =>
-  appointments.value.filter(a => ['pending', 'payment_due', 'confirmed'].includes(a.phase)).sort((x, y) => x.start - y.start)
+  appointments.value.filter(a => ['pending', 'payment_due', 'confirmed', 'rescheduling'].includes(a.phase)).sort((x, y) => x.start - y.start)
 )
 const history = computed(() =>
-  appointments.value.filter(a => !['pending', 'payment_due', 'confirmed'].includes(a.phase)).sort((x, y) => y.start - x.start)
+  appointments.value.filter(a => !['pending', 'payment_due', 'confirmed', 'rescheduling'].includes(a.phase)).sort((x, y) => y.start - x.start)
 )
 
 const historyFilters = [
@@ -485,30 +469,12 @@ async function confirmCancel() {
   }
 }
 
-/* ---------- Dispute a no-show ---------- */
-const disputeTarget = ref(null)
-const disputeReason = ref('')
-const disputeBusy = ref(false)
-const disputeError = ref('')
-function openDispute(appt) {
-  disputeTarget.value = appt
-  disputeReason.value = ''
-  disputeError.value = ''
-}
-async function sendDispute() {
-  disputeBusy.value = true
-  disputeError.value = ''
-  try {
-    await post(`/client/appointments/${disputeTarget.value.id}/dispute/`, { reason: disputeReason.value.trim() })
-    disputeTarget.value = null
-    await load()
-    showToast('Dispute sent. NutriMatch will reply in Help & Support.')
-  } catch (error) {
-    disputeError.value = error?.data?.reason?.[0] || error?.data?.detail || 'Could not send the dispute. Please try again.'
-  } finally {
-    disputeBusy.value = false
-  }
-}
+/* ---------- Disputes (2026-11-16) ---------- */
+// The Help & Support panel is the one place to dispute ("Dispute a consultation");
+// the server holds the RND's payout there (scheduling/no_shows.py open_dispute).
+// The page shows "You disputed this" as soon as the panel sends it.
+const { sent: disputeSent } = useSupportPanel()
+watch(disputeSent, () => load())
 
 /* ---------- Review ---------- */
 const summaryId = ref(null) // consultation summary pop-up

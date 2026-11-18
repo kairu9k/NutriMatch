@@ -143,6 +143,14 @@ def _attention(now, summary):
                                             appointment__dispute_opened_at__isnull=False).count()
     add("warning", "disputes", disputes, f"{disputes} no-show dispute{'s' if disputes != 1 else ''} to decide",
         "The RND's payment waits until you refund it or reject the dispute.", "/admin-support")
+    from scheduling.closing import open_too_long
+    from scheduling.serializers import AUTO_CLOSE_DAYS
+
+    unclosed = open_too_long(now)
+    add("warning", "unclosed", len(unclosed),
+        f"{len(unclosed)} in-person consultation{'s' if len(unclosed) != 1 else ''} not closed after {AUTO_CLOSE_DAYS} days",
+        "Nothing records an in-person visit, so the RND must close it. Ask them to mark it complete or a no-show.",
+        "/admin-appointments", [{"id": a.relationship.rnd_id, "name": a.relationship.rnd.full_name} for a in unclosed])
     flagged = late_cancel_flags(now)
     add("info", "late_cancels", len(flagged),
         f"{len(flagged)} RND{'s' if len(flagged) != 1 else ''} with {LATE_CANCEL_FLAG}+ last-minute cancels",

@@ -57,7 +57,7 @@ def email_no_show(appointment):
             "If you were there or something went wrong, you can dispute it. NutriMatch reviews it with the video "
             "call's attendance record (only who joined and when) and either refunds you or keeps the no-show.",
         ],
-        highlight=f"Dispute by {until} from My Appointments, History." if until else "",
+        highlight=f"Dispute by {until} from Help & Support in NutriMatch (Dispute a consultation)." if until else "",
         button_label="Open My Appointments",
         button_url=_link("/appointments"),
         preheader=f"No refund unless you dispute it{f' by {until}' if until else ''}.",
@@ -130,4 +130,25 @@ def email_rnd_missed(appointment):
         button_label="Open Appointments",
         button_url=_link("/appointments?tab=history"),
         preheader=f"{client.full_name}'s consultation was cancelled and refunded.",
+    )
+
+
+def email_new_time_offered(appointment, proposal):
+    """The RND can't make a paid consultation and offered a new time."""
+    client, rnd = appointment.relationship.client, appointment.relationship.rnd
+    old, new, until = _when(proposal.from_at), _when(proposal.scheduled_at), _when(proposal.expires_at)
+    _send(
+        client,
+        subject=f"RND {rnd.full_name} offered a new time for your consultation on {old}",
+        heading="Your RND offered a new time",
+        paragraphs=[
+            f"RND {rnd.full_name} can't make your consultation on {old} and offered {new} instead.",
+            "You don't pay again. You can accept the new time, pick another time from your RND's open hours, "
+            "or get your full payment back.",
+            f"If you don't answer by {until}, the consultation is cancelled and you get a full refund.",
+        ],
+        highlight=f"New time: {new}",
+        button_label="Answer in My Appointments",
+        button_url=_link("/appointments"),
+        preheader=f"New time offered: {new}. Answer by {until}.",
     )

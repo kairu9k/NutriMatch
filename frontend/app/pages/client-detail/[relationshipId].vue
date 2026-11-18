@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'Patient Chart' })
+definePageMeta({ layout: 'dashboard', role: 'rnd', title: 'Patient Chart' })
 </script>

@@ -1,6 +1,9 @@
 // Quick answers in the Help & Support panel (SupportWidget.vue), per role.
 // Keep these in step with how the app actually works (see CLAUDE.md).
 export const SUPPORT_CATEGORIES = [
+  // clients only: a no-show, or an in-person visit marked complete, within 3 days. It holds
+  // the RND's payout until NutriMatch decides (scheduling/no_shows.py open_dispute).
+  { value: 'dispute', label: 'Dispute a consultation', clientOnly: true },
   { value: 'payment', label: 'Payment or refund' },
   { value: 'appointment', label: 'Appointment' },
   { value: 'account', label: 'Account' },
@@ -23,7 +26,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'How do I join my video consultation?',
-      a: 'The Join button appears on My Appointments 15 minutes before the start, once the consultation is paid. Allow your camera and microphone when the browser asks. The room stays open until 15 minutes after the scheduled end.',
+      a: 'The Join button appears on My Appointments 15 minutes before the start, once the consultation is paid. Allow your camera and microphone when the browser asks. The room closes at the scheduled end, with no overtime: you and your RND are told 15 and 5 minutes before so you can wrap up.',
       link: { label: 'My Appointments', to: '/appointments' },
     },
     {
@@ -31,8 +34,13 @@ export const SUPPORT_FAQ = {
       a: 'From My Appointments you can withdraw a booking request until your RND confirms it, cancel an unpaid consultation at no cost, and cancel a paid one up to 30 minutes before the start for the full amount back within 5–7 business days. After that it can’t be cancelled. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
     },
     {
+      q: 'My RND offered a new time. What do I do?',
+      a: 'If your RND can’t make a paid consultation, they can offer a later time instead of cancelling, and you don’t pay again. A new time is always after the original one, never earlier. In My Appointments you can accept it, propose another later time from their open hours, or get a full refund. Answer within 48 hours (or by an hour before the offered time): if nobody answers, it’s cancelled and you get the full amount back. At most three times are proposed in all.',
+      link: { label: 'My Appointments', to: '/appointments' },
+    },
+    {
       q: 'What if I miss my consultation, or my RND does?',
-      a: 'If you don’t attend a paid consultation, your RND can mark it as a no-show and it isn’t refunded. If that’s wrong, press Dispute on it in My Appointments, History, within 3 days: NutriMatch checks the video call’s attendance record (only who joined and when) and refunds you or keeps the no-show. If you joined the video call and your RND still hasn’t 15 minutes after the start, you can report it from the call and get a full refund. If your RND has an emergency and cancels, you also get the full amount back.',
+      a: 'A video consultation completes by itself when you and your RND were in the call together for 5 minutes. If you don’t attend a paid one and your RND waited in the call, it can be marked as a no-show and it isn’t refunded. If that’s wrong, dispute it within 3 days from Help & Support (bottom right), Dispute a consultation: NutriMatch checks the video call’s attendance record (only who joined and when) and refunds you or keeps the no-show. If you joined the video call and your RND still hasn’t 15 minutes after the start, you can report it from the call and get a full refund. If your RND has an emergency and cancels, you also get the full amount back.',
       link: { label: 'My Appointments', to: '/appointments' },
     },
     {
@@ -64,11 +72,11 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'What if my patient doesn’t come, or I have to cancel?',
-      a: 'Once the consultation has started, Finish consultation lets you mark a patient who never joined as a no-show: there’s no refund and you’re paid as usual, unless they dispute it within 3 days and NutriMatch approves the dispute. You can’t mark a no-show if they joined the video call. If the call itself doesn’t work, end it as a call that didn’t work and they get a full refund. You can still cancel in the last 30 minutes for an emergency: pick the reason, the patient gets a full refund, and NutriMatch notices if it happens 3 times in 30 days.',
+      a: 'From 15 minutes after the start, Finish consultation lets you mark a patient who never joined as a no-show: there’s no refund and you’re paid as usual, unless they dispute it within 3 days and NutriMatch approves the dispute. You can only mark a no-show from 15 minutes after the start, if you waited in the video call for 5 minutes and they never joined it. If the call itself doesn’t work, end it as a call that didn’t work and they get a full refund. You can still cancel in the last 30 minutes for an emergency: pick the reason, the patient gets a full refund, and NutriMatch notices if it happens 3 times in 30 days. If they already paid, Cancel also lets you offer a later time from your open hours instead: they accept, propose another time or take a full refund (moving it in the last 30 minutes still counts as a last-minute cancel).',
     },
     {
       q: 'Why can’t I mark a consultation complete?',
-      a: 'A consultation can only be completed after the patient has paid and the scheduled time has started. If it’s unpaid, the patient sees a reminder to pay before the start time.',
+      a: 'There’s nothing to press for a video consultation. When the room closes it closes by itself from the call’s attendance record: completed if you and your patient were in the call together for 5 minutes, a no-show if they never joined and you waited at least 5 minutes, and refunded otherwise. If your patient doesn’t come, you can also mark a no-show in the room from 15 minutes after the start (the room shows when). In-person consultations leave no call record, so you mark those complete yourself, and the patient can dispute it for 3 days.',
     },
     {
       q: 'How do I write and finalize an NCP record?',

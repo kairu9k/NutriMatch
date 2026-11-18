@@ -27,9 +27,10 @@ from rest_framework.views import APIView
 from accounts.permissions import IsAdmin, IsClient, IsRnd
 
 from .attendance import attendance_line, dispute_payload, minutes_in_call
+from .closing import close_options, no_show_opens_at, rnd_absent
 from .models import Appointment
-from .serializers import RND_ABSENT_AFTER_MINUTES, RND_MIN_PRESENT_MINUTES, AppointmentSerializer
-from .views import format_ph_datetime
+from .serializers import NO_SHOW_AFTER_MINUTES, RND_ABSENT_AFTER_MINUTES, RND_MIN_PRESENT_MINUTES, AppointmentSerializer
+from .views import format_ph_datetime, format_ph_time
 
 MIN_DISPUTE_REASON = 20
 MIN_DECISION_NOTE = 10
@@ -70,14 +71,19 @@ class RndNoShowView(APIView):
         now = timezone.now()
         if a.status != Appointment.Status.CONFIRMED:
             raise ValidationError({"detail": "Only a confirmed consultation can be marked as a no-show."})
-        if now < a.scheduled_at:
-            raise ValidationError({"detail": "You can mark a no-show once the consultation has started."})
         invoice = appointment_invoice(a)
         if invoice is not None and invoice.status != "paid":
             raise ValidationError({"detail": "This consultation isn't paid, so it's cancelled automatically instead."})
         if a.type == Appointment.Type.VIDEO and a.client_joined_at is not None:
             raise ValidationError({"detail": f"{a.relationship.client.first_name} joined the video call, so this isn't a no-show. "
-                                             "Mark it complete instead, or end it as a call that didn't work."})
+                                             "If you were together for 5 minutes it completes by itself; if not, end it as a call that didn't work."})
+        opens = no_show_opens_at(a)
+        if now < opens:
+            raise ValidationError({"detail": f"You can mark a no-show from {format_ph_time(opens)}, {NO_SHOW_AFTER_MINUTES} minutes after the start, "
+                                             f"so {a.relationship.client.first_name} has time to arrive."})
+        if a.type == Appointment.Type.VIDEO and not close_options(a, now)["no_show"]:
+            raise ValidationError({"detail": f"A no-show needs you to have waited in the video call for {RND_MIN_PRESENT_MINUTES} minutes. "
+                                             "If you couldn't, end it as a call that didn't work and the client gets a full refund."})
         note = _note(request)
         a.status = Appointment.Status.NO_SHOW
         a.completed_at = now  # starts the payout hold, which is also the dispute window
@@ -88,8 +94,8 @@ class RndNoShowView(APIView):
         notify(recipient=a.relationship.client, notifiable_type="appointment", notifiable_id=a.id,
                subject="Marked as not attending",
                content=(f"RND {request.user.full_name} marked your consultation on {format_ph_datetime(a.scheduled_at)} "
-                        "as not attended, so it isn't refunded. If this is wrong, you can dispute it from My Appointments, "
-                        "History, within 3 days."))
+                        "as not attended, so it isn't refunded. If this is wrong, you can dispute it within 3 days from "
+                        "Help & Support (bottom right), Dispute a consultation."))
         from .emails import email_no_show
 
         email_no_show(a)
@@ -119,7 +125,8 @@ class RndCallFailedView(APIView):
         a.status = Appointment.Status.CANCELLED
         a.cancellation_reason = ("The video call didn't work." + (f" {note}" if note else ""))[:500]
         a.cancelled_by, a.cancelled_at = Appointment.CancelledBy.CALL_FAILED, timezone.now()
-        a.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
+        a.cancelled_late = rnd_absent(a)  # the client was there and the RND wasn't: it counts as an RND late cancel
+        a.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "cancelled_late", "updated_at"])
         invoice = settle_cancelled_appointment(a)
         close_reopened_care_if_idle(a.relationship)
         _audit(request.user, "appointment.call_failed", a, {"note": note, "attendance": attendance_line(a)})
@@ -195,42 +202,62 @@ class ClientDisputeView(APIView):
     permission_classes = [IsClient]
 
     def post(self, request, pk):
-        from billing.services import appointment_invoice
-        from communication.models import SupportMessage, SupportTicket
-        from communication.services import notify
-        from communication.support import _notify_admins
-
         a = get_object_or_404(Appointment.objects.filter(relationship__client=request.user)
                               .select_related("relationship__client", "relationship__rnd"), pk=pk)
-        info = dispute_payload(a)
-        if info is None:
-            raise ValidationError({"detail": "Only a consultation marked as a no-show can be disputed."})
-        if a.dispute_opened_at:
-            raise ValidationError({"detail": "You already disputed this. NutriMatch will reply to your support request."})
-        if not info["can_open"]:
-            raise ValidationError({"detail": "The 3 days to dispute this have passed."})
-        reason = str(request.data.get("reason") or "").strip()
-        if len(reason) < MIN_DISPUTE_REASON:
-            raise ValidationError({"reason": f"Tell us what happened, in at least {MIN_DISPUTE_REASON} characters."})
-        reason = reason[:2000]
-        now = timezone.now()
-        with transaction.atomic():
-            a.dispute_opened_at, a.dispute_reason = now, reason
-            a.save(update_fields=["dispute_opened_at", "dispute_reason", "updated_at"])
-            ticket = SupportTicket.objects.create(
-                user=request.user, category=SupportTicket.Category.DISPUTE,
-                subject=f"No-show dispute, {format_ph_datetime(a.scheduled_at)}"[:150],
-                appointment=a, invoice=appointment_invoice(a))
-            SupportMessage.objects.create(ticket=ticket, sender=request.user,
-                                          body=f"{reason}\n\nAttendance: {attendance_line(a, now)}")
-            _notify_admins(ticket, "No-show dispute",
-                           f"{request.user.full_name} disputes being marked as not attending with RND "
-                           f"{a.relationship.rnd.full_name}: {reason[:300]}")
-            _audit(request.user, "appointment.dispute_opened", a, {"reason": reason[:1000], "ticket": ticket.id})
-        notify(recipient=a.relationship.rnd, notifiable_type="appointment", notifiable_id=a.id, subject="No-show disputed",
-               content=(f"{request.user.full_name} disputes the no-show for {format_ph_datetime(a.scheduled_at)}. "
-                        "The payment waits until NutriMatch decides. You'll be told the outcome."))
+        open_dispute(a, request.user, request.data.get("reason"))
         return _respond(request, a)
+
+
+def dispute_problem(a):
+    """Why this consultation can't be disputed now, or None (the client's own
+    no-show, or in-person visit marked complete, within DISPUTE_DAYS)."""
+    info = dispute_payload(a)
+    if info is None:
+        return "Only a no-show, or an in-person consultation marked complete, can be disputed."
+    if a.dispute_opened_at:
+        return "You already disputed this. NutriMatch will reply to your support request."
+    if not info["can_open"]:
+        return "The 3 days to dispute this have passed."
+    return None
+
+
+def open_dispute(a, user, reason, subject=None):
+    """The client says the no-show (or the completed in-person visit) is wrong.
+    One support request (Help & Support), and the RND's payout waits until an
+    admin refunds or rejects it. Used by the Help & Support form ("Dispute a
+    consultation", 2026-11-16) and the older dispute endpoint. Returns the request."""
+    from billing.services import appointment_invoice
+    from communication.models import SupportMessage, SupportTicket
+    from communication.services import notify
+    from communication.support import _notify_admins
+
+    problem = dispute_problem(a)
+    if problem:
+        raise ValidationError({"detail": problem})
+    reason = str(reason or "").strip()
+    if len(reason) < MIN_DISPUTE_REASON:
+        text = f"Tell us what happened, in at least {MIN_DISPUTE_REASON} characters."
+        raise ValidationError({"message": text, "reason": text})
+    reason = reason[:2000]
+    now = timezone.now()
+    kind = "No-show" if a.status == Appointment.Status.NO_SHOW else "Consultation"
+    with transaction.atomic():
+        a.dispute_opened_at, a.dispute_reason = now, reason
+        a.save(update_fields=["dispute_opened_at", "dispute_reason", "updated_at"])
+        ticket = SupportTicket.objects.create(
+            user=user, category=SupportTicket.Category.DISPUTE,
+            subject=(subject or f"{kind} dispute, {format_ph_datetime(a.scheduled_at)}")[:150],
+            appointment=a, invoice=appointment_invoice(a))
+        SupportMessage.objects.create(ticket=ticket, sender=user,
+                                      body=f"{reason}\n\nAttendance: {attendance_line(a, now)}")
+        _notify_admins(ticket, "Consultation dispute",
+                       f"{user.full_name} disputes how the consultation with RND "
+                       f"{a.relationship.rnd.full_name} was closed: {reason[:300]}")
+        _audit(user, "appointment.dispute_opened", a, {"reason": reason[:1000], "ticket": ticket.id})
+    notify(recipient=a.relationship.rnd, notifiable_type="appointment", notifiable_id=a.id, subject="Consultation disputed",
+           content=(f"{user.full_name} disputes how the consultation on {format_ph_datetime(a.scheduled_at)} was closed. "
+                    "The payment waits until NutriMatch decides. You'll be told the outcome."))
+    return ticket
 
 
 # ---------------------------------------------------------------- admin side
@@ -281,12 +308,12 @@ class AdminDisputeDecisionView(APIView):
         if decision == "refund":
             notify(recipient=client, notifiable_type="appointment", notifiable_id=a.id, subject="Dispute approved",
                    content=f"Your dispute for the consultation on {when} was approved. Your payment will be refunded within 5–7 business days. {note}")
-            notify(recipient=rnd, notifiable_type="appointment", notifiable_id=a.id, subject="No-show dispute decided",
+            notify(recipient=rnd, notifiable_type="appointment", notifiable_id=a.id, subject="Dispute decided",
                    content=f"NutriMatch approved {client.full_name}'s dispute for {when}, so the payment is refunded. {note}")
         else:
             notify(recipient=client, notifiable_type="appointment", notifiable_id=a.id, subject="Dispute not approved",
                    content=f"Your dispute for the consultation on {when} wasn't approved, so it isn't refunded. {note}")
-            notify(recipient=rnd, notifiable_type="appointment", notifiable_id=a.id, subject="No-show dispute decided",
+            notify(recipient=rnd, notifiable_type="appointment", notifiable_id=a.id, subject="Dispute decided",
                    content=f"NutriMatch didn't approve {client.full_name}'s dispute for {when}. The payment stays yours. {note}")
         return Response({"ok": True, "outcome": a.dispute_outcome})
 

@@ -14,6 +14,7 @@ from clinical.models import PreConsultationScreening
 
 from .models import Appointment, Review, RndClientRelationship
 from .serializers import (
+    MIN_TOGETHER_MINUTES,
     AppointmentCreateSerializer,
     AppointmentSerializer,
     ClientReviewListSerializer,
@@ -341,6 +342,16 @@ class RndAppointmentCompleteView(_RndAppointmentTransitionView):
         invoice = appointment_invoice(appointment)
         if invoice is not None and invoice.status != "paid":
             raise PermissionDenied("This consultation hasn't been paid yet, so it can't be completed.")
+        # A video consultation completes by itself once both were in the call
+        # together for MIN_TOGETHER_MINUTES; without that, the call record
+        # says it didn't take place (scheduling/closing.py).
+        from .closing import close_options
+
+        if not close_options(appointment)["complete"]:
+            raise PermissionDenied(
+                f"The video call doesn't show you and {appointment.relationship.client.first_name} together for "
+                f"{MIN_TOGETHER_MINUTES} minutes, so this can't be marked complete. If the call didn't work, end it as a failed call "
+                "and the client gets a full refund.")
 
         response = super().patch(request, pk)
         Appointment.objects.filter(pk=appointment.pk).update(completed_at=timezone.now())  # starts the payout hold
@@ -392,6 +403,11 @@ class RndAppointmentCancelView(_RndAppointmentTransitionView):
 
         appointment = get_object_or_404(
             Appointment.objects.filter(relationship__rnd=request.user).select_related("relationship__client", "relationship__rnd"), pk=pk)
+        if appointment.status == Appointment.Status.RESCHEDULING:
+            from .reschedule import rnd_cancel
+
+            appointment = rnd_cancel(appointment, request.user, self.cancel_reason(request))
+            return Response(AppointmentSerializer(appointment, context={"request": request}).data)
         if appointment.status not in self.from_statuses:
             raise PermissionDenied(f"Cannot transition appointment from '{appointment.status}' to 'cancelled'.")
         now = timezone.now()
@@ -504,6 +520,9 @@ class RndBookedSlotsView(APIView):
             }
             for a in upcoming
         ]
+        from .reschedule import held_intervals
+
+        taken += [{"start": lo, "end": hi, "kind": "booked"} for lo, hi in held_intervals(rnd_id=rnd_id)]
         # Time the RND blocked off (never the reason): the modal shows it as
         # "Unavailable", and a fully blocked day as "Day off".
         taken += [{"start": lo, "end": hi, "kind": "time_off"}

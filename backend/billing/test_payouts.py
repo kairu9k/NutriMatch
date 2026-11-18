@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from core.models import AuditLog
-from core.test_utils import approve_rnd, onboard_client
+from core.test_utils import approve_rnd, onboard_client, together_in_call
 from scheduling.models import Appointment, RndClientRelationship
 
 from .models import Invoice, PaymentTransaction, Payout, RndPayoutAccount
@@ -258,6 +258,7 @@ class PayoutTests(TestCase):
     def test_completing_starts_the_hold(self):
         appt = Appointment.objects.create(relationship=self.rel, type="video", status="confirmed", scheduled_at=timezone.now() - timedelta(hours=2))
         Invoice.objects.create(relationship=self.rel, appointment=appt, amount=Decimal("800"), status="paid", paid_at=timezone.now())
+        together_in_call(appt)
         self.assertEqual(self.rnd_api.patch(f"/api/rnd/appointments/{appt.id}/complete/").status_code, 200)
         appt.refresh_from_db()
         self.assertIsNotNone(appt.completed_at)

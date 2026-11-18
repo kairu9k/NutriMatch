@@ -3,7 +3,7 @@
        Activity). Hidden until the client has an RND — uploads go to them. -->
   <div v-if="data?.has_rnd" class="panel lab-card" :class="{ requested: openRequests.length }">
     <div class="panel-header-row">
-      <h3 class="panel-title flush">Upload Lab Results</h3>
+      <h3 class="panel-title flush">Upload lab results</h3>
       <NuxtLink to="/lab-results" class="nm-btn-soft nm-btn-sm">All lab results</NuxtLink>
     </div>
 

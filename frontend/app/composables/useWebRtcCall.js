@@ -18,6 +18,7 @@ export function useWebRtcCall(appointmentId) {
   // waiting | connecting | connected | reconnecting | blocked | denied | replaced | ended | error
   const status = ref('idle')
   const message = ref('') // a reason, for denied / blocked / error
+  const timeUp = ref(false) // the server ended the call at the scheduled end
   const localStream = shallowRef(null)
   const remoteStream = shallowRef(null)
   const micOn = ref(true)
@@ -237,6 +238,15 @@ export function useWebRtcCall(appointmentId) {
         wanted = false
         status.value = 'replaced'
         stopMedia()
+      } else if (data.type === 'ended') {
+        // no overtime: the call ends at the scheduled end
+        wanted = false
+        clearTimeout(retryTimer)
+        closePeerConnection()
+        stopMedia()
+        peer.value = null
+        timeUp.value = true
+        status.value = 'ended'
       }
     }
     ws.onclose = () => {
@@ -321,7 +331,7 @@ export function useWebRtcCall(appointmentId) {
   onBeforeUnmount(leave)
 
   return {
-    status, message, localStream, remoteStream, micOn, camOn, hasCamera, cameraMissing, canSwitchCamera, peer, peerMedia, peerLeft,
+    status, message, timeUp, localStream, remoteStream, micOn, camOn, hasCamera, cameraMissing, canSwitchCamera, peer, peerMedia, peerLeft,
     start, leave, toggleMic, toggleCam, switchCamera,
   }
 }

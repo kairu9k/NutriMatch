@@ -4,7 +4,7 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'Reviews' })
+definePageMeta({ layout: 'dashboard', role: 'rnd', title: 'Reviews' })
 
 // Gated on auth.hydrated, same reasoning as layouts/dashboard.vue's sidebar
 // fix: auth.user is null during SSR (JWT lives in localStorage), so an

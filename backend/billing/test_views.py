@@ -54,6 +54,9 @@ class BillingAndVideoViewTests(TestCase):
 
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(resp.data["payment_url"], "https://checkout.paymongo.com/xyz")
+        # the client never sees NutriMatch's cut or internal notes
+        for private in ("commission_pct", "commission_amt", "notes", "gateway_reference_id"):
+            self.assertNotIn(private, resp.data)
         self.invoice.refresh_from_db()
         self.assertEqual(self.invoice.gateway_reference_id, "cs_abc")
 

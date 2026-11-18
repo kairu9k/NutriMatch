@@ -209,8 +209,9 @@ class SupportTicket(models.Model):
         REPORT = "report", "Report a user"
         TECHNICAL = "technical", "Technical problem"
         OTHER = "other", "Other"
-        # opened by the Dispute button on a no-show (scheduling/no_shows.py), not by the form
-        DISPUTE = "dispute", "No-show dispute"
+        # the client disputes a no-show or a completed in-person visit (scheduling/no_shows.py open_dispute):
+        # chosen in the Help & Support form, or prefilled from Dispute this in My Appointments
+        DISPUTE = "dispute", "Dispute a consultation"
 
     class Status(models.TextChoices):
         OPEN = "open", "Open"  # waiting for the admins

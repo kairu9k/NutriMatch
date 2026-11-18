@@ -12,6 +12,7 @@ from .no_shows import AdminDisputeDecisionView, ClientDisputeView, ClientRndAbse
 from .video_call import CallConfigView
 from .room import ClientRoomInfoView
 from .rnd_dashboard import RndDashboardView
+from .reschedule import ClientRescheduleView, RescheduleSlotsView, RndRescheduleView
 
 from .views import (
     ClientActiveRelationshipsView,
@@ -42,6 +43,9 @@ urlpatterns = [
     path("client/appointments/<int:pk>/", ClientAppointmentDetailView.as_view(), name="client_appointment_detail"),
     path("client/appointments/<int:pk>/cancel/", ClientAppointmentCancelView.as_view(), name="client_appointment_cancel"),
     path("client/appointments/<int:pk>/room-info/", ClientRoomInfoView.as_view(), name="client_room_info"),
+    path("client/appointments/<int:pk>/reschedule/", ClientRescheduleView.as_view(), name="client_appointment_reschedule"),
+    path("rnd/appointments/<int:pk>/reschedule/", RndRescheduleView.as_view(), name="rnd_appointment_reschedule"),
+    path("appointments/<int:pk>/reschedule/slots/", RescheduleSlotsView.as_view(), name="appointment_reschedule_slots"),
     path("appointments/<int:pk>/call-config/", CallConfigView.as_view(), name="call_config"),
     path("client/appointments/<int:pk>/summary/", ClientConsultationSummaryView.as_view(), name="client_consultation_summary"),
     path("rnd/appointments/<int:pk>/summary/", RndConsultationSummaryView.as_view(), name="rnd_consultation_summary"),

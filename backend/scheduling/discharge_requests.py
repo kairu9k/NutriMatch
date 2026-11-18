@@ -87,9 +87,15 @@ def end_care_of_deactivated_rnd(rnd, admin):
     now = timezone.now()
     reason = "Your RND's NutriMatch account was deactivated, so you can choose a new RND."
     cancelled = 0
+    from django.db.models import Q
+
+    from .reschedule import end_for_admin
+
     for appt in Appointment.objects.filter(
-        relationship__rnd=rnd, status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED], scheduled_at__gt=now,
+        Q(status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED], scheduled_at__gt=now)
+        | Q(status=Appointment.Status.RESCHEDULING), relationship__rnd=rnd,
     ).select_related("relationship__client"):
+        end_for_admin(appt)
         appt.status = Appointment.Status.CANCELLED
         appt.cancellation_reason = "Cancelled by NutriMatch: the RND's account was deactivated."
         appt.save(update_fields=["status", "cancellation_reason", "updated_at"])
@@ -146,8 +152,9 @@ class ClientDischargeRequestView(APIView):
             return Response({"detail": "You can only end care that's active."}, status=status.HTTP_400_BAD_REQUEST)
         if rel.discharge_requested_at:
             return Response({"detail": "You've already asked to end this care."}, status=status.HTTP_400_BAD_REQUEST)
-        if rel.appointments.filter(status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
-                                   scheduled_at__gt=timezone.now()).exists():
+        if (rel.appointments.filter(status__in=[Appointment.Status.PENDING, Appointment.Status.CONFIRMED],
+                                    scheduled_at__gt=timezone.now()).exists()
+                or rel.appointments.filter(status=Appointment.Status.RESCHEDULING).exists()):
             return Response({"detail": "Cancel your upcoming consultation first (My Appointments), then ask to end care."},
                             status=status.HTTP_400_BAD_REQUEST)
         data = DischargeRequestSerializer(data=request.data)

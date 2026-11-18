@@ -208,13 +208,18 @@ async function load({ quiet = false } = {}) {
     error.value = ''
   }
   try {
-    await post('/client/invoices/sync/').catch(() => null) // catches payments whose webhook was missed
+    // The list first: asking PayMongo takes several seconds, and until the
+    // list is in, the figures would read ₱0.00 and "Nothing to pay".
     invoices.value = await get('/client/invoices/')
   } catch {
     if (!quiet) error.value = 'Could not load your invoices. Please refresh the page.'
+    return
   } finally {
     loading.value = false
   }
+  // Then catch payments (and refunds) whose webhook was missed, and refresh.
+  const synced = await post('/client/invoices/sync/').catch(() => null)
+  if (synced?.updated) invoices.value = await get('/client/invoices/').catch(() => invoices.value)
 }
 function onVisible() {
   if (document.visibilityState === 'visible' && due.value.length) load({ quiet: true })

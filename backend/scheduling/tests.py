@@ -11,7 +11,7 @@ from clinical.models import PreConsultationScreening
 from profiles.models import RndProfile
 
 from .models import Appointment, RndClientRelationship
-from core.test_utils import approve_rnd, booking_slot, onboard_client
+from core.test_utils import approve_rnd, booking_slot, onboard_client, together_in_call
 
 
 def _make_rnd(email="rnd@t.ph", fee="500.00", availability=True, **profile_fields):
@@ -548,12 +548,14 @@ class PayBeforeConsultationTests(TestCase):
         resp = self.rnd_api.patch(f"/api/rnd/appointments/{self.appt.id}/complete/")
         self.assertEqual(resp.status_code, 403)
         self._pay(invoice)
+        together_in_call(self.appt)
         resp = self.rnd_api.patch(f"/api/rnd/appointments/{self.appt.id}/complete/")
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(Invoice.objects.filter(appointment=self.appt).count(), 1)
 
     def test_legacy_confirmed_without_invoice_can_still_complete(self):
         Appointment.objects.filter(pk=self.appt.pk).update(status="confirmed")
+        together_in_call(self.appt)
         resp = self.rnd_api.patch(f"/api/rnd/appointments/{self.appt.id}/complete/")
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(Invoice.objects.get(appointment=self.appt).status, "unpaid")

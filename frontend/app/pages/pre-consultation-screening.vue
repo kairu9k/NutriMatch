@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'Pre-Consultation Screening' })
+definePageMeta({ layout: 'dashboard', role: 'client', title: 'Pre-Consultation Screening' })
 </script>

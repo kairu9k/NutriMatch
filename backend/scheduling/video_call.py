@@ -9,8 +9,10 @@ expire when the join window closes. Calls are not recorded (RA 10173).
 
 Who may join (same rules as the old room link): the appointment's RND or
 client, a confirmed video consultation, inside the join window (15 min before
-the start to 15 min after the end), and the client only once it's paid.
-At most two people in a call."""
+the start to the scheduled end), and the client only once it's paid. At most
+two people in a call. There's no overtime (2026-11-16): the room warns both
+people 15 and 5 minutes before the end, then the server ends the call at the
+scheduled end (scheduling/consumers.py)."""
 
 from datetime import timedelta
 
@@ -33,6 +35,12 @@ class CallDenied(Exception):
         super().__init__(message)
         self.code = code
         self.message = message
+
+
+def end_of(appointment):
+    from .serializers import DEFAULT_SESSION_MINUTES
+
+    return appointment.scheduled_at + timedelta(minutes=appointment.duration_minutes or DEFAULT_SESSION_MINUTES)
 
 
 def join_window(appointment):
@@ -64,7 +72,7 @@ def call_access(user, appointment_id, now=None):
     if now < opens:
         raise CallDenied("too_early", "The call opens 15 minutes before the start.")
     if now > closes:
-        raise CallDenied("closed", "The call closed 15 minutes after the scheduled end.")
+        raise CallDenied("closed", "The call closed at the scheduled end.")
     if role == "client" and not is_appointment_paid(appointment):
         raise CallDenied("not_paid", "Pay for the consultation to join the call.")
     return appointment, role

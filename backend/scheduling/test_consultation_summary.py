@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from clinical.models import NcpRecord, PreConsultationScreening, ProgressRecord
 from communication.models import NotificationLog
-from core.test_utils import approve_rnd, onboard_client
+from core.test_utils import approve_rnd, onboard_client, together_in_call
 
 from .models import Appointment, RndClientRelationship
 from .serializers import PH_TZ
@@ -72,6 +72,7 @@ class ConsultationSummaryTests(TestCase):
     def test_completing_notifies_the_client(self):
         appt = Appointment.objects.create(relationship=self.rel, type="video", status="confirmed",
                                           scheduled_at=timezone.now() - timedelta(hours=2))
+        together_in_call(appt)
         self.api.force_authenticate(self.rnd)
         self.assertEqual(self.api.patch(f"/api/rnd/appointments/{appt.id}/complete/").status_code, 200)
         self.assertTrue(NotificationLog.objects.filter(recipient=self.c, subject="Your consultation summary is ready").exists())

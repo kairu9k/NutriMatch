@@ -45,8 +45,15 @@ class AdminAppointmentSerializer(serializers.ModelSerializer):
         fields = [
             "id", "scheduled_at", "duration_minutes", "type", "type_label", "status", "client", "rnd", "payment",
             "cancellation_reason", "notes", "created_at", "updated_at", "completed_at",
-            "cancelled_by", "cancel_category", "cancelled_late", "attendance", "dispute",
+            "cancelled_by", "cancel_category", "cancelled_late", "attendance", "dispute", "reschedule",
         ]
+
+    reschedule = serializers.SerializerMethodField()
+
+    def get_reschedule(self, obj):
+        from .reschedule import payload
+
+        return payload(obj)
 
     attendance = serializers.SerializerMethodField()
     dispute = serializers.SerializerMethodField()
@@ -84,6 +91,7 @@ def admin_appointments():
 
     return Appointment.objects.select_related("relationship__client", "relationship__rnd").prefetch_related(
         Prefetch("invoices", queryset=Invoice.objects.order_by("-created_at"), to_attr="_invoices"),
+        "reschedule_proposals",
     )
 
 
@@ -113,7 +121,8 @@ class AdminAppointmentListView(generics.ListAPIView):
         now = timezone.now()
         view = p.get("view") or "upcoming"
         if view == "upcoming":
-            qs = qs.filter(status__in=["pending", "confirmed"], scheduled_at__gte=now).order_by("scheduled_at")
+            qs = qs.filter(Q(status__in=["pending", "confirmed"], scheduled_at__gte=now)
+                           | Q(status="rescheduling")).order_by("scheduled_at")
         elif view == "requests":
             qs = qs.filter(status="pending", scheduled_at__gte=now).order_by("created_at")
         elif view == "past":
@@ -162,7 +171,7 @@ def appointment_summary(now=None):
     return {
         "today": active.filter(scheduled_at__gte=day_start, scheduled_at__lt=day_end).count(),
         "next_7_days": active.filter(scheduled_at__gte=day_start, scheduled_at__lt=week_end).count(),
-        "upcoming": active.filter(scheduled_at__gte=now).count(),
+        "upcoming": active.filter(scheduled_at__gte=now).count() + Appointment.objects.filter(status="rescheduling").count(),
         "requests": Appointment.objects.filter(status="pending", scheduled_at__gte=now).count(),
         "expired_requests": Appointment.objects.filter(status="pending", scheduled_at__lt=now).count(),
         "stale_requests": Appointment.objects.filter(
@@ -202,13 +211,13 @@ class AdminAppointmentCancelView(APIView):
         from .views import format_ph_datetime
 
         appointment = get_object_or_404(admin_appointments(), pk=pk)
-        if appointment.status not in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED):
+        if appointment.status not in Appointment.OPEN_STATUSES:
             return Response(
                 {"detail": f"This appointment is already {appointment.get_status_display().lower()} and can't be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         # Once it has started it's the RND's to close (Finish consultation: done or no-show), same as for the client.
-        if appointment.scheduled_at <= timezone.now():
+        if appointment.status != Appointment.Status.RESCHEDULING and appointment.scheduled_at <= timezone.now():
             return Response(
                 {"detail": "This consultation has already started, so it can't be cancelled here. The RND closes it from the consultation room."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -223,6 +232,9 @@ class AdminAppointmentCancelView(APIView):
         appointment.cancellation_reason = f"Cancelled by NutriMatch: {reason}"[:500]
         appointment.cancelled_by, appointment.cancelled_at = Appointment.CancelledBy.ADMIN, timezone.now()
         appointment.save(update_fields=["status", "cancellation_reason", "cancelled_by", "cancelled_at", "updated_at"])
+        from .reschedule import end_for_admin
+
+        end_for_admin(appointment)
         invoice = settle_cancelled_appointment(appointment)
         from .services import close_reopened_care_if_idle
 

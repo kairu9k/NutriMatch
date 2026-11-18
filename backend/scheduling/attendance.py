@@ -111,12 +111,14 @@ def attendance_payload(a, now=None):
 
 
 def dispute_payload(a, now=None):
-    """The client's no-show dispute, and until when they can open one."""
+    """The client's dispute, and until when they can open one: a no-show, or
+    an in-person consultation marked complete (nothing records that visit, so
+    the client may say it didn't happen; a video call has its own record)."""
     from datetime import timedelta
 
     from .serializers import DISPUTE_DAYS
 
-    if a.status != a.Status.NO_SHOW:
+    if not (a.status == a.Status.NO_SHOW or (a.status == a.Status.COMPLETED and a.type != a.Type.VIDEO)):
         return None
     until = (a.completed_at + timedelta(days=DISPUTE_DAYS)) if a.completed_at else None
     now = now or timezone.now()

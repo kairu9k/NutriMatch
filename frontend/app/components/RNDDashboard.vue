@@ -194,7 +194,7 @@
               <span class="cmp-now">{{ peso(d.earnings.paid_out) }}</span>
             </div>
             <p class="nm-hint">
-              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} cleared and your payout details</template>.
+              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} cleared<template v-if="!d.earnings.has_payout_account"> and your payout details</template></template>.
             </p>
           </div>
 

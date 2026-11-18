@@ -145,8 +145,16 @@
         <p v-if="selected.cancelled_late" class="nm-note attend-warn reason">
           A last-minute cancel by the RND{{ selected.cancel_category ? ` (${CATEGORY[selected.cancel_category] || selected.cancel_category})` : '' }}.
         </p>
+        <div v-if="selected.reschedule" class="nm-note plain-note reason">
+          <strong>New times proposed</strong> (booked for {{ dateTime(selected.reschedule.original_at) }}):
+          <ul class="rs-history">
+            <li v-for="p in selected.reschedule.history" :key="p.id">
+              {{ p.proposed_by === 'rnd' ? 'RND' : 'Client' }} proposed {{ dateTime(p.scheduled_at) }}, {{ p.status_label.toLowerCase() }}<template v-if="p.note">. Note: {{ p.note }}</template>
+            </li>
+          </ul>
+        </div>
         <p v-if="selected.dispute?.opened_at" class="nm-note reason" :class="selected.dispute.resolved_at ? 'plain-note' : 'attend-warn'">
-          <strong>No-show dispute:</strong>
+          <strong>Dispute:</strong>
           <template v-if="selected.dispute.resolved_at"> {{ selected.dispute.outcome === 'refunded' ? 'approved, refunded' : 'rejected' }}. {{ selected.dispute.note }}</template>
           <template v-else> waiting for a decision. <NuxtLink to="/admin-support" class="nm-text-link">Decide on the Support page</NuxtLink>.</template>
         </p>
@@ -365,6 +373,7 @@ function statusOf(a) {
   }
   if (a.status === 'completed') return { label: 'Completed', pill: 'muted' }
   if (a.status === 'no_show') return { label: 'No-show', pill: 'red' }
+  if (a.status === 'rescheduling') return { label: 'Rescheduling', pill: 'gold' }
   return { label: 'Cancelled', pill: 'muted' }
 }
 const CATEGORY = { emergency: 'emergency', technical: 'technical problem', other: 'other' }
@@ -411,7 +420,7 @@ function nameInitials(name) {
   return userInitials(parts[0], parts[parts.length - 1])
 }
 function canCancel(a) {
-  return ['pending', 'confirmed'].includes(a.status) && new Date(a.scheduled_at) > new Date()
+  return a.status === 'rescheduling' || (['pending', 'confirmed'].includes(a.status) && new Date(a.scheduled_at) > new Date())
 }
 function startedOpen(a) {
   return a.status === 'confirmed' && new Date(a.scheduled_at) <= new Date()
@@ -598,4 +607,6 @@ async function confirmCancel() {
   .appt { grid-template-columns: 64px minmax(0, 1fr) 16px; gap: 10px; padding-left: 8px; }
   .appt-time { padding-right: 8px; }
 }
+.rs-history { margin: 6px 0 0; padding-left: 18px; }
+.rs-history li { margin: 2px 0; overflow-wrap: anywhere; }
 </style>

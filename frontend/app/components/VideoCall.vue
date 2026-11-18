@@ -59,7 +59,7 @@ const props = defineProps({
   otherPhoto: { type: String, default: null },
   isRnd: { type: Boolean, default: false },
 })
-const emit = defineEmits(['hangup', 'peer-left'])
+const emit = defineEmits(['hangup', 'peer-joined', 'peer-left', 'time-up'])
 
 const call = useWebRtcCall(props.appointmentId)
 const remoteEl = ref(null)
@@ -80,7 +80,7 @@ const stateText = computed(() => {
   if (st === 'replaced') return 'You opened this call in another tab'
   if (st === 'denied') return call.message.value || 'You can\'t join this call right now'
   if (st === 'error') return call.message.value || 'The call stopped working'
-  if (st === 'ended') return 'You left the call'
+  if (st === 'ended') return call.timeUp.value ? 'The consultation time is over' : 'You left the call'
   return 'Starting the call…'
 })
 const stateHint = computed(() => {
@@ -135,6 +135,9 @@ function hangUp() {
 
 // the room re-checks the consultation then (the RND may have just finished it)
 watch(call.peerLeft, (left) => { if (left) emit('peer-left') })
+// and when the other person arrives, so "hasn't joined" notes go at once, not at the next refresh
+watch(call.peer, (p) => { if (p) emit('peer-joined') })
+watch(call.timeUp, (up) => { if (up) emit('time-up') })
 
 onMounted(() => call.start())
 defineExpose({ leave: call.leave, start: call.start })

@@ -13,7 +13,6 @@ from .serializers import (
     AdminInvoiceDetailSerializer,
     AdminInvoiceListSerializer,
     InvoiceListSerializer,
-    InvoiceSerializer,
     RndInvoiceListSerializer,
 )
 from .services import (
@@ -115,7 +114,9 @@ class InitiatePaymentView(APIView):
         invoice.gateway_reference_id = result["gateway_reference_id"]
         invoice.save(update_fields=["payment_gateway", "payment_url", "gateway_reference_id"])
 
-        return Response(InvoiceSerializer(invoice).data)
+        # Only what the client needs to pay: never the commission split or admin notes.
+        return Response({"id": invoice.id, "amount": invoice.amount, "status": invoice.status,
+                         "payment_url": invoice.payment_url})
 
 
 class PayMongoWebhookView(APIView):
@@ -348,12 +349,14 @@ class RndEarningsView(APIView):
         data["statement"] = rnd_statement(request.user)
         from core.ph_time import ph_date, ph_today
 
-        month = ph_today()
+        # Earned this month = consultations completed this month (PH), paid and
+        # not refunded: the same rule as the RND dashboard's "Earned this month".
+        month = ph_today().replace(day=1)
+        earned = [r for r in data["statement"] if r["completed_at"] and ph_date(r["completed_at"]).replace(day=1) == month
+                  and r["state"] in ("pending", "posted", "paid_out")]
         data["this_month"] = {
-            "gross": sum((r["amount"] for r in data["statement"] if r["paid_at"] and ph_date(r["paid_at"]).replace(day=1) == month.replace(day=1)
-                          and r["state"] in ("pending", "posted", "paid_out")), 0),
-            "share": sum((r["share"] for r in data["statement"] if r["paid_at"] and ph_date(r["paid_at"]).replace(day=1) == month.replace(day=1)
-                          and r["state"] in ("pending", "posted", "paid_out")), 0),
+            "gross": sum((r["amount"] for r in earned), 0),
+            "share": sum((r["share"] for r in earned), 0),
         }
         account = getattr(request.user, "payout_account", None)
         data["payout_account"] = {

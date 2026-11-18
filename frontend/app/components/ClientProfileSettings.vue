@@ -152,7 +152,7 @@
           <dl v-if="screening" class="figs">
             <div class="fig">
               <dt>BMI, {{ screening.bmi_category }}</dt>
-              <dd>{{ screening.bmi }}</dd>
+              <dd>{{ screening.bmi != null ? Number(screening.bmi).toFixed(1) : '—' }}</dd>
             </div>
             <div class="fig">
               <dt>Energy needs a day (TER)</dt>
@@ -766,7 +766,7 @@ async function loadHistory() {
       ...screenings.map(s => ({
         key: `s${s.id}`, type: 'screening', at: s.created_at, icon: ShieldCheck, iconClass: 'icon-blue',
         title: 'Health screening completed',
-        detail: `BMI ${s.bmi} (${s.bmi_category}), NRS-2002 ${s.nrs_score ?? '—'}`,
+        detail: `BMI ${Number(s.bmi).toFixed(1)} (${s.bmi_category}), NRS-2002 ${s.nrs_score ?? '—'}`,
       })),
       ...appointments.map(a => ({
         key: `a${a.id}`, type: 'appointment', at: a.created_at, icon: CalendarCheck, iconClass: 'icon-gold',

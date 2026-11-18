@@ -34,6 +34,7 @@ from rest_framework.views import APIView
 
 from accounts.models import User
 from accounts.permissions import IsAdmin
+from core.background import run_after_commit
 
 from .models import SupportMessage, SupportTicket
 from .services import notify
@@ -89,8 +90,10 @@ class SupportTicketCreateSerializer(serializers.Serializer):
     invoice = serializers.IntegerField(required=False, allow_null=True)
 
     def validate_category(self, value):
-        if value == SupportTicket.Category.DISPUTE:  # opened from the no-show itself (scheduling/no_shows.py)
-            raise serializers.ValidationError("Use Dispute on the consultation in My Appointments, History.")
+        # A dispute (2026-11-16: Help & Support is the one form for it) is the client's own,
+        # and holds the RND's payout until an admin decides (scheduling/no_shows.py open_dispute).
+        if value == SupportTicket.Category.DISPUTE and self.context["request"].user.role != User.Role.CLIENT:
+            raise serializers.ValidationError("Only a client can dispute a consultation.")
         return value
 
     def validate(self, attrs):
@@ -104,6 +107,17 @@ class SupportTicketCreateSerializer(serializers.Serializer):
             attrs["appointment"] = Appointment.objects.filter(_party_q(user), pk=attrs["appointment"]).first()
             if attrs["appointment"] is None:
                 raise serializers.ValidationError({"appointment": "Pick one of your own appointments."})
+        if attrs["category"] == SupportTicket.Category.DISPUTE:
+            from scheduling.no_shows import dispute_problem
+
+            appt = attrs.get("appointment")
+            if appt is None:
+                raise serializers.ValidationError({"appointment": "Pick the consultation you're disputing."})
+            if appt.relationship.client_id != user.id:
+                raise serializers.ValidationError({"appointment": "Pick one of your own consultations."})
+            problem = dispute_problem(appt)
+            if problem:
+                raise serializers.ValidationError({"appointment": problem})
         if attrs.get("invoice"):
             attrs["invoice"] = Invoice.objects.filter(_party_q(user), pk=attrs["invoice"]).first()
             if attrs["invoice"] is None:
@@ -179,7 +193,7 @@ def _notify_admins(ticket, subject, content):
         except Exception:  # noqa: BLE001 — best effort, never breaks the request
             logger.exception("Support inbox email failed for ticket %s", ticket.id)
 
-    transaction.on_commit(send)
+    run_after_commit(send)
 
 
 def _notify_user(ticket, reply):
@@ -201,7 +215,7 @@ def _notify_user(ticket, reply):
         except Exception:  # noqa: BLE001
             logger.exception("Support reply email failed for ticket %s", ticket.id)
 
-    transaction.on_commit(send)
+    run_after_commit(send)
 
 
 # ---- user views --------------------------------------------------------------
@@ -223,6 +237,11 @@ class SupportTicketListCreateView(APIView):
         s = SupportTicketCreateSerializer(data=request.data, context={"request": request})
         s.is_valid(raise_exception=True)
         d = s.validated_data
+        if d["category"] == SupportTicket.Category.DISPUTE:
+            from scheduling.no_shows import open_dispute
+
+            t = open_dispute(d["appointment"], request.user, d["message"], subject=d["subject"])
+            return Response(ticket_detail(t, request.user), status=status.HTTP_201_CREATED)
         with transaction.atomic():
             t = SupportTicket.objects.create(user=request.user, category=d["category"], subject=d["subject"],
                                              appointment=d.get("appointment"), invoice=d.get("invoice"))
@@ -284,8 +303,18 @@ class SupportLinksView(APIView):
         appts = (Appointment.objects.filter(_party_q(request.user))
                  .select_related("relationship__client", "relationship__rnd").order_by("-scheduled_at")[:15])
         invoices = Invoice.objects.filter(_party_q(request.user)).order_by("-created_at")[:15]
+        from scheduling.attendance import dispute_payload
+
+        def row(a):
+            data = _appointment_summary(a, request.user)
+            info = dispute_payload(a) if a.relationship.client_id == request.user.id else None
+            # what the form's "Dispute a consultation" may pick, and until when
+            data["can_dispute"] = bool(info and info["can_open"] and not a.dispute_opened_at)
+            data["dispute_until"] = info["open_until"] if info else None
+            return data
+
         return Response({
-            "appointments": [_appointment_summary(a, request.user) for a in appts],
+            "appointments": [row(a) for a in appts],
             "invoices": [_invoice_summary(i) for i in invoices],
         })
 

@@ -14,7 +14,7 @@
       <section class="nm-hero">
         <div class="nm-hero-greet">
           <p class="nm-hero-date">{{ longToday }}</p>
-          <h1 class="nm-hero-title">Hi {{ auth.user?.first_name }}, welcome back.</h1>
+          <h1 class="nm-hero-title">Hi {{ auth.user?.first_name }}{{ auth.user?.welcome_seen_at ? ', welcome back' : '' }}.</h1>
           <p class="nm-hero-sub">{{ nextStep.text }}</p>
         </div>
         <!-- UP NEXT: the time is the one big thing; the RND under a thin line;

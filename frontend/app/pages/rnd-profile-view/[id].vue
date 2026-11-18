@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'RND Profile' })
+definePageMeta({ layout: 'dashboard', role: 'client', title: 'RND Profile' })
 </script>

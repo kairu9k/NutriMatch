@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div class="nm-modal-overlay" @click.self="emit('close')">
+    <div class="nm-modal-overlay cs-overlay" @click.self="emit('close')">
       <div class="cs" role="dialog" aria-modal="true" aria-labelledby="cs-title">
         <header class="cs-head">
           <div>
@@ -205,6 +205,7 @@ h3 { display: flex; align-items: center; gap: 6px; font-size: 0.92rem; font-weig
   .cs-title { font-size: 1.15rem; }
   .cs-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
   .cs-body { padding: 16px; }
+  .cs-overlay { padding: 0; }
   .cs { max-height: 100vh; height: 100%; border-radius: 0; }
   .stats, .targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats div, .targets div { border-left: 1px solid #d9e3dc; border-top: none; }

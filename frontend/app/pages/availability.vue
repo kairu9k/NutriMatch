@@ -4,6 +4,6 @@
 
 <script setup>
 // Weekly hours and time off live in Profile Settings → Availability now.
-definePageMeta({ layout: 'dashboard' })
+definePageMeta({ layout: 'dashboard', role: 'rnd' })
 navigateTo({ path: '/profile-settings', query: { tab: 'availability' } }, { replace: true })
 </script>

@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'dashboard', title: 'Progress Tracker' })
+definePageMeta({ layout: 'dashboard', role: 'client', title: 'Progress Tracker' })
 </script>

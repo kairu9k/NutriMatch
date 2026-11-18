@@ -332,6 +332,19 @@ def run_rnd_reminders(now=None, rnd=None):
                    + ("It isn't paid yet, and it's cancelled automatically if it's still unpaid at the start time."
                       if unpaid else "You can join from Appointments 15 minutes before it starts."))
         sent += _notify_once(appt.relationship.rnd, "appointment", appt.id, "Your consultation starts soon", content)
+    # an in-person consultation still not closed the day after it ended (2026-11-16): nothing records
+    # that visit, so only the RND can close it (video ones close by themselves when the room closes)
+    from scheduling.video_call import end_of
+
+    open_ones = (Appointment.objects.filter(status="confirmed", type="in_person", scheduled_at__lte=now - timedelta(hours=24), **scope)
+                 .select_related("relationship__client", "relationship__rnd"))
+    for appt in open_ones:
+        if end_of(appt) + timedelta(hours=24) > now:
+            continue
+        sent += _notify_once(
+            appt.relationship.rnd, "appointment", appt.id, "Close your consultation",
+            f"Your in-person consultation with {appt.relationship.client.full_name} on {_when(appt.scheduled_at)} isn't closed yet. "
+            "Mark it complete or a no-show from Appointments, To complete.")
     return sent
 
 

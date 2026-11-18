@@ -52,6 +52,14 @@ const props = defineProps({
 })
 const emit = defineEmits(['close'])
 
+// an RND who added payout details in onboarding isn't asked to add them again
+const { get } = useApi()
+const hasPayout = ref(false)
+watch(() => [props.open, props.role], async ([isOpen, role]) => {
+  if (!isOpen || role !== 'rnd') return
+  try { hasPayout.value = !!(await get('/rnd/payout-account/')) } catch { /* keep the default */ }
+}, { immediate: true })
+
 const COPY = {
   client: (name) => ({
     title: `Welcome to NutriMatch${name ? `, ${name}` : ''}! 💚`,
@@ -77,12 +85,15 @@ const COPY = {
       { title: 'Review and confirm', text: 'Look at their health screening before you confirm the booking.' },
       { title: 'Paid before the consultation', text: 'The consultation opens once it is paid. You can join 15 minutes before the start.' },
       { title: 'Care for your clients', text: 'Write their NCP record and weekly meal plan, and follow their meal logs.' },
-      { title: 'Get paid', text: 'Your earnings are sent to your GCash or bank account on the 5th of each month. Add your payout details on the Earnings page.' },
+      { title: 'Get paid', text: `Your earnings are sent to your GCash or bank account on the 5th of each month.${hasPayout.value ? ' Your payout details are on the Earnings page.' : ' Add your payout details on the Earnings page.'}` },
     ],
     closing: "We can't wait to see the difference you'll make! 💚",
     primary: { label: 'Go to my dashboard', to: '/rnd-dashboard' },
-    // hours are set in the RND onboarding now, so the next thing is where the money goes
-    secondary: { label: 'Add payout details', to: '/earnings?payout=1' },
+    // hours are set in the RND onboarding now, so the next thing is where the money goes;
+    // the payout step can be skipped in onboarding, so only ask when it was
+    secondary: hasPayout.value
+      ? { label: 'Open Earnings', to: '/earnings' }
+      : { label: 'Add payout details', to: '/earnings?payout=1' },
   }),
 }
 const copy = computed(() => (COPY[props.role] || COPY.client)(props.firstName))

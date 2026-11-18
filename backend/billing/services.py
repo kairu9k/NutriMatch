@@ -500,6 +500,13 @@ def expire_unpaid_appointments(**scope):
     from django.utils import timezone
 
     expire_unanswered_requests(**scope)
+    from scheduling.reschedule import expire_due
+
+    expire_due(**scope)  # a new time nobody answered: full refund
+
+    from scheduling.closing import auto_close_due
+
+    auto_close_due(**scope)  # video consultations the call record already decides, and anything open for 3 days
 
     from communication.services import notify
     from scheduling.models import Appointment

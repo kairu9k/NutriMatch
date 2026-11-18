@@ -302,6 +302,8 @@ def rnd_statement(rnd, now=None):
             # cleared in time for the last payout day's run (else it waits for the next)
             "payable": state == "posted" and in_run(inv, run_day),
             "paid_at": inv.paid_at,
+            # held and completed: what "earned" counts from (RND dashboard rule)
+            "completed_at": appt.completed_at if appt and appt.status == "completed" else None,
             "payment_method": inv.get_payment_method_display() if inv.payment_method else None,
             "issued_at": inv.created_at,
             "payout": {"id": inv.payout.id, "released_at": inv.payout.released_at, "reference": inv.payout.reference} if inv.payout_id else None,

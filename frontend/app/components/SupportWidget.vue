@@ -47,16 +47,31 @@
               <span>What's it about?</span>
               <select v-model="form.category" class="nm-select block" required>
                 <option value="" disabled>Choose a topic</option>
-                <option v-for="c in SUPPORT_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
               </select>
             </label>
-            <label v-if="links.appointments.length && ['appointment', 'payment', 'report'].includes(form.category)" class="sw-field">
+            <template v-if="form.category === 'dispute'">
+              <label v-if="disputable.length" class="sw-field">
+                <span>Which consultation?</span>
+                <select v-model="form.appointment" class="nm-select block" required>
+                  <option :value="null" disabled>Choose one</option>
+                  <option v-for="a in disputable" :key="a.id" :value="a.id">{{ a.label }}</option>
+                </select>
+              </label>
+              <p v-if="!disputable.length" class="nm-note plain-note">You have nothing to dispute right now. A no-show, or an in-person visit marked complete, can be disputed for 3 days.</p>
+              <p v-else class="nm-hint">Your RND's payment waits until NutriMatch decides.<template v-if="disputeUntil"> You can send this until {{ disputeUntil }}.</template></p>
+            </template>
+            <label v-else-if="links.appointments.length && ['appointment', 'payment', 'report'].includes(form.category)" class="sw-field">
               <span>Related appointment <em>(optional)</em></span>
               <select v-model="form.appointment" class="nm-select block">
                 <option :value="null">None</option>
                 <option v-for="a in links.appointments" :key="a.id" :value="a.id">{{ a.label }}</option>
               </select>
             </label>
+            <p v-if="suggestDispute" class="nm-note todo-note">
+              This consultation can be disputed. Use <strong>Dispute a consultation</strong> instead, so your RND's payment waits until NutriMatch decides.
+              <button type="button" class="nm-btn-soft nm-btn-sm" @click="form.category = 'dispute'">Switch to a dispute</button>
+            </p>
             <label v-if="links.invoices.length && form.category === 'payment'" class="sw-field">
               <span>Related invoice <em>(optional)</em></span>
               <select v-model="form.invoice" class="nm-select block">
@@ -148,6 +163,7 @@
 // pop-up is open so it never covers its buttons; ?support=<id> opens a request.
 import { ArrowLeft, CalendarCheck, CheckCircle2, ChevronDown, Headset, Inbox, MessageSquarePlus, Receipt, Search, Send, X } from 'lucide-vue-next'
 import { SUPPORT_CATEGORIES, SUPPORT_FAQ } from '~/utils/supportFaq'
+import { useSupportPanel } from '~/composables/useSupportPanel'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -178,26 +194,53 @@ const form = reactive(emptyForm())
 const links = ref({ appointments: [], invoices: [] })
 const sending = ref(false)
 const formError = ref('')
-const canSubmit = computed(() => form.category && form.subject.trim().length >= 5 && form.message.trim().length >= 10)
+const isClient = computed(() => auth.user?.role === 'client')
+const categories = computed(() => SUPPORT_CATEGORIES.filter(c => !c.clientOnly || isClient.value))
+const disputable = computed(() => links.value.appointments.filter(a => a.can_dispute))
+const disputeUntil = computed(() => {
+  const a = disputable.value.find(x => x.id === form.appointment)
+  return a?.dispute_until ? new Date(a.dispute_until).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+})
+// a no-show attached to a plain request wouldn't hold the payment: point to the dispute
+const suggestDispute = computed(() => form.category && form.category !== 'dispute' && !!form.appointment
+  && disputable.value.some(a => a.id === form.appointment))
+const MIN_MESSAGE = computed(() => (form.category === 'dispute' ? 20 : 10))
+const canSubmit = computed(() => form.category && form.subject.trim().length >= 5 && form.message.trim().length >= MIN_MESSAGE.value
+  && (form.category !== 'dispute' || !!form.appointment))
+// a dispute's subject names the consultation, unless the client typed their own
+watch(() => [form.category, form.appointment], ([cat, id]) => {
+  if (cat !== 'dispute' || !id) return
+  const a = disputable.value.find(x => x.id === id)
+  if (a && (!form.subject.trim() || form.subject.startsWith('Dispute: '))) form.subject = `Dispute: ${a.label}`.slice(0, 150)
+})
 let linksLoaded = false
+async function loadLinks(force = false) {
+  if (linksLoaded && !force) return
+  linksLoaded = true
+  try { links.value = await get('/support/links/') } catch { /* optional */ }
+}
 watch(tab, async (t) => {
   formError.value = ''
-  if (t === 'contact' && !linksLoaded) {
-    linksLoaded = true
-    try { links.value = await get('/support/links/') } catch { /* optional */ }
-  }
+  if (t === 'contact') loadLinks()
   if (t === 'requests') loadTickets()
 })
 async function submit() {
   if (!canSubmit.value) {
-    formError.value = 'Add a subject (5+ characters) and a message (10+ characters).'
+    formError.value = form.category === 'dispute' && !form.appointment
+      ? 'Choose the consultation you are disputing.'
+      : `Add a subject (5+ characters) and a message (${MIN_MESSAGE.value}+ characters).`
     return
   }
   sending.value = true
   formError.value = ''
   try {
+    const wasDispute = form.category === 'dispute'
     ticket.value = await post('/support/tickets/', { ...form, subject: form.subject.trim(), message: form.message.trim() })
     Object.assign(form, emptyForm())
+    if (wasDispute) {
+      markDisputeSent()
+      loadLinks(true) // it can't be disputed twice
+    }
     view.value = 'sent'
   } catch (e) {
     formError.value = apiMessage(e, 'Could not send your request. Please try again.')
@@ -281,6 +324,8 @@ watch(() => route.query.support, (id) => {
   router.replace({ query: rest })
 }, { immediate: true })
 defineExpose({ openTicket: (id) => { open.value = true; openTicket(id) } })
+// tells My Appointments a dispute was sent (composables/useSupportPanel.js)
+const { markDisputeSent } = useSupportPanel()
 
 /* ---------- stay out of the way of other pop-ups ---------- */
 const covered = ref(false)

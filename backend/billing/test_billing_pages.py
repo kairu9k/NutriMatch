@@ -66,6 +66,19 @@ class BillingPagesTests(TestCase):
         self.assertEqual((row["commission_pct"], row["share"]), (Decimal("10.00"), Decimal("720.00")))
         self.assertIsNone(data["payout_account"])
 
+    def test_earned_this_month_counts_completed_consultations_only(self):
+        """Same rule as the RND dashboard (2026-11-16 test pass): a consultation
+        paid this month but not held yet isn't earned."""
+        now = timezone.now()
+        Appointment.objects.filter(pk=self.paid.appointment_id).update(completed_at=now - timedelta(days=40))  # last month
+        Invoice.objects.filter(pk=self.due.pk).update(status="paid", paid_at=now)  # paid, consultation still ahead
+        today = Appointment.objects.create(relationship=self.rel, type="video", status="completed",
+                                           scheduled_at=now - timedelta(minutes=90), completed_at=now - timedelta(minutes=5))
+        Invoice.objects.create(relationship=self.rel, appointment=today, amount=Decimal("500"), commission_pct=Decimal("10"),
+                               status="paid", paid_at=now - timedelta(days=40))  # paid last month, held today
+        month = self.rapi.get("/api/rnd/earnings/").data["this_month"]
+        self.assertEqual((month["gross"], month["share"]), (Decimal("500"), Decimal("450.00")))
+
     def test_payout_detail_and_resend(self):
         RndPayoutAccount.objects.create(rnd=self.rnd, method="gcash", account_name="Maria Santos", account_number="09171234567")
         payout = Payout.objects.create(rnd=self.rnd, amount=Decimal("720"), payout_date=timezone.localdate(), method="gcash",
