@@ -1,117 +1,142 @@
 <template>
-  <div class="nm-page">
-    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+  <div class="nm-page rd-page">
+    <p v-if="error" class="nm-error">{{ error }} <button class="rd-link" @click="load">Try again</button></p>
 
-    <!-- BANNER (design A layout on the app's dark green, 2026-10-14; nm-hero in portal.css):
-         greeting + today's summary on the left, the next consultation on the right. -->
-    <section class="nm-hero">
-      <div class="nm-hero-greet">
-        <p class="nm-hero-date">{{ longToday }}</p>
-        <h1 class="nm-hero-title">Good {{ partOfDay }}, {{ auth.user?.first_name }}</h1>
-        <p v-if="d" class="nm-hero-sub">{{ summaryLine }}</p>
+    <!-- BANNER: greeting + today's summary on the left, the next consultation on the right -->
+    <section class="rd-hero">
+      <img class="rd-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
+      <span class="rd-hero-fade" aria-hidden="true"></span>
+      <div class="rd-hero-text">
+        <p class="rd-eyebrow"><span aria-hidden="true"></span>{{ longToday }}</p>
+        <h1 class="rd-title">Good {{ partOfDay }}, <em>{{ auth.user?.first_name }}.</em></h1>
+        <p v-if="d" class="rd-hero-sub"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>{{ summaryLine }}</p>
       </div>
-      <div v-if="d" class="nm-upnext">
+      <div v-if="d" class="rd-next un-b">
         <template v-if="d.next_up">
-          <div class="nm-upnext-top">
-            <span class="nm-upnext-label">Up next, {{ dayWord(d.next_up.scheduled_at) === 'Today' ? 'today' : dayWord(d.next_up.scheduled_at).replace(/^Tomorrow/, 'tomorrow') }} at {{ clock(d.next_up.scheduled_at) }}</span>
-            <span class="nm-upnext-pay" :class="{ unpaid: d.next_up.payment !== 'paid' }">{{ d.next_up.payment === 'paid' ? 'Paid' : 'Not paid yet' }}</span>
+          <div class="un-db">
+            <small>{{ sdMonth(d.next_up.scheduled_at) }}</small>
+            <b>{{ sdDay(d.next_up.scheduled_at) }}</b>
+            <span>{{ ['Today', 'Tomorrow'].includes(dayWord(d.next_up.scheduled_at)) ? dayWord(d.next_up.scheduled_at) : sdWeek(d.next_up.scheduled_at) }}</span>
           </div>
-          <div class="nm-upnext-row">
-            <div class="nm-upnext-who">
-              <img v-if="d.next_up.client.profile_photo" :src="d.next_up.client.profile_photo" alt="" class="nm-upnext-avatar" />
-              <span v-else class="nm-upnext-avatar">{{ nameInitials(d.next_up.client.name) }}</span>
-              <div class="nm-upnext-name-wrap">
-                <p class="nm-upnext-name">{{ d.next_up.client.name }}</p>
-                <p class="nm-upnext-format">{{ d.next_up.type_label }} consultation</p>
+          <div class="un-m">
+            <p class="un-k">Up next · <span class="un-day">{{ dayWord(d.next_up.scheduled_at).split(',')[0] }}, </span><b>{{ clock(d.next_up.scheduled_at) }}</b></p>
+            <div class="un-who">
+              <img v-if="d.next_up.client.profile_photo" :src="d.next_up.client.profile_photo" alt="" class="un-av" />
+              <span v-else class="un-av un-ini">{{ nameInitials(d.next_up.client.name) }}</span>
+              <div class="un-name">
+                <strong>{{ d.next_up.client.name }}</strong>
+                <small><Video :size="13" aria-hidden="true" /> {{ d.next_up.type_label }} consultation</small>
               </div>
+              <span class="un-paid" :class="{ unpaid: d.next_up.payment !== 'paid' }"><template v-if="d.next_up.payment === 'paid'"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></template>{{ d.next_up.payment === 'paid' ? 'Paid' : 'Not paid yet' }}</span>
             </div>
-            <div class="nm-upnext-actions">
-              <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="nm-hero-btn primary"><Video :size="16" /> Join now</NuxtLink>
-              <span v-else-if="d.next_up.type !== 'in_person'" class="nm-hero-btn primary waiting"><Video :size="16" /> Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0].replace(/^Tomorrow/, 'tomorrow')} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
-              <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="nm-hero-btn">Open patient</NuxtLink>
+            <div class="un-acts">
+              <NuxtLink v-if="canJoin(d.next_up)" :to="`/consultation-room/${d.next_up.id}`" class="un-btn gold"><Video :size="15" /> Join now</NuxtLink>
+              <span v-else-if="d.next_up.type !== 'in_person'" class="un-btn soft"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>Join opens {{ dayWord(d.next_up.join_opens_at) === 'Today' ? '' : `${dayWord(d.next_up.join_opens_at).split(',')[0].replace(/^Tomorrow/, 'tomorrow')} ` }}{{ clock(d.next_up.join_opens_at) }}</span>
+              <NuxtLink :to="`/client-detail/${d.next_up.relationship_id}`" class="un-btn" :class="canJoin(d.next_up) ? 'soft' : 'dark'">Open patient<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink>
             </div>
           </div>
         </template>
         <template v-else>
-          <p class="nm-upnext-label">Up next</p>
-          <p class="nm-upnext-empty">No consultations coming up.</p>
-          <div class="nm-upnext-actions"><NuxtLink to="/appointments" class="nm-hero-btn">View appointments</NuxtLink></div>
+          <div class="un-db un-empty-db"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></svg></div>
+          <div class="un-m">
+            <p class="un-k">Up next</p>
+            <p class="un-empty">No consultations coming up.</p>
+            <div class="un-acts"><NuxtLink to="/appointments" class="un-btn dark">View appointments<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink></div>
+          </div>
         </template>
       </div>
     </section>
 
-    <!-- NEEDS ATTENTION: the shared strip and pop-up (NeedsAttention.vue, same
-         design as the client and admin dashboards): patient alerts first (red
-         triangle = a risk), then the RND's own to-do -->
+    <!-- PHONE: quick access to the main pages (UI only, same pages as the sidebar) -->
+    <section class="rq" aria-label="Quick access">
+      <h2 class="rq-title">Quick access</h2>
+      <div class="rq-grid">
+        <NuxtLink to="/appointments" class="rq-tile "><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></svg></span>Appointments</NuxtLink>
+        <NuxtLink to="/my-patients" class="rq-tile gold"><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a5.5 5.5 0 0 1 3.5 6" /></svg></span>My Patients</NuxtLink>
+        <NuxtLink to="/ncp-records" class="rq-tile "><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg></span>NCP Records</NuxtLink>
+        <NuxtLink to="/meal-planning" class="rq-tile gold"><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v8a2 2 0 0 0 2 2h1v8M8 3v6M6 3v6M16 21V3c-2 1-3 4-3 8h3" /></svg></span>Meal Plans</NuxtLink>
+        <NuxtLink to="/availability" class="rq-tile dark"><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>Availability</NuxtLink>
+        <NuxtLink to="/earnings" class="rq-tile "><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M3 10h18M16 15h2" /></svg></span>Earnings</NuxtLink>
+        <NuxtLink to="/messages" class="rq-tile gold"><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z" /></svg></span>Messages</NuxtLink>
+        <NuxtLink to="/profile-settings" class="rq-tile "><span class="rq-icon"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 8.6 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 8.6a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" /></svg></span>Settings</NuxtLink>
+      </div>
+    </section>
+
+    <!-- NEEDS ATTENTION: the shared strip and pop-up (NeedsAttention.vue) -->
     <NeedsAttention v-if="d" class="needs-strip" :groups="needGroups" clear-text="All caught up. Nothing is waiting on you." />
 
-    <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading your dashboard…</p></div>
+    <div v-if="loading" class="rd-card"><p class="rd-muted">Loading your dashboard…</p></div>
 
     <template v-else-if="d">
-      <div class="nm-grid">
-        <div class="nm-col">
-          <!-- three divided columns (user's call, 2026-10-24); sits beside Booking requests -->
-          <div class="nm-panel bento">
-            <div class="bento-rows">
-              <NuxtLink to="/appointments?tab=upcoming" class="bento-row">
-                <span>Consultations this week<small>{{ todayCount }} today</small></span>
-                <strong>{{ d.stats.sessions_this_week }}</strong>
-              </NuxtLink>
-              <NuxtLink to="/my-patients" class="bento-row">
-                <span>Active patients</span>
-                <strong>{{ d.stats.active_patients }}</strong>
-              </NuxtLink>
-              <NuxtLink to="/meal-planning" class="bento-row">
-                <span>Meal-plan adherence<small>{{ deltaText.toLowerCase() }}</small></span>
-                <strong>{{ d.adherence.pct == null ? '—' : `${d.adherence.pct}%` }}</strong>
-              </NuxtLink>
-            </div>
-          </div>
+      <!-- three figures -->
+      <div class="rd-stats">
+        <NuxtLink to="/appointments?tab=upcoming" class="rd-stat" style="--c: #004D3A; --bg: #E3EFE7">
+          <span class="rd-stat-top"><span class="rd-stat-label">Consultations this week</span><span class="rd-stat-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg></span></span>
+          <strong class="rd-stat-val">{{ d.stats.sessions_this_week }}</strong>
+          <small class="rd-stat-sub">{{ todayCount }} today</small>
+        </NuxtLink>
+        <NuxtLink to="/my-patients" class="rd-stat" style="--c: #9A7300; --bg: #FBF3D2">
+          <span class="rd-stat-top"><span class="rd-stat-label">Active patients</span><span class="rd-stat-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.4c2 .8 3.2 2.8 3.5 5.6" /></svg></span></span>
+          <strong class="rd-stat-val">{{ d.stats.active_patients }}</strong>
+          <small class="rd-stat-sub">View my patients</small>
+        </NuxtLink>
+        <NuxtLink to="/meal-planning" class="rd-stat" :class="{ empty: d.adherence.pct == null }" style="--c: #3B5BA5; --bg: #EEF1FA">
+          <span class="rd-stat-top"><span class="rd-stat-label">Meal-plan adherence</span><span class="rd-stat-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg></span></span>
+          <strong class="rd-stat-val">{{ d.adherence.pct == null ? '—' : `${d.adherence.pct}%` }}</strong>
+          <small class="rd-stat-sub">{{ deltaText }}</small>
+        </NuxtLink>
+      </div>
+
+      <div class="rd-grid">
+        <div class="rd-col">
           <!-- schedule -->
-          <div class="nm-panel">
-            <div class="nm-panel-head">
-              <div>
-                <h2 class="nm-panel-title">Today &amp; the next 7 days</h2>
-                <p class="nm-panel-sub">Confirmed consultations</p>
+          <div class="rd-card">
+            <div class="rd-head">
+              <span class="rd-head-ico" style="background: #E3EFE7; color: #004D3A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg></span>
+              <div class="rd-head-text">
+                <h2 class="rd-h">Today &amp; the next 7 days</h2>
+                <p class="rd-sub">{{ confirmedSchedule.length ? `${confirmedSchedule.length} confirmed consultation${confirmedSchedule.length === 1 ? '' : 's'}` : 'Confirmed consultations' }}</p>
               </div>
-              <NuxtLink to="/appointments" class="nm-panel-link">All appointments</NuxtLink>
+              <NuxtLink to="/appointments" class="rd-link">All appointments<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink>
             </div>
-            <p v-if="!confirmedSchedule.length" class="nm-muted empty-line">Nothing confirmed for this week.</p>
-            <div v-for="group in scheduleByDay" :key="group.key" class="day-group">
-              <p class="day-label">{{ group.label }}</p>
-              <div v-for="a in group.items" :key="a.id" class="sched-row">
-                <span class="sched-time">{{ clock(a.scheduled_at) }}</span>
-                <img v-if="a.client.profile_photo" :src="a.client.profile_photo" class="nm-avatar" alt="" />
-                <span v-else class="nm-avatar">{{ nameInitials(a.client.name) }}</span>
-                <span class="sched-main">
-                  <NuxtLink :to="`/client-detail/${a.relationship_id}`" class="nm-row-title link">{{ a.client.name }}</NuxtLink>
-                  <span class="nm-row-sub">{{ a.type_label }}, {{ a.duration_minutes }} min</span>
-                </span>
-                <span class="sched-end">
-                  <span v-if="a.payment === 'paid'" class="nm-pill green">Paid</span>
-                  <span v-else class="nm-pill muted">Not paid yet</span>
-                  <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="13" /> Join</NuxtLink>
-                </span>
+            <div v-if="!confirmedSchedule.length" class="rd-empty"><span><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg></span><p>Nothing confirmed for this week.</p></div>
+            <div v-for="group in scheduleByDay" :key="group.key" class="sd-dg" :class="{ 'is-today': group.key === todayIso }">
+              <div class="sd-db" :aria-label="group.label"><small>{{ sdMonth(group.items[0].scheduled_at) }}</small><b>{{ sdDay(group.items[0].scheduled_at) }}</b><span>{{ group.key === todayIso ? 'Today' : sdWeek(group.items[0].scheduled_at) }}</span></div>
+              <div class="sd-dl">
+                <div v-for="(a, i) in group.items" :key="a.id" class="sd-ev" :class="{ 'is-now': group.key === todayIso && i === sdFirstUpcoming(group) }">
+                  <span class="sd-tm">{{ sdTime(a.scheduled_at) }} <small>{{ sdAmPm(a.scheduled_at) }}</small></span>
+                  <img v-if="a.client.profile_photo" :src="a.client.profile_photo" class="sd-av" alt="" />
+                  <span v-else class="sd-av sd-ini">{{ nameInitials(a.client.name) }}</span>
+                  <span class="sd-evm">
+                    <span class="sd-evn"><NuxtLink :to="`/client-detail/${a.relationship_id}`" class="sd-name">{{ a.client.name }}</NuxtLink><span v-if="group.key === todayIso && i === sdFirstUpcoming(group)" class="sd-soon"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>{{ sdSoonText(a.scheduled_at) }}</span></span>
+                    <span class="sd-evs"><Video v-if="a.type === 'video'" :size="14" aria-hidden="true" />{{ a.type_label }}, {{ a.duration_minutes }} min<i aria-hidden="true" /><span v-if="a.payment === 'paid'" class="sd-pay">Paid</span><span v-else class="sd-pay muted">Not paid yet</span></span>
+                  </span>
+                  <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="rd-btn dark sm"><Video :size="14" /> Join</NuxtLink>
+                  <NuxtLink v-else :to="`/client-detail/${a.relationship_id}`" class="sd-go" :aria-label="`Open ${a.client.name}`"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></NuxtLink>
+                </div>
               </div>
             </div>
-            <p v-if="d.requests.length" class="req-pointer">
-              {{ d.requests.length }} booking request{{ d.requests.length === 1 ? ' is' : 's are' }} waiting for your answer, under Booking requests.
-            </p>
+            <NuxtLink v-if="d.requests.length" to="/appointments?tab=requests" class="sd-req">
+              <span class="sd-req-i"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></svg></span>
+              <span><b>{{ d.requests.length }} booking request{{ d.requests.length === 1 ? '' : 's' }}</b> {{ d.requests.length === 1 ? 'is' : 'are' }} waiting for your answer</span>
+              <em>Review<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></em>
+            </NuxtLink>
           </div>
 
           <!-- adherence chart -->
-          <div class="nm-panel">
-            <div class="nm-panel-head">
-              <div>
-                <h2 class="nm-panel-title">Meal-plan adherence, last 7 days</h2>
-                <p class="nm-panel-sub">Share of planned meals your patients followed. Partly followed counts as half, and an unlogged meal counts as missed.</p>
+          <div class="rd-card">
+            <div class="rd-head">
+              <span class="rd-head-ico" style="background: #FBF3D2; color: #9A7300"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0z" /><path d="M8 12c0-3 1.5-5 4-6M12 12c0-2.5 1.5-4 4-4.5" /></svg></span>
+              <div class="rd-head-text">
+                <h2 class="rd-h">Meal-plan adherence, last 7 days</h2>
+                <p class="rd-sub">Share of planned meals your patients followed. Partly followed counts as half, and an unlogged meal counts as missed.</p>
               </div>
               <div v-if="d.adherence.pct != null" class="chart-figure">
                 <span class="cf-value">{{ d.adherence.pct }}%</span>
                 <span class="cf-sub">{{ d.adherence.logged }} of {{ d.adherence.planned }} meals logged<template v-if="d.adherence.waiting">, {{ d.adherence.waiting }} waiting for your rating</template></span>
               </div>
             </div>
-            <p v-if="!d.adherence.planned" class="nm-muted empty-line">No meal plans active yet. Adherence shows up once patients have a sent plan.</p>
+            <div v-if="!d.adherence.planned" class="rd-empty"><span><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0z" /><path d="M8 12c0-3 1.5-5 4-6M12 12c0-2.5 1.5-4 4-4.5" /></svg></span><p>No meal plans active yet. Adherence shows up once patients have a sent plan.</p></div>
             <div v-else class="chart" role="img" :aria-label="`Meal-plan adherence by day: ${chartSummary}`">
               <div class="chart-plot">
                 <div v-for="t in [100, 50, 0]" :key="t" class="grid" :style="{ bottom: `${t}%` }"><span>{{ t }}%</span></div>
@@ -142,95 +167,101 @@
               </table>
             </div>
           </div>
-
         </div>
 
-        <div class="nm-col">
+        <div class="rd-col">
           <!-- requests -->
-          <div class="nm-panel">
-            <div class="nm-panel-head">
-              <div>
-                <h2 class="nm-panel-title">Booking requests</h2>
-                <p class="nm-panel-sub">Confirm before the time passes. The client pays after you confirm.</p>
+          <div class="rd-card">
+            <div class="rd-head">
+              <span class="rd-head-ico" style="background: #FDECEC; color: #B4384A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></svg></span>
+              <div class="rd-head-text">
+                <h2 class="rd-h">Booking requests <span v-if="d.requests.length" class="rd-count">{{ d.requests.length }}</span></h2>
+                <p class="rd-sub">Confirm before the time passes. The client pays after you confirm.</p>
               </div>
             </div>
-            <p v-if="!d.requests.length" class="nm-muted">No requests waiting.</p>
-            <div v-for="a in d.requests" :key="a.id" class="nm-row">
-              <img v-if="a.client.profile_photo" :src="a.client.profile_photo" class="nm-avatar" alt="" />
-              <span v-else class="nm-avatar">{{ nameInitials(a.client.name) }}</span>
-              <div class="nm-row-main">
-                <p class="nm-row-title">{{ a.client.name }}</p>
-                <p class="nm-row-sub">{{ a.type_label }}, {{ dayWord(a.scheduled_at) }}, {{ clock(a.scheduled_at) }}</p>
-                <p class="req-soon" :class="{ urgent: hoursUntil(a.scheduled_at) < SOON_HOURS }">{{ startsIn(a.scheduled_at) }}</p>
+            <div v-if="!d.requests.length" class="rd-empty"><span><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></svg></span><p>No requests waiting.</p></div>
+            <div v-for="a in d.requests" :key="a.id" class="req-row">
+              <img v-if="a.client.profile_photo" :src="a.client.profile_photo" class="rd-av sm" alt="" />
+              <span v-else class="rd-av sm">{{ nameInitials(a.client.name) }}</span>
+              <div class="req-main">
+                <p class="req-name">{{ a.client.name }}</p>
+                <p class="req-sub">{{ a.type_label }}, {{ dayWord(a.scheduled_at) }}, {{ clock(a.scheduled_at) }}</p>
+                <p class="req-soon" :class="{ urgent: hoursUntil(a.scheduled_at) < SOON_HOURS }"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>{{ startsIn(a.scheduled_at) }}</p>
               </div>
-              <NuxtLink to="/appointments?tab=requests" class="nm-btn-dark nm-btn-sm">Review</NuxtLink>
+              <NuxtLink to="/appointments?tab=requests" class="rd-btn dark sm">Review</NuxtLink>
             </div>
           </div>
 
           <!-- earnings -->
-          <div class="nm-panel">
-            <div class="nm-panel-head">
-              <div>
-                <h2 class="nm-panel-title">Earnings</h2>
-                <p v-if="d.earnings_compare" class="nm-panel-sub">{{ d.earnings_compare.label }}</p>
+          <div class="rd-card">
+            <div class="rd-head">
+              <span class="rd-head-ico" style="background: #E3EFE7; color: #004D3A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" /><path d="M21 9h-6a3 3 0 0 0 0 6h6z" /></svg></span>
+              <div class="rd-head-text">
+                <h2 class="rd-h">Earnings</h2>
+                <p v-if="d.earnings_compare" class="rd-sub">{{ d.earnings_compare.label }}</p>
               </div>
-              <NuxtLink to="/earnings" class="nm-panel-link">Open Earnings</NuxtLink>
+              <NuxtLink to="/earnings" class="rd-link">Open Earnings<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink>
             </div>
-            <!-- same rows as the admin dashboard's "This month vs last month":
-                 up is green, a drop is plain grey (not a warning) -->
-            <div v-for="m in d.earnings_compare?.metrics || []" :key="m.key" class="cmp">
-              <span class="cmp-label">{{ EARN_LABEL[m.key] }}</span>
-              <span class="cmp-now">{{ m.key === 'earned' ? peso(m.now) : m.now }}</span>
-              <ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" />
-              <span class="cmp-before">was {{ m.key === 'earned' ? peso(m.before) : m.before }}</span>
+            <div class="rd-earn">
+              <div v-for="m in d.earnings_compare?.metrics || []" :key="m.key" class="rd-e">
+                <small>{{ EARN_LABEL[m.key] }}</small>
+                <strong>{{ m.key === 'earned' ? peso(m.now) : m.now }}</strong>
+                <span class="rd-e-foot"><ChangeBadge :now="m.now" :before="m.before" :pct="m.change_pct" /><em>was {{ m.key === 'earned' ? peso(m.before) : m.before }}</em></span>
+              </div>
+              <div class="rd-e gold">
+                <small>Waiting to be paid</small>
+                <strong>{{ peso(Number(d.earnings.pending) + Number(d.earnings.posted)) }}</strong>
+                <span class="rd-e-foot"><em>{{ peso(d.earnings.posted) }} cleared, {{ peso(d.earnings.pending) }} on hold</em></span>
+              </div>
+              <div class="rd-e">
+                <small>Paid out so far</small>
+                <strong>{{ peso(d.earnings.paid_out) }}</strong>
+              </div>
             </div>
-            <div class="cmp plain">
-              <span class="cmp-label">Waiting to be paid</span>
-              <span class="cmp-now">{{ peso(Number(d.earnings.pending) + Number(d.earnings.posted)) }}</span>
-              <span class="cmp-before">{{ peso(d.earnings.posted) }} cleared, {{ peso(d.earnings.pending) }} on hold</span>
-            </div>
-            <div class="cmp plain">
-              <span class="cmp-label">Paid out so far</span>
-              <span class="cmp-now">{{ peso(d.earnings.paid_out) }}</span>
-            </div>
-            <p class="nm-hint">
-              Next payout {{ shortDate(d.earnings.next_payout_date) }}<template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} cleared<template v-if="!d.earnings.has_payout_account"> and your payout details</template></template>.
-            </p>
+            <p class="rd-note"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg><span>Next payout <strong>{{ shortDate(d.earnings.next_payout_date) }}</strong><template v-if="!d.earnings.eligible">. It needs {{ peso(d.earnings.minimum_payout) }} cleared<template v-if="!d.earnings.has_payout_account"> and your payout details</template></template>.</span></p>
           </div>
 
           <!-- reviews -->
-          <div class="nm-panel">
-            <div class="nm-panel-head">
-              <h2 class="nm-panel-title">Latest reviews</h2>
+          <div class="rd-card">
+            <div class="rd-head">
+              <span class="rd-head-ico" style="background: #FBF3D2; color: #9A7300"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg></span>
+              <div class="rd-head-text">
+                <h2 class="rd-h">Latest reviews</h2>
+              </div>
               <NuxtLink v-if="d.rating?.count" to="/reviews" class="overall" :aria-label="`Average ${d.rating.average} out of 5 from ${d.rating.count} reviews. Open Reviews`">
                 <span class="overall-star" aria-hidden="true">★</span>
                 <strong>{{ d.rating.average.toFixed(1) }}</strong>
                 <span>from {{ d.rating.count }} review{{ d.rating.count === 1 ? '' : 's' }}</span>
               </NuxtLink>
             </div>
-            <p v-if="!d.reviews.length" class="nm-muted" style="margin-top: 10px">No reviews yet.</p>
+            <div v-if="!d.reviews.length" class="rd-empty"><span><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg></span><p>No reviews yet.</p></div>
             <div v-for="(r, i) in d.reviews" :key="i" class="review">
               <p class="stars">{{ '★'.repeat(r.rating) }}<span>{{ '★'.repeat(5 - r.rating) }}</span></p>
               <p v-if="r.comment" class="review-text">"{{ r.comment }}"</p>
-              <p class="nm-row-sub">{{ r.client }}, {{ shortDate(r.created_at) }}</p>
+              <p class="review-by">{{ r.client }}, {{ shortDate(r.created_at) }}</p>
             </div>
           </div>
 
-          <!-- recent activity: the latest notifications, same rows as the client dashboard
-               (gold dot = unread); chat isn't here, as in the bell -->
-          <div class="nm-panel">
-            <div class="nm-panel-head act-head">
-              <h2 class="nm-panel-title">Recent activity</h2>
-              <NuxtLink v-if="recentActivity.length" to="/notifications" class="nm-btn-soft nm-btn-sm">View all</NuxtLink>
-            </div>
-            <div v-for="n in recentActivity" :key="n.id" class="activity-row">
-              <span class="activity-dot" :class="{ unread: !n.is_read }" aria-hidden="true"></span>
-              <div class="activity-text">
-                <p class="activity-title">{{ n.subject }}</p>
-                <p class="activity-time">{{ timeAgo(n.created_at) }}</p>
+          <!-- recent activity: the latest notifications (gold = unread) -->
+          <div class="rd-card">
+            <div class="rd-head">
+              <span class="rd-head-ico" style="background: #EEF1FA; color: #3B5BA5"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg></span>
+              <div class="rd-head-text">
+                <h2 class="rd-h">Recent activity</h2>
               </div>
+              <NuxtLink v-if="recentActivity.length" to="/notifications" class="rd-link">View all<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink>
             </div>
-            <p v-if="!recentActivity.length" class="nm-muted">Nothing yet. Booking requests, payments and patient updates show up here.</p>
+            <ul v-if="recentActivity.length" class="rd-tl">
+              <li v-for="n in recentActivity" :key="n.id" class="activity-row" :class="{ unread: !n.is_read }">
+                <span class="rd-tl-ico" :class="actKind(n).tone"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" v-html="actKind(n).path" /></span>
+                <div class="activity-text">
+                  <p class="activity-title">{{ n.subject }}</p>
+                  <p class="activity-time">{{ timeAgo(n.created_at) }}</p>
+                </div>
+                <span v-if="!n.is_read" class="activity-dot" aria-label="Unread"></span>
+              </li>
+            </ul>
+            <div v-else class="rd-empty"><span><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg></span><p>Nothing yet. Booking requests, payments and patient updates show up here.</p></div>
           </div>
         </div>
       </div>
@@ -472,151 +503,392 @@ function nameInitials(name) {
   const parts = String(name || '').split(' ').filter(Boolean)
   return userInitials(parts[0], parts[parts.length - 1])
 }
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+// a small icon + colour for each activity row, read from its subject
+const ACT_KINDS = [
+  { test: /pay|invoice|refund|payout|earning/i, tone: 'gold', path: '<rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" />' },
+  { test: /request|booking/i, tone: 'red', path: '<path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" />' },
+  { test: /lab|result/i, tone: 'blue', path: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3" />' },
+  { test: /meal|plan|log/i, tone: 'green', path: '<path d="M3 12h18a9 9 0 0 1-18 0z" /><path d="M8 12c0-3 1.5-5 4-6M12 12c0-2.5 1.5-4 4-4.5" />' },
+  { test: /review|rating/i, tone: 'gold', path: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />' },
+  { test: /consult|appointment|soon|starts|session/i, tone: 'green', path: '<circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />' },
+]
+const actKind = n => ACT_KINDS.find(k => k.test.test(n.subject || '')) || { tone: 'muted', path: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />' }
+
+// ---- UI helpers only: date block + time in the schedule card ----
+const sdMonth = v => new Date(v).toLocaleDateString('en-PH', { ...PH, month: 'short' }).toUpperCase()
+const sdDay = v => new Date(v).toLocaleDateString('en-PH', { ...PH, day: 'numeric' })
+const sdWeek = v => new Date(v).toLocaleDateString('en-PH', { ...PH, weekday: 'short' })
+const sdTime = v => clock(v).replace(/\s?[AP]M$/i, '')
+const sdAmPm = v => (clock(v).match(/[AP]M$/i) || [''])[0].toUpperCase()
+function sdFirstUpcoming(group) {
+  return group.items.findIndex(a => new Date(a.scheduled_at) > now.value)
+}
+function sdSoonText(v) {
+  const t = untilText(v).replace('in about ', 'In ').replace(/^in /, 'In ')
+  return t.replace(' hours', ' hrs').replace(' hour', ' hr').replace(' minutes', ' min').replace(' minute', ' min')
+}
 </script>
 
 <style scoped>
+/* =========================================================
+   RND dashboard: brand #004D3A / #EFBF04 / white
+   Fonts: Playfair Display (headings, numbers), DM Sans (body)
+   ========================================================= */
+* { box-sizing: border-box; }
+.rd-page { font-family: 'DM Sans', 'Inter', Arial, sans-serif; color: #14261E; display: flex; flex-direction: column; gap: 18px; }
+.ic { flex-shrink: 0; display: inline-block; vertical-align: middle; }
+.rd-page .nm-error { display: flex; align-items: center; gap: 12px; margin: 0; padding: 12px 16px; border-radius: 14px; background: #FEF3F2; border: 1px solid #FECDCA; color: #B42318; font-size: 14px; }
 
-.all-clear { display: flex; align-items: center; gap: 8px; color: #1f6f46; font-size: 0.86rem; font-weight: 600; margin: 0; }
+/* ---------- HERO ---------- */
+.rd-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 30px 32px;
+  border-radius: 24px;
+  color: #FFFFFF;
+  background:
+    radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(115deg, #035A45 0%, #004D3A 50%, #004635 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 24px 50px -18px rgba(0, 77, 58, 0.55);
+}
+.rd-hero-plate { position: absolute; right: -40px; top: 50%; width: 460px; height: 460px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.6; pointer-events: none; }
+.rd-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.35) 100%); pointer-events: none; }
+.rd-hero-text { position: relative; z-index: 1; max-width: 520px; }
+.rd-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #EFBF04; }
+.rd-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
+.rd-title { margin: 10px 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1.1; color: #FFFFFF; }
+.rd-title em { font-style: italic; color: #EFBF04; }
+.rd-hero-sub { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-size: 14.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.88); }
+.rd-hero-sub .ic { margin-top: 2px; color: #8FD4A8; }
 
-.day-group + .day-group { margin-top: 14px; }
-.day-label { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0 0 4px; }
-.sched-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
-.sched-time { width: 66px; font-size: 0.84rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.rd-next { position: relative; z-index: 1; width: 440px; max-width: 100%; padding: 18px; border-radius: 20px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.rd-next-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rd-next-k { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #EFBF04; }
+.rd-next-k i { width: 8px; height: 8px; border-radius: 50%; background: #EFBF04; box-shadow: 0 0 0 4px rgba(239, 191, 4, 0.25); }
+.rd-paid { flex-shrink: 0; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #1F7A4C; font-size: 11.5px; font-weight: 800; }
+.rd-paid.unpaid { background: rgba(239, 191, 4, 0.2); color: #EFBF04; }
+.rd-next-who { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+.rd-next-name { min-width: 0; }
+.rd-next-name strong { display: block; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-next-name small { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, 0.8); }
+.rd-next-empty { margin: 10px 0 14px; font-size: 15px; color: #FFFFFF; }
+.rd-next-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rd-next-acts.one { grid-template-columns: 1fr; }
+.rd-av { flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: linear-gradient(135deg, #F5CB1F, #C49102); color: #004D3A; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; border: 3px solid #FFFFFF; }
+.rd-av.sm { width: 42px; height: 42px; font-size: 13px; border-width: 2px; }
+
+/* buttons */
+.rd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 14px; border: 1px solid transparent; border-radius: 12px; font-family: inherit; font-size: 13.5px; font-weight: 800; text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color .15s, transform .15s; }
+.rd-btn.gold { background: #EFBF04; color: #004D3A; box-shadow: 0 10px 22px -12px rgba(239, 191, 4, 0.9); }
+.rd-btn.gold:hover { background: #F5CB1F; transform: translateY(-1px); }
+.rd-btn.ghost { background: rgba(255, 255, 255, 0.08); border: 1px dashed rgba(239, 191, 4, 0.6); color: #EFBF04; cursor: default; }
+.rd-btn.outline { background: transparent; border-color: rgba(255, 255, 255, 0.45); color: #FFFFFF; }
+.rd-btn.outline:hover { background: rgba(255, 255, 255, 0.12); }
+.rd-btn.dark { background: #004D3A; color: #FFFFFF; }
+.rd-btn.dark:hover { background: #0A5C46; }
+.rd-btn.sm { height: 36px; padding: 0 14px; font-size: 13px; }
+.rd-btn:focus-visible,
+.rd-link:focus-visible { outline: 3px solid rgba(239, 191, 4, 0.6); outline-offset: 2px; }
+.rd-link { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; background: #F1F6F2; border: 1px solid #DCE8E0; color: #004D3A; font-family: inherit; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.rd-link:hover { background: #E3EFE7; }
+
+.needs-strip { margin: 0; }
+.rd-page .needs-strip {
+  border-radius: 14px !important;
+  background: #EAF4EE !important;
+  border: 1px solid #CFE5D7 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05), 0 10px 22px -12px rgba(0, 77, 58, 0.25) !important;
+  color: #004D3A;
+  font-weight: 600;
+}
+
+/* ---------- STATS ---------- */
+.rd-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.rd-stat { position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 20px 22px 18px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E1E7E3; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22); color: inherit; text-decoration: none; transition: transform .2s, box-shadow .2s; }
+.rd-stat:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 4px 10px rgba(0, 0, 0, 0.08), 0 20px 40px -10px rgba(0, 0, 0, 0.18), 0 30px 60px -20px rgba(0, 77, 58, 0.3); }
+.rd-stat:focus-visible { outline: 3px solid rgba(239, 191, 4, 0.6); outline-offset: 2px; }
+.rd-stat::after { display: none; }
+.rd-stat-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rd-stat-label { font-size: 14px; font-weight: 700; color: #3E5046; }
+.rd-stat-ico { flex-shrink: 0; width: 42px; height: 42px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg); color: var(--c); }
+.rd-stat-val { margin: 8px 0 10px; font-family: 'Playfair Display', Georgia, serif; font-size: 38px; font-weight: 700; line-height: 1; color: #0E3A2C; font-variant-numeric: lining-nums tabular-nums; }
+.rd-stat.empty .rd-stat-val { color: #B5C2BA; }
+.rd-stat-sub { align-self: flex-start; padding: 4px 10px; border-radius: 999px; background: #F3F6F4; font-size: 12px; font-weight: 600; color: #4A5A52; }
+
+/* ---------- CARDS ---------- */
+.rd-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.rd-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.rd-card { padding: 22px 24px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E1E7E3; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22); }
+.rd-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.rd-head-text { flex: 1 1 220px; min-width: 0; }
+.rd-head-ico { flex-shrink: 0; width: 42px; height: 42px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; }
+.rd-h { margin: 0; display: flex; align-items: center; gap: 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 20px; font-weight: 700; color: #0E3A2C; }
+.rd-sub { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: #6B7D73; }
+.rd-count { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #B42318; color: #FFFFFF; font-family: 'DM Sans', Arial, sans-serif; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.rd-muted { margin: 0; font-size: 14px; color: #6B7D73; }
+.rd-empty { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; border: 1.5px dashed #CFDDD4; background: #F8FBF9; }
+.rd-empty > span { flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; background: #FFFFFF; color: #6B7D73; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 6px 14px -10px rgba(0, 77, 58, 0.6); }
+.rd-empty p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #4A5A52; }
+.rd-pill { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.rd-pill.green { background: #EAF4EE; color: #1F7A4C; }
+.rd-pill.muted { background: #FBF3D2; color: #8A6400; }
+
+/* schedule */
+.day-group + .day-group { margin-top: 16px; }
+.day-label { display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; }
+.day-label span { padding: 4px 12px; border-radius: 999px; background: #004D3A; color: #FFFFFF; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.day-label::after { content: ''; flex: 1; border-top: 1px dashed #DCE5DF; }
+.sched-row { display: flex; align-items: center; gap: 14px; }
+.sched-row + .sched-row { margin-top: 10px; }
+.sched-time { flex-shrink: 0; width: 72px; font-family: 'Playfair Display', Georgia, serif; font-size: 17px; font-weight: 700; color: #0E3A2C; text-align: center; font-variant-numeric: tabular-nums; }
+.sched-card { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 16px; background: #F7FAF8; border: 1px solid #EDF2EE; border-left: 4px solid #004D3A; }
 .sched-main { flex: 1; min-width: 140px; display: flex; flex-direction: column; }
+.sched-name { font-size: 15px; font-weight: 700; color: #0E3A2C; text-decoration: none; }
+.sched-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.sched-sub { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6B7D73; }
 .sched-end { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.link { text-decoration: none; }
-.link:hover { text-decoration: underline; }
+.req-pointer { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: #FEF5F4; font-size: 13px; color: #8A1F14; }
 
-/* adherence chart — one series: one hue, today in the accent step, no legend */
-.nm-panel-head > div:first-child { flex: 1 1 260px; min-width: 0; }
-.chart-figure { text-align: right; flex-shrink: 0; white-space: nowrap; margin-left: auto; }
-.cf-value { display: block; font-size: 1.6rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.cf-sub { font-size: 0.74rem; color: #8a9a8a; }
-.chart { margin-top: 6px; }
-.chart-plot { position: relative; height: 170px; margin: 10px 0 0 34px; }
-.grid { position: absolute; left: 0; right: 0; border-top: 1px solid #eef1ee; }
-.grid span { position: absolute; left: -34px; top: -8px; width: 28px; text-align: right; font-size: 0.68rem; color: #9aaa9a; font-variant-numeric: tabular-nums; }
-.goal { position: absolute; left: 0; right: 0; border-top: 1px solid #8a9a8a; }
-.goal span { position: absolute; right: 0; top: -17px; font-size: 0.68rem; font-weight: 600; color: #6a7a6a; background: #fff; padding: 0 4px; }
+/* adherence chart */
+.chart-figure { flex-shrink: 0; margin-left: auto; text-align: right; white-space: nowrap; }
+.cf-value { display: block; font-family: 'Playfair Display', Georgia, serif; font-size: 30px; font-weight: 700; line-height: 1.1; color: #0E3A2C; font-variant-numeric: tabular-nums; }
+.cf-sub { font-size: 12px; color: #6B7D73; }
+.chart { margin-top: 6px; padding: 14px 14px 10px; border-radius: 16px; background: #F7FAF8; }
+.chart-plot { position: relative; height: 180px; margin: 10px 0 0 34px; }
+.grid { position: absolute; left: 0; right: 0; border-top: 1px solid #E3EAE5; }
+.grid span { position: absolute; left: -34px; top: -8px; width: 28px; text-align: right; font-size: 11px; color: #8A9A91; font-variant-numeric: tabular-nums; }
+.goal { position: absolute; left: 0; right: 0; border-top: 2px dashed #EFBF04; }
+.goal span { position: absolute; right: 0; top: -22px; padding: 1px 8px; border-radius: 999px; background: #FDF6DA; font-size: 11px; font-weight: 700; color: #9A7300; }
 .cols { position: absolute; inset: 0; display: flex; }
-.col { flex: 1; position: relative; display: flex; align-items: flex-end; justify-content: center; cursor: default; outline: none; }
-.col:hover, .col:focus-visible { background: rgba(31, 143, 92, 0.05); border-radius: 6px; }
-.bar { width: 24px; max-width: 60%; background: #a8d8bf; border-radius: 4px 4px 0 0; transition: background 0.15s; }
-.bar.today { background: #1f8f5c; }
-.col:hover .bar:not(.today), .col:focus-visible .bar:not(.today) { background: #7cc39f; }
-.no-data { font-size: 0.8rem; color: #b0bab0; margin-bottom: 2px; }
-.tip { position: absolute; bottom: calc(100% - 8px); left: 50%; transform: translateX(-50%); background: #1a3a1a; color: #fff; border-radius: 8px; padding: 8px 10px; font-size: 0.74rem; white-space: nowrap; display: flex; flex-direction: column; gap: 2px; z-index: 5; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); pointer-events: none; }
+.col { position: relative; flex: 1; display: flex; align-items: flex-end; justify-content: center; outline: none; cursor: default; }
+.col:hover,
+.col:focus-visible { background: rgba(0, 77, 58, 0.05); border-radius: 8px; }
+.bar { width: 28px; max-width: 60%; border-radius: 8px 8px 3px 3px; background: #A8D8BF; transition: background .15s; }
+.bar.today { background: linear-gradient(180deg, #1F9D55, #004D3A); }
+.col:hover .bar:not(.today),
+.col:focus-visible .bar:not(.today) { background: #7CC39F; }
+.no-data { margin-bottom: 2px; font-size: 13px; color: #B0BAB0; }
+.tip { position: absolute; bottom: calc(100% - 8px); left: 50%; z-index: 5; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: #0E3A2C; color: #FFFFFF; font-size: 12px; white-space: nowrap; transform: translateX(-50%); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); pointer-events: none; }
 .tip.left { left: auto; right: 0; transform: none; }
-.tip-muted { color: #b9cdbf; }
-.chart-x { display: flex; margin-left: 34px; border-top: 1px solid #dfe5df; padding-top: 6px; }
-.chart-x span { flex: 1; text-align: center; font-size: 0.72rem; color: #8a9a8a; }
-.chart-x span.today { color: #1a3a1a; font-weight: 700; }
-/* display: block — a <table> ignores width/height, so without it the hidden
-   table keeps its full size and stretches the page below the layout. */
+.tip-muted { color: #B9CDBF; }
+.chart-x { display: flex; margin-left: 34px; padding-top: 8px; border-top: 1px solid #DFE5DF; }
+.chart-x span { flex: 1; text-align: center; font-size: 12px; color: #8A9A91; }
+.chart-x span.today { color: #0E3A2C; font-weight: 800; }
+/* display: block: a hidden <table> otherwise keeps its full size */
 .sr-only { position: absolute; display: block; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* money / reviews */
-/* three divided columns: this week's consultations, active patients, adherence */
-.bento { padding: 0; overflow: hidden; }
-.bento a { color: inherit; text-decoration: none; }
-.bento a:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.bento-rows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.bento-row { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 2px; padding: 16px 20px; font-size: 0.84rem; font-weight: 600; color: #3a4a3a; }
-.bento-row:hover { background: #f4f7f4; }
-.bento .bento-row + .bento-row { border-left: 1px solid #d9e3dc; }
-.bento-row small { display: block; font-size: 0.74rem; font-weight: 400; color: #7a8a7a; margin-top: 1px; }
-.bento-row strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.15; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
-.empty-line { margin: 12px 0 4px; }
-/* NEEDS ATTENTION strip (NeedsAttention.vue) */
-.needs-strip { margin-bottom: 20px; }
-.req-pointer { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #f0f2f0; font-size: 0.82rem; color: #6a7a6a; }
-/* the light card shadow on panels; the banner gets the stronger one */
-.nm-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-@media (max-width: 640px) {
-  .bento-row { padding: 12px 12px; font-size: 0.78rem; }
-  .bento-row strong { font-size: 1.3rem; }
-}
-/* earnings: the admin dashboard's month comparison rows */
-.cmp { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "label now delta" "label before before"; gap: 0 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid #edf2ee; }
-.cmp.plain { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label now" "label before"; }
-.cmp:last-of-type { border-bottom: none; }
-.cmp-label { grid-area: label; font-size: 0.84rem; color: #4a5a4a; }
-.cmp-now { grid-area: now; font-weight: 700; font-size: 0.95rem; text-align: right; color: #1a3a1a; font-variant-numeric: tabular-nums; }
-.cmp-before { grid-area: before; font-size: 0.74rem; color: #6a7a6a; text-align: right; }
-/* recent activity: the client dashboard's rows */
-.act-head { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #d9e3dc; }
-.activity-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid #d9e3dc; }
-.act-head + .activity-row { border-top: none; padding-top: 0; }
-.activity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; background: #c5d0c5; }
-.activity-dot.unread { background: #D4A017; }
-.activity-text { min-width: 0; }
-.activity-title { font-size: 0.83rem; font-weight: 600; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
-.activity-time { font-size: 0.76rem; color: #6a7a6a; margin: 2px 0 0; }
-.req-soon { font-size: 0.76rem; font-weight: 600; color: #1e4a26; margin: 2px 0 0; }
-.req-soon.urgent { color: #c0392b; }
-.overall { display: inline-flex; align-items: baseline; gap: 4px; font-size: 0.8rem; color: #4a5a4a; text-decoration: none; white-space: nowrap; }
-.overall strong { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; }
-.overall-star { color: #D4A017; }
+/* requests */
+.req-row { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.req-row + .req-row { margin-top: 8px; }
+.req-main { flex: 1; min-width: 0; }
+.req-name { margin: 0; font-size: 14.5px; font-weight: 700; color: #0E3A2C; }
+.req-sub { margin: 2px 0 0; font-size: 12.5px; color: #6B7D73; }
+.req-soon { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 0; padding: 2px 8px; border-radius: 999px; background: #EAF4EE; font-size: 11.5px; font-weight: 700; color: #1F5C45; }
+.req-soon.urgent { background: #FDECEC; color: #B42318; }
+
+/* earnings */
+.rd-earn { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rd-e { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px; border-radius: 14px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.rd-e small { font-size: 12px; font-weight: 600; color: #6B7D73; }
+.rd-e strong { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; line-height: 1.1; color: #0E3A2C; font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.rd-e-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rd-e em { font-style: normal; font-size: 11.5px; color: #8A9A91; }
+.rd-e.gold { background: #FFFAEB; border-color: #F3E3A8; }
+.rd-e.gold strong { color: #8A6400; }
+.rd-note { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: #EAF4EE; font-size: 12.5px; line-height: 1.5; color: #1F5C45; }
+.rd-note .ic { margin-top: 2px; }
+.rd-note strong { color: #0E3A2C; }
+
+/* reviews */
+.overall { flex-shrink: 0; display: inline-flex; align-items: baseline; gap: 4px; padding: 6px 12px; border-radius: 999px; background: #FDF6DA; font-size: 12.5px; color: #6A5410; text-decoration: none; white-space: nowrap; }
+.overall strong { font-family: 'Playfair Display', Georgia, serif; font-size: 16px; color: #0E3A2C; }
+.overall-star { color: #EFBF04; }
 .overall:hover span:last-child { text-decoration: underline; }
-.overall:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; border-radius: 4px; }
-.review { padding: 12px 0 0; margin-top: 12px; border-top: 1px solid #d9e3dc; }
-.review:first-of-type { border-top: none; margin-top: 6px; }
-.stars { margin: 0; color: #D4A017; letter-spacing: 1px; font-size: 0.86rem; }
-.stars span { color: #e3e6e3; }
-.review-text { font-size: 0.84rem; color: #3a4a3a; margin: 4px 0; line-height: 1.5; overflow-wrap: anywhere; }
+.review { margin-top: 10px; padding: 14px; border-radius: 14px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.stars { margin: 0; font-size: 15px; letter-spacing: 1px; color: #EFBF04; }
+.stars span { color: #E3E6E3; }
+.review-text { margin: 6px 0; font-size: 14px; line-height: 1.55; color: #22362C; overflow-wrap: anywhere; }
+.review-by { margin: 0; font-size: 12.5px; color: #6B7D73; }
 
+/* recent activity: a timeline */
+.rd-tl { position: relative; display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rd-tl::before { content: ''; position: absolute; left: 17px; top: 10px; bottom: 10px; width: 2px; background: #E3EBE6; }
+.activity-row { position: relative; display: flex; align-items: center; gap: 12px; }
+.rd-tl-ico { position: relative; z-index: 1; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px #FFFFFF; }
+.rd-tl-ico.green { background: #E3EFE7; color: #004D3A; }
+.rd-tl-ico.gold { background: #FBF3D2; color: #9A7300; }
+.rd-tl-ico.red { background: #FDECEC; color: #B42318; }
+.rd-tl-ico.blue { background: #EEF1FA; color: #3B5BA5; }
+.rd-tl-ico.muted { background: #F1F3F2; color: #4A5A52; }
+.activity-text { flex: 1; min-width: 0; }
+.activity-title { margin: 0; font-size: 14px; font-weight: 600; color: #22362C; overflow-wrap: anywhere; }
+.unread .activity-title { font-weight: 800; color: #0E3A2C; }
+.activity-time { margin: 2px 0 0; font-size: 12px; color: #8A9A91; }
+.activity-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; background: #EFBF04; box-shadow: 0 0 0 3px rgba(239, 191, 4, 0.2); }
+
+/* ---------- SMALLER SCREENS ---------- */
+@media (max-width: 1180px) {
+  .rd-next { width: 100%; }
+  .rd-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 960px) {
+  .rd-page { gap: 14px; padding-bottom: 96px; }
+  .rd-hero { padding: 22px 18px; border-radius: 22px; }
+  .rd-hero-plate { display: none; }
+  .rd-title { font-size: 28px; }
+  .rd-hero-sub { font-size: 13px; }
+  .rd-next { padding: 14px; border-radius: 16px; }
+  .rd-btn { height: 42px; padding: 0 8px; font-size: 12.5px; }
+  .rd-stats { gap: 8px; }
+  .rd-stat { padding: 12px; border-radius: 16px; }
+  .rd-stat-top { flex-direction: column-reverse; align-items: flex-start; gap: 8px; }
+  .rd-stat-ico { width: 32px; height: 32px; border-radius: 11px; }
+  .rd-stat-ico .ic { width: 16px; height: 16px; }
+  .rd-stat-label { font-size: 11.5px; line-height: 1.3; }
+  .rd-stat-val { margin: 6px 0 8px; font-size: 26px; }
+  .rd-stat-sub { padding: 2px 7px; font-size: 10.5px; }
+  .rd-card { padding: 16px; border-radius: 18px; }
+  .rd-h { font-size: 18px; }
+  .rd-head-ico { width: 38px; height: 38px; }
+  .sched-row { align-items: flex-start; gap: 10px; }
+  .sched-time { width: 52px; padding-top: 14px; font-size: 15px; }
+  .chart-figure { margin-left: 0; text-align: left; }
+}
+@media (max-width: 420px) {
+  .rd-earn { grid-template-columns: 1fr; }
+  .rd-next-acts { grid-template-columns: 1fr; }
+}
+
+/* ===== Schedule card: date block per day ===== */
+.sd-dg { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 18px; padding: 14px 0; border-top: 1px solid #EEF2EF; }
+.rd-head + .sd-dg, .rd-empty + .sd-dg { border-top: none; padding-top: 4px; }
+.sd-db { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 72px; border-radius: 16px; background: #F1F5F2; color: #0E3A2C; }
+.sd-db small { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #6B7D73; }
+.sd-db b { font-family: 'Playfair Display', Georgia, serif; font-size: 26px; line-height: 1; }
+.sd-db span { font-size: 11.5px; font-weight: 700; color: #4A5A52; }
+.sd-dg.is-today .sd-db { background: #004D3A; color: #FFFFFF; }
+.sd-dg.is-today .sd-db small { color: #EFBF04; }
+.sd-dg.is-today .sd-db span { color: #CFE3D8; }
+.sd-dl { display: flex; flex-direction: column; gap: 6px; align-self: center; min-width: 0; }
+.sd-ev { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 14px; }
+.sd-ev:hover { background: #F7FAF8; }
+.sd-tm { min-width: 82px; font-size: 17px; font-weight: 800; color: #0E3A2C; white-space: nowrap; }
+.sd-tm small { font-size: 11.5px; font-weight: 800; color: #9A7300; }
+.sd-av { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.sd-ini { display: inline-flex; align-items: center; justify-content: center; background: #E3EFE7; color: #004D3A; font-size: 14px; font-weight: 800; }
+.sd-ev.is-now .sd-av { box-shadow: 0 0 0 2.5px #FFFFFF, 0 0 0 4.5px #EFBF04; }
+.sd-evm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sd-evn { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.sd-name { font-size: 15.5px; font-weight: 800; color: #0E3A2C; text-decoration: none; }
+.sd-name:hover { text-decoration: underline; }
+.sd-evs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 3px; font-size: 13px; color: #4A5A52; }
+.sd-evs svg { color: #1F7A4D; }
+.sd-evs i { width: 4px; height: 4px; margin: 0 3px; border-radius: 50%; background: #B5C2BA; }
+.sd-pay { font-weight: 800; color: #1F7A4D; }
+.sd-pay.muted { color: #8A6400; }
+.sd-soon { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: #FBF3D2; color: #8A6400; font-size: 11.5px; font-weight: 800; }
+.sd-go { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #6B7D73; }
+.sd-ev:hover .sd-go { background: #E3EFE7; color: #004D3A; }
+.sd-req { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: #FDF9E8; text-decoration: none; font-size: 14px; color: #22362C; }
+.sd-req-i { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: #FBF0C4; color: #9A7300; display: inline-flex; align-items: center; justify-content: center; }
+.sd-req b { color: #0E3A2C; }
+.sd-req em { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-style: normal; font-weight: 800; color: #004D3A; white-space: nowrap; }
+.sd-req:hover { background: #FBF3D2; }
 @media (max-width: 640px) {
-  .sched-end { width: 100%; padding-left: 78px; }
-  .chart-figure { text-align: left; }
+  .sd-dg { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
+  .sd-db { height: 64px; }
+  .sd-db b { font-size: 22px; }
+  .sd-ev { flex-wrap: wrap; gap: 4px 10px; padding: 8px; }
+  .sd-tm { min-width: 0; flex-basis: 100%; font-size: 14px; }
+  .sd-av { width: 38px; height: 38px; }
+  .sd-go { display: none; }
+  .sd-req { font-size: 13px; }
 }
 
-/* ===== BANNER "UP NEXT" CARD — frosted glass instead of white, gold primary button ===== */
-.nm-upnext {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #fff;
+/* ===== Up next card: white card + date block (option B) ===== */
+.rd-next.un-b { display: flex; gap: 16px; width: 460px; max-width: 100%; padding: 16px; border: none; border-radius: 22px; background: #FFFFFF; color: #0E3A2C; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5); }
+.un-db { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; flex-shrink: 0; border-radius: 16px; background: #004D3A; color: #FFFFFF; }
+.un-db small { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #EFBF04; }
+.un-db b { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; line-height: 1; }
+.un-db span { font-size: 11.5px; font-weight: 700; color: #CFE3D8; }
+.un-empty-db { color: #EFBF04; }
+.un-m { flex: 1; min-width: 0; }
+.un-k { margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #9A7300; }
+.un-k b { color: #0E3A2C; }
+.un-who { display: flex; align-items: center; gap: 10px; }
+.un-av { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.un-ini { display: inline-flex; align-items: center; justify-content: center; background: #E3EFE7; color: #004D3A; font-size: 14px; font-weight: 800; }
+.un-name { min-width: 0; flex: 1; }
+.un-name strong { display: block; font-size: 15.5px; color: #0E3A2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.un-name small { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: #4A5A52; }
+.un-name small svg { color: #1F7A4D; }
+.un-paid { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 3px 10px; border-radius: 999px; background: #E3F4EA; color: #1F7A4D; font-size: 12px; font-weight: 800; }
+.un-paid.unpaid { background: #FBF3D2; color: #8A6400; }
+.un-empty { margin: 0; font-size: 15px; font-weight: 700; color: #0E3A2C; }
+.un-acts { display: flex; gap: 8px; margin-top: 12px; }
+.un-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1; height: 40px; padding: 0 12px; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.un-btn.soft { background: #F1F5F2; color: #4A5A52; font-weight: 700; }
+.un-btn.soft svg { color: #9A7300; }
+a.un-btn.soft { color: #004D3A; font-weight: 800; }
+.un-btn.dark { background: #004D3A; color: #FFFFFF; }
+.un-btn.dark svg { color: #EFBF04; }
+.un-btn.gold { background: #EFBF04; color: #004D3A; }
+.un-btn:focus-visible { outline: 2px solid #1F8F5C; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .rd-next.un-b { width: auto; gap: 12px; padding: 14px; }
+  .un-db { width: 60px; }
+  .un-db b { font-size: 24px; }
+  .un-acts { flex-direction: column; }
 }
 
-/* "Up next, tomorrow at 3:00 PM" label */
-.nm-upnext-label { color: #f0c15b; }
+/* date block: compact square, not stretched to the card height */
+.un-db { align-self: flex-start; width: 64px !important; height: 68px; padding: 0; border-radius: 14px; }
+.un-db b { font-size: 24px !important; }
+.un-db small, .un-db span { font-size: 10.5px !important; }
+@media (max-width: 640px) { .un-db { width: 56px !important; height: 60px; } .un-db b { font-size: 21px !important; } }
 
-/* Text inside the card */
-.nm-upnext-empty,
-.nm-upnext-name { color: #fff; }
-.nm-upnext-format { color: rgba(255, 255, 255, 0.7); }
-
-/* Patient avatar + payment pill */
-.nm-upnext-avatar { background: rgba(255, 255, 255, 0.18); color: #fff; }
-.nm-upnext-pay { background: rgba(255, 255, 255, 0.16); color: #fff; }
-.nm-upnext-pay.unpaid { background: rgba(240, 193, 91, 0.2); color: #f0c15b; }
-
-/* Buttons ("Open patient", "View appointments") */
-.nm-upnext .nm-hero-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #fff;
+/* Phone: no big green date block (same as the patient dashboard) */
+@media (max-width: 640px) {
+  .rd-next.un-b .un-db { display: none !important; }
+  .un-day { display: inline !important; }
+  .un-name strong { white-space: normal; }
+  .un-name small { white-space: normal; }
+  .un-acts { flex-direction: column; }
 }
-.nm-upnext .nm-hero-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.un-day { display: none; }
 
-/* "Join now" — solid gold */
-.nm-upnext .nm-hero-btn.primary {
-  background: #f2b61f;
-  border-color: #f2b61f;
-  color: #0a4a37;
-}
-.nm-upnext .nm-hero-btn.primary:hover {
-  background: #e0a410;
-  border-color: #e0a410;
+/* Phone: full-width card, proper button height (flex:1 squashed them in a column) */
+@media (max-width: 640px) {
+  .rd-next.un-b { width: 100% !important; max-width: none !important; box-sizing: border-box; }
+  .un-acts { gap: 8px; }
+  .un-acts .un-btn { flex: 0 0 auto !important; width: 100%; height: 46px !important; min-height: 46px; font-size: 14px; }
 }
 
-/* "Join opens Mon 2:45 PM" — not clickable yet, so softer gold outline */
-.nm-upnext .nm-hero-btn.primary.waiting,
-.nm-upnext .nm-hero-btn.primary.waiting:hover {
-  background: rgba(242, 182, 31, 0.16);
-  border-color: rgba(242, 182, 31, 0.5);
-  color: #f0c15b;
-  cursor: default;
+/* ===== PHONE: app layout like the patient dashboard ===== */
+.rq { display: none; }
+.rq-title { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: #10231B; }
+.rq-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 6px; margin-top: 14px; }
+.rq-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #22362C; text-align: center; text-decoration: none; }
+.rq-icon { width: 54px; height: 54px; border-radius: 16px; background: #EEF4F0; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 6px 14px -10px rgba(0, 77, 58, 0.5); transition: transform .15s; }
+.rq-tile.gold .rq-icon { background: #FBF6E4; color: #9A7300; }
+.rq-tile.dark .rq-icon { background: #004D3A; color: #EFBF04; }
+.rq-tile:active .rq-icon { transform: scale(.95); }
+.rq-tile:focus-visible { outline: 2px solid #1F8F5C; outline-offset: 3px; border-radius: 12px; }
+@media (max-width: 640px) {
+  .rq { display: block; margin: 4px 0 6px; }
+  /* the top bar already says hi: the banner is just the next consultation */
+  .rd-hero { display: block !important; min-height: 0; padding: 18px !important; border-radius: 24px !important; }
+  .rd-hero-text { display: none !important; }
+  .rd-hero .rd-hero-plate { display: block !important; top: 50% !important; right: -46px !important; left: auto !important; width: 190px !important; height: 190px !important; opacity: 1 !important; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08); }
+  .rd-hero .rd-hero-fade { display: none !important; }
+  .rd-next.un-b { position: relative; z-index: 1; width: calc(100% - 26px) !important; margin: 0; }
 }
 </style>

@@ -7,11 +7,6 @@
        at the same time folds into one "+N" mark on a third row that lists them,
        so a busy hour never makes the banner taller. -->
   <div class="day">
-    <p class="day-head">
-      <template v-if="rows.length"><strong>{{ rows.length }}</strong> consultation{{ rows.length === 1 ? '' : 's' }} today<template v-if="toCome">, {{ toCome }} still to come</template></template>
-      <template v-else>No consultations today</template>
-    </p>
-
     <div class="track" :style="{ height: `${trackHeight}px` }">
       <span v-for="t in ticks" :key="t.h" class="tick" :class="{ hushed: nowPct != null && Math.abs(t.pct - nowPct) < 9 }" :style="{ left: `${t.pct}%` }" aria-hidden="true">{{ t.label }}</span>
       <span class="rail" :style="{ top: `${railTop}px` }" aria-hidden="true" />
@@ -32,7 +27,13 @@
       <span v-if="nowPct != null" class="now" :style="{ left: `${nowPct}%` }" aria-hidden="true"><i>Now</i></span>
     </div>
 
-    <p class="day-detail" aria-live="polite">{{ focused ? focused.text : nextText }}</p>
+    <div class="day-box">
+      <p class="day-head">
+        <template v-if="rows.length"><strong>{{ rows.length }}</strong> consultation{{ rows.length === 1 ? '' : 's' }} today<template v-if="toCome">, {{ toCome }} still to come</template></template>
+        <template v-else>No consultations today</template>
+      </p>
+      <p class="day-detail" aria-live="polite">{{ focused ? focused.text : nextText }}</p>
+    </div>
     <ul v-if="rows.length" class="key" aria-hidden="true">
       <li><span class="sw done" />Done</li>
       <li><span class="sw paid" />Paid</li>
@@ -148,34 +149,42 @@ const nextText = computed(() => {
 </script>
 
 <style scoped>
-.day { display: flex; flex-direction: column; gap: 10px; min-width: 0; color: #cfe0d5; }
-.day-head { margin: 0; font-size: 14px; color: #e6efe9; }
-.day-head strong { font-family: 'Playfair Display', serif; font-size: 22px; color: #fff; margin-right: 4px; font-variant-numeric: lining-nums; }
+.day { display: flex; flex-direction: column; gap: 12px; min-width: 0; font-family: 'DM Sans', sans-serif; color: #cfe0d5; }
 
+/* the line: hours below their marks */
 .track { position: relative; margin: 2px 6px 0; }
-.tick { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; color: #9fbcab; white-space: nowrap; }
-.tick::after { content: ''; position: absolute; left: 50%; top: 16px; width: 1px; height: 6px; background: rgba(255, 255, 255, 0.22); }
-.tick.hushed { color: transparent; } /* the "Now" label sits there */
-.rail { position: absolute; left: 0; right: 0; height: 2px; margin-top: -1px; background: rgba(255, 255, 255, 0.16); border-radius: 2px; }
+.tick { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.65); white-space: nowrap; }
+.tick::after { content: ''; position: absolute; left: 50%; top: 16px; width: 2px; height: 10px; margin-left: -1px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); }
+.tick:first-child { transform: none; }
+.tick:first-child::after { left: 1px; }
+.tick.hushed { color: transparent; }
+.rail { position: absolute; left: 0; right: 0; height: 4px; margin-top: -2px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); }
 .slots { list-style: none; margin: 0; padding: 0; }
 .slots li { position: absolute; height: 12px; }
 .slot { display: block; width: 100%; height: 100%; border-radius: 4px; outline: none; transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .slot:hover, .slot:focus-visible { transform: scaleY(1.35); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
 .slot.done, .sw.done { background: rgba(255, 255, 255, 0.32); }
 .slot.paid, .sw.paid { background: #fff; }
-.slot.unpaid, .sw.unpaid { background: #d4a017; }
-/* dashed = still to do (design rule): the RND hasn't confirmed it yet */
+.slot.unpaid, .sw.unpaid { background: #efbf04; }
 .slot.waiting, .sw.waiting { background: transparent; border: 1.5px dashed #cfe0d5; box-sizing: border-box; }
-/* "+N": the consultations that didn't fit in the two rows */
 .more { display: inline-flex; align-items: center; height: 14px; padding: 0 6px; border-radius: 7px; background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; text-decoration: none; white-space: nowrap; outline: none; }
 .more:hover, .more:focus-visible { background: rgba(255, 255, 255, 0.3); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
-.now { position: absolute; top: 14px; bottom: -4px; width: 2px; margin-left: -1px; background: #e2c25e; border-radius: 2px; pointer-events: none; }
-.now i { position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -1px); font-style: normal; font-size: 10px; font-weight: 700; color: #e2c25e; background: #003f2f; padding: 0 3px; border-radius: 3px; }
+.now { position: absolute; top: 14px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: #efbf04; pointer-events: none; }
+.now i { position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -1px); padding: 0 4px; border-radius: 4px; background: #efbf04; color: #004d3a; font-style: normal; font-size: 10px; font-weight: 800; }
 
-.day-detail { margin: 2px 0 0; font-size: 13px; color: #fff; min-height: 1.5em; line-height: 1.5; overflow-wrap: anywhere; }
-.key { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 0; padding: 0; font-size: 11px; color: #9fbcab; }
+/* the dark box under the line: today in bold, then the next consultation */
+.day-box { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 10px 12px; border-radius: 12px; background: rgba(0, 0, 0, 0.14); }
+.day-head { margin: 0; font-size: 13px; font-weight: 800; color: #fff; }
+.day-head strong { margin-right: 3px; font-family: 'Playfair Display', serif; font-size: 18px; color: #efbf04; font-variant-numeric: lining-nums; }
+.day-detail { flex: 1 1 220px; min-width: 0; margin: 0; font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, 0.75); overflow-wrap: anywhere; }
+.key { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 0; padding: 0; font-size: 11px; color: rgba(255, 255, 255, 0.65); }
 .key li { display: inline-flex; align-items: center; gap: 6px; }
 .sw { display: inline-block; width: 14px; height: 8px; border-radius: 3px; }
 .sw.waiting { border-width: 1px; }
+@media (max-width: 760px) {
+  .track { display: none; }
+  .day-box { flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; background: none; }
+  .day-detail { flex-basis: auto; font-size: 12.5px; }
+}
 @media (prefers-reduced-motion: reduce) { .slot { transition: none; } }
 </style>

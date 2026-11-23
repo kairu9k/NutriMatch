@@ -7,20 +7,22 @@
       <!-- Taken once, then read-only: it's the starting point weight/BMI change is measured from.
            On file it shows as a short summary instead of the disabled form. -->
       <template v-if="onFile">
-        <p class="on-file">
-          <Lock :size="14" aria-hidden="true" />
-          <span>Taken {{ onFileDate }}. It's the starting point your progress is measured from, so it can't be changed. New readings show in the <NuxtLink to="/progress-tracker">Progress Tracker</NuxtLink>.</span>
-        </p>
-        <dl class="sum-strip">
-          <div><dt>Height</dt><dd>{{ form.height ?? '—' }} <small>cm</small></dd></div>
-          <div><dt>Weight</dt><dd>{{ form.weight ?? '—' }} <small>kg</small></dd></div>
-          <div><dt>Age</dt><dd>{{ form.age ?? '—' }}</dd></div>
-          <div><dt>Sex</dt><dd>{{ sexLabel || '—' }}</dd></div>
-          <div><dt>Activity</dt><dd>{{ ACTIVITY_LABELS[form.activityLevel] || '—' }}</dd></div>
+        <p class="sx-sec first">Your details</p>
+        <dl class="sx-figs">
+          <div class="sx-f"><span class="sx-fi"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 20 4M7 17l2 2M10 14l2 2M13 11l2 2M16 8l2 2" /></svg></span><div><dd>{{ form.height ?? '—' }}<small> cm</small></dd><dt>Height</dt></div></div>
+          <div class="sx-f"><span class="sx-fi"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21h14a1 1 0 0 0 1-1l-1.5-13a1 1 0 0 0-1-1h-11a1 1 0 0 0-1 1L4 20a1 1 0 0 0 1 1z" /><path d="M12 6V3M9.5 12a2.5 2.5 0 0 1 5 0" /></svg></span><div><dd>{{ form.weight ?? '—' }}<small> kg</small></dd><dt>Weight</dt></div></div>
+          <div class="sx-f"><span class="sx-fi"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21h16M5 21v-7h14v7M12 14V9M12 6v.01M8 14v-2M16 14v-2" /></svg></span><div><dd>{{ form.age ?? '—' }}</dd><dt>Age</dt></div></div>
+          <div class="sx-f"><span class="sx-fi"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg></span><div><dd>{{ sexLabel || '—' }}</dd><dt>Sex</dt></div></div>
+          <div class="sx-f"><span class="sx-fi"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2" /><path d="M7 22l3-7 3 2v6M10 9l4-2 2 4 3 1M9 15l-3-1 2-5 3-1" /></svg></span><div><dd>{{ ACTIVITY_LABELS[form.activityLevel] || '—' }}</dd><dt>Activity</dt></div></div>
         </dl>
-        <p class="sum-symptoms"><strong>Symptoms:</strong> {{ savedSymptoms.length ? savedSymptoms.join(', ') : 'None reported' }}</p>
-        <!-- newer numbers from the RND (latest finalized NCP record); the screening itself stays the baseline -->
-        <p v-if="rndUpdateText" class="rnd-update"><Info :size="14" aria-hidden="true" /> <span>{{ rndUpdateText }}</span></p>
+        <p class="sx-sec">Symptoms you reported</p>
+        <div v-if="savedSymptoms.length" class="sx-sym"><span v-for="sym in savedSymptoms" :key="sym">{{ sym }}</span></div>
+        <p v-else class="sx-none">None reported</p>
+        <div class="sx-notes">
+          <!-- newer numbers from the RND (latest finalized NCP record); the screening itself stays the baseline -->
+          <p v-if="rndUpdateText" class="sx-n"><span class="sx-ni green"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a4 4 0 0 0 8 0V3M10 13v3a5 5 0 0 0 10 0v-2" /><circle cx="20" cy="12" r="2" /></svg></span><span>{{ rndUpdateText }}</span></p>
+          <p class="sx-n"><span class="sx-ni"><Lock :size="15" aria-hidden="true" /></span><span><template v-if="sxTakenDate">Taken {{ sxTakenDate }}. </template>This screening is your starting point, so it can't be changed. New readings show in the <NuxtLink to="/progress-tracker">Progress Tracker</NuxtLink>.</span></p>
+        </div>
       </template>
 
       <fieldset v-else class="form-set">
@@ -525,6 +527,15 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (props.embedded && !onFile.value) emit('keep-draft', { ...form, symptoms: { ...form.symptoms } })
 })
+
+// ---- UI helper only: the "Taken …" date (falls back to other date fields if created_at is missing) ----
+const sxTakenDate = computed(() => {
+  const r = result.value || {}
+  const v = r.created_at || r.taken_at || r.screened_at || r.date || r.updated_at
+  if (!v) return ''
+  const d = new Date(String(v).length === 10 ? `${v}T00:00:00` : v)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
+})
 </script>
 
 <style scoped>
@@ -659,5 +670,27 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 420px) {
   .form-row-3 { grid-template-columns: 1fr; }
+}
+
+/* ===== On file (read-only summary): round icons, symptom chips, notes without boxes ===== */
+.sx-sec { margin: 18px 0 10px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: #6B7D73; }
+.sx-sec.first { margin-top: 4px; }
+.sx-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 12px; margin: 0; }
+.sx-f { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sx-fi { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: #E3EFE7; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; }
+.sx-f > div { display: flex; flex-direction: column; min-width: 0; }
+.sx-f dd { margin: 0; font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 800; color: #0E3A2C; overflow-wrap: anywhere; }
+.sx-f dd small { font-size: 12.5px; font-weight: 700; color: #6B7D73; }
+.sx-f dt { font-size: 12px; color: #6B7D73; }
+.sx-sym { display: flex; flex-wrap: wrap; gap: 8px; }
+.sx-sym span { padding: 6px 12px; border-radius: 999px; background: #FDF0EE; color: #9A3B30; font-size: 13px; font-weight: 700; }
+.sx-none { margin: 0; font-size: 13.5px; color: #6B7D73; }
+.sx-notes { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #EEF2EF; }
+.sx-n { display: flex; gap: 12px; align-items: flex-start; margin: 0; font-size: 13.5px; line-height: 1.55; color: #3E5046; }
+.sx-n a { color: #1F6F46; font-weight: 700; }
+.sx-ni { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #F1F5F2; color: #6B7D73; display: inline-flex; align-items: center; justify-content: center; }
+.sx-ni.green { background: #E3EFE7; color: #1F7A4D; }
+@media (max-width: 640px) {
+  .sx-figs { grid-template-columns: 1fr 1fr; }
 }
 </style>

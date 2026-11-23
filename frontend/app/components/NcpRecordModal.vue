@@ -3,32 +3,43 @@
     <div class="ncp" :class="{ 'is-inline': inline }" role="dialog" :aria-modal="!inline" aria-labelledby="ncp-title">
       <!-- HEADER -->
       <header class="ncp-head">
-        <div class="ncp-title-wrap">
-          <h2 id="ncp-title" class="ncp-title">Nutrition Care Process</h2>
-          <p class="ncp-sub">{{ patientName }}, <strong class="ncp-kind" :class="{ follow: isFollowUp }">{{ isFollowUp ? 'follow-up record' : 'initial record' }}</strong>, {{ subtitle }}</p>
+        <img v-if="!inline" class="ncp-head-plate" :src="plateImg" alt="" aria-hidden="true" />
+        <span class="ncp-head-fade" aria-hidden="true"></span>
+        <div class="ncp-head-top">
+          <span v-if="!inline" class="ncp-av" aria-hidden="true">{{ initials }}</span>
+          <div id="ncp-title" class="ncp-title-wrap">
+            <p class="ncp-eyebrow"><span aria-hidden="true"></span>Nutrition Care Process</p>
+            <h2 class="ncp-title"><span class="ncp-kind" :class="{ follow: isFollowUp }">{{ isFollowUp ? 'Follow-up record' : 'Initial record' }}</span><em v-if="patientName"> · {{ patientName }}</em></h2>
+            <p class="ncp-sub">
+              <span>{{ subtitleText }}</span>
+              <template v-if="isFinalized"><i aria-hidden="true"></i><span class="ncp-final"><Lock :size="12" /> Finalized {{ dateTime(record.updated_at) }}</span></template>
+            </p>
+          </div>
+          <div class="ncp-head-right">
+            <span v-if="!isReadOnly" class="save-state" :class="saveStateClass">{{ saveStateText }}</span>
+            <button v-if="!inline" type="button" class="icon-x" aria-label="Close" @click="requestClose"><X :size="18" /></button>
+          </div>
         </div>
-        <div class="ncp-head-right">
-          <span v-if="!isReadOnly" class="save-state" :class="saveStateClass">{{ saveStateText }}</span>
-          <button v-if="!inline" type="button" class="icon-x" aria-label="Close" @click="requestClose"><X :size="18" /></button>
-        </div>
+
+        <!-- STEPS -->
+        <nav v-if="!isLoading && !loadError" class="steps" aria-label="NCP steps">
+          <template v-for="(st, i) in steps" :key="st">
+            <button type="button" class="step" :class="[stepState(i), { active: tab === i, err: stepHasError(i) }]" :aria-current="tab === i ? 'step' : undefined" @click="tab = i">
+              <span class="step-dot"><Check v-if="stepState(i) === 'done'" :size="14" /><template v-else>{{ i + 1 }}</template></span>
+              <span class="step-txt"><span class="step-name">{{ st }}</span><small class="step-sub">{{ STEP_SUB[st] }}</small></span>
+            </button>
+            <span v-if="i < steps.length - 1" class="step-line" :class="{ done: stepState(i) === 'done' }" aria-hidden="true"></span>
+          </template>
+        </nav>
       </header>
 
-      <p v-if="isLoading" class="nm-muted pad">Loading…</p>
+      <div v-if="isLoading" class="ncp-loading pad"><span class="ncp-spin" aria-hidden="true"></span> Loading…</div>
       <p v-else-if="loadError" class="nm-error pad">{{ loadError }}</p>
 
       <template v-else>
-        <!-- STEPS -->
-        <nav class="steps" aria-label="NCP steps">
-          <button v-for="(st, i) in steps" :key="st" type="button" class="step" :class="[stepState(i), { active: tab === i, err: stepHasError(i) }]" @click="tab = i">
-            <span class="step-dot"><Check v-if="stepState(i) === 'done'" :size="12" /><template v-else>{{ i + 1 }}</template></span>
-            <span class="step-name">{{ st }}</span>
-          </button>
-        </nav>
-
         <div class="ncp-body">
           <div class="ncp-form">
-            <p v-if="isFinalized" class="banner lock"><Lock :size="15" /> Finalized {{ dateTime(record.updated_at) }}. Part of the patient's permanent record.</p>
-            <p v-else-if="isReadOnly" class="banner"><Lock :size="15" /> Viewing an unfinished record. It's read-only here.</p>
+            <p v-if="!isFinalized && isReadOnly" class="banner"><Lock :size="15" /> Viewing an unfinished record. It's read-only here.</p>
             <p v-if="saveError" class="nm-error">{{ saveError }}</p>
 
             <button v-if="!inline" type="button" class="strip-toggle" @click="stripOpen = !stripOpen">
@@ -36,18 +47,22 @@
             </button>
 
             <!-- ASSESSMENT -->
-            <section v-if="stepKey === 'assessment'" :class="{ 'ms-locked': measuresLocked && !isReadOnly }">
-              <header class="step-head"><h3 class="step-title">Nutrition assessment</h3><p class="step-desc">Where the patient is today: measurements, labs and how they eat.</p></header>
+            <section v-if="stepKey === 'assessment'" class="step-sec" :class="{ 'ms-locked': measuresLocked && !isReadOnly }">
+              <header class="step-head"><span class="step-num" aria-hidden="true">{{ stepNum }}</span><div><h3 class="step-title">Nutrition assessment</h3><p class="step-desc">Where the patient is today: measurements, labs and how they eat.</p></div></header>
               <p v-if="prefilled && !isReadOnly" class="hint-box"><Info :size="14" /> Measurements are filled in from their latest records. Check them with the patient, then press Edit measurements to change what changed.</p>
               <!-- Measurements are locked until Edit (user's call, 2026-11-02): an accidental
                    change can't slip in, and every changed value shows what it was. -->
-              <div v-if="!isReadOnly" class="ms-bar">
-                <p class="ms-title">Measurements</p>
-                <button v-if="measuresLocked" type="button" class="nm-btn-soft nm-btn-sm" @click="measuresLocked = false"><PenLine :size="14" aria-hidden="true" /> Edit measurements</button>
-                <template v-else-if="hasOriginals">
-                  <button type="button" class="nm-btn-soft nm-btn-sm" @click="cancelMeasureEdits">{{ changedMeasures.length ? 'Cancel changes' : 'Cancel' }}</button>
-                  <button type="button" class="nm-btn-dark nm-btn-sm" @click="measuresLocked = true"><Check :size="14" aria-hidden="true" /> Done</button>
-                </template>
+              <div class="card">
+              <div class="card-head">
+                <span class="card-ico ico-green"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17L17 3l4 4L7 21z" /><path d="M7 13l2 2M10 10l2 2M13 7l2 2" /></svg></span>
+                <div class="card-head-txt"><p class="ms-title">Measurements</p><p class="card-sub">Body size, blood pressure and blood sugar</p></div>
+                <div v-if="!isReadOnly" class="ms-bar">
+                  <button v-if="measuresLocked" type="button" class="nm-btn-soft nm-btn-sm" @click="measuresLocked = false"><PenLine :size="14" aria-hidden="true" /> Edit measurements</button>
+                  <template v-else-if="hasOriginals">
+                    <button type="button" class="nm-btn-soft nm-btn-sm" @click="cancelMeasureEdits">{{ changedMeasures.length ? 'Cancel changes' : 'Cancel' }}</button>
+                    <button type="button" class="nm-btn-dark nm-btn-sm" @click="measuresLocked = true"><Check :size="14" aria-hidden="true" /> Done</button>
+                  </template>
+                </div>
               </div>
               <div class="grid g3">
                 <Field label="Height (cm)" required :hint="srcHint('height_cm')" :error="errors.height_cm">
@@ -58,10 +73,14 @@
                   <input v-model="a.weight_kg" type="number" :min="L.weight_kg.min" :max="L.weight_kg.max" step="0.1" class="nm-input" :disabled="isReadOnly || measuresLocked" />
                   <p v-if="changed('weight_kg')" class="was">Was {{ wasText('weight_kg', 'kg') }}. <button type="button" class="nm-btn-soft nm-btn-sm" @click="putBack('weight_kg')">Put back</button></p>
                 </Field>
-                <div class="computed">
-                  <span class="k">BMI, WHO Asia-Pacific</span>
+                <div class="computed" :class="liveBmi ? 'bmi-' + bmiTone(liveBmi) : ''">
+                  <div class="bmi-top"><span class="k">BMI, WHO Asia-Pacific</span><span v-if="liveBmi" class="bmi-chip">{{ bmiClass(liveBmi) }}</span></div>
                   <strong>{{ liveBmi != null ? liveBmi.toFixed(1) : '—' }}</strong>
-                  <span class="c-sub">{{ liveBmi ? bmiClass(liveBmi) : (errors.weight_kg || errors.height_cm) ? 'Check height and weight' : 'Enter height and weight' }}</span>
+                  <template v-if="liveBmi">
+                    <div class="bmi-scale" aria-hidden="true"><span></span><span></span><span></span><span></span><i :style="{ left: bmiPos(liveBmi) + '%' }"></i></div>
+                    <div class="bmi-lbl" aria-hidden="true"><span>&lt;18.5</span><span>18.5–22.9</span><span>23–24.9</span><span>≥25</span></div>
+                  </template>
+                  <span v-else class="c-sub">{{ (errors.weight_kg || errors.height_cm) ? 'Check height and weight' : 'Enter height and weight' }}</span>
                   <span v-if="liveBmi && isShortStature(a.height_cm)" class="c-sub">{{ BMI_SHORT_STATURE_NOTE }}</span>
                 </div>
               </div>
@@ -92,6 +111,12 @@
                   </p>
                 </Field>
               </div>
+              </div>
+              <div class="card">
+              <div class="card-head">
+                <span class="card-ico ico-red"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21.5h11.6a2 2 0 0 0 1.7-3L14 9V3" /><path d="M7 15h10" /></svg></span>
+                <div class="card-head-txt"><p class="ms-title">Labs and notes</p><p class="card-sub">Other measurements, lab results and how they eat</p></div>
+              </div>
               <NcpExtraRows :rows="a.extra" :templates="MEASURE_TEMPLATES.assessment" :read-only="isReadOnly" empty="Add waist circumference, cholesterol, creatinine and more. Pick from the list or type your own." />
               <Field label="Lab notes">
                 <textarea v-model="a.lab_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.lab_notes" rows="2" placeholder="e.g. Lipid profile from Oct 2: LDL 160 mg/dL" :disabled="isReadOnly"></textarea>
@@ -103,12 +128,16 @@
               <Field label="Assessment notes">
                 <textarea v-model="a.assessment_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.assessment_notes" rows="3" placeholder="Appetite, eating pattern, activity, food access…" :disabled="isReadOnly"></textarea>
               </Field>
+              </div>
             </section>
 
             <!-- DIAGNOSIS -->
-            <section v-else-if="stepKey === 'diagnosis'">
-              <header class="step-head"><h3 class="step-title">Nutrition diagnosis</h3><p class="step-desc">Name the nutrition problem as a PES statement: the problem, its cause and the signs that show it.</p></header>
+            <section v-else-if="stepKey === 'diagnosis'" class="step-sec">
+              <header class="step-head"><span class="step-num" aria-hidden="true">{{ stepNum }}</span><div><h3 class="step-title">Nutrition diagnosis</h3><p class="step-desc">Name the nutrition problem as a PES statement: the problem, its cause and the signs that show it.</p></div></header>
               <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Edit what changed.</p>
+              <div class="pes-card pes-p">
+                <span class="pes-l" aria-hidden="true">P</span>
+                <div class="pes-b">
               <Field label="Problem (P)" required group hint="Pick a standard nutrition diagnosis, or type your own.">
                 <div class="combo" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter="pickActive" @keydown.esc="pesOpen = false">
                   <input v-model="d.pes_problem" type="text" class="nm-input" :maxlength="TMAX.pes_problem" :disabled="isReadOnly" placeholder="Search, e.g. carbohydrate" aria-label="PES problem"
@@ -123,6 +152,11 @@
                   </div>
                 </div>
               </Field>
+                </div>
+              </div>
+              <div class="pes-card pes-e">
+                <span class="pes-l" aria-hidden="true">E</span>
+                <div class="pes-b">
               <Field label="Etiology: related to (E)" required group hint="Pick a cause from the Etiology Matrix (Academy of Nutrition and Dietetics, 2020), or type your own. Add the patient's details after it.">
                 <div class="combo" @keydown.down="etMove($event, 1)" @keydown.up="etMove($event, -1)" @keydown.enter="etPickActive" @keydown.esc="etOpen = false">
                   <textarea v-model="d.pes_etiology" class="nm-input" :maxlength="TMAX.pes_etiology" rows="2" placeholder="Search, e.g. knowledge, or type the cause" :disabled="isReadOnly" aria-label="PES etiology"
@@ -139,6 +173,11 @@
                   </div>
                 </div>
               </Field>
+                </div>
+              </div>
+              <div class="pes-card pes-s">
+                <span class="pes-l" aria-hidden="true">S</span>
+                <div class="pes-b">
               <Field label="Signs and symptoms: as evidenced by (S)" required group hint="Pick signs from the Assessment Terminology (Academy of Nutrition and Dietetics, 2020), or type your own. Add the patient's value after each; separate signs with ;">
                 <div class="combo" @keydown.down="sgMove($event, 1)" @keydown.up="sgMove($event, -1)" @keydown.enter="sgPickActive" @keydown.esc="sgOpen = false">
                   <textarea ref="signsBox" v-model="d.pes_signs" class="nm-input" :maxlength="TMAX.pes_signs" rows="3" placeholder="Search, e.g. edema, HbA1c, weight loss, or type the signs" :disabled="isReadOnly" aria-label="PES signs and symptoms"
@@ -154,33 +193,42 @@
                   </div>
                 </div>
               </Field>
+                </div>
+              </div>
               <div class="pes-preview">
-                <span class="k">PES statement</span>
+                <div class="pes-preview-h"><span class="pes-preview-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a4 4 0 0 0 8 0V3" /><path d="M10 13v3a5 5 0 0 0 10 0v-2" /><circle cx="20" cy="12" r="2" /></svg></span><span class="k">PES statement</span><small>How it reads in the record</small></div>
                 <p>{{ pesSentence }}</p>
               </div>
             </section>
 
             <!-- INTERVENTION -->
-            <section v-else-if="stepKey === 'intervention'">
-              <header class="step-head"><h3 class="step-title">Nutrition intervention</h3><p class="step-desc">What you prescribe: the energy and macro targets, and the diet itself.</p></header>
+            <section v-else-if="stepKey === 'intervention'" class="step-sec">
+              <header class="step-head"><span class="step-num" aria-hidden="true">{{ stepNum }}</span><div><h3 class="step-title">Nutrition intervention</h3><p class="step-desc">What you prescribe: the energy and macro targets, and the diet itself.</p></div></header>
               <p v-if="carried && !isReadOnly" class="hint-box"><Info :size="14" /> Targets carried over from the {{ shortDate(ctx.previous.encounter_date) }} record. Adjust them as needed.</p>
               <!-- TER, Tannhauser's factorial method on a BMR from the BMI-method DBW (utils/ncp.js terSteps) -->
-              <div class="ter-box">
-                <div class="ter-head">
-                  <p class="ter-title">Total Energy Requirement, BMR by the BMI method</p>
-                  <label class="ter-act">
-                    <span>Activity</span>
-                    <select v-model="i.ter_activity" class="nm-select" :disabled="isReadOnly" aria-label="Physical activity level">
-                      <option v-for="a2 in TER_ACTIVITY" :key="a2.value" :value="a2.value">{{ a2.label }} (+{{ a2.pct }}% of BMR)</option>
-                    </select>
-                  </label>
-                </div>
-                <!-- The result only; the working opens on request (user's call, 2026-11-01) -->
-                <div v-if="terCalc" class="ter-result">
-                  <p><strong>{{ whole(terCalc.ter) }} kcal/day</strong> <span class="c-sub">calculated TER</span></p>
-                  <button type="button" class="ter-toggle" :aria-expanded="terShowSteps" aria-controls="ter-steps" @click="terShowSteps = !terShowSteps">
-                    {{ terShowSteps ? 'Hide calculation' : 'Show calculation' }} <ChevronDown :size="14" :class="{ up: terShowSteps }" aria-hidden="true" />
-                  </button>
+              <div class="ter-box card">
+              <div class="card-head">
+                <span class="card-ico ico-gold"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-6-1 4-4 7-4 12a7 7 0 0 0 7 7z" /></svg></span>
+                <div class="card-head-txt"><p class="ter-title">Total Energy Requirement</p><p class="card-sub">BMR by the BMI method</p></div>
+              </div>
+                <div class="ter-grid">
+                  <!-- The result only; the working opens on request (user's call, 2026-11-01) -->
+                  <div v-if="terCalc" class="ter-big">
+                    <small>Calculated TER</small>
+                    <strong>{{ whole(terCalc.ter) }}</strong>
+                    <em>kcal/day</em>
+                  </div>
+                  <div class="ter-side">
+                    <label class="ter-act">
+                      <span>Activity</span>
+                      <select v-model="i.ter_activity" class="nm-select" :disabled="isReadOnly" aria-label="Physical activity level">
+                        <option v-for="a2 in TER_ACTIVITY" :key="a2.value" :value="a2.value">{{ a2.label }} (+{{ a2.pct }}% of BMR)</option>
+                      </select>
+                    </label>
+                    <button v-if="terCalc" type="button" class="ter-toggle" :aria-expanded="terShowSteps" aria-controls="ter-steps" @click="terShowSteps = !terShowSteps">
+                      {{ terShowSteps ? 'Hide calculation' : 'Show calculation' }} <ChevronDown :size="14" :class="{ up: terShowSteps }" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
                 <dl v-if="terCalc && terShowSteps" id="ter-steps" class="ter-steps">
                   <div><dt>DBW</dt><dd>{{ terCalc.heightM.toFixed(2) }}² × 22 = <strong>{{ fmt(terCalc.dbw, 1) }} kg</strong></dd></div>
@@ -191,6 +239,11 @@
                 </dl>
                 <p v-if="terCalc?.shortStature" class="nm-note plain-note">{{ SHORT_STATURE_NOTE }}</p>
                 <p v-if="!terCalc" class="c-sub">{{ ctx.patient?.sex ? 'Enter the height in Assessment to work out the TER.' : 'The patient\'s sex isn\'t on file, so the TER can\'t be worked out. Type it below.' }}</p>
+              </div>
+              <div class="card">
+              <div class="card-head">
+                <span class="card-ico ico-green"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z" /><path d="M15 3.5A9 9 0 0 1 20.5 9H15z" /></svg></span>
+                <div class="card-head-txt"><p class="ms-title">Energy and macro targets</p><p class="card-sub">The TER to prescribe and how it splits</p></div>
               </div>
               <div class="ter-field">
                 <Field label="TER (Total Energy Requirement), kcal/day" required :error="errors.target_kcal">
@@ -209,11 +262,14 @@
                   <ChevronDown :size="14" class="mt-chev" :class="{ up: macrosOpen }" aria-hidden="true" /> {{ macrosOpen ? 'Minimize' : 'Show' }}
                 </button>
               </div>
+                <div v-if="pctTotal > 0" class="mt-split" aria-hidden="true">
+                  <span v-for="m2 in MACROS" :key="m2.key" :class="'sp-' + m2.key" :style="{ flexGrow: Number(i[`${m2.key}_pct`]) || 0 }">{{ Number(i[`${m2.key}_pct`]) ? `${i[`${m2.key}_pct`]}%` : '' }}</span>
+                </div>
               <p v-if="!macrosOpen" class="mt-summary">{{ macroGramsText }}</p>
               <div v-show="macrosOpen" id="ncp-macro-table" class="macro-table" role="group" aria-label="Macronutrient distribution">
                 <div class="mt-row mt-head"><span>Macronutrient</span><span>% of TER</span><span>Grams a day</span></div>
                 <div v-for="m2 in MACROS" :key="m2.key" class="mt-row">
-                  <span class="mt-name">{{ m2.label }} <small>{{ m2.per }} kcal/g</small></span>
+                  <span class="mt-name"><span class="mt-dot" :class="'sp-' + m2.key" aria-hidden="true"></span>{{ m2.label }} <small>{{ m2.per }} kcal/g</small></span>
                   <span><input v-model.number="i[`${m2.key}_pct`]" type="number" min="0" max="100" step="1" class="nm-input mt-pct" :disabled="isReadOnly" :aria-label="`${m2.label} percent of TER`" /> %</span>
                   <span class="mt-g">{{ i[`target_${m2.key}_g`] !== '' && i[`target_${m2.key}_g`] != null ? `${whole(i[`target_${m2.key}_g`])} g` : '—' }}</span>
                 </div>
@@ -221,6 +277,12 @@
               </div>
               <p v-if="errors.macro_pct" class="mt-err" role="alert">{{ errors.macro_pct }}</p>
               <p v-else-if="!isReadOnly && macrosOpen" class="c-sub">Starts at 55 / 20 / 25. Grams are TER × % ÷ 4 kcal/g (carbs, protein) or ÷ 9 kcal/g (fat), to the nearest 5 g.</p>
+              </div>
+              <div class="card">
+              <div class="card-head">
+                <span class="card-ico ico-blue"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21c0-9 6-15 15-16-1 9-7 15-15 16z" /><path d="M5 21l8-8" /></svg></span>
+                <div class="card-head-txt"><p class="ms-title">Diet prescription</p><p class="card-sub">Other targets, the diet itself and notes</p></div>
+              </div>
               <NcpExtraRows :rows="i.extra" :templates="MEASURE_TEMPLATES.intervention" title="Other targets" item="Target" :read-only="isReadOnly" empty="Add a sodium limit, fluid limit, fiber goal, activity and more. Pick from the list or type your own." />
               <Field label="Diet prescription" required group :hint="isReadOnly ? '' : 'The first lines are written from the TER, macros and other measurements above and update with them. Add the diet itself after them; you can edit everything.'">
                 <textarea v-model="i.diet_prescription" class="nm-input" :maxlength="TMAX.diet_prescription" rows="4" placeholder="e.g. Low-GI Filipino diet. Brown rice, 1 cup max per meal; water instead of sweetened drinks." :disabled="isReadOnly"></textarea>
@@ -232,13 +294,14 @@
               <Field label="Intervention notes">
                 <textarea v-model="i.intervention_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.intervention_notes" rows="2" placeholder="Education given, goals agreed with the patient…" :disabled="isReadOnly"></textarea>
               </Field>
+              </div>
             </section>
 
             <!-- MONITORING (follow-ups) -->
-            <section v-else-if="stepKey === 'monitoring'">
-              <header class="step-head"><h3 class="step-title">Monitoring and evaluation</h3><p class="step-desc">How the patient did against the goals from their last record.</p></header>
+            <section v-else-if="stepKey === 'monitoring'" class="step-sec">
+              <header class="step-head"><span class="step-num" aria-hidden="true">{{ stepNum }}</span><div><h3 class="step-title">Monitoring and evaluation</h3><p class="step-desc">How the patient did against the goals from their last record.</p></div></header>
               <div v-if="ctx.previous" class="prev-box">
-                <span class="k">Goals from the {{ shortDate(ctx.previous.encounter_date) }} record</span>
+                <div class="prev-h"><span class="card-ico ico-gold"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg></span><span class="k">Goals from the {{ shortDate(ctx.previous.encounter_date) }} record</span></div>
                 <p v-if="ctx.previous.pes_problem"><strong>{{ ctx.previous.pes_problem }}</strong><template v-if="ctx.previous.pes_etiology"> related to {{ ctx.previous.pes_etiology }}</template>.</p>
                 <p v-if="ctx.previous.diet_prescription">{{ ctx.previous.diet_prescription }}</p>
                 <p v-if="ctx.previous.target_kcal" class="c-sub">TER {{ whole(ctx.previous.target_kcal) }} kcal/day</p>
@@ -247,6 +310,7 @@
                   <div><span class="k">7-day meal-plan adherence</span><strong>{{ ctx.adherence?.pct != null ? `${ctx.adherence.pct}%` : 'No meal plan yet' }}</strong></div>
                 </div>
               </div>
+              <div class="card">
               <Field label="Were those goals met?" required group>
                 <div class="goals">
                   <button v-for="g in GOALS" :key="g.value" type="button" class="goal" :class="{ on: m.goal_status === g.value }" :disabled="isReadOnly" @click="m.goal_status = g.value">{{ g.label }}</button>
@@ -255,46 +319,58 @@
               <Field label="Monitoring notes">
                 <textarea v-model="m.monitoring_notes" data-allow-emoji class="nm-input" :maxlength="TMAX.monitoring_notes" rows="3" placeholder="Response to the plan, barriers, what to change next…" :disabled="isReadOnly"></textarea>
               </Field>
+              </div>
             </section>
 
             <!-- REVIEW -->
-            <section v-else-if="stepKey === 'review'">
-              <header class="step-head"><h3 class="step-title">{{ isReadOnly ? 'Summary' : 'Review and finalize' }}</h3><p class="step-desc">{{ isReadOnly ? 'The record as it was saved.' : 'Check the record before you finalize it. A finalized record can\'t be changed.' }}</p></header>
+            <section v-else-if="stepKey === 'review'" class="step-sec">
+              <header class="step-head"><span class="step-num" aria-hidden="true">{{ stepNum }}</span><div><h3 class="step-title">{{ isReadOnly ? 'Summary' : 'Review and finalize' }}</h3><p class="step-desc">{{ isReadOnly ? 'The record as it was saved.' : 'Check the record before you finalize it. A finalized record can\'t be changed.' }}</p></div></header>
               <div v-if="!isReadOnly && missing.length" class="missing">
                 <p><AlertTriangle :size="15" /> Still needed before you can finalize:</p>
                 <ul><li v-for="x in missing" :key="x.label">{{ x.label }} <button type="button" class="nm-panel-link" @click="tab = x.step">Fix</button></li></ul>
               </div>
+              <div v-if="isFinalized" class="done-card">
+                <span class="done-ico"><CheckCircle2 :size="22" /></span>
+                <div class="done-txt"><p class="done">This record is finalized.</p><p class="done-sub">Part of the patient's permanent record.</p></div>
+                <NuxtLink v-if="!inline" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm done-link" @click="emit('close')"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0z" /><path d="M8 12c0-3 1.5-5 4-6M12 12c0-2.5 1.5-4 4-4.5" /></svg> Create or update the meal plan</NuxtLink>
+              </div>
+              <p v-else-if="!isReadOnly && !missing.length" class="nm-hint ready-hint"><CheckCircle2 :size="16" /> Everything required is filled in. Finalizing makes this record permanent, so it can't be edited afterwards.</p>
               <dl class="summary">
-                <div><dt>Measurements</dt><dd>{{ measureLine }}</dd></div>
-                <div v-if="assessExtraLine"><dt>Other measurements</dt><dd>{{ assessExtraLine }}</dd></div>
-                <div><dt>Diagnosis</dt><dd :class="{ empty: !d.pes_problem }">{{ d.pes_problem ? pesSentence : 'Not filled in' }}</dd></div>
-                <div><dt>Prescription</dt><dd :class="{ empty: !i.diet_prescription }">{{ i.diet_prescription || 'Not filled in' }}</dd></div>
-                <div v-if="interventionExtraLine"><dt>Other targets</dt><dd>{{ interventionExtraLine }}</dd></div>
-                <div v-if="showMonitoring"><dt>Goal status</dt><dd :class="{ empty: !m.goal_status }">{{ GOALS.find(g => g.value === m.goal_status)?.label || 'Not rated' }}</dd></div>
+                <div><dt><span class="sum-ico ico-green"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M8 9a4 4 0 0 1 8 0" /><path d="M12 9l1.5-2" /></svg></span>Measurements</dt><dd>{{ measureLine }}</dd></div>
+                <div v-if="assessExtraLine"><dt><span class="sum-ico ico-red"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21.5h11.6a2 2 0 0 0 1.7-3L14 9V3" /><path d="M7 15h10" /></svg></span>Other measurements</dt><dd>{{ assessExtraLine }}</dd></div>
+                <div><dt><span class="sum-ico ico-red"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a4 4 0 0 0 8 0V3" /><path d="M10 13v3a5 5 0 0 0 10 0v-2" /><circle cx="20" cy="12" r="2" /></svg></span>Diagnosis</dt><dd :class="{ empty: !d.pes_problem }">{{ d.pes_problem ? pesSentence : 'Not filled in' }}</dd></div>
+                <div><dt><span class="sum-ico ico-gold"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-6-1 4-4 7-4 12a7 7 0 0 0 7 7z" /></svg></span>Prescription</dt><dd :class="{ empty: !i.diet_prescription }">{{ i.diet_prescription || 'Not filled in' }}</dd></div>
+                <div v-if="interventionExtraLine"><dt><span class="sum-ico ico-blue"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg></span>Other targets</dt><dd>{{ interventionExtraLine }}</dd></div>
+                <div v-if="showMonitoring"><dt><span class="sum-ico ico-green"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg></span>Goal status</dt><dd :class="{ empty: !m.goal_status }">{{ GOALS.find(g => g.value === m.goal_status)?.label || 'Not rated' }}</dd></div>
               </dl>
-              <template v-if="isFinalized">
-                <p class="done"><CheckCircle2 :size="16" /> This record is finalized.</p>
-                <NuxtLink v-if="!inline" :to="`/meal-planning?relationship=${relationshipId}&edit=1`" class="nm-btn-dark nm-btn-sm" @click="emit('close')">Create or update the meal plan</NuxtLink>
-              </template>
-              <p v-else-if="!isReadOnly && !missing.length" class="nm-hint">Everything required is filled in. Finalizing makes this record permanent, so it can't be edited afterwards.</p>
             </section>
           </div>
 
           <!-- PATIENT STRIP -->
           <aside v-if="!inline || showStripInline" class="strip" :class="{ open: stripOpen }">
-            <p class="strip-name">{{ ctx.patient?.name }}</p>
-            <p class="c-sub">{{ [ctx.patient?.age != null ? `${ctx.patient.age} y/o` : null, SEX[ctx.patient?.sex]].filter(Boolean).join(', ') }}</p>
-            <p v-if="ctx.patient?.allergies.length" class="allergy"><AlertTriangle :size="13" /> Allergy: {{ ctx.patient.allergies.join(', ') }}</p>
+            <div class="strip-pt">
+              <span class="strip-av" aria-hidden="true">{{ initials }}</span>
+              <div>
+                <p class="strip-name">{{ ctx.patient?.name }}</p>
+                <p class="c-sub">{{ [ctx.patient?.age != null ? `${ctx.patient.age} y/o` : null, SEX[ctx.patient?.sex]].filter(Boolean).join(', ') }}</p>
+              </div>
+            </div>
+            <p v-if="ctx.patient?.allergies.length" class="allergy"><AlertTriangle :size="15" /> <span><b>Allergy:</b> {{ ctx.patient.allergies.join(', ') }}</span></p>
             <dl class="strip-facts">
-              <div><dt>Conditions</dt><dd>{{ list(ctx.patient?.conditions) }}</dd></div>
-              <div><dt>Diet</dt><dd>{{ list(ctx.patient?.dietary_restrictions) }}</dd></div>
-              <div v-if="ctx.patient?.religion"><dt>Religion</dt><dd>{{ ctx.patient.religion }}</dd></div>
-              <div><dt>Goals</dt><dd>{{ list(ctx.patient?.health_goals) }}</dd></div>
+              <div><dt><span class="fact-ico ico-red"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z" /></svg></span>Conditions</dt><dd>{{ list(ctx.patient?.conditions) }}</dd></div>
+              <div><dt><span class="fact-ico ico-green"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21c0-9 6-15 15-16-1 9-7 15-15 16z" /><path d="M5 21l8-8" /></svg></span>Diet</dt><dd>{{ list(ctx.patient?.dietary_restrictions) }}</dd></div>
+              <div v-if="ctx.patient?.religion"><dt><span class="fact-ico ico-purple"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M7 8h10" /></svg></span>Religion</dt><dd>{{ ctx.patient.religion }}</dd></div>
+              <div><dt><span class="fact-ico ico-gold"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg></span>Goals</dt><dd>{{ list(ctx.patient?.health_goals) }}</dd></div>
             </dl>
             <!-- the screening is the baseline progress is measured from, so it stands out -->
             <section v-if="ctx.screening" class="baseline" aria-label="Screening baseline">
-              <p class="bl-title">Screening baseline</p>
-              <p class="bl-sub">{{ shortDate(ctx.screening.date) }}. The starting point progress is measured from.</p>
+              <div class="bl-head">
+                <span class="bl-ico"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1M9 10h6M9 14h6M9 17.5h3" /></svg></span>
+                <div>
+                  <p class="bl-title">Screening baseline</p>
+                  <p class="bl-sub">{{ shortDate(ctx.screening.date) }}. The starting point progress is measured from.</p>
+                </div>
+              </div>
               <dl class="bl-grid">
                 <div><dt>BMI</dt><dd>{{ ctx.screening.bmi != null ? Number(ctx.screening.bmi).toFixed(1) : '—' }}</dd><small>{{ ctx.screening.bmi_category }}</small></div>
                 <div :class="{ risk: (ctx.screening.nrs_score ?? 0) >= 3 }"><dt>NRS-2002</dt><dd>{{ ctx.screening.nrs_score ?? '—' }}</dd><small>{{ ctx.screening.nrs_risk }}</small></div>
@@ -302,16 +378,25 @@
                 <div><dt>BMR</dt><dd>{{ whole(ctx.screening.bmr_kcal) }}</dd><small>kcal/day</small></div>
               </dl>
               <p v-if="ctx.screening.bmr_note" class="bl-sym">{{ ctx.screening.bmr_note }}</p>
-              <p v-if="ctx.screening.symptoms" class="bl-sym"><strong>Symptoms:</strong> {{ ctx.screening.symptoms }}</p>
+              <template v-if="ctx.screening.symptoms">
+                <p class="bl-sym"><strong>Symptoms</strong></p>
+                <div class="bl-tags"><em v-for="sym in symptomTags" :key="sym">{{ sym }}</em></div>
+              </template>
             </section>
-            <template v-if="ctx.meal_plan">
-              <p class="strip-k">Current meal plan</p>
-              <p class="c-sub">{{ ctx.meal_plan.name }}{{ ctx.meal_plan.target_kcal ? `, ${whole(ctx.meal_plan.target_kcal)} kcal` : '' }}</p>
-            </template>
-            <template v-if="ctx.adherence">
-              <p class="strip-k">7-day adherence</p>
-              <p class="c-sub">{{ ctx.adherence.pct != null ? `${ctx.adherence.pct}%, ${ctx.adherence.logged} of ${ctx.adherence.planned} meals logged` : 'Nothing due yet' }}</p>
-            </template>
+            <div v-if="ctx.meal_plan" class="strip-card gold">
+              <span class="strip-card-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0z" /><path d="M8 12c0-3 1.5-5 4-6M12 12c0-2.5 1.5-4 4-4.5" /></svg></span>
+              <div>
+                <p class="strip-k">Current meal plan</p>
+                <p class="c-sub">{{ ctx.meal_plan.name }}{{ ctx.meal_plan.target_kcal ? `, ${whole(ctx.meal_plan.target_kcal)} kcal` : '' }}</p>
+              </div>
+            </div>
+            <div v-if="ctx.adherence" class="strip-card">
+              <span class="strip-card-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg></span>
+              <div>
+                <p class="strip-k">7-day adherence</p>
+                <p class="c-sub">{{ ctx.adherence.pct != null ? `${ctx.adherence.pct}%, ${ctx.adherence.logged} of ${ctx.adherence.planned} meals logged` : 'Nothing due yet' }}</p>
+              </div>
+            </div>
           </aside>
         </div>
 
@@ -319,6 +404,11 @@
         <footer class="ncp-foot">
           <p v-if="!isReadOnly && errorCount" class="foot-err" role="status"><AlertTriangle :size="14" /> Fix {{ errorCount }} highlighted field{{ errorCount === 1 ? '' : 's' }} before saving.</p>
           <button type="button" class="nm-btn-outline" :disabled="tab === 0" @click="tab--">Back</button>
+          <div class="foot-mid" aria-hidden="true">
+            <span v-if="isFinalized" class="foot-lock"><Lock :size="13" /> Part of the patient's permanent record</span>
+            <span class="foot-step"><b>Step {{ tab + 1 }}</b> of {{ steps.length }}</span>
+            <span class="foot-dots"><i v-for="(st, n) in steps" :key="st" :class="{ on: n === tab, done: n < tab }"></i></span>
+          </div>
           <div class="foot-right">
             <button v-if="!isReadOnly" type="button" class="nm-btn-outline" :disabled="saving || !dirty || errorCount > 0" @click="saveDraft">
               <Save :size="14" /> {{ saving ? 'Saving…' : 'Save draft' }}
@@ -372,9 +462,7 @@
       </div>
     </div>
   </div>
-</template>
-
-<script setup>
+</template><script setup>
 // The NCP record form — one longitudinal record across Assessment →
 // Diagnosis → Intervention (→ Monitoring on follow-ups), then Review.
 // Used by the NCP Records page, Client Detail and (inline) the consultation room.
@@ -1023,218 +1111,411 @@ function ncpError(e, fallback) {
   const first = Object.entries(data).find(([, v]) => Array.isArray(v) && typeof v[0] === 'string')
   return first ? `${first[0].replace(/_/g, ' ')}: ${first[1][0]}` : fallback
 }
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+// first and last name, e.g. Ivy Hope Alba → IA
+const initials = computed(() => {
+  const w = (props.patientName || ctx.value.patient?.name || '?').split(' ').filter(Boolean)
+  return (w.length > 1 ? w[0][0] + w[w.length - 1][0] : (w[0] || '?')[0]).toUpperCase()
+})
+const subtitleText = computed(() => subtitle.value.charAt(0).toUpperCase() + subtitle.value.slice(1))
+const stepNum = computed(() => String(tab.value + 1).padStart(2, '0'))
+// a short line under each step name in the step bar
+const STEP_SUB = { Assessment: 'Measurements', Diagnosis: 'PES statement', Intervention: 'Energy and diet', Monitoring: 'Goals and progress', Review: 'Check and finalize', Summary: 'The saved record' }
+// BMI marker on the WHO Asia-Pacific bar: four bands (<18.5, 18.5–22.9, 23–24.9, ≥25) drawn at fixed widths
+function bmiPos(b) {
+  const bands = [[12, 18.5, 0, 24], [18.5, 23, 24, 54], [23, 25, 54, 74], [25, 35, 74, 100]]
+  const v = Math.min(35, Math.max(12, Number(b)))
+  const [lo, hi, p0, p1] = bands.find(([, h]) => v < h) || bands[3]
+  return Math.min(98, Math.max(2, p0 + ((v - lo) / (hi - lo)) * (p1 - p0)))
+}
+const bmiTone = b => (b < 18.5 ? 'low' : b < 23 ? 'ok' : b < 25 ? 'warn' : 'high')
+// screening symptoms as tags (the text is comma-separated)
+const symptomTags = computed(() => String(ctx.value.screening?.symptoms || '').split(',').map(x => x.trim()).filter(Boolean))
 </script>
-
 <style scoped>
-.ncp-overlay { z-index: 200; }
-.ncp { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 960px; max-height: 86dvh; display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1a3a1a; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); overflow: hidden; }
-.ncp.is-inline { max-width: none; max-height: none; height: 100%; box-shadow: none; border: 1px solid #eceeec; }
+/* ================= NCP RECORD (UI refresh: brand #004D3A / #EFBF04, DM Sans + Playfair) ================= */
+.ncp-overlay { z-index: 200; backdrop-filter: blur(4px); }
+.ncp {
+  --sh: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22);
+  position: relative; display: flex; flex-direction: column; width: 100%; max-width: 1120px; max-height: 90dvh; overflow: hidden;
+  background: #fff; border-radius: 26px; font-family: 'DM Sans', sans-serif; color: #22362c; box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.5);
+}
+.ncp .ic { flex-shrink: 0; }
+.ncp.is-inline { max-width: none; max-height: none; height: 100%; border-radius: 18px; box-shadow: none; border: 1px solid #e4ebe6; }
 .ncp-inline { height: 100%; }
-/* In the consultation room's narrow panel the steps share one row: dot above
-   the name, equal columns (4 steps, 5 on a follow-up) — no wrapping. */
-.ncp.is-inline .steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; overflow: visible; padding: 8px 10px; }
-.ncp.is-inline .step { flex-direction: column; justify-content: center; gap: 4px; padding: 6px 2px; border-radius: 12px; font-size: 0.72rem; min-width: 0; }
-.ncp.is-inline .step-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.ncp.is-inline .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ncp.is-inline .ncp-head, .ncp.is-inline .ncp-form, .ncp.is-inline .ncp-foot { padding-left: 16px; padding-right: 16px; }
-.pad { padding: 20px 24px; }
+.pad { padding: 20px 26px; }
+.ncp-loading { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #6b7d73; }
+.ncp-spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid #e3efe7; border-top-color: #004d3a; animation: ncp-spin 0.8s linear infinite; }
+@keyframes ncp-spin { to { transform: rotate(360deg); } }
 
-.ncp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 20px 24px 14px; border-bottom: 1px solid #d9e3dc; }
-.ncp-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; margin: 0; font-weight: 700; line-height: 1.2; }
-.ncp-sub { font-size: 0.8rem; color: #8a9a8a; margin: 2px 0 0; }
-.ncp-kind { font-weight: 700; color: #3d4a3d; }
-.ncp-kind.follow { color: #b8860b; }
-.ncp-head-right { display: flex; align-items: center; gap: 10px; }
-.save-state { font-size: 0.74rem; font-weight: 600; color: #8a9a8a; white-space: nowrap; }
-.save-state.dirty { color: #9a6a00; }
-.save-state.ok { color: #1f6f46; }
-.icon-x { border: none; background: none; color: #6a7a6a; cursor: pointer; border-radius: 6px; display: flex; }
-.icon-x:hover { background: #f2f5f2; }
+/* ---------- header (green, with the plate) ---------- */
+.ncp-head {
+  position: relative; overflow: hidden; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; padding: 22px 26px 0; color: #fff;
+  background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 55%, #004635 100%);
+}
+.ncp-head-plate { position: absolute; right: -30px; top: 50%; width: 260px; height: 260px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); opacity: 0.75; pointer-events: none; }
+.ncp-head-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 50%, rgba(0, 77, 58, 0.75) 75%, rgba(0, 77, 58, 0.35) 100%); }
+.ncp-head-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 18px; padding: 4px 0 2px; }
+.ncp-av {
+  flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; letter-spacing: 0.06em;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
+}
+.ncp-title-wrap { flex: 1; min-width: 0; }
+.ncp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; line-height: 1.3; text-transform: uppercase; color: #efbf04; }
+.ncp-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
+.ncp-title { margin: 0 0 8px; font-family: 'Playfair Display', serif; font-size: 27px; font-weight: 700; line-height: 1.3; letter-spacing: 0.015em; word-spacing: 0.06em; font-stretch: normal; color: #fff; overflow-wrap: anywhere; }
+.ncp-title em { margin-left: 4px; font-style: normal; font-weight: 600; color: rgba(255, 255, 255, 0.72); }
+.ncp-kind.follow { color: #f5d466; }
+.ncp-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0; font-size: 14px; line-height: 1.5; letter-spacing: 0.01em; color: rgba(255, 255, 255, 0.88); }
+.ncp-sub i { width: 4px; height: 4px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); }
+.ncp-final { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; letter-spacing: 0.02em; border-radius: 999px; background: rgba(110, 231, 168, 0.16); border: 1px solid rgba(110, 231, 168, 0.35); font-size: 12px; font-weight: 800; color: #6ee7a8; }
+.ncp-head-right { align-self: flex-start; display: flex; align-items: center; gap: 10px; }
+.save-state { padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
+.save-state.dirty { background: rgba(239, 191, 4, 0.2); color: #f5d466; }
+.save-state.ok { background: rgba(110, 231, 168, 0.16); color: #6ee7a8; }
+.icon-x {
+  width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 56, 42, 0.55); color: #fff; backdrop-filter: blur(6px);
+}
+.icon-x:hover { background: rgba(0, 56, 42, 0.8); }
+.icon-x:focus-visible { outline: 2px solid #efbf04; outline-offset: 2px; }
 
-.steps { display: flex; gap: 4px; padding: 8px 24px; border-bottom: 1px solid #d9e3dc; overflow-x: auto; }
-.step { display: inline-flex; align-items: center; gap: 6px; border: none; background: none; padding: 5px 11px 5px 5px; border-radius: 999px; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #6a7a6a; cursor: pointer; white-space: nowrap; }
-.step:hover { background: #f7f9f7; }
-.step.active { background: #0a4a37; color: #fff; }
-.step-dot { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; background: #eceeec; color: #6a7a6a; }
-.step.done .step-dot { background: #1f8f5c; color: #fff; }
-.step.partial .step-dot { background: #fdf1d6; color: #8a6a00; }
-.step.ready .step-dot { background: #D4A017; color: #1a3a1a; }
-.step.active .step-dot { box-shadow: 0 0 0 2px #0a4a37, 0 0 0 3px rgba(255, 255, 255, 0.6); }
+/* ---------- step bar (inside the header) ---------- */
+.steps {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; margin: 0 -26px; padding: 12px 26px; overflow-x: auto; scrollbar-width: none;
+  background: rgba(0, 40, 30, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px);
+}
+.steps::-webkit-scrollbar { display: none; }
+.step {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border: none; border-radius: 999px;
+  background: transparent; font-family: inherit; text-align: left; color: #fff; cursor: pointer; white-space: nowrap; transition: background 0.15s;
+}
+.step:hover:not(.active) { background: rgba(255, 255, 255, 0.08); }
+.step:focus-visible { outline: 2px solid #efbf04; outline-offset: 2px; }
+.step-dot {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.8); font-size: 13px; font-weight: 800;
+}
+.step.done .step-dot { background: rgba(110, 231, 168, 0.2); color: #6ee7a8; }
+.step.partial .step-dot { background: rgba(239, 191, 4, 0.22); color: #f5d466; }
+.step.ready .step-dot { background: #efbf04; color: #004d3a; }
+.step.err .step-dot { background: #fdecec; color: #a12525; }
+.step-txt { display: flex; flex-direction: column; }
+.step-name { font-size: 13.5px; font-weight: 800; letter-spacing: 0.01em; }
+.step-sub { font-size: 11.5px; color: rgba(255, 255, 255, 0.6); }
+.step.active { background: #fff; box-shadow: 0 12px 24px -14px rgba(0, 0, 0, 0.6); }
+.step.active .step-dot { background: #efbf04; color: #004d3a; }
+.step.active.err .step-dot { background: #fdecec; color: #a12525; }
+.step.active .step-name { color: #004d3a; }
+.step.active .step-sub { color: #6b7d73; }
+.step-line { flex: 1; min-width: 18px; height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.16); }
+.step-line.done { background: rgba(110, 231, 168, 0.4); }
 
-.ncp-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; flex: 1; min-height: 0; }
+/* ---------- body ---------- */
+.ncp-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
 .ncp.is-inline .ncp-body { grid-template-columns: minmax(0, 1fr); }
-.ncp-form { padding: 18px 24px 24px; overflow-y: auto; min-width: 0; }
-/* step heading: what the step is for (the step bar already numbers them) */
-.step-head { margin: 0 0 16px; }
-.step-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
-.step-desc { font-size: 0.84rem; color: #5a6a5a; margin: 0; line-height: 1.5; }
-.summary dd.empty { color: #9aaa9a; font-weight: 500; }
-.banner { display: flex; align-items: center; gap: 8px; background: #f4f6f4; border-radius: 8px; padding: 9px 12px; font-size: 0.82rem; color: #4a5a4a; margin: 0 0 14px; }
-.banner.lock { background: #e3f3ea; color: #1f6f46; }
-.hint-box { display: flex; gap: 8px; align-items: flex-start; background: #f3f8f4; border: 1px solid #dcebe0; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; color: #2f5f3f; margin: 0 0 14px; }
+.ncp-form {
+  min-width: 0; overflow-y: auto; padding: 22px 26px 26px;
+  background: radial-gradient(90% 60% at 100% 0%, rgba(239, 191, 4, 0.06), rgba(239, 191, 4, 0) 60%), #f4f8f6;
+}
+.step-sec { display: flex; flex-direction: column; gap: 16px; }
+.step-sec > * { flex-shrink: 0; }
+.step-head { display: flex; align-items: center; gap: 14px; margin: 0; }
+.step-num {
+  flex-shrink: 0; width: 48px; height: 48px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; color: #004d3a; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; box-shadow: var(--sh); border-bottom: 3px solid #efbf04;
+}
+.step-title { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 23px; font-weight: 700; line-height: 1.3; letter-spacing: 0.015em; word-spacing: 0.06em; color: #0e3a2c; }
+.step-desc { margin: 0; font-size: 13.5px; line-height: 1.5; color: #6b7d73; }
+.banner { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; padding: 10px 14px; border-radius: 14px; background: #fff; border: 1px solid #e4ebe6; font-size: 13px; font-weight: 600; color: #4a5a52; }
+.hint-box { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 11px 14px; border-radius: 14px; background: #fff; border: 1px solid #d6e8dc; border-left: 3px solid #1f9d55; font-size: 13px; line-height: 1.5; color: #2c4a3c; }
+.hint-box svg { flex-shrink: 0; margin-top: 2px; color: #1f7a4d; }
+.ncp-form > .nm-error { margin: 0 0 14px; }
 .strip-toggle { display: none; }
 
-.grid { display: grid; column-gap: 12px; row-gap: 0; margin-bottom: 4px; } /* rows are spaced by each field's margin (they span 4 subgrid rows) */
+/* cards */
+.card { padding: 18px; border-radius: 20px; background: #fff; box-shadow: var(--sh); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #f0f3f1; }
+.card-head-txt { flex: 1; min-width: 0; }
+.card-ico, .sum-ico, .fact-ico { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+.card-ico { width: 38px; height: 38px; border-radius: 12px; }
+.ico-green { background: #e3efe7; color: #004d3a; }
+.ico-gold { background: #fbf3d2; color: #9a7300; }
+.ico-red { background: #fdedef; color: #b4384a; }
+.ico-blue { background: #eef1fa; color: #3b5ba5; }
+.ico-purple { background: #f1eef8; color: #5b4a9a; }
+.ms-title, .ter-title { margin: 0; font-size: 15.5px; font-weight: 800; color: #0e3a2c; }
+.card-sub { margin: 2px 0 0; font-size: 12.5px; color: #6b7d73; }
+.ms-bar { display: flex; align-items: center; gap: 8px; margin: 0; }
+.ms-locked .grid .nm-input:disabled { background: #f4f7f5; border-color: #d3dfd8; color: #22362c; cursor: not-allowed; }
+
+/* ---------- fields ---------- */
+.grid { display: grid; column-gap: 14px; row-gap: 0; margin-bottom: 4px; } /* rows are spaced by each field's margin (they span 4 subgrid rows) */
 .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-:deep(.field) { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; min-width: 0; }
+:deep(.field) { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; min-width: 0; }
 /* Fields side by side share label / input / hint rows, so the inputs line up
    even when one label wraps to two lines ("Blood pressure (mmHg)"). */
 .grid > :deep(*) { grid-row: span 4; } /* label · control · category · hint */
 .grid > :deep(.field) { display: grid; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
-.grid > :deep(.field > * + *) { margin-top: 5px; } /* spacing only where there's content, so empty rows add nothing */
+.grid > :deep(.field > * + *) { margin-top: 6px; } /* spacing only where there's content, so empty rows add nothing */
 .grid > :deep(.field > .field-label) { align-self: end; }
-:deep(.field-label) { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; position: relative; }
+:deep(.field-label) { position: relative; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #6b7d73; }
+:deep(.req) { color: #c0392b; }
+:deep(.field-hint) { font-size: 12px; line-height: 1.45; color: #8a9a91; }
+:deep(.field-error) { font-size: 12px; font-weight: 700; color: #c0392b; }
+.ncp :deep(.nm-input), .ncp :deep(.nm-select) {
+  min-height: 44px; border: 1.5px solid #c9d8cf; border-radius: 12px; background-color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 600; color: #14261e;
+  box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+.ncp :deep(.nm-input:hover:not(:disabled)), .ncp :deep(.nm-select:hover:not(:disabled)) { border-color: #9ec4ad; }
+.ncp :deep(.nm-input:focus), .ncp :deep(.nm-select:focus) { outline: none; background-color: #fff; border-color: #004d3a; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.ncp :deep(.nm-input:disabled), .ncp :deep(.nm-select:disabled) { background-color: #f4f7f5; border-color: #d3dfd8; border-style: solid; color: #22362c; -webkit-text-fill-color: #22362c; opacity: 1; box-shadow: none; }
+.ncp :deep(textarea.nm-input) { line-height: 1.55; }
+:deep(.field.invalid .nm-input) { border-color: #e0a3a3; background-color: #fffafa; }
 /* ⓘ beside a label; the bubble stays within the field's width so it never runs off the modal. */
-:deep(.info-tip) { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: #8a9a8a; cursor: help; border-radius: 50%; }
-:deep(.info-tip:hover), :deep(.info-tip:focus-visible) { color: #00382a; outline: none; }
+:deep(.info-tip) { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: #8a9a91; cursor: help; border-radius: 50%; text-transform: none; letter-spacing: 0; }
+:deep(.info-tip:hover), :deep(.info-tip:focus-visible) { color: #004d3a; outline: none; }
 :deep(.info-tip:focus-visible) { box-shadow: 0 0 0 2px rgba(0, 56, 42, 0.25); }
 :deep(.info-bubble) {
   position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30; width: max-content; max-width: 100%;
-  background: #00382a; color: #fff; font-size: 0.74rem; font-weight: 500; line-height: 1.4;
-  padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  background: #00382a; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.4; text-transform: none; letter-spacing: 0;
+  padding: 7px 10px; border-radius: 10px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
   opacity: 0; visibility: hidden; transition: opacity 0.12s; pointer-events: none;
 }
 :deep(.info-tip:hover .info-bubble), :deep(.info-tip:focus .info-bubble) { opacity: 1; visibility: visible; }
-:deep(.req) { color: #c0392b; }
-:deep(.field-hint) { font-size: 0.72rem; color: #8a9a8a; }
-:deep(.field-error) { font-size: 0.72rem; color: #c0392b; font-weight: 600; }
-:deep(.field.invalid .nm-input) { border-color: #e0a3a3; background: #fffafa; }
-.step.err .step-dot { background: #fdecec; color: #a12525; }
-.foot-err { flex-basis: 100%; display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 0.78rem; font-weight: 600; color: #a12525; }
-.bp { display: flex; align-items: center; gap: 6px; }
-.bp input { min-width: 0; padding-left: 8px; padding-right: 8px; }
 /* No up/down arrows on number boxes: in the narrow room panel they hid the
    value (128 showed as "12") and a stray click set an empty box to its min. */
 input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
 input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.bp span { color: #8a9a8a; }
-.lab-link { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; font-size: 0.76rem; color: #5a6a5a; }
+.bp { display: flex; align-items: center; gap: 6px; }
+.bp input { min-width: 0; padding-left: 10px; padding-right: 10px; }
+.bp span { font-weight: 700; color: #a3b1a9; }
+.was { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 6px 10px; border-radius: 10px; background: #fff8e6; font-size: 12.5px; color: #7a5a00; }
+.m-cat { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin: 6px 0 0; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.m-cat.ok { background: #e3f4ea; color: #1f7a4d; }
+.m-cat.warn { background: #fff4d6; color: #8a6500; }
+.m-cat.danger { background: #fdecea; color: #b42318; }
+.lab-link { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; background: #f7faf8; font-size: 12.5px; color: #4a5a52; }
 .lab-link a { color: #a37a0b; font-weight: 700; text-decoration: none; }
 .lab-link a:hover { text-decoration: underline; }
-.m-cat { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 0; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
-.m-cat.ok { background: #eaf5ee; color: #1f6b43; }
-.m-cat.warn { background: #fdecec; color: #a12525; }
-.m-cat.danger { background: #fdecea; color: #b42318; }
-.computed { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px; }
-.computed strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-.k { font-size: 0.76rem; font-weight: 600; color: #6a7a6a; }
-.c-sub { font-size: 0.74rem; color: #8a9a8a; margin: 0; }
+.k { font-size: 11.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.c-sub { margin: 0; font-size: 12.5px; color: #8a9a91; }
 
+/* BMI */
+.computed { display: flex; flex-direction: column; justify-content: center; margin-bottom: 14px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, #f1f8f4, #fff); border: 1px solid #dcede3; }
+.bmi-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.bmi-chip { padding: 3px 10px; border-radius: 999px; background: #e3f4ea; font-size: 12px; font-weight: 800; color: #1f7a4d; white-space: nowrap; }
+.bmi-low .bmi-chip { background: #eef1fa; color: #3b5ba5; }
+.bmi-warn .bmi-chip { background: #fff4d6; color: #8a6500; }
+.bmi-high .bmi-chip { background: #fdecea; color: #b42318; }
+.computed strong { font-family: 'Playfair Display', serif; font-size: 28px; line-height: 1.15; color: #004d3a; font-variant-numeric: tabular-nums; }
+.bmi-scale { position: relative; display: grid; grid-template-columns: 1.2fr 1.5fr 1fr 1.3fr; gap: 3px; height: 7px; margin-top: 8px; }
+.bmi-scale span { border-radius: 999px; }
+.bmi-scale span:nth-child(1) { background: #9db4f0; }
+.bmi-scale span:nth-child(2) { background: #1f9d55; }
+.bmi-scale span:nth-child(3) { background: #efbf04; }
+.bmi-scale span:nth-child(4) { background: #e07a5f; }
+.bmi-scale i { position: absolute; top: -4px; width: 15px; height: 15px; margin-left: -7px; border-radius: 50%; background: #fff; border: 3px solid #004d3a; box-sizing: border-box; transition: left 0.3s; }
+.bmi-lbl { display: grid; grid-template-columns: 1.2fr 1.5fr 1fr 1.3fr; gap: 3px; margin-top: 6px; font-size: 10px; color: #8a9a91; }
+
+/* ---------- diagnosis ---------- */
+.pes-card { display: flex; gap: 14px; padding: 16px; border-radius: 20px; background: #fff; box-shadow: var(--sh); border-left: 4px solid var(--c); }
+.pes-p { --c: #004d3a; --bg: #e3efe7; }
+.pes-e { --c: #9a7300; --bg: #fbf3d2; }
+.pes-s { --c: #3b5ba5; --bg: #eef1fa; }
+.pes-l { flex-shrink: 0; width: 42px; height: 42px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg); color: var(--c); font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; }
+.pes-b { flex: 1; min-width: 0; }
+.pes-b :deep(.field) { margin-bottom: 0; }
 .combo { position: relative; }
-.combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }
-.combo-group { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; margin: 6px 8px 2px; }
-.combo-opt { display: block; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
-.combo-opt:hover, .combo-opt.on { background: #eef3ec; }
-.combo-group.linked { color: #1f6b43; }
-.combo-tag { float: right; margin-left: 10px; font-size: 0.7rem; font-weight: 600; color: #8a9a8a; }
-.pes-preview, .prev-box, .energy { background: #fafbfa; border: 1px solid #f0f2f0; border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; }
-.pes-preview p, .prev-box p { margin: 4px 0 0; font-size: 0.86rem; line-height: 1.5; }
-.energy { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; }
-.energy div { display: flex; flex-direction: column; }
-.energy strong { font-size: 1rem; }
-.energy .c-sub { grid-column: 1 / -1; }
-.ter-box { background: #fafbfa; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 14px; margin: 4px 0 14px; }
-.ter-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.ter-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.ter-act { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; color: #4a5a4a; }
-.ter-result { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ter-result p { margin: 0; font-size: 0.86rem; color: #1a3a1a; }
-.ter-result strong { font-size: 1.05rem; }
-.ter-toggle {
-  display: inline-flex; align-items: center; gap: 4px; border: none; background: #e3efe7; color: #0a4a37; border-radius: 8px;
-  min-height: 32px; padding: 0 12px; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-}
-.ter-toggle:hover { background: #d3e7da; }
+.combo-list { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 280px; overflow-y: auto; padding: 6px; background: #fff; border: 1px solid #e4ebe6; border-radius: 14px; box-shadow: 0 18px 36px -12px rgba(16, 35, 27, 0.3); }
+.combo-group { margin: 8px 8px 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.combo-group.linked { color: #1f7a4d; }
+.combo-opt { display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 10px; background: none; text-align: left; font-family: inherit; font-size: 13.5px; color: #0e3a2c; cursor: pointer; }
+.combo-opt:hover, .combo-opt.on { background: #f1f6f2; }
+.combo-tag { float: right; margin-left: 10px; font-size: 11px; font-weight: 700; color: #8a9a91; }
+.pes-preview { margin: 0; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, #004d3a, #035a45); color: #fff; box-shadow: 0 18px 36px -20px rgba(0, 77, 58, 0.8); }
+.pes-preview-h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.pes-preview-ico { width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.12); color: #efbf04; display: inline-flex; align-items: center; justify-content: center; }
+.pes-preview .k { color: #fff; font-size: 13px; letter-spacing: 0.3px; }
+.pes-preview-h small { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.pes-preview p { margin: 0; font-size: 15px; line-height: 1.7; color: rgba(255, 255, 255, 0.92); overflow-wrap: anywhere; }
+
+/* ---------- intervention ---------- */
+.ter-box .card-head { margin-bottom: 14px; }
+.ter-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.ter-big { display: flex; flex-direction: column; justify-content: center; min-width: 170px; padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, #004d3a, #035a45); color: #fff; box-shadow: 0 14px 28px -18px rgba(0, 77, 58, 0.9); }
+.ter-big small { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #efbf04; }
+.ter-big strong { font-family: 'Playfair Display', serif; font-size: 36px; line-height: 1.1; }
+.ter-big em { font-style: normal; font-size: 12.5px; color: rgba(255, 255, 255, 0.7); }
+.ter-side { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+.ter-act { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.ter-act > span { font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #6b7d73; }
+.ter-act .nm-select { width: 100%; }
+.ter-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid #dce8e0; border-radius: 999px; background: #f1f6f2; font-family: inherit; font-size: 12.5px; font-weight: 800; color: #004d3a; cursor: pointer; }
+.ter-toggle:hover { background: #e3efe7; }
 .ter-toggle:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .ter-toggle svg { transition: transform 0.15s; } }
 .ter-toggle svg.up { transform: rotate(180deg); }
-.ter-steps { margin: 10px 0 0; display: grid; gap: 4px; font-size: 0.82rem; color: #4a5a4a; }
-.ter-steps div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; }
-.ter-steps dt { font-weight: 600; color: #1a3a1a; }
+.ter-steps { display: grid; gap: 6px; margin: 14px 0 0; padding: 12px 14px; border-radius: 14px; background: #f7faf8; font-size: 13px; color: #4a5a52; }
+.ter-steps div { display: grid; grid-template-columns: 74px 1fr; gap: 8px; }
+.ter-steps dt { font-weight: 800; color: #0e3a2c; }
 .ter-steps dd { margin: 0; }
-.ter-steps strong { color: #1a3a1a; }
-.ter-steps .ter-total { border-top: 1px solid #d9e3dc; padding-top: 6px; margin-top: 2px; }
+.ter-steps strong { color: #0e3a2c; }
+.ter-steps .ter-total { margin-top: 2px; padding-top: 8px; border-top: 1px solid #e4ebe6; }
+.ter-box .plain-note, .ter-box > .c-sub { margin: 12px 0 0; }
 .ter-field { max-width: 320px; }
+.macro-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: -2px 0 14px; padding: 9px 12px; border-radius: 12px; background: #f1f6f2; font-size: 13px; color: #2c4a3c; }
+.macro-line.warn, .rx-outdated { background: #fff8e6; color: #7a5a00; }
 .rx-outdated { margin: 8px 0 0; }
-.mt-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 6px; }
-.mt-bar-title { margin: 0; font-size: 0.84rem; font-weight: 700; color: #1a3a1a; }
-.mt-bar-title span { font-weight: 500; color: #6a7a6a; margin-left: 6px; }
+.mt-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; padding-top: 14px; border-top: 1px solid #f0f3f1; }
+.mt-bar-title { margin: 0; font-size: 14.5px; font-weight: 800; color: #0e3a2c; }
+.mt-bar-title span { margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: #f3f6f4; font-size: 12px; font-weight: 700; color: #6b7d73; }
 .mt-chev { transition: transform 0.15s ease; }
 .mt-chev.up { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .mt-chev { transition: none; } }
-.mt-summary { margin: 0 0 12px; font-size: 0.84rem; color: #1a3a1a; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 10px; padding: 9px 12px; }
-.ms-locked .grid .nm-input:disabled { background: #f4f6f4; color: #4a5a4a; cursor: not-allowed; }
-.ms-bar { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; }
-.ms-title { margin: 0 auto 0 0; font-size: 0.84rem; font-weight: 700; color: #1a3a1a; }
-.was { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; font-size: 0.76rem; color: #7a5a00; }
-.macro-table { border: 1px solid #d9e3dc; border-radius: 10px; overflow: hidden; margin: 2px 0 6px; }
-.mt-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid #d9e3dc; font-size: 0.84rem; color: #1a3a1a; }
+.mt-split { display: flex; gap: 3px; height: 28px; margin: 0 0 12px; border-radius: 10px; overflow: hidden; }
+.mt-split span { flex-basis: 0; min-width: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; transition: flex-grow 0.3s; }
+.sp-carb { background: #c49102; }
+.sp-protein { background: #1f9d55; }
+.sp-fat { background: #3b5ba5; }
+.mt-summary { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: #f7faf8; border: 1px solid #d3dfd8; font-size: 13.5px; color: #22362c; }
+.macro-table { margin: 2px 0 8px; border: 1px solid #eef2ef; border-radius: 14px; overflow: hidden; }
+.mt-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid #f3f6f4; font-size: 14px; color: #22362c; }
 .mt-row:first-child { border-top: none; }
-.mt-head { background: #f7faf8; font-size: 0.74rem; font-weight: 600; color: #6a7a6a; }
-.mt-name small { color: #8a9a8a; font-weight: 400; margin-left: 4px; }
-.mt-pct { width: 72px; display: inline-block; }
-.mt-g { font-weight: 700; }
-.mt-foot { background: #f7faf8; font-weight: 700; }
+.mt-head { background: #f7faf8; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; }
+.mt-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.mt-name small { font-weight: 500; color: #8a9a91; }
+.mt-dot { width: 9px; height: 9px; border-radius: 3px; }
+.mt-pct { width: 74px !important; display: inline-block; text-align: center; }
+.mt-g { font-weight: 800; color: #0e3a2c; }
+.mt-foot { background: #f7faf8; font-weight: 800; color: #1f5c45; }
 .mt-foot.bad { color: #c0392b; }
-.mt-err { font-size: 0.78rem; color: #c0392b; font-weight: 600; margin: 0 0 12px; }
-.macro-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.8rem; color: #4a5a4a; background: #f3f8f4; border-radius: 8px; padding: 8px 12px; margin: -2px 0 14px; }
-.macro-line.warn { background: #fdf6e3; color: #7a5a00; }
-.since { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.since div { display: flex; flex-direction: column; }
+.mt-err { margin: 0 0 12px; font-size: 13px; font-weight: 700; color: #c0392b; }
+
+/* ---------- monitoring ---------- */
+.prev-box { margin: 0; padding: 16px 18px; border-radius: 20px; background: #fff; box-shadow: var(--sh); border-left: 4px solid #efbf04; }
+.prev-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.prev-box p { margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: #3e5046; }
+.prev-box strong { color: #0e3a2c; }
+.since { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.since div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: #f7faf8; }
+.since strong { font-family: 'Playfair Display', serif; font-size: 20px; color: #004d3a; }
 .goals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.goal { border: 1px solid #d5dad5; background: #fff; border-radius: 8px; padding: 9px 6px; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; cursor: pointer; }
-.goal.on { background: #14301a; border-color: #14301a; color: #fff; }
+.goal { min-height: 44px; padding: 8px 6px; border: 1.5px solid #c9d8cf; border-radius: 12px; background: #fff; font-family: inherit; font-size: 13.5px; font-weight: 700; color: #22362c; cursor: pointer; transition: all 0.15s; }
+.goal:hover:not(:disabled):not(.on) { border-color: #9ec4ad; }
+.goal.on { background: #004d3a; border-color: #004d3a; color: #fff; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.9); }
+.goal:disabled:not(.on) { opacity: 0.6; cursor: default; }
 
+/* ---------- review / summary ---------- */
+.missing { margin: 0; padding: 14px 16px; border-radius: 18px; background: #fffdf5; border: 1.5px dashed #e7c65a; font-size: 13.5px; color: #3d3005; }
+.missing p { display: flex; gap: 6px; align-items: center; margin: 0 0 6px; font-weight: 800; color: #8a6500; }
+.missing ul { margin: 0; padding-left: 20px; line-height: 1.9; }
+.done-card { position: relative; overflow: hidden; display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 16px 18px; border-radius: 20px; background: linear-gradient(135deg, #004d3a, #035a45); color: #fff; box-shadow: 0 18px 36px -20px rgba(0, 77, 58, 0.8); }
+.done-card::after { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(239, 191, 4, 0.25), rgba(239, 191, 4, 0) 70%); pointer-events: none; }
+.done-card > * { position: relative; z-index: 1; }
+.done-ico { flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; background: #efbf04; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
+.done-txt { flex: 1; min-width: 180px; }
+.done { margin: 0; font-size: 16px; font-weight: 800; color: #fff; }
+.done-sub { margin: 2px 0 0; font-size: 13px; color: rgba(255, 255, 255, 0.75); }
+.ncp .done-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; background: #efbf04; border-color: #efbf04; color: #004d3a; font-size: 14px; font-weight: 800; text-decoration: none; box-shadow: 0 10px 22px -12px rgba(239, 191, 4, 0.9); }
+.ncp .done-link:hover { background: #f5cb1c; }
+.ready-hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 14px; background: #e3f4ea; font-size: 13.5px; color: #1f5c45; }
+.ready-hint svg { flex-shrink: 0; margin-top: 1px; }
+.summary { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.summary div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 14px; align-items: start; padding: 14px 16px; border-radius: 18px; background: #fff; box-shadow: var(--sh); }
+.summary dt { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13.5px; font-weight: 800; color: #0e3a2c; }
+.sum-ico { width: 32px; height: 32px; border-radius: 10px; }
+.summary dd { margin: 0; padding-top: 6px; font-size: 14px; line-height: 1.6; color: #3e5046; white-space: pre-line; overflow-wrap: anywhere; }
+.summary dd.empty { color: #8a9a91; font-style: italic; }
 
-/* what finalizing still needs = unfinished work: white with a dashed green border, like an NCP draft */
-.missing { background: #fff; border: 1.5px dashed #3f9a6b; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem; color: #2a3a2a; }
-.missing p { display: flex; gap: 6px; align-items: center; margin: 0 0 4px; font-weight: 700; color: #1a3a1a; }
-.missing ul { margin: 0; padding-left: 20px; line-height: 1.8; }
-.summary { margin: 0 0 14px; }
-.summary div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-top: 1px solid #f0f2f0; }
-.summary div:first-child { border-top: none; }
-.summary dt { font-size: 0.76rem; color: #8a9a8a; margin: 0; }
-.summary dd { margin: 0; font-size: 0.86rem; line-height: 1.5; overflow-wrap: anywhere; }
-.done { display: flex; align-items: center; gap: 6px; color: #1f6f46; font-weight: 600; font-size: 0.86rem; }
-
-.strip { border-left: 1px solid #f0f2f0; background: #fbfcfb; padding: 18px 18px 24px; overflow-y: auto; }
-.strip-name { font-weight: 700; margin: 0; font-size: 0.95rem; }
-.allergy { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; font-size: 0.78rem; font-weight: 600; color: #a12525; background: #fdecec; border-radius: 8px; padding: 6px 8px; }
-.strip-k { font-size: 0.82rem; font-weight: 700; color: #1a3a1a; margin: 16px 0 6px; }
-.strip-facts { margin: 10px 0 0; }
-/* screening baseline card */
-.baseline { margin: 16px 0 4px; padding: 12px 14px; border-radius: 10px; background: #f1f8f3; border: 1px solid #d6e8dc; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.bl-title { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.bl-sub { font-size: 0.74rem; color: #5a7a64; margin: 2px 0 10px; }
-.bl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; margin: 0; }
-.bl-grid div { display: flex; flex-direction: column; min-width: 0; }
-.bl-grid dt { font-size: 0.72rem; font-weight: 600; color: #4a6a54; margin: 0; }
-.bl-grid dd { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: #1a3a1a; margin: 0; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; }
-.bl-grid small { font-size: 0.72rem; color: #5a7a64; }
-.bl-grid .risk dd { color: #b23b2e; }
-.bl-sym { font-size: 0.78rem; color: #3a4a3a; margin: 10px 0 0; overflow-wrap: anywhere; }
-/* information boxes in the form: the light card shadow */
-.computed, .energy, .pes-preview, .prev-box, .missing { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.strip-facts div { padding: 5px 0; }
-.strip-facts dt { font-size: 0.7rem; color: #8a9a8a; margin: 0; }
-.strip-facts dd { margin: 0; font-size: 0.82rem; font-weight: 600; overflow-wrap: anywhere; }
-.strip-facts dd small { font-weight: 500; color: #6a7a6a; }
+/* ---------- patient strip ---------- */
+.strip { min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 22px 20px 26px; background: #fbfcfb; border-left: 1px solid #eef2ef; }
+.strip-pt { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; background: #fff; border: 1px solid #eef2ef; }
+.ncp:not(.is-inline) .strip-pt { display: none; } /* the header already names the patient */
+.strip-av { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; }
+.strip-name { margin: 0; font-size: 15px; font-weight: 800; color: #0e3a2c; }
+.allergy { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: #fef3f2; border: 1px solid #f6cfcb; font-size: 13px; line-height: 1.4; color: #912018; }
+.allergy svg { flex-shrink: 0; margin-top: 1px; color: #c0392b; }
+.allergy b { font-weight: 800; }
+.strip-facts { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 14px; border-radius: 18px; background: #fff; border: 1px solid #eef2ef; }
+.strip-facts div { position: relative; min-height: 32px; padding-left: 44px; }
+.fact-ico { position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 10px; }
+.strip-facts dt { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #8a9a91; }
+.strip-facts dd { margin: 2px 0 0; font-size: 13.5px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
+.strip-facts dd small { font-weight: 500; color: #6b7d73; }
 .strip-facts dd.risk { color: #a12525; }
+/* screening baseline card */
+.baseline { margin: 0; padding: 14px; border-radius: 18px; background: linear-gradient(160deg, #f1f8f4, #fff); border: 1px solid #dcede3; }
+.bl-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.bl-ico { flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px; background: #004d3a; color: #efbf04; display: inline-flex; align-items: center; justify-content: center; }
+.bl-title { margin: 0; font-size: 14px; font-weight: 800; color: #0e3a2c; }
+.bl-sub { margin: 1px 0 0; font-size: 11.5px; line-height: 1.4; color: #6b7d73; }
+.bl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.bl-grid div { display: flex; flex-direction: column; min-width: 0; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid #e6f0ea; }
+.bl-grid dt { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.bl-grid dd { margin: 0; font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; line-height: 1.2; color: #004d3a; font-variant-numeric: tabular-nums lining-nums; }
+.bl-grid small { font-size: 11.5px; color: #6b7d73; }
+.bl-grid .risk dd { color: #b23b2e; }
+.bl-sym { margin: 10px 0 0; font-size: 12.5px; color: #3e5046; overflow-wrap: anywhere; }
+.bl-sym strong { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.bl-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.bl-tags em { padding: 3px 9px; border-radius: 999px; background: #fff; border: 1px solid #e6f0ea; font-style: normal; font-size: 12px; font-weight: 700; color: #22362c; }
+.strip-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; background: #f1f6f2; }
+.strip-card.gold { background: #fbf3d2; }
+.strip-card-ico { flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px; background: #fff; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
+.strip-card.gold .strip-card-ico { color: #9a7300; }
+.strip-k { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.strip-card.gold .strip-k { color: #8a6500; }
+.strip-card .c-sub { font-size: 13.5px; font-weight: 700; color: #0e3a2c; }
 
-.ncp-foot { display: flex; justify-content: space-between; gap: 10px; padding: 12px 24px; border-top: 1px solid #d9e3dc; background: #f7faf8; flex-wrap: wrap; }
+/* ---------- footer ---------- */
+.ncp-foot { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 12px; padding: 14px 26px; border-top: 1px solid #eef2ef; background: #fff; }
+.foot-err { flex-basis: 100%; display: flex; align-items: center; gap: 6px; margin: 0 0 2px; font-size: 13px; font-weight: 700; color: #a12525; }
+.foot-mid { display: inline-flex; align-items: center; gap: 12px; font-size: 13px; color: #6b7d73; }
+.foot-lock { display: inline-flex; align-items: center; gap: 6px; padding-right: 12px; border-right: 1px solid #e4ebe6; font-weight: 700; color: #1f7a4d; }
+.foot-step b { color: #0e3a2c; }
+.foot-dots { display: inline-flex; gap: 5px; }
+.foot-dots i { width: 8px; height: 8px; border-radius: 999px; background: #dce5df; transition: width 0.2s; }
+.foot-dots i.done { background: #1f9d55; }
+.foot-dots i.on { width: 22px; background: #004d3a; }
 .foot-right { display: flex; gap: 8px; flex-wrap: wrap; }
-.foot-right .nm-btn-outline { display: inline-flex; align-items: center; gap: 6px; }
-.inner-overlay { position: absolute; inset: 0; background: rgba(20, 30, 20, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 30; }
+.ncp-foot .nm-btn-outline, .ncp-foot .nm-btn-dark { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 20px; border-radius: 12px; font-size: 14px; font-weight: 800; }
+.ncp-foot .nm-btn-outline { background: #f1f6f2; border: 1px solid #dce8e0; color: #004d3a; }
+.ncp-foot .nm-btn-dark { box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
+.ncp-foot button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.inner-overlay { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(8, 32, 24, 0.5); backdrop-filter: blur(3px); }
 .labs-modal { max-width: 720px; }
 
+/* ---------- consultation room (inline, narrow panel) ---------- */
+/* The steps share one row: dot above the name, equal columns (4 steps, 5 on a follow-up) — no wrapping. */
+.ncp.is-inline .ncp-head { padding: 16px 16px 0; gap: 12px; border-radius: 17px 17px 0 0; }
+.ncp.is-inline .ncp-title { font-size: 20px; }
+.ncp.is-inline .ncp-title em { display: none; }
+.ncp.is-inline .steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; overflow: visible; margin: 0 -16px; padding: 8px 10px; }
+.ncp.is-inline .step { flex-direction: column; justify-content: center; gap: 4px; padding: 6px 2px; border-radius: 12px; min-width: 0; }
+.ncp.is-inline .step-sub, .ncp.is-inline .step-line { display: none; }
+.ncp.is-inline .step-dot { width: 26px; height: 26px; font-size: 12px; }
+.ncp.is-inline .step-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 12px; text-align: center; }
+.ncp.is-inline .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ncp.is-inline .ncp-form, .ncp.is-inline .ncp-foot { padding-left: 16px; padding-right: 16px; }
+.ncp.is-inline .foot-mid { display: none; }
+
+/* ---------- tablet ---------- */
 @media (max-width: 900px) {
-  .ncp-body { grid-template-columns: minmax(0, 1fr); }
-  .strip { display: none; border-left: none; border-bottom: 1px solid #f0f2f0; }
-  .strip.open { display: block; grid-row: 1; }
-  .strip-toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d5dad5; background: #fff; border-radius: 8px; padding: 6px 10px; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #1a3a1a; cursor: pointer; margin: 0 0 12px; }
+  .ncp-body { display: flex; flex-direction: column; overflow-y: auto; }
+  .ncp-form { overflow: visible; }
+  .strip { display: none; overflow: visible; border-left: none; border-bottom: 1px solid #eef2ef; }
+  .strip.open { display: flex; order: -1; }
+  .strip-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 14px; padding: 0 14px; min-height: 36px; border: 1px solid #e4ebe6; border-radius: 999px; background: #fff; font-family: inherit; font-size: 12.5px; font-weight: 800; color: #004d3a; cursor: pointer; }
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ter-grid { grid-template-columns: minmax(0, 1fr); }
+  .foot-lock { display: none; }
 }
 /* A long pop-up goes full screen on phones, like the lab file pop-up. */
 @media (max-width: 640px) {
@@ -1243,14 +1524,41 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
   .ncp:not(.is-inline) .ncp-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 560px) {
-  .ncp-head, .steps, .ncp-form, .ncp-foot { padding-left: 16px; padding-right: 16px; }
-  .ncp-head { padding-top: 18px; padding-bottom: 14px; }
-  .ncp-title { font-size: 1.15rem; }
+  .ncp-head { padding: 16px 16px 0; gap: 12px; }
+  .ncp-head-plate { width: 170px; height: 170px; right: -60px; opacity: 0.45; }
+  .ncp-av { width: 44px; height: 44px; font-size: 16px; }
+  .ncp-title { font-size: 21px; }
+  .ncp-title em { display: none; }
+  .save-state { display: none; }
+  .steps { margin: 0 -16px; padding: 10px 16px; gap: 6px; }
+  .step:not(.active) .step-txt { display: none; }
+  .step:not(.active) { padding: 4px; }
+  .step-sub { display: none; }
+  .step-dot { width: 28px; height: 28px; }
+  .step-line { min-width: 10px; }
+  .ncp-form, .strip { padding-left: 16px; padding-right: 16px; }
+  .ncp-form { padding-top: 16px; }
+  .step-num { width: 40px; height: 40px; border-radius: 12px; font-size: 17px; }
+  .step-title { font-size: 20px; }
+  .card, .pes-card, .prev-box { padding: 14px; }
+  .pes-card { flex-direction: column; gap: 10px; }
+  .pes-l { width: 34px; height: 34px; font-size: 18px; }
   .g3 { grid-template-columns: minmax(0, 1fr); }
+  .card-head { flex-wrap: wrap; }
+  .ms-bar { width: 100%; }
+  .ms-bar > * { flex: 1; justify-content: center; }
+  .ter-field { max-width: none; }
+  .mt-row { grid-template-columns: 1.3fr 1fr 0.8fr; padding: 10px; font-size: 13px; }
   .goals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .summary div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .ncp-foot { flex-direction: column-reverse; }
-  .foot-right { width: 100%; }
-  .foot-right > * { flex: 1; justify-content: center; }
+  .since { grid-template-columns: minmax(0, 1fr); }
+  .summary div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .summary dd { padding-top: 0; }
+  .done-card .done-link { width: 100%; justify-content: center; }
+  .ncp-foot { padding: 12px 16px; }
+  .foot-mid { display: none; }
+  .ncp-foot { flex-wrap: nowrap; }
+  .ncp-foot .foot-err { display: none; }
+  .foot-right { flex: 1; justify-content: flex-end; }
+  .foot-right > * { flex: 1; justify-content: center; padding: 0 12px; }
 }
 </style>

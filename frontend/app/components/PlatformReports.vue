@@ -1,19 +1,33 @@
 <template>
   <div class="nm-page reports">
+    <section class="rh">
+      <img class="rh-plate" :src="plateImg" alt="" aria-hidden="true" />
+      <span class="rh-fade" aria-hidden="true"></span>
+      <div class="rh-txt">
+        <p class="rh-eyebrow"><span></span>Platform reports</p>
+        <h1 class="rh-title">How NutriMatch is doing</h1>
+        <p v-if="r" class="rh-period"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg>{{ r.period.label }}, {{ dateRange }}</p>
+      </div>
+      <div class="exports">
+        <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="!r" @click="downloadCsv"><Download :size="15" aria-hidden="true" /> CSV</button>
+        <button type="button" class="nm-btn-dark nm-btn-sm" :disabled="!r" @click="print"><Printer :size="15" aria-hidden="true" /> Print / PDF</button>
+      </div>
+    </section>
+
     <div class="toolbar">
       <div class="period">
-        <select v-model="period" class="nm-select" aria-label="Report period">
-          <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
-        </select>
+        <label class="p-sel">
+          <svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg><small>Period</small>
+          <select v-model="period" class="nm-select" aria-label="Report period">
+            <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
+          </select>
+          <svg class="ic p-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+        </label>
         <template v-if="period === 'custom'">
           <DateField v-model="from" :max="to || todayIso" compact hint="Pick the first day." placeholder="Start date" aria-label="From" />
           <span class="to">to</span>
           <DateField v-model="to" :min="from" :max="todayIso" compact hint="Pick the last day." placeholder="End date" aria-label="To" />
         </template>
-      </div>
-      <div class="exports">
-        <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="!r" @click="downloadCsv"><Download :size="14" aria-hidden="true" /> CSV</button>
-        <button type="button" class="nm-btn-dark nm-btn-sm" :disabled="!r" @click="print"><Printer :size="14" aria-hidden="true" /> Print / PDF</button>
       </div>
     </div>
     <p v-if="printError" class="nm-error">{{ printError }}</p>
@@ -23,9 +37,8 @@
     <template v-if="r">
       <div class="tab-row">
         <div class="nm-tabs" role="tablist" aria-label="Report sections">
-          <button v-for="t in TABS" :key="t.key" type="button" role="tab" class="nm-tab" :class="{ active: tab === t.key }" :aria-selected="tab === t.key" @click="setTab(t.key)">{{ t.label }}</button>
+          <button v-for="t in TABS" :key="t.key" type="button" role="tab" class="nm-tab" :class="{ active: tab === t.key }" :aria-selected="tab === t.key" @click="setTab(t.key)"><template v-if="t.key === 'overview'"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></template><template v-else-if="t.key === 'clients'"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></svg></template><template v-else-if="t.key === 'rnds'"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" /></svg></template><template v-else-if="t.key === 'consultations'"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M22 8l-6 4 6 4z" /></svg></template><template v-else><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /></svg></template>{{ t.label }}</button>
         </div>
-        <p class="nm-panel-sub period-label">{{ r.period.label }}, {{ dateRange }}</p>
       </div>
 
       <!-- OVERVIEW -->
@@ -40,19 +53,19 @@
             <div class="fig"><dt>Support requests</dt><dd>{{ r.people.support_requests }}</dd><p>opened in this period</p></div>
           </dl>
         </section>
-        <div v-if="hasMonths" class="two">
-          <section class="nm-panel">
-            <h2 class="nm-panel-title">Consultations per month</h2>
+        <div v-if="r.monthly.length" class="two">
+          <section class="nm-panel ch">
+            <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M22 8l-6 4 6 4z" /></svg></span>Consultations per month</h2>
             <p class="nm-panel-sub chart-sub">Completed and cancelled</p>
             <BarChart :rows="monthRows(m => ({ completed: m.completed, cancelled: m.cancelled }))" :series="CONSULT_SERIES" label="Consultations per month" />
           </section>
-          <section class="nm-panel">
-            <h2 class="nm-panel-title">Money per month</h2>
+          <section class="nm-panel ch">
+            <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /></svg></span>Money per month</h2>
             <p class="nm-panel-sub chart-sub">Payments kept, split into the RNDs' share and the platform commission</p>
             <BarChart :rows="monthRows(m => ({ rnd_share: m.rnd_share, commission: m.commission }))" :series="MONEY_SERIES" label="Money per month" :format="v => peso(v)" />
           </section>
         </div>
-        <p v-else class="nm-note plain-note">Pick a period longer than a month to see month-by-month charts.</p>
+        <p v-else class="nm-note plain-note chart-note"><span class="n-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18" /><path d="M7 15v3M12 10v8M17 6v12" /></svg></span><span><b>No chart yet</b>No months with activity in this period yet.</span></p>
       </template>
 
       <!-- CLIENTS -->
@@ -68,11 +81,11 @@
             <div class="fig"><dt>Discharged</dt><dd>{{ r.clients.discharged }}</dd><p>care ended in this period</p></div>
           </dl>
         </section>
-        <section v-if="hasMonths" class="nm-panel">
-          <h2 class="nm-panel-title">New clients per month</h2>
+        <section v-if="r.monthly.length" class="nm-panel ch">
+          <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></svg></span>New clients per month</h2>
           <BarChart :rows="monthRows(m => ({ new_clients: m.new_clients }))" :series="[{ key: 'new_clients', label: 'New clients' }]" label="New clients per month" />
         </section>
-        <p v-else class="nm-note plain-note">Pick a period longer than a month to see month-by-month charts.</p>
+        <p v-else class="nm-note plain-note chart-note"><span class="n-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18" /><path d="M7 15v3M12 10v8M17 6v12" /></svg></span><span><b>No chart yet</b>No months with activity in this period yet.</span></p>
       </template>
 
       <!-- RNDS -->
@@ -88,26 +101,27 @@
             <div class="fig"><dt>Average rating</dt><dd>{{ r.rnd_stats.rating ? `${r.rnd_stats.rating} ★` : '—' }}</dd><p>{{ r.rnd_stats.reviews }} review{{ r.rnd_stats.reviews === 1 ? '' : 's' }} in this period</p></div>
           </dl>
         </section>
-        <section v-if="hasMonths" class="nm-panel">
-          <h2 class="nm-panel-title">Applications per month</h2>
+        <section v-if="r.monthly.length" class="nm-panel ch">
+          <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" /></svg></span>Applications per month</h2>
           <BarChart :rows="monthRows(m => ({ applications: m.applications }))" :series="[{ key: 'applications', label: 'Applications' }]" label="RND applications per month" />
         </section>
-        <section class="nm-panel">
+        <p v-else class="nm-note plain-note chart-note"><span class="n-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18" /><path d="M7 15v3M12 10v8M17 6v12" /></svg></span><span><b>No chart yet</b>No months with activity in this period yet.</span></p>
+        <section class="nm-panel ch">
           <div class="nm-panel-head">
             <div>
-              <h2 class="nm-panel-title">Each RND</h2>
+              <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" /></svg></span>Each RND</h2>
               <p class="nm-panel-sub">Approved RNDs in this period. The rating is overall.</p>
             </div>
           </div>
-          <div v-if="!r.rnds.length" class="nm-empty"><BarChart3 :size="28" aria-hidden="true" /><p>No approved RNDs yet.</p></div>
+          <div v-if="!r.rnds.length" class="nm-empty"><span class="e-ico"><BarChart3 :size="28" aria-hidden="true" /></span><p>No approved RNDs yet.</p></div>
           <div v-else class="nm-table-wrap">
-            <table class="nm-table stack">
+            <table class="nm-table stack r-table">
               <thead>
                 <tr><th>RND</th><th class="nm-num">Consultations</th><th class="nm-num">Received</th><th class="nm-num">Commission</th><th class="nm-num">RND share</th><th>Rating</th><th style="width: 140px">Share of consultations</th></tr>
               </thead>
               <tbody>
                 <tr v-for="x in pagedRnds" :key="x.id" class="clickable" tabindex="0" @click="navigateTo(`/users/${x.id}`)" @keydown.enter="navigateTo(`/users/${x.id}`)">
-                  <td><p class="nm-row-title">{{ x.name }}</p><p class="nm-row-sub">{{ x.specialization || '—' }}</p></td>
+                  <td><span class="r-who"><span class="r-av" aria-hidden="true">{{ initialsOf(x.name) }}</span><span><p class="nm-row-title">{{ x.name }}</p><p class="nm-row-sub">{{ x.specialization || '—' }}</p></span></span></td>
                   <td data-label="Consultations" class="nm-num">{{ x.consultations }}</td>
                   <td data-label="Received" class="nm-num">{{ peso(x.gross) }}</td>
                   <td data-label="Commission" class="nm-num">{{ peso(x.commission) }}</td>
@@ -136,12 +150,12 @@
             <div class="fig"><dt>Cancelled for other reasons</dt><dd>{{ r.consultations.cancelled_reasons.other }}</dd><p>by the client, the RND or NutriMatch</p></div>
           </dl>
         </section>
-        <section v-if="hasMonths" class="nm-panel">
-          <h2 class="nm-panel-title">Consultations per month</h2>
+        <section v-if="r.monthly.length" class="nm-panel ch">
+          <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M22 8l-6 4 6 4z" /></svg></span>Consultations per month</h2>
           <p class="nm-panel-sub chart-sub">Completed and cancelled</p>
           <BarChart :rows="monthRows(m => ({ completed: m.completed, cancelled: m.cancelled }))" :series="CONSULT_SERIES" label="Consultations per month" />
         </section>
-        <p v-else class="nm-note plain-note">Pick a period longer than a month to see month-by-month charts.</p>
+        <p v-else class="nm-note plain-note chart-note"><span class="n-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18" /><path d="M7 15v3M12 10v8M17 6v12" /></svg></span><span><b>No chart yet</b>No months with activity in this period yet.</span></p>
       </template>
 
       <!-- MONEY -->
@@ -156,15 +170,15 @@
             <div class="fig" :class="{ warn: r.money.refund_pending.count }"><dt>Waiting for a refund</dt><dd>{{ peso(r.money.refund_pending.amount) }}</dd><p>{{ r.money.refund_pending.count }} to send</p></div>
           </dl>
         </section>
-        <section v-if="hasMonths" class="nm-panel">
-          <h2 class="nm-panel-title">Money per month</h2>
+        <section v-if="r.monthly.length" class="nm-panel ch">
+          <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /></svg></span>Money per month</h2>
           <p class="nm-panel-sub chart-sub">Payments kept, split into the RNDs' share and the platform commission</p>
           <BarChart :rows="monthRows(m => ({ rnd_share: m.rnd_share, commission: m.commission }))" :series="MONEY_SERIES" label="Money per month" :format="v => peso(v)" />
         </section>
-        <section v-if="r.monthly.length" class="nm-panel">
-          <h2 class="nm-panel-title">By month</h2>
+        <section v-if="r.monthly.length" class="nm-panel ch">
+          <h2 class="nm-panel-title ch-title"><span class="ch-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 10v10" /></svg></span>By month</h2>
           <div class="nm-table-wrap">
-            <table class="nm-table">
+            <table class="nm-table r-table m-table">
               <thead><tr><th>Month</th><th class="nm-num">Completed</th><th class="nm-num">Cancelled</th><th class="nm-num">Payments</th><th class="nm-num">Received</th><th class="nm-num">Commission</th></tr></thead>
               <tbody>
                 <tr v-for="m in r.monthly" :key="m.month">
@@ -336,49 +350,118 @@ function downloadCsv() {
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boolean); return (w.length > 1 ? w[0][0] + w[w.length - 1][0] : (w[0] || '?')[0]).toUpperCase() }
 </script>
 
 <style scoped>
-.reports { display: flex; flex-direction: column; gap: 16px; }
+.reports { --sh: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22); display: flex; flex-direction: column; gap: 16px; font-family: 'DM Sans', sans-serif; color: #22362c; }
 .reports > * { margin: 0; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ic { flex-shrink: 0; display: inline-block; }
+
+/* ---------- hero ---------- */
+.rh { position: relative; overflow: hidden; display: flex; align-items: center; gap: 20px; padding: 18px 26px; border-radius: 24px; color: #fff; background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 50%, #004635 100%); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 24px 50px -18px rgba(0, 77, 58, 0.55); }
+.rh > *:not(.rh-plate):not(.rh-fade) { position: relative; z-index: 1; }
+.rh-plate { position: absolute; right: -50px; top: 50%; width: 220px; height: 220px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
+.rh-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.88) 75%, rgba(0, 77, 58, 0.65) 100%); }
+.rh-txt { flex: 1; min-width: 0; }
+.rh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.rh-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
+.rh-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1.2; color: #fff; }
+.rh-period { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, 0.92); }
+.rh-period .ic { color: #efbf04; }
+.exports { display: flex; gap: 10px; margin-right: 140px; }
+.exports .nm-btn-soft, .exports .nm-btn-dark { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 12px; font-family: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+.exports .nm-btn-soft { border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.1); color: #fff; }
+.exports .nm-btn-dark { border: none; background: #efbf04; color: #004d3a; box-shadow: 0 10px 20px -12px rgba(0, 0, 0, 0.6); }
+.exports button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- toolbar ---------- */
+.toolbar { display: flex; justify-content: flex-start; align-items: center; gap: 12px; flex-wrap: wrap; }
 .period { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.period .nm-select { min-width: 180px; }
-.period :deep(.df-trigger) { min-height: 42px; }
-.to { font-size: 0.82rem; color: #6a7a6a; }
-.exports { display: flex; gap: 8px; }
+.p-sel { display: flex; align-items: center; gap: 10px; min-width: 230px; height: 46px; padding: 0 16px; border-radius: 999px; background: #fff; color: #1f7a4d; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 4px 14px -6px rgba(0, 0, 0, 0.12); cursor: pointer; }
+.p-sel:focus-within { box-shadow: 0 0 0 2px #004d3a, 0 0 0 6px rgba(0, 77, 58, 0.1); }
+.p-sel small { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a91; }
+.p-sel .nm-select { flex: 1; width: auto; min-width: 0; height: 100%; padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; outline: none; appearance: none; -webkit-appearance: none; font-family: inherit; font-size: 14px; font-weight: 700; color: #14261e; cursor: pointer; }
+.period :deep(.df-trigger) { min-height: 46px; border-radius: 12px; }
+.to { font-size: 13px; font-weight: 700; color: #6b7d73; }
 .tab-row { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
-.period-label { margin: 0; }
-.chart-sub { margin: 2px 0 14px; }
-.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tab-row .nm-tabs { display: inline-flex; gap: 4px; max-width: 100%; margin: 0; padding: 5px; border: none; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 4px 14px -6px rgba(0, 0, 0, 0.12); overflow-x: auto; scrollbar-width: none; }
+.tab-row .nm-tab { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; height: 36px; margin: 0; padding: 0 15px; border: none; border-radius: 999px; background: transparent; font-family: inherit; font-size: 13.5px; font-weight: 400; color: #4a5a52; white-space: nowrap; cursor: pointer; }
+.tab-row .nm-tab .ic { color: #8a9a91; }
+.tab-row .nm-tab:hover:not(.active) { background: #f1f6f2; }
+.tab-row .nm-tab.active { background: #004d3a; color: #fff; font-weight: 600; }
+.tab-row .nm-tab.active .ic { color: #efbf04; }
 
-/* figures: one divided panel, three across */
-.figs-panel { padding: 0; overflow: hidden; }
-.figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
-.fig { display: flex; flex-direction: column; gap: 2px; padding: 16px 20px; min-width: 0; border-left: 1px solid #d9e3dc; border-top: 1px solid #d9e3dc; }
-.fig:nth-child(3n + 1) { border-left: none; }
-.fig:nth-child(-n + 3) { border-top: none; }
-.fig dt { order: 1; font-size: 0.82rem; color: #4a5a4a; }
-.fig dd { order: 0; margin: 0; font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: lining-nums tabular-nums; }
-.fig p { order: 2; margin: 0; font-size: 0.76rem; color: #6a7a6a; line-height: 1.4; }
-.fig.warn dd { color: #a37a0b; }
+/* ---------- figures: one clean strip ---------- */
+.figs-panel { padding: 0; border: 1.5px solid #c9d8cf; border-radius: 20px; background: #fff; box-shadow: 0 10px 24px -18px rgba(0, 77, 58, 0.35); overflow: hidden; }
+.figs { display: flex; flex-wrap: wrap; margin: 0; }
+.fig { flex: 1 1 180px; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 16px 18px; box-shadow: -1px 0 0 #eef2ef, 0 -1px 0 #eef2ef; }
+.fig dt { order: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: #4a5a52; line-height: 1.3; }
+.fig dt::before { content: ''; flex-shrink: 0; width: 8px; height: 8px; border-radius: 3px; background: #1f9d55; }
+.fig:nth-child(6n + 2) dt::before, .fig:nth-child(6n + 3) dt::before { background: #efbf04; }
+.fig:nth-child(6n + 4) dt::before { background: #3b5ba5; }
+.fig:nth-child(6n + 6) dt::before { background: #a9b6ae; }
+.fig dd { order: 1; margin: 0; font-family: 'DM Sans', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; color: #0e3a2c; font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.fig p { order: 2; margin: 0; font-size: 12.5px; font-weight: 600; color: #6b7d73; line-height: 1.35; }
+.fig.warn { background: #fffbea; }
+.fig.warn dd { color: #8a6500; }
+.fig.warn dt::before { background: #efbf04; }
 
-.bar { height: 6px; background: #e3efe7; border-radius: 4px; overflow: hidden; margin-bottom: 3px; }
-.bar span { display: block; height: 100%; background: #278f60; border-radius: 4px; }
+/* ---------- chart + table panels ---------- */
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.ch { padding: 22px 24px; border: none; border-radius: 22px; background: #fff; box-shadow: var(--sh); }
+.ch-title { display: flex; align-items: center; gap: 12px; margin: 0; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #0e3a2c; }
+.ch-ico { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: #004d3a; color: #efbf04; display: inline-flex; align-items: center; justify-content: center; }
+.chart-sub { margin: 4px 0 16px 52px; font-size: 13px; color: #6b7d73; }
+.ch > .ch-title + :not(.chart-sub) { margin-top: 16px; }
+.ch .nm-panel-head { margin-bottom: 14px; }
+.ch .nm-panel-head .nm-panel-sub { margin: 4px 0 0 52px; font-size: 13px; color: #6b7d73; }
+.chart-note { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1.5px dashed #b9c8e6; border-radius: 18px; background: #f5f7fd; font-size: 13px; color: #4a5f8c; }
+.chart-note b { display: block; font-size: 14.5px; color: #1e3560; }
+.n-ico { flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; background: #fff; color: #2e4a86; box-shadow: 0 0 0 1px #dde4f4; display: inline-flex; align-items: center; justify-content: center; }
+.reports :deep(.nm-empty) { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px 10px; text-align: center; }
+.e-ico { width: 56px; height: 56px; border-radius: 18px; background: #e3efe7; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
+.ch .nm-table-wrap { margin: 0 -24px; border: none; border-radius: 0; overflow-x: auto; }
+.r-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.r-table thead th { padding: 13px 14px; background: #004d3a; border: none; text-align: left !important; font-size: 12.5px; font-weight: 700; color: #fff; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.r-table th:first-child, .r-table td:first-child { padding-left: 24px; }
+.r-table th:last-child, .r-table td:last-child { padding-right: 24px; }
+.r-table tbody td { padding: 14px; border-bottom: 1px solid #eef2ef; text-align: left !important; vertical-align: middle; color: #22362c; }
+.r-table tbody tr:last-child td { border-bottom: none; }
+.r-table tbody tr.clickable { cursor: pointer; }
+.r-table tbody tr.clickable:hover td { background: #f7faf8; }
+.r-table tbody tr:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.r-who { display: flex; align-items: center; gap: 12px; }
+.r-av { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #e3efe7; color: #004d3a; font-size: 12.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 0 0 2px #efbf04; }
+.r-table .nm-row-title { margin: 0; font-size: 14.5px; font-weight: 800; color: #0e3a2c; }
+.r-table .nm-row-sub { margin: 2px 0 0; font-size: 12.5px; color: #8a9a91; }
+.m-table tbody td:first-child { font-weight: 800; color: #0e3a2c; }
+.bar { height: 8px; margin-bottom: 4px; border-radius: 999px; background: #e3efe7; overflow: hidden; }
+.bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #1f9d55, #efbf04); }
+
 @media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .reports { padding-bottom: 110px; }
+  .rh { flex-direction: column; align-items: stretch; padding: 20px 18px; border-radius: 22px; }
+  .rh-plate { width: 160px; height: 160px; right: -50px; top: 20px; transform: none; }
+  .exports { margin: 0; }
+  .exports button { flex: 1; }
+  .ch { padding: 18px; }
+  .ch .nm-table-wrap { margin: 0 -18px; }
+  .chart-sub, .ch .nm-panel-head .nm-panel-sub { margin-left: 0; }
+}
 @media (max-width: 640px) {
-  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .fig { padding: 14px 16px; border-left: 1px solid #d9e3dc; border-top: 1px solid #d9e3dc; }
-  .fig:nth-child(odd) { border-left: none; }
-  .fig:nth-child(-n + 2) { border-top: none; }
-  .fig:nth-child(3) { border-top: 1px solid #d9e3dc; }
-  .fig dd { font-size: 1.3rem; }
+  .fig { flex-basis: 140px; padding: 14px 16px; }
+  .fig dd { font-size: 22px; }
   .bar { display: inline-block; width: 120px; vertical-align: middle; margin: 0 6px 0 0; }
   .toolbar, .period { align-items: stretch; }
   .period { width: 100%; }
-  .period .nm-select, .period :deep(.df-trigger) { flex: 1; min-width: 0; width: auto; }
-  .exports { width: 100%; }
-  .exports button { flex: 1; justify-content: center; }
-  .nm-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .p-sel { width: 100%; }
+  .period :deep(.df-trigger) { flex: 1; min-width: 0; width: auto; }
+  .tab-row .nm-tabs { display: flex; width: 100%; border-radius: 16px; }
+  .r-table thead { display: none; }
 }
 </style>

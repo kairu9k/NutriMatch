@@ -1,115 +1,369 @@
 <template>
-  <section class="for-rnds" id="for-rnds">
-    <div class="for-rnds-image">
-      <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80" alt="Healthy food" />
-    </div>
-    <div class="for-rnds-content">
-      <div class="eyebrow"><span class="eyebrow-line"></span> FOR REGISTERED NUTRITIONIST-DIETITIANS</div>
-      <h2>Modernize your<br /><em class="highlight">clinical practice</em></h2>
-      <p>Replace paper records with a digital NCP workflow, from NRS-2002 screening to condition-specific meal plans and progress reports.</p>
+  <!-- "For RNDs" in the navbar covers both parts: the green NCP section
+       and the meal plans & privacy section right under it -->
+  <div id="for-rnds">
+  <section class="rnd-section">
+    <!-- slanted top edge, same light shade as the "How it works" section above -->
+    <div class="rnd-slant" aria-hidden="true"></div>
 
-      <ul class="features-list">
-        <li v-for="item in features" :key="item">
-          <span class="check">✓</span> {{ item }}
-        </li>
-      </ul>
+    <div class="rnd-inner">
+      <div class="rnd-text">
+        <span class="rnd-eyebrow">
+          <span class="rnd-eyebrow-line" aria-hidden="true"></span>
+          FOR DIETITIANS
+        </span>
+        <h2 class="rnd-title">Less paperwork.<br /><em>More care.</em></h2>
+        <p class="rnd-lead">
+          NutriMatch runs the full Nutrition Care Process digitally and handles the computation, so you
+          can focus on your clients. Automated outputs support, never replace, your clinical judgment.
+        </p>
+        <NuxtLink to="/register?role=rnd" class="rnd-btn">Apply as an RND</NuxtLink>
+      </div>
 
-      <div class="ncp-card">
-        <div class="ncp-title">NCP record progress</div>
-        <div class="ncp-phase" v-for="phase in phases" :key="phase.title" :class="{ active: phase.active }">
-          <div class="phase-dot" :class="{ active: phase.active }"></div>
-          <div>
-            <div class="phase-title">{{ phase.title }}</div>
-            <div class="phase-sub">{{ phase.sub }}</div>
-          </div>
+      <div class="rnd-grid">
+        <div v-for="(phase, i) in phases" :key="phase.title" class="rnd-card">
+          <span class="rnd-card-label">{{ String(i + 1).padStart(2, '0') }} — {{ phase.title }}</span>
+          <p>{{ phase.desc }}</p>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- MEAL PLANS & PRIVACY (part of "For RNDs") -->
+  <section class="nm-meal">
+    <div class="nm-meal-inner">
+      <div class="nm-meal-header">
+        <span class="nm-meal-eyebrow">
+          <span class="nm-meal-line" aria-hidden="true"></span>
+          MEAL PLANS &amp; PRIVACY
+          <span class="nm-meal-line" aria-hidden="true"></span>
+        </span>
+        <h2>Made for <em>Filipino tables</em></h2>
+      </div>
+
+      <div class="nm-meal-grid">
+        <!-- Diet templates -->
+        <div class="nm-meal-card">
+          <h3>Disease-specific diet templates</h3>
+          <p>
+            FNRI Food Exchange Lists for what you actually eat at home, plus USDA FoodData Central
+            for nutrient accuracy.
+          </p>
+          <div class="nm-meal-chips">
+            <span v-for="t in templates" :key="t" class="nm-meal-chip">{{ t }}</span>
+          </div>
+        </div>
+
+        <!-- Privacy -->
+        <div class="nm-meal-card nm-meal-card--warm">
+          <h3>Your records, handled with care</h3>
+          <ul class="nm-meal-checks">
+            <li v-for="item in privacy" :key="item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+              <span>{{ item }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  </div>
 </template>
 
 <script setup>
-const features = [
-  'PES diagnosis from standard terms',
-  'NRS-2002 nutritional risk scoring',
-  'WHO Asia-Pacific BMI thresholds',
-  'FNRI Food Exchange integration',
-  'RA 10173-compliant audit logging',
+// The four phases of the Nutrition Care Process
+const phases = [
+  { title: 'ASSESSMENT', desc: 'Automatic BMI, BMR and NRS-2002 risk with WHO Asia-Pacific BMI thresholds.' },
+  { title: 'DIAGNOSIS', desc: 'Structured PES statements from standard terms for clear, consistent nutrition diagnoses.' },
+  { title: 'INTERVENTION', desc: 'Total Energy Requirement, macro targets, diet prescription and FNRI exchange-based meal plans.' },
+  { title: 'MONITORING', desc: 'Charts for weight, BMI, BP, glucose and lipids, with automated alerts and RA 10173-compliant audit logging.' },
 ]
 
-const phases = [
-  { title: 'Phase 1: Nutrition assessment', sub: 'BMI 23.4, NRS-2002 score 2, at risk', active: true },
-  { title: 'Phase 2: Nutrition diagnosis', sub: 'Inadequate carb intake r/t poor dietary knowledge', active: true },
-  { title: 'Phase 3: Intervention', sub: '1,800 kcal diabetic diet, FNRI exchanges', active: false },
-  { title: 'Phase 4: Monitoring and evaluation', sub: 'Follow-up on May 30, 2026', active: false },
+// Conditions with ready meal-plan templates
+const templates = [
+  'Diabetes mellitus',
+  'Hypertension',
+  'Renal disease',
+  'Weight management',
+  'Malnutrition',
+]
+
+const privacy = [
+  'Designed for the Data Privacy Act (RA 10173), with digital informed consent',
+  'Encrypted connection and hashed passwords',
+  'Role-based access, and every time someone opens your records it is logged',
+  "Every RND's PRC license checked by an administrator",
 ]
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 
-.for-rnds {
+.rnd-section {
+  position: relative;
+  overflow: hidden;
+  background: #063C2A;
+  color: #FFFFFF;
+  font-family: 'DM Sans', Arial, sans-serif;
+}
+.rnd-section *, .rnd-section *::before, .rnd-section *::after { box-sizing: border-box; }
+
+.rnd-slant {
+  position: absolute;
+  /* starts 2px above the section so no thin green line shows at the seam */
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 66px;
+  /* same shade as "How it works" above (fixed, so it lines up exactly) */
+  background:
+    radial-gradient(circle at 76% 48%, rgba(239, 191, 4, 0.30), rgba(239, 191, 4, 0) 48%),
+    radial-gradient(circle at 6% 10%, rgba(6, 60, 42, 0.16), rgba(6, 60, 42, 0) 42%),
+    linear-gradient(135deg, #DFECE3 0%, #EAF2E8 40%, #FBEFC8 100%);
+  background-attachment: fixed;
+  clip-path: polygon(0 0, 100% 0, 100% 0, 0 100%);
+}
+
+.rnd-inner {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 128px 24px 96px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 56px;
+}
+
+/* Left: text */
+.rnd-text {
+  flex: 1 1 380px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.rnd-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #EFBF04;
+}
+.rnd-eyebrow-line {
+  display: inline-block;
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: #EFBF04;
+}
+.rnd-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: #FFFFFF;
+}
+.rnd-title em { font-style: italic; font-weight: 700; color: #EFBF04; }
+.rnd-lead {
+  margin: 0;
+  max-width: 460px;
+  font-size: 16px;
+  line-height: 1.75;
+  color: #CFE0D7;
+  text-align: justify;
+}
+.rnd-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  padding: 0 30px;
+  border-radius: 999px;
+  background: #EFBF04;
+  color: #063C2A;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s;
+}
+.rnd-btn:hover { background: #e0b204; }
+.rnd-btn:active { transform: scale(0.98); }
+.rnd-btn:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 3px; }
+
+/* Right: NCP phase cards */
+.rnd-grid {
+  flex: 1 1 520px;
+  min-width: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 600px;
-  font-family: 'Inter', sans-serif;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.rnd-card {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.rnd-card:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(239, 191, 4, 0.45); }
+.rnd-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #EFBF04;
+}
+.rnd-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #E3EDE7;
 }
 
-.for-rnds-image img {
-  width: 100%; height: 100%; object-fit: cover; display: block;
+/* Tablet */
+@media (max-width: 960px) {
+  .rnd-inner { padding: 104px 24px 72px; }
 }
 
-.for-rnds-content {
-  background: #E8F1ED;
-  padding: 72px 56px;
-  display: flex; flex-direction: column; justify-content: center; gap: 20px;
+/* Phone: one card per row */
+@media (max-width: 600px) {
+  .rnd-inner { padding: 88px 20px 56px; gap: 40px; }
+  .rnd-slant { height: 42px; }
+  .rnd-grid { grid-template-columns: 1fr; }
+  .rnd-btn { align-self: stretch; }
 }
 
-.eyebrow {
-  display: inline-flex; align-items: center; gap: 10px;
-  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.2em; color: #004635;
+/* ================= MEAL PLANS & PRIVACY ================= */
+.nm-meal {
+  /* same light shade as the navbar and other sections */
+  background:
+    radial-gradient(circle at 76% 48%, rgba(239, 191, 4, 0.30), rgba(239, 191, 4, 0) 48%),
+    radial-gradient(circle at 6% 10%, rgba(6, 60, 42, 0.16), rgba(6, 60, 42, 0) 42%),
+    linear-gradient(135deg, #DFECE3 0%, #EAF2E8 40%, #FBEFC8 100%);
+  background-attachment: fixed;
+  font-family: 'DM Sans', Arial, sans-serif;
 }
-.eyebrow-line { display: inline-block; width: 28px; height: 3px; background: #D4A017; }
+.nm-meal *, .nm-meal *::before, .nm-meal *::after { box-sizing: border-box; }
 
-.for-rnds-content h2 {
-  font-family: 'Playfair Display', serif;
-  font-size: 2.2rem; font-weight: 700; color: #1a3a1a; line-height: 1.1; letter-spacing: 0.03em; margin-bottom: auto;
-}
-.highlight { color: #D4A017; font-style: italic; }
-
-.for-rnds-content > p {
-  font-size: 0.75rem; color: #4a6a4a; line-height: 1.7; max-width: 480px;
-}
-
-.features-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.features-list li { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #2a4a2a; font-weight: 500; }
-.check {
-  width: 22px; height: 22px; border-radius: 50%; background: #2a5a2a;
-  color: #EFBF04; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+.nm-meal-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 96px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
 }
 
-.ncp-card {
-  background: #ffffff; border-radius: 14px; padding: 24px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08); margin-top: 8px;
+/* Header */
+.nm-meal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
 }
-.ncp-title { font-size: 0.8rem; font-weight: 600; color: #1a3a1a; margin-bottom: 18px; }
-.ncp-phase {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 10px 0; border-bottom: 1px solid #f0f0e8;
+.nm-meal-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #063C2A;
 }
-.ncp-phase:last-child { border-bottom: none; }
-.phase-dot {
-  width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid #cccccc; flex-shrink: 0; margin-top: 2px;
-  background: #ffffff;
+.nm-meal-line {
+  display: inline-block;
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: #EFBF04;
 }
-.phase-dot.active { background: #2a5a2a; border-color: #2a5a2a; }
-.phase-title { font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
-.phase-sub { font-size: 0.75rem; color: #8aaa8a; margin-top: 2px; }
+.nm-meal-header h2 {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: #1F2D27;
+}
+.nm-meal-header h2 em { font-style: italic; font-weight: 700; color: #063C2A; }
 
-@media (max-width: 900px) {
-  .for-rnds { grid-template-columns: 1fr; }
-  .for-rnds-image { height: 300px; }
-  .for-rnds-content { padding: 48px 24px; }
+/* Two cards */
+.nm-meal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.nm-meal-card {
+  border: 1px solid #E3EBE5;
+  box-shadow: 0 10px 24px -18px rgba(6, 60, 42, 0.35);
+  border-radius: 12px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: #FFFFFF;
+}
+.nm-meal-card--warm { background: #FFFBEA; }
+.nm-meal-card h3 {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #063C2A;
+}
+.nm-meal-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #4E5F57;
+}
+
+.nm-meal-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.nm-meal-chip {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: #EEF4F0;
+  color: #063C2A;
+}
+
+.nm-meal-checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.nm-meal-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #2F3E37;
+}
+.nm-meal-checks svg { flex-shrink: 0; margin-top: 1px; color: #063C2A; }
+
+/* Tablet */
+@media (max-width: 960px) {
+  .nm-meal-inner { padding: 72px 24px; }
+}
+
+/* Phone: cards stack */
+@media (max-width: 600px) {
+  .nm-meal-inner { padding: 56px 20px; gap: 36px; }
+  .nm-meal-grid { grid-template-columns: 1fr; }
+  .nm-meal-card { padding: 24px; }
 }
 </style>

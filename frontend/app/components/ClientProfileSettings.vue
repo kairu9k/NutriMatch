@@ -2,12 +2,42 @@
   <!-- Same layout as the RND Profile Settings (RNDProfileSettings.vue): page
        header, tab list on the left, one panel on the right. -->
   <div class="profile-page">
-    <div class="page-header">
-      <div>
-        <p class="page-sub">Manage your personal details, health profile, and account preferences.</p>
+    <!-- COVER + WHO YOU ARE (one card) -->
+    <section class="ps-hero">
+      <div class="ps-cover">
+        <img class="ps-cover-plate" :src="plateImg" alt="" aria-hidden="true" />
+        <span class="ps-cover-fade" aria-hidden="true"></span>
+        <p class="ps-cover-k"><span aria-hidden="true"></span>MY PROFILE</p>
       </div>
-      <span class="role-pill"><User :size="14" /> Patient</span>
-    </div>
+      <div class="page-header ps-id">
+        <div class="ps-id-row">
+          <div class="ps-avatar-wrap">
+            <!-- the app's own photo uploader, kept out of sight; the camera button opens its file picker -->
+            <div ref="photoHost" class="ps-photo-host" aria-hidden="true">
+              <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" :editable="true" @photo-changed="fireToast" />
+            </div>
+            <img v-if="auth.user?.profile_photo" :src="auth.user.profile_photo" class="ps-avatar" alt="" />
+            <span v-else class="ps-avatar">{{ initials }}</span>
+            <button type="button" class="ps-cam" aria-label="Change photo" @click="pickPhoto"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><circle cx="12" cy="13" r="3.5" /></svg></button>
+          </div>
+          <div class="ps-id-main">
+            <h2 class="ps-name">{{ displayName }}</h2>
+            <p class="page-sub">Manage your personal details, health profile, and account preferences.</p>
+            <div class="ps-chips">
+              <span class="ps-chip role"><User :size="14" /> Patient</span>
+              <span v-if="auth.user?.email" class="ps-chip"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>{{ auth.user.email }}</span>
+              <span v-if="memberSince" class="ps-chip"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>Member since {{ memberSince }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="profileLoaded" class="ps-facts">
+          <div class="ps-fact"><span class="ps-fact-ico" style="background: #E3EFE7; color: #004D3A"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16s1.5-2 4-2 4 2 4 2 1.5-2 4-2 4 2 4 2M2 21h20M7 8v3M12 8v3M17 8v3" /></svg></span><div><strong>{{ ageYears ?? '—' }}</strong><small>Years old</small></div></div>
+          <div class="ps-fact"><span class="ps-fact-ico" style="background: #FBF3D2; color: #9A7300"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5" /><path d="M12 14v7M9 18h6" /></svg></span><div><strong>{{ sexLabel || '—' }}</strong><small>Sex</small></div></div>
+          <div class="ps-fact"><span class="ps-fact-ico" style="background: #EEF1FA; color: #3B5BA5"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" /></svg></span><div><strong>{{ languageLabel || '—' }}</strong><small>Language</small></div></div>
+          <div class="ps-fact"><span class="ps-fact-ico" style="background: #FDECEC; color: #B4384A"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg></span><div><strong>{{ conditionLabel || 'None' }}</strong><small>Primary condition</small></div></div>
+        </div>
+      </div>
+    </section>
 
     <p v-if="loadError" class="form-error">{{ loadError }}</p>
 
@@ -28,36 +58,69 @@
       </div>
 
       <!-- PANEL -->
-      <div class="panel-card">
+      <div class="panel-card" :class="{ bare: activeTab === 'personal' && !isEditing }">
         <!-- ============ PERSONAL INFO ============ -->
         <!-- Read-only until "Edit profile"; Cancel / Save changes sit at the bottom while editing. -->
         <template v-if="activeTab === 'personal'">
-          <ProfileIdentityHeader :name="displayName" :subtitle="identitySubtitle" :editable="isEditing" @photo-changed="fireToast">
-            <template #actions>
-              <button v-if="!isEditing" class="nm-btn-dark" type="button" :disabled="!profileLoaded" @click="startEdit">
-                <Pencil :size="15" aria-hidden="true" /> Edit profile
-              </button>
-            </template>
-          </ProfileIdentityHeader>
 
           <!-- READ-ONLY VIEW -->
-          <dl v-if="!isEditing" class="info-grid">
-            <div class="info-item"><dt>First name</dt><dd>{{ form.firstName || '—' }}</dd></div>
-            <div class="info-item"><dt>Last name</dt><dd>{{ form.lastName || '—' }}</dd></div>
-            <div class="info-item"><dt>Email address</dt><dd>{{ auth.user?.email || '—' }}</dd></div>
-            <div class="info-item"><dt>Mobile number</dt><dd :class="{ muted: !form.phone }">{{ formatPhone(form.phone) || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Date of birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Sex</dt><dd :class="{ muted: !form.sex }">{{ sexLabel || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Preferred language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Primary health condition</dt><dd :class="{ muted: !conditionLabel }">{{ conditionLabel || 'None / not sure' }}</dd></div>
-            <div class="info-item"><dt>Food allergies</dt><dd :class="{ muted: !background.allergiesList.length }">{{ background.allergiesAnswered ? (background.allergiesList.join(', ') || 'None') : 'Not answered yet' }}</dd></div>
-            <div class="info-item"><dt>Dietary restrictions</dt><dd :class="{ muted: !background.dietList.length }">{{ background.dietList.join(', ') || 'None' }}</dd></div>
-            <div class="info-item"><dt>Religion</dt><dd :class="{ muted: !background.religion }">{{ background.religion || 'Not provided' }}</dd></div>
-          </dl>
+          <div v-if="!isEditing" class="ps-cards">
+          <section class="ps-card">
+            <header class="ps-card-head"><span class="ps-card-ico" style="background: #E3EFE7; color: #004D3A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg></span><div><h3>Basic details</h3><p>How your RND knows and addresses you.</p></div><button class="ps-card-edit" type="button" :disabled="!profileLoaded" @click="editCategory('basic')"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>Edit</button></header>
+            <dl class="info-grid">
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg></span><div><dt>First name</dt><dd>{{ form.firstName || '—' }}</dd></div></div>
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg></span><div><dt>Last name</dt><dd>{{ form.lastName || '—' }}</dd></div></div>
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16s1.5-2 4-2 4 2 4 2 1.5-2 4-2 4 2 4 2M2 21h20M7 8v3M12 8v3M17 8v3" /></svg></span><div><dt>Date of birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div></div>
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5" /><path d="M12 14v7M9 18h6" /></svg></span><div><dt>Sex</dt><dd :class="{ muted: !form.sex }">{{ sexLabel || 'Not provided' }}</dd></div></div>
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" /></svg></span><div><dt>Preferred language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div></div>
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v6M9 5h6" /><path d="M5 22V12l7-4 7 4v10" /><path d="M10 22v-4a2 2 0 0 1 4 0v4" /></svg></span><div><dt>Religion</dt><dd :class="{ muted: !background.religion }">{{ background.religion || 'Not provided' }}</dd></div></div>
+            </dl>
+          </section>
+          <section class="ps-card">
+            <header class="ps-card-head"><span class="ps-card-ico" style="background: #EEF1FA; color: #3B5BA5"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg></span><div><h3>Contact</h3><p>Where we send booking updates and receipts.</p></div><button class="ps-card-edit" type="button" :disabled="!profileLoaded" @click="editCategory('contact')"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>Edit</button></header>
+            <dl class="info-grid">
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg></span><div><dt>Email address</dt><dd>{{ auth.user?.email || '—' }}</dd></div></div>
+              <div class="info-item ps-f"><span class="ps-f-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3" /><path d="M11 18h2" /></svg></span><div><dt>Mobile number</dt><dd :class="{ muted: !form.phone }">{{ formatPhone(form.phone) || 'Not provided' }}</dd></div></div>
+            </dl>
+          </section>
+          <section class="ps-card">
+            <header class="ps-card-head"><span class="ps-card-ico" style="background: #FDECEC; color: #B4384A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-9.2-9.3C1.7 7.4 3.8 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.2 0 5.3 2.9 4.2 6.2C19.5 15.4 12 20 12 20z" /></svg></span><div><h3>Health at a glance</h3><p>Your RND sees this before every consultation.</p></div><button class="ps-card-edit" type="button" :disabled="!profileLoaded" @click="editCategory('health')"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>Edit</button></header>
+            <div class="ps-hgrid">
+              <div class="ps-h t-green">
+                <p class="ps-h-k"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>Primary health condition</p>
+                <div class="ps-tags"><span v-if="conditionLabel" class="ps-tag green">{{ conditionLabel }}</span><span v-else class="ps-tag none">None / not sure</span></div>
+              </div>
+              <div class="ps-h t-red">
+                <p class="ps-h-k"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></svg>Food allergies <em v-if="background.allergiesList.length">Avoid</em></p>
+                <div class="ps-tags">
+                  <span v-for="a in background.allergiesList" :key="a" class="ps-tag red">{{ a }}</span>
+                  <span v-if="!background.allergiesList.length" class="ps-tag none">{{ background.allergiesAnswered ? 'None' : 'Not answered yet' }}</span>
+                </div>
+              </div>
+              <div class="ps-h t-gold">
+                <p class="ps-h-k"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 4 13c0-6 7-9 16-9 0 9-3 16-9 16z" /><path d="M4 20c4-4 7-6 11-8" /></svg>Dietary restrictions</p>
+                <div class="ps-tags">
+                  <span v-for="d in background.dietList" :key="d" class="ps-tag gold">{{ d }}</span>
+                  <span v-if="!background.dietList.length" class="ps-tag none">None</span>
+                </div>
+              </div>
+            </div>
+            <p class="ps-lock"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>Only you and your RND can see your health details.</p>
+          </section>
+          </div>
 
           <!-- EDIT FORM -->
           <template v-else>
-            <div class="form-grid">
+            <div class="ef-title">
+              <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg></span>
+              <div>
+                <h3 class="tab-panel-title">Edit {{ EDIT_TITLES[editSection] }}</h3>
+                <p class="tab-panel-sub">Changes are saved to your profile and shared with your RND.</p>
+              </div>
+            </div>
+            <section v-show="editSection === 'basic' || fieldErrors.firstName || fieldErrors.lastName || fieldErrors.dateOfBirth" class="ef-sec">
+              <header class="ef-head"><span class="ps-card-ico" style="background: #E3EFE7; color: #004D3A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg></span><div><h3>Basic details</h3><p>How your RND knows and addresses you.</p></div></header>
+              <div class="form-grid">
               <div class="field">
                 <label class="field-label" for="pi-first">First name</label>
                 <input id="pi-first" v-model="form.firstName" type="text" class="field-input" :class="{ invalid: fieldErrors.firstName }" maxlength="150" />
@@ -67,15 +130,6 @@
                 <label class="field-label" for="pi-last">Last name</label>
                 <input id="pi-last" v-model="form.lastName" type="text" class="field-input" :class="{ invalid: fieldErrors.lastName }" maxlength="150" />
                 <p v-if="fieldErrors.lastName" class="field-error">{{ fieldErrors.lastName }}</p>
-              </div>
-              <div class="field">
-                <label class="field-label">Email address</label>
-                <input :value="auth.user?.email" type="email" class="field-input" disabled />
-                <p class="field-hint">Email can't be changed here.</p>
-              </div>
-              <div class="field">
-                <label class="field-label" for="pi-phone">Mobile number</label>
-                <PhoneInput id="pi-phone" v-model="form.phone" label="mobile number" :error="fieldErrors.phone" />
               </div>
               <div class="field">
                 <label class="field-label" for="pi-dob">Date of birth</label>
@@ -97,6 +151,32 @@
                   <option v-for="l in languageOptions" :key="l.code" :value="l.code">{{ l.label }}</option>
                 </select>
               </div>
+              <div class="field">
+                <label class="field-label" for="pi-religion">Religion</label>
+                <select id="pi-religion" v-model="background.religion" class="nm-select block">
+                  <option value="">Prefer not to say</option>
+                  <option v-for="r in RELIGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
+                </select>
+              </div>
+              </div>
+            </section>
+            <section v-show="editSection === 'contact' || fieldErrors.phone" class="ef-sec">
+              <header class="ef-head"><span class="ps-card-ico" style="background: #EEF1FA; color: #3B5BA5"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg></span><div><h3>Contact</h3><p>Where we send booking updates and receipts.</p></div></header>
+              <div class="form-grid">
+              <div class="field">
+                <label class="field-label">Email address</label>
+                <input :value="auth.user?.email" type="email" class="field-input" disabled />
+                <p class="field-hint">Email can't be changed here.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="pi-phone">Mobile number</label>
+                <PhoneInput id="pi-phone" v-model="form.phone" label="mobile number" :error="fieldErrors.phone" />
+              </div>
+              </div>
+            </section>
+            <section v-show="editSection === 'health' || fieldErrors.condition" class="ef-sec">
+              <header class="ef-head"><span class="ps-card-ico" style="background: #FDECEC; color: #B4384A"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-9.2-9.3C1.7 7.4 3.8 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.2 0 5.3 2.9 4.2 6.2C19.5 15.4 12 20 12 20z" /></svg></span><div><h3>Health</h3><p>Your RND plans your meals around these.</p></div></header>
+              <div class="form-grid">
               <div class="field">
                 <label class="field-label" for="pi-condition">Primary health condition</label>
                 <select id="pi-condition" v-model="conditionChoice" class="nm-select block">
@@ -121,17 +201,12 @@
                 <input id="pi-diet" v-model="background.dietText" type="text" maxlength="300" class="field-input" placeholder="e.g. Halal, Low sodium" />
                 <p class="field-hint">Separate with commas.</p>
               </div>
-              <div class="field">
-                <label class="field-label" for="pi-religion">Religion</label>
-                <select id="pi-religion" v-model="background.religion" class="nm-select block">
-                  <option value="">Prefer not to say</option>
-                  <option v-for="r in RELIGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
-                </select>
               </div>
-            </div>
+            </section>
           </template>
 
           <div v-if="isEditing" class="edit-foot">
+            <p class="edit-foot-note"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>You're editing {{ EDIT_TITLES[editSection] }}.</p>
             <button class="nm-btn-soft" type="button" :disabled="isSaving" @click="cancelEdit">Cancel</button>
             <button class="nm-btn-dark" type="button" :disabled="isSaving" @click="saveProfile">
               <Check :size="15" aria-hidden="true" /> {{ isSaving ? 'Saving…' : 'Save changes' }}
@@ -141,55 +216,78 @@
 
         <!-- ============ HEALTH PROFILE ============ -->
         <template v-else-if="activeTab === 'health'">
-          <div class="tab-panel-header">
-            <div>
+          <div class="tab-panel-header hp-head">
+            <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-9.2-9.3C1.7 7.4 3.8 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.2 0 5.3 2.9 4.2 6.2C19.5 15.4 12 20 12 20z" /><path d="M3.5 12h4l2-3 3 6 2-3h6" /></svg></span>
+            <div class="hp-head-text">
               <h3 class="tab-panel-title">Health profile</h3>
               <p class="tab-panel-sub">Your screening on file. Your progress is measured from it.</p>
             </div>
-            <button class="nm-btn-soft" type="button" @click="screeningOpen = true">View screening</button>
+            <button class="nm-btn-soft" type="button" @click="screeningOpen = true"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>View screening</button>
           </div>
 
           <dl v-if="screening" class="figs">
-            <div class="fig">
-              <dt>BMI, {{ screening.bmi_category }}</dt>
+            <div class="fig" style="--c: #004D3A; --bg: #E3EFE7">
+              <div class="fig-top">
+                <span class="fig-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4.5" r="2" /><path d="M8 22l1-8-3-1 2-6h8l2 6-3 1 1 8" /></svg></span>
+                <span v-if="screening.bmi_category" class="fig-pill">{{ screening.bmi_category }}</span>
+              </div>
               <dd>{{ screening.bmi != null ? Number(screening.bmi).toFixed(1) : '—' }}</dd>
+              <dt>Body mass index (BMI)</dt>
             </div>
-            <div class="fig">
-              <dt>Energy needs a day (TER)</dt>
+            <div class="fig" style="--c: #9A7300; --bg: #FBF3D2">
+              <div class="fig-top">
+                <span class="fig-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z" /><path d="M8 18a4 4 0 0 0 8 0" /></svg></span>
+                <span class="fig-pill">per day</span>
+              </div>
               <dd>{{ screening.tdee_kcal ? Math.round(screening.tdee_kcal).toLocaleString() : '—' }} <span class="fig-unit">kcal</span></dd>
+              <dt>Energy needs a day (TER)</dt>
             </div>
-            <div class="fig" :class="{ risk: (screening.nrs_score ?? 0) >= 3 }">
-              <dt>NRS-2002, {{ nrsLabel(screening.nrs_risk) }}</dt>
-              <dd>{{ screening.nrs_score ?? '—' }}</dd>
+            <div class="fig" :class="{ risk: (screening.nrs_score ?? 0) >= 3 }" :style="(screening.nrs_score ?? 0) >= 3 ? '--c: #B42318; --bg: #FDECEC' : '--c: #3B5BA5; --bg: #EEF1FA'">
+              <div class="fig-top">
+                <span class="fig-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3" /><path d="M7 15h10" /></svg></span>
+                <span v-if="nrsLabel(screening.nrs_risk)" class="fig-pill">{{ nrsLabel(screening.nrs_risk) }}</span>
+              </div>
+              <dd>{{ screening.nrs_score ?? '—' }} <span class="fig-unit">score</span></dd>
+              <dt>Nutrition risk (NRS-2002)</dt>
             </div>
           </dl>
-          <p v-else class="empty-note">No screening on file yet.</p>
+          <div v-else class="hp-empty">
+            <span class="hp-empty-ico"><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3" /></svg></span>
+            <p class="empty-note">No screening on file yet.</p>
+          </div>
 
           <p class="field-hint health-note">
-            Your primary health condition is under
+            <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>
+            <span>Your primary health condition is under</span>
             <button class="nm-btn-soft nm-btn-sm" type="button" @click="activeTab = 'personal'">Personal info</button>.
           </p>
         </template>
 
         <!-- ============ CARE TEAM ============ -->
         <template v-else-if="activeTab === 'care'">
-          <div class="tab-panel-header">
-            <div>
+          <div class="tab-panel-header hp-head">
+            <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v5a4 4 0 0 0 8 0V3" /><path d="M10 12v2a5 5 0 0 0 10 0v-2" /><circle cx="20" cy="10" r="2" /></svg></span>
+            <div class="hp-head-text">
               <h3 class="tab-panel-title">Care team</h3>
               <p class="tab-panel-sub">The RND currently handling your nutrition care.</p>
             </div>
           </div>
 
-          <div v-if="careRnd" class="setting-row">
+          <div v-if="careRnd" class="ct-card">
+            <span class="ct-cover" aria-hidden="true"></span>
             <div class="rnd-row">
               <div class="rnd-avatar">{{ careRndInitials }}</div>
-              <div>
+              <div class="ct-main">
+                <span class="ct-k"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>Your RND</span>
                 <NuxtLink :to="`/rnd-profile-view/${careRnd.user.id}`" class="rnd-name">RND {{ careRnd.user.first_name }} {{ careRnd.user.last_name }}</NuxtLink>
                 <p class="rnd-specialty">{{ careRnd.specialization || 'General Practice' }}</p>
                 <p v-if="careRnd.review_count" class="rnd-rating">★ {{ Number(careRnd.average_rating).toFixed(1) }} ({{ careRnd.review_count }} review{{ careRnd.review_count === 1 ? '' : 's' }})</p>
               </div>
             </div>
-            <button class="nm-btn-soft" type="button" @click="navigateTo('/messages')">Send a message</button>
+            <div class="ct-actions">
+              <NuxtLink :to="`/rnd-profile-view/${careRnd.user.id}`" class="nm-btn-soft"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>View profile</NuxtLink>
+              <button class="nm-btn-dark" type="button" @click="navigateTo('/messages')"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>Send a message</button>
+            </div>
           </div>
 
           <!-- Ending care (2026-10-19): one RND at a time, so the client can ask
@@ -197,7 +295,7 @@
                its own (scheduling/discharge_requests.py). -->
           <template v-if="careRnd && careRel">
             <div v-if="careRel.discharge_request" class="dr-pending" role="status">
-              <p class="dr-title">You asked to end your care</p>
+              <p class="dr-title"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>You asked to end your care</p>
               <p class="dr-text">
                 Asked on {{ drDate(careRel.discharge_request.requested_at) }}: {{ careRel.discharge_request.reason_label }}.
                 RND {{ careRnd.user.first_name }} can close your care with a final note until
@@ -207,36 +305,39 @@
               <p v-if="drError" class="field-error">{{ drError }}</p>
               <button class="nm-btn-soft" type="button" :disabled="drBusy" @click="withdrawDischarge">{{ drBusy ? 'Saving…' : 'Keep my RND' }}</button>
             </div>
-            <div v-else class="setting-row">
-              <div>
+            <div v-else class="setting-row ct-end">
+              <span class="row-ico red"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></svg></span>
+              <div class="row-main">
                 <p class="setting-label">End care with this RND</p>
                 <p class="setting-detail">Want to switch RNDs or finished your care? Ask to end it. Your RND gets {{ DR_DAYS }} days to close it, then it ends automatically.</p>
               </div>
-              <button class="nm-btn-soft" type="button" @click="openDischarge">Request discharge</button>
+              <button class="nm-btn-soft danger" type="button" @click="openDischarge">Request discharge</button>
             </div>
           </template>
-          <div v-else class="setting-row">
-            <div>
-              <p class="setting-label">No RND yet</p>
-              <p class="setting-detail">You're not connected with an RND yet.</p>
-            </div>
-            <button class="nm-btn-soft" type="button" @click="navigateTo('/find-rnd')">Find an RND</button>
+          <div v-else class="ct-none">
+            <span class="ct-none-ico"><svg class="ic" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.4c2 .8 3.2 2.8 3.5 5.6" /></svg></span>
+            <p class="setting-label">No RND yet</p>
+            <p class="setting-detail">You're not connected with an RND yet.</p>
+            <button class="nm-btn-dark" type="button" @click="navigateTo('/find-rnd')"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>Find an RND</button>
           </div>
         </template>
 
         <!-- ============ SECURITY ============ -->
         <template v-else-if="activeTab === 'security'">
-          <div class="tab-panel-header">
-            <div>
+          <div class="tab-panel-header hp-head">
+            <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" /></svg></span>
+            <div class="hp-head-text">
               <h3 class="tab-panel-title">Security</h3>
               <p class="tab-panel-sub">Keep your account safe.</p>
             </div>
           </div>
+
+          <div class="sec-grid">
           <!-- Change password right here (POST /api/auth/me/password/): current
                password + a new one with the sign-up rules; a confirmation
                email goes out. Sign out lives in the account menu. -->
           <form class="pw-form" novalidate @submit.prevent="changePassword">
-            <p class="setting-label">Change password</p>
+            <p class="setting-label"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5" /><path d="M10.7 12.3L21 2M17 6l3 3M14 9l2 2" /></svg>Change password</p>
             <div class="field">
               <label class="field-label" for="pw-current">Current password</label>
               <input id="pw-current" v-model="pw.current" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pwErrors.current_password }" autocomplete="current-password" />
@@ -246,6 +347,7 @@
               <label class="field-label" for="pw-new">New password</label>
               <input id="pw-new" v-model="pw.next" :type="showPw ? 'text' : 'password'" class="field-input" :class="{ invalid: pwErrors.new_password }" autocomplete="new-password" />
               <p v-if="pwErrors.new_password" class="field-error">{{ pwErrors.new_password }}</p>
+              <div class="pw-meter" aria-hidden="true"><span v-for="(r, i) in pwRules" :key="i" :class="{ on: pwRules.filter(x => x.ok).length > i }"></span></div>
               <ul class="pw-rules" aria-label="Password rules">
                 <li v-for="r in pwRules" :key="r.label" :class="{ ok: r.ok }"><Check v-if="r.ok" :size="12" /><span v-else class="pw-dot" />{{ r.label }}</li>
               </ul>
@@ -262,12 +364,23 @@
             </div>
             <p class="setting-detail">We'll email you to confirm the change.</p>
           </form>
+          <aside class="sec-aside">
+            <span class="sec-aside-ico"><svg class="ic" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg></span>
+            <p class="sec-aside-title">A strong password keeps your health records safe</p>
+            <ul class="sec-tips">
+              <li><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Use one you don't use anywhere else.</li>
+              <li><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Mix words, numbers and symbols.</li>
+              <li><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Never share it, even with your RND.</li>
+            </ul>
+          </aside>
+          </div>
         </template>
 
         <!-- ============ NOTIFICATIONS ============ -->
         <template v-else-if="activeTab === 'notifications'">
-          <div class="tab-panel-header">
-            <div>
+          <div class="tab-panel-header hp-head">
+            <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg></span>
+            <div class="hp-head-text">
               <h3 class="tab-panel-title">Notifications and reminders</h3>
               <p class="tab-panel-sub">NutriMatch reminds you automatically. You always get them in the app. Choose which ones, and whether to get emails too.</p>
             </div>
@@ -276,38 +389,47 @@
           <p v-if="reminderError" class="form-error">{{ reminderError }}</p>
           <p v-if="!reminderPrefs" class="placeholder-text">Loading…</p>
           <template v-else>
-            <NotificationSoundToggle />
-            <div v-for="opt in REMINDER_OPTIONS" :key="opt.key" class="setting-row">
-              <div>
-                <p class="setting-label">{{ opt.label }}</p>
-                <p class="setting-detail">{{ opt.detail }}</p>
+            <div class="nt-sound"><NotificationSoundToggle /></div>
+            <p class="nt-group"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg>Reminders in the app</p>
+            <div class="nt-list">
+              <div v-for="opt in REMINDER_OPTIONS" :key="opt.key" class="setting-row">
+                <span class="row-ico" v-html="REMINDER_ICONS[opt.key] || REMINDER_ICONS.appointments"></span>
+                <div class="row-main">
+                  <p class="setting-label">{{ opt.label }}</p>
+                  <p class="setting-detail">{{ opt.detail }}</p>
+                </div>
+                <label class="toggle">
+                  <input :checked="reminderPrefs[opt.key]" type="checkbox" :disabled="!!prefSaving" @change="savePref(opt.key, $event.target.checked)" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
               </div>
-              <label class="toggle">
-                <input :checked="reminderPrefs[opt.key]" type="checkbox" :disabled="!!prefSaving" @change="savePref(opt.key, $event.target.checked)" />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              </label>
             </div>
-            <div class="setting-row">
-              <div>
-                <p class="setting-label">Also send reminders by email</p>
-                <p class="setting-detail">To {{ auth.user?.email }}. Off by default. In-app notifications are always on.</p>
+            <p class="nt-group"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>Also send them to</p>
+            <div class="nt-list">
+              <div class="setting-row">
+                <span class="row-ico blue"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg></span>
+                <div class="row-main">
+                  <p class="setting-label">Also send reminders by email</p>
+                  <p class="setting-detail">To {{ auth.user?.email }}. Off by default. In-app notifications are always on.</p>
+                </div>
+                <label class="toggle">
+                  <input :checked="reminderPrefs.email" type="checkbox" :disabled="!!prefSaving" @change="savePref('email', $event.target.checked)" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
               </div>
-              <label class="toggle">
-                <input :checked="reminderPrefs.email" type="checkbox" :disabled="!!prefSaving" @change="savePref('email', $event.target.checked)" />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              </label>
-            </div>
-            <div class="setting-row">
-              <div>
-                <p class="setting-label">Also send reminders by text (SMS)</p>
-                <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Only the important ones: booking confirmed, payment due, your consultation starting in 1 hour, and a cancelled consultation. Short texts with no health details.</p>
-                <p v-else-if="auth.user?.phone" class="setting-detail">SMS reminders are only available for Philippine mobile numbers (+63). Yours is {{ formatPhone(auth.user.phone) }}.</p>
-                <p v-else class="setting-detail">Add your mobile number (e.g. 0917 123 4567) in Personal Info first.</p>
+              <div class="setting-row">
+                <span class="row-ico gold"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3" /><path d="M11 18h2" /></svg></span>
+                <div class="row-main">
+                  <p class="setting-label">Also send reminders by text (SMS)</p>
+                  <p v-if="reminderPrefs.sms_number" class="setting-detail">To {{ reminderPrefs.sms_number }}. Only the important ones: booking confirmed, payment due, your consultation starting in 1 hour, and a cancelled consultation. Short texts with no health details.</p>
+                  <p v-else-if="auth.user?.phone" class="setting-detail">SMS reminders are only available for Philippine mobile numbers (+63). Yours is {{ formatPhone(auth.user.phone) }}.</p>
+                  <p v-else class="setting-detail">Add your mobile number (e.g. 0917 123 4567) in Personal Info first.</p>
+                </div>
+                <label class="toggle">
+                  <input :checked="reminderPrefs.sms" :disabled="!!prefSaving || (!reminderPrefs.sms_number && !reminderPrefs.sms)" type="checkbox" @change="savePref('sms', $event.target.checked)" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
               </div>
-              <label class="toggle">
-                <input :checked="reminderPrefs.sms" :disabled="!!prefSaving || (!reminderPrefs.sms_number && !reminderPrefs.sms)" type="checkbox" @change="savePref('sms', $event.target.checked)" />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              </label>
             </div>
 
           </template>
@@ -315,30 +437,41 @@
 
         <!-- ============ PRIVACY & DATA ============ -->
         <template v-else-if="activeTab === 'privacy'">
-          <div class="tab-panel-header">
-            <div>
+          <div class="tab-panel-header hp-head">
+            <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg></span>
+            <div class="hp-head-text">
               <h3 class="tab-panel-title">Privacy and data</h3>
               <p class="tab-panel-sub">How your information is handled.</p>
             </div>
           </div>
-          <div class="setting-row">
+
+          <div class="pv-hero">
+            <span class="pv-hero-ico"><svg class="ic" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg></span>
             <div>
+              <p class="pv-hero-title">Your health data stays between you and your RND</p>
+              <p class="setting-detail">Protected under RA 10173, the Data Privacy Act of 2012.</p>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span class="row-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.4c2 .8 3.2 2.8 3.5 5.6" /></svg></span>
+            <div class="row-main">
               <p class="setting-label">Data sharing</p>
               <p class="setting-detail">Your health data is only shared with your assigned RND under RA 10173 (Data Privacy Act of 2012).</p>
             </div>
             <!-- TODO: no data-export endpoint exists yet. -->
-            <button class="nm-btn-soft" type="button" disabled title="Coming soon">Download my data</button>
+            <button class="nm-btn-soft" type="button" disabled title="Coming soon"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>Download my data <span class="soon">Soon</span></button>
           </div>
         </template>
 
         <!-- ============ HISTORY ============ -->
         <template v-else-if="activeTab === 'history'">
-          <div class="tab-panel-header">
-            <div>
+          <div class="tab-panel-header hp-head">
+            <span class="ef-title-ico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 8v4l3 2" /></svg></span>
+            <div class="hp-head-text">
               <h3 class="tab-panel-title">Your activity</h3>
               <p class="tab-panel-sub">Every screening, appointment, and meal log on your account.</p>
             </div>
-            <button class="nm-btn-soft print-btn" type="button" @click="printHistory"><Printer :size="14" /> Print</button>
+            <button class="nm-btn-soft print-btn" type="button" @click="printHistory"><Printer :size="15" /> Print</button>
           </div>
 
           <div class="filter-tabs">
@@ -351,13 +484,15 @@
             <p>Nothing saved yet.</p>
             <p class="empty-sub">Complete a screening, book an appointment or log a meal, and it shows up here.</p>
           </div>
-          <div v-for="entry in pagedHistory" v-else :key="entry.key" class="entry-row">
-            <div class="entry-icon" :class="entry.iconClass"><component :is="entry.icon" :size="16" /></div>
+          <div v-else class="timeline">
+          <div v-for="entry in pagedHistory" :key="entry.key" class="entry-row">
+            <div class="entry-icon" :class="entry.iconClass"><component :is="entry.icon" :size="17" /></div>
             <div class="entry-info">
               <p class="entry-title">{{ entry.title }}</p>
               <p class="entry-detail">{{ entry.detail }}</p>
             </div>
             <span class="entry-time">{{ formatTimestamp(entry.at) }}</span>
+          </div>
           </div>
           <div v-if="!isLoadingHistory && historyPages > 1" class="pager">
             <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="historyPage === 1" @click="historyPage--">Previous</button>
@@ -884,211 +1019,437 @@ async function refreshCare() {
   if (!active) careRnd.value = null
 }
 useAutoRefresh(refreshCare)
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+// age for the quick facts under the name
+const ageYears = computed(() => {
+  if (!form.dateOfBirth) return null
+  const d = new Date(`${form.dateOfBirth}T00:00:00`)
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--
+  return age
+})
+// one card at a time: the card's Edit button opens only its fields
+const editSection = ref('basic')
+const EDIT_TITLES = { basic: 'basic details', contact: 'contact', health: 'health details' }
+function editCategory(key) {
+  editSection.value = key
+  startEdit()
+}
+// camera button: open the uploader's own file picker straight away
+const photoHost = ref(null)
+function pickPhoto() {
+  const host = photoHost.value
+  if (!host) return
+  const input = host.querySelector('input[type="file"]')
+  if (input) input.click()
+  else host.querySelector('button, label')?.click()
+}
+// an icon for each reminder row
+const REMINDER_ICONS = {
+  appointments: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>',
+  payments: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" /></svg>',
+  meal_logging: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18a9 9 0 0 1-18 0z" /><path d="M8 12c0-3 1.5-5 4-6M12 12c0-2.5 1.5-4 4-4.5" /></svg>',
+  rnd_reminders: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a4 4 0 0 0 8 0V3" /><path d="M10 12v2a5 5 0 0 0 10 0v-2" /><circle cx="20" cy="10" r="2" /></svg>',
+}
 </script>
 
 <style scoped>
-/* Mirrors RNDProfileSettings.vue — keep the two in step. */
+/* =========================================================
+   Profile settings (client): brand #004D3A / #EFBF04 / white
+   Fonts: Playfair Display (headings), DM Sans (body)
+   ========================================================= */
 * { box-sizing: border-box; }
+.profile-page { font-family: 'DM Sans', 'Inter', Arial, sans-serif; color: #14261E; display: flex; flex-direction: column; }
+.ic { flex-shrink: 0; display: inline-block; vertical-align: middle; }
 
-.profile-page { font-family: 'Inter', sans-serif; }
-
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.page-title { font-family: 'Playfair Display', serif; font-size: 1.7rem; color: #1a3a1a; margin: 0 0 4px; }
-.page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0; }
-
-.role-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: #e6efe0; color: #3a6b3a; font-size: 0.78rem; font-weight: 700;
-  padding: 7px 14px; border-radius: 20px; white-space: nowrap;
+/* ---------- COVER + IDENTITY (one card) ---------- */
+.ps-hero { margin-bottom: 22px; border-radius: 24px; background: #FFFFFF; border: 1px solid #E4EBE6; box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 18px 36px -22px rgba(16, 35, 27, 0.35); }
+.ps-cover {
+  position: relative;
+  overflow: hidden;
+  height: 110px;
+  border-radius: 24px 24px 0 0;
+  background:
+    radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(115deg, #035A45 0%, #004D3A 50%, #004635 100%);
 }
+.ps-cover-plate { position: absolute; right: -60px; top: 50%; width: 380px; height: 380px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
+.ps-cover-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.7) 65%, rgba(0, 70, 52, 0.1) 100%); pointer-events: none; }
+.ps-cover-k { position: relative; z-index: 1; margin: 0; padding: 22px 30px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.ps-cover-k span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
+.ps-id { padding: 0 30px 18px; }
+.ps-id-row { display: flex; align-items: flex-end; gap: 24px; }
+.ps-avatar-wrap { position: relative; flex-shrink: 0; margin-top: -70px; }
+.ps-avatar { width: 128px; height: 128px; border-radius: 50%; display: flex; align-items: center; justify-content: center; object-fit: cover; background: linear-gradient(135deg, #F5CB1F, #C49102); color: #004D3A; font-family: 'Playfair Display', Georgia, serif; font-size: 42px; font-weight: 700; border: 5px solid #FFFFFF; box-shadow: 0 18px 34px -18px rgba(0, 0, 0, 0.5); }
+.ps-cam { position: absolute; right: 2px; bottom: 6px; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 3px solid #FFFFFF; background: #004D3A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s; }
+.ps-cam:hover:not(:disabled) { background: #0A5C46; }
+.ps-cam:disabled { opacity: .6; cursor: default; }
+.ps-cam:focus-visible { outline: 3px solid rgba(239, 191, 4, 0.7); outline-offset: 2px; }
+.ps-id-main { flex: 1; min-width: 0; padding-top: 12px; }
+.ps-name { margin: 0 0 2px; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: 700; line-height: 1.1; color: #0E3A2C; overflow-wrap: anywhere; }
+.page-sub { margin: 0 0 10px; font-size: 13.5px; color: #6B7D73; }
+.ps-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ps-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 4px 12px; border-radius: 999px; background: #F3F6F4; color: #3E5046; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.ps-chip .ic,
+.ps-chip :deep(svg) { color: #1F7A4D; }
+.ps-chip.role { background: #FBF3D2; color: #8A6400; }
+.ps-chip.role :deep(svg) { color: #9A7300; }
+.ps-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #EEF2EF; }
+.ps-fact { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ps-fact-ico { flex-shrink: 0; width: 38px; height: 38px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.ps-fact div { display: flex; flex-direction: column; min-width: 0; }
+.ps-fact strong { font-size: 15.5px; font-weight: 800; color: #0E3A2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-fact small { font-size: 12px; color: #6B7D73; }
+.ps-photo-host { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; clip: rect(0, 0, 0, 0); }
+.ps-cam:hover:not(:disabled) { transform: scale(1.06); }
+.ps-cam { transition: background-color .15s, transform .15s; }
 
-.form-error {
-  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
-}
-.placeholder-text { font-size: 0.85rem; color: #9aaa9a; }
+.form-error { margin: 0 0 16px; padding: 12px 16px; border-radius: 14px; background: #FEF3F2; border: 1px solid #FECDCA; color: #B42318; font-size: 14px; }
+.placeholder-text { font-size: 14px; color: #6B7D73; }
 
-/* LAYOUT */
-.profile-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
-
+/* ---------- LAYOUT: tabs on top, panel below ---------- */
+.profile-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
 .tab-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
-  padding: 10px; display: flex; flex-direction: column; gap: 2px;
+  position: relative;
+  top: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 999px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: #FFFFFF;
+  border: 1px solid #E4EBE6;
+  box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 14px 30px -20px rgba(16, 35, 27, 0.3);
 }
-.tab-item {
-  display: flex; align-items: center; gap: 10px; text-align: left;
-  border: none; background: none; border-radius: 8px; padding: 12px 14px;
-  font-size: 0.88rem; font-weight: 600; color: #4a5a4a; cursor: pointer; font-family: inherit;
-  white-space: nowrap;
-}
-.tab-item:hover { background: #f7f9f7; }
-.tab-item.active { background: #eef3ec; color: #1a3a1a; }
+.tab-card::-webkit-scrollbar { display: none; }
+.tab-item { flex-shrink: 0; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 20px; border: none; border-radius: 999px; background: none; font-family: inherit; font-size: 14.5px; font-weight: 600; color: #3E5046; text-align: left; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s; }
+.tab-item :deep(svg) { color: #6B7D73; }
+.tab-item:hover:not(.active) { background: #F3F6F4; }
+.tab-item.active { background: #004D3A; color: #FFFFFF; }
+.tab-item.active :deep(svg) { color: #EFBF04; }
+.tab-item:focus-visible { outline: 2px solid #EFBF04; outline-offset: 2px; }
 
-.panel-card {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec; padding: 28px; min-width: 0;
-}
+.panel-card { min-width: 0; padding: 26px 28px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E4EBE6; box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 14px 30px -20px rgba(16, 35, 27, 0.3); }
+.panel-card.bare { padding: 0; background: none; border: none; box-shadow: none; }
 
+/* ---------- PERSONAL INFO: cards ---------- */
+.ps-cards { display: flex; flex-direction: column; gap: 18px; }
+.ps-card { padding: 24px 26px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E4EBE6; box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 14px 30px -20px rgba(16, 35, 27, 0.3); }
+.ps-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.ps-card-head > div { flex: 1; min-width: 0; }
+.ps-card-head h3 { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 21px; font-weight: 700; color: #0E3A2C; }
+.ps-card-head p { margin: 4px 0 0; font-size: 13.5px; color: #6B7D73; }
+.ps-card-ico { flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.ps-card-edit { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; background: #F1F6F2; border: 1px solid #DCE8E0; color: #004D3A; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.ps-card-edit:hover:not(:disabled) { background: #E3EFE7; }
+.ps-card-edit:disabled { opacity: .5; cursor: not-allowed; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; }
+.info-item { min-width: 0; }
+.ps-f { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.ps-f-ico { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: #FFFFFF; color: #1F5C45; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px -6px rgba(16, 35, 27, 0.3); }
+.ps-f > div { min-width: 0; }
+.info-item dt { margin: 0; font-size: 12.5px; font-weight: 600; color: #6B7D73; }
+.info-item dd { margin: 2px 0 0; font-size: 15px; font-weight: 700; color: #0E3A2C; overflow-wrap: anywhere; }
+.info-item dd.muted { color: #9AAEA3; font-weight: 500; }
+.ps-hgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ps-h { min-width: 0; padding: 16px; border-radius: 16px; }
+.ps-h.t-green { background: #F0F7F2; }
+.ps-h.t-red { background: #FEF5F4; }
+.ps-h.t-gold { background: #FFFAEB; }
+.ps-h-k { margin: 0 0 12px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; letter-spacing: .3px; color: #4A5A52; }
+.t-green .ps-h-k .ic { color: #1F7A4D; }
+.t-red .ps-h-k .ic { color: #B42318; }
+.t-gold .ps-h-k .ic { color: #9A7300; }
+.ps-h-k em { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #B42318; color: #FFFFFF; font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+.ps-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.ps-tag { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 14px; border-radius: 999px; background: #FFFFFF; font-size: 13.5px; font-weight: 700; box-shadow: 0 2px 6px -3px rgba(16, 35, 27, 0.25); overflow-wrap: anywhere; }
+.ps-tag.green { color: #004D3A; }
+.ps-tag.red { color: #B42318; }
+.ps-tag.gold { color: #8A6400; }
+.ps-tag.none { color: #8A9A91; font-weight: 500; box-shadow: none; background: rgba(255, 255, 255, 0.7); }
+.ps-lock { margin: 16px 0 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B7D73; }
+.ps-lock .ic { color: #1F7A4D; }
 
-/* Same as the "Create Meal Plan" button (MealPlanning.vue .btn-primary). */
-.btn-dark {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  background: #163a1c; color: #fff; border: none;
-  padding: 9px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
-  white-space: nowrap; font-family: inherit;
-}
-.btn-dark:hover:not(:disabled) { background: #0f2a14; }
-.btn-dark:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ---------- SHARED PANEL HEADER ---------- */
+.tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #EEF2EF; }
+.tab-panel-title { margin: 0 0 4px; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: #0E3A2C; }
+.tab-panel-sub { margin: 0; font-size: 13.5px; line-height: 1.5; color: #6B7D73; }
+.empty-note { margin: 0; padding: 30px 0; text-align: center; font-size: 14px; color: #6B7D73; }
 
-/* READ-ONLY PERSONAL INFO */
-.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin: 0; }
-.info-item { padding: 14px 0; border-top: 1px solid #f0f2f0; min-width: 0; }
-.info-item:nth-child(-n + 2) { border-top: none; padding-top: 0; }
-.info-item dt { font-size: 0.76rem; font-weight: 600; color: #8a9a8a; margin: 0 0 4px; }
-.info-item dd { font-size: 0.92rem; font-weight: 500; color: #1a3a1a; margin: 0; overflow-wrap: anywhere; }
-.info-item dd.muted { color: #aab5aa; font-weight: 400; }
-.field-error { font-size: 0.76rem; color: #c0392b; margin: 4px 0 0; }
-.field-input.invalid { border-color: #c0392b; }
-.health-note { margin-top: 18px; }
-.link-btn { background: none; border: none; padding: 0; color: #1a3a1a; font-weight: 700; text-decoration: underline; cursor: pointer; font: inherit; }
-
-/* FORM */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 24px; }
+/* ---------- FORM ---------- */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 22px; margin-bottom: 8px; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.field-label { display: block; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; margin: 0 0 8px; }
-.field-input {
-  width: 100%; border: 1px solid #d5dad5; border-radius: 8px; padding: 12px 14px;
-  font-size: 0.88rem; color: #2a2a2a; font-family: inherit; background: #fff;
-}
-.field-input:focus { outline: none; border-color: #D4A017; }
-.field-input:disabled { background: #f4f5f3; color: #8a9a8a; }
-.field select { min-height: 47px; font-size: 0.88rem; }
-.field-hint { font-size: 0.76rem; color: #9aaa9a; margin: 6px 0 0; }
-.section-hint { margin: -8px 0 16px; }
+.field-label { display: block; margin: 0 0 2px; font-size: 13px; font-weight: 700; color: #22362C; }
+.field-input { width: 100%; padding: 12px 14px; border: 1.5px solid #DCE5DF; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 14.5px; color: #14261E; transition: border-color .15s, box-shadow .15s; }
+.field-input:focus { outline: none; border-color: #004D3A; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.field-input:disabled { background: #F3F6F4; color: #8A9A91; }
+.field-input.invalid { border-color: #C0392B; }
+.field select { min-height: 48px; border-radius: 12px; font-size: 14.5px; }
+.field-hint { margin: 2px 0 0; font-size: 12.5px; color: #8A9A91; }
+.field-error { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; color: #C0392B; }
+.edit-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 18px; border-top: 1px solid #EEF2EF; }
 
-.save-btn {
-  display: flex; align-items: center; gap: 6px;
-  background: #D4A017; color: #1a3a1a; border: none; border-radius: 8px;
-  padding: 12px 22px; font-weight: 700; font-size: 0.88rem; cursor: pointer; white-space: nowrap; font-family: inherit;
-}
-.save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.outline-btn {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  border: 1px solid #d5dad5; background: #fff; color: #1a3a1a; border-radius: 8px;
-  padding: 10px 16px; font-weight: 600; font-size: 0.84rem; cursor: pointer; white-space: nowrap; font-family: inherit;
-}
-.outline-btn:hover:not(:disabled) { background: #f7f9f7; }
-.outline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* buttons on this page */
+.profile-page .nm-btn-dark,
+.profile-page .nm-btn-soft { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; text-decoration: none; transition: background-color .15s; }
+.profile-page .nm-btn-dark { border: none; background: #004D3A; color: #FFFFFF; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
+.profile-page .nm-btn-dark:hover:not(:disabled) { background: #0A5C46; }
+.profile-page .nm-btn-soft { border: 1px solid #DCE8E0; background: #F1F6F2; color: #004D3A; }
+.profile-page .nm-btn-soft:hover:not(:disabled) { background: #E3EFE7; }
+.profile-page .nm-btn-dark:disabled,
+.profile-page .nm-btn-soft:disabled { opacity: .5; cursor: not-allowed; }
+.profile-page .nm-btn-sm { height: 34px; padding: 0 12px; font-size: 13px; }
 
-/* SHARED TAB PANEL HEADER */
-.tab-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
-.tab-panel-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; margin: 0 0 4px; }
-.tab-panel-sub { font-size: 0.85rem; color: #8a9a8a; margin: 0; }
-.sub-panel { border-top: 1px solid #d9e3dc; padding-top: 20px; margin-top: 24px; }
-.sub-panel-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: #1a3a1a; margin: 0 0 16px; }
-.empty-note { font-size: 0.85rem; color: #9aaa9a; text-align: center; padding: 30px 0; margin: 0; }
+/* ---------- HEALTH FIGURES ---------- */
+.hp-head { align-items: center; }
+.hp-head-text { flex: 1; min-width: 0; }
+.figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0; }
+.fig { --c: #004D3A; --bg: #E3EFE7; position: relative; overflow: hidden; display: flex; flex-direction: column; min-width: 0; padding: 20px; border-radius: 18px; background: #FFFFFF; border: 1px solid #E4EBE6; box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 12px 26px -20px rgba(16, 35, 27, 0.35); }
+.fig::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--c); opacity: .85; }
+.fig-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.fig-ico { width: 44px; height: 44px; border-radius: 14px; background: var(--bg); color: var(--c); display: inline-flex; align-items: center; justify-content: center; }
+.fig-pill { height: 26px; padding: 0 12px; border-radius: 999px; background: var(--bg); color: var(--c); font-size: 12px; font-weight: 800; text-transform: capitalize; display: inline-flex; align-items: center; white-space: nowrap; }
+.fig dd { order: 2; margin: 0; display: flex; align-items: baseline; gap: 6px; font-family: 'Playfair Display', Georgia, serif; font-size: 36px; font-weight: 700; line-height: 1; color: #0E3A2C; font-variant-numeric: lining-nums; }
+.fig dt { order: 3; margin-top: 8px; font-size: 13.5px; font-weight: 600; color: #4A5A52; }
+.fig-unit { font-family: 'DM Sans', Arial, sans-serif; font-size: 13px; font-weight: 600; color: #6B7D73; }
+.fig.risk dd { color: #B42318; }
+.hp-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 24px 16px; border-radius: 16px; border: 1.5px dashed #CFDDD4; background: #F8FBF9; }
+.hp-empty-ico { width: 52px; height: 52px; border-radius: 50%; background: #FFFFFF; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -14px rgba(0, 77, 58, 0.6); }
+.hp-empty .empty-note { padding: 8px 0 0; }
+.health-note { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px !important; padding: 12px 14px; border-radius: 14px; background: #F7FAF8; border: 1px solid #EDF2EE; font-size: 13.5px !important; color: #4A5A52 !important; }
+.health-note .ic { color: #1F7A4D; }
 
-/* HEALTH FIGURES: one divided panel */
-.figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
-.fig { display: flex; flex-direction: column-reverse; gap: 2px; padding: 14px 18px; border-left: 1px solid #d9e3dc; min-width: 0; }
-.fig:first-child { border-left: none; }
-.fig dt { font-size: 0.8rem; color: #4a5a4a; }
-.fig dd { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; color: #1a3a1a; font-variant-numeric: lining-nums; }
-.fig-unit { font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 500; color: #6a7a6a; }
-.fig.risk dd { color: #a12525; }
-.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; }
-.pager-num { font-size: 0.84rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
-.edit-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 16px; border-top: 1px solid #d9e3dc; }
-
-/* SETTING ROWS (security, notifications, privacy, care team) */
-.setting-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: #fff; border: none; border-top: 1px solid #d9e3dc; border-radius: 0; padding: 16px 0; margin: 0;
-}
-.setting-label { font-size: 0.88rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.setting-detail { font-size: 0.8rem; color: #8a9a8a; margin: 3px 0 0; line-height: 1.5; }
-
-.toggle { position: relative; display: inline-block; cursor: pointer; flex-shrink: 0; }
+/* ---------- SETTING ROWS (care team, notifications, privacy) ---------- */
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 10px; padding: 16px 18px; border-radius: 16px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.setting-label { margin: 0; font-size: 14.5px; font-weight: 700; color: #0E3A2C; }
+.setting-detail { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: #6B7D73; }
+.toggle { position: relative; display: inline-block; flex-shrink: 0; cursor: pointer; }
 .toggle input { display: none; }
-.toggle-track { display: block; width: 40px; height: 22px; background: #e5e8e5; border-radius: 999px; position: relative; transition: background 0.2s; }
-.toggle input:checked + .toggle-track { background: #1f8f5c; }
-.toggle-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
-.toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); }
+.toggle-track { position: relative; display: block; width: 46px; height: 26px; border-radius: 999px; background: #D5DED8; transition: background .2s; }
+.toggle input:checked + .toggle-track { background: #004D3A; }
+.toggle input:disabled + .toggle-track { opacity: .5; }
+.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); transition: transform .2s; }
+.toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(20px); }
 
-/* CARE TEAM */
+/* ---------- CARE TEAM ---------- */
 .rnd-row { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.rnd-avatar { width: 48px; height: 48px; border-radius: 50%; background: #00382a; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-.rnd-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0; text-decoration: none; }
-.rnd-name:hover { text-decoration: underline; }
-.rnd-specialty { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
-.rnd-rating { font-size: 0.78rem; color: #b8860b; font-weight: 600; margin: 2px 0 0; }
+.rnd-avatar { flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; background: #004D3A; color: #EFBF04; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; box-shadow: 0 0 0 4px #FFFFFF, 0 8px 18px -10px rgba(0, 0, 0, 0.4); }
+.rnd-name { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 700; color: #0E3A2C; text-decoration: none; }
+.rnd-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.rnd-specialty { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; color: #1F7A4D; }
+.rnd-rating { margin: 2px 0 0; font-size: 13px; font-weight: 700; color: #9A7300; }
 
-/* HISTORY */
-.filter-tabs { display: inline-flex; gap: 4px; background: #f4f5f3; border-radius: 999px; padding: 3px; margin-bottom: 14px; flex-wrap: wrap; }
-.filter-tab { border: none; background: none; padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: #6a7a6a; cursor: pointer; font-family: inherit; }
-.filter-tab.active { background: #14301a; color: #fff; }
-.entry-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid #f0f2f0; }
-.entry-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.icon-blue { background: #e3efe7; color: #0a4a37; }
-.icon-gold { background: #fdf1d6; color: #b8860b; }
-.icon-green { background: #e3f3ea; color: #1f8f5c; }
+/* ---------- HISTORY ---------- */
+.filter-tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; padding: 5px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E4EBE6; }
+.filter-tab { height: 34px; padding: 0 14px; border: none; border-radius: 999px; background: none; font-family: inherit; font-size: 13px; font-weight: 700; color: #3E5046; cursor: pointer; }
+.filter-tab.active { background: #004D3A; color: #FFFFFF; }
+.entry-row { display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-top: 1px solid #F0F3F1; }
+.entry-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.icon-blue { background: #E3EFE7; color: #004D3A; }
+.icon-gold { background: #FBF3D2; color: #9A7300; }
+.icon-green { background: #EAF4EE; color: #1F7A4C; }
 .entry-info { flex: 1; min-width: 0; }
-.entry-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.entry-detail { font-size: 0.78rem; color: #8a9a8a; margin: 2px 0 0; }
-.entry-time { font-size: 0.74rem; color: #9aaa9a; white-space: nowrap; }
-.empty-state { padding: 30px; text-align: center; color: #9aaa9a; font-size: 0.85rem; }
+.entry-title { margin: 0; font-size: 14.5px; font-weight: 700; color: #0E3A2C; }
+.entry-detail { margin: 3px 0 0; font-size: 13px; color: #6B7D73; }
+.entry-time { padding: 4px 10px; border-radius: 999px; background: #F3F6F4; font-size: 12px; font-weight: 600; color: #4A5A52; white-space: nowrap; }
+.empty-state { padding: 36px 20px; text-align: center; font-size: 14px; color: #6B7D73; }
 .empty-state p { margin: 0; }
-.empty-icon { color: #d5dad5; margin-bottom: 8px; }
-.empty-sub { font-size: 0.78rem; margin-top: 4px !important; }
+.empty-icon { margin-bottom: 10px; color: #B5C2BA; }
+.empty-sub { margin-top: 4px !important; font-size: 13px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; }
+.pager-num { font-size: 13.5px; color: #4A5A52; font-variant-numeric: tabular-nums; }
 
+/* ---------- SECURITY ---------- */
+.pw-form { display: flex; flex-direction: column; gap: 16px; max-width: 460px; }
+.pw-form > .setting-label { margin: 0; font-size: 16px; }
+.pw-rules { list-style: none; margin: 6px 0 0; padding: 12px 14px; border-radius: 12px; background: #F7FAF8; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.pw-rules li { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #8A9A91; }
+.pw-rules li.ok { color: #1F7A4C; font-weight: 600; }
+.pw-dot { width: 7px; height: 7px; margin: 0 3px; border-radius: 50%; border: 1.5px solid #B0BAB0; }
+.pw-show { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #3E5046; cursor: pointer; }
+.pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pw-forgot { font-size: 13.5px; font-weight: 700; color: #004D3A; text-decoration: underline; text-underline-offset: 3px; }
 
-/* MOBILE — tabs become a sideways-scrolling strip above the panel. */
+/* ---------- DISCHARGE ---------- */
+.dr-pending { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 16px 18px; border-radius: 16px; background: #FFFAEB; border: 1px solid #F1DE97; }
+.dr-title { margin: 0; font-size: 15px; font-weight: 700; color: #6A5410; }
+.dr-text { margin: 0; font-size: 13.5px; line-height: 1.55; color: #4A5A52; }
+.dr-modal { max-width: 500px; border-radius: 22px !important; }
+.dr-modal > * + * { margin-top: 14px; }
+.dr-points { margin: 0; padding: 12px 14px 12px 30px; border-radius: 12px; background: #F7FAF8; font-size: 13.5px; line-height: 1.6; color: #4A5A52; }
+.dr-link { margin-left: 6px; }
+.optional-tag { margin-left: 4px; font-weight: 500; color: #8A9A91; }
+
+/* ---------- SMALLER SCREENS ---------- */
+@media (max-width: 1100px) {
+  .ps-hgrid { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) {
-  .profile-layout { grid-template-columns: 1fr; }
-  .tab-card { position: relative; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .profile-page { padding-bottom: 96px; }
+  .profile-layout { grid-template-columns: 1fr; gap: 14px; }
+  .tab-card { position: relative; top: 0; flex-direction: row; overflow-x: auto; padding: 6px; border-radius: 16px; scrollbar-width: none; }
   .tab-card::-webkit-scrollbar { display: none; }
-  .tab-item { flex-shrink: 0; padding: 10px 12px; }
+  .tab-item { flex-shrink: 0; height: 40px; padding: 0 12px; font-size: 13.5px; }
 }
 @media (max-width: 640px) {
-  .page-header { flex-direction: column; gap: 10px; }
-  .page-title { font-size: 1.4rem; }
-  .panel-card { padding: 20px 16px; }
-  .form-grid, .info-grid { grid-template-columns: 1fr; }
-  .figs { grid-template-columns: 1fr; }
-  .fig { border-left: none; }
-  .fig + .fig { border-top: 1px solid #d9e3dc; }
-  .edit-foot > * { flex: 1; justify-content: center; }
-  .info-item:nth-child(2) { border-top: 1px solid #f0f2f0; padding-top: 14px; }
-  .tab-panel-header, .setting-row { flex-direction: column; align-items: stretch; }
-  .outline-btn, .save-btn { justify-content: center; }
+  .ps-hero { margin-bottom: 14px; border-radius: 22px; }
+  .ps-cover { height: 90px; border-radius: 22px 22px 0 0; }
+  .ps-cover-plate { width: 200px; height: 200px; right: -50px; }
+  .ps-cover-k { padding: 16px 18px; }
+  .ps-id { padding: 0 16px 18px; }
+  .ps-id-row { flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+  .ps-avatar-wrap { margin-top: -56px; }
+  .ps-avatar { width: 104px; height: 104px; font-size: 34px; border-width: 4px; }
+  .ps-cam { width: 34px; height: 34px; right: 0; bottom: 2px; }
+  .ps-id-main { padding-top: 0; }
+  .ps-name { font-size: 24px; }
+  .ps-chips { justify-content: center; }
+  .ps-facts { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; padding-top: 16px; }
+  .ps-fact { padding: 10px; border-radius: 14px; background: #F7FAF8; }
+  .ps-fact-ico { width: 34px; height: 34px; border-radius: 11px; }
+  .ps-fact strong { font-size: 14px; }
+  .panel-card { padding: 18px 16px; border-radius: 18px; }
+  .ps-card { padding: 18px 16px; border-radius: 18px; }
+  .ps-card-ico { width: 40px; height: 40px; }
+  .ps-card-head h3 { font-size: 19px; }
+  .form-grid,
+  .info-grid { grid-template-columns: 1fr; gap: 10px; }
+  .ps-f { padding: 12px; }
+  .figs { grid-template-columns: 1fr; gap: 10px; }
+  .fig { padding: 16px; }
+  .fig dd { font-size: 30px; }
+  .hp-head { flex-direction: row !important; flex-wrap: wrap; align-items: center !important; }
+  .hp-head .nm-btn-soft { width: 100%; }
+  .edit-foot > * { flex: 1; }
+  .tab-panel-header { flex-direction: column; align-items: stretch; }
   .entry-row { flex-wrap: wrap; }
-  .entry-time { width: 100%; padding-left: 48px; }
+  .entry-time { margin-left: 54px; }
 }
-
-@media print {
-  .page-header, .tab-card, .print-btn, .filter-tabs { display: none !important; }
-  .profile-layout { grid-template-columns: 1fr; }
-  .panel-card { border: none; padding: 0; }
-}
-
-/* Security tab — change password */
-.pw-form { display: flex; flex-direction: column; gap: 14px; max-width: 440px; }
-.pw-form > .setting-label { margin: 0; }
-.pw-rules { list-style: none; padding: 0; margin: 4px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; }
-.pw-rules li { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #8a9a8a; }
-.pw-rules li.ok { color: #1f8f5c; }
-.pw-dot { width: 6px; height: 6px; border-radius: 50%; border: 1px solid #b0bab0; margin: 0 3px; }
-.pw-show { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #4a5a4a; cursor: pointer; }
-.pw-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.pw-forgot { font-size: 0.82rem; color: #1a3a1a; font-weight: 600; text-decoration: underline; }
 @media (max-width: 480px) { .pw-rules { grid-template-columns: 1fr; } }
 
-/* Request discharge (Care Team) */
-.dr-pending { margin-top: 12px; padding: 14px 16px; border: 1px solid #f0e2b0; border-radius: 12px; background: #fdf8e8; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.dr-title { margin: 0; font-size: 0.9rem; font-weight: 700; color: #6a5410; }
-.dr-text { margin: 0; font-size: 0.84rem; line-height: 1.55; color: #4a5a4a; }
-.dr-modal { max-width: 480px; }
-.dr-modal > * + * { margin-top: 14px; }
-.dr-points { margin: 0; padding-left: 18px; font-size: 0.82rem; color: #4a5a4a; line-height: 1.6; }
-.dr-link { margin-left: 6px; }
-.optional-tag { font-weight: 500; color: #8a9a8a; margin-left: 4px; }
+@media print {
+  .ps-hero, .tab-card, .print-btn, .filter-tabs { display: none !important; }
+  .profile-layout { grid-template-columns: 1fr; }
+  .panel-card { border: none; padding: 0; box-shadow: none; }
+}
+
+/* ---------- EDIT FORM (grouped) ---------- */
+.ef-title { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #EEF2EF; }
+.ef-title-ico { flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; background: #004D3A; color: #EFBF04; display: inline-flex; align-items: center; justify-content: center; }
+.ef-title .tab-panel-title { margin: 0 0 2px; }
+.ef-sec { margin-bottom: 14px; padding: 20px; border-radius: 18px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+
+.ef-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.ef-head .ps-card-ico { width: 40px; height: 40px; border-radius: 12px; }
+.ef-head h3 { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 700; color: #0E3A2C; }
+.ef-head p { margin: 2px 0 0; font-size: 13px; color: #6B7D73; }
+.ef-sec .form-grid { align-items: start; gap: 16px 18px; margin: 0; }
+.ef-sec .field { gap: 6px; }
+.ef-sec .field-input,
+.ef-sec .field select,
+.ef-sec .field :deep(input),
+.ef-sec .field :deep(select) { background-color: #FFFFFF; }
+.ef-sec .field-input { height: 48px; }
+.ef-sec .field-input:disabled { background: #EEF2EF; }
+.edit-foot { position: sticky; bottom: 16px; z-index: 5; align-items: center; margin-top: 18px !important; padding: 12px 12px 12px 18px !important; border: 1px solid #E4EBE6 !important; border-radius: 16px; background: rgba(255, 255, 255, 0.96); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 16px 32px -18px rgba(16, 35, 27, 0.45); }
+.edit-foot-note { margin: 0 auto 0 0; display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: #4A5A52; }
+.edit-foot-note .ic { color: #9A7300; }
+@media (max-width: 640px) {
+  .ef-sec { padding: 16px 14px; }
+  .edit-foot { bottom: 84px; padding: 10px !important; }
+  .edit-foot-note { display: none; }
+}
+
+/* ---------- TABS: shared row look ---------- */
+.setting-row { align-items: center; }
+.row-ico { flex-shrink: 0; width: 42px; height: 42px; border-radius: 13px; background: #E3EFE7; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; }
+.row-ico.blue { background: #EEF1FA; color: #3B5BA5; }
+.row-ico.gold { background: #FBF3D2; color: #9A7300; }
+.row-ico.red { background: #FDECEC; color: #B42318; }
+.row-main { flex: 1; min-width: 0; }
+.setting-row { background: #FFFFFF; border: 1px solid #E7EDE9; transition: border-color .15s, box-shadow .15s; }
+.setting-row:hover { border-color: #D3E1D8; box-shadow: 0 8px 20px -16px rgba(16, 35, 27, 0.4); }
+.profile-page .nm-btn-soft.danger { background: #FEF3F2; border-color: #F6CFCB; color: #B42318; }
+.profile-page .nm-btn-soft.danger:hover { background: #FAD9D6; }
+
+/* care team */
+.ct-card { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; padding: 22px; border-radius: 18px; background: linear-gradient(120deg, #F0F7F2 0%, #FFFFFF 60%); border: 1px solid #DCEBE1; }
+.ct-cover { position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(239, 191, 4, 0.18), rgba(239, 191, 4, 0) 70%); pointer-events: none; }
+.ct-card .rnd-row { position: relative; gap: 18px; }
+.ct-card .rnd-avatar { width: 72px; height: 72px; font-size: 22px; }
+.ct-main { min-width: 0; }
+.ct-k { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 4px; padding: 3px 10px; border-radius: 999px; background: #004D3A; color: #EFBF04; font-size: 11.5px; font-weight: 800; letter-spacing: .4px; }
+.ct-card .rnd-name { display: block; font-size: 21px; }
+.ct-actions { position: relative; display: flex; gap: 10px; flex-wrap: wrap; }
+.ct-none { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 20px; border-radius: 18px; border: 1.5px dashed #CFDDD4; background: #F8FBF9; text-align: center; }
+.ct-none .setting-detail { margin-bottom: 10px; }
+.ct-none-ico { width: 60px; height: 60px; margin-bottom: 6px; border-radius: 50%; background: #FFFFFF; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -14px rgba(0, 77, 58, 0.6); }
+.dr-title { display: flex; align-items: center; gap: 8px; }
+.dr-title .ic { color: #9A7300; }
+
+/* security */
+.sec-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.pw-form { max-width: none; padding: 22px; border-radius: 18px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.pw-form > .setting-label { display: flex; align-items: center; gap: 10px; }
+.pw-form > .setting-label .ic { color: #9A7300; }
+.pw-form .field-input { height: 48px; }
+.pw-meter { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 6px; }
+.pw-meter span { height: 5px; border-radius: 999px; background: #DCE5DF; transition: background-color .2s; }
+.pw-meter span.on { background: #1F9D55; }
+.pw-rules { background: #FFFFFF; }
+.sec-aside { position: sticky; top: 96px; padding: 22px; border-radius: 18px; background: linear-gradient(160deg, #004D3A 0%, #035A45 100%); color: #FFFFFF; }
+.sec-aside-ico { width: 56px; height: 56px; margin-bottom: 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.12); color: #EFBF04; display: inline-flex; align-items: center; justify-content: center; }
+.sec-aside-title { margin: 0 0 14px; font-family: 'Playfair Display', Georgia, serif; font-size: 19px; font-weight: 700; line-height: 1.3; }
+.sec-tips { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.sec-tips li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; line-height: 1.45; color: rgba(255, 255, 255, 0.88); }
+.sec-tips .ic { margin-top: 2px; color: #EFBF04; }
+
+/* notifications */
+.nt-sound { margin-bottom: 18px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(120deg, #F0F7F2 0%, #FFFFFF 70%); border: 1px solid #DCEBE1; }
+.nt-group { margin: 6px 0 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.nt-list { margin-bottom: 14px; }
+.nt-list .setting-row { margin-bottom: 8px; }
+
+/* privacy */
+.pv-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; padding: 20px 22px; border-radius: 18px; background: linear-gradient(120deg, #004D3A 0%, #035A45 100%); color: #FFFFFF; }
+.pv-hero-ico { flex-shrink: 0; width: 56px; height: 56px; border-radius: 16px; background: rgba(255, 255, 255, 0.12); color: #EFBF04; display: inline-flex; align-items: center; justify-content: center; }
+.pv-hero-title { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 19px; font-weight: 700; }
+.pv-hero .setting-detail { color: rgba(255, 255, 255, 0.8); }
+.soon { margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: #FBF3D2; color: #8A6400; font-size: 11px; font-weight: 800; }
+
+/* history: a timeline */
+.timeline { position: relative; padding-left: 4px; }
+.timeline::before { content: ''; position: absolute; left: 24px; top: 20px; bottom: 20px; width: 2px; background: #E3EBE6; }
+.timeline .entry-row { position: relative; margin-bottom: 10px; padding: 14px 16px 14px 0; border-top: none; }
+.timeline .entry-icon { position: relative; z-index: 1; width: 42px; height: 42px; border-radius: 50%; box-shadow: 0 0 0 5px #FFFFFF; }
+.timeline .entry-info { padding: 12px 16px; border-radius: 14px; background: #F7FAF8; border: 1px solid #EDF2EE; }
+.timeline .entry-time { align-self: flex-start; margin-top: 12px; }
+
+@media (max-width: 1000px) {
+  .sec-grid { grid-template-columns: 1fr; }
+  .sec-aside { position: static; order: -1; }
+}
+@media (max-width: 640px) {
+  .hp-head { flex-direction: row !important; flex-wrap: wrap; align-items: center !important; }
+  .hp-head .print-btn { width: 100%; }
+  .setting-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 12px; padding: 14px; }
+  .setting-row > .nm-btn-soft,
+  .setting-row > .nm-btn-dark { grid-column: 1 / -1; }
+  .ct-card { padding: 18px 16px; }
+  .ct-card .rnd-avatar { width: 60px; height: 60px; font-size: 19px; }
+  .ct-actions { width: 100%; }
+  .ct-actions > * { flex: 1; }
+  .pw-form { padding: 16px; }
+  .pv-hero { padding: 16px; }
+  .pv-hero-ico { width: 46px; height: 46px; }
+  .timeline::before { left: 20px; }
+  .timeline .entry-row { flex-wrap: nowrap; align-items: flex-start; padding-right: 0; }
+  .timeline .entry-icon { width: 36px; height: 36px; }
+  .timeline .entry-time { display: none; }
+}
 </style>

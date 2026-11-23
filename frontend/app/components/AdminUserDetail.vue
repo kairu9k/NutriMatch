@@ -1,21 +1,24 @@
 <template>
   <div class="nm-page">
-    <NuxtLink :to="backTo" class="nm-panel-link back-link"><ArrowLeft :size="14" /> {{ backLabel }}</NuxtLink>
+    <NuxtLink :to="backTo" class="nm-panel-link back-link"><ArrowLeft :size="15" /> {{ backLabel }}</NuxtLink>
 
     <p v-if="error" class="nm-error">{{ error }}</p>
-    <p v-if="loading" class="nm-muted">Loading account…</p>
+    <p v-if="loading" class="nm-muted ud-loading"><span class="ud-spin" aria-hidden="true"></span> Loading account…</p>
 
     <template v-else-if="data">
       <!-- ACCOUNT FILE (2026-10-25): who they are and the account's state at the
            top, real information below, anything missing in one grey line. -->
       <section class="nm-panel file-head">
         <div class="fh-top">
+          <img class="ud-plate" :src="plateImg" alt="" aria-hidden="true" />
+          <span class="ud-fade" aria-hidden="true"></span>
           <div class="identity-main">
             <img v-if="u.profile_photo" :src="u.profile_photo" class="nm-avatar lg" alt="" />
             <span v-else class="nm-avatar lg">{{ userInitials(u.first_name, u.last_name) }}</span>
             <div style="min-width: 0">
+              <p class="ud-eyebrow"><span aria-hidden="true"></span>{{ roleLabel }} account</p>
               <h1 class="nm-page-title" style="margin: 0">{{ u.first_name }} {{ u.last_name }}</h1>
-              <p class="nm-page-sub">{{ u.email }}<template v-if="u.phone">, {{ formatPhone(u.phone) }}</template></p>
+              <p class="nm-page-sub"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 6l-10 7L2 6" /></svg> {{ u.email }}<template v-if="u.phone">, {{ formatPhone(u.phone) }}</template></p>
               <div class="pill-row">
                 <span class="nm-pill muted">{{ roleLabel }}</span>
                 <span class="nm-pill" :class="account.is_active ? 'green' : 'muted'">{{ account.is_active ? 'Active' : 'Deactivated' }}</span>
@@ -33,20 +36,18 @@
         <!-- the account at a glance (gold = something not done yet) -->
         <dl class="fh-strip">
           <div v-for="c in stripCells" :key="c.label" :class="{ warn: c.warn }">
+            <span class="fh-ico" aria-hidden="true"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path v-for="(d, i) in (STRIP_ICON[c.label] || STRIP_ICON.Joined)" :key="i" :d="d" /></svg></span>
             <dt>{{ c.label }}</dt><dd>{{ c.value }}</dd>
           </div>
         </dl>
-        <p v-if="client" class="fh-audit"><ShieldCheck :size="14" aria-hidden="true" /> Health information. Your view was recorded in the audit log (RA 10173).</p>
+        <p v-if="client" class="fh-audit"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg> Health information. Your view was recorded in the audit log (RA 10173).</p>
       </section>
 
       <!-- CLIENT -->
       <div v-if="client" class="file-grid">
         <div class="file-col">
-          <section class="nm-panel">
-            <div class="nm-panel-head">
-              <h2 class="nm-panel-title">Care</h2>
-              <NuxtLink :to="`/admin-appointments?view=all&client=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
-            </div>
+          <section class="nm-panel uc">
+            <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z" /></svg></span><h2 class="nm-panel-title">Care</h2><NuxtLink :to="`/admin-appointments?view=all&client=${u.id}`" class="nm-panel-link">Appointments <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink></div>
             <p class="care-rnds">
               <template v-if="client.rnds.length">
                 <span class="label">RND</span>
@@ -55,20 +56,20 @@
                   <span class="nm-pill" :class="r.status === 'active' ? 'green' : 'muted'">{{ cap(r.status) }}</span>
                 </span>
               </template>
-              <span v-else class="nm-muted">Hasn't booked an RND yet.</span>
+              <span v-else class="nm-muted care-empty"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg> Hasn't booked an RND yet.</span>
             </p>
             <div class="figs four">
-              <div><strong>{{ appt(client, 'pending') + appt(client, 'confirmed') }}</strong><span>Upcoming or waiting</span></div>
-              <div><strong>{{ appt(client, 'completed') }}</strong><span>Completed</span></div>
-              <div><strong>{{ appt(client, 'cancelled') }}</strong><span>Cancelled</span></div>
-              <div><strong>{{ peso(client.invoices.paid_total) }}</strong><span>Total paid</span></div>
+              <div><i class="fig-ico"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></i><strong>{{ appt(client, 'pending') + appt(client, 'confirmed') }}</strong><span>Upcoming or waiting</span></div>
+              <div><i class="fig-ico"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></svg></i><strong>{{ appt(client, 'completed') }}</strong><span>Completed</span></div>
+              <div><i class="fig-ico"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M15 9l-6 6M9 9l6 6" /></svg></i><strong>{{ appt(client, 'cancelled') }}</strong><span>Cancelled</span></div>
+              <div><i class="fig-ico"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21V3h6a5 5 0 0 1 0 10H7" /><path d="M4 7h16M4 10h16" /></svg></i><strong>{{ peso(client.invoices.paid_total) }}</strong><span>Total paid</span></div>
             </div>
           </section>
 
-          <section class="nm-panel">
-            <h2 class="nm-panel-title">Health</h2>
+          <section class="nm-panel uc">
+            <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg></span><h2 class="nm-panel-title">Health</h2></div>
             <dl class="facts">
-              <div v-if="listText(client.health.medical_conditions)"><dt>Conditions</dt><dd>{{ listText(client.health.medical_conditions) }}</dd></div>
+              <div v-if="listText(client.health.medical_conditions)"><dt>Conditions</dt><dd><span class="chip blue">{{ listText(client.health.medical_conditions) }}</span></dd></div>
               <!-- allergies are never quiet (patient safety) -->
               <div>
                 <dt>Allergies</dt>
@@ -84,9 +85,10 @@
             </dl>
           </section>
 
-          <section class="nm-panel">
-            <h2 class="nm-panel-title">Latest screening</h2>
-            <p class="nm-panel-sub">{{ s ? `Taken ${shortDate(s.created_at)}, ${client.screening_count} in total` : 'No pre-consultation screening yet.' }}</p>
+          <section class="nm-panel uc">
+            <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4h6v3H9zM9 12h6M9 16h4" /></svg></span><h2 class="nm-panel-title">Latest screening</h2></div>
+            <p v-if="!s" class="uc-none"><span><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4h6v3H9zM9 12h6M9 16h4" /></svg></span>No pre-consultation screening yet.</p>
+            <p v-else class="nm-panel-sub">{{ s ? `Taken ${shortDate(s.created_at)}, ${client.screening_count} in total` : 'No pre-consultation screening yet.' }}</p>
             <div v-if="s" class="figs four" style="margin-top: 14px">
               <div><strong>{{ num(s.bmi) }}</strong><span>BMI<template v-if="s.bmi_category">, {{ s.bmi_category }}</template></span></div>
               <div :class="{ risk: Number(s.nrs_score) >= 3 }"><strong>{{ s.nrs_score ?? '—' }}</strong><span>NRS-2002<template v-if="s.nrs_risk">, {{ cap(s.nrs_risk).toLowerCase() }}</template></span></div>
@@ -97,8 +99,8 @@
         </div>
 
         <div class="file-col">
-          <section class="nm-panel">
-            <h2 class="nm-panel-title">Personal</h2>
+          <section class="nm-panel uc">
+            <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg></span><h2 class="nm-panel-title">Personal</h2></div>
             <dl class="facts">
               <div v-if="client.profile.date_of_birth"><dt>Born</dt><dd>{{ dobText(client.profile.date_of_birth) }}</dd></div>
               <div v-if="client.profile.sex"><dt>Sex</dt><dd>{{ cap(client.profile.sex) }}</dd></div>
@@ -107,15 +109,26 @@
             </dl>
             <p v-if="personalMissing.length === 4" class="nm-muted" style="margin: 12px 0 0">Nothing filled in yet.</p>
           </section>
-          <section class="nm-panel">
-            <h2 class="nm-panel-title">Admin history</h2>
-            <p v-if="!data.recent_activity.length" class="nm-muted" style="margin: 12px 0 0">Nothing recorded yet.</p>
-            <ol v-else class="history">
-              <li v-for="(a, i) in data.recent_activity" :key="i">
-                <span class="h-title">{{ auditLabel(a.action) }}</span>
-                <span class="h-time">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></span>
-              </li>
-            </ol>
+          <section class="nm-panel uc">
+            <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg></span><h2 class="nm-panel-title">Admin history</h2><span v-if="data.recent_activity.length" class="uc-count">{{ data.recent_activity.length }} event{{ data.recent_activity.length === 1 ? '' : 's' }}</span></div>
+            <p v-if="!data.recent_activity.length" class="nm-muted uc-empty-line">Nothing recorded yet.</p>
+            <div v-else class="history-wrap">
+              <template v-for="g in historyDays" :key="g.day">
+                <p class="tl-day"><span>{{ g.day }}</span></p>
+                <ol class="history">
+                  <li v-for="(it, i) in g.items" :key="i" :class="{ fresh: it.fresh }">
+                    <span class="h-dot" aria-hidden="true"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></span>
+                    <span class="h-card">
+                      <span class="h-main">
+                        <span class="h-title">{{ auditLabel(it.a.action) }}</span>
+                        <span v-if="it.a.by" class="h-by"><i class="h-av">{{ initialsOf(it.a.by) }}</i>{{ it.a.by }}</span>
+                      </span>
+                      <span class="h-time" :title="dateTime(it.a.created_at)">{{ it.time }}</span>
+                    </span>
+                  </li>
+                </ol>
+              </template>
+            </div>
           </section>
         </div>
       </div>
@@ -138,11 +151,8 @@
             <p v-if="rnd.profile.review_status === 'rejected' && rnd.profile.rejection_reason" class="nm-note plain-note" style="margin: 0">
               <strong>Application rejected.</strong> Reason sent: {{ rnd.profile.rejection_reason }}
             </p>
-            <section class="nm-panel">
-              <div class="nm-panel-head">
-                <h2 class="nm-panel-title">Credentials</h2>
-                <NuxtLink v-if="rnd.profile.review_status === 'pending'" :to="`/rnd-verification?open=${u.id}`" class="nm-panel-link">Review application</NuxtLink>
-              </div>
+            <section class="nm-panel uc">
+              <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /><circle cx="8" cy="12" r="2.5" /><path d="M13 10h5M13 14h3" /></svg></span><h2 class="nm-panel-title">Credentials</h2><NuxtLink v-if="rnd.profile.review_status === 'pending'" :to="`/rnd-verification?open=${u.id}`" class="nm-panel-link">Review application <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink></div>
               <div class="cred">
                 <div class="photos">
                   <div>
@@ -172,8 +182,8 @@
             </section>
 
             <!-- the Find an RND card, as clients see it (gaps in gold) -->
-            <section class="nm-panel">
-              <h2 class="nm-panel-title">What clients see</h2>
+            <section class="nm-panel uc">
+              <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></span><h2 class="nm-panel-title">What clients see</h2></div>
               <p v-if="requiredMissing.length" class="nm-panel-sub">Clients can't book them yet. Still to do: {{ requiredMissing.map(m => m.label.toLowerCase()).join('; ') }}.</p>
               <article class="preview">
                 <p class="pv-fee">
@@ -205,14 +215,8 @@
           </div>
 
           <div class="file-col">
-            <section class="nm-panel">
-              <div class="nm-panel-head">
-                <div>
-                  <h2 class="nm-panel-title">Payout details</h2>
-                  <p class="nm-panel-sub">Next payout {{ shortDate(rnd.earnings.next_payout_date) }}</p>
-                </div>
-                <NuxtLink to="/payouts" class="nm-panel-link">Payouts</NuxtLink>
-              </div>
+            <section class="nm-panel uc">
+              <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" /><path d="M21 9h-6a3 3 0 0 0 0 6h6z" /></svg></span><div class="uc-titles"><h2 class="nm-panel-title">Payout details</h2><p class="nm-panel-sub">Next payout {{ shortDate(rnd.earnings.next_payout_date) }}</p></div><NuxtLink to="/payouts" class="nm-panel-link">Payouts <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink></div>
               <p v-if="!rnd.payout_account" class="nm-note" style="margin: 0">No GCash or bank details yet. Their balance is held until they add them.</p>
               <dl v-else class="facts">
                 <div><dt>Method</dt><dd>{{ rnd.payout_account.method_label }}<template v-if="rnd.payout_account.bank_name">, {{ rnd.payout_account.bank_name }}</template></dd></div>
@@ -220,33 +224,52 @@
                 <div><dt>Last updated</dt><dd>{{ shortDate(rnd.payout_account.updated_at) }}</dd></div>
               </dl>
             </section>
-            <section class="nm-panel">
-              <div class="nm-panel-head">
-                <h2 class="nm-panel-title">Admin history</h2>
-                <NuxtLink :to="`/admin-appointments?view=all&rnd=${u.id}`" class="nm-panel-link">Appointments</NuxtLink>
-              </div>
-              <p v-if="!data.recent_activity.length" class="nm-muted" style="margin: 0">Nothing recorded yet.</p>
-              <ol v-else class="history">
-                <li v-for="(a, i) in data.recent_activity" :key="i">
-                  <span class="h-title">{{ auditLabel(a.action) }}</span>
-                  <span class="h-time">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></span>
-                </li>
-              </ol>
+            <section class="nm-panel uc">
+              <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg></span><h2 class="nm-panel-title">Admin history</h2><NuxtLink :to="`/admin-appointments?view=all&rnd=${u.id}`" class="nm-panel-link">Appointments <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink></div>
+              <p v-if="!data.recent_activity.length" class="nm-muted uc-empty-line">Nothing recorded yet.</p>
+              <div v-else class="history-wrap">
+              <template v-for="g in historyDays" :key="g.day">
+                <p class="tl-day"><span>{{ g.day }}</span></p>
+                <ol class="history">
+                  <li v-for="(it, i) in g.items" :key="i" :class="{ fresh: it.fresh }">
+                    <span class="h-dot" aria-hidden="true"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></span>
+                    <span class="h-card">
+                      <span class="h-main">
+                        <span class="h-title">{{ auditLabel(it.a.action) }}</span>
+                        <span v-if="it.a.by" class="h-by"><i class="h-av">{{ initialsOf(it.a.by) }}</i>{{ it.a.by }}</span>
+                      </span>
+                      <span class="h-time" :title="dateTime(it.a.created_at)">{{ it.time }}</span>
+                    </span>
+                  </li>
+                </ol>
+              </template>
+            </div>
             </section>
           </div>
         </div>
       </template>
 
       <!-- ADMIN: the header and the history -->
-      <section v-if="!client && !rnd" class="nm-panel">
-        <h2 class="nm-panel-title">Admin history</h2>
-        <p v-if="!data.recent_activity.length" class="nm-muted" style="margin: 12px 0 0">Nothing recorded yet.</p>
-        <ol v-else class="history">
-          <li v-for="(a, i) in data.recent_activity" :key="i">
-            <span class="h-title">{{ auditLabel(a.action) }}</span>
-            <span class="h-time">{{ dateTime(a.created_at) }}<template v-if="a.by">, by {{ a.by }}</template></span>
-          </li>
-        </ol>
+      <section v-if="!client && !rnd" class="nm-panel uc">
+        <div class="uc-head"><span class="uc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg></span><h2 class="nm-panel-title">Admin history</h2></div>
+        <p v-if="!data.recent_activity.length" class="nm-muted uc-empty-line">Nothing recorded yet.</p>
+        <div v-else class="history-wrap">
+              <template v-for="g in historyDays" :key="g.day">
+                <p class="tl-day"><span>{{ g.day }}</span></p>
+                <ol class="history">
+                  <li v-for="(it, i) in g.items" :key="i" :class="{ fresh: it.fresh }">
+                    <span class="h-dot" aria-hidden="true"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></span>
+                    <span class="h-card">
+                      <span class="h-main">
+                        <span class="h-title">{{ auditLabel(it.a.action) }}</span>
+                        <span v-if="it.a.by" class="h-by"><i class="h-av">{{ initialsOf(it.a.by) }}</i>{{ it.a.by }}</span>
+                      </span>
+                      <span class="h-time" :title="dateTime(it.a.created_at)">{{ it.time }}</span>
+                    </span>
+                  </li>
+                </ol>
+              </template>
+            </div>
       </section>
     </template>
 
@@ -568,133 +591,222 @@ function countText(counts) {
   if (!entries.length) return 'None yet'
   return entries.map(([k, n]) => `${n} ${cap(k).toLowerCase()}`).join(', ')
 }
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+// icons for the strip under the header (SVG path data)
+const STRIP_ICON = {
+  Joined: ['M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z', 'M16 3v4M8 3v4M3 10h18'],
+  'Last sign-in': ['M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4', 'M10 17l5-5-5-5M15 12H3'],
+  Email: ['M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z', 'M22 6l-10 7L2 6'],
+  Onboarding: ['M4 21V4M4 4h12l-2 4 2 4H4'],
+  Setup: ['M4 21V4M4 4h12l-2 4 2 4H4'],
+  Application: ['M12 2l2.4 3.2 4-.6.6 4L22 11l-3 2.6.6 4-4-.6L12 20l-2.4-3.2-4 .6-.6-4L2 11l3-2.4-.6-4 4 .6z', 'M9 11l2 2 4-4'],
+  'Consent (RA 10173)': ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'M9 12l2 2 4-4'],
+}
+// admin history grouped by day; the last 24 hours in gold
+const historyDays = computed(() => {
+  const out = []
+  for (const a of data.value?.recent_activity || []) {
+    const d = new Date(a.created_at)
+    const day = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    let g = out.find(x => x.day === day)
+    if (!g) out.push(g = { day, items: [] })
+    g.items.push({ a, time: d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }), fresh: Date.now() - d.getTime() < 86400000 })
+  }
+  return out
+})
+const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boolean); return (w.length > 1 ? w[0][0] + w[w.length - 1][0] : (w[0] || '?')[0]).toUpperCase() }
 </script>
-
 <style scoped>
-.back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+.nm-page { --sh: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22); font-family: 'DM Sans', sans-serif; color: #22362c; }
+.ic { flex-shrink: 0; display: inline-block; }
+.back-link { display: inline-flex; align-items: center; gap: 7px; height: 36px; margin-bottom: 14px; padding: 0 14px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 4px 14px -6px rgba(0, 0, 0, 0.12); font-size: 13px; font-weight: 800; color: #004d3a; text-decoration: none; }
+.back-link:hover { background: #f1f6f2; }
+.ud-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; border-radius: 22px; background: #fff; box-shadow: var(--sh); font-weight: 600; }
+.ud-spin { width: 20px; height: 20px; border-radius: 50%; border: 3px solid #e3efe7; border-top-color: #004d3a; animation: ud-spin 0.8s linear infinite; }
+@keyframes ud-spin { to { transform: rotate(360deg); } }
 
-/* header: identity + actions, then the account strip */
-.file-head { padding: 0; overflow: hidden; margin-bottom: 20px; }
-.fh-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 22px 22px 18px; }
-.identity-main { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.identity-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.fh-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0; border-top: 1px solid #d9e3dc; }
-.fh-strip > div { padding: 12px 18px; min-width: 0; border-left: 1px solid #d9e3dc; }
+/* ---------- header: green identity, then the account strip ---------- */
+.file-head { margin-bottom: 18px; padding: 0; border: none; border-radius: 24px; background: #fff; box-shadow: var(--sh); overflow: hidden; }
+.fh-top {
+  position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap; padding: 26px 30px; color: #fff;
+  background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 50%, #004635 100%);
+}
+.fh-top > *:not(.ud-plate):not(.ud-fade) { position: relative; z-index: 1; }
+.ud-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
+.ud-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.9) 74%, rgba(0, 77, 58, 0.72) 100%); }
+.identity-main { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.identity-main .nm-avatar.lg { flex-shrink: 0; width: 84px; height: 84px; border-radius: 50%; object-fit: cover; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.14); }
+.ud-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: #efbf04; }
+.ud-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
+.fh-top .nm-page-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; line-height: 1.15; letter-spacing: 0.01em; color: #fff; }
+.fh-top .nm-page-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 6px 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.85); }
+.fh-top .nm-page-sub .ic { color: #efbf04; }
+.pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.pill-row .nm-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.pill-row .nm-pill.muted { background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; }
+.pill-row .nm-pill.green { background: #e3f4ea; color: #1f7a4d; }
+.pill-row .nm-pill.green::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill-row .nm-pill.gold { background: #fff4d6; color: #8a6500; }
+.identity-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-right: 110px; }
+.identity-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 16px; border-radius: 12px; font-family: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; transition: background 0.15s; }
+.identity-actions .nm-btn-soft { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; backdrop-filter: blur(6px); }
+.identity-actions .nm-btn-soft:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); }
+.identity-actions .nm-btn-danger { background: #fff; border: 1px solid #fff; color: #b42318; box-shadow: none; }
+.identity-actions .nm-btn-danger:hover:not(:disabled) { background: #fdecea; }
+.identity-actions .nm-btn-dark { background: #efbf04; border: 1px solid #efbf04; color: #004d3a; }
+.identity-actions > button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.identity-actions > button:disabled { opacity: 0.6; cursor: not-allowed; }
+.fh-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 0; }
+.fh-strip > div { display: grid; grid-template-columns: 36px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; min-width: 0; padding: 16px 18px; border-left: 1px solid #eef2ef; }
 .fh-strip > div:first-child { border-left: none; }
-.fh-strip dt { font-size: 0.74rem; color: #6a7a6a; }
-.fh-strip dd { margin: 3px 0 0; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; overflow-wrap: anywhere; }
-.fh-strip .warn dd { color: #7a560f; }
-.fh-audit { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 18px; border-top: 1px solid #d9e3dc; background: #f7faf8; font-size: 0.78rem; color: #4a5a4a; }
-.fh-audit svg { color: #0a4a37; flex-shrink: 0; }
+.fh-ico { grid-row: 1 / 3; width: 36px; height: 36px; border-radius: 11px; background: #f1f6f2; color: #1f7a4d; display: inline-flex; align-items: center; justify-content: center; }
+.fh-strip dt { font-size: 12px; color: #8a9a91; }
+.fh-strip dd { margin: 0; font-size: 14px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
+.fh-strip .warn .fh-ico { background: #fff4d6; color: #8a6500; }
+.fh-strip .warn dd { color: #8a6500; }
+.fh-audit { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 18px; border-top: 1px solid #e3e8f5; background: #eef1fa; font-size: 13px; color: #2e4a86; }
 
-/* body */
-.file-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.file-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.figs-panel { padding: 0; overflow: hidden; margin-bottom: 20px; }
+/* ---------- body ---------- */
+.file-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.file-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.nm-panel.uc { padding: 20px 24px 22px; border: none; border-radius: 24px; background: #fff; box-shadow: var(--sh); overflow: hidden; }
+.uc-head { display: flex; align-items: center; gap: 10px; margin: -20px -24px 18px; padding: 16px 24px; background: #f1f8f4; border-bottom: 1px solid #e3efe7; }
+.uc-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 11px; background: #004d3a; color: #efbf04; display: inline-flex; align-items: center; justify-content: center; }
+.uc-head .nm-panel-title { flex: 1; margin: 0; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #0e3a2c; }
+.uc-titles { flex: 1; min-width: 0; }
+.uc-titles .nm-panel-sub { margin: 2px 0 0; font-size: 12.5px; color: #6b7d73; }
+.uc-head .nm-panel-link { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid #dce8e0; border-radius: 10px; background: #fff; color: #004d3a; font-size: 12.5px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.uc-head .nm-panel-link:hover { background: #f1f6f2; }
+.uc-count { padding: 4px 11px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px #dce8e0; font-size: 12px; font-weight: 700; color: #1f5c45; }
+.uc-empty-line { margin: 0; padding: 14px; border-radius: 14px; background: #f7faf8; font-size: 13.5px; }
+.uc .nm-panel-sub { margin: 0 0 4px; font-size: 13px; color: #6b7d73; }
+.uc-none { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; padding: 22px 16px; border-radius: 16px; border: 1.5px dashed #cfddd4; text-align: center; font-size: 13.5px; font-weight: 600; color: #4a5a52; }
+.uc-none span { width: 48px; height: 48px; border-radius: 14px; background: #e3efe7; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
 
-/* divided figures, as on the dashboards */
-.figs { display: grid; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
-.figs-panel .figs { border: none; border-radius: 0; }
+/* care */
+.care-rnds { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 14px; font-size: 14px; }
+.care-rnds .label { font-size: 12px; color: #8a9a91; }
+.care-rnd { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.care-empty { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border-radius: 12px; background: #f7faf8; color: #4a5a52; }
+.care-empty .ic { color: #1f7a4d; }
+
+/* figures: small tiles */
+.figs { display: grid; gap: 10px; }
 .figs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .figs.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.figs > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; min-width: 0; border-left: 1px solid #d9e3dc; }
-.figs > div:first-child { border-left: none; }
-.figs strong { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #1a3a1a; line-height: 1.2; font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
-.figs span { font-size: 0.74rem; color: #4a5a4a; line-height: 1.3; }
-.figs .risk strong { color: #a12525; }
+.figs > div { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; padding: 14px; border: 1.5px solid #c9d8cf; border-radius: 16px; background: #fff; }
+.fig-ico { width: 28px; height: 28px; margin-bottom: 6px; border-radius: 9px; background: #f1f6f2; color: #1f7a4d; display: inline-flex; align-items: center; justify-content: center; }
+.figs strong { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1.15; color: #0e3a2c; font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+.figs span { font-size: 12.5px; line-height: 1.3; color: #6b7d73; }
+.figs .risk { background: #fef3f2; border-color: #eba79f; }
+.figs .risk strong { color: #b42318; }
+.figs-panel { margin-bottom: 18px; padding: 18px; border: none; border-radius: 24px; box-shadow: var(--sh); }
 
-/* facts: label above value, only what's filled in */
-.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 12px 0 0; }
-.facts > div { padding: 9px 0; border-top: 1px solid #edf2ee; min-width: 0; }
-.facts > div:nth-child(-n + 2) { border-top: none; }
-.facts dt { font-size: 0.74rem; color: #6a7a6a; }
-.facts dd { margin: 3px 0 0; font-size: 0.88rem; color: #1a3a1a; overflow-wrap: anywhere; }
-.care-rnds { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 14px; font-size: 0.88rem; }
-.care-rnds .label { font-size: 0.74rem; color: #6a7a6a; }
-.care-rnd { display: inline-flex; align-items: center; gap: 6px; }
-/* allergies: red, never quiet */
+/* facts: small boxes */
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.facts > div { min-width: 0; padding: 12px 14px; border: 1.5px solid #e3ebe6; border-radius: 14px; }
+.facts dt { margin-bottom: 4px; font-size: 12px; color: #8a9a91; }
+.facts dd { margin: 0; font-size: 14.5px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
+.chip { display: inline-flex; padding: 4px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: #e3f4ea; color: #1f5c45; }
+.chip.blue { background: #eef1fa; color: #2e4a86; }
 .allergy-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.allergy { font-size: 0.78rem; font-weight: 700; color: #a12525; background: #fdecec; border: 1px solid #f3b8b8; border-radius: 999px; padding: 2px 10px; }
-.gap { display: inline-block; font-size: 0.78rem; font-weight: 600; color: #7a560f; background: #fdf3dc; border-radius: 6px; padding: 2px 8px; align-self: flex-start; }
+.allergy { padding: 4px 11px; border-radius: 999px; border: 1px solid #f6c9c3; background: #fdecea; font-size: 12.5px; font-weight: 800; color: #b42318; }
+.gap { display: inline-flex; align-self: flex-start; padding: 4px 11px; border-radius: 999px; background: #fff4d6; font-size: 12.5px; font-weight: 700; color: #8a6500; }
 
-/* admin history: a short timeline */
-.history { list-style: none; margin: 12px 0 0; padding: 0; }
-.history li { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 0 0 14px 18px; }
-.history li::before { content: ''; position: absolute; left: 3px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: #3f9a6b; }
-.history li::after { content: ''; position: absolute; left: 6px; top: 16px; bottom: 2px; width: 1px; background: #d9e3dc; }
-.history li:last-child { padding-bottom: 0; }
-.history li:last-child::after { display: none; }
-.h-title { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; }
-.h-time { font-size: 0.76rem; color: #6a7a6a; }
+/* admin history: grouped by day, one card per event */
+.history-wrap { position: relative; }
+.tl-day { margin: 0 0 10px; padding-left: 50px; }
+.tl-day:not(:first-child) { margin-top: 16px; }
+.tl-day span { display: inline-flex; padding: 3px 10px; border-radius: 999px; background: #f1f6f2; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #4a5a52; }
+.history { position: relative; list-style: none; margin: 0; padding: 0; }
+.history::before { content: ''; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 2px; border-radius: 2px; background: #dce8e0; }
+.history li { position: relative; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.history li:last-child { margin-bottom: 0; }
+.h-dot { position: relative; z-index: 1; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #e3f4ea; color: #1f7a4d; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px #fff; }
+.history li.fresh .h-dot { background: #efbf04; color: #004d3a; }
+.h-card { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1.5px solid #e3ebe6; border-radius: 14px; background: #fff; }
+.history li.fresh .h-card { background: #fffbea; border-color: #f3e2a0; }
+.h-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.h-title { font-size: 14px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
+.h-by { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12.5px; color: #6b7d73; }
+.h-av { width: 20px; height: 20px; border-radius: 50%; background: #004d3a; color: #efbf04; font-style: normal; font-size: 9px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.h-time { flex-shrink: 0; padding: 4px 10px; border-radius: 999px; background: #f3f6f4; font-size: 12px; font-weight: 700; color: #4a5a52; white-space: nowrap; }
+.history li.fresh .h-time { background: #fff; color: #8a6500; }
 
-/* RND credentials + the client-facing card */
-.cred { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
-.photo-label { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
-.photos .license img { width: 100%; height: 200px; max-height: none; object-fit: contain; background: #f1f4f2; }
-.photos .license-missing { min-height: 200px; display: flex; align-items: center; justify-content: center; }
-.cred .facts { grid-template-columns: 1fr; margin: 0; }
-.cred .facts > div:nth-child(2) { border-top: 1px solid #edf2ee; }
-.license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
+/* RND: credentials + the client-facing card */
+.cred { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.photos > div { min-width: 0; border: 1.5px solid #c9d8cf; border-radius: 16px; overflow: hidden; }
+.photo-label { margin: 0; padding: 10px 12px; border-bottom: 1px solid #eef2ef; font-size: 13px; font-weight: 800; color: #0e3a2c; }
+.license { display: block; width: 100%; padding: 0; border: none; border-radius: 0; overflow: hidden; background: #f1f4f2; font-family: inherit; text-align: left; cursor: zoom-in; }
 .license:hover img { opacity: 0.92; }
-.license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.license img { display: block; width: 100%; max-height: 220px; object-fit: contain; }
-.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
-.license-missing { padding: 40px 14px; text-align: center; color: #a12525; background: #fdecec; border-color: #f3b8b8; font-size: 0.82rem; font-weight: 600; cursor: default; }
-.preview { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; border: 1px solid #d9e3dc; border-radius: 12px; padding: 16px; overflow-wrap: anywhere; }
-.pv-fee { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.88rem; font-weight: 600; color: #1a3a1a; margin: 0; }
-.pv-bio { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0; white-space: pre-line; }
+.license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.license img, .photos .license img { display: block; width: 100%; height: 190px; max-height: none; object-fit: cover; background: #f1f4f2; }
+.license span { display: flex; align-items: center; justify-content: center; gap: 7px; height: 40px; border-top: 1px solid #eef2ef; background: #f7faf8; font-size: 13px; font-weight: 800; color: #004d3a; }
+.license-missing, .photos .license-missing { min-height: 230px; display: flex; align-items: center; justify-content: center; padding: 30px 14px; background: #fdecea; color: #b42318; font-size: 13px; font-weight: 700; text-align: center; cursor: default; }
+.cred .facts { grid-template-columns: 1fr; gap: 8px; }
+.preview { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding: 16px; border: 1.5px solid #c9d8cf; border-radius: 16px; overflow-wrap: anywhere; }
+.pv-fee { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 0; font-size: 14px; font-weight: 700; color: #0e3a2c; }
+.pv-fee .nm-pill { padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.pv-fee .nm-pill.green { background: #e3f4ea; color: #1f7a4d; }
+.pv-fee .nm-pill.muted { background: #f3f6f4; color: #6b7d73; }
+.pv-bio { margin: 0; font-size: 13.5px; line-height: 1.55; color: #4a5a52; white-space: pre-line; }
 .pv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: 0.76rem; font-weight: 600; background: #f2f6f3; border: 1px solid #d9e3dc; color: #4a5a4a; border-radius: 12px; padding: 2px 10px; }
-.pv-formats { display: flex; flex-wrap: wrap; gap: 12px; }
-.format { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #1a3a1a; font-weight: 500; }
-.format svg { color: #3f9a6b; }
-.pv-where { display: flex; align-items: flex-start; gap: 6px; font-size: 0.8rem; color: #4a5a4a; margin: 0; line-height: 1.4; }
-.pv-where svg { flex-shrink: 0; margin-top: 2px; }
-.pv-hours { display: flex; align-items: flex-start; gap: 8px; background: #e3efe7; color: #1e4a26; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; line-height: 1.45; }
+.pv-formats { display: flex; flex-wrap: wrap; gap: 8px; }
+.format { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: #eef1fa; font-size: 12.5px; font-weight: 700; color: #2e4a86; }
+.pv-where { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 13px; line-height: 1.4; color: #4a5a52; }
+.pv-where svg { flex-shrink: 0; margin-top: 2px; color: #1f7a4d; }
+.pv-hours { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #f1f8f4; color: #1f5c45; font-size: 13px; line-height: 1.45; }
 .pv-hours svg { flex-shrink: 0; margin-top: 1px; }
 .pv-hours-list { display: flex; flex-direction: column; gap: 2px; }
-.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.file-col > .nm-note { border-radius: 14px; }
 
-/* license pop-up */
+/* pop-ups */
 .license-modal { max-width: 900px; }
 .lm-head { display: flex; gap: 12px; align-items: flex-start; }
-.lm-icon { width: 36px; height: 36px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.lm-photo { margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
+.lm-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: #004d3a; color: #efbf04; display: flex; align-items: center; justify-content: center; }
+.lm-photo { margin-top: 16px; border: 1px solid #e3ebe6; border-radius: 16px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
 .lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
-
-/* edit pop-up */
 .edit-modal { max-width: 560px; }
 .edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.edit-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.edit-field .nm-label { margin: 0; }
-.edit-field input.nm-input { min-height: 42px; }
+.edit-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.edit-field .nm-label { margin: 0; font-size: 13px; font-weight: 700; color: #22362c; }
+.edit-field .nm-input { border: 1.5px solid #c9d8cf; border-radius: 12px; }
+.edit-field .nm-input:focus { border-color: #004d3a; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); outline: none; }
+.edit-field input.nm-input { min-height: 44px; }
 .edit-field .nm-input.invalid { border-color: #e0a3a3; background: #fffafa; }
 
 @media (max-width: 1100px) {
   .figs.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .figs.six > div:nth-child(4) { border-left: none; }
-  .figs.six > div:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
 }
-@media (max-width: 900px) {
+@media (max-width: 960px) {
+  .fh-top { padding: 20px 18px; }
+  .ud-plate { width: 170px; height: 170px; right: -60px; top: 10px; transform: none; }
+  .identity-main .nm-avatar.lg { width: 64px; height: 64px; font-size: 22px; }
+  .fh-top .nm-page-title { font-size: 24px; }
+  .identity-actions { width: 100%; margin-right: 0; }
+  .identity-actions > button { flex: 1; padding: 0 10px; font-size: 12.5px; }
+  .fh-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fh-strip > div { grid-template-columns: 30px minmax(0, 1fr); padding: 12px; border-left: none; border-top: 1px solid #eef2ef; }
+  .fh-strip > div:nth-child(-n + 2) { border-top: none; }
+  .fh-strip > div:nth-child(even) { border-left: 1px solid #eef2ef; }
+  .fh-ico { width: 30px; height: 30px; }
+  .fh-strip dd { font-size: 13px; }
   .file-grid { grid-template-columns: minmax(0, 1fr); }
+  .nm-panel.uc { padding: 18px 16px 18px; }
+  .uc-head { margin: -18px -16px 14px; padding: 14px 16px; }
+}
+@media (max-width: 760px) {
+  .nm-page { padding-bottom: 110px; }
 }
 @media (max-width: 640px) {
-  .fh-top { padding: 18px 16px 14px; }
   .identity-main { align-items: flex-start; }
-  .identity-actions { width: 100%; }
-  .identity-actions > * { flex: 1; }
-  .fh-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .fh-strip > div { border-left: none; border-top: 1px solid #d9e3dc; }
-  .fh-strip > div:nth-child(even) { border-left: 1px solid #d9e3dc; }
-  .fh-strip > div:nth-child(-n + 2) { border-top: none; }
   .figs.four, .figs.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .figs.four > div:nth-child(odd), .figs.six > div:nth-child(odd) { border-left: none; }
-  .figs.four > div:nth-child(n + 3), .figs.six > div:nth-child(n + 3) { border-top: 1px solid #d9e3dc; }
   .facts { grid-template-columns: minmax(0, 1fr); }
-  .facts > div:nth-child(2) { border-top: 1px solid #edf2ee; }
-  .cred { grid-template-columns: minmax(0, 1fr); }
+  .cred, .photos { grid-template-columns: minmax(0, 1fr); }
   .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
   .lm-photo { flex: 1; align-items: center; }
 }

@@ -4,7 +4,7 @@
     <LandingHero />
     <LandingFeatures />
     <LandingHowItWorks />
-    <LandingTestimonials />
+    <!-- <LandingTestimonials /> -->
     <LandingForRNDs />
     <LandingFAQ />
     <LandingCTA />

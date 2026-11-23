@@ -35,16 +35,20 @@
     </div>
 
     <!-- the two things people get wrong (Calendly's forum has the same questions) -->
-    <p class="nm-note plain-note avail-hint">
-      Taking a lunch break? Add your morning and afternoon as two blocks, for example 8:00 AM to 12:00 PM and 1:00 PM to 5:00 PM.
-      For hours that end at midnight, use 12:00 AM.
-    </p>
+    <!-- quick summary of the week -->
+    <div v-if="!loading" class="av-sum">
+      <span><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg><b>{{ daysOpen }}</b> {{ daysOpen === 1 ? 'day' : 'days' }} open</span>
+      <span><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg><b>{{ weekSlots }}</b> one-hour {{ weekSlots === 1 ? 'slot' : 'slots' }} a week</span>
+    </div>
 
     <!-- WEEKLY DAY ROWS -->
     <div v-if="loading" class="empty-note">Loading…</div>
     <div v-else class="day-list">
-      <div v-for="day in week" :key="day.dayIndex" class="day-row">
-        <span class="day-name">{{ day.day }}</span>
+      <div v-for="day in week" :key="day.dayIndex" class="day-row" :class="{ today: day.dayIndex === todayDow, empty: !day.slots.length }">
+        <div class="day-head">
+          <span class="day-name">{{ day.day.slice(0, 3) }}<em v-if="day.dayIndex === todayDow" class="today-tag">Today</em></span>
+          <small>{{ dayCount(day.slots) }} {{ dayCount(day.slots) === 1 ? 'slot' : 'slots' }}</small>
+        </div>
 
         <div class="day-content">
           <template v-if="day.slots.length">
@@ -58,12 +62,13 @@
                 <p v-if="saveError && errorAt === `edit-${slot.id}`" class="save-error in-form" role="alert">{{ saveError }}</p>
               </div>
               <button v-else class="slot-pill" type="button" :aria-label="`Edit ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click="startEdit(slot)">
-                <PenLine :size="12" class="pill-edit" aria-hidden="true" />
-                {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}                <span class="pill-icon-btn" role="button" :aria-disabled="!!busyKey || undefined" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
+                <span class="sp-from">{{ formatTime(slot.start_time) }}</span>
+                <span class="sp-to">to {{ formatTime(slot.end_time) }}</span>
+                <span class="pill-icon-btn" role="button" :aria-disabled="!!busyKey || undefined" :aria-label="`Remove ${formatTime(slot.start_time)} to ${formatTime(slot.end_time)}`" @click.stop="removeSlot(slot)"><X :size="13" /></span>
               </button>
             </template>
           </template>
-          <span v-else class="empty-note-inline">No hours set</span>
+          <span v-else class="empty-note-inline">Closed</span>
 
           <div v-if="addingDay === day.dayIndex" class="slot-edit-form">
             <input v-model="addForm.start_time" type="time" class="time-input" />
@@ -75,21 +80,27 @@
           </div>
           <!-- what clients actually get: 1-hour consultations every hour from each block's start -->
           <p v-if="day.slots.length" class="day-preview">
-            <span>Clients can book {{ bookableText(day.slots) || 'nothing yet' }}.</span>
+            <span class="day-book" :title="`Clients can book ${bookableText(day.slots) || 'nothing yet'}.`">Clients can book {{ bookableText(day.slots) || 'nothing yet' }}.</span>
             <span v-for="w in wastedText(day.slots)" :key="w" class="day-waste">{{ w }}</span>
           </p>
         </div>
 
-        <button v-if="addingDay !== day.dayIndex" class="day-action-link" @click="startAddSlot(day.dayIndex)"><Plus :size="14" aria-hidden="true" /> Add hours</button>
+        <button v-if="addingDay !== day.dayIndex" class="day-action-link day-add" @click="startAddSlot(day.dayIndex)"><Plus :size="14" aria-hidden="true" /> Add</button>
       </div>
     </div>
+
+    <!-- the two things people get wrong (Calendly's forum has the same questions) -->
+    <p class="nm-note plain-note avail-hint">
+      <svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg><span>Taking a lunch break? Add your morning and afternoon as two blocks, for example 8:00 AM to 12:00 PM and 1:00 PM to 5:00 PM.
+      For hours that end at midnight, use 12:00 AM. Tap a time to edit it.</span>
+    </p>
 
 
     <!-- BLOCK TIME OFF — whole days or part of a day on specific dates
          (RndTimeOff, /api/rnd/time-off/). Clients can't book it. -->
     <div v-if="!hideTimeOff" class="block-panel">
       <div class="block-header">
-        <CalendarOff :size="18" class="block-icon" aria-hidden="true" />
+        <span class="block-ico"><CalendarOff :size="19" class="block-icon" aria-hidden="true" /></span>
         <div>
           <h3 class="block-title">Block time off</h3>
           <p class="block-desc">Block whole days or part of a day, like a holiday, leave or a seminar afternoon. Clients can't book that time. Consultations already booked in it stay booked.</p>
@@ -108,8 +119,8 @@
         <div class="field">
           <span class="field-label">Time</span>
           <div class="seg" role="radiogroup" aria-label="Block the whole day or part of it">
-            <button type="button" role="radio" :aria-checked="newBlock.wholeDay" :class="{ on: newBlock.wholeDay }" @click="newBlock.wholeDay = true">Whole day</button>
-            <button type="button" role="radio" :aria-checked="!newBlock.wholeDay" :class="{ on: !newBlock.wholeDay }" @click="newBlock.wholeDay = false">Part of the day</button>
+            <button type="button" role="radio" :aria-checked="newBlock.wholeDay" :class="{ on: newBlock.wholeDay }" @click="newBlock.wholeDay = true"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>Whole day</button>
+            <button type="button" role="radio" :aria-checked="!newBlock.wholeDay" :class="{ on: !newBlock.wholeDay }" @click="newBlock.wholeDay = false"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" /></svg>Part of the day</button>
           </div>
         </div>
         <template v-if="!newBlock.wholeDay">
@@ -130,7 +141,7 @@
           <label for="off-reason">Reason <span class="optional">(optional, only you see it)</span></label>
           <input id="off-reason" v-model="newBlock.reason" type="text" maxlength="200" placeholder="e.g. Annual leave" />
         </div>
-        <button class="block-btn" :disabled="!newBlock.from || !!blockRuleError || blockSaving" @click="submitBlock">{{ blockSaving ? 'Blocking…' : 'Block' }}</button>
+        <button class="block-btn" :disabled="!newBlock.from || !!blockRuleError || blockSaving" @click="submitBlock">{{ blockSaving ? 'Blocking…' : 'Block time' }}</button>
       </div>
       <p v-if="blockRuleError" class="save-error" role="alert">{{ blockRuleError }}</p>
       <div v-if="conflicts.length" class="conflicts" role="status">
@@ -147,7 +158,7 @@
           <button class="remove-block-btn" :disabled="!!busyKey" :aria-label="`Remove time off on ${formatBlockDate(b.start_date)}`" @click="removeBlock(b)"><X :size="14" /></button>
         </div>
       </div>
-      <p v-else class="empty-note">No time blocked off.</p>
+      <p v-else class="empty-note block-empty">No time blocked off yet.</p>
     </div>
   </div>
 </template>
@@ -495,6 +506,20 @@ function formatBlockDate(iso) {
   if (!iso) return ''
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+/* ---------- UI only ---------- */
+// one-hour consultations a day can hold (same count as "Clients can book …")
+function dayCount(daySlots) {
+  let n = 0
+  for (const sl of daySlots) {
+    const end = toMinutes(endKey(sl.end_time))
+    for (let t = toMinutes(sl.start_time.slice(0, 5)); t + SESSION <= end; t += SESSION) n++
+  }
+  return n
+}
+const daysOpen = computed(() => week.value.filter(d => d.slots.length).length)
+const weekSlots = computed(() => week.value.reduce((sum, d) => sum + dayCount(d.slots), 0))
+const todayDow = new Date(todayIso + 'T00:00:00').getDay()
 </script>
 
 <style scoped>
@@ -632,4 +657,155 @@ function formatBlockDate(iso) {
   .field-wide { grid-column: auto; }
   .blocked-item { flex-wrap: wrap; }
 }
+
+/* =========================================================
+   UI refresh: week grid (brand #004D3A / #EFBF04)
+   ========================================================= */
+.ic { flex-shrink: 0; display: inline-block; }
+
+/* summary pills */
+.av-sum { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.av-sum span { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; background: #f3f6f4; font-size: 13px; color: #3e5046; }
+.av-sum .ic { color: #1f7a4d; }
+.av-sum b { color: #0e3a2c; }
+
+/* the week: seven columns */
+.day-list { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin: 0; background: none; border: none; border-radius: 0; overflow: visible; }
+.day-row, .day-row:first-child { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; padding: 12px; border: 1px solid #edf2ee; border-radius: 16px; background: #f7faf8; }
+.day-row.today { background: #f1f8f4; border-color: #bfdccb; }
+.day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 0 2px 7px; border-bottom: 1px solid #e6eee9; }
+.day-name { width: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 800; color: #0e3a2c; }
+.day-head small { font-size: 11.5px; color: #8a9a91; white-space: nowrap; }
+.today-tag { padding: 2px 7px; border-radius: 999px; background: #efbf04; color: #004d3a; font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: 0.3px; }
+.day-content { flex: 1; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
+
+/* a block of hours */
+.slot-pill { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; padding: 9px 28px 9px 11px; border: 1px solid #cfe6d7; border-left: 4px solid #1f7a4d; border-radius: 11px; background: #fff; color: #0e3a2c; text-align: left; font-family: inherit; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.slot-pill:hover { background: #fff; border-color: #1f7a4d; box-shadow: 0 6px 14px -10px rgba(0, 77, 58, 0.6); }
+.slot-pill:focus-visible { outline: 2px solid #004d3a; outline-offset: 2px; }
+.sp-from { font-size: 13.5px; font-weight: 800; color: #0e3a2c; white-space: nowrap; }
+.sp-to { font-size: 12px; font-weight: 600; color: #6b7d73; white-space: nowrap; }
+.slot-pill .pill-icon-btn { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; padding: 0; border-radius: 50%; color: #8a9a91; }
+.slot-pill .pill-icon-btn:hover { background: #fdecec; color: #b4384a; }
+.empty-note-inline { padding: 10px 0; text-align: center; font-size: 12.5px; color: #8a9a91; }
+
+/* what clients can book: kept short, full text on hover */
+.day-preview { gap: 4px; margin: 0; font-size: 11.5px; line-height: 1.4; color: #6b7d73; }
+.day-book { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.day-waste { padding: 6px 8px; border-radius: 8px; background: #fbf3d2; color: #8a6400; }
+
+/* add / edit inside a day */
+.day-action-link.day-add { justify-content: center; gap: 5px; min-height: 34px; margin-top: auto; border: 1.5px dashed #c6d9cd; border-radius: 11px; background: transparent; color: #1f7a4d; font-size: 13px; font-weight: 700; }
+.day-action-link.day-add:hover { border-color: #004d3a; background: #fff; }
+.slot-edit-form { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 6px; min-width: 0; padding: 10px; border: 1px solid #cfe6d7; border-radius: 12px; background: #fff; }
+.slot-edit-form .time-input { width: 100%; min-height: 36px; border: 1px solid #d9e0dc; border-radius: 9px; font-size: 13px; }
+.slot-edit-form .time-input:focus { outline: none; border-color: #004d3a; box-shadow: 0 0 0 3px rgba(0, 77, 58, 0.1); }
+.slot-edit-form .time-sep { text-align: center; font-size: 11.5px; }
+.slot-edit-form .form-btn { width: 100%; }
+.slot-edit-form .save-error.in-form { flex-basis: auto; order: -1; margin: 0 0 2px; padding: 8px 10px; border-radius: 9px; background: #fdecec; color: #b4384a; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.week-form .save-error.in-form { padding: 8px 12px; border-radius: 10px; background: #fdecec; color: #b4384a; }
+.form-btn { min-height: 34px; border-radius: 10px; font-size: 13px; font-weight: 700; }
+.form-btn.save { background: #004d3a; }
+.form-btn.save:hover:not(:disabled) { background: #035a45; }
+.form-btn.cancel { background: #f1f6f2; color: #004d3a; }
+
+/* tip under the week */
+.avail-hint.nm-note { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 0; padding: 0; border: none; background: none; font-size: 12.5px; line-height: 1.5; color: #6b7d73; }
+.avail-hint .ic { margin-top: 1px; color: #3b5ba5; }
+
+/* add hours for all week */
+.week-form { gap: 14px; margin: 0 0 16px; padding: 18px 20px; border: 1.5px solid #cfe6d7; border-radius: 18px; background: #f1f8f4; }
+.week-label { width: 56px; font-size: 12.5px; font-weight: 700; color: #22362c; }
+.week-form .time-input { min-height: 40px; padding: 0 10px; border: 1px solid #d9e0dc; border-radius: 10px; font-size: 14px; }
+.day-chip { min-height: 36px; padding: 0 14px; border-color: #dce8e0; font-size: 13px; font-weight: 700; }
+.day-chip.on { background: #004d3a; border-color: #004d3a; color: #fff; }
+.chip-link { color: #004d3a; font-size: 13px; font-weight: 700; }
+.week-form-actions .form-btn { min-height: 40px; padding: 0 18px; }
+.page-header .day-action-link { min-height: 42px; padding: 0 18px; border-radius: 12px; background: #004d3a; color: #fff; font-size: 14px; font-weight: 800; }
+
+/* block time off */
+.block-panel { margin-top: 22px; padding: 22px 24px; border: 1px solid #e4ebe6; border-radius: 20px; background: #fff; box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 14px 30px -22px rgba(16, 35, 27, 0.3); }
+.block-header { align-items: center; gap: 14px; margin-bottom: 18px; }
+.block-ico { flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; background: #fbf3d2; color: #9a7300; display: inline-flex; align-items: center; justify-content: center; }
+.block-icon { margin: 0; color: #9a7300; }
+.block-title { margin: 0 0 2px; font-family: 'Playfair Display', Georgia, serif; font-size: 20px; color: #0e3a2c; }
+.block-desc { font-size: 13.5px; color: #6b7d73; }
+.block-form { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.field label, .field-label { font-size: 12.5px; font-weight: 700; color: #22362c; }
+.optional { font-weight: 500; color: #8a9a91; }
+.field input, .nm-select.block { min-height: 44px; border: 1px solid #d9e0dc; border-radius: 10px; font-size: 14px; }
+.field input:focus { border-color: #004d3a; box-shadow: 0 0 0 3px rgba(0, 77, 58, 0.1); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; height: 44px; padding: 4px; border: none; border-radius: 12px; background: #f1f6f2; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; border-radius: 9px; font-size: 13px; font-weight: 700; color: #3e5046; }
+.seg button.on { background: #004d3a; color: #fff; }
+.seg button.on .ic { color: #efbf04; }
+.block-btn { min-height: 44px; padding: 0 22px; border-radius: 12px; background: #004d3a; font-size: 14px; font-weight: 800; }
+.block-btn:hover:not(:disabled) { background: #035a45; }
+.block-btn:disabled { opacity: 1; background: #c9d8cf; }
+.conflicts { border-radius: 12px; }
+.blocked-list { gap: 8px; }
+.blocked-item { padding: 12px 14px; border: 1px solid #edf2ee; border-left: 4px solid #efbf04; border-radius: 12px; background: #fffdf6; font-size: 13.5px; }
+.blocked-dates { color: #0e3a2c; }
+.blocked-time { padding: 3px 10px; border-radius: 999px; background: #fbf3d2; color: #8a6400; font-size: 12.5px; font-weight: 700; }
+.remove-block-btn { width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 50%; }
+.remove-block-btn:hover { background: #fdecec; color: #b4384a; }
+.block-empty { padding: 12px 14px; border: 1.5px dashed #dce5df; border-radius: 12px; font-size: 13px; color: #8a9a91; }
+
+@media (max-width: 1200px) { .day-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .day-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .day-row { flex-wrap: nowrap; }
+  .day-content { flex-basis: auto; order: 0; }
+}
+@media (max-width: 560px) {
+  .day-list { grid-template-columns: minmax(0, 1fr); }
+  .block-panel { padding: 18px 14px; }
+}
+
+/* clearer: open days stand out, closed days step back */
+.day-row, .day-row:first-child { background: #fff; border: 1px solid #dfe8e2; box-shadow: 0 1px 2px rgba(16, 35, 27, 0.05), 0 10px 22px -18px rgba(16, 35, 27, 0.35); }
+.day-row:not(.empty) { border-top: 4px solid #1f7a4d; }
+.day-row.today { background: #f1f8f4; border-color: #9fcbb1; border-top-color: #efbf04; }
+.day-row.empty { background: #f6f8f7; border-style: dashed; border-color: #d6dfda; box-shadow: none; }
+.day-row.empty:not(.today) .day-name { color: #8a9a91; }
+.day-row.empty .day-head small { display: none; }
+.day-name { font-size: 16px; }
+.day-head { padding-bottom: 8px; border-bottom-color: #e3ebe6; }
+.day-head small { padding: 3px 9px; border-radius: 999px; background: #e3efe7; color: #004d3a; font-size: 12px; font-weight: 800; }
+.empty-note-inline { padding: 14px 0; font-size: 13px; font-weight: 700; color: #9aa8a0; letter-spacing: 0.3px; }
+.slot-pill { padding: 11px 28px 11px 12px; background: #f1f8f4; border-color: #bfdccb; }
+.slot-pill:hover { background: #e9f4ee; }
+.sp-from { font-size: 15px; }
+.sp-to { font-size: 13px; color: #3e5046; }
+.day-preview { font-size: 12.5px; color: #3e5046; }
+.day-action-link.day-add { min-height: 36px; font-size: 13.5px; }
+.day-row.empty .day-action-link.day-add { border-color: #b7cbbf; background: #fff; }
+.av-sum span { height: 36px; padding: 0 14px; background: #fff; border: 1px solid #dfe8e2; font-size: 13.5px; }
+
+/* bigger text + stronger borders */
+.day-row, .day-row:first-child { border: 1.5px solid #b9d3c3; }
+.day-row:not(.empty) { border-top: 5px solid #1f7a4d; }
+.day-row.today { border-color: #8fc0a3; border-top-color: #efbf04; }
+.day-row.empty { border: 1.5px dashed #a9bbb1; background: #f3f6f4; }
+.day-row.empty:not(.today) .day-name { color: #4a5a52; }
+.day-name { font-size: 18px; color: #0e3a2c; }
+.today-tag { font-size: 11px; padding: 3px 8px; }
+.day-head { border-bottom: 1.5px solid #d3e0d8; }
+.day-head small { font-size: 13px; padding: 4px 10px; background: #d6eadd; }
+.empty-note-inline { font-size: 14.5px; color: #5f7067; }
+.slot-pill { border: 1.5px solid #8fc0a3; border-left: 5px solid #1f7a4d; }
+.sp-from { font-size: 17px; }
+.sp-to { font-size: 14px; font-weight: 700; color: #22362c; }
+.slot-pill .pill-icon-btn { width: 24px; height: 24px; color: #4a5a52; }
+.day-preview { font-size: 13.5px; line-height: 1.45; color: #22362c; }
+.day-action-link.day-add { min-height: 40px; border: 1.5px dashed #7fae92; font-size: 14.5px; color: #004d3a; }
+.day-row.empty .day-action-link.day-add { border-color: #7fae92; }
+.av-sum span { height: 38px; border: 1.5px solid #b9d3c3; font-size: 14.5px; color: #22362c; }
+.avail-hint.nm-note { font-size: 13.5px; color: #3e5046; }
+.block-desc { font-size: 14px; color: #3e5046; }
+.field label, .field-label { font-size: 13.5px; }
+.field input, .nm-select.block { border: 1.5px solid #b9c9bf; }
+.seg button { font-size: 14px; }
+.blocked-item { font-size: 14.5px; border: 1.5px solid #d3e0d8; border-left: 5px solid #efbf04; }
+.block-empty { border: 1.5px dashed #a9bbb1; font-size: 14px; color: #4a5a52; }
 </style>

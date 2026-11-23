@@ -3,8 +3,12 @@
        Activity). Hidden until the client has an RND — uploads go to them. -->
   <div v-if="data?.has_rnd" class="panel lab-card" :class="{ requested: openRequests.length }">
     <div class="panel-header-row">
-      <h3 class="panel-title flush">Upload lab results</h3>
-      <NuxtLink to="/lab-results" class="nm-btn-soft nm-btn-sm">All lab results</NuxtLink>
+      <div>
+        <p class="lx-k"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3" /><path d="M7 15h10" /></svg>Lab results</p>
+        <h3 class="panel-title flush">Upload lab results</h3>
+        <p v-if="!openRequests.length" class="lab-intro">Have lab results? Upload them for RND {{ data.rnd_name }}.</p>
+      </div>
+      <NuxtLink to="/lab-results" class="lx-all">All labs<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink>
     </div>
 
     <div v-for="r in openRequests" :key="r.id" class="lab-request">
@@ -12,24 +16,29 @@
       <p class="lab-request-due">{{ neededBefore(r) }}</p>
       <p v-if="r.note" class="lab-request-note">“{{ r.note }}”</p>
     </div>
-    <p v-if="!openRequests.length" class="lab-intro">Have lab results? Upload them for RND {{ data.rnd_name }}.</p>
 
     <label class="lab-drop">
       <input type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="onPick" />
-      <CloudUpload :size="28" class="lab-drop-icon" />
-      <span class="lab-drop-text"><span class="desk">Browse files</span><span class="phone">Choose a file or take a photo</span></span>
-      <span class="lab-drop-hint">PDF, JPG or PNG, up to {{ LAB_MAX_MB }} MB</span>
+      <span class="lx-ico"><CloudUpload :size="26" class="lab-drop-icon" /></span>
+      <span class="lx-title">Upload a lab result</span>
+      <span class="lx-or desk">Drag a file here, or</span>
+      <span class="lab-drop-text lx-btn"><span class="desk">Browse files</span><span class="phone">Choose a file or take a photo</span></span>
+      <span class="lab-drop-hint">PDF, JPG or PNG · up to {{ LAB_MAX_MB }} MB</span>
     </label>
     <p v-if="pickError" class="nm-field-error" role="alert">{{ pickError }}</p>
     <p v-if="done" class="lab-done" role="status"><CheckCircle2 :size="14" /> Uploaded. Your RND can see it now.</p>
 
     <ul v-if="recent.length" class="lab-recent">
       <li v-for="r in recent" :key="r.id">
-        <FileText :size="14" />
-        <span class="lab-recent-name">{{ r.test_names.join(', ') }}, {{ labDate(r.taken_on) }}</span>
-        <span class="nm-pill" :class="r.reviewed_at ? 'green' : r.declined_at ? 'red' : 'gold'">{{ r.reviewed_at ? 'Accepted' : r.declined_at ? 'Upload again' : 'Waiting for your RND' }}</span>
+        <span class="lx-fi"><FileText :size="15" /></span>
+        <span class="lab-recent-name">{{ r.test_names.join(', ') }}</span>
+        <span class="lx-date">{{ labDate(r.taken_on) }}</span>
+        <i class="lx-dot" :class="lxState(r)" :title="LX_LABEL[lxState(r)]" :aria-label="LX_LABEL[lxState(r)]" />
       </li>
     </ul>
+    <p v-if="recent.length" class="lx-key">
+      <span v-for="s in lxKeys" :key="s"><i class="lx-dot" :class="s" aria-hidden="true" />{{ LX_LABEL[s] }}</span>
+    </p>
 
     <LabUploadModal
       v-if="picked.length" :tests="data.tests" :requests="openRequests" :initial-files="picked"
@@ -74,6 +83,11 @@ async function onUploaded() {
   await load()
   emit('uploaded')
 }
+
+// ---- UI helpers only: a coloured dot per upload, with a small key ----
+const LX_LABEL = { ok: 'Accepted', again: 'Upload again', wait: 'Waiting for your RND' }
+const lxState = r => (r.reviewed_at ? 'ok' : r.declined_at ? 'again' : 'wait')
+const lxKeys = computed(() => ['wait', 'ok', 'again'].filter(k => recent.value.some(r => lxState(r) === k)))
 </script>
 
 <style scoped>
@@ -110,5 +124,41 @@ async function onUploaded() {
 @media (max-width: 700px) {
   .lab-drop-text .desk { display: none; }
   .lab-drop-text .phone { display: inline; }
+}
+
+/* ===== Redesign: eyebrow, big centred upload, compact list with dots ===== */
+.panel.lab-card { padding: 24px 26px; border-radius: 22px; border: 1.5px solid #E1EAE4; box-shadow: none; font-family: 'DM Sans', sans-serif; }
+.lab-card .panel-header-row { margin-bottom: 16px; }
+.lx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.lab-card .panel-title { font-size: 22px; color: #0E3A2C; }
+.lab-card .lab-intro { margin: 3px 0 0; font-size: 13.5px; color: #4A5A52; }
+.lx-all { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 10px; background: #E3EFE7; color: #004D3A; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.lx-all:hover { background: #D3E7DA; }
+.lab-request { border-radius: 14px; background: #FDF9E8; border: 1.5px dashed #E6CF7A; }
+.lab-drop { gap: 0; padding: 26px 18px 22px; border: 1.5px dashed #B9CFC1; border-radius: 18px; background: radial-gradient(120% 100% at 50% 0%, #EAF4EE, #F7FBF8 70%); }
+.lab-drop:hover { background: radial-gradient(120% 100% at 50% 0%, #E1EFE6, #F4F9F6 70%); border-color: #004D3A; }
+.lx-ico { width: 58px; height: 58px; border-radius: 50%; background: #004D3A; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 7px rgba(0, 77, 58, 0.08); }
+.lab-drop .lab-drop-icon { color: #EFBF04; }
+.lx-title { margin-top: 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 700; color: #0E3A2C; }
+.lx-or { margin-top: 2px; font-size: 13px; color: #4A5A52; }
+.lab-drop-text.lx-btn { margin-top: 10px; display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 12px; background: #004D3A; color: #FFFFFF; font-size: 13px; font-weight: 800; }
+.lab-drop .lab-drop-hint { margin-top: 10px; font-size: 12px; color: #8A9A91; }
+.lab-recent { gap: 0; margin-top: 14px; }
+.lab-recent li { gap: 10px; padding: 10px 4px; border-top: 1px solid #EEF2EF; font-size: 14px; }
+.lab-recent li:first-child { border-top: none; }
+.lx-fi { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #F1F5F2; display: inline-flex; align-items: center; justify-content: center; }
+.lab-recent li .lx-fi svg { color: #004D3A; }
+.lab-recent-name { font-weight: 700; color: #0E3A2C; }
+.lx-date { flex-shrink: 0; font-size: 12.5px; color: #6B7D73; }
+.lx-dot { display: inline-block; flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; }
+.lx-dot.wait { background: #EFBF04; }
+.lx-dot.ok { background: #1F7A4D; }
+.lx-dot.again { background: #C0392B; }
+.lx-key { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 0; font-size: 11.5px; color: #6B7D73; }
+.lx-key span { display: inline-flex; align-items: center; gap: 5px; }
+.lx-or.desk { display: inline; }
+@media (max-width: 700px) {
+  .panel.lab-card { padding: 18px 14px; }
+  .lx-or.desk { display: none; }
 }
 </style>

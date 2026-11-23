@@ -1,399 +1,494 @@
 <template>
-  <div class="auth-page register-page">
-    <!-- LEFT PANEL: the steps, a real sequence -->
-    <aside class="left-panel">
-      <div class="circle circle-1"></div>
-      <div class="circle circle-2"></div>
-      <div class="circle circle-3"></div>
-
-      <NuxtLink to="/" class="brand home-link" aria-label="NutriMatch home">
-        <img src="/resources/nutrimatchlogo.png" alt="NutriMatch Logo" class="logo-icon" />
-        <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
-      </NuxtLink>
-
-      <div class="left-content">
-        <span class="eyebrow">CREATE ACCOUNT</span>
-        <h1>
-          Join your<br />
-          <em class="highlight">nutrition</em><br />
-          journey today.
-        </h1>
-
-        <div class="steps">
-          <div
-            v-for="(step, index) in steps"
-            :key="step.label"
-            class="step"
-            :class="{ active: stageIndex === index, done: stageIndex > index }"
-          >
-            <span class="step-number">
-              <span v-if="stageIndex > index">✓</span>
-              <span v-else>{{ index + 1 }}</span>
+  <div class="nm-reg">
+    <!-- LEFT: plate photo + the steps (desktop only, stays put) -->
+    <aside class="nm-left">
+      <div class="nm-stage">
+        <img class="nm-left-photo" :src="plateImg" alt="A balanced plate: half vegetables, a quarter whole grains and a quarter protein" />
+      </div>
+      <div class="nm-left-shade" aria-hidden="true"></div>
+      <div class="nm-left-vignette" aria-hidden="true"></div>
+      <div class="nm-frame" aria-hidden="true"></div>
+      <!-- Go / Grow / Glow labels sit above the dark fade so they stay clear -->
+      <div class="nm-stage nm-stage-top">
+        <div class="nm-pins">
+          <div v-for="pin in platePins" :key="pin.tag" class="nm-pin" :class="pin.side" :style="{ left: pin.x, top: pin.y }">
+            <span class="nm-dot" aria-hidden="true"></span>
+            <span class="nm-pin-line" aria-hidden="true"></span>
+            <span class="nm-tag">
+              <span class="nm-tag-key">{{ pin.tag }}</span>
+              {{ pin.label }}
+              <span class="nm-tag-share">{{ pin.share }}</span>
             </span>
-            <div class="step-text">
-              <span class="step-label">STEP {{ String(index + 1).padStart(2, '0') }}</span>
-              <span class="step-title">{{ step.label }}</span>
-            </div>
           </div>
+        </div>
+      </div>
+
+      <div class="nm-left-inner">
+        <NuxtLink to="/" class="nm-brand" aria-label="NutriMatch home">
+          <img src="/resources/nutrimatchlogo.png" alt="" class="nm-brand-logo" />
+          <span class="nm-brand-text">Nutri<span>Match</span></span>
+        </NuxtLink>
+
+        <div class="nm-welcome">
+          <span class="nm-eyebrow"><span class="nm-eyebrow-line" aria-hidden="true"></span>CREATE ACCOUNT</span>
+          <h1 class="nm-hero">Join your <em>nutrition</em> journey today.</h1>
+
+          <ol class="nm-steps" aria-label="Sign-up steps">
+            <li
+              v-for="(step, index) in steps"
+              :key="step.label"
+              class="nm-step"
+              :class="{ active: stageIndex === index, done: stageIndex > index }"
+            >
+              <span class="nm-step-dot">
+                <span v-if="stageIndex > index">✓</span>
+                <span v-else>{{ index + 1 }}</span>
+              </span>
+              <span class="nm-step-text">
+                <span class="nm-step-kick">STEP {{ String(index + 1).padStart(2, '0') }}</span>
+                <span class="nm-step-title">{{ step.label }}</span>
+              </span>
+            </li>
+          </ol>
         </div>
       </div>
     </aside>
 
-    <!-- RIGHT PANEL -->
-    <main class="right-panel">
-      <div class="form-wrap">
-        <!-- one back button, always here at the top: to sign in, or to the step before -->
-        <template v-if="topBack">
-          <NuxtLink v-if="topBack.to" :to="topBack.to" class="back-link top-back"><ArrowLeft :size="14" aria-hidden="true" /> {{ topBack.label }}</NuxtLink>
-          <button v-else type="button" class="back-link top-back" :disabled="isSubmitting" @click="goBack(topBack.step)"><ArrowLeft :size="14" aria-hidden="true" /> {{ topBack.label }}</button>
-        </template>
-        <!-- STEP 1: CHOOSE ROLE -->
-        <div v-if="currentStep === 1">
-          <h2>How will you use NutriMatch?</h2>
-          <p class="subtitle">Step 1 of {{ steps.length }}.</p>
+    <!-- RIGHT: the form (scrolls on its own on desktop) -->
+    <main ref="rightPane" class="nm-right">
+      <div class="nm-dots nm-dots-top" aria-hidden="true"></div>
+      <div class="nm-dots nm-dots-bottom" aria-hidden="true"></div>
 
-          <div class="role-grid">
-            <button
-              v-for="role in roles"
-              :key="role.value"
-              class="role-card"
-              :class="{ selected: selectedRole === role.value }"
-              @click="selectedRole = role.value"
-            >
-              <span class="role-icon" v-html="role.icon"></span>
-              <span class="role-name">{{ role.label }}</span>
-              <span class="role-desc">{{ role.desc }}</span>
+      <!-- phone / tablet only: the photo panel is hidden, so the brand shows here -->
+      <NuxtLink to="/" class="nm-mobile-brand" aria-label="NutriMatch home">
+        <img src="/resources/nutrimatchlogo.png" alt="" class="nm-mobile-logo" />
+        <span class="nm-mobile-text">Nutri<span>Match</span></span>
+      </NuxtLink>
+
+      <!-- one back button, always here at the top: to log in, or to the step before -->
+      <div class="nm-right-top">
+        <template v-if="topBack">
+          <NuxtLink v-if="topBack.to" :to="topBack.to" class="nm-back"><ArrowLeft :size="15" aria-hidden="true" /> {{ uiLabel(topBack.label) }}</NuxtLink>
+          <button v-else type="button" class="nm-back" :disabled="isSubmitting" @click="goBack(topBack.step)"><ArrowLeft :size="15" aria-hidden="true" /> {{ uiLabel(topBack.label) }}</button>
+        </template>
+      </div>
+
+      <div class="nm-box-wrap">
+        <div class="nm-box" :class="{ 'is-wide': currentStep === 2 }">
+
+          <!-- progress (steps 1 to 3) -->
+          <div v-if="currentStep <= 3" class="nm-progress">
+            <span class="nm-progress-text">STEP {{ currentStep }} OF {{ steps.length }}</span>
+            <span class="nm-progress-bars" aria-hidden="true">
+              <span v-for="n in steps.length" :key="n" :class="{ on: n <= currentStep }"></span>
+            </span>
+          </div>
+
+          <!-- STEP 1: CHOOSE ROLE -->
+          <div v-if="currentStep === 1">
+            <header class="nm-head">
+              <h2 class="nm-title">How will you use NutriMatch?</h2>
+              <p class="nm-subtitle">Step 1 of {{ steps.length }}.</p>
+            </header>
+
+            <div class="nm-roles" role="radiogroup" aria-label="Account type">
+              <button
+                v-for="role in roles"
+                :key="role.value"
+                type="button"
+                class="nm-role"
+                role="radio"
+                :aria-checked="selectedRole === role.value"
+                :class="{ selected: selectedRole === role.value }"
+                @click="selectedRole = role.value"
+              >
+                <span class="nm-role-radio" aria-hidden="true"><Check :size="12" :stroke-width="3.4" /></span>
+                <span class="nm-role-icon" v-html="role.icon"></span>
+                <span class="nm-role-name">{{ role.label }}</span>
+                <span class="nm-role-desc">{{ role.desc }}</span>
+              </button>
+            </div>
+
+            <Transition name="fade-slide">
+              <div v-if="roleInfo" class="nm-note" role="status">
+                <span class="nm-note-icon" aria-hidden="true">i</span>
+                <p>{{ roleInfo }}</p>
+              </div>
+            </Transition>
+
+            <button type="button" class="nm-submit" :disabled="!selectedRole" @click="currentStep = 2">
+              Continue <ArrowRight :size="18" aria-hidden="true" />
             </button>
           </div>
 
-          <Transition name="fade-slide">
-            <div v-if="roleInfo" class="role-info-box">
-              <p>{{ roleInfo }}</p>
-            </div>
-          </Transition>
+          <!-- STEP 2: YOUR DETAILS -->
+          <div v-else-if="currentStep === 2">
+            <header class="nm-head">
+              <h2 class="nm-title">{{ selectedRole === 'rnd' ? 'Account and license' : 'Your details' }}</h2>
+              <p class="nm-subtitle">Step 2 of {{ steps.length }}. {{ selectedRole === 'rnd' ? 'How you log in, and your PRC license.' : 'How you log in, and a little about you.' }}</p>
+            </header>
 
-          <button class="btn-primary" :disabled="!selectedRole" @click="currentStep = 2">Continue</button>
-        </div>
+            <form class="nm-form" novalidate @submit.prevent="goToConfirm">
+              <!-- PERSONAL DETAILS -->
+              <section class="nm-section">
+                <div class="nm-section-head"><span>PERSONAL DETAILS</span></div>
+                <div class="nm-grid">
+                  <div class="nm-field">
+                    <label for="reg-first">First name</label>
+                    <input id="reg-first" v-model="form.firstName" class="nm-control" type="text" placeholder="e.g. Juan" maxlength="100" :class="{ invalid: firstNameError }" required />
+                    <span v-if="firstNameError" class="nm-error-text">{{ firstNameError }}</span>
+                  </div>
+                  <div class="nm-field">
+                    <label for="reg-last">Last name</label>
+                    <input id="reg-last" v-model="form.lastName" class="nm-control" type="text" placeholder="e.g. Dela Cruz" maxlength="100" :class="{ invalid: lastNameError }" required />
+                    <span v-if="lastNameError" class="nm-error-text">{{ lastNameError }}</span>
+                  </div>
 
-        <!-- STEP 2: YOUR DETAILS -->
-        <div v-else-if="currentStep === 2">
-          <h2>{{ selectedRole === 'rnd' ? 'Account and license' : 'Your details' }}</h2>
-          <p class="subtitle">Step 2 of {{ steps.length }}. {{ selectedRole === 'rnd' ? 'How you sign in, and your PRC license.' : 'How you sign in, and a little about you.' }}</p>
+                  <div class="nm-field">
+                    <label>Date of birth</label>
+                    <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
+                    <span v-if="dobError" class="nm-error-text">{{ dobError }}</span>
+                  </div>
 
-          <form class="details-form" novalidate @submit.prevent="goToConfirm">
-            <div class="field-row">
-              <div class="field">
-                <label>First name</label>
-                <input v-model="form.firstName" type="text" placeholder="e.g. Juan" maxlength="100" :class="{ invalid: firstNameError }" required />
-                <span v-if="firstNameError" class="field-error">{{ firstNameError }}</span>
-              </div>
-              <div class="field">
-                <label>Last name</label>
-                <input v-model="form.lastName" type="text" placeholder="e.g. Dela Cruz" maxlength="100" :class="{ invalid: lastNameError }" required />
-                <span v-if="lastNameError" class="field-error">{{ lastNameError }}</span>
-              </div>
-            </div>
+                  <!-- client: gender + main health concern -->
+                  <template v-if="selectedRole === 'patient'">
+                    <div class="nm-field">
+                      <label for="reg-gender">Gender</label>
+                      <select id="reg-gender" v-model="form.gender" class="nm-select block nm-control" required>
+                        <option disabled value="">Select</option>
+                        <option>Female</option>
+                        <option>Male</option>
+                        <option>Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div class="nm-field nm-span">
+                      <label for="reg-concern">Main health concern</label>
+                      <select id="reg-concern" v-model="form.healthConcern" class="nm-select block nm-control" required>
+                        <option disabled value="">Select</option>
+                        <option>Hypertension</option>
+                        <option>Type 2 Diabetes</option>
+                        <option>Obesity management</option>
+                        <option>Renal nutrition</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                  </template>
 
-            <div class="field">
-              <label>Email address</label>
-              <div class="input-icon-wrap">
-                <User class="input-icon" aria-hidden="true" />
-                <input v-model.trim="form.email" type="email" placeholder="you@example.com" :class="{ invalid: emailError }" required />
-              </div>
-              <span v-if="emailError" class="field-error">{{ emailError }}</span>
-            </div>
-
-            <div class="field">
-              <label>Password</label>
-              <div class="input-icon-wrap">
-                <Lock class="input-icon" aria-hidden="true" />
-                <input
-                  v-model="form.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  placeholder="Choose a password"
-                  minlength="8"
-                  required
-                />
-                <button type="button" class="toggle-visibility" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword">
-                  <EyeOff v-if="showPassword" :size="17" aria-hidden="true" /><Eye v-else :size="17" aria-hidden="true" />
-                </button>
-              </div>
-              <ul class="pw-rules" aria-label="Password requirements">
-                <li v-for="rule in passwordRules" :key="rule.label" :class="{ ok: rule.ok }">
-                  <Check v-if="rule.ok" :size="13" aria-hidden="true" /><Circle v-else :size="11" aria-hidden="true" /> {{ rule.label }}
-                </li>
-              </ul>
-            </div>
-
-            <div class="field">
-              <label>Type the password again</label>
-              <div class="input-icon-wrap">
-                <Lock class="input-icon" aria-hidden="true" />
-                <input
-                  v-model="form.confirmPassword"
-                  :type="showConfirmPassword ? 'text' : 'password'"
-                  placeholder="Repeat your password"
-                  required
-                />
-                <button type="button" class="toggle-visibility" :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'" @click="showConfirmPassword = !showConfirmPassword">
-                  <EyeOff v-if="showConfirmPassword" :size="17" aria-hidden="true" /><Eye v-else :size="17" aria-hidden="true" />
-                </button>
-              </div>
-              <span v-if="form.confirmPassword && !passwordsMatch" class="field-error">The two passwords don't match.</span>
-            </div>
-
-            <template v-if="selectedRole === 'patient'">
-              <div class="field-row">
-                <div class="field">
-                  <label>Date of birth</label>
-                  <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
-                  <span v-if="dobError" class="field-error">{{ dobError }}</span>
+                  <!-- RND: mobile number -->
+                  <template v-else-if="selectedRole === 'rnd'">
+                    <div class="nm-field">
+                      <label for="reg-phone">Mobile number <span class="nm-required">Required</span></label>
+                      <PhoneInput id="reg-phone" v-model="form.phone" label="mobile number" rnd />
+                    </div>
+                    <span class="nm-hint nm-span">A Philippine mobile number, so our admin team can reach you. Not shown to clients.</span>
+                  </template>
                 </div>
-                <div class="field">
-                  <label>Gender</label>
-                  <select class="nm-select block" v-model="form.gender" required>
-                    <option disabled value="">Select</option>
-                    <option>Female</option>
-                    <option>Male</option>
-                    <option>Prefer not to say</option>
-                  </select>
+              </section>
+
+              <!-- ACCOUNT -->
+              <section class="nm-section">
+                <div class="nm-section-head"><span>ACCOUNT</span></div>
+                <div class="nm-grid">
+                  <div class="nm-field nm-span">
+                    <label for="reg-email">Email address</label>
+                    <div class="nm-input" :class="{ invalid: emailError }">
+                      <Mail class="nm-input-icon" aria-hidden="true" />
+                      <input id="reg-email" v-model.trim="form.email" type="email" placeholder="you@example.com" required />
+                    </div>
+                    <span v-if="emailError" class="nm-error-text">{{ emailError }}</span>
+                  </div>
+
+                  <div class="nm-field">
+                    <label for="reg-pass">Password</label>
+                    <div class="nm-input">
+                      <Lock class="nm-input-icon" aria-hidden="true" />
+                      <input
+                        id="reg-pass"
+                        v-model="form.password"
+                        :type="showPassword ? 'text' : 'password'"
+                        placeholder="Choose a password"
+                        minlength="8"
+                        required
+                      />
+                      <button type="button" class="nm-eye" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword">
+                        <EyeOff v-if="showPassword" :size="18" aria-hidden="true" /><Eye v-else :size="18" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="nm-field">
+                    <label for="reg-pass2">Type the password again</label>
+                    <div class="nm-input" :class="{ invalid: form.confirmPassword && !passwordsMatch }">
+                      <Lock class="nm-input-icon" aria-hidden="true" />
+                      <input
+                        id="reg-pass2"
+                        v-model="form.confirmPassword"
+                        :type="showConfirmPassword ? 'text' : 'password'"
+                        placeholder="Repeat your password"
+                        required
+                      />
+                      <button type="button" class="nm-eye" :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'" @click="showConfirmPassword = !showConfirmPassword">
+                        <EyeOff v-if="showConfirmPassword" :size="18" aria-hidden="true" /><Eye v-else :size="18" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <span v-if="form.confirmPassword && !passwordsMatch" class="nm-error-text">The two passwords don't match.</span>
+                  </div>
+
+                  <ul class="nm-rules nm-span" aria-label="Password requirements">
+                    <li v-for="rule in passwordRules" :key="rule.label" :class="{ ok: rule.ok }">
+                      <Check v-if="rule.ok" :size="12" :stroke-width="3" aria-hidden="true" /><span v-else class="nm-rule-dot" aria-hidden="true"></span>
+                      {{ rule.label }}
+                    </li>
+                  </ul>
                 </div>
-              </div>
+              </section>
 
-              <div class="field">
-                <label>Main health concern</label>
-                <select class="nm-select block" v-model="form.healthConcern" required>
-                  <option disabled value="">Select</option>
-                  <option>Hypertension</option>
-                  <option>Type 2 Diabetes</option>
-                  <option>Obesity management</option>
-                  <option>Renal nutrition</option>
-                  <option>Other</option>
-                </select>
-              </div>
-            </template>
+              <!-- RND: PRC LICENSE + PRACTICE -->
+              <template v-if="selectedRole === 'rnd'">
+                <section class="nm-section">
+                  <div class="nm-section-head"><span>PRC LICENSE</span></div>
+                  <div class="nm-grid">
+                    <div class="nm-field nm-span">
+                      <label for="reg-prc">PRC license number <span class="nm-required">Required</span></label>
+                      <input
+                        id="reg-prc"
+                        v-model="form.prcNumber"
+                        class="nm-control"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="7"
+                        placeholder="e.g. 0123456"
+                        :class="{ invalid: prcNumberError }"
+                      />
+                      <span v-if="prcNumberError" class="nm-error-text">{{ prcNumberError }}</span>
+                      <span v-else class="nm-hint">The 7-digit number on your PRC ID.</span>
+                    </div>
 
-            <template v-else-if="selectedRole === 'rnd'">
-              <div class="field">
-                <label for="reg-phone">Mobile number <span class="required-tag">Required</span></label>
-                <PhoneInput id="reg-phone" v-model="form.phone" label="mobile number" rnd />
-                <span class="license-hint">A Philippine mobile number, so our admin team can reach you. Not shown to clients.</span>
-              </div>
-              <div class="field">
-                <label>Date of birth</label>
-                <DateField v-model="form.dob" :max="latestBirthDate" min="1900-01-01" year-select :invalid="!!dobError" placeholder="Select date" aria-label="Date of birth" />
-                <span v-if="dobError" class="field-error">{{ dobError }}</span>
-              </div>
-              <div class="field">
-                <label>PRC license number <span class="required-tag">Required</span></label>
-                <input
-                  v-model="form.prcNumber"
-                  type="text"
-                  inputmode="numeric"
-                  maxlength="7"
-                  placeholder="e.g. 0123456"
-                  :class="{ invalid: prcNumberError }"
-                />
-                <span v-if="prcNumberError" class="field-error">{{ prcNumberError }}</span>
-                <span v-else class="license-hint">The 7-digit number on your PRC ID.</span>
-              </div>
-              <div class="field">
-                <label>PRC license photo <span class="required-tag">Required</span></label>
-                <label class="license-upload" :class="{ 'has-file': licensePreview }">
-                  <input ref="licenseInput" type="file" accept="image/jpeg,image/png,image/webp" class="license-input" @change="onLicenseSelected" />
-                  <img v-if="licensePreview" :src="licensePreview" alt="PRC license preview" class="license-preview" />
-                  <span v-else class="license-placeholder">
-                    <strong>Upload a clear photo of your PRC ID</strong>
-                    JPG, PNG or WEBP, up to 10 MB
-                  </span>
-                </label>
-                <div v-if="form.prcLicenseImage" class="license-file-row">
-                  <span class="license-filename">{{ form.prcLicenseImage.name }}. Click the photo to change it.</span>
-                  <button type="button" class="license-remove" @click="removeLicense">Remove</button>
-                </div>
-                <span class="license-hint">Only our admin team sees this photo, to verify your license.</span>
-              </div>
-              <div class="field">
-                <label>Selfie with your PRC license <span class="required-tag">Required</span></label>
-                <p class="license-hint">Hold your PRC ID next to your face so we can see it's really you. Your face and the whole ID are in the photo, the name on the ID is readable, and no sunglasses, mask or cap.</p>
-                <label class="license-upload" :class="{ 'has-file': selfiePreview }">
-                  <input ref="selfieInput" type="file" accept="image/jpeg,image/png,image/webp" class="license-input" @change="onSelfieSelected" />
-                  <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="license-preview" />
-                  <span v-else class="license-placeholder">
-                    <strong>Upload a selfie holding your PRC ID</strong>
-                    JPG, PNG or WEBP, up to 10 MB
-                  </span>
-                </label>
-                <label class="selfie-camera nm-btn-soft nm-btn-sm">
-                  <input type="file" accept="image/*" capture="user" class="license-input" @change="onSelfieSelected" />
-                  Take a selfie now
-                </label>
-                <div v-if="form.prcSelfieImage" class="license-file-row">
-                  <span class="license-filename">{{ form.prcSelfieImage.name }}. Click the photo to change it.</span>
-                  <button type="button" class="license-remove" @click="removeSelfie">Remove</button>
-                </div>
-                <span class="license-hint">Only our admin team sees this photo, to confirm your identity.</span>
-              </div>
-              <div class="field">
-                <label>Specializations <span class="required-tag">Required</span></label>
-                <SpecializationPicker v-model="form.specializations" v-model:error="specError" />
-              </div>
-            </template>
+                    <div class="nm-field">
+                      <label>PRC license photo <span class="nm-required">Required</span></label>
+                      <label class="nm-upload" :class="{ 'has-file': licensePreview }">
+                        <input ref="licenseInput" type="file" accept="image/jpeg,image/png,image/webp" class="nm-file" @change="onLicenseSelected" />
+                        <img v-if="licensePreview" :src="licensePreview" alt="PRC license preview" class="nm-upload-preview" />
+                        <span v-else class="nm-upload-empty">
+                          <span class="nm-upload-icon" aria-hidden="true"><Upload :size="22" /></span>
+                          <strong>Upload a clear photo of your PRC ID</strong>
+                          JPG, PNG or WEBP, up to 10 MB
+                        </span>
+                      </label>
+                      <div v-if="form.prcLicenseImage" class="nm-file-row">
+                        <span class="nm-file-name">{{ form.prcLicenseImage.name }}. Click the photo to change it.</span>
+                        <button type="button" class="nm-remove" @click="removeLicense">Remove</button>
+                      </div>
+                      <span class="nm-hint">Only our admin team sees this photo, to verify your license.</span>
+                    </div>
 
-            <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
+                    <div class="nm-field">
+                      <label>Selfie with your PRC license <span class="nm-required">Required</span></label>
+                      <label class="nm-upload" :class="{ 'has-file': selfiePreview }">
+                        <input ref="selfieInput" type="file" accept="image/jpeg,image/png,image/webp" class="nm-file" @change="onSelfieSelected" />
+                        <img v-if="selfiePreview" :src="selfiePreview" alt="Selfie preview" class="nm-upload-preview" />
+                        <span v-else class="nm-upload-empty">
+                          <span class="nm-upload-icon" aria-hidden="true"><Upload :size="22" /></span>
+                          <strong>Upload a selfie holding your PRC ID</strong>
+                          JPG, PNG or WEBP, up to 10 MB
+                        </span>
+                      </label>
+                      <label class="nm-camera">
+                        <input type="file" accept="image/*" capture="user" class="nm-file" @change="onSelfieSelected" />
+                        <Camera :size="16" aria-hidden="true" /> Take a selfie now
+                      </label>
+                      <div v-if="form.prcSelfieImage" class="nm-file-row">
+                        <span class="nm-file-name">{{ form.prcSelfieImage.name }}. Click the photo to change it.</span>
+                        <button type="button" class="nm-remove" @click="removeSelfie">Remove</button>
+                      </div>
+                      <span class="nm-hint">Only our admin team sees this photo, to confirm your identity.</span>
+                    </div>
 
-            <div class="form-nav">
-              <button type="submit" class="btn-primary" :disabled="!detailsValid || checkingEmail">{{ checkingEmail ? 'Checking…' : 'Continue' }}</button>
-            </div>
-          </form>
-        </div>
+                    <p class="nm-hint nm-span nm-hint-box">Selfie: hold your PRC ID next to your face so we can see it's really you. Your face and the whole ID are in the photo, the name on the ID is readable, and no sunglasses, mask or cap.</p>
+                  </div>
+                </section>
 
-        <!-- RND: APPLICATION UNDER REVIEW (stage 7, after verifying the email) -->
-        <div v-else-if="currentStep === 7" class="review-stage">
-          <div class="review-icon"><ClipboardCheck :size="28" aria-hidden="true" /></div>
-          <h2>Application sent</h2>
-          <p class="subtitle">
-            Thank you, {{ form.firstName }}. Your email is confirmed and your application is with our admin team.
-          </p>
-          <ol class="review-steps">
-            <li><strong>We review your PRC license.</strong> It usually takes 1 to 2 business days.</li>
-            <li><strong>We email you at {{ form.email }}</strong> once your account is approved, or if we need anything fixed.</li>
-            <li><strong>Then you can sign in.</strong> You'll set up your profile, fee and weekly hours, and clients can find and book you.</li>
-          </ol>
-          <p class="review-small">You can't sign in until your application is approved.</p>
-          <button type="button" class="btn-primary" @click="navigateTo('/')">Back to home</button>
-        </div>
+                <section class="nm-section">
+                  <div class="nm-section-head"><span>PRACTICE</span></div>
+                  <div class="nm-field">
+                    <label>Specializations <span class="nm-required">Required</span></label>
+                    <SpecializationPicker v-model="form.specializations" v-model:error="specError" />
+                  </div>
+                </section>
+              </template>
 
-        <!-- STEP 3: CONFIRM -->
-        <div v-else-if="currentStep === 3">
-          <h2>{{ selectedRole === 'rnd' ? 'Review and submit' : 'Review and create' }}</h2>
-          <p class="subtitle">Step {{ steps.length }} of {{ steps.length }}. Make sure everything is right before you send it.</p>
+              <p v-if="errorMessage" class="nm-alert" role="alert">{{ errorMessage }}</p>
 
-          <div class="confirm-summary">
-            <div class="confirm-row"><span>Signing up as</span><strong>{{ selectedRole === 'rnd' ? 'RND' : 'Client' }}</strong></div>
-            <div class="confirm-row"><span>Name</span><strong>{{ form.firstName }} {{ form.lastName }}</strong></div>
-            <div class="confirm-row"><span>Email</span><strong class="no-capitalize">{{ form.email }}</strong></div>
-            <template v-if="selectedRole === 'patient'">
-              <div class="confirm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
-              <div class="confirm-row"><span>Gender</span><strong>{{ form.gender }}</strong></div>
-              <div class="confirm-row"><span>Main health concern</span><strong>{{ form.healthConcern }}</strong></div>
-            </template>
-            <template v-else-if="selectedRole === 'rnd'">
-              <div class="confirm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
-              <div class="confirm-row"><span>Mobile number</span><strong>{{ formatPhone(form.phone) }}</strong></div>
-              <div class="confirm-row"><span>PRC license number</span><strong>{{ form.prcNumber }}</strong></div>
-              <div class="confirm-row"><span>PRC license photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="confirm-license" /></div>
-              <div class="confirm-row"><span>Specializations</span><strong>{{ pickedSpecs.join(', ') || '—' }}</strong></div>
-              <div class="confirm-row"><span>Selfie with your PRC license</span><img v-if="selfiePreview" :src="selfiePreview" alt="Selfie with your PRC license" class="confirm-license" /></div>
-            </template>
+              <button type="submit" class="nm-submit" :disabled="!detailsValid || checkingEmail">
+                {{ checkingEmail ? 'Checking…' : 'Continue' }} <ArrowRight v-if="!checkingEmail" :size="18" aria-hidden="true" />
+              </button>
+            </form>
           </div>
-          <p v-if="selectedRole === 'rnd'" class="review-note">
-            Our admin team reviews your PRC license before your account is activated. It usually takes 1 to 2 business days.
-            Once it's approved, you finish setting up your profile, fee and weekly hours when you first sign in.
-          </p>
 
-          <!-- Informed consent (RA 10173) — two boxes the person ticks
-               themselves (consent must be their own act, never pre-ticked), and
-               the health-data consent stays separate from the Terms because
-               health information is sensitive personal information. Both stay
-               locked until the Terms and the Privacy Policy were opened.
-               Recorded on the account and in the audit log by the API. -->
-          <div class="consent-box">
-            <p v-if="!termsViewed" class="consent-lock-note">
-              Open the <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and the
-              <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a> first to tick these boxes.
+          <!-- RND: APPLICATION UNDER REVIEW (stage 7, after verifying the email) -->
+          <div v-else-if="currentStep === 7" class="nm-center">
+            <span class="nm-big-icon gold" aria-hidden="true"><ClipboardCheck :size="28" /></span>
+            <h2 class="nm-title">Application sent</h2>
+            <p class="nm-subtitle">
+              Thank you, {{ form.firstName }}. Your email is confirmed and your application is with our admin team.
             </p>
-            <label class="consent-item" :class="{ 'is-locked': !termsViewed }">
-              <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting || !termsViewed" />
-              <span>
-                I have read and agree to the
-                <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and
-                <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a>.
-              </span>
-            </label>
-            <label class="consent-item" :class="{ 'is-locked': !termsViewed }">
-              <input v-model="consent.data" type="checkbox" :disabled="isSubmitting || !termsViewed" />
-              <span>
-                I consent to NutriMatch collecting and processing my personal and health information
-                {{ selectedRole === 'rnd' ? '(including my PRC license photo and selfie, for verification)' : '(including my screening and nutrition records)' }}
-                to provide nutrition care services, as described in the Privacy Policy, in accordance with
-                Republic Act No. 10173 (Data Privacy Act of 2012).
-              </span>
-            </label>
+            <ol class="nm-next-steps">
+              <li><span class="nm-num">1</span><span><strong>We review your PRC license.</strong> It usually takes 1 to 2 business days.</span></li>
+              <li><span class="nm-num">2</span><span><strong>We email you at {{ form.email }}</strong> once your account is approved, or if we need anything fixed.</span></li>
+              <li><span class="nm-num">3</span><span><strong>Then you can log in.</strong> You'll set up your profile, fee and weekly hours, and clients can find and book you.</span></li>
+            </ol>
+            <p class="nm-small">You can't log in until your application is approved.</p>
+            <button type="button" class="nm-submit" @click="navigateTo('/')">Back to home</button>
           </div>
 
-          <!-- Terms / Privacy pop-up: opens by itself on this step and when a link
-               is clicked. Showing both tabs unlocks and ticks the checkbox. -->
-          <div v-if="legalOpen" class="legal-overlay" @click.self="legalOpen = false">
-            <div class="legal-modal" role="dialog" aria-modal="true" aria-label="Terms and Conditions and Privacy Policy">
-              <div class="legal-head">
-                <div class="legal-tabs">
-                  <button type="button" class="legal-tab" :class="{ active: legalTab === 'terms' }" @click="openLegal('terms')">Terms and Conditions</button>
-                  <button type="button" class="legal-tab" :class="{ active: legalTab === 'privacy' }" @click="openLegal('privacy')">Privacy Policy</button>
+          <!-- STEP 3: CONFIRM -->
+          <div v-else-if="currentStep === 3">
+            <header class="nm-head">
+              <h2 class="nm-title">{{ selectedRole === 'rnd' ? 'Review and submit' : 'Review and create' }}</h2>
+              <p class="nm-subtitle">Step {{ steps.length }} of {{ steps.length }}. Make sure everything is right before you send it.</p>
+            </header>
+
+            <div class="nm-summary">
+              <div class="nm-row"><span>Signing up as</span><strong><span class="nm-role-pill">{{ selectedRole === 'rnd' ? 'RND' : 'Client' }}</span></strong></div>
+              <div class="nm-row"><span>Name</span><strong>{{ form.firstName }} {{ form.lastName }}</strong></div>
+              <div class="nm-row"><span>Email</span><strong class="no-capitalize">{{ form.email }}</strong></div>
+              <template v-if="selectedRole === 'patient'">
+                <div class="nm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
+                <div class="nm-row"><span>Gender</span><strong>{{ form.gender }}</strong></div>
+                <div class="nm-row"><span>Main health concern</span><strong>{{ form.healthConcern }}</strong></div>
+              </template>
+              <template v-else-if="selectedRole === 'rnd'">
+                <div class="nm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
+                <div class="nm-row"><span>Mobile number</span><strong>{{ formatPhone(form.phone) }}</strong></div>
+                <div class="nm-row"><span>PRC license number</span><strong>{{ form.prcNumber }}</strong></div>
+                <div class="nm-row"><span>PRC license photo</span><img v-if="licensePreview" :src="licensePreview" alt="PRC license" class="nm-thumb" /></div>
+                <div class="nm-row"><span>Selfie with your PRC license</span><img v-if="selfiePreview" :src="selfiePreview" alt="Selfie with your PRC license" class="nm-thumb" /></div>
+                <div class="nm-row">
+                  <span>Specializations</span>
+                  <strong class="nm-spec-list">
+                    <span v-for="spec in pickedSpecs" :key="spec" class="nm-spec">{{ spec }}</span>
+                    <template v-if="!pickedSpecs.length">—</template>
+                  </strong>
                 </div>
-                <button type="button" class="legal-close" aria-label="Close" @click="legalOpen = false"><X :size="18" aria-hidden="true" /></button>
-              </div>
-              <iframe class="legal-frame" :class="{ ready: legalReady }" :src="legalTab === 'terms' ? '/terms' : '/privacy-policy'" :title="legalTab === 'terms' ? 'Terms and Conditions' : 'Privacy Policy'" @load="trimLegalFrame"></iframe>
-              <div class="legal-foot">
-                <!-- Terms first, then Next leads to the Privacy Policy, which closes. -->
-                <template v-if="legalTab === 'terms'">
-                  <p class="legal-hint">Read the Terms, then the Privacy Policy.</p>
-                  <button type="button" class="btn-primary legal-done" @click="openLegal('privacy')">Next: Privacy Policy</button>
-                </template>
-                <template v-else>
-                  <p class="legal-hint">{{ termsViewed ? 'You can now tick the consent boxes.' : 'Open the Terms tab too to continue.' }}</p>
-                  <button type="button" class="btn-primary legal-done" @click="legalOpen = false">{{ termsViewed ? 'Done' : 'Close' }}</button>
-                </template>
+              </template>
+            </div>
+
+            <div v-if="selectedRole === 'rnd'" class="nm-note">
+              <span class="nm-note-icon" aria-hidden="true">i</span>
+              <p>
+                Our admin team reviews your PRC license before your account is activated. It usually takes 1 to 2 business days.
+                Once it's approved, you finish setting up your profile, fee and weekly hours when you first log in.
+              </p>
+            </div>
+
+            <!-- Informed consent (RA 10173) — two boxes the person ticks
+                 themselves (consent must be their own act, never pre-ticked), and
+                 the health-data consent stays separate from the Terms because
+                 health information is sensitive personal information. Both stay
+                 locked until the Terms and the Privacy Policy were opened.
+                 Recorded on the account and in the audit log by the API. -->
+            <div class="nm-consent">
+              <p v-if="!termsViewed" class="nm-lock-note">
+                <Lock :size="16" aria-hidden="true" />
+                <span>
+                  Open the <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and the
+                  <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a> first to tick these boxes.
+                </span>
+              </p>
+              <label class="nm-consent-item" :class="{ 'is-locked': !termsViewed }">
+                <input v-model="consent.terms" type="checkbox" :disabled="isSubmitting || !termsViewed" />
+                <span>
+                  I have read and agree to the
+                  <a href="/terms" @click.prevent="openLegal('terms')">Terms and Conditions</a> and
+                  <a href="/privacy-policy" @click.prevent="openLegal('privacy')">Privacy Policy</a>.
+                </span>
+              </label>
+              <label class="nm-consent-item" :class="{ 'is-locked': !termsViewed }">
+                <input v-model="consent.data" type="checkbox" :disabled="isSubmitting || !termsViewed" />
+                <span>
+                  I consent to NutriMatch collecting and processing my personal and health information
+                  {{ selectedRole === 'rnd' ? '(including my PRC license photo and selfie, for verification)' : '(including my screening and nutrition records)' }}
+                  to provide nutrition care services, as described in the Privacy Policy, in accordance with
+                  Republic Act No. 10173 (Data Privacy Act of 2012).
+                </span>
+              </label>
+            </div>
+
+            <!-- Terms / Privacy pop-up: opens by itself on this step and when a link
+                 is clicked. Showing both tabs unlocks and ticks the checkbox. -->
+            <div v-if="legalOpen" class="nm-legal-overlay" @click.self="legalOpen = false">
+              <div class="nm-legal" role="dialog" aria-modal="true" aria-label="Terms and Conditions and Privacy Policy">
+                <div class="nm-legal-head">
+                  <div class="nm-legal-tabs">
+                    <button type="button" class="nm-legal-tab" :class="{ active: legalTab === 'terms' }" @click="openLegal('terms')">Terms and Conditions</button>
+                    <button type="button" class="nm-legal-tab" :class="{ active: legalTab === 'privacy' }" @click="openLegal('privacy')">Privacy Policy</button>
+                  </div>
+                  <button type="button" class="nm-legal-close" aria-label="Close" @click="legalOpen = false"><X :size="18" aria-hidden="true" /></button>
+                </div>
+                <iframe class="nm-legal-frame" :class="{ ready: legalReady }" :src="legalTab === 'terms' ? '/terms' : '/privacy-policy'" :title="legalTab === 'terms' ? 'Terms and Conditions' : 'Privacy Policy'" @load="trimLegalFrame"></iframe>
+                <div class="nm-legal-foot">
+                  <!-- Terms first, then Next leads to the Privacy Policy, which closes. -->
+                  <template v-if="legalTab === 'terms'">
+                    <p class="nm-legal-hint"><span class="nm-legal-dot"></span>Read the Terms, then the Privacy Policy.</p>
+                    <button type="button" class="nm-legal-btn" @click="openLegal('privacy')">Next: Privacy Policy</button>
+                  </template>
+                  <template v-else>
+                    <p class="nm-legal-hint"><span class="nm-legal-dot" :class="{ ok: termsViewed }"></span>{{ termsViewed ? 'You can now tick the consent boxes.' : 'Open the Terms tab too to continue.' }}</p>
+                    <button type="button" class="nm-legal-btn" @click="legalOpen = false">{{ termsViewed ? 'Done' : 'Close' }}</button>
+                  </template>
+                </div>
               </div>
             </div>
-          </div>
 
-          <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
+            <p v-if="errorMessage" class="nm-alert" role="alert">{{ errorMessage }}</p>
 
-          <div class="form-nav">
-            <button class="btn-primary" :disabled="isSubmitting || !consentGiven" :aria-busy="isSubmitting" @click="submitRegistration">
-              <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
+            <button type="button" class="nm-submit" :disabled="isSubmitting || !consentGiven" :aria-busy="isSubmitting" @click="submitRegistration">
+              <span v-if="isSubmitting" class="nm-spin" aria-hidden="true"></span>
               {{ isSubmitting ? (selectedRole === 'rnd' ? 'Submitting…' : 'Creating account…') : (selectedRole === 'rnd' ? 'Submit application' : 'Create account') }}
             </button>
           </div>
-        </div>
 
-        <!-- STEP 4: VERIFY EMAIL -->
-        <div v-else-if="currentStep === 4">
-          <div class="sent-icon"><Mail :size="26" aria-hidden="true" /></div>
-          <h2>Check your inbox</h2>
-          <p class="subtitle">
-            We sent a 6-digit code to <strong>{{ form.email }}</strong>. Enter it to confirm your email.
-            It can take a minute, so check your spam or junk folder too.
-          </p>
-
-          <form class="details-form" @submit.prevent="submitVerification">
-            <div class="field">
-              <label>Code</label>
-              <input v-model="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" class="code-input" required />
+          <!-- STEP 4: VERIFY EMAIL -->
+          <div v-else-if="currentStep === 4">
+            <div class="nm-center">
+              <span class="nm-big-icon" aria-hidden="true"><Mail :size="28" /></span>
+              <h2 class="nm-title">Check your inbox</h2>
+              <p class="nm-subtitle">
+                We sent a 6-digit code to <strong>{{ form.email }}</strong>. Enter it to confirm your email.
+                It can take a minute, so check your spam or junk folder too.
+              </p>
             </div>
 
-            <p v-if="errorMessage" class="form-error">{{ errorMessage }}</p>
-            <p v-if="resendMessage" class="form-success">{{ resendMessage }}</p>
+            <form class="nm-form nm-form-tight" @submit.prevent="submitVerification">
+              <div class="nm-field">
+                <label for="reg-code">Code</label>
+                <input id="reg-code" v-model="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" class="nm-code" required />
+              </div>
 
-            <button type="submit" class="btn-primary" :disabled="isSubmitting || isResending" :aria-busy="isSubmitting">
-              <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
-              {{ isSubmitting ? 'Verifying…' : 'Confirm email' }}
-            </button>
-          </form>
+              <p v-if="errorMessage" class="nm-alert" role="alert">{{ errorMessage }}</p>
+              <p v-if="resendMessage" class="nm-success" role="status">{{ resendMessage }}</p>
 
-          <p class="signin-link">
-            Didn't get it?
-            <span v-if="resendIn > 0" class="resend-wait">Resend code in {{ resendIn }}s</span>
-            <a v-else href="#" :class="{ 'link-disabled': isSubmitting || isResending }" :aria-disabled="isSubmitting || isResending" @click.prevent="!isSubmitting && !isResending && resendCode()">{{ isResending ? 'Sending…' : 'Resend code' }}</a>,
-            or <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && changeEmail()">change your email</a>.
+              <button type="submit" class="nm-submit" :disabled="isSubmitting || isResending" :aria-busy="isSubmitting">
+                <span v-if="isSubmitting" class="nm-spin" aria-hidden="true"></span>
+                {{ isSubmitting ? 'Verifying…' : 'Confirm email' }}
+              </button>
+            </form>
+
+            <p class="nm-foot-link">
+              Didn't get it?
+              <span v-if="resendIn > 0" class="nm-resend-wait">Resend code in {{ resendIn }}s</span>
+              <a v-else href="#" :class="{ 'link-disabled': isSubmitting || isResending }" :aria-disabled="isSubmitting || isResending" @click.prevent="!isSubmitting && !isResending && resendCode()">{{ isResending ? 'Sending…' : 'Resend code' }}</a>,
+              or <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && changeEmail()">change your email</a>.
+            </p>
+          </div>
+
+          <p v-if="[1, 2].includes(currentStep)" class="nm-foot-link">
+            Already have an account? <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && navigateTo('/login')">Log in</a>
           </p>
         </div>
-
-        <p v-if="[1, 2].includes(currentStep)" class="signin-link">
-          Already have an account? <a href="#" :class="{ 'link-disabled': isSubmitting }" :aria-disabled="isSubmitting" @click.prevent="!isSubmitting && navigateTo('/login')">Sign in</a>
-        </p>
       </div>
+
+      <p class="nm-copy">© 2026 NutriMatch</p>
     </main>
   </div>
 </template>
@@ -879,190 +974,1243 @@ function changeEmail() {
   resendMessage.value = ''
   currentStep.value = 2
 }
+
+// ---------------------------------------------------------------------------
+// UI only (design): nothing below talks to the API or changes the sign-up flow.
+// ---------------------------------------------------------------------------
+import { ArrowRight, Camera, Upload } from 'lucide-vue-next'
+
+// the plate photo on the left (public/landing/login-plate.webp)
+const plateImg = '/landing/login-plate.webp'
+// Go / Grow / Glow labels placed on the plate photo
+const platePins = [
+  { tag: 'GO', label: 'Whole grains', share: '¼', x: '34%', y: '22%', side: 'to-right' },
+  { tag: 'GROW', label: 'Protein', share: '¼', x: '63%', y: '35%', side: 'to-right' },
+  { tag: 'GLOW', label: 'Vegetables', share: '½', x: '80%', y: '53%', side: 'to-left' },
+]
+// wording only: "sign in" reads "log in" on the buttons, like the log in page
+const uiLabel = text => (text || '').replace('sign in', 'log in')
+// the form side scrolls on its own on desktop: start each step at its top
+const rightPane = ref(null)
+watch(currentStep, () => nextTick(() => {
+  if (rightPane.value) rightPane.value.scrollTop = 0
+  if (typeof window !== 'undefined') window.scrollTo(0, 0)
+}))
 </script>
 
-<style scoped src="~/assets/css/auth.css"></style>
-
 <style scoped>
-/* the original background picture: light circles on the dark green */
-.left-panel { background: linear-gradient(160deg, #0b3022 0%, #063c2a 60%, #052a1d 100%); }
-.circle { background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.04) 55%, rgba(255,255,255,0) 75%); }
-.circle-1 { width: 400px; height: 400px; top: -150px; right: -100px; }
-.circle-2 { width: 350px; height: 350px; bottom: 100px; right: -150px; }
-.circle-3 { width: 450px; height: 450px; bottom: -250px; left: -150px; }
-
-/* the original left panel of sign-up */
-.left-panel { padding: 48px 64px; display: block; }
-.left-content { margin-top: 120px; }
-.eyebrow { letter-spacing: 0.1em; font-weight: 400; }
-.left-content h1 { font-style: normal; font-weight: 700; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: normal; line-height: 1.2; margin: 16px 0 56px; }
-.highlight { font-style: italic; }
-.step-text { display: flex; flex-direction: column; }
-.step-label { font-size: 0.7rem; letter-spacing: 0.08em; color: #7aaa7a; }
-@media (max-width: 900px) { .left-panel { padding: 16px 20px; } }
-.step.done .step-title { color: #D4A017; }
-
-/* LEFT: the steps (original) */
-.steps { display: flex; flex-direction: column; }
-.step { display: flex; gap: 16px; padding-bottom: 32px; position: relative; }
-.step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 32px; width: 1px; height: calc(100% - 32px); background: rgba(255, 255, 255, 0.2); }
-.step-number {
-  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.1); color: #a8c4a8; font-size: 0.85rem; font-weight: 600;
+/* =========================================================
+   NutriMatch create account: brand #063C2A / #EFBF04 / white
+   Fonts: Playfair Display (headings), DM Sans (body)
+   ========================================================= */
+.nm-reg {
+  font-family: 'DM Sans', Arial, sans-serif;
+  color: #14261E;
+  -webkit-font-smoothing: antialiased;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #FFFFFF;
 }
-.step.active .step-number { background: #fff; color: #1a3a1a; }
-.step.done .step-number { background: #D4A017; color: #1a3a1a; }
-.step-title { font-weight: 600; color: #d8e8d8; }
-.step.active .step-title { color: #fff; }
 
-/* ROLE CARDS */
-.role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
-.role-card {
-  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 24px 16px; text-align: center;
-  border: 1.5px solid #d9e3dc; border-radius: 12px; background: #fff; cursor: pointer; font-family: inherit; color: #1a3a1a;
+/* ---------- LEFT: photo ---------- */
+.nm-left {
+  position: relative;
+  overflow: hidden;
+  background: #063C2A;
+  color: #FFFFFF;
+  min-height: 640px;
 }
-.role-card:hover { border-color: #1f8f5c; }
-.role-card.selected { border-color: #0a4a37; background: #f2f9f4; box-shadow: 0 0 0 1px #0a4a37; }
-.role-card:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.role-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: #e3efe7; color: #0a4a37; margin-bottom: 6px; }
-.role-name { font-weight: 700; font-size: 0.95rem; }
-.role-desc { font-size: 0.8rem; color: #6a7a6a; }
-/* plain information: grey */
-.role-info-box { background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; }
-.role-info-box p { font-size: 0.85rem; line-height: 1.5; color: #4a5a4a; margin: 0; }
+.nm-stage {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  min-width: 100%;
+  transform: translateX(-50%);
+}
+.nm-stage-top { pointer-events: none; }
+.nm-left-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.nm-left-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(4, 41, 29, 0.72) 0%,
+    rgba(4, 41, 29, 0.18) 18%,
+    rgba(4, 41, 29, 0) 30%,
+    rgba(4, 41, 29, 0) 38%,
+    rgba(4, 41, 29, 0.62) 52%,
+    rgba(4, 41, 29, 0.92) 64%,
+    rgba(4, 41, 29, 0.98) 100%);
+}
+.nm-left-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 41, 29, 0.55) 0%, rgba(4, 41, 29, 0) 60%),
+    radial-gradient(120% 90% at 50% 40%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.28) 100%);
+}
+.nm-frame {
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Go / Grow / Glow labels */
+.nm-pin { position: absolute; width: 0; height: 0; }
+.nm-dot {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #EFBF04;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.95), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.nm-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 191, 4, 0.9);
+  animation: nm-pulse 2.4s ease-out infinite;
+}
+.nm-pin:nth-child(2) .nm-dot::after { animation-delay: .8s; }
+.nm-pin:nth-child(3) .nm-dot::after { animation-delay: 1.6s; }
+@keyframes nm-pulse {
+  0% { transform: scale(1); opacity: .9; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+.nm-pin-line {
+  position: absolute;
+  top: 0;
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(239, 191, 4, 0.95), rgba(239, 191, 4, 0.55));
+}
+.nm-tag {
+  position: absolute;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+  height: 36px;
+  padding: 0 14px 0 6px;
+  border-radius: 999px;
+  background: rgba(4, 41, 29, 0.62);
+  border: 1px solid rgba(239, 191, 4, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+  transform: translateY(-50%);
+  animation: nm-tag-in .6s cubic-bezier(.2, .7, .2, 1) both;
+}
+.nm-pin.to-right .nm-pin-line { left: 7px; }
+.nm-pin.to-right .nm-tag { left: 46px; --nm-from: 8px; }
+.nm-pin.to-left .nm-pin-line { right: 7px; }
+.nm-pin.to-left .nm-tag { right: 46px; --nm-from: -8px; }
+.nm-pin:nth-child(1) .nm-tag { animation-delay: .3s; }
+.nm-pin:nth-child(2) .nm-tag { animation-delay: .5s; }
+.nm-pin:nth-child(3) .nm-tag { animation-delay: .7s; }
+@keyframes nm-tag-in {
+  from { opacity: 0; transform: translateY(-50%) translateX(var(--nm-from, 8px)); }
+  to { opacity: 1; transform: translateY(-50%); }
+}
+.nm-tag-key {
+  height: 24px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #EFBF04;
+  color: #063C2A;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+.nm-tag-share {
+  font-family: 'DM Sans', Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #EFBF04;
+}
+
+/* brand + welcome */
+.nm-left-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.nm-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  align-self: flex-start;
+}
+.nm-brand-logo {
+  width: 40px;
+  height: 50px;
+  object-fit: contain;
+  filter: brightness(1.45) saturate(1.3) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+.nm-brand-text {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: 0.2px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+.nm-brand-text span { color: #F5C915; }
+.nm-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+  margin: 0 0 40px 32px;
+}
+.nm-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #EFBF04;
+}
+.nm-eyebrow-line {
+  width: 36px;
+  height: 2px;
+  border-radius: 2px;
+  background: #EFBF04;
+}
+.nm-reg .nm-hero {
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: clamp(34px, 3.6vw, 50px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #FFFFFF;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+.nm-hero em {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  background: none;
+  font-style: italic;
+  color: #EFBF04;
+}
+
+/* the steps */
+.nm-steps {
+  position: relative;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+.nm-steps::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 30px;
+  bottom: 30px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(239, 191, 4, 0.8), rgba(255, 255, 255, 0.18));
+}
+.nm-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+}
+.nm-step-dot {
+  position: relative;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: none;
+  background: rgba(4, 41, 29, 0.75);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+.nm-step.active .nm-step-dot {
+  background: #EFBF04;
+  color: #063C2A;
+  border: none;
+  box-shadow: 0 0 0 5px rgba(239, 191, 4, 0.22);
+}
+.nm-step.done .nm-step-dot {
+  background: #FFFFFF;
+  color: #063C2A;
+  border: 2px solid #EFBF04;
+}
+.nm-step-text { display: flex; flex-direction: column; gap: 2px; }
+.nm-step-kick {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.nm-step-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+}
+.nm-step.active .nm-step-kick,
+.nm-step.done .nm-step-kick { color: #EFBF04; }
+.nm-step.active .nm-step-title,
+.nm-step.done .nm-step-title { color: #FFFFFF; }
+
+/* ---------- RIGHT: form ---------- */
+.nm-right {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 32px clamp(28px, 4.5vw, 64px) 28px;
+  min-width: 0;
+  background: #FFFFFF;
+}
+.nm-right > * { position: relative; z-index: 1; flex-shrink: 0; }
+.nm-right > .nm-dots {
+  position: absolute;
+  z-index: 0;
+  background-size: 14px 14px;
+  pointer-events: none;
+}
+.nm-dots-top {
+  top: 72px;
+  right: 40px;
+  width: 140px;
+  height: 100px;
+  background-image: radial-gradient(rgba(6, 60, 42, 0.22) 1.2px, transparent 1.4px);
+}
+.nm-dots-bottom {
+  bottom: 70px;
+  left: 36px;
+  width: 120px;
+  height: 90px;
+  background-image: radial-gradient(rgba(196, 145, 2, 0.35) 1.2px, transparent 1.4px);
+}
+.nm-mobile-brand { display: none; }
+.nm-right-top { min-height: 38px; }
+.nm-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: #F1F6F2;
+  color: #063C2A;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s;
+}
+.nm-back:hover { background: #E5EFE8; }
+.nm-back:disabled { opacity: .5; cursor: not-allowed; }
+
+.nm-box-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+.nm-box {
+  width: 100%;
+  max-width: 520px;
+  box-sizing: border-box;
+  padding: 48px 52px 40px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 0 12px rgba(0, 0, 0, 0.08),
+    0 0 32px rgba(0, 0, 0, 0.10),
+    0 8px 40px rgba(0, 0, 0, 0.12);
+  transition: max-width .25s ease;
+}
+.nm-box.is-wide { max-width: 760px; }
+
+/* progress + headings */
+.nm-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.nm-progress-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: #C49102;
+}
+.nm-progress-bars { display: flex; gap: 6px; }
+.nm-progress-bars span {
+  width: 34px;
+  height: 5px;
+  border-radius: 99px;
+  background: #E3EAE5;
+}
+.nm-progress-bars span.on { background: #063C2A; }
+.nm-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+.nm-reg .nm-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: #10231B;
+}
+.nm-subtitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #55665D;
+}
+.nm-subtitle strong { color: #10231B; }
+
+/* role cards */
+.nm-roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.nm-role {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 22px 18px 20px;
+  border-radius: 16px;
+  border: 1.5px solid #DCE5DF;
+  background: #FFFFFF;
+  text-align: left;
+  font-family: inherit;
+  color: #10231B;
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s, box-shadow .15s, transform .15s;
+}
+.nm-role:hover { border-color: #9FBCAC; transform: translateY(-2px); }
+.nm-role.selected {
+  border: 2px solid #063C2A;
+  background: #F3F8F4;
+  box-shadow: 0 10px 24px -14px rgba(6, 60, 42, 0.5);
+}
+.nm-role-radio {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  border: 2px solid #C9D6CE;
+  color: transparent;
+}
+.nm-role.selected .nm-role-radio {
+  background: #063C2A;
+  border-color: #063C2A;
+  color: #FFFFFF;
+}
+.nm-role-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 6px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #EEF4F0;
+  color: #063C2A;
+}
+.nm-role.selected .nm-role-icon { background: #063C2A; color: #EFBF04; }
+.nm-role-name { font-size: 16px; font-weight: 700; }
+.nm-role-desc { font-size: 13.5px; line-height: 1.5; color: #5D7065; }
+
+/* gold info note */
+.nm-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #FBF6E4;
+  border: 1px solid #F1E2A6;
+}
+.nm-note p { margin: 0; font-size: 14px; line-height: 1.6; color: #4A4020; }
+.nm-note-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #EFBF04;
+  color: #063C2A;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 15px;
+}
 .fade-slide-enter-active, .fade-slide-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
 .fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(-6px); }
-@media (prefers-reduced-motion: reduce) { .fade-slide-enter-active, .fade-slide-leave-active { transition: none; } }
 
-/* FORM */
-.details-form { display: flex; flex-direction: column; gap: 18px; margin-bottom: 12px; }
-.field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
-.field select { min-height: 46px; font-size: 0.95rem; }
-.required-tag, .optional-tag { font-size: 0.78rem; font-weight: 500; margin-left: 6px; }
-.required-tag { color: #a12525; }
-.optional-tag { color: #6a7a6a; }
-.field-error { display: block; font-size: 0.78rem; color: #c0392b; }
-.field input.invalid, .field select.invalid, .bio-input.invalid { border-color: #e2a39b; background: #fff8f7; }
-.license-hint { font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
+/* form */
+.nm-form { display: flex; flex-direction: column; gap: 22px; margin: 0; }
+.nm-form-tight { gap: 16px; }
+.nm-section { display: flex; flex-direction: column; gap: 14px; }
+.nm-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nm-section-head span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  color: #C49102;
+}
+.nm-section-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #E8EDEA;
+}
+.nm-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 18px;
+  align-items: start;
+}
+.nm-span { grid-column: 1 / -1; }
+.nm-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.nm-field > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #22362C;
+}
+.nm-required {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  color: #B42318;
+}
+.nm-hint { font-size: 12.5px; line-height: 1.55; color: #6B7D73; }
+.nm-hint-box {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #F3F6F4;
+}
+.nm-error-text { font-size: 12.5px; line-height: 1.5; color: #B42318; }
 
-.license-upload {
-  display: flex; align-items: center; justify-content: center; min-height: 120px; padding: 10px; overflow: hidden; cursor: pointer;
-  border: 1.5px dashed #3f9a6b; border-radius: 10px; background: #fff;
+/* plain inputs + selects */
+.nm-control {
+  width: 100%;
+  height: 52px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1.5px solid #DCE5DF;
+  background-color: #F7FAF8;
+  font-family: inherit;
+  font-size: 15px;
+  color: #14261E;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
 }
-.license-upload:hover { background: #f7faf8; }
-.license-upload.has-file { border: 1px solid #d9e3dc; }
-.license-input { display: none; }
-.license-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.8rem; color: #6a7a6a; text-align: center; }
-.license-placeholder strong { color: #1a3a1a; font-size: 0.86rem; }
-.license-preview { max-height: 160px; max-width: 100%; border-radius: 6px; object-fit: contain; }
-.license-file-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.license-filename { font-size: 0.78rem; color: #4a5a4a; overflow-wrap: anywhere; }
-.license-remove {
-  display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: none; border-radius: 8px;
-  background: #c0392b; color: #fff; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+select.nm-control { cursor: pointer; }
+.nm-control::placeholder { color: #9AA9A1; }
+.nm-control:hover { border-color: #B8C9BE; }
+.nm-control:focus {
+  border-color: #063C2A;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(6, 60, 42, .10);
 }
-.license-remove:hover { background: #a93226; }
+.nm-control.invalid { border-color: #E2A39B; background-color: #FFF8F7; }
 
-.photo-row { display: flex; align-items: center; gap: 14px; }
-.photo-preview, .photo-placeholder { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
-.photo-preview { object-fit: cover; }
-.photo-placeholder { background: #0a4a37; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
-.photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.photo-btn {
-  position: relative; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 8px;
-  background: #e3efe7; color: #0a4a37; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+/* inputs with an icon */
+.nm-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 7px 0 16px;
+  border-radius: 14px;
+  border: 1.5px solid #DCE5DF;
+  background: #F7FAF8;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
 }
-.photo-btn:hover { background: #d3e7da; }
-.bio-input {
-  width: 100%; box-sizing: border-box; border: 1px solid #d5dad5; border-radius: 8px; padding: 11px 14px;
-  font-size: 0.9rem; font-family: inherit; line-height: 1.5; color: #1a3a1a; resize: vertical;
+.nm-input:hover { border-color: #B8C9BE; }
+.nm-input:focus-within {
+  border-color: #063C2A;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(6, 60, 42, .10);
 }
-.bio-input:focus { outline: none; border-color: #1f8f5c; box-shadow: 0 0 0 3px rgba(31, 143, 92, 0.15); }
-.bio-meta { display: flex; justify-content: space-between; gap: 10px; }
-.char-count { font-size: 0.76rem; color: #6a7a6a; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.char-count.short { color: #a12525; }
+.nm-input.invalid { border-color: #E2A39B; background: #FFF8F7; }
+.nm-input-icon { width: 18px; height: 18px; flex-shrink: 0; color: #7A8F84; }
+.nm-input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  color: #14261E;
+}
+.nm-input input::placeholder { color: #9AA9A1; }
+.nm-eye {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #5D7065;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nm-eye:hover { background: #EEF3EF; color: #063C2A; }
+.nm-control:-webkit-autofill,
+.nm-input input:-webkit-autofill {
+  -webkit-text-fill-color: #14261E;
+  -webkit-box-shadow: 0 0 0 1000px #F7FAF8 inset;
+  transition: background-color 9999s ease-out 0s;
+}
 
-/* toggle chips: languages, formats */
-.chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.choice-chip {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 13px; border: 1.5px solid #d9e3dc; border-radius: 999px;
-  background: #fff; color: #4a5a4a; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+/* password rules as small pills */
+.nm-rules {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.choice-chip input { width: 16px; height: 16px; flex-shrink: 0; accent-color: #0a4a37; margin: 0; }
-.choice-chip.checked { border-color: #0a4a37; background: #e3efe7; color: #0a4a37; }
+.nm-rules li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #F3F5F4;
+  color: #6B7D73;
+  font-size: 12px;
+  font-weight: 500;
+}
+.nm-rules li.ok { background: #EAF4EE; color: #0A5A3C; font-weight: 600; }
+.nm-rule-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #A9B8AF;
+}
+
+/* uploads */
+.nm-file { display: none; }
+.nm-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 14px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1.5px dashed #B8C9BE;
+  background: #F7FAF8;
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s;
+}
+.nm-upload:hover { border-color: #9FBCAC; background: #F1F6F2; }
+.nm-upload.has-file { border-style: solid; border-color: #DCE5DF; background: #FFFFFF; }
+.nm-upload-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 12.5px;
+  color: #6B7D73;
+}
+.nm-upload-empty strong { font-size: 14px; color: #10231B; }
+.nm-upload-icon {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 2px;
+  border-radius: 14px;
+  background: #FFFFFF;
+  color: #063C2A;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px -6px rgba(6, 60, 42, 0.3);
+}
+.nm-upload-preview { max-height: 160px; max-width: 100%; border-radius: 10px; object-fit: contain; }
+.nm-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.nm-file-name { font-size: 12.5px; color: #4A5A4A; overflow-wrap: anywhere; }
+.nm-remove {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: #FEF3F2;
+  color: #B42318;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nm-remove:hover { background: #FEE4E2; }
 /* the camera button only where a camera is the usual way to add a photo */
-.selfie-camera { display: none; align-self: flex-start; cursor: pointer; }
-@media (pointer: coarse) { .selfie-camera { display: inline-flex; align-items: center; } }
-.fee-wrap { display: flex; align-items: center; gap: 8px; max-width: 280px; }
-.fee-wrap input { flex: 1; min-width: 0; }
-.fee-prefix { font-weight: 700; color: #1a3a1a; }
-.fee-suffix { font-size: 0.82rem; color: #6a7a6a; white-space: nowrap; }
+.nm-camera {
+  display: none;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #F1F6F2;
+  color: #063C2A;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (pointer: coarse) { .nm-camera { display: inline-flex; } }
 
-/* CHECK STEP: one divided summary */
-.confirm-summary { border: 1px solid #d9e3dc; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
-.confirm-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 11px 16px; font-size: 0.88rem; }
-.confirm-row + .confirm-row { border-top: 1px solid #d9e3dc; }
-.confirm-row span { color: #6a7a6a; flex-shrink: 0; }
-.confirm-block { flex-direction: column; align-items: flex-start; gap: 4px; }
-.confirm-bio { margin: 0; font-size: 0.86rem; color: #1a3a1a; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
-.confirm-license { height: 56px; border-radius: 6px; object-fit: cover; }
-.confirm-photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-.review-note { font-size: 0.84rem; color: #4a5a4a; background: #f4f6f4; border: 1px solid #d9e3dc; border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; line-height: 1.5; }
+/* messages */
+.nm-alert {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #FEF3F2;
+  border: 1px solid #FECDCA;
+  color: #B42318;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.nm-success {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #EAF4EE;
+  border: 1px solid #BFE0CC;
+  color: #0A5A3C;
+  font-size: 14px;
+  line-height: 1.5;
+}
 
-.review-stage { text-align: left; }
-.review-icon { width: 56px; height: 56px; border-radius: 50%; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-.review-steps { margin: 18px 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; color: #4a5a4a; line-height: 1.5; }
-.review-steps strong { color: #1a3a1a; }
-.review-small { font-size: 0.84rem; color: #6a7a6a; margin: 0 0 18px; }
+/* main button */
+.nm-submit {
+  width: 100%;
+  margin-top: 22px;
+  height: 58px;
+  border: none;
+  border-radius: 14px;
+  background: #063C2A;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 12px 24px -14px rgba(6, 60, 42, 0.85);
+  transition: background-color .15s, box-shadow .15s, transform .15s;
+}
+.nm-form .nm-submit { margin-top: 4px; }
+.nm-submit:hover:not(:disabled) { background: #0A4F38; }
+.nm-submit:active:not(:disabled) { transform: scale(.99); }
+.nm-submit:disabled {
+  background: #DCE5DF;
+  color: #7A8F84;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.nm-submit[aria-busy="true"]:disabled { background: #063C2A; color: #FFFFFF; opacity: .85; cursor: progress; }
+.nm-spin {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2.5px solid rgba(239, 191, 4, 0.3);
+  border-top-color: #EFBF04;
+  animation: nm-spin .8s linear infinite;
+}
+@keyframes nm-spin { to { transform: rotate(360deg); } }
+
+/* links under the box */
+.nm-foot-link {
+  margin: 26px 0 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #55665D;
+}
+.nm-foot-link a,
+.nm-consent a,
+.nm-lock-note a {
+  font-weight: 700;
+  color: #063C2A;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: rgba(196, 145, 2, .7);
+}
+.nm-resend-wait { font-weight: 700; color: #C49102; font-variant-numeric: tabular-nums; }
+.link-disabled { opacity: 0.45; pointer-events: none; cursor: not-allowed; }
+.nm-copy {
+  margin: 0;
+  font-size: 12px;
+  color: #7A8F84;
+}
+
+/* review summary */
+.nm-summary {
+  border: 1px solid #E3EAE5;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+.nm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 10px 18px;
+  box-sizing: border-box;
+}
+.nm-row + .nm-row { border-top: 1px solid #EEF2EF; }
+.nm-row > span { font-size: 14px; color: #6B7D73; flex-shrink: 0; }
+.nm-row > strong { font-size: 14.5px; font-weight: 700; color: #10231B; text-align: right; overflow-wrap: anywhere; }
+.nm-role-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #063C2A;
+  color: #EFBF04;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: .4px;
+}
+.nm-thumb { height: 52px; border-radius: 10px; object-fit: cover; border: 1px solid #DCE5DF; }
+.nm-spec-list { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.nm-spec {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #EAF4EE;
+  color: #0A5A3C;
+  font-size: 12.5px;
+  font-weight: 700;
+}
 
 /* consent (RA 10173) */
-.consent-box { display: flex; flex-direction: column; gap: 12px; margin: 0 0 6px; padding: 14px 16px; border: 1px solid #d9e3dc; border-radius: 12px; background: #fff; }
-.consent-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.84rem; color: #4a5a4a; line-height: 1.5; cursor: pointer; }
-.consent-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
-.consent-item a, .consent-lock-note a { color: #0a4a37; font-weight: 600; text-decoration: underline; }
-.consent-item.is-locked { cursor: default; }
-.consent-item input:disabled { opacity: 0.5; cursor: not-allowed; }
-/* something still to do: dashed green */
-.consent-lock-note { margin: 0; font-size: 0.82rem; color: #1f4a30; border: 1.5px dashed #3f9a6b; border-radius: 8px; padding: 8px 12px; line-height: 1.5; }
-
-/* Terms / Privacy pop-up, same frame as every pop-up */
-.legal-overlay { position: fixed; inset: 0; background: rgba(20, 30, 20, 0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
-.legal-modal {
-  width: 100%; max-width: 1000px; height: 92vh; height: 92dvh; display: flex; flex-direction: column; overflow: hidden;
-  background: #fff; border-radius: 18px; box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22);
+.nm-consent {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid #E3EAE5;
+  background: #FFFFFF;
 }
-.legal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #d9e3dc; }
-.legal-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-.legal-tab {
-  display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border: none; border-radius: 8px;
-  background: #e3efe7; color: #0a4a37; font-size: 0.82rem; font-weight: 600; font-family: inherit; cursor: pointer;
+.nm-lock-note {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #F3F6F4;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #3E5046;
 }
-.legal-tab:hover { background: #d3e7da; }
-.legal-tab.active { background: #0a4a37; color: #fff; }
-.legal-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: none; color: #6a7a6a; cursor: pointer; }
-.legal-close:hover { background: #f2f5f2; color: #1a3a1a; }
-.legal-frame { flex: 1; width: 100%; border: none; background: #fff; opacity: 0; transition: opacity 0.15s ease; }
-.legal-frame.ready { opacity: 1; }
-.legal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid #d9e3dc; background: #f7faf8; }
-.legal-hint { margin: 0; font-size: 0.82rem; color: #4a5a4a; }
-.btn-primary.legal-done { width: auto; min-height: 40px; }
-
-/* BUTTON ROW */
-.form-nav { display: flex; gap: 12px; margin-top: 4px; }
-.form-nav .btn-primary { flex: 1; }
-.btn-spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff; animation: btn-spin 0.7s linear infinite; flex-shrink: 0; }
-@keyframes btn-spin { to { transform: rotate(360deg); } }
-.top-back { margin-bottom: 32px; }
-.resend-wait { color: #a37a0b; font-weight: 600; font-variant-numeric: tabular-nums; }
-.link-disabled { opacity: 0.45; pointer-events: none; cursor: not-allowed; }
-.form-success { margin-top: 4px; }
-
-@media (max-width: 900px) {
-  .role-grid, .field-row { grid-template-columns: minmax(0, 1fr); }
+.nm-lock-note svg { flex-shrink: 0; margin-top: 2px; color: #5D7065; }
+.nm-consent-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #3E5046;
+  cursor: pointer;
 }
+.nm-consent-item input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: #063C2A;
+  cursor: pointer;
+}
+.nm-consent-item.is-locked { cursor: default; opacity: .6; }
+.nm-consent-item input:disabled { cursor: not-allowed; }
+
+/* Terms / Privacy pop-up */
+.nm-legal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 30, 21, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.nm-legal {
+  width: 100%;
+  max-width: 1000px;
+  height: 92vh;
+  height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #FFFFFF;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.45);
+  animation: nm-pop .3s cubic-bezier(.2, .7, .2, 1);
+}
+@keyframes nm-pop {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.nm-legal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 14px 20px;
+  border-bottom: 1px solid #EEF2EF;
+}
+.nm-legal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #F1F6F2;
+}
+.nm-legal-tab {
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #063C2A;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nm-legal-tab.active {
+  background: #063C2A;
+  color: #FFFFFF;
+  box-shadow: 0 6px 14px -8px rgba(6, 60, 42, 0.8);
+}
+.nm-legal-close {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 999px;
+  background: #F1F6F2;
+  color: #3E5046;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nm-legal-close:hover { background: #E5EFE8; color: #063C2A; }
+.nm-legal-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #FFFFFF;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.nm-legal-frame.ready { opacity: 1; }
+.nm-legal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-top: 1px solid #EEF2EF;
+  background: #FFFFFF;
+}
+.nm-legal-hint {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #3E5046;
+}
+.nm-legal-dot { width: 8px; height: 8px; border-radius: 50%; background: #EFBF04; }
+.nm-legal-dot.ok { background: #1F9D55; }
+.nm-legal-btn {
+  height: 46px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 12px;
+  background: #063C2A;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nm-legal-btn:hover { background: #0A4F38; }
+
+/* check inbox + application sent */
+.nm-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.nm-big-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: #063C2A;
+  color: #EFBF04;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 28px -14px rgba(6, 60, 42, 0.8);
+}
+.nm-big-icon.gold {
+  background: #EFBF04;
+  color: #063C2A;
+  box-shadow: 0 14px 28px -14px rgba(196, 145, 2, 0.8);
+}
+.nm-center .nm-title { font-size: 38px; margin-top: 6px; }
+.nm-code {
+  width: 100%;
+  height: 64px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1.5px solid #DCE5DF;
+  background: #F7FAF8;
+  font-family: inherit;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 14px;
+  text-align: center;
+  color: #10231B;
+  outline: none;
+}
+.nm-code::placeholder { color: #C3CEC8; letter-spacing: 14px; }
+.nm-code:focus {
+  border-color: #063C2A;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(6, 60, 42, .10);
+}
+.nm-next-steps {
+  list-style: none;
+  margin: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 16px;
+  border: 1px solid #E3EAE5;
+  text-align: left;
+}
+.nm-next-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #3E5046;
+}
+.nm-next-steps strong { color: #10231B; }
+.nm-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #EFBF04;
+  color: #063C2A;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+.nm-small { margin: 14px 0 0; text-align: center; font-size: 13px; color: #6B7D73; }
+
+/* focus ring */
+.nm-reg a:focus-visible,
+.nm-reg button:focus-visible,
+.nm-reg input[type=checkbox]:focus-visible {
+  outline: 3px solid #EFBF04;
+  outline-offset: 2px;
+}
+
+/* ---------- desktop: the photo stays put, only the form side scrolls ---------- */
+@media (min-width: 961px) {
+  .nm-reg { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+  .nm-left { height: 100vh; height: 100dvh; }
+  .nm-right {
+    height: 100vh;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* ---------- tablet + phone: only the form ---------- */
+@media (max-width: 960px) {
+  .nm-reg { grid-template-columns: 1fr; }
+  .nm-left { display: none; }
+  .nm-right > .nm-dots { display: none; }
+  .nm-right { min-height: 100vh; min-height: 100dvh; padding: 24px; }
+  .nm-mobile-brand {
+    order: 1;
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    gap: 10px;
+    margin-top: 12px;
+    text-decoration: none;
+  }
+  .nm-mobile-logo {
+    width: 38px;
+    height: 46px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(6, 60, 42, 0.18));
+  }
+  .nm-mobile-text {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #063C2A;
+  }
+  .nm-mobile-text span { color: #C49102; }
+  .nm-right-top { order: 2; margin-top: 40px; min-height: 0; }
+  .nm-box-wrap { order: 3; align-items: flex-start; padding: 28px 0 32px; }
+  .nm-copy { order: 4; text-align: center; }
+  .nm-box { padding: 40px 36px 32px; }
+}
+
 @media (max-width: 640px) {
-  .legal-overlay { padding: 0; }
-  .legal-modal { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; }
-  .legal-foot .btn-primary.legal-done { width: 100%; }
+  .nm-right { padding: 16px 16px 20px; }
+  .nm-mobile-brand { margin-top: 8px; }
+  .nm-mobile-text { font-size: 26px; }
+  .nm-box-wrap { padding: 24px 0; }
+  .nm-box { padding: 28px 20px 24px; border-radius: 14px; }
+  .nm-reg .nm-title { font-size: 30px; }
+  .nm-center .nm-title { font-size: 30px; }
+  .nm-roles,
+  .nm-grid { grid-template-columns: minmax(0, 1fr); }
+  .nm-control,
+  .nm-input input { font-size: 16px; } /* stops iPhone zoom on tap */
+  .nm-code { letter-spacing: 10px; font-size: 24px; }
+  .nm-row { flex-wrap: wrap; }
+  .nm-legal-overlay { padding: 0; }
+  .nm-legal { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; }
+  .nm-legal-foot .nm-legal-btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nm-dot::after { animation: none; opacity: 0; }
+  .nm-tag,
+  .nm-legal { animation: none; }
+  .nm-spin { animation: none; }
+  .fade-slide-enter-active, .fade-slide-leave-active { transition: none; }
 }
 </style>

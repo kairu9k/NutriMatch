@@ -1,21 +1,32 @@
 <template>
   <div class="nm-page">
+    <section class="ra-hero">
+      <img class="ra-plate" :src="plateImg" alt="" aria-hidden="true" />
+      <span class="ra-fade" aria-hidden="true"></span>
+      <div class="ra-hero-txt">
+        <p class="ra-eyebrow"><span aria-hidden="true"></span>RND applications</p>
+        <h2 class="ra-title">Review new RNDs</h2>
+        <p class="ra-sub">Check each license and selfie before an RND can be booked by clients. Oldest first.</p>
+      </div>
+    </section>
+
     <p v-if="error" class="nm-error">{{ error }}</p>
 
-    <div class="nm-toolbar">
-      <div class="nm-tabs">
+    <div class="nm-toolbar ra-toolbar">
+      <div class="nm-tabs ra-tabs">
         <button v-for="t in tabs" :key="t.key" class="nm-tab" :class="{ active: tab === t.key }" @click="tab = t.key">
+          <svg v-if="t.key === 'pending'" class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg><svg v-else-if="t.key === 'approved'" class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg><svg v-else-if="t.key === 'rejected'" class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg><svg v-else class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M5.6 5.6l12.8 12.8" /></svg>
           {{ t.label }} <span class="nm-count">{{ countOf(t.key) }}</span>
         </button>
       </div>
-      <div class="nm-search">
-        <Search :size="15" />
+      <div class="nm-search ra-search">
+        <Search :size="17" />
         <input v-model="search" type="search" placeholder="Search name, email or PRC no." />
       </div>
     </div>
 
-    <p v-if="!loading && tab === 'pending' && unfinishedCount" class="nm-note plain-note unfinished-note">{{ unfinishedNote }}</p>
-    <p v-if="loading" class="nm-muted">Loading applications…</p>
+    <p v-if="!loading && tab === 'pending' && unfinishedCount" class="nm-note plain-note unfinished-note"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg> {{ unfinishedNote }}</p>
+    <p v-if="loading" class="nm-muted ra-loading"><span class="ra-spin" aria-hidden="true"></span> Loading applications…</p>
 
     <!-- TO REVIEW: short list + review panel -->
     <template v-else-if="tab === 'pending'">
@@ -27,7 +38,7 @@
       <div v-else ref="layout" class="review-layout" :style="deskHeight ? { '--desk-h': `${deskHeight}px` } : null">
         <!-- list -->
         <div class="nm-panel queue">
-          <p class="queue-hint">{{ filtered.length }} waiting, oldest first</p>
+          <p class="queue-hint"><strong>Waiting</strong><i>{{ filtered.length }}</i><small>Oldest first</small></p>
           <button
             v-for="r in pagedList"
             :key="r.id"
@@ -41,7 +52,7 @@
               <span class="queue-name">{{ r.first_name }} {{ r.last_name }}</span>
               <span class="queue-sub">{{ r.specialization }}</span>
             </span>
-            <span class="queue-wait" :class="{ long: waitDays(r) > 3 }" :title="`Applied ${shortDate(r.submitted_at)}`">{{ waitText(r) }}</span>
+            <span class="queue-wait" :class="{ long: waitDays(r) > 3 }" :title="`Applied ${shortDate(r.submitted_at)}`"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg> {{ waitText(r) }}</span>
             <ChevronRight :size="16" class="queue-chevron" />
           </button>
           <ListPager v-model:page="page" :pages="pages" />
@@ -61,7 +72,7 @@
                 <span v-else class="nm-avatar lg">{{ userInitials(selected.first_name, selected.last_name) }}</span>
                 <div class="decide-name">
                   <h2 class="nm-panel-title">{{ selected.first_name }} {{ selected.last_name }}</h2>
-                  <p class="nm-panel-sub">{{ selected.specialization }}, applied {{ shortDate(selected.submitted_at) }}</p>
+                  <p class="nm-panel-sub"><span class="spec-chip">{{ selected.specialization }}</span><i class="dot" aria-hidden="true"></i>Applied {{ shortDate(selected.submitted_at) }}</p>
                 </div>
               </div>
               <div class="decide-actions">
@@ -72,6 +83,11 @@
                 </button>
               </div>
               <p v-if="approveHint" class="decide-hint">{{ approveHint }}</p>
+              <div class="progress" aria-hidden="true">
+                <span class="pg-txt"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg> Tick all {{ checkTotal }} checks to approve</span>
+                <span class="pg-bar"><i :style="{ width: `${(checkedCount / checkTotal) * 100}%` }"></i></span>
+                <b>{{ checkedCount }} of {{ checkTotal }}</b>
+              </div>
             </div>
 
             <p v-if="!selected.email_verified_at" class="nm-note plain-note review-note">
@@ -83,7 +99,7 @@
             <div class="desk">
               <div class="photos">
                 <div class="photo-cell">
-                  <p class="photo-label">PRC license</p>
+                  <p class="photo-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /><circle cx="8" cy="12" r="2.5" /><path d="M13 10h5M13 14h3" /></svg> PRC license</p>
                   <button v-if="selected.prc_license_image_url" type="button" class="license" aria-haspopup="dialog" @click="zoom = 'license'">
                     <img :src="selected.prc_license_image_url" alt="PRC license photo" />
                     <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
@@ -91,7 +107,7 @@
                   <div v-else class="license license-missing">No license photo on file. The license can't be checked.</div>
                 </div>
                 <div class="photo-cell">
-                  <p class="photo-label">Selfie with the license</p>
+                  <p class="photo-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg> Selfie with the license</p>
                   <button v-if="selected.prc_selfie_image_url" type="button" class="license" aria-haspopup="dialog" @click="zoom = 'selfie'">
                     <img :src="selected.prc_selfie_image_url" alt="Selfie holding the PRC license" />
                     <span><Maximize2 :size="13" aria-hidden="true" /> View full size</span>
@@ -102,14 +118,14 @@
 
               <div class="checks">
                 <label class="check-row" :class="{ done: checks.name }">
-                  <input v-model="checks.name" type="checkbox" />
+                  <input v-model="checks.name" type="checkbox" /><span class="ck-box" aria-hidden="true"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
                   <span class="check-text">
                     <span>The name matches the license</span>
                     <strong>{{ selected.first_name }} {{ selected.last_name }}</strong>
                   </span>
                 </label>
                 <label class="check-row" :class="{ done: checks.number }">
-                  <input v-model="checks.number" type="checkbox" />
+                  <input v-model="checks.number" type="checkbox" /><span class="ck-box" aria-hidden="true"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
                   <span class="check-text">
                     <span>The license number is valid on the PRC website</span>
                     <strong class="mono">{{ selected.prc_license_number || 'No number given' }}</strong>
@@ -119,14 +135,14 @@
                   </span>
                 </label>
                 <label v-if="selected.prc_selfie_image_url" class="check-row" :class="{ done: checks.face }">
-                  <input v-model="checks.face" type="checkbox" />
+                  <input v-model="checks.face" type="checkbox" /><span class="ck-box" aria-hidden="true"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
                   <span class="check-text">
                     <span>The face in the selfie matches the license photo</span>
                     <small>The ID in the selfie is the same license, with the same name.</small>
                   </span>
                 </label>
                 <label class="check-row" :class="{ done: checks.photo }">
-                  <input v-model="checks.photo" type="checkbox" />
+                  <input v-model="checks.photo" type="checkbox" /><span class="ck-box" aria-hidden="true"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
                   <span class="check-text">
                     <span>The photo is clear and the license isn't expired</span>
                     <small>Look for the expiry date on the photo.</small>
@@ -137,7 +153,7 @@
 
             <!-- 2. the profile: applicants since 2026-11-16 set it up after approval, in the RND onboarding -->
             <p v-if="!hasProfileInfo" class="nm-note plain-note desk-note">
-              Their profile, fee, formats and weekly hours are set after approval, when they first sign in. Clients can't find them until then.
+              <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg> <span>Their profile, fee, formats and weekly hours are set after approval, when they first sign in. Clients can't find them until then.</span>
             </p>
             <template v-else>
             <h3 class="desk-title">What clients will see once approved</h3>
@@ -179,9 +195,9 @@
             <!-- 3. contact details, for the admin only -->
             <h3 class="desk-title">Contact</h3>
             <dl class="contact">
-              <div><dt>Email</dt><dd>{{ selected.email }}</dd></div>
-              <div><dt>Mobile</dt><dd>{{ formatPhone(selected.phone) || 'None given' }}</dd></div>
-              <div><dt>Date of birth</dt><dd>{{ selected.date_of_birth ? `${shortDate(selected.date_of_birth)} (${ageFrom(selected.date_of_birth)})` : 'None given' }}</dd></div>
+              <div><span class="cc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 6l-10 7L2 6" /></svg></span><dt>Email</dt><dd>{{ selected.email }}</dd></div>
+              <div><span class="cc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.7.6a2 2 0 0 1 1.7 2z" /></svg></span><dt>Mobile</dt><dd>{{ formatPhone(selected.phone) || 'None given' }}</dd></div>
+              <div><span class="cc-ico"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8" /><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1" /><path d="M2 21h20M7 8v3M12 8v3M17 8v3" /></svg></span><dt>Date of birth</dt><dd>{{ selected.date_of_birth ? `${shortDate(selected.date_of_birth)} (${ageFrom(selected.date_of_birth)})` : 'None given' }}</dd></div>
             </dl>
           </div>
         </div>
@@ -511,151 +527,224 @@ async function confirmReject() {
     busy.value = false
   }
 }
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+// the progress bar under the decision bar (the selfie check only counts when there is a selfie)
+const checkTotal = computed(() => CHECKS.filter(c => c.key !== 'face' || selected.value?.prc_selfie_image_url).length)
+const checkedCount = computed(() => CHECKS.filter(c => checks[c.key] && (c.key !== 'face' || selected.value?.prc_selfie_image_url)).length)
 </script>
-
 <style scoped>
-.unfinished-note { margin: 0 0 14px; }
-.review-layout { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 20px; align-items: start; }
+.nm-page { --sh: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22); font-family: 'DM Sans', sans-serif; color: #22362c; }
+.ic { flex-shrink: 0; display: inline-block; }
 
-/* queue */
-.queue { padding: 10px; position: sticky; top: 92px; }
-.queue-hint { font-size: 0.78rem; color: #6a7a6a; margin: 6px 10px 8px; }
+/* ---------- hero ---------- */
+.ra-hero { position: relative; overflow: hidden; margin-bottom: 18px; padding: 26px 30px; border-radius: 24px; color: #fff; background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 50%, #004635 100%); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 24px 50px -18px rgba(0, 77, 58, 0.55); }
+.ra-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
+.ra-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
+.ra-hero-txt { position: relative; z-index: 1; max-width: 620px; }
+.ra-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.ra-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
+.ra-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
+.ra-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
+
+/* ---------- tabs + search ---------- */
+.ra-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.ra-tabs { display: inline-flex; gap: 4px; max-width: 100%; padding: 5px; border: none; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 4px 14px -6px rgba(0, 0, 0, 0.12); overflow-x: auto; scrollbar-width: none; }
+.ra-tabs::-webkit-scrollbar { display: none; }
+.ra-tabs .nm-tab { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; height: 36px; margin: 0; padding: 0 15px; border: none; border-radius: 999px; background: transparent; font-family: inherit; font-size: 13.5px; font-weight: 400; color: #4a5a52; white-space: nowrap; cursor: pointer; }
+.ra-tabs .nm-tab .ic { color: #8a9a91; }
+.ra-tabs .nm-tab:hover:not(.active) { background: #f1f6f2; }
+.ra-tabs .nm-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #eef2ef; font-size: 11.5px; font-weight: 700; color: #4a5a52; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.ra-tabs .nm-tab.active { background: #004d3a; color: #fff; font-weight: 600; }
+.ra-tabs .nm-tab.active .ic { color: #efbf04; }
+.ra-tabs .nm-tab.active .nm-count { background: #efbf04; color: #004d3a; }
+.ra-tabs .nm-tab:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.ra-search { position: relative; display: flex; align-items: center; gap: 10px; flex: 0 1 320px; height: 46px; margin: 0; padding: 0 16px; border: none; border-radius: 999px; background: #fff; color: #8a9a91; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 4px 14px -6px rgba(0, 0, 0, 0.12); }
+.ra-search:focus-within { box-shadow: 0 0 0 2px #004d3a, 0 0 0 6px rgba(0, 77, 58, 0.1); }
+.ra-search svg { position: static !important; transform: none !important; flex-shrink: 0; }
+.ra-search input { flex: 1; min-width: 0; height: 100%; padding: 0 !important; border: none !important; outline: none; background: transparent !important; font-family: inherit; font-size: 14px; color: #14261e; box-shadow: none; }
+.unfinished-note { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 10px 14px; border: none; border-radius: 14px; background: #eef1fa; font-size: 13px; color: #2e4a86; }
+.ra-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; border-radius: 22px; background: #fff; box-shadow: var(--sh); font-weight: 600; }
+.ra-spin { width: 20px; height: 20px; border-radius: 50%; border: 3px solid #e3efe7; border-top-color: #004d3a; animation: ra-spin 0.8s linear infinite; }
+@keyframes ra-spin { to { transform: rotate(360deg); } }
+.nm-panel.nm-empty, .review-placeholder { border: none; border-radius: 24px; box-shadow: var(--sh); }
+
+.review-layout { display: grid; grid-template-columns: minmax(280px, 320px) 1fr; gap: 18px; align-items: start; }
+
+/* ---------- queue ---------- */
+.queue { position: sticky; top: 92px; padding: 8px; border: none; border-radius: 22px; box-shadow: var(--sh); }
+.queue-hint { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 10px 12px; }
+.queue-hint strong { font-family: 'Playfair Display', serif; font-size: 18px; color: #0e3a2c; }
+.queue-hint i { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #efbf04; color: #004d3a; font-style: normal; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.queue-hint small { margin-left: auto; font-size: 12px; color: #8a9a91; }
 .queue :deep(.nm-pager) { margin: 8px 0 0; padding: 10px 0 2px; }
-.queue-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 1px solid transparent;
-  border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; color: inherit;
-}
-.queue-item + .queue-item { margin-top: 2px; }
-.queue-item:hover { background: #f7f9f7; }
-.queue-item.active { background: #eef3ec; border-color: #d9e3dc; }
+.queue-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1.5px solid transparent; border-radius: 16px; background: none; font-family: inherit; color: inherit; text-align: left; cursor: pointer; transition: background 0.15s; }
+.queue-item + .queue-item { margin-top: 4px; }
+.queue-item:hover { background: #f7faf8; }
+.queue-item.active { border-color: #1f9d55; background: #f1f8f4; box-shadow: 0 0 0 3px rgba(31, 157, 85, 0.1); }
+.queue-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.queue-item .nm-avatar { flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; object-fit: cover; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-size: 13.5px; font-weight: 800; border: 2px solid #fff; box-shadow: 0 0 0 2.5px #efbf04; }
 .queue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.queue-name { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.queue-sub { font-size: 0.75rem; color: #8a9a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* how long it has waited; gold after 3 days */
-.queue-wait { flex-shrink: 0; font-size: 0.74rem; font-weight: 600; color: #4a5a4a; background: #f2f6f3; border-radius: 999px; padding: 2px 9px; }
-.queue-wait.long { background: #fdf3dc; color: #7a560f; }
-.queue-chevron { color: #c5d0c5; flex-shrink: 0; display: none; }
+.queue-name { font-size: 14.5px; font-weight: 700; color: #0e3a2c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.queue-sub { font-size: 12.5px; color: #6b7d73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.queue-wait { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: #f3f6f4; font-size: 11.5px; font-weight: 800; color: #4a5a52; white-space: nowrap; }
+.queue-wait.long, .queue-item.active .queue-wait { background: #fff4d6; color: #8a6500; }
+.queue-chevron { flex-shrink: 0; display: none; color: #9dc3ae; }
 
-/* review panel: on desktop it scrolls on its own (the page and the queue stay
-   put), and the decision bar sticks at the top of it */
+/* ---------- review panel ---------- */
+/* desktop: no scroll inside the card; the page scrolls and the queue stays in view */
 @media (min-width: 1000px) {
-  .review-wrap, .queue {
-    max-height: var(--desk-h, calc(100vh - 112px)); overflow-y: auto; overscroll-behavior: contain;
-    scrollbar-width: thin; scrollbar-color: #c5d6ca transparent;
-  }
-  .review-wrap { border-radius: 14px; }
-  .queue { position: static; }
+  .review-wrap { max-height: none !important; overflow: visible; border-radius: 24px; box-shadow: var(--sh); }
+  .queue { position: sticky; top: 92px; max-height: none; overflow: visible; }
+  .decide { position: static; }
 }
-.review { padding-top: 0; }
+.review { padding: 0 26px 26px; border: none; border-radius: 24px; counter-reset: desk; }
 .decide {
   position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px;
-  margin: 0 -22px; padding: 18px 22px 16px; background: #fff; border-bottom: 1px solid #d9e3dc; border-radius: 14px 14px 0 0;
+  margin: 0 -26px; padding: 20px 26px 14px; background: #f1f8f4; border-bottom: 1px solid #e3efe7; border-radius: 24px 24px 0 0;
 }
-.decide-who { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.decide-who { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.decide-who .nm-avatar.lg { flex-shrink: 0; width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; border: 3px solid #fff; box-shadow: 0 0 0 2.5px #efbf04, 0 10px 20px -12px rgba(0, 77, 58, 0.6); }
 .decide-name { min-width: 0; }
-.decide-name .nm-panel-title { font-size: 1.25rem; }
+.decide-name .nm-panel-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: #0e3a2c; }
+.decide-name .nm-panel-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; font-size: 13.5px; color: #6b7d73; }
+.spec-chip { padding: 3px 10px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px #dce8e0; font-size: 12.5px; font-weight: 700; color: #1f5c45; }
+.decide-name .dot { width: 4px; height: 4px; border-radius: 50%; background: #b5c3ba; }
 .decide-actions { display: flex; align-items: center; gap: 10px; }
-.review-pos { font-size: 0.78rem; color: #6a7a6a; margin-right: 4px; white-space: nowrap; }
-.decide-hint { flex-basis: 100%; margin: -4px 0 0; text-align: right; font-size: 0.78rem; color: #6a7a6a; }
+.review-pos { margin-right: 2px; font-size: 12.5px; font-weight: 600; color: #8a9a91; white-space: nowrap; }
+.decide-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 18px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.decide-actions .nm-btn-danger { background: #fff; border: 1px solid #f2c4be; color: #b42318; box-shadow: none; }
+.decide-actions .nm-btn-danger:hover:not(:disabled) { background: #fdecea; }
+.decide-actions .nm-btn-dark { background: #004d3a; border: 1px solid #004d3a; color: #fff; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
+.decide-actions .nm-btn-dark:hover:not(:disabled) { background: #00382a; }
+.decide-actions .nm-btn-dark:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.decide-hint { display: none; }
+.progress { flex-basis: 100%; display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid #e3efe7; font-size: 13px; color: #4a5a52; }
+.pg-txt { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; white-space: nowrap; }
+.pg-txt .ic { color: #1f7a4d; }
+.pg-bar { flex: 1; height: 6px; border-radius: 999px; background: #dfeae3; overflow: hidden; }
+.pg-bar i { display: block; height: 100%; border-radius: 999px; background: #1f9d55; transition: width 0.25s; }
+.progress b { font-size: 12.5px; color: #0e3a2c; white-space: nowrap; }
 .back-btn { display: none; align-items: center; gap: 6px; margin: 16px 0 0; }
-.review-note { margin: 16px 0 0; }
-.desk-title { font-family: inherit; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 22px 0 10px; }
+.review-note { margin: 16px 0 0; border-radius: 14px; }
+.desk-title { display: flex; align-items: center; gap: 9px; margin: 24px 0 14px; font-family: inherit; font-size: 15px; font-weight: 800; color: #0e3a2c; }
+.desk-title::before { counter-increment: desk; content: counter(desk); width: 24px; height: 24px; border-radius: 8px; background: #004d3a; color: #efbf04; display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; }
 
-/* 1. license + checks side by side */
-.desk { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
-.photo-cell { min-width: 0; }
-.photo-label { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #1a3a1a; }
-/* both photos get the same frame, so a wide license and a tall selfie line up */
-.photos .license img { width: 100%; height: 230px; max-height: none; object-fit: contain; background: #f1f4f2; }
-.photos .license-missing, .photos .license-none { min-height: 230px; display: flex; align-items: center; justify-content: center; }
-.desk-note { margin: 16px 0 0; }
-.license-none { padding: 36px 12px; text-align: center; color: #4a5a4a; background: #f4f6f4; border-color: #d9e3dc; font-size: 0.82rem; cursor: default; }
-.license { display: block; width: 100%; padding: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; text-decoration: none; background: #f7faf8; cursor: zoom-in; font-family: inherit; text-align: left; }
+/* 1. license + checks */
+.desk { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
+@media (max-width: 1200px) and (min-width: 1000px) { .desk { grid-template-columns: 1fr; } }
+.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.photo-cell { min-width: 0; border: 1.5px solid #c9d8cf; border-radius: 18px; background: #fff; overflow: hidden; }
+.photo-label { display: flex; align-items: center; gap: 7px; margin: 0; padding: 11px 14px; border-bottom: 1px solid #eef2ef; font-size: 13px; font-weight: 800; color: #0e3a2c; }
+.photo-label .ic { color: #1f7a4d; }
+.license { display: block; width: 100%; padding: 0; border: none; border-radius: 0; overflow: hidden; background: #f1f4f2; font-family: inherit; text-align: left; text-decoration: none; cursor: zoom-in; }
 .license:hover img { opacity: 0.92; }
-.license img { display: block; width: 100%; max-height: 340px; object-fit: contain; }
-.license span { display: flex; align-items: center; gap: 6px; padding: 9px 12px; font-size: 0.78rem; font-weight: 600; color: #0a4a37; border-top: 1px solid #d9e3dc; background: #fff; }
-.license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-/* the full-size pop-up */
-.license-modal { max-width: 900px; }
-.lm-head { display: flex; gap: 12px; align-items: flex-start; }
-.lm-icon { width: 36px; height: 36px; border-radius: 9px; background: #e3efe7; color: #0a4a37; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.lm-photo { margin-top: 16px; border: 1px solid #d9e3dc; border-radius: 12px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
-.lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
-.license-missing { padding: 48px 16px; text-align: center; color: #a12525; background: #fdecec; border-color: #f3b8b8; font-size: 0.84rem; font-weight: 600; }
-.checks { display: flex; flex-direction: column; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
-.check-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer; background: #fff; }
-.check-row + .check-row { border-top: 1px solid #d9e3dc; }
-.check-row:hover { background: #f7faf8; }
-.check-row.done { background: #f2f8f4; }
-.check-row input { width: 18px; height: 18px; margin-top: 1px; accent-color: #0a4a37; flex-shrink: 0; cursor: pointer; }
-.check-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 0.82rem; color: #4a5a4a; }
-.check-text strong { font-size: 0.98rem; color: #1a3a1a; overflow-wrap: anywhere; }
-.check-text small { font-size: 0.76rem; color: #6a7a6a; }
-.prc-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
-.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.license img, .photos .license img { display: block; width: 100%; height: 210px; max-height: none; object-fit: cover; background: #f1f4f2; }
+.license span { display: flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 12px; border-top: 1px solid #eef2ef; background: #f7faf8; font-size: 13px; font-weight: 800; color: #004d3a; }
+.license:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.photos .license-missing, .photos .license-none { min-height: 262px; display: flex; align-items: center; justify-content: center; cursor: default; }
+.license-none { padding: 36px 16px; text-align: center; background: #f7faf8; color: #4a5a52; font-size: 13px; }
+.license-missing { padding: 48px 16px; text-align: center; background: #fdecea; color: #b42318; font-size: 13px; font-weight: 700; }
+.checks { display: flex; flex-direction: column; border: 1.5px solid #c9d8cf; border-radius: 18px; overflow: hidden; background: #fff; }
+.check-row { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer; background: #fff; transition: background 0.15s; }
+.check-row + .check-row { border-top: 1px solid #eef2ef; }
+.check-row:hover { background: #fafcfb; }
+.check-row.done { background: #f1f8f4; }
+.check-row input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.ck-box { flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px; border-radius: 7px; border: 2px solid #9dc3ae; background: #fff; color: transparent; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: background 0.15s, border-color 0.15s; }
+.check-row.done .ck-box { background: #1f9d55; border-color: #1f9d55; color: #fff; }
+.check-row input:focus-visible + .ck-box { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.check-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; font-size: 14px; font-weight: 600; color: #22362c; }
+.check-text strong { font-size: 17px; font-weight: 800; color: #0e3a2c; overflow-wrap: anywhere; }
+.check-text small { font-size: 12.5px; font-weight: 400; color: #6b7d73; }
+.prc-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; padding: 6px 12px; border-radius: 10px; background: #004d3a; color: #fff !important; font-size: 12.5px; font-weight: 800; text-decoration: none; }
+.prc-link:hover { background: #00382a; }
+.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.desk-note { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0 0; padding: 12px 14px; border: 1px solid #f3e2a0; border-radius: 14px; background: #fffbea; font-size: 13px; line-height: 1.55; color: #6b5a1e; }
+.desk-note .ic { margin-top: 1px; color: #c49102; }
 
-/* 2. the client-facing card, as on Find an RND; gaps in gold */
-.preview { display: flex; flex-direction: column; gap: 10px; border: 1px solid #d9e3dc; border-radius: 14px; padding: 18px; background: #fff; overflow-wrap: anywhere; }
+/* 2. the client-facing card */
+.preview { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1.5px solid #c9d8cf; border-radius: 18px; background: #fff; overflow-wrap: anywhere; }
 .pv-head { display: flex; gap: 14px; align-items: flex-start; }
+.pv-head .nm-avatar.lg { flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%; object-fit: cover; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-weight: 800; border: 2px solid #fff; box-shadow: 0 0 0 2.5px #1f9d55; box-sizing: border-box; }
 .pv-id { min-width: 0; }
-.pv-name { font-family: 'Playfair Display', serif; font-size: 1.12rem; font-weight: 700; color: #1a3a1a; margin: 0; display: flex; align-items: center; gap: 6px; }
-.pv-verified { color: #1f8f5c; }
-.pv-spec { font-size: 0.82rem; color: #4a5a4a; margin: 3px 0 0; }
-.pv-fee { font-size: 0.84rem; font-weight: 600; color: #1a3a1a; margin: 4px 0 0; }
-.pv-bio { font-size: 0.85rem; color: #4a5a4a; line-height: 1.55; margin: 0; white-space: pre-line; }
+.pv-name { display: flex; align-items: center; gap: 6px; margin: 0; font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 700; color: #0e3a2c; }
+.pv-verified { color: #1f9d55; }
+.pv-spec { margin: 3px 0 0; font-size: 13px; color: #4a5a52; }
+.pv-fee { margin: 4px 0 0; font-size: 13.5px; font-weight: 700; color: #0e3a2c; }
+.pv-bio { margin: 0; font-size: 13.5px; line-height: 1.55; color: #4a5a52; white-space: pre-line; }
 .pv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: 0.76rem; font-weight: 600; background: #f2f6f3; border: 1px solid #d9e3dc; color: #4a5a4a; border-radius: 12px; padding: 2px 10px; }
-.pv-formats { display: flex; flex-wrap: wrap; gap: 12px; }
-.format { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #1a3a1a; font-weight: 500; }
-.format svg { color: #3f9a6b; }
-.pv-where { display: flex; align-items: flex-start; gap: 6px; font-size: 0.8rem; color: #4a5a4a; margin: 0; line-height: 1.4; }
-.pv-where svg { flex-shrink: 0; margin-top: 2px; }
-.pv-hours { display: flex; align-items: flex-start; gap: 8px; background: #e3efe7; color: #1e4a26; border-radius: 8px; padding: 9px 12px; font-size: 0.8rem; line-height: 1.45; }
+.chip { padding: 3px 10px; border-radius: 999px; background: #e3f4ea; font-size: 12.5px; font-weight: 700; color: #1f5c45; }
+.pv-formats { display: flex; flex-wrap: wrap; gap: 8px; }
+.format { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: #eef1fa; font-size: 12.5px; font-weight: 700; color: #2e4a86; }
+.pv-where { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 13px; line-height: 1.4; color: #4a5a52; }
+.pv-where svg { flex-shrink: 0; margin-top: 2px; color: #1f7a4d; }
+.pv-hours { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #f1f8f4; color: #1f5c45; font-size: 13px; line-height: 1.45; }
 .pv-hours svg { flex-shrink: 0; margin-top: 1px; }
 .pv-hours-list { display: flex; flex-direction: column; gap: 2px; }
-/* something clients would miss: a gold notice, not an error */
-.gap { display: inline-block; font-size: 0.78rem; font-weight: 600; color: #7a560f; background: #fdf3dc; border-radius: 6px; padding: 2px 8px; margin: 0; align-self: flex-start; }
+.gap { display: inline-block; align-self: flex-start; margin: 0; padding: 3px 9px; border-radius: 8px; background: #fff4d6; font-size: 12.5px; font-weight: 700; color: #8a6500; }
 
 /* 3. contact */
-.contact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; }
-.contact > div { padding: 12px 14px; min-width: 0; }
-.contact > div + div { border-left: 1px solid #d9e3dc; }
-.contact dt { font-size: 0.74rem; color: #6a7a6a; }
-.contact dd { margin: 3px 0 0; font-size: 0.85rem; color: #1a3a1a; overflow-wrap: anywhere; }
-.reason { font-size: 0.84rem; color: #2a3a2a; }
+.contact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; border: none; }
+.contact > div { display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; min-width: 0; padding: 14px; border: 1.5px solid #c9d8cf !important; border-radius: 16px; }
+.cc-ico { grid-row: 1 / 3; width: 38px; height: 38px; border-radius: 12px; background: #f1f6f2; color: #1f7a4d; display: inline-flex; align-items: center; justify-content: center; }
+.contact dt { font-size: 12px; color: #8a9a91; }
+.contact dd { margin: 0; font-size: 14px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
 
-.review-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #6a7a6a; min-height: 300px; font-size: 0.86rem; }
+/* approved / rejected / deactivated table */
+.nm-page > .nm-panel { border: none; border-radius: 24px; box-shadow: var(--sh); }
+.reason { font-size: 13.5px; color: #22362c; }
+.review-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 300px; font-size: 14px; color: #6b7d73; }
 .review-placeholder p { margin: 0; }
+.review-placeholder svg { width: 56px; height: 56px; padding: 14px; border-radius: 18px; background: #e3efe7; color: #004d3a; box-sizing: border-box; }
 
+/* full-size photo pop-up */
+.license-modal { max-width: 900px; }
+.lm-head { display: flex; gap: 12px; align-items: flex-start; }
+.lm-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: #004d3a; color: #efbf04; display: flex; align-items: center; justify-content: center; }
+.lm-photo { margin-top: 16px; border: 1px solid #e3ebe6; border-radius: 16px; overflow: auto; background: #f7faf8; display: flex; justify-content: center; }
+.lm-photo img { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
+
+/* reject pop-up */
 .reason-chips { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-/* quick reasons: a tap fills the box (light green, like other secondary choices) */
-.reason-chip { text-align: left; background: #f7faf8; border: 1px solid #d9e3dc; border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; color: #1a3a1a; cursor: pointer; font-family: inherit; line-height: 1.4; }
-.reason-chip:hover { background: #e3efe7; border-color: #3f9a6b; }
+.reason-chip { padding: 10px 12px; border: 1.5px solid #dce8e0; border-radius: 12px; background: #fff; font-family: inherit; font-size: 13px; line-height: 1.4; color: #0e3a2c; text-align: left; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.reason-chip:hover { border-color: #1f9d55; background: #f1f8f4; }
 .reason-chip:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
-/* below 1000px: just the list; an application opens as a full-screen sheet */
+/* below 1000px: the list; an application opens as a full-screen sheet */
 @media (max-width: 999px) {
+  .ra-hero { padding: 20px 18px; border-radius: 22px; }
+  .ra-title { font-size: 24px; }
+  .ra-plate { width: 180px; height: 180px; right: -60px; top: 20px; transform: none; }
+  .ra-hero-txt { max-width: 70%; }
+  .ra-search { flex: 1 1 100%; }
+  .ra-tabs { display: flex; width: 100%; border-radius: 16px; }
   .review-layout { grid-template-columns: 1fr; }
-  .queue { position: static; }
+  .queue { position: static; max-height: none; }
   .queue-chevron { display: block; }
-  .queue-item.active { background: none; border-color: transparent; }
+  .queue-item.active { background: none; border-color: transparent; box-shadow: none; }
   .review-placeholder { display: none; }
-  .review-wrap { position: fixed; inset: 0; z-index: 250; background: #f4f5f3; overflow-y: auto; padding: 16px; }
-  .review { min-height: 100%; }
+  .review-wrap { position: fixed; inset: 0; z-index: 250; padding: 16px; background: #f4f5f3; overflow-y: auto; }
+  .review { min-height: 100%; padding: 0 16px 20px; }
   .back-btn { display: inline-flex; }
-  .decide { top: -16px; }
-  .queue { max-height: none; }
+  .decide { top: -16px; margin: 0 -16px; padding: 16px 16px 12px; }
+  .desk { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .nm-page { padding-bottom: 110px; }
 }
 @media (max-width: 640px) {
   .license-modal { max-width: none; height: 100%; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
   .lm-photo { flex: 1; align-items: center; }
-  .desk { grid-template-columns: 1fr; }
+  .photos { grid-template-columns: 1fr; }
+  .decide-who .nm-avatar.lg { width: 50px; height: 50px; font-size: 17px; }
+  .decide-name .nm-panel-title { font-size: 21px; }
   .decide-actions { width: 100%; flex-wrap: wrap; }
   .decide-actions > button { flex: 1; }
   .review-pos { width: 100%; }
-  .decide-hint { text-align: left; }
+  .progress { flex-wrap: wrap; }
+  .pg-bar { flex-basis: 100%; order: 3; }
   .contact { grid-template-columns: 1fr; }
-  .contact > div + div { border-left: none; border-top: 1px solid #d9e3dc; }
 }
 </style>
