@@ -1,22 +1,39 @@
 <template>
   <div class="nm-page">
-    <p class="nm-page-sub">Every NCP record across your patients. Records are written during consultations, in the consultation room. This page is for reviewing and printing them.</p>
-    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
-    <div v-if="loading" class="nm-panel"><p class="nm-muted">Loading NCP records…</p></div>
+    <!-- HERO (the summary figures double as filters) -->
+    <section class="nr-hero">
+      <img class="nr-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
+      <span class="nr-hero-fade" aria-hidden="true"></span>
+      <div class="nr-hero-txt">
+        <p class="nr-eyebrow"><span aria-hidden="true"></span>NCP records</p>
+        <h2 class="nr-title">Every record, in one place</h2>
+        <p class="nm-page-sub">Every NCP record across your patients. Records are written during consultations, in the consultation room. This page is for reviewing and printing them.</p>
+      </div>
+    </section>
 
-    <template v-else-if="data">
-      <!-- SUMMARY (click to filter the worklist / list) -->
-      <div class="nm-panel summary" role="group" aria-label="Filter by">
-        <button v-for="s in SUMMARY" :key="s.key" type="button" class="sum-item" :class="{ attn: s.attn && data.summary[s.key], on: focus === s.key }" :aria-pressed="focus === s.key" @click="toggleFocus(s.key)">
+    <!-- the summary figures, under the hero; each one filters the list -->
+    <div v-if="data" class="summary kfs" role="group" aria-label="Filter by">
+      <button v-for="s in SUMMARY" :key="s.key" type="button" class="sum-item kf" :class="[SUM_TONE[s.key], { attn: s.attn && data.summary[s.key], on: focus === s.key }]" :aria-pressed="focus === s.key" @click="toggleFocus(s.key)">
+        <span class="kf-ico"><template v-if="s.key === 'drafts'"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg></template><template v-else-if="s.key === 'no_record'"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M12 11v6M9 14h6" /></svg></template><template v-else-if="s.key === 'follow_up_due'"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg></template><template v-else><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></svg></template></span>
+        <span class="kf-t">
           <span class="sum-label">{{ s.label }}</span>
           <strong>{{ data.summary[s.key] }}</strong>
-        </button>
-      </div>
+          <em>{{ SUM_NOTE[s.key] }}</em>
+        </span>
+        <span class="kf-go"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+      </button>
+    </div>
+
+    <p v-if="error" class="nm-error">{{ error }} <button class="nm-panel-link" @click="load">Try again</button></p>
+    <div v-if="loading" class="nm-panel nr-loading"><span class="nr-spin" aria-hidden="true"></span><p class="nm-muted">Loading NCP records…</p></div>
+
+    <template v-else-if="data">
 
       <!-- NEEDS YOUR ATTENTION -->
-      <section v-if="worklistCount" class="nm-panel">
-        <div class="nm-panel-head">
-          <div>
+      <section v-if="worklistCount" class="nm-panel nr-card wl-card">
+        <div class="nm-panel-head nr-card-h">
+          <span class="nr-hico gold"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3L2 20h20z" /><path d="M12 10v4M12 17h.01" /></svg></span>
+          <div class="nr-card-txt">
             <h2 class="nm-panel-title">Needs your attention</h2>
             <p class="nm-panel-sub">Patients at nutritional risk (NRS-2002 ≥ 3) are listed first. A follow-up is due {{ data.follow_up_days }} days after the last finalized record, or after a consultation with no record.</p>
           </div>
@@ -38,18 +55,19 @@
           </div>
         </template>
       </section>
-      <p v-else class="all-clear"><CheckCircle2 :size="16" /> Every active patient's NCP is up to date.</p>
+      <p v-else class="all-clear"><span class="all-clear-ico"><CheckCircle2 :size="16" /></span> Every active patient's NCP is up to date.</p>
 
       <!-- ALL RECORDS -->
-      <section class="nm-panel">
-        <div class="nm-panel-head">
-          <div>
+      <section class="nm-panel nr-card">
+        <div class="nm-panel-head nr-card-h">
+          <span class="nr-hico"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1M9 10h6M9 14h6M9 17.5h3" /></svg></span>
+          <div class="nr-card-txt">
             <h2 class="nm-panel-title">All records</h2>
-            <p class="nm-panel-sub">{{ groups.length }} patient{{ groups.length === 1 ? '' : 's' }}, {{ shown.length }} record{{ shown.length === 1 ? '' : 's' }}{{ shown.length !== data.records.length ? ` of ${data.records.length}` : '' }}</p>
+            <p class="nm-panel-sub nr-count">{{ groups.length }} patient{{ groups.length === 1 ? '' : 's' }}, {{ shown.length }} record{{ shown.length === 1 ? '' : 's' }}{{ shown.length !== data.records.length ? ` of ${data.records.length}` : '' }}</p>
           </div>
         </div>
-        <div class="nm-toolbar">
-          <label class="nm-search">
+        <div class="nm-toolbar nr-tools">
+          <label class="nm-search nr-search">
             <Search :size="16" />
             <input v-model="search" type="search" placeholder="Search patient or diagnosis" aria-label="Search records" />
           </label>
@@ -67,15 +85,15 @@
           </div>
         </div>
 
-        <p v-if="!data.records.length" class="nm-muted empty-line">No NCP records yet. They're written during consultations, in the consultation room's NCP tab.</p>
-        <p v-else-if="!shown.length" class="nm-muted">No records match these filters.</p>
+        <p v-if="!data.records.length" class="nm-muted empty-line nr-empty">No NCP records yet. They're written during consultations, in the consultation room's NCP tab.</p>
+        <p v-else-if="!shown.length" class="nm-muted nr-empty">No records match these filters.</p>
         <div v-if="groups.length" class="plist" role="list">
           <div class="phead" aria-hidden="true">
             <span /><span>Patient</span><span>Latest diagnosis</span><span>Records</span><span>Last record</span><span>Goal status</span>
           </div>
           <div v-for="g in pagedGroups" :key="g.relationship_id" class="pgroup" :class="{ open: expanded.has(g.relationship_id) }" role="listitem">
             <button type="button" class="prow" :aria-expanded="expanded.has(g.relationship_id)" @click="toggle(g.relationship_id)">
-              <ChevronRight :size="16" class="chev" />
+              <span class="chev-wrap" aria-hidden="true"><ChevronRight :size="16" class="chev" /></span>
               <span class="pwho">
                 <Avatar :p="g.patient" />
                 <span class="pname">
@@ -92,17 +110,20 @@
               <span class="pgoal" :class="{ muted: !g.goal }">{{ g.goal || (g.latest.status === 'completed' ? 'At first follow-up' : '—') }}</span>
             </button>
             <div v-if="expanded.has(g.relationship_id)" class="timeline">
+              <div class="tbox">
+              <div class="thead" aria-hidden="true"><span /><span>Date</span><span>Type</span><span>Diagnosis</span><span>TER</span><span>Goal</span><span /></div>
               <button v-for="rec in g.records" :key="rec.id" type="button" class="trow" @click="open = rec">
                 <span class="tdot" :class="rec.status" aria-hidden="true" />
                 <span class="tdate">{{ shortDate(rec.encounter_date) }}</span>
-                <span class="tkind">{{ rec.is_follow_up ? `Follow-up #${rec.follow_up_no}` : 'Initial' }}</span>
+                <span class="tkind"><em :class="{ follow: rec.is_follow_up }">{{ rec.is_follow_up ? `Follow-up #${rec.follow_up_no}` : 'Initial' }}</em></span>
                 <span class="tdx">{{ rec.pes_problem || 'No diagnosis yet' }}</span>
                 <span class="tkcal">{{ rec.target_kcal ? `${Math.round(rec.target_kcal).toLocaleString('en-PH')} kcal` : '—' }}</span>
                 <!-- goal status is only rated at a follow-up (Monitoring step) -->
                 <span class="tgoal" :class="{ muted: !rec.goal_status_label && rec.status !== 'draft' }">{{ rec.goal_status_label || (rec.status === 'draft' ? `Draft, ${rec.missing.length} missing` : (rec.is_follow_up ? '—' : 'Set at follow-up')) }}</span>
                 <span class="tview">View <ChevronRight :size="14" /></span>
               </button>
-              <NuxtLink :to="`/client-detail/${g.relationship_id}?tab=ncp`" class="nm-panel-link chart-link">Open patient chart</NuxtLink>
+              </div>
+              <NuxtLink :to="`/client-detail/${g.relationship_id}?tab=ncp`" class="nm-panel-link chart-link">Open patient chart <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></NuxtLink>
             </div>
           </div>
         </div>
@@ -236,83 +257,182 @@ const Avatar = defineComponent({
       : h('span', { class: 'nm-avatar' }, (props.p.name || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase())
   },
 })
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+const SUM_TONE = { drafts: 'gold', no_record: 'blue', follow_up_due: 'green', finalized_this_month: 'dark' }
+const SUM_NOTE = { drafts: 'Continue them in the chart', no_record: 'First record not written yet', follow_up_due: 'A reassessment is due', finalized_this_month: 'Signed and locked' }
 </script>
-
 <style scoped>
-.nm-page-sub { font-size: 0.88rem; color: #6a7a6a; margin: 0 0 16px; }
-.nm-page > .nm-panel { margin-bottom: 16px; }
-/* panels: the light card shadow (Food Exchange); the summary figures: the
-   stronger one used on the patient chart header and Earnings */
-.nm-page > .nm-panel { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.nm-page > .nm-panel.summary { box-shadow: 0 0 2px rgba(0, 77, 58, 0.08), 0 0 24px rgba(0, 77, 58, 0.22); }
-/* one panel, four figures that double as filters (same treatment as Earnings) */
-.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; overflow: hidden; margin-bottom: 16px; }
-.sum-item { position: relative; background: none; border: none; border-left: 1px solid #d9e3dc; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; font-family: inherit; text-align: left; }
-.sum-item:first-child { border-left: none; }
-.sum-item:hover { background: #fafbfa; }
-.sum-item:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
-.sum-label { font-size: 0.8rem; font-weight: 600; color: #4a5a4a; }
-.sum-item strong { font-family: 'Playfair Display', serif; font-size: 1.6rem; line-height: 1.1; color: #1a3a1a; font-variant-numeric: tabular-nums lining-nums; }
-.sum-item.attn strong { color: #a07400; }
-.sum-item.on { background: #f3f7f2; }
-.sum-item.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #1a3a1a; }
-.all-clear { display: flex; align-items: center; gap: 8px; color: #1f6f46; font-weight: 600; font-size: 0.88rem; margin: 0 0 16px; }
-.empty-line { margin: 14px 0 4px; }
-.pager-num { align-self: center; font-size: 0.82rem; color: #4a5a4a; font-variant-numeric: tabular-nums; }
+.nm-page { --sh: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22); }
+.ic { flex-shrink: 0; }
 
-.wl-group + .wl-group { margin-top: 14px; }
-.wl-label { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0 0 2px; }
-.wl-label span { color: #8a9a8a; font-weight: 500; margin-left: 4px; }
-.wl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #f0f2f0; flex-wrap: wrap; }
+/* ---------- hero + summary figures ---------- */
+.nr-hero {
+  position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap;
+  margin-bottom: 16px; padding: 26px 30px; border-radius: 24px; color: #fff;
+  background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 50%, #004635 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 24px 50px -18px rgba(0, 77, 58, 0.55);
+}
+.nr-hero-plate { position: absolute; right: -70px; top: 50%; width: 340px; height: 340px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); opacity: 0.85; pointer-events: none; }
+.nr-hero-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 48%, rgba(0, 77, 58, 0.8) 72%, rgba(0, 77, 58, 0.3) 100%); }
+.nr-hero-txt { position: relative; z-index: 1; flex: 1 1 360px; min-width: 0; max-width: 620px; }
+.nr-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.nr-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
+.nr-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
+.nr-hero .nm-page-sub { margin: 0; font-size: 14px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
+.summary { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, auto); gap: 8px; }
+.sum-item {
+  display: flex; flex-direction: column; gap: 2px; min-width: 118px; padding: 10px 14px; border-radius: 14px; cursor: pointer; text-align: left;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; font-family: inherit; backdrop-filter: blur(6px); transition: background 0.15s, transform 0.15s;
+}
+.sum-item:hover { background: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
+.sum-item:focus-visible { outline: 2px solid #efbf04; outline-offset: 2px; }
+.sum-label { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.75); white-space: nowrap; }
+.sum-item strong { font-family: 'Playfair Display', serif; font-size: 26px; line-height: 1.2; color: #fff; font-variant-numeric: tabular-nums lining-nums; }
+.sum-item.on { background: #fff; border-color: #fff; }
+.sum-item.on .sum-label { color: #6b7d73; }
+.sum-item.on strong { color: #004d3a; }
+
+.nr-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; border-radius: 22px; box-shadow: var(--sh); }
+.nr-loading .nm-muted { margin: 0; }
+.nr-spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid #e3efe7; border-top-color: #004d3a; animation: nr-spin 0.8s linear infinite; }
+@keyframes nr-spin { to { transform: rotate(360deg); } }
+
+.all-clear { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 16px; padding: 7px 16px 7px 7px; border-radius: 999px; background: #e3f4ea; font-size: 13.5px; font-weight: 800; color: #1f5c45; }
+.all-clear-ico { width: 28px; height: 28px; border-radius: 50%; background: #1f9d55; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+
+/* ---------- cards ---------- */
+.nm-page > .nm-panel, .nr-card { margin-bottom: 16px; }
+.nr-card { padding: 0; border: none; border-radius: 24px; overflow: hidden; box-shadow: var(--sh); }
+.nr-card-h { display: flex; align-items: center; gap: 14px; margin: 0; padding: 20px 24px 0; }
+.nr-card-txt { flex: 1; min-width: 0; }
+.nr-hico { flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; background: #e3efe7; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
+.nr-hico.gold { background: #fbf3d2; color: #9a7300; }
+.nr-card .nm-panel-title { margin: 0; font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; letter-spacing: 0.01em; color: #0e3a2c; }
+.nr-card .nm-panel-sub { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: #6b7d73; }
+.nr-count { display: inline-flex; padding: 3px 11px; border-radius: 999px; background: #e3efe7; font-weight: 800; color: #004d3a !important; }
+
+/* needs attention */
+.wl-card { padding-bottom: 12px; }
+.wl-group { margin: 16px 24px 0; border: 1px solid #eef2ef; border-radius: 18px; overflow: hidden; }
+.wl-group + .wl-group { margin-top: 12px; }
+.wl-label { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 16px; background: #f7faf8; border-bottom: 1px solid #eef2ef; font-size: 13.5px; font-weight: 800; color: #0e3a2c; }
+.wl-label span { min-width: 20px; height: 20px; padding: 0 6px; margin-left: 0; border-radius: 999px; background: #fff4d6; font-size: 11.5px; font-weight: 800; color: #8a6500; display: inline-flex; align-items: center; justify-content: center; }
+.wl-row { position: relative; display: flex; align-items: center; gap: 14px; padding: 14px 16px 14px 20px; border-top: 1px solid #f0f3f1; flex-wrap: wrap; }
+.wl-row::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: #efbf04; }
 .wl-label + .wl-row { border-top: none; }
 .wl-main { flex: 1; min-width: 180px; }
-.wl-main .nm-row-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wl-main .nm-row-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-family: inherit; font-size: 14.5px; font-weight: 700; color: #0e3a2c; }
+.wl-main .nm-row-sub { margin: 3px 0 0; font-size: 13px; color: #6b7d73; }
+.wl-main .nm-pill.red { padding: 2px 9px; border-radius: 999px; background: #fdecea; font-size: 11.5px; font-weight: 800; color: #b42318; }
+.wl-row .nm-btn-sm { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 12px; font-size: 13.5px; font-weight: 800; text-decoration: none; }
+.wl-row .nm-btn-dark { background: #004d3a; border: 1px solid #004d3a; color: #fff; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
+.wl-row .nm-btn-outline { background: #f1f6f2; border: 1px solid #dce8e0; color: #004d3a; }
 
+/* avatar (render function) */
+:deep(.nm-avatar) {
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; object-fit: cover; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700;
+  background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; border: 2px solid #fff; box-shadow: 0 0 0 2.5px #1f9d55;
+}
+
+/* ---------- toolbar ---------- */
+.nr-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 0; padding: 18px 24px; }
+.nr-search { position: relative; display: flex; align-items: center; gap: 10px; flex: 0 1 340px; height: 46px; padding: 0 16px; margin: 0; border-radius: 999px; background: #fff; border: 1.5px solid #d3dfd8; color: #8a9a91; box-sizing: border-box; }
+.nr-search:focus-within { border-color: #004d3a; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.nr-search svg { position: static !important; transform: none !important; flex-shrink: 0; }
+.nr-search input { flex: 1; min-width: 0; height: 100%; padding: 0 !important; border: none !important; outline: none; background: transparent !important; font-family: inherit; font-size: 14px; color: #14261e; box-shadow: none; }
 .filters { display: flex; gap: 8px; flex-wrap: wrap; }
-.plist { border-top: 1px solid #f0f2f0; }
-.phead, .prow { display: grid; grid-template-columns: 22px minmax(0, 1.3fr) minmax(0, 1.6fr) 110px 110px 120px; gap: 12px; align-items: center; }
-.phead { padding: 10px 8px; font-size: 0.76rem; font-weight: 500; color: #8a9a8a; }
-.pgroup { border-bottom: 1px solid #f0f2f0; }
-.prow { width: 100%; padding: 10px 8px; background: none; border: none; font-family: inherit; text-align: left; cursor: pointer; border-radius: 8px; color: #1a3a1a; }
-.prow:hover, .prow:focus-visible { background: #fafbfa; outline: none; }
-.pgroup.open > .prow { background: #f6f9f6; }
-.chev { color: #8a9a8a; transition: transform 0.15s; }
+.filters .nm-select { min-height: 42px; height: 42px; padding-left: 14px; border-radius: 999px; border: 1.5px solid #d3dfd8; background-color: #f7faf8; font-family: inherit; font-size: 14px; font-weight: 400; color: #22362c; cursor: pointer; }
+.filters .nm-select:focus { outline: none; border-color: #004d3a; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.nr-empty, .empty-line { margin: 0 24px 20px; padding: 20px; border-radius: 16px; border: 1.5px dashed #cfddd4; text-align: center; font-weight: 600; }
+
+/* ---------- patient list ---------- */
+.plist { border-top: none; }
+.phead, .prow { display: grid; grid-template-columns: 32px minmax(0, 1.3fr) minmax(0, 1.6fr) 110px 130px 150px; gap: 14px; align-items: center; }
+.phead { padding: 13px 24px; background: #f7faf8; border-top: 1px solid #eef2ef; border-bottom: 1px solid #eef2ef; font-size: 12.5px; font-weight: 500; color: #7a8a80; }
+.pgroup { position: relative; border-bottom: 1px solid #f0f3f1; }
+.pgroup:last-child { border-bottom: none; }
+.prow { width: 100%; padding: 16px 24px; background: none; border: none; border-radius: 0; font-family: inherit; text-align: left; cursor: pointer; color: #22362c; transition: background 0.15s; }
+.prow:hover { background: #fafcfb; }
+.prow:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.pgroup.open { background: #f4f9f6; box-shadow: inset 4px 0 0 #1f9d55; }
+.pgroup.open > .prow { background: transparent; }
+.chev-wrap { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #d3dfd8; display: inline-flex; align-items: center; justify-content: center; color: #6b7d73; transition: background 0.15s, border-color 0.15s; }
+.chev { color: inherit; transition: transform 0.2s; }
+.pgroup.open .chev-wrap { background: #e3efe7; border-color: #e3efe7; color: #004d3a; }
 .pgroup.open .chev { transform: rotate(90deg); }
-.pwho { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pwho { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .pname { display: flex; flex-direction: column; min-width: 0; }
-.pname .nm-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pdx { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pdx.empty { color: #9aaa9a; font-style: italic; }
-.pcount { display: flex; align-items: center; gap: 6px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
-.pdate, .pgoal { font-size: 0.84rem; color: #4a5a4a; }
+.pname .nm-row-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: inherit; font-size: 14.5px; font-weight: 700; color: #0e3a2c; }
+.pname .nm-row-sub { margin: 1px 0 0; font-size: 12px; color: #8a9a91; }
+.pdx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 400; color: #22362c; }
+.pdx.empty { color: #8a9a91; font-weight: 500; font-style: italic; }
+.pcount { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; color: #22362c; font-variant-numeric: tabular-nums; }
+.pcount .nm-pill { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.pcount .nm-pill.gold { background: #fff4d6; color: #8a6500; }
+.pdate { font-size: 14px; color: #3e5046; white-space: nowrap; }
+.pgoal { font-size: 14px; font-weight: 400; color: #22362c; }
+.pgoal.muted { color: #6b7d73; font-weight: 500; font-style: italic; }
 
-.timeline { padding: 4px 8px 12px 42px; }
-.trow { width: 100%; display: grid; grid-template-columns: 10px 96px 104px minmax(0, 1fr) 90px 150px 54px; gap: 10px; align-items: center; padding: 9px 10px; border: none; background: none; font-family: inherit; text-align: left; cursor: pointer; border-radius: 8px; font-size: 0.82rem; color: #2a3a2a; }
-.trow:hover, .trow:focus-visible { background: #eef3ec; outline: none; }
-.tdot { width: 8px; height: 8px; border-radius: 50%; background: #1f8f5c; }
-.tdot.draft { background: #D4A017; }
-.tkind { font-weight: 600; }
+/* expanded: a small table of the patient's records */
+.timeline { padding: 0 24px 18px 70px; }
+.tbox { border-radius: 14px; background: #fff; border: 1px solid #e3ebe6; overflow: hidden; }
+.thead, .trow { display: grid; grid-template-columns: 10px 110px 120px minmax(0, 1fr) 100px 160px 60px; gap: 12px; align-items: center; }
+.thead { padding: 10px 16px; border-bottom: 1px solid #eef2ef; font-size: 12px; font-weight: 500; color: #7a8a80; }
+.trow { width: 100%; padding: 12px 16px; border: none; border-top: 1px solid #f3f6f4; background: none; font-family: inherit; text-align: left; cursor: pointer; font-size: 13.5px; color: #22362c; transition: background 0.15s; }
+.thead + .trow { border-top: none; }
+.trow:hover { background: #f7faf8; }
+.trow:focus-visible { outline: 2px solid #1f8f5c; outline-offset: -2px; }
+.tdot { width: 8px; height: 8px; border-radius: 50%; background: #1f9d55; box-shadow: 0 0 0 3px #e3f4ea; }
+.tdot.draft { background: #efbf04; box-shadow: 0 0 0 3px #fff4d6; }
+.tdate { font-weight: 500; color: #22362c; white-space: nowrap; }
+.tkind em { display: inline-flex; padding: 2px 9px; border-radius: 999px; background: #e3efe7; font-style: normal; font-size: 11.5px; font-weight: 800; color: #004d3a; white-space: nowrap; }
+.tkind em.follow { background: #fbf3d2; color: #9a7300; }
 .tdx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tkcal { font-variant-numeric: tabular-nums; color: #4a5a4a; }
-.tgoal { color: #4a5a4a; }
-.pgoal.muted, .tgoal.muted { color: #8a968a; font-style: italic; }
-.tview { display: inline-flex; align-items: center; justify-content: flex-end; color: #1f6f46; font-weight: 600; }
-.chart-link { margin: 6px 0 0 10px; }
-.pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: 0.82rem; }
-.pager-btns { display: flex; gap: 10px; }
+.tkcal { font-weight: 400; color: #22362c; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tgoal { color: #3e5046; }
+.pgoal.muted, .tgoal.muted { color: #6b7d73; font-style: italic; }
+.tview { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; font-weight: 800; color: #004d3a; }
+.chart-link { display: inline-flex; align-items: center; gap: 6px; height: 36px; margin: 10px 0 0; padding: 0 14px; border-radius: 12px; background: #fff; border: 1px solid #dce8e0; font-size: 13px; font-weight: 800; color: #004d3a; text-decoration: none; }
+.chart-link:hover { background: #f1f6f2; }
 
+/* pager */
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; padding: 14px 24px; border-top: 1px solid #eef2ef; font-size: 13px; }
+.pager-btns { display: flex; gap: 10px; align-items: center; }
+.pager-num { align-self: center; font-size: 13px; font-weight: 700; color: #3e5046; font-variant-numeric: tabular-nums; }
+.pager .nm-btn-outline { min-height: 38px; padding: 0 14px; border-radius: 12px; background: #f1f6f2; border: 1px solid #dce8e0; color: #004d3a; font-weight: 800; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1200px) {
+  .summary { flex-basis: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sum-item { min-width: 0; }
+}
+@media (max-width: 960px) {
+  .nr-hero { padding: 20px 18px; border-radius: 22px; }
+  .nr-title { font-size: 24px; }
+  .nr-hero-plate { width: 220px; height: 220px; right: -80px; top: 40px; transform: none; opacity: 0.5; }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .all-clear { border-radius: 16px; }
+  .nr-card-h { padding: 16px 16px 0; }
+  .nr-tools { padding: 14px 16px; }
+  .nr-search { flex: 1 1 100%; }
+  .wl-group { margin: 14px 16px 0; }
+}
 @media (max-width: 860px) {
   .phead { display: none; }
-  .prow { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "c who count" "c dx dx" "c meta meta"; row-gap: 4px; }
-  .chev { grid-area: c; align-self: start; margin-top: 8px; }
+  .prow { grid-template-columns: 32px minmax(0, 1fr) auto; grid-template-areas: "c who count" "c dx dx" "c meta meta"; row-gap: 6px; padding: 14px 16px; }
+  .chev-wrap { grid-area: c; align-self: start; margin-top: 6px; }
   .pwho { grid-area: who; }
   .pcount { grid-area: count; }
   .pdx { grid-area: dx; white-space: normal; }
   .pdate { grid-area: meta; }
   .pgoal { display: none; }
-  .timeline { padding-left: 16px; }
-  .trow { grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-areas: "d kind view" "d dx dx" "d meta meta"; row-gap: 2px; }
-  .tdot { grid-area: d; align-self: start; margin-top: 5px; }
+  .timeline { padding: 0 16px 16px; }
+  .thead { display: none; }
+  .trow { grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-areas: "d kind view" "d dx dx" "d meta meta"; row-gap: 4px; }
+  .tdot { grid-area: d; align-self: start; margin-top: 6px; }
   .tkind { grid-area: kind; }
   .tdate { display: none; }
   .tdx { grid-area: dx; white-space: normal; }
@@ -321,13 +441,41 @@ const Avatar = defineComponent({
   .tview { grid-area: view; }
 }
 @media (max-width: 760px) {
-  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .sum-item { padding: 12px 16px; }
-  .sum-item:nth-child(3) { border-left: none; }
-  .sum-item:nth-child(n+3) { border-top: 1px solid #d9e3dc; }
-  .sum-item strong { font-size: 1.3rem; }
-  .filters, .filters select { width: 100%; }
-  .filters select { flex: 1 1 100%; min-width: 0; }
-  .wl-row .nm-btn-sm { margin-left: 50px; }
+  .nm-page { padding-bottom: 110px; }
+  .sum-item strong { font-size: 22px; }
+  .filters { width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+  .filters .nm-select { flex: 1 0 auto; }
+  .wl-row .nm-btn-sm { width: 100%; justify-content: center; }
 }
+
+/* ---------- summary figures, under the hero ---------- */
+.kfs { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 14px !important; margin: 0 0 18px !important; padding: 0 !important; background: none !important; border: none !important; box-shadow: none !important; }
+.kf { position: relative; display: flex !important; flex-direction: row !important; align-items: center; gap: 14px; min-width: 0; margin: 0 !important; padding: 16px 18px !important; border: 1.5px solid #c9d8cf !important; border-radius: 18px !important; background: #fff !important; font-family: inherit; text-align: left; color: #0e3a2c !important; cursor: pointer; box-shadow: 0 10px 24px -18px rgba(0, 77, 58, 0.35) !important; transition: transform 0.15s, border-color 0.15s; }
+.kf:hover { transform: translateY(-2px); border-color: #9ec4ad !important; }
+.kf:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.kf-ico { flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.kf.gold .kf-ico { background: #fff4d6; color: #8a6500; }
+.kf.blue .kf-ico { background: #eef1fa; color: #2e4a86; }
+.kf.green .kf-ico { background: #e3f4ea; color: #1f7a4d; }
+.kf.dark .kf-ico { background: #004d3a; color: #efbf04; }
+.kf-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.kf .sum-label { font-size: 12.5px !important; font-weight: 700; color: #4a5a52 !important; letter-spacing: 0 !important; text-transform: none !important; }
+.kf strong { font-family: 'DM Sans', sans-serif !important; font-size: 26px !important; font-weight: 800; line-height: 1.1; color: #0e3a2c !important; font-variant-numeric: lining-nums tabular-nums; }
+.kf em { font-style: normal; font-size: 12px; color: #8a9a91; }
+.kf-go { flex-shrink: 0; color: #c9d3cd; }
+.kf:hover .kf-go { color: #1f7a4d; }
+.kf.attn { border-color: #efbf04 !important; background: linear-gradient(180deg, #fffbea, #fff) !important; }
+.kf.attn strong { color: #8a6500 !important; }
+.kf.on { border-color: #004d3a !important; background: linear-gradient(180deg, #f1f8f4, #fff) !important; box-shadow: 0 0 0 3px rgba(0, 77, 58, 0.1) !important; }
+.kf.on strong { color: #004d3a !important; }
+.kf.on em { font-weight: 700; color: #1f7a4d; }
+@media (max-width: 1100px) { .kfs { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 760px) { .kfs { gap: 10px !important; } .kf { padding: 14px !important; } .kf-go { display: none; } }
+
+/* search + filters: 10px corners like the other pages */
+.nr-tools .nm-search,
+.nr-search,
+.nr-tools .nm-select,
+.filters .nm-select,
+.filters select.nm-select { border-radius: 10px !important; }
 </style>

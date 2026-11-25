@@ -1,4 +1,4 @@
-<template>
+2<template>
   <div class="call">
     <!-- the other person, large -->
     <video v-show="showRemoteVideo" ref="remoteEl" class="remote" autoplay playsinline />

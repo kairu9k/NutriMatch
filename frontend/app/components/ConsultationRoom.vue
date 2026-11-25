@@ -17,7 +17,7 @@
         </template>
       </div>
       <div class="bar-right">
-        <span v-if="appt && appt.status === 'confirmed'" class="timer" :class="timerTone">{{ timerText }}</span>
+        <span v-if="appt && appt.status === 'confirmed'" class="timer" :class="timerTone"><Clock :size="14" aria-hidden="true" /> {{ timerText }}</span>
         <!-- RND: once the consultation can start, the only way out is Finish
              (mark complete / leave for now / no-show) — no plain Exit. -->
         <button v-if="mustFinish && !callShowsEnd && windowState !== 'closed'" type="button" class="end-btn" @click="openEnd">
@@ -84,6 +84,7 @@
              who hasn't joined (when a no-show can be marked, 15 minutes after the start), and the no-overtime wrap-up. -->
         <div class="top-notes">
         <div v-if="rndWaiting" class="wrap-note wait-note" role="status">
+          <UserX :size="16" class="wn-ic" aria-hidden="true" />
           <p v-if="noShowOpen && closeOpts.no_show"><strong>{{ other.firstName }} hasn't joined.</strong> You've waited long enough. You can mark a no-show now, or keep waiting.</p>
           <p v-else-if="noShowOpen"><strong>{{ other.firstName }} hasn't joined.</strong> Stay in the call {{ Math.max(1, 5 - (appt.attendance?.rnd_minutes ?? 0)) === 1 ? '1 more minute' : `${Math.max(1, 5 - (appt.attendance?.rnd_minutes ?? 0))} more minutes` }}, then you can mark a no-show.</p>
           <p v-else><strong>Waiting for {{ other.firstName }}.</strong> You can mark a no-show from {{ clock(noShowFrom) }}, 15 minutes after the start ({{ dur(noShowFrom - now) }} to go).</p>
@@ -114,7 +115,7 @@
       </main>
 
       <!-- RND WORK PANEL -->
-      <aside v-if="isRnd && appt" class="panel">
+      <aside v-if="isRnd && appt" class="panel" :class="{ wide: tab === 'ncp' }">
         <nav class="tabs" role="tablist" aria-label="Consultation tools">
           <button v-for="t in RND_TABS" :key="t.key" type="button" role="tab" class="tab" :class="{ on: tab === t.key }" :aria-selected="tab === t.key"
                   :disabled="callEnded && t.key === 'ncp'" @click="tab = t.key">
@@ -128,32 +129,42 @@
 
           <!-- PATIENT -->
           <template v-else-if="tab === 'patient'">
+            <div class="pt-who">
+              <img v-if="other.photo" :src="other.photo" class="pt-av" alt="" />
+              <span v-else class="pt-av">{{ initials(other.name) }}</span>
+              <div class="pt-id"><strong>{{ other.name }}</strong><small v-if="ptSub">{{ ptSub }}</small></div>
+            </div>
             <p v-if="s.health.allergies.length" class="allergy"><AlertTriangle :size="14" /> Allergy: {{ s.health.allergies.join(', ') }}</p>
             <p v-if="appt.notes" class="note">“{{ appt.notes }}”<small>Their note when booking</small></p>
             <!-- the four figures; clicking one turns the panel over to explain it
                  (what it is, the formula with this patient's numbers, how to read it) -->
+            <p class="pt-sec">At a glance</p>
             <div class="flip" :class="{ flipped: !!statInfo }">
               <div class="stats face" :aria-hidden="!!statInfo" :inert="!!statInfo || undefined">
                 <button type="button" class="tile" @click="statInfo = 'weight'">
+                  <span class="pt-fi green" aria-hidden="true"><Scale :size="17" /></span><span class="pt-tx">
                   <span>Weight</span><strong>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}</strong>
                   <small>{{ figureSource(p.progress.weight_origin) || 'not measured yet' }}</small>
-                  <small v-if="p.progress.weight_change_kg != null">{{ signed(p.progress.weight_change_kg) }} kg since screening</small>
+                  <small v-if="p.progress.weight_change_kg != null">{{ signed(p.progress.weight_change_kg) }} kg since screening</small></span>
                 </button>
                 <button type="button" class="tile" @click="statInfo = 'bmi'">
+                  <span class="pt-fi gold" aria-hidden="true"><PersonStanding :size="17" /></span><span class="pt-tx">
                   <span>BMI</span><strong>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}</strong>
                   <small>{{ p.progress.bmi_class || '' }}</small>
-                  <small v-if="p.progress.bmi_origin">from the weight on {{ figureSource(p.progress.bmi_origin) }}</small>
+                  <small v-if="p.progress.bmi_origin">from the weight on {{ figureSource(p.progress.bmi_origin) }}</small></span>
                 </button>
                 <button type="button" class="tile" @click="statInfo = 'adherence'">
+                  <span class="pt-fi blue" aria-hidden="true"><Target :size="17" /></span><span class="pt-tx">
                   <span>Adherence, 7 days</span><strong>{{ p.adherence?.pct != null ? `${p.adherence.pct}%` : '—' }}</strong>
-                  <small>{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} logged` : 'no active plan' }}</small>
+                  <small>{{ p.adherence ? `${p.adherence.logged} of ${p.adherence.planned} logged` : 'no active plan' }}</small></span>
                 </button>
                 <button type="button" class="tile" :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }" @click="statInfo = 'nrs'">
+                  <span class="pt-fi green" aria-hidden="true"><ShieldCheck :size="17" /></span><span class="pt-tx">
                   <span>NRS-2002</span><strong>{{ s.screening?.nrs_score ?? '—' }}</strong>
                   <small>{{ s.screening?.nrs_risk || '' }}</small>
-                  <small v-if="s.screening">{{ screeningSource(s.screening) }}</small>
+                  <small v-if="s.screening">{{ screeningSource(s.screening) }}</small></span>
                 </button>
-                <p class="flip-hint">Tap a figure to see what it means.</p>
+                <p class="flip-hint"><Info :size="13" aria-hidden="true" /> Tap a figure to see what it means.</p>
               </div>
 
               <section class="info face back" :aria-hidden="!statInfo" :inert="!statInfo || undefined" aria-live="polite">
@@ -200,13 +211,13 @@
                 <button type="button" class="link small soft" @click="statInfo = null"><ArrowLeft :size="13" aria-hidden="true" /> Back to the figures</button>
               </section>
             </div>
-            <dl class="facts">
-              <div><dt>Age and sex</dt><dd>{{ [p.client.age != null ? `${p.client.age} y/o` : null, SEX[p.client.sex]].filter(Boolean).join(', ') || '—' }}</dd></div>
-              <div><dt>Conditions</dt><dd>{{ list(s.health.conditions) }}</dd></div>
-              <div><dt>Diet</dt><dd>{{ list(s.health.dietary_restrictions) }}</dd></div>
-              <div v-if="s.health.religion"><dt>Religion</dt><dd>{{ s.health.religion }}</dd></div>
-              <div><dt>Goals</dt><dd>{{ list(s.health.health_goals) }}</dd></div>
-              <div v-if="s.screening"><dt>BMR and TER</dt><dd>{{ whole(s.screening.bmr_kcal) }} and {{ whole(s.screening.tdee_kcal) }} kcal</dd></div>
+            <p class="pt-sec">Details</p>
+            <dl class="facts pt-facts">
+              <div><dt><HeartPulse :size="15" aria-hidden="true" /> Conditions</dt><dd>{{ list(s.health.conditions) }}</dd></div>
+              <div><dt><Leaf :size="15" aria-hidden="true" /> Diet</dt><dd>{{ list(s.health.dietary_restrictions) }}</dd></div>
+              <div v-if="s.health.religion"><dt><Church :size="15" aria-hidden="true" /> Religion</dt><dd>{{ s.health.religion }}</dd></div>
+              <div><dt><Flag :size="15" aria-hidden="true" /> Goals</dt><dd>{{ list(s.health.health_goals) }}</dd></div>
+              <div v-if="s.screening"><dt><Flame :size="15" aria-hidden="true" /> BMR and TER</dt><dd>{{ whole(s.screening.bmr_kcal) }} and {{ whole(s.screening.tdee_kcal) }} kcal</dd></div>
             </dl>
             <section class="block">
               <h3>Current care plan</h3>
@@ -215,7 +226,7 @@
                 <p v-if="s.care_plan.diet_prescription" class="txt">{{ s.care_plan.diet_prescription }}</p>
                 <p v-if="s.care_plan.target_kcal" class="muted">TER {{ whole(s.care_plan.target_kcal) }} kcal/day{{ s.care_plan.target_carb_g ? `, ${whole(s.care_plan.target_carb_g)} g carbs, ${whole(s.care_plan.target_protein_g)} g protein, ${whole(s.care_plan.target_fat_g)} g fat` : '' }}</p>
               </template>
-              <p v-else class="muted">No finalized NCP record yet.</p>
+              <p v-else class="muted pt-empty">No finalized NCP record yet.</p>
             </section>
             <section v-if="s.recent_logs.length" class="block">
               <h3>Recent meal logs</h3>
@@ -229,7 +240,7 @@
                 <h3>Lab results</h3>
                 <button type="button" class="link small" :disabled="labsLoading || callEnded" @click="openLabRequest"><FlaskConical :size="13" aria-hidden="true" /> Request lab tests</button>
               </div>
-              <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted">None yet.</p>
+              <p v-if="!s.labs || (!s.labs.total_results && !s.labs.open.length)" class="muted pt-empty">None yet.</p>
               <p v-if="labsSent" class="ok">
                 <CheckCircle2 :size="14" aria-hidden="true" />
                 <template v-if="windowState === 'open'">Sent. {{ p.client.first_name }} can upload them now, during the call, or later from the Lab results page.</template>
@@ -476,6 +487,8 @@
 import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, Upload, User, UserX, VideoOff, X } from 'lucide-vue-next'
 import { figureSource, screeningSource } from '~/utils/figureSource'
 import { LAB_ACCEPT, labDate, splitLabFiles } from '~/utils/labs'
+// UI only: icons for the redesigned patient panel
+import { Church, Flag, Flame, HeartPulse, Info, Leaf, PersonStanding, Scale, ShieldCheck, Target } from 'lucide-vue-next'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -952,6 +965,13 @@ function onHangUp() {
   else if (inLiveCall.value) callLeaveAsk.value = true
   else exitRoom()
 }
+
+/* ---------- UI only: patient panel header line ---------- */
+const ptSub = computed(() => {
+  const c = p.value?.client
+  if (!c) return ''
+  return [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], (s.value?.health?.conditions || [])[0]].filter(Boolean).join(' · ')
+})
 </script>
 
 <style scoped>
@@ -1158,5 +1178,93 @@ function onHangUp() {
   .ncp-wrap { height: auto; }
   .who-text small { display: none; }
   .bar-right { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+}
+
+/* ===== UI refresh (2026-11-23): room + side panel, matches the canvas ===== */
+.room { background: #0B1F18; font-family: 'DM Sans', 'Inter', sans-serif; }
+.bar { min-height: 64px; padding: 10px 20px; background: #081A14; }
+.brand { font-size: 1.25rem; }
+.gold { color: #EFBF04; }
+.sep { height: 28px; background: rgba(255, 255, 255, 0.15); }
+.bar-avatar { width: 36px; height: 36px; }
+.who-text strong { font-size: 0.92rem; }
+.timer { gap: 6px; min-height: 36px; font-weight: 800; }
+.timer.soon, .end-btn { background: #EFBF04; color: #004D3A; }
+.end-btn { min-height: 36px; font-weight: 800; }
+.end-btn:hover { background: #f5cb22; }
+.exit-btn { min-height: 36px; }
+.stage { background: radial-gradient(80% 70% at 50% 45%, #12352A, #0B1F18 70%); }
+.state-card { max-width: 380px; color: #A9C9B9; font-size: 0.9rem; }
+.state-card > svg { width: 64px; height: 64px; padding: 16px; border-radius: 50%; color: #EFBF04; background: rgba(239, 191, 4, 0.12); box-shadow: 0 0 0 8px rgba(239, 191, 4, 0.06); }
+.state-card .big { font-family: 'Playfair Display', serif; font-size: 1.6rem; }
+.link { border-radius: 12px; min-height: 42px; padding: 0 20px; background: #EFBF04; color: #004D3A; font-weight: 800; }
+.link:hover:not(:disabled) { background: #f5cb22; }
+
+/* waiting for the patient: gold glass note over the call */
+.wait-note { background: rgba(239, 191, 4, 0.14); border: 1px solid rgba(239, 191, 4, 0.35); color: #F6E3A0; border-radius: 14px; padding: 10px 16px; backdrop-filter: blur(6px); box-shadow: none; }
+.wait-note p { color: #F6E3A0; }
+.wait-note strong { color: #fff; }
+.wn-ic { flex-shrink: 0; color: #EFBF04; }
+
+/* side panel */
+.panel { background: #F7FAF8; border-radius: 22px 0 0 0; }
+.body.rnd .panel.wide { width: min(820px, 62vw); }
+.tabs { margin: 12px; padding: 4px; gap: 4px; border: none; border-radius: 14px; background: #E8EFEB; }
+.tab { height: 40px; border-radius: 10px; font-size: 0.86rem; font-weight: 700; color: #4A5A52; }
+.tab.on { background: #fff; color: #004D3A; font-weight: 800; box-shadow: 0 2px 8px -2px rgba(16, 35, 27, 0.25); }
+.ended-note { margin: 0 12px 4px; border: none; border-radius: 10px; }
+.panel-body { padding: 4px 18px 18px; }
+.ncp-wrap { margin: -4px -18px -18px; }
+
+.pt-who { display: flex; align-items: center; gap: 12px; padding: 6px 0 14px; }
+.pt-av { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #e3efe7; color: #004D3A; font-weight: 800; box-shadow: 0 0 0 2px #EFBF04; }
+.pt-id { min-width: 0; display: flex; flex-direction: column; }
+.pt-id strong { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #0E3A2C; line-height: 1.2; }
+.pt-id small { font-size: 0.8rem; color: #4A5A52; }
+.allergy { border-radius: 12px; padding: 10px 12px; font-size: 0.85rem; background: #FDECEC; color: #B4384A; }
+.note { border-radius: 12px; }
+.pt-sec, .block h3 { margin: 18px 0 10px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #6B7D73; }
+.block-head h3 { margin: 0; }
+
+/* figures: round icons, no boxes */
+.stats { background: none; border: none; box-shadow: none; overflow: visible; gap: 10px 12px; }
+.stats .tile { flex-direction: row; gap: 10px; padding: 10px; border-radius: 14px; background: none; }
+.stats .tile:hover { background: #fff; }
+.stats .tile:nth-child(even), .stats .tile:nth-child(n+3) { border: none; }
+.stats .tile.risk { background: #FDF3F2; }
+.stats .tile > .pt-fi { width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0; }
+.pt-fi.green { background: #DDEFE4; color: #1F7A4D; }
+.pt-fi.gold { background: #FBF3D2; color: #9A7300; }
+.pt-fi.blue { background: #DFF0FB; color: #1F6FA8; }
+.stats .tile > .pt-tx { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; font-size: inherit; font-weight: inherit; color: inherit; }
+.stats .pt-tx > span { font-size: 0.75rem; font-weight: 500; color: #6B7D73; }
+.stats .pt-tx > strong { font-size: 1.4rem; line-height: 1.15; color: #0E3A2C; }
+.stats .pt-tx > small { font-size: 0.72rem; color: #6B7D73; }
+.flip-hint { display: flex; align-items: center; gap: 6px; padding: 4px 2px 0; border: none; background: none; font-size: 0.72rem; color: #8A9A91; }
+.info { border-radius: 14px; }
+
+/* details: icon rows */
+.pt-facts div { padding: 9px 0; border-top-color: #E8EFEB; }
+.pt-facts dt { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #6B7D73; }
+.pt-facts dt svg { flex-shrink: 0; color: #1F7A4D; }
+.pt-facts dd { font-size: 0.82rem; font-weight: 700; }
+
+.block { margin-top: 6px; padding-top: 6px; border-top-color: #E1EAE4; }
+.pt-empty { padding: 12px; border-radius: 12px; border: 1.5px dashed #D3DED7; color: #8A9A91; text-align: center; }
+.link.small { min-height: 32px; border-radius: 10px; background: #004D3A; font-weight: 800; }
+.link.small svg { color: #EFBF04; }
+.link.small.soft { background: #E3EFE7; color: #004D3A; }
+.link.small.soft svg { color: inherit; }
+.chart-link { display: flex; width: 100%; min-height: 42px; margin-top: 18px; border-radius: 12px; font-size: 0.85rem; }
+
+/* client panel: same look */
+.client .rnd-card { padding: 6px 0 4px; }
+.rnd-photo { box-shadow: 0 0 0 2px #EFBF04; }
+.rnd-name { font-size: 1.1rem; color: #0E3A2C; }
+
+@media (max-width: 1100px) { .body.rnd .panel.wide { width: min(640px, 60vw); } }
+@media (max-width: 860px) {
+  .bar { padding: 10px 14px; }
+  .panel, .body.rnd .panel, .body.rnd .panel.wide { width: 100%; border-radius: 22px 22px 0 0; }
 }
 </style>

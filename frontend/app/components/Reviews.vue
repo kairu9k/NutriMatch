@@ -9,22 +9,24 @@
     <div v-if="reviews.length" class="summary-row">
       <div class="score-card">
         <p class="score-number">{{ summary.average.toFixed(1) }}</p>
+        <div class="score-side">
         <div class="stars-row">
           <Star
             v-for="n in 5"
             :key="n"
-            :size="18"
-            :fill="n <= Math.round(summary.average) ? '#D4A017' : 'none'"
-            :color="n <= Math.round(summary.average) ? '#D4A017' : '#d5dad5'"
+            :size="22"
+            :fill="n <= Math.round(summary.average) ? '#EFBF04' : '#dce5df'"
+            :color="n <= Math.round(summary.average) ? '#EFBF04' : '#dce5df'"
             :stroke-width="1.5"
           />
         </div>
-        <p class="score-caption">Based on {{ summary.total }} review{{ summary.total === 1 ? '' : 's' }}</p>
+        <p class="score-caption">Based on <strong>{{ summary.total }} review{{ summary.total === 1 ? '' : 's' }}</strong></p>
+        </div>
       </div>
 
       <div class="breakdown-card">
         <div v-for="row in ratingBreakdown" :key="row.stars" class="breakdown-row">
-          <span class="breakdown-label">{{ row.stars }} star{{ row.stars !== 1 ? 's' : '' }}</span>
+          <span class="breakdown-label" :aria-label="`${row.stars} star${row.stars !== 1 ? 's' : ''}`">{{ row.stars }}<Star :size="13" fill="#EFBF04" color="#EFBF04" aria-hidden="true" /></span>
           <div class="breakdown-track">
             <div
               class="breakdown-fill"
@@ -37,6 +39,10 @@
     </div>
 
     <!-- REVIEW LIST -->
+    <div v-if="reviews.length" class="list-head">
+      <h3>What patients said</h3>
+      <span>{{ summary.total }} review{{ summary.total === 1 ? '' : 's' }}</span>
+    </div>
     <div v-if="reviews.length" class="review-list">
       <div v-for="review in pagedReviews" :key="review.id" class="review-card">
         <div class="review-top">
@@ -49,8 +55,8 @@
                   v-for="n in 5"
                   :key="n"
                   :size="13"
-                  :fill="n <= review.rating ? '#D4A017' : 'none'"
-                  :color="n <= review.rating ? '#D4A017' : '#d5dad5'"
+                  :fill="n <= review.rating ? '#EFBF04' : '#dce5df'"
+                  :color="n <= review.rating ? '#EFBF04' : '#dce5df'"
                   :stroke-width="1.5"
                 />
               </div>
@@ -197,5 +203,52 @@ const maxCount = computed(() => Math.max(0, ...ratingBreakdown.value.map(r => r.
   .review-card { padding: 16px; }
   .review-top { flex-wrap: wrap; gap: 6px; }
   .review-comment { margin-left: 0; overflow-wrap: anywhere; }
+}
+
+/* =========================================================
+   UI refresh: light summary, clear review cards
+   ========================================================= */
+.reviews-page { font-family: 'DM Sans', sans-serif; color: #22362c; }
+
+/* summary: no cards, a line between score and bars */
+.summary-row { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0; margin-bottom: 8px; }
+.score-card { flex-direction: row; gap: 18px; padding: 0 48px 0 0; border: none; border-radius: 0; background: none; box-shadow: none; }
+.score-number { font-size: 64px; line-height: 1; color: #0e3a2c; }
+.score-side { display: flex; flex-direction: column; }
+.stars-row { gap: 4px; margin: 0 0 6px; }
+.score-caption { margin: 0; font-size: 14.5px; color: #4a5a52; }
+.score-caption strong { color: #0e3a2c; }
+.breakdown-card { gap: 8px; padding: 4px 0 4px 48px; border: none; border-left: 1.5px solid #d3e0d8; border-radius: 0; background: none; box-shadow: none; }
+.breakdown-row { gap: 12px; }
+.breakdown-label { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; width: 32px; font-size: 14.5px; font-weight: 800; color: #22362c; }
+.breakdown-track { height: 8px; background: #e3ebe6; }
+.breakdown-fill { background: #efbf04; }
+.breakdown-count { width: 24px; font-size: 14.5px; font-weight: 700; color: #4a5a52; }
+
+/* list heading */
+.list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 34px 0 14px; }
+.list-head h3 { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: #0e3a2c; }
+.list-head span { padding: 4px 12px; border-radius: 999px; background: #e3efe7; color: #004d3a; font-size: 13px; font-weight: 800; }
+
+/* review cards (same layout, clearer) */
+.review-list { gap: 12px; }
+.review-card { padding: 20px 22px; border: 1.5px solid #d3e0d8; border-radius: 18px; box-shadow: none; }
+.review-who { gap: 14px; }
+.review-avatar { width: 44px; height: 44px; font-size: 14px; font-weight: 800; }
+.review-name { font-size: 16px; color: #0e3a2c; }
+.review-time { font-size: 13.5px; font-weight: 600; color: #4a5a52; }
+.review-comment { margin: 10px 0 0 58px; font-size: 15.5px; color: #22362c; }
+
+/* empty state */
+.empty-state { border: 1.5px dashed #c6d9cd; border-radius: 18px; background: #fff; box-shadow: none; }
+.empty-icon { background: #fbf3d2; color: #9a7300; }
+.empty-title { font-size: 20px; color: #0e3a2c; }
+.empty-desc { font-size: 14.5px; color: #4a5a52; }
+
+@media (max-width: 760px) {
+  .summary-row { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .score-card { justify-content: flex-start; padding: 0; }
+  .breakdown-card { padding: 16px 0 0; border-left: none; border-top: 1.5px solid #d3e0d8; }
+  .review-comment { margin-left: 0; }
 }
 </style>

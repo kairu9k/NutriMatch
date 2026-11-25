@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout">
+  <div class="dashboard-layout" :class="{ 'is-client': ['client', 'admin', 'rnd'].includes(auth.user?.role), 'is-admin': auth.user?.role === 'admin' }">
     <!-- MOBILE TOPBAR -->
     <div class="mobile-topbar">
       <button class="menu-btn" type="button" aria-label="Toggle menu" @click="isSidebarOpen = !isSidebarOpen">
@@ -21,7 +21,7 @@
       class="sidebar"
       :class="{ collapsed: !expanded, 'sidebar-open': isSidebarOpen }"
       @mouseenter="isCollapsed = false"
-      @mouseleave="collapseSidebar"
+      @mouseleave="pinned || collapseSidebar()"
     >
       <div class="sidebar-top">
         <NuxtLink :to="dashboardPath" class="sidebar-brand home-link" aria-label="NutriMatch, go to dashboard" @click="goHome">
@@ -29,10 +29,14 @@
           <span v-if="expanded" class="brand-words">
             <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
             <span class="brand-tagline">Clinical Nutrition System</span>
-            <!-- which portal you're in -->
-            <span v-if="portalLabel" class="portal-line">{{ portalLabel }}</span>
           </span>
         </NuxtLink>
+        <!-- keep the menu open (UI only: it otherwise opens on hover) -->
+        <button v-if="expanded && !isSidebarOpen" type="button" class="pin-btn" :aria-label="pinned ? 'Collapse the menu' : 'Keep the menu open'" :title="pinned ? 'Collapse' : 'Keep open'" @click.stop="pinned = !pinned; !pinned && collapseSidebar()">
+          <component :is="pinned ? ChevronsLeft : ChevronsRight" :size="16" />
+        </button>
+        <!-- which portal you're in -->
+        <span v-if="portalLabel && expanded" class="portal-line"><span class="portal-dot" aria-hidden="true"></span>{{ portalLabel }}</span>
       </div>
 
       <!-- NAV + ACCOUNT FOOTER — gated on auth.hydrated: auth.user only exists
@@ -56,7 +60,7 @@
               :title="!expanded ? item.label : null"
               @click="isSidebarOpen = false"
             >
-              <component :is="item.icon" class="nav-icon" :size="18" />
+              <component :is="item.icon" class="nav-icon" :size="19" />
               <span v-if="expanded" class="nav-label">{{ item.label }}</span>
               <span v-if="item.badge && expanded" class="nav-badge">{{ item.badge }}</span>
               <span v-else-if="item.badge && !expanded" class="nav-badge-dot"></span>
@@ -77,21 +81,22 @@
 
           <div v-if="showAccountMenu" class="account-menu" :class="{ 'account-menu-collapsed': !expanded }">
             <NuxtLink v-if="auth.user?.role !== 'admin'" to="/profile-settings" class="account-menu-item" @click="showAccountMenu = false">
-              <UserCog :size="15" /> <span v-if="expanded">Profile settings</span>
+              <UserCog :size="15" /> <span>Profile settings</span>
             </NuxtLink>
             <template v-else>
               <NuxtLink to="/admin-profile" class="account-menu-item" @click="showAccountMenu = false">
-                <UserCog :size="15" /> <span v-if="expanded">My profile</span>
+                <UserCog :size="15" /> <span>My profile</span>
               </NuxtLink>
               <NuxtLink to="/system-settings" class="account-menu-item" @click="showAccountMenu = false">
-                <Settings :size="15" /> <span v-if="expanded">System settings</span>
+                <Settings :size="15" /> <span>System settings</span>
               </NuxtLink>
             </template>
             <button v-if="welcomeRole" class="account-menu-item" type="button" @click="openWelcome">
-              <Sparkles :size="15" /> <span v-if="expanded">How NutriMatch works</span>
+              <Sparkles :size="15" /> <span>How NutriMatch works</span>
             </button>
+            <span class="account-menu-sep" aria-hidden="true"></span>
             <button class="account-menu-item logout" type="button" @click="handleLogout">
-              <LogOut :size="15" /> <span v-if="expanded">Sign out</span>
+              <LogOut :size="15" /> <span>Sign out</span>
             </button>
           </div>
         </div>
@@ -102,9 +107,27 @@
     <div class="main-column">
       <!-- STICKY TOP HEADER -->
       <header class="topbar">
-        <div>
-          <h1>{{ pageTitle }}</h1>
-          <span class="topbar-date">{{ todayLabel }}</span>
+        <div class="topbar-left">
+          <!-- the rail only shows the logo, so the name sits here while it's collapsed -->
+          <template v-if="!expanded">
+            <span class="topbar-brand">
+              <span class="logo-text">Nutri<span class="logo-match">Match</span></span>
+              <span class="topbar-tagline">Clinical Nutrition System</span>
+            </span>
+            <span class="topbar-sep" aria-hidden="true"></span>
+          </template>
+          <!-- phone: your photo opens your profile (the menu is in the bottom tabs) -->
+          <NuxtLink v-if="auth.hydrated && ['client', 'admin', 'rnd'].includes(auth.user?.role)" :to="auth.user?.role === 'admin' ? '/admin-profile' : '/profile-settings'" class="topbar-me" aria-label="My profile">
+            <img v-if="auth.user?.profile_photo" :src="auth.user.profile_photo" alt="" />
+            <span v-else>{{ userInitials }}</span>
+          </NuxtLink>
+          <div class="topbar-title" :class="{ 'is-hidden': expanded && !isSidebarOpen }">
+            <h1>
+              <template v-if="['client', 'admin', 'rnd'].includes(auth.user?.role) && route.path === dashboardPath"><span class="title-desk">{{ pageTitle }}</span><span class="title-phone">Hi {{ auth.user?.first_name }} <span aria-hidden="true">👋</span></span></template>
+              <template v-else>{{ pageTitle }}</template>
+            </h1>
+            <span class="topbar-date">{{ todayLabel }}</span>
+          </div>
         </div>
 
         <!-- Admins have no messages, and their to-dos live in the sidebar badges
@@ -120,10 +143,61 @@
       </header>
 
       <!-- SCROLLABLE CONTENT -->
-      <main class="content">
+      <main class="content" :class="{ 'has-tabs': ['client', 'admin', 'rnd'].includes(auth.user?.role) }">
         <slot />
       </main>
     </div>
+
+    <!-- PHONE: client bottom tabs (the same pages as the sidebar; Account opens the menu) -->
+    <nav v-if="auth.hydrated && auth.user?.role === 'client'" class="mobile-tabs" aria-label="Main">
+      <NuxtLink v-for="t in [
+        { label: 'Home', to: '/client-dashboard', icon: LayoutDashboard },
+        { label: 'Bookings', to: '/appointments', icon: CalendarCheck },
+        { label: 'Meal plan', to: '/meal-plan-view', icon: Target },
+        { label: 'Progress', to: '/progress-tracker', icon: TrendingUp },
+      ]" :key="t.to" :to="t.to" class="mobile-tab" :class="{ active: isActive(t) }" :aria-current="isActive(t) ? 'page' : null">
+        <span class="mobile-tab-icon"><component :is="t.icon" :size="20" /></span>
+        <span>{{ t.label }}</span>
+      </NuxtLink>
+      <button type="button" class="mobile-tab" :class="{ active: isSidebarOpen }" @click="isSidebarOpen = !isSidebarOpen">
+        <span class="mobile-tab-icon"><UserCog :size="20" /></span>
+        <span>Account</span>
+      </button>
+    </nav>
+
+    <!-- PHONE: RND bottom tabs (the everyday RND pages; Menu opens the sidebar for the rest) -->
+    <nav v-if="auth.hydrated && auth.user?.role === 'rnd'" class="mobile-tabs" aria-label="Main">
+      <NuxtLink v-for="t in [
+        { label: 'Home', to: '/rnd-dashboard', icon: LayoutDashboard },
+        { label: 'Patients', to: '/my-patients', icon: Users },
+        { label: 'Bookings', to: '/appointments', icon: CalendarCheck, badge: pendingAppointments },
+        { label: 'Meal plans', to: '/meal-planning', icon: Target },
+      ]" :key="t.to" :to="t.to" class="mobile-tab" :class="{ active: isActive(t) }" :aria-current="isActive(t) ? 'page' : null">
+        <span class="mobile-tab-icon"><component :is="t.icon" :size="20" /><i v-if="t.badge" class="mobile-tab-dot" aria-hidden="true"></i></span>
+        <span>{{ t.label }}</span>
+      </NuxtLink>
+      <button type="button" class="mobile-tab" :class="{ active: isSidebarOpen }" @click="isSidebarOpen = !isSidebarOpen">
+        <span class="mobile-tab-icon"><Menu :size="20" /></span>
+        <span>Menu</span>
+      </button>
+    </nav>
+
+    <!-- PHONE: admin bottom tabs (the busiest admin pages; Menu opens the sidebar for the rest) -->
+    <nav v-if="auth.hydrated && auth.user?.role === 'admin'" class="mobile-tabs" aria-label="Main">
+      <NuxtLink v-for="t in [
+        { label: 'Home', to: '/admin-dashboard', icon: LayoutDashboard },
+        { label: 'Users', to: '/users', icon: Users },
+        { label: 'Bookings', to: '/admin-appointments', icon: CalendarCheck, badge: adminCounts.staleRequests },
+        { label: 'Support', to: '/admin-support', icon: Headset, badge: adminCounts.support },
+      ]" :key="t.to" :to="t.to" class="mobile-tab" :class="{ active: isActive(t) }" :aria-current="isActive(t) ? 'page' : null">
+        <span class="mobile-tab-icon"><component :is="t.icon" :size="20" /><i v-if="t.badge" class="mobile-tab-dot" aria-hidden="true"></i></span>
+        <span>{{ t.label }}</span>
+      </NuxtLink>
+      <button type="button" class="mobile-tab" :class="{ active: isSidebarOpen }" @click="isSidebarOpen = !isSidebarOpen">
+        <span class="mobile-tab-icon"><Menu :size="20" /></span>
+        <span>Menu</span>
+      </button>
+    </nav>
 
     <SupportWidget v-if="auth.user && auth.user.role !== 'admin'" />
     <WelcomeModal :open="welcomeOpen" :role="welcomeRole || 'client'" :first-name="auth.user?.first_name || ''" @close="closeWelcome" />
@@ -417,177 +491,224 @@ function handleClickOutside() {
 }
 onMounted(() => document.addEventListener('click', handleClickOutside))
 onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+
+/* ---------- UI only ---------- */
+import { ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
+// the collapse button: pinned keeps the menu open after the mouse leaves
+const pinned = ref(false)
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
 
 * { box-sizing: border-box; }
 
 /* One scrollbar: the page itself scrolls (like on phones); the sidebar and
    top bar are sticky. An inner scrolling <main> let absolutely positioned
-   bits (e.g. charts' hidden tables) escape and stretch the page. */
+   bits (e.g. charts' hidden tables) escape and stretch the page.
+   The page colour is also the colour of the active sidebar tab, so the tab
+   looks like it opens into the page. */
 .dashboard-layout {
+  --nm-green: #004D3A;
+  --nm-page: #F5F7F5;
+  --nm-gold: #EFBF04;
   display: flex;
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-  background: #f7f8f6;
+  font-family: 'DM Sans', 'Inter', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--nm-page);
 }
 
-/* SIDEBAR — collapsed to an icon rail by default, expands on hover.
-   Flex column so the account footer stays pinned to the bottom of the
-   viewport, independent of the nav's own scroll region. */
+/* ---------- SIDEBAR: icon rail by default, opens on hover ---------- */
 .sidebar {
-  width: 76px; flex-shrink: 0; background: #004D3A; color: #fff;
-  padding: 16px 14px 16px; height: 100vh; position: sticky; top: 0; z-index: 40;
+  width: 84px; flex-shrink: 0; background: var(--nm-green); color: #fff;
+  padding: 18px 16px 16px; height: 100vh; position: sticky; top: 0; z-index: 40;
   display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
   transition: width 0.2s ease, padding 0.2s ease;
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .sidebar::-webkit-scrollbar { display: none; }
-.sidebar:not(.collapsed) { width: 260px; padding: 16px 22px 16px; }
+.sidebar:not(.collapsed) { width: 272px; padding: 18px 16px 16px 20px; }
 
-/* a hairline separates the logo from the pages (same line as above the account) */
-.sidebar-top { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; position: relative; }
-.sidebar-brand { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 4px; }
+/* brand */
+.sidebar-top { position: relative; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; min-height: 52px; }
 .brand-words { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-.brand-tagline { font-size: 0.74rem; font-weight: 500; color: #8fae9f; white-space: nowrap; margin-top: 2px; letter-spacing: 0.01em; }
-.portal-line { margin-top: 5px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: #e2c25e; white-space: nowrap; }
-.home-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; }
-.home-link:focus-visible { outline: 2px solid #D4A017; outline-offset: 3px; }
-.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 0; }
-.logo-mark { width: 60px; height: 60px; flex-shrink: 0; object-fit: contain; }
-.sidebar.collapsed .logo-mark { width: 42px; height: 42px; }
-.logo-text { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.005em; }
-.logo-match { color: #D4A017; }
+.brand-tagline { margin-top: 3px; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.home-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 10px; }
+.home-link:focus-visible { outline: 2px solid var(--nm-gold); outline-offset: 3px; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; }
+.logo-mark { width: 50px; height: 60px; flex-shrink: 0; object-fit: contain; filter: brightness(1.35) saturate(1.2); }
+.sidebar.collapsed .logo-mark { width: 40px; height: 48px; }
+.logo-text { font-family: 'Playfair Display', Georgia, serif; font-size: 23px; font-weight: 700; white-space: nowrap; color: #fff; }
+.logo-match { color: var(--nm-gold); }
+.pin-btn {
+  position: absolute; top: 12px; right: -2px;
+  width: 30px; height: 30px; border-radius: 10px; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.1); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background-color 0.15s;
+}
+.pin-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.pin-btn:focus-visible { outline: 2px solid var(--nm-gold); outline-offset: 2px; }
+.portal-line {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  height: 26px; padding: 0 12px; border-radius: 999px;
+  background: rgba(239, 191, 4, 0.14); border: 1px solid rgba(239, 191, 4, 0.35);
+  font-size: 11px; font-weight: 800; letter-spacing: 1.4px; color: var(--nm-gold); white-space: nowrap;
+}
+.portal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--nm-gold); }
 
-/* Nav sizes to its own content and scrolls only if it overflows. Groups are
-   separated by space, with a quiet label when expanded. */
-.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; scrollbar-width: none; -ms-overflow-style: none; }
+/* nav: runs to the sidebar's right edge so the active tab can join the page */
+.sidebar-nav {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  margin: 0 -16px 0 0; padding: 40px 0 26px 0;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
 .sidebar-nav::-webkit-scrollbar { display: none; }
-/* The nav reaches the sidebar's edges (its own overflow would clip the
-   active bar otherwise), with the padding given back inside. */
-.sidebar-nav { margin: 0 -22px; padding: 0 22px; }
-.sidebar.collapsed .sidebar-nav { margin: 0 -14px; padding: 0 14px; }
-.nav-group { display: flex; flex-direction: column; gap: 6px; }
-.nav-group + .nav-group { margin-top: 32px; }
-.sidebar.collapsed .nav-group + .nav-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
-.nav-group-label { font-size: 0.72rem; font-weight: 500; color: #7f9f8f; margin: 0 0 4px; padding: 0 12px; white-space: nowrap; }
+.nav-group { display: flex; flex-direction: column; gap: 12px; }
+.nav-group + .nav-group { margin-top: 26px; }
+.sidebar.collapsed .nav-group + .nav-group { margin-top: 10px; padding-top: 10px; }
+.sidebar.collapsed .nav-group + .nav-group::before {
+  content: ''; display: block; height: 1px; margin: -10px 16px 10px 0; background: rgba(255, 255, 255, 0.1);
+}
+.nav-group-label { margin: 0 0 2px; padding: 0 12px; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); white-space: nowrap; }
 
 .nav-item {
-  display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 12px; border-radius: 8px;
-  color: #b3c7bb; font-size: 0.9rem; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px; margin-right: 16px; border-radius: 14px;
+  color: rgba(255, 255, 255, 0.78); font-size: 14.5px; font-weight: 600; cursor: pointer;
   position: relative; text-decoration: none; white-space: nowrap;
-  transition: background-color 0.12s, color 0.12s;
+  transition: background-color 0.15s, color 0.15s;
 }
 .sidebar.collapsed .nav-item { justify-content: center; padding: 0; gap: 0; }
-.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.nav-item:focus-visible { outline: 2px solid #D4A017; outline-offset: -2px; }
-.nav-item.active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 600; }
-/* The one accent: a gold bar on the sidebar's own edge, same place collapsed or open. */
-.nav-item.active::before {
-  content: ''; position: absolute; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0;
-  background: #D4A017; left: -22px;
-}
-.sidebar.collapsed .nav-item.active::before { left: -14px; }
-.nav-icon { flex-shrink: 0; color: #8fae9f; transition: color 0.12s; }
-.nav-item:hover .nav-icon { color: #dbe8df; }
-.nav-item.active .nav-icon { color: #D4A017; }
+.nav-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.nav-item:focus-visible { outline: 2px solid var(--nm-gold); outline-offset: -2px; }
+.nav-icon { flex-shrink: 0; color: rgba(255, 255, 255, 0.7); transition: color 0.15s; }
+.nav-item:hover .nav-icon { color: #fff; }
 .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+/* active: a curved tab that opens into the page */
+.nav-item.active {
+  z-index: 1; margin-right: 0; padding-right: 30px; border-radius: 24px 0 0 24px;
+  background: var(--nm-page); color: var(--nm-green); font-weight: 700;
+}
+.sidebar.collapsed .nav-item.active { padding-right: 16px; }
+.nav-item.active .nav-icon { color: var(--nm-green); }
+.nav-item.active::before,
+.nav-item.active::after {
+  content: ''; position: absolute; right: 0; width: 22px; height: 22px; background: transparent; pointer-events: none;
+}
+.nav-item.active::before { top: -22px; border-bottom-right-radius: 22px; box-shadow: 8px 8px 0 8px var(--nm-page); }
+.nav-item.active::after { bottom: -22px; border-top-right-radius: 22px; box-shadow: 8px -8px 0 8px var(--nm-page); }
+
 .nav-badge {
   min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #D4A017; color: #1a3a1a; font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--nm-gold); color: #10231B; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
 }
-.nav-badge-dot { position: absolute; top: 8px; right: 14px; width: 7px; height: 7px; border-radius: 50%; background: #D4A017; box-shadow: 0 0 0 2px #004D3A; }
+.nav-badge-dot { position: absolute; top: 9px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--nm-gold); box-shadow: 0 0 0 2px var(--nm-green); }
+.nav-item.active .nav-badge-dot { box-shadow: 0 0 0 2px var(--nm-page); }
 
-/* ACCOUNT SECTION */
-.sidebar-account { flex-shrink: 0; position: relative; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+/* account: a plain row under a thin line */
+.sidebar-account { flex-shrink: 0; position: relative; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .account-trigger {
   display: flex; align-items: center; gap: 10px; width: 100%;
-  background: none; border: none; cursor: pointer; padding: 8px 6px; border-radius: 8px; font-family: inherit;
+  background: none; border: none; cursor: pointer; padding: 6px 4px; border-radius: 12px; font-family: inherit;
+  transition: background-color 0.15s;
 }
-.sidebar.collapsed .account-trigger { justify-content: center; padding: 8px 0; }
-.account-trigger:hover { background: rgba(255,255,255,0.06); }
-.account-trigger:focus-visible { outline: 2px solid #D4A017; outline-offset: -2px; }
+.sidebar.collapsed .account-trigger { justify-content: center; padding: 6px 0; }
+.account-trigger:hover { background: rgba(255, 255, 255, 0.08); }
+.account-trigger:focus-visible { outline: 2px solid var(--nm-gold); outline-offset: -2px; }
 .account-avatar {
-  width: 34px; height: 34px; border-radius: 50%; background: #D4A017; color: #1a3a1a;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%; background: var(--nm-gold); color: var(--nm-green);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 .account-avatar-img { object-fit: cover; background: #00382a; }
 .account-info { flex: 1; min-width: 0; text-align: left; white-space: nowrap; }
-.account-name { font-size: 0.86rem; font-weight: 600; color: #fff; margin: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
-.account-role { font-size: 0.74rem; color: #8fae9f; margin: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
-.account-chevron { color: #8fae9f; flex-shrink: 0; }
+.account-name { margin: 0; font-size: 14px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.account-role { margin: 0; font-size: 12px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.account-chevron { color: rgba(255, 255, 255, 0.62); flex-shrink: 0; }
 
 .account-menu {
-  position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
-  background: #00382a; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
-  padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 20;
+  position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; z-index: 20;
+  padding: 6px; border-radius: 14px; background: #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(16, 35, 27, 0.06), 0 18px 40px -12px rgba(0, 0, 0, 0.45);
 }
-.account-menu-collapsed { left: 0; right: auto; width: 180px; }
+.account-menu-collapsed { left: 0; right: auto; width: 210px; }
 .account-menu-item {
-  display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 6px;
-  color: #dbe8db; font-size: 0.83rem; text-decoration: none; cursor: pointer;
-  width: 100%; background: none; border: none; text-align: left; font-family: inherit;
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 40px; padding: 0 12px; border-radius: 10px;
+  background: none; border: none; text-align: left; font-family: inherit;
+  color: #22362C; font-size: 13.5px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
 }
-.account-menu-item:hover { background: rgba(255,255,255,0.06); }
-.account-menu-item.logout { color: #e08a8a; }
+.account-menu-item svg { color: #5D7065; }
+.account-menu-item:hover { background: #F1F6F2; }
+.account-menu-sep { display: block; height: 1px; margin: 4px 6px; background: #EEF2EF; }
+.account-menu-item.logout,
+.account-menu-item.logout svg { color: #B42318; }
+.account-menu-item.logout:hover { background: #FEF3F2; }
 
-/* MAIN COLUMN */
+/* ---------- MAIN COLUMN ---------- */
 .main-column { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .topbar {
-  position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid #a8d5b5;
-  padding: 10px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  position: sticky; top: 0; z-index: 10; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 76px; padding: 12px 36px;
+  background: #FFFFFF; border-bottom: 1px solid #CFDAD3;
+  box-shadow: 0 6px 18px -14px rgba(16, 35, 27, 0.35);
 }
-.topbar h1 { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a3a1a; margin: 0; }
-.topbar-date { font-size: 0.8rem; color: #8a9a8a; }
-.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.topbar-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.topbar-brand { display: flex; flex-direction: column; line-height: 1.1; }
+.topbar-brand .logo-text { font-size: 21px; color: var(--nm-green); }
+.topbar-brand .logo-match { color: #C49102; }
+.topbar-tagline { margin-top: 3px; font-size: 11.5px; font-weight: 600; color: #6B7D73; white-space: nowrap; }
+.topbar-sep { width: 2px; height: 38px; border-radius: 2px; background: #B8C9BE; }
+.topbar-title { display: flex; flex-direction: column; min-width: 0; }
+/* the open sidebar already names the page, so the header title steps aside */
+.topbar-title.is-hidden { display: none; }
+.topbar h1 { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 21px; font-weight: 700; line-height: 1.2; color: #10231B; }
+.topbar-date { font-size: 12.5px; color: #6B7D73; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
 .icon-btn {
-  width: 40px; height: 40px; border-radius: 8px; border: 1px solid rgba(0,77,58,0.15);
-  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #004D3A;
-  position: relative; transition: background-color 0.12s;
+  position: relative; width: 42px; height: 42px; border-radius: 12px; border: 1px solid #DCE5DF;
+  background: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--nm-green);
+  transition: background-color 0.15s, border-color 0.15s;
 }
-.icon-btn:hover { background: rgba(0,77,58,0.05); }
-.icon-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.icon-btn:hover { background: #F1F6F2; border-color: #B8C9BE; }
+.icon-btn:focus-visible { outline: 2px solid var(--nm-gold); outline-offset: 2px; }
 
-.content { flex: 1; padding: 24px 40px 96px; } /* bottom room so the help button never covers a page's last button */
+.content { flex: 1; padding: 28px 36px 96px; } /* bottom room so the help button never covers a page's last button */
 
-/* MOBILE TOPBAR — hidden on desktop, shown only under the breakpoint below */
+/* ---------- PHONE ---------- */
 .mobile-topbar { display: none; }
-
-.sidebar-overlay {
-  display: none;
-}
+.mobile-tabs { display: none; }
+.sidebar-overlay { display: none; }
 
 @media (max-width: 900px) {
   .mobile-topbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #004D3A;
-    color: #fff;
-    padding: 14px 20px;
-    position: sticky;
-    top: 0;
-    z-index: 30;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 30;
+    padding: 12px 16px; background: var(--nm-green); color: #fff;
+    box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.5);
   }
   .menu-btn {
-    background: none; border: none; color: #fff; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; padding: 4px;
+    width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
   }
-  .mobile-brand { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; }
-  .mobile-brand .logo-mark { width: 22px; height: 22px; }
+  .mobile-brand { display: flex; align-items: center; gap: 8px; }
+  .mobile-brand .logo-mark { width: 26px; height: 32px; }
+  .mobile-brand .logo-text { font-size: 20px; }
 
   .dashboard-layout { flex-direction: column; height: auto; min-height: 100vh; }
+  .topbar { position: static; min-height: 0; padding: 18px 16px 4px; background: transparent; border: none; box-shadow: none; }
+  .topbar-brand, .topbar-sep { display: none; }
+  .topbar h1 { font-size: 24px; }
 
-  /* Mobile sidebar drops the hover-collapse behavior entirely — it's
-     either fully open (slid in) or fully hidden, always at full width. */
+  /* the menu slides in from the left, always fully open */
   .sidebar {
-    position: fixed;
-    top: 0; left: 0;
-    width: 260px !important; padding: 16px 22px 16px !important;
+    position: fixed; top: 0; left: 0;
+    width: 280px !important; padding: 18px 16px 16px 20px !important;
     /* dvh = the visible screen (100vh also counts the area behind a phone's
        address bar, which hid the account section at the bottom). */
     height: 100vh; height: 100dvh;
@@ -597,22 +718,71 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     transform: translateX(-100%);
     transition: transform 0.2s ease;
   }
-  .sidebar.sidebar-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.2); }
+  .sidebar.sidebar-open { transform: translateX(0); box-shadow: 8px 0 30px rgba(0, 0, 0, 0.25); }
   /* One scroll area on phones: the whole menu scrolls, not a list inside it. */
   .sidebar-nav { flex: none; overflow: visible; }
-  /* Account stays at the bottom of the drawer, like on desktop (it still
-     scrolls with the menu when the screen is too short). */
+  /* in the drawer the active page is a soft pill, not a tab into the page */
+  .nav-item.active { margin-right: 16px; padding-right: 14px; border-radius: 14px; }
+  .nav-item.active::before,
+  .nav-item.active::after { display: none; }
   .sidebar-account { margin-top: auto; }
 
-  .sidebar-overlay {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 35;
-  }
+  .sidebar-overlay { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(4, 30, 21, 0.45); }
 
   .main-column { height: auto; overflow: visible; }
-  .content { padding: 20px 16px 88px; }
+  .content { padding: 12px 16px 88px; }
+  .content.has-tabs { padding-bottom: 120px; }
+
+  /* client: app-style tabs along the bottom */
+  .mobile-tabs {
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 30;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
+    padding: 8px 6px; border-radius: 22px;
+    background: #FFFFFF; box-shadow: 0 0 0 1px rgba(16, 35, 27, 0.06), 0 18px 40px -16px rgba(16, 35, 27, 0.45);
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 0; border: none; background: none; font-family: inherit; cursor: pointer;
+    color: #7A8F84; font-size: 11px; font-weight: 600; text-decoration: none;
+  }
+  .mobile-tab-icon { width: 48px; height: 30px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; transition: background-color 0.15s; }
+  .mobile-tab.active { color: var(--nm-green); font-weight: 800; }
+  .mobile-tab.active .mobile-tab-icon { background: #E3EFE7; }
 }
+
+.topbar-me { display: none; }
+.title-phone { display: none; }
+@media (max-width: 900px) {
+  /* clients get app-style navigation: the bottom tabs + this header */
+  .is-client .mobile-topbar { display: none; }
+  .is-client .topbar {
+    position: sticky; top: 0; z-index: 20;
+    padding: 14px 16px 10px;
+    /* solid, no blur: a blur here would trap the bell's pop-up inside the header */
+    background: #F5F7F5;
+  }
+  .is-client .topbar-left { gap: 12px; }
+  .is-client .topbar-me {
+    flex-shrink: 0; width: 46px; height: 46px; padding: 0; border: none; border-radius: 50%; cursor: pointer;
+    background: var(--nm-gold); color: var(--nm-green); font-family: inherit; font-size: 15px; font-weight: 800;
+    display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+    box-shadow: 0 0 0 3px #FFFFFF, 0 6px 14px -6px rgba(0, 0, 0, 0.3);
+  }
+  .is-client .topbar-me img { width: 100%; height: 100%; object-fit: cover; }
+  .is-client .topbar-me { text-decoration: none; }
+  .is-client .topbar-me:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+  .is-client .topbar-title { flex-direction: column; }
+  .is-client .topbar-date { font-size: 12.5px; }
+  .is-client .topbar h1 { font-size: 21px; }
+  .is-client .title-desk { display: none; }
+  .is-client .title-phone { display: inline; }
+  .mobile-tab-icon { position: relative; }
+  .mobile-tab-dot { position: absolute; top: 2px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: #efbf04; border: 2px solid #fff; }
+  .is-admin .topbar-left { flex: 1; }
+  .is-client .icon-btn { width: 44px; height: 44px; border-radius: 50%; }
+}
+
+/* hide the "keep open" pin button; the menu still opens on hover */
+.pin-btn { display: none !important; }
 </style>

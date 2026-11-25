@@ -10,9 +10,20 @@
     <section class="na-strip" aria-label="Needs attention">
       <p v-if="!count" class="na-clear"><CheckCircle2 :size="16" aria-hidden="true" /> {{ clearText }}</p>
       <div v-else class="na-row" :class="tone">
-        <span class="na-tag" :class="tone">{{ urgent ? 'Urgent' : 'To do' }}</span>
-        <span class="na-text"><strong>{{ count }} thing{{ count === 1 ? '' : 's' }} need{{ count === 1 ? 's' : '' }} your attention.</strong> {{ summaryText }}</span>
-        <button type="button" class="nm-btn-dark nm-btn-sm na-open" aria-haspopup="dialog" @click="open = true">Needs attention ({{ count }})</button>
+        <span class="na-bell" :class="tone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg></span>
+        <span class="na-text">
+          <span class="na-tag" :class="tone">{{ urgent ? 'Urgent' : 'To do' }}</span>
+          <strong>{{ count }} thing{{ count === 1 ? '' : 's' }} need{{ count === 1 ? 's' : '' }} your attention</strong>
+          <small class="na-sum">{{ summaryText }}</small>
+        </span>
+        <div class="na-cards">
+          <NuxtLink v-for="a in cardItems" :key="a.key" :to="a.to" class="na-card" :class="a.tone || 'todo'">
+            <span class="na-card-ico"><component :is="ICONS[a.tone || 'todo']" :size="17" aria-hidden="true" /></span>
+            <span class="na-card-txt"><b v-if="splitTitle(a.title).n">{{ splitTitle(a.title).n }}</b>{{ splitTitle(a.title).rest }}</span>
+            <span class="na-card-go">{{ a.action || 'Open' }} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+          </NuxtLink>
+          <button type="button" class="nm-btn-dark nm-btn-sm na-open" aria-haspopup="dialog" @click="open = true">Needs attention ({{ count }})</button>
+        </div>
       </div>
     </section>
 
@@ -80,20 +91,49 @@ function onKey(e) {
 }
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
-</script>
 
+/* ---------- UI only ---------- */
+// the strip shows the first two to-dos as cards (urgent first; "for information" ones stay in the pop-up)
+const cardItems = computed(() => [...items.value.filter(isUrgent), ...items.value.filter(a => !isUrgent(a) && a.tone !== 'info')].slice(0, 2))
+// "4 refunds to send" → big "4", then "refunds to send"
+function splitTitle(title) {
+  const m = noDot(title).match(/^(\d+)\s+(.*)$/)
+  return m ? { n: m[1], rest: m[2].charAt(0).toUpperCase() + m[2].slice(1) } : { n: '', rest: noDot(title) }
+}
+</script>
 <style scoped>
-.na-strip { background: #fff; border: 1px solid #d9e3dc; border-radius: 14px; overflow: hidden; box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
-.na-clear { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px 20px; font-size: 0.86rem; font-weight: 600; color: #1f6f46; }
-.na-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.86rem; color: #3a4a3a; line-height: 1.45; }
-.na-row.risk { background: #fdf3f2; }
-.na-row strong { color: #1a3a1a; }
-.na-row.risk strong { color: #a12525; }
-.na-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.na-tag { flex-shrink: 0; padding: 2px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; line-height: 1.5; }
-.na-tag.risk { background: #f6d9d6; color: #a12525; }
-.na-tag.todo { background: #e3efe7; color: #0a4a37; }
-.na-open { flex-shrink: 0; white-space: nowrap; font-family: inherit; cursor: pointer; }
+.na { font-family: 'DM Sans', sans-serif; }
+.na-strip { border-radius: 20px; overflow: hidden; background: #fffbea; border: 1.5px solid #f0d774; box-shadow: 0 10px 24px -18px rgba(196, 145, 2, 0.6); }
+.na-clear { display: flex; align-items: center; gap: 10px; margin: 0; padding: 16px 20px; background: #fff; font-size: 14px; font-weight: 700; color: #1f6f46; }
+.na-row { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 16px; padding: 16px; line-height: 1.45; }
+.na-row.risk { background: #fef3f2; }
+.na-strip:has(.na-row.risk) { border-color: #eba79f; }
+.na-bell { flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; background: #efbf04; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -12px rgba(239, 191, 4, 0.9); }
+.na-bell.risk { background: #c0392b; color: #fff; box-shadow: 0 10px 20px -12px rgba(192, 57, 43, 0.9); }
+.na-text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.na-tag { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+.na-tag.todo { background: #fff; color: #8a6500; box-shadow: 0 0 0 1px #f3e2a0; }
+.na-tag.risk { background: #fde4e1; color: #b42318; }
+.na-text strong { font-size: 15.5px; font-weight: 800; color: #3d3005; }
+.na-row.risk .na-text strong { color: #8c1d2c; }
+.na-sum { font-size: 13px; color: #6b5a1e; overflow-wrap: anywhere; }
+.na-row.risk .na-sum { color: #8c1d2c; }
+
+/* the first two to-dos, each with its button */
+.na-cards { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.na-card { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; border-radius: 16px; border: 1px solid #f3e2a0; background: #fff; text-decoration: none; box-shadow: 0 8px 18px -14px rgba(196, 145, 2, 0.7); transition: transform 0.15s; }
+.na-card:hover { transform: translateY(-1px); }
+.na-card:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.na-card-ico { flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; background: #fff4d6; color: #8a6500; display: inline-flex; align-items: center; justify-content: center; }
+.na-card.urgent { border-color: #f6cfcb; }
+.na-card.urgent .na-card-ico { background: #fdecea; color: #b42318; }
+.na-card-txt { display: flex; flex-direction: column; min-width: 0; max-width: 200px; font-size: 12.5px; line-height: 1.3; color: #6b5a1e; }
+.na-card-txt b { font-family: 'Playfair Display', serif; font-size: 20px; line-height: 1.1; color: #3d3005; font-variant-numeric: lining-nums; }
+.na-card.urgent .na-card-txt b { color: #b42318; }
+.na-card-go { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 11px; background: #004d3a; color: #fff; font-size: 13px; font-weight: 800; white-space: nowrap; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
+.na-open { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border: 1px solid #e7c65a; border-radius: 11px; background: transparent; color: #6b5a1e; font-family: inherit; font-size: 12.5px; font-weight: 800; white-space: nowrap; cursor: pointer; box-shadow: none; }
+.na-open:hover { background: #fff4d6; }
+.na-open:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
 /* the pop-up list (the admin dashboard's design, 2026-10-25) */
 .na-modal { max-width: 560px; }
@@ -114,16 +154,34 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .na-main .na-extra { color: #4a5a4a; }
 .na-item > a { flex-shrink: 0; white-space: nowrap; }
 
-/* the strip glows three times when it appears, red or green */
+.na-modal { border-radius: 22px; }
+.na-h { font-size: 15px; font-weight: 800; color: #0e3a2c; }
+.na-item { align-items: center; padding: 12px; border: 1px solid #e3ebe6; border-radius: 14px; margin-bottom: 8px; }
+.na-item:first-child { border-top: 1px solid #e3ebe6; padding-top: 12px; }
+.na-item.urgent { background: #fef3f2; border-color: #f6cfcb; }
+.na-item.todo { background: #fffbea; border-color: #f3e2a0; }
+.na-item.todo .na-icon { color: #c49102; }
+.na-main strong { font-size: 14px; color: #0e3a2c; }
+.na-main small { font-size: 12.5px; color: #6b7d73; }
+
+/* the strip glows three times when it appears */
 @media (prefers-reduced-motion: no-preference) {
   .na-row.risk { animation: na-risk 1s ease-in-out 0.45s 3; }
   .na-row.todo { animation: na-todo 1s ease-in-out 0.45s 3; }
 }
 @keyframes na-risk { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(192, 57, 43, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(192, 57, 43, 0.45), inset 0 0 18px rgba(192, 57, 43, 0.22); } }
-@keyframes na-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(63, 154, 107, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(63, 154, 107, 0.45), inset 0 0 18px rgba(63, 154, 107, 0.2); } }
-@media (max-width: 560px) {
-  .na-row { flex-wrap: wrap; padding: 12px 16px; }
-  .na-text { flex-basis: 100%; }
+@keyframes na-todo { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(239, 191, 4, 0); } 50% { box-shadow: inset 0 0 0 2px rgba(239, 191, 4, 0.5), inset 0 0 18px rgba(239, 191, 4, 0.22); } }
+
+@media (max-width: 760px) {
+  .na-strip { background: #fff; }
+  .na-row { padding: 14px; gap: 12px; }
+  .na-bell { width: 44px; height: 44px; }
+  .na-text { flex-basis: calc(100% - 60px); }
+  .na-cards { flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
+  .na-card { background: #fffbea; }
+  .na-card-txt { flex: 1; max-width: none; }
+  .na-card-go { height: 34px; padding: 0 12px; }
+  .na-open { justify-content: center; }
   .na-item { flex-wrap: wrap; }
   .na-item > a { margin-left: 26px; }
 }

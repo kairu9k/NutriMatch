@@ -447,8 +447,12 @@ function when(iso) {
   .sw-fab:hover { transform: none; }
 }
 
+/* phones and tablets: the layout shows bottom tabs, so the button sits just above them */
+@media (max-width: 900px) {
+  .sw { bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+}
 @media (max-width: 560px) {
-  .sw { right: 14px; bottom: 14px; }
+  .sw { right: 14px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   .sw-fab { width: 50px; height: 50px; }
   .sw-panel { position: fixed; inset: 0; width: auto; max-height: none; border-radius: 0; }
   .sw:has(.sw-panel) .sw-fab { display: none; }

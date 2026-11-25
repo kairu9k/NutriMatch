@@ -1,28 +1,28 @@
 <template>
   <div class="meal-planning-page">
     <!-- TOP CONTROLS (once a patient is chosen) -->
-    <button v-if="selectedRelId && !isLoading" type="button" class="back-link no-print" @click="backToList">
-      <ChevronLeft :size="15" /> All patients
-    </button>
-    <div v-if="selectedRelId && !isLoading" class="top-controls no-print">
+    <div v-if="selectedRelId && !isLoading" class="mp-top no-print">
+      <button type="button" class="back-link" @click="backToList">
+        <ChevronLeft :size="16" /> All patients
+      </button>
       <div class="mode-toggle">
         <button class="mode-btn" :class="{ active: mode === 'view' }" :disabled="!patients.length" @click="showView">
-          <Eye :size="15" /> View plan
+          <Eye :size="16" /> View plan
         </button>
         <button class="mode-btn" :class="{ active: mode === 'create' }" :disabled="!patients.length" @click="openCreate">
-          <Plus :size="15" /> {{ selectedPlan ? 'Edit plan' : 'Create plan' }}
+          <component :is="selectedPlan ? Pencil : Plus" :size="16" /> {{ selectedPlan ? 'Edit plan' : 'Create plan' }}
         </button>
       </div>
-
     </div>
 
     <p v-if="errorMessage" class="form-error no-print">{{ errorMessage }}</p>
 
-    <p v-if="isLoading" class="macro-note">Loading…</p>
+    <div v-if="isLoading" class="mp-loading"><span class="mp-spin" aria-hidden="true"></span> Loading…</div>
 
     <div v-else-if="!patients.length" class="empty-state">
+      <span class="empty-ico"><Utensils :size="24" /></span>
       <p class="empty-title">No active patients yet</p>
-      <p class="macro-note">Meal plans can be created once a client's first appointment is confirmed.</p>
+      <p class="empty-text">Meal plans can be created once a client's first appointment is confirmed.</p>
     </div>
 
     <!-- START: choose a patient (opening from the sidebar) -->
@@ -30,241 +30,44 @@
 
     <!-- ================= VIEW PLANS MODE ================= -->
     <div v-else-if="mode === 'view' && !selectedPlan" class="empty-state">
+      <span class="empty-ico"><Utensils :size="24" /></span>
       <p class="empty-title">No meal plan yet for {{ selectedPatientName }}</p>
       <button class="btn-primary" @click="startNewPlan"><Plus :size="15" /> Create meal plan</button>
     </div>
 
-    <div v-else-if="mode === 'view'" class="planning-layout">
-      <div class="panel plan-panel print-area">
-        <div class="plan-header">
-          <div>
-            <h3>Weekly meal plan for {{ selectedPatientName }}</h3>
-            <p class="plan-subtitle">{{ planMeta.name }}. <span class="status-text">{{ statusLabel(selectedPlan.status) }}</span></p>
-          </div>
-          <div class="plan-badges">
-            <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
-            <span class="badge badge-gold">{{ conditionLabel(planMeta.condition) }}</span>
+    <div v-else-if="mode === 'view'" class="mp-wrap">
+      <section class="mp-hero no-print">
+        <img class="mp-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
+        <span class="mp-hero-fade" aria-hidden="true"></span>
+        <div class="mp-hero-who">
+          <span class="mp-av" aria-hidden="true">{{ initials }}</span>
+          <div class="mp-hero-txt">
+            <p class="mp-eyebrow"><span></span>Weekly meal plan</p>
+            <h2 class="mp-title">{{ selectedPatientName }}</h2>
+            <p class="mp-sub">
+              <span>{{ planMeta.name }}</span><i></i>
+              <span class="mp-status" :class="'st-' + selectedPlan.status"><b></b>{{ statusLabel(selectedPlan.status) }}</span>
+            </p>
           </div>
         </div>
-
-        <div class="day-tabs no-print">
-          <button
-            v-for="day in days"
-            :key="day"
-            class="day-tab"
-            :class="{ active: activeDay === day }"
-            @click="activeDay = day"
-          >
-            {{ day }}
+        <div class="mp-targets">
+          <div class="mp-t big"><small>Daily target</small><strong>{{ fmtNum(planMeta.kcalPerDay) }}</strong><em>kcal · {{ conditionLabel(planMeta.condition) }}</em></div>
+          <div class="mp-t"><small><i style="background: #EFBF04"></i>Carbs</small><strong>{{ targets.carb ?? '—' }}</strong><em>g</em></div>
+          <div class="mp-t"><small><i style="background: #6EE7A8"></i>Protein</small><strong>{{ targets.protein ?? '—' }}</strong><em>g</em></div>
+          <div class="mp-t"><small><i style="background: #9DB4F0"></i>Fat</small><strong>{{ targets.fat ?? '—' }}</strong><em>g</em></div>
+        </div>
+        <div class="mp-hero-acts">
+          <button class="mp-btn glass" type="button" @click="printPlan"><Printer :size="16" /> Print</button>
+          <button class="mp-btn glass" type="button" @click="mode = 'create'"><Pencil :size="16" /> Edit</button>
+          <button class="mp-btn gold" type="button" :disabled="isSending" @click="requestSend(sendToPatient)">
+            <Send :size="16" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to patient' : 'Send to patient' }}
           </button>
         </div>
+      </section>
 
-        <!-- Screen: selected day. Print: the whole week. -->
-        <div v-for="day in printDays" :key="day" class="print-day" :class="{ 'screen-hidden': day !== activeDay }">
-          <h4 class="print-only print-day-title">{{ DAY_FULL[day] }}</h4>
-          <div class="meal-list">
-            <!-- one small table per meal: food, portion, kcal and macros in lined-up columns -->
-            <section v-for="meal in mealsForDay(day)" :key="meal.type" class="meal-block">
-              <div class="meal-head">
-                <h4 class="meal-name">{{ sentence(meal.type) }}</h4>
-                <span v-if="meal.time" class="meal-time">{{ formatTime(meal.time) }}</span>
-                <span class="meal-kcal">{{ meal.kcal }} kcal</span>
-              </div>
-              <table v-if="meal.foods.length" class="meal-foods">
-                <thead>
-                  <tr><th>Food</th><th>Portion</th><th class="n">kcal</th><th class="n">Carbs</th><th class="n">Protein</th><th class="n">Fat</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(f, i) in meal.foods" :key="i">
-                    <td class="food">{{ f.name }}</td>
-                    <td class="portion">{{ f.portion || '' }}</td>
-                    <td class="n">{{ cell(f.kcal) }}</td>
-                    <td class="n">{{ cell(f.carb) }} g</td>
-                    <td class="n">{{ cell(f.prot) }} g</td>
-                    <td class="n">{{ cell(f.fat) }} g</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p v-else class="meal-empty">No foods added</p>
-            </section>
-          </div>
-        </div>
-
-        <div v-if="instructions.allergies || instructions.notes" class="instructions-view print-only">
-          <p v-if="instructions.allergies"><strong>Allergies and restrictions:</strong> {{ instructions.allergies }}</p>
-          <p v-if="instructions.notes"><strong>Notes from the RND:</strong> {{ instructions.notes }}</p>
-        </div>
-
-        <div class="plan-actions no-print">
-          <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
-          <button class="btn-secondary" @click="printPlan"><Printer :size="15" /> Print plan</button>
-          <button class="btn-secondary" @click="mode = 'create'"><Pencil :size="15" /> Edit plan</button>
-          <button class="btn-primary" :disabled="isSending" @click="requestSend(sendToPatient)">
-            <Send :size="15" /> {{ isSending ? 'Sending…' : selectedPlan.status === 'active' ? 'Resend to patient' : 'Send to patient' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- RIGHT SIDEBAR -->
-      <div class="side-column no-print">
-        <!-- same panel as in Edit plan, read-only here -->
-        <div class="panel">
-          <div class="side-header-row">
-            <h4 class="side-title">Instructions for the patient</h4>
-            <button class="nm-btn-soft nm-btn-sm" type="button" @click="mode = 'create'"><Pencil :size="13" aria-hidden="true" /> Edit</button>
-          </div>
-          <p v-if="patientAllergies.length" class="instr-allergy" role="note">
-            <AlertTriangle :size="14" aria-hidden="true" /> {{ patientFirstName }}'s recorded allergies: {{ patientAllergies.join(', ') }}
-          </p>
-          <dl class="instr-read">
-            <dt>Allergies and restrictions</dt>
-            <dd :class="{ empty: !instructions.allergies }">{{ instructions.allergies || 'None written' }}</dd>
-            <dt>Notes for the patient</dt>
-            <dd :class="{ empty: !instructions.notes }">{{ instructions.notes || 'None written' }}</dd>
-          </dl>
-        </div>
-
-        <div class="panel">
-          <h4 class="side-title">{{ DAY_FULL[activeDay] }}'s totals</h4>
-          <span class="side-subtitle">Against the plan's daily targets</span>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Calories</span><span>{{ Number(nutrition.calories.value).toLocaleString('en-PH') }} of {{ nutrition.calories.target != null ? Number(nutrition.calories.target).toLocaleString('en-PH') : '—' }} kcal</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.calories) + '%' }"></div></div>
-          </div>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Carbohydrates</span><span>{{ nutrition.carbs.value }} g of {{ nutrition.carbs.target ?? '—' }} g</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-gold" :style="{ width: pct(nutrition.carbs) + '%' }"></div></div>
-          </div>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Protein</span><span>{{ nutrition.protein.value }} g of {{ nutrition.protein.target ?? '—' }} g</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.protein) + '%' }"></div></div>
-          </div>
-          <div class="nutrient-row">
-            <div class="nutrient-top"><span>Fat</span><span>{{ nutrition.fat.value }} g of {{ nutrition.fat.target ?? '—' }} g</span></div>
-            <div class="nutrient-bar"><div class="nutrient-fill fill-dark" :style="{ width: pct(nutrition.fat) + '%' }"></div></div>
-          </div>
-          <p class="exchange-note">FNRI values from the Food Exchange Lists, 4th ed., 2020</p>
-        </div>
-
-        <div class="panel">
-          <div class="side-header-row">
-            <h4 class="side-title">Plans for this patient</h4>
-            <button class="nm-btn-soft nm-btn-sm" type="button" @click="startNewPlan"><Plus :size="13" aria-hidden="true" /> New plan</button>
-          </div>
-          <button
-            v-for="p in plans"
-            :key="p.id"
-            class="saved-plan-card"
-            :class="{ selected: p.id === selectedPlanId }"
-            @click="selectPlan(p.id)"
-          >
-            <div>
-              <div class="saved-plan-name">{{ p.name }}</div>
-              <div class="saved-plan-meta">{{ conditionLabel(p.condition) }}<template v-if="p.target_kcal">, {{ Math.round(p.target_kcal).toLocaleString('en-PH') }} kcal/day</template></div>
-            </div>
-            <span class="active-pill" :class="'pill-' + p.status">{{ { draft: 'Draft', active: 'Sent', archived: 'Archived' }[p.status] || p.status }}</span>
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ================= CREATE / EDIT PLAN MODE ================= -->
-    <div v-else class="planning-layout">
-      <div class="create-column">
-        <!-- The patient's age, sex and latest measurements, for setting the targets -->
-        <section v-if="patientBody" class="panel body-strip no-print" :aria-label="`${patientFirstName}'s measurements`">
-          <dl class="body-figs">
-            <div><dt>Age</dt><dd>{{ patientBody.age != null ? `${patientBody.age} years` : '—' }}</dd></div>
-            <div><dt>Sex</dt><dd>{{ patientBody.sex || '—' }}</dd></div>
-            <div><dt>Height</dt><dd>{{ patientBody.height ? `${Number(patientBody.height)} cm` : '—' }}</dd></div>
-            <div><dt>Weight</dt><dd>{{ patientBody.weight != null ? `${Number(patientBody.weight)} kg` : '—' }}</dd></div>
-            <div><dt>BMI</dt><dd>{{ patientBody.bmi ? patientBody.bmi.toFixed(1) : '—' }}<small v-if="patientBody.bmiClass">{{ patientBody.bmiClass }}</small></dd></div>
-            <div><dt>TER</dt><dd>{{ patientBody.ter ? `${Math.round(patientBody.ter).toLocaleString('en-PH')} kcal` : '—' }}<small v-if="patientBody.terNote">{{ patientBody.terNote }}</small></dd></div>
-          </dl>
-          <p v-if="patientBody.source" class="body-source">{{ patientBody.source }}</p>
-        </section>
-        <!-- NEW PLAN: pick how to start first, so the two forms never sit on top of each other -->
-        <div v-if="!selectedPlan" class="panel start-choice">
-          <h4 class="no-plan-title">New meal plan for {{ selectedPatientName }}</h4>
-          <div class="start-options" role="radiogroup" aria-label="How to start the plan">
-            <button type="button" role="radio" class="start-opt" :class="{ on: startWith === 'template' }" :aria-checked="startWith === 'template'" @click="startWith = 'template'">
-              <span class="start-name">Start from a diet template <span class="start-rec">Recommended</span></span>
-              <span class="start-desc">Pick the condition and calories. A full week is filled in for you to check and adjust.</span>
-            </button>
-            <button type="button" role="radio" class="start-opt" :class="{ on: startWith === 'blank' }" :aria-checked="startWith === 'blank'" @click="startWith = 'blank'">
-              <span class="start-name">Start blank</span>
-              <span class="start-desc">Name the plan and set the calories, then add every meal yourself.</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- disease-specific diet template (diabetes, hypertension, renal, weight management) -->
-        <MealPlanTemplatePicker v-if="!selectedPlan && startWith === 'template'" :relationship-id="selectedRelId" @created="onTemplateCreated" />
-
-        <!-- STEP 1: PLAN DETAILS (a new blank plan, or the plan being edited) -->
-        <div v-if="selectedPlan || startWith === 'blank'" class="panel">
-          <h4 class="side-title">Plan details</h4>
-          <p v-if="!selectedPlan && ncpTargets" class="macro-note prefill-note">Targets are filled in from this client's NCP Intervention. Adjust them if needed.</p>
-
-          <div class="form-row-6">
-            <div class="field">
-              <label>Plan name</label>
-              <input v-model="planMeta.name" type="text" placeholder="e.g., Diabetic-Friendly Plan" :class="{ invalid: nameMissing && !planMeta.name.trim() }" :aria-invalid="(nameMissing && !planMeta.name.trim()) || undefined" />
-            </div>
-            <div class="field">
-              <label>Condition</label>
-              <select class="nm-select" v-model="planMeta.condition">
-                <option v-for="c in CONDITIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>TER (Total Energy Requirement), kcal/day</label>
-              <input v-model.number="planMeta.kcalPerDay" type="number" min="0" placeholder="e.g., 1800" />
-            </div>
-          </div>
-
-          <!-- Targets beyond calories, as Measured Variable / Value / Unit rows
-               (same pattern as the NCP form's "+ Add Field"), in two groups:
-               the macronutrients (the only ones that give calories; in grams
-               they drive the Macro Tracker) and other targets (sodium, fiber…),
-               which are not part of the calorie target. -->
-          <div class="targets-section">
-            <div class="targets-header">
-              <span class="targets-title">Macronutrient targets <span class="optional">(optional)</span></span>
-            </div>
-            <p class="targets-hint">Protein, carbohydrate and fat are the only nutrients that give calories (4 / 4 / 9 kcal per gram), so they make up the calorie target.</p>
-            <!-- Fixed rows: only the value is edited (the Macro Tracker reads them by name, in grams). -->
-            <div v-for="row in macroRows" :key="row.label" class="targets-row locked">
-              <input :value="row.label" type="text" readonly tabindex="-1" :aria-label="`${row.label} target`" />
-              <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" :aria-label="`${row.label} value`" />
-              <input :value="row.unit" type="text" readonly tabindex="-1" aria-label="Unit" />
-              <span class="targets-remove-btn spacer" aria-hidden="true"><X :size="14" /></span>
-            </div>
-          </div>
-          <div class="targets-section">
-            <div class="targets-header">
-              <span class="targets-title">Other targets <span class="optional">(optional)</span></span>
-              <button type="button" class="targets-add-btn" @click="addTargetRow"><Plus :size="14" /> Add target</button>
-            </div>
-            <p class="targets-hint">Not counted in the calorie target, e.g. sodium, fiber, potassium, vitamins. Pick from the list or type your own.</p>
-            <div v-for="(row, idx) in otherRows" :key="idx" class="targets-row">
-              <MeasureNameCombo :row="row" :templates="MEASURE_TEMPLATES.intervention" :aria-label="`Target ${idx + 1} name`" />
-              <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" :aria-label="`Target ${idx + 1} value`" />
-              <input v-model="row.unit" type="text" placeholder="Unit" maxlength="30" :aria-label="`Target ${idx + 1} unit`" />
-              <button type="button" class="targets-remove-btn" title="Remove" @click="otherRows.splice(idx, 1)"><X :size="14" /></button>
-            </div>
-          </div>
-
-          <button v-if="!selectedPlan" class="btn-primary" :disabled="!planMeta.name || !planMeta.kcalPerDay || isSaving" @click="createPlan">
-            {{ isSaving ? 'Creating…' : 'Create meal plan' }}
-          </button>
-          <p v-if="!selectedPlan && createBlocker" class="create-hint">{{ createBlocker }} Then you can add the meals day by day.</p>
-        </div>
-
-        <!-- STEP 2: DAILY MEALS — only once the plan exists -->
-        <template v-if="selectedPlan">
-          <div class="day-tabs">
+      <div class="planning-layout">
+        <div class="mp-main">
+          <div class="day-tabs no-print" role="tablist">
             <button
               v-for="day in days"
               :key="day"
@@ -272,200 +75,543 @@
               :class="{ active: activeDay === day }"
               @click="activeDay = day"
             >
-              {{ day }}<span v-if="warningDays.has(day)" class="day-warn-dot" title="A food on this day may not suit the patient's condition" />
+              {{ day }}
             </button>
           </div>
 
-          <div class="copy-day">
-            <label for="copy-to">Copy {{ DAY_FULL[activeDay] }}'s meals to</label>
-            <select id="copy-to" v-model="copyTarget" class="nm-select">
-              <option value="">Pick days</option>
-              <option value="all">Every other day</option>
-              <option value="weekdays">Monday to Friday</option>
-              <option value="weekend">Saturday and Sunday</option>
-              <option v-for="d in days.filter(x => x !== activeDay)" :key="d" :value="d">{{ DAY_FULL[d] }}</option>
-            </select>
-            <button type="button" class="btn-secondary" :disabled="!copyTarget || !dayHasFood(activeDay)" @click="copyDay">Copy</button>
-            <span v-if="!dayHasFood(activeDay)" class="copy-hint">Add food to {{ DAY_FULL[activeDay] }} first.</span>
-          </div>
-
-          <div class="panel meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type">
-            <div class="meal-edit-header">
-              <span class="meal-edit-label"><component :is="meal.icon" :size="14" /> {{ sentence(meal.type) }}</span>
-              <input v-model="weeklyPlan[activeDay][meal.type].time" type="time" class="meal-time-input" title="Meal time" />
+          <div class="panel plan-panel print-area">
+            <div class="print-only print-head">
+              <h3>Weekly meal plan for {{ selectedPatientName }}</h3>
+              <p>{{ planMeta.name }}. {{ conditionLabel(planMeta.condition) }}<template v-if="planMeta.kcalPerDay">, {{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</template></p>
             </div>
 
-            <div class="food-table">
-              <div class="food-table-head">
-                <span></span>
-                <span>Food</span>
-                <span>Portion</span>
-                <span>kcal</span>
-                <span>Carbs (g)</span>
-                <span>Protein (g)</span>
-                <span>Fat (g)</span>
+            <!-- Screen: selected day. Print: the whole week. -->
+            <div v-for="day in printDays" :key="day" class="print-day" :class="{ 'screen-hidden': day !== activeDay }">
+              <h4 class="print-only print-day-title">{{ DAY_FULL[day] }}</h4>
+              <div class="mp-dayhead no-print">
+                <h3>{{ DAY_FULL[day] }}</h3>
+                <span>{{ mealCount(day) }} meals · {{ dayKcal(day).toLocaleString('en-PH') }} kcal</span>
               </div>
-              <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx" :class="{ usda: item.source === 'usda' }">
-                <button class="remove-btn" title="Remove" @click="removeItem(meal, idx)"><X :size="12" /></button>
-                <template v-if="item.source === 'usda'">
-                  <div class="usda-name" :title="`USDA FoodData Central #${item.fdcId}`"><span class="usda-tag">USDA</span>{{ item.name }}</div>
-                  <div class="grams-input">
-                    <input :value="item.grams" type="number" min="1" max="2000" step="1" aria-label="Grams" @input="setGrams(item, $event.target.value)" />
-                    <span>g</span>
+              <div class="meal-list">
+                <!-- one small table per meal: food, portion, kcal and macros in lined-up columns -->
+                <section v-for="meal in mealsForDay(day)" :key="meal.type" class="meal-block" :style="toneStyle(meal.type)">
+                  <div class="meal-head">
+                    <span class="meal-ico no-print"><component :is="meal.icon" :size="18" /></span>
+                    <h4 class="meal-name">{{ sentence(meal.type) }}</h4>
+                    <span v-if="meal.time" class="meal-time">
+                      <svg class="ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                      {{ formatTime(meal.time) }}
+                    </span>
                   </div>
-                  <input :value="item.kcal ?? ''" type="number" disabled placeholder="—" title="From USDA, per the grams" />
-                  <input :value="item.carb ?? ''" type="number" disabled placeholder="—" />
-                  <input :value="item.prot ?? ''" type="number" disabled placeholder="—" />
-                  <input :value="item.fat ?? ''" type="number" disabled placeholder="—" />
-                </template>
-                <template v-else>
-                  <div class="combo" @keydown.down.prevent="moveFood(1)" @keydown.up.prevent="moveFood(-1)" @keydown.enter="pickActiveFood(item, $event)" @keydown.esc="foodPick.key = null">
-                    <input
-                      v-model="item.name"
-                      type="text"
-                      placeholder="Search FNRI or type a food"
-                      role="combobox" autocomplete="off" aria-label="Food item"
-                      :aria-expanded="foodPick.key === `${activeDay}-${meal.type}-${idx}`"
-                      @focus="openFoodPick(`${activeDay}-${meal.type}-${idx}`, item.name)"
-                      @input="onFoodNameInput(item, $event.target.value, `${activeDay}-${meal.type}-${idx}`)"
-                      @change="applyFnriMatch(item, $event.target.value)"
-                      @blur="closeFoodPickSoon"
-                    />
-                    <div v-if="foodPick.key === `${activeDay}-${meal.type}-${idx}` && flatFoodMatches.length" class="combo-list" role="listbox">
-                      <template v-for="g in foodMatches" :key="g.group">
-                        <p class="combo-group">{{ g.group }}</p>
-                        <button v-for="f in g.foods" :key="f.id" type="button" role="option" class="combo-opt"
-                                :class="{ on: flatFoodMatches[foodPick.active]?.id === f.id }" :aria-selected="flatFoodMatches[foodPick.active]?.id === f.id"
-                                @mousedown.prevent="pickFood(item, f)">
-                          <span class="combo-name">{{ f.name }}<span v-if="allergyWarnings(f.name, patientAllergies).length" class="combo-allergy">Allergy</span></span>
-                          <span class="combo-meta">{{ f.household_measure || '1 exchange' }}</span>
-                        </button>
-                      </template>
-                    </div>
+                  <div v-if="meal.foods.length" class="meal-tw">
+                    <table class="meal-foods">
+                      <thead>
+                        <tr><th>Food</th><th>Portion</th><th class="n">kcal</th><th class="n c">Carbs</th><th class="n p">Protein</th><th class="n f">Fat</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(f, i) in meal.foods" :key="i">
+                          <td class="food">{{ f.name }}</td>
+                          <td class="portion">{{ f.portion || '' }}</td>
+                          <td class="n k">{{ cell(f.kcal) }}</td>
+                          <td class="n">{{ cell(f.carb) }} g</td>
+                          <td class="n">{{ cell(f.prot) }} g</td>
+                          <td class="n">{{ cell(f.fat) }} g</td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colspan="2">Meal total</td>
+                          <td class="n k">{{ meal.kcal }}</td>
+                          <td class="n">{{ mealTotal(meal, 'carb') }} g</td>
+                          <td class="n">{{ mealTotal(meal, 'prot') }} g</td>
+                          <td class="n">{{ mealTotal(meal, 'fat') }} g</td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
-                  <!-- An FNRI food is measured in exchanges: its numbers follow the
-                       count (like grams for USDA). A typed food keeps free numbers. -->
-                  <template v-if="item.foodItemId && fnriById[item.foodItemId]">
-                    <div class="grams-input exch-input" :title="`1 exchange = ${fnriById[item.foodItemId].household_measure || 'one FNRI exchange'}`">
-                      <input :value="item.exchanges" type="number" min="0.5" max="20" step="0.5" aria-label="Exchanges" @input="setExchanges(item, $event.target.value)" />
-                      <span>{{ item.portion || 'exch.' }}</span>
-                    </div>
-                    <input :value="item.kcal ?? ''" type="number" disabled placeholder="—" title="From the FNRI exchange list, per the number of exchanges" />
-                    <input :value="item.carb ?? ''" type="number" disabled placeholder="—" />
-                    <input :value="item.prot ?? ''" type="number" disabled placeholder="—" />
-                    <input :value="item.fat ?? ''" type="number" disabled placeholder="—" />
-                  </template>
-                  <template v-else>
-                    <input v-model="item.portion" type="text" placeholder="e.g., ½ cup" />
-                    <input v-model.number="item.kcal" type="number" min="0" placeholder="0" />
-                    <input v-model.number="item.carb" type="number" min="0" placeholder="0" />
-                    <input v-model.number="item.prot" type="number" min="0" placeholder="0" />
-                    <input v-model.number="item.fat" type="number" min="0" placeholder="0" />
-                  </template>
-                </template>
-                <p v-if="needsNumbers(item)" class="food-hint">Enter its calories and macros, or pick a food from the FNRI list so they fill in.</p>
-                <p v-if="itemWarnings(item).length" class="food-warn" :class="{ allergy: itemAllergyWarnings(item).length }" role="note">
-                  <AlertTriangle :size="13" /> {{ itemWarnings(item).join(', ') }}
-                </p>
+                  <p v-else class="meal-empty">No foods added</p>
+                </section>
               </div>
             </div>
 
-            <div class="add-food-row">
-              <button class="btn-add-food" @click="addItem(meal)"><Plus :size="14" /> Add food</button>
-              <button class="btn-add-food usda-btn" @click="usdaMeal = meal"><Search :size="14" /> Add from USDA</button>
+            <div v-if="instructions.allergies || instructions.notes" class="instructions-view print-only">
+              <p v-if="instructions.allergies"><strong>Allergies and restrictions:</strong> {{ instructions.allergies }}</p>
+              <p v-if="instructions.notes"><strong>Notes from the RND:</strong> {{ instructions.notes }}</p>
+            </div>
+
+            <div v-if="selectedPlan.status === 'draft'" class="plan-foot no-print">
+              <p><Lock :size="14" /> Draft. Only you can see it, and you can still delete it.</p>
+              <button class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
             </div>
           </div>
+        </div>
 
-          <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay}, ${usdaMeal.type}`" :allergies="patientAllergies" :patient-name="patientFirstName" @close="usdaMeal = null" @pick="addUsdaFood" />
-
-          <p v-if="selectedPlan.status !== 'draft'" class="sent-lock"><Lock :size="13" /> Sent to the client, so this plan can't be deleted. Edit it and resend, or send a new plan.</p>
-          <p v-else class="sent-lock"><Lock :size="13" /> Draft. Only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
-          <div class="plan-actions create-actions">
-            <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
-            <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="15" /> Undo</button>
-            <button class="btn-secondary" @click="discardChanges">Discard changes</button>
-            <button class="btn-secondary" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : selectedPlan.status === 'draft' ? 'Save draft' : 'Save changes' }}</button>
-            <button class="btn-primary" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; send to patient</button>
+        <!-- RIGHT SIDEBAR -->
+        <div class="side-column no-print">
+          <div class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-blue"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" /></svg></span>
+              <div class="side-head-txt">
+                <h4 class="side-title">{{ DAY_FULL[activeDay] }}'s totals</h4>
+                <span class="side-subtitle">Against the plan's daily targets</span>
+              </div>
+            </div>
+            <div class="mp-ring-row">
+              <div class="mp-ring" :style="{ '--p': pct(nutrition.calories) }">
+                <span><strong>{{ Number(nutrition.calories.value).toLocaleString('en-PH') }}</strong><small>of {{ nutrition.calories.target != null ? Number(nutrition.calories.target).toLocaleString('en-PH') : '—' }} kcal</small></span>
+              </div>
+              <div v-if="dayNote" class="mp-ring-note">
+                <span class="mp-ok" :class="{ off: !dayNote.ok }">{{ dayNote.label }}</span>
+                <p>{{ dayNote.text }}</p>
+              </div>
+            </div>
+            <div class="nutrient-row">
+              <div class="nutrient-top"><span><i class="dot" style="background: #C49102"></i>Carbohydrates</span><span><strong>{{ nutrition.carbs.value }} g</strong> / {{ nutrition.carbs.target ?? '—' }} g</span></div>
+              <div class="nutrient-bar"><div class="nutrient-fill fill-gold" :style="{ width: pct(nutrition.carbs) + '%' }"></div></div>
+            </div>
+            <div class="nutrient-row">
+              <div class="nutrient-top"><span><i class="dot" style="background: #1F9D55"></i>Protein</span><span><strong>{{ nutrition.protein.value }} g</strong> / {{ nutrition.protein.target ?? '—' }} g</span></div>
+              <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: pct(nutrition.protein) + '%' }"></div></div>
+            </div>
+            <div class="nutrient-row">
+              <div class="nutrient-top"><span><i class="dot" style="background: #3B5BA5"></i>Fat</span><span><strong>{{ nutrition.fat.value }} g</strong> / {{ nutrition.fat.target ?? '—' }} g</span></div>
+              <div class="nutrient-bar"><div class="nutrient-fill fill-blue" :style="{ width: pct(nutrition.fat) + '%' }"></div></div>
+            </div>
+            <p class="exchange-note">FNRI values from the Food Exchange Lists, 4th ed., 2020</p>
           </div>
-        </template>
+
+          <!-- same panel as in Edit plan, read-only here -->
+          <div class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-gold"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg></span>
+              <div class="side-head-txt"><h4 class="side-title">Instructions for the patient</h4></div>
+              <button class="nm-btn-soft nm-btn-sm" type="button" @click="mode = 'create'"><Pencil :size="13" aria-hidden="true" /> Edit</button>
+            </div>
+            <p v-if="patientAllergies.length" class="instr-allergy" role="note">
+              <AlertTriangle :size="15" aria-hidden="true" /> <span>{{ patientFirstName }}'s recorded allergies: {{ patientAllergies.join(', ') }}</span>
+            </p>
+            <dl class="instr-read">
+              <dt>Allergies and restrictions</dt>
+              <dd :class="{ empty: !instructions.allergies }">{{ instructions.allergies || 'None written' }}</dd>
+              <dt>Notes for the patient</dt>
+              <dd :class="{ empty: !instructions.notes }">{{ instructions.notes || 'None written' }}</dd>
+            </dl>
+          </div>
+
+          <div class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-green"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg></span>
+              <div class="side-head-txt"><h4 class="side-title">Plans for this patient</h4></div>
+              <button class="nm-btn-soft nm-btn-sm" type="button" @click="startNewPlan"><Plus :size="13" aria-hidden="true" /> New plan</button>
+            </div>
+            <button
+              v-for="p in plans"
+              :key="p.id"
+              class="saved-plan-card"
+              :class="{ selected: p.id === selectedPlanId }"
+              @click="selectPlan(p.id)"
+            >
+              <div>
+                <div class="saved-plan-name">{{ p.name }}</div>
+                <div class="saved-plan-meta">{{ conditionLabel(p.condition) }}<template v-if="p.target_kcal">, {{ Math.round(p.target_kcal).toLocaleString('en-PH') }} kcal/day</template></div>
+              </div>
+              <span class="active-pill" :class="'pill-' + p.status">{{ { draft: 'Draft', active: 'Sent', archived: 'Archived' }[p.status] || p.status }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= CREATE / EDIT PLAN MODE ================= -->
+    <div v-else class="mp-wrap">
+      <section class="mp-hero no-print" :aria-label="`${patientFirstName}'s measurements`">
+        <img class="mp-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
+        <span class="mp-hero-fade" aria-hidden="true"></span>
+        <div class="mp-hero-who">
+          <span class="mp-av" aria-hidden="true">{{ initials }}</span>
+          <div class="mp-hero-txt">
+            <p class="mp-eyebrow"><span></span>{{ selectedPlan ? 'Editing meal plan' : 'New meal plan' }}</p>
+            <h2 class="mp-title">{{ selectedPatientName }}</h2>
+            <!-- The patient's age, sex and latest measurements, for setting the targets -->
+            <p v-if="bodyParts.length" class="mp-sub">
+              <template v-for="(part, i) in bodyParts" :key="i"><i v-if="i"></i><span>{{ part }}</span></template>
+            </p>
+            <p v-if="patientBody?.source" class="mp-src">{{ patientBody.source }}</p>
+          </div>
+        </div>
+        <div class="mp-targets">
+          <div class="mp-t big"><small>TER</small><strong>{{ fmtNum(planMeta.kcalPerDay) }}</strong><em>kcal/day</em></div>
+          <div class="mp-t"><small><i style="background: #EFBF04"></i>Carbs</small><strong>{{ targets.carb ?? '—' }}</strong><em>g</em></div>
+          <div class="mp-t"><small><i style="background: #6EE7A8"></i>Protein</small><strong>{{ targets.protein ?? '—' }}</strong><em>g</em></div>
+          <div class="mp-t"><small><i style="background: #9DB4F0"></i>Fat</small><strong>{{ targets.fat ?? '—' }}</strong><em>g</em></div>
+        </div>
+        <div v-if="selectedPlan" class="mp-hero-acts edit">
+          <button class="mp-btn glass" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" @click="undo"><Undo2 :size="16" /> Undo</button>
+          <button class="mp-btn glass" type="button" :disabled="isSaving" @click="savePlan()">
+            <svg class="ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M7 3v6h8M7 21v-7h10v7" /></svg>
+            {{ isSaving ? 'Saving…' : selectedPlan.status === 'draft' ? 'Save draft' : 'Save changes' }}
+          </button>
+          <button class="mp-btn gold" type="button" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="16" /> Save &amp; send to patient</button>
+        </div>
+      </section>
+
+      <div v-if="selectedPlan" class="mp-note no-print" :class="{ sent: selectedPlan.status !== 'draft' }">
+        <span class="mp-note-ico"><Lock :size="16" /></span>
+        <p v-if="selectedPlan.status !== 'draft'" class="sent-lock">Sent to the client, so this plan can't be deleted. Edit it and resend, or send a new plan.</p>
+        <p v-else class="sent-lock"><strong>Draft.</strong> Only you can see it, and you can still delete it. Once you send it to the client, it can't be deleted.</p>
+        <div class="mp-note-acts">
+          <button class="mp-ghost" type="button" @click="discardChanges">Discard changes</button>
+          <button v-if="selectedPlan.status === 'draft'" class="btn-danger" type="button" @click="confirmDelete = true"><Trash2 :size="15" /> Delete draft</button>
+        </div>
       </div>
 
-      <!-- RIGHT SIDEBAR (CREATE MODE) -->
-      <div class="side-column">
-        <div class="panel">
-          <div class="side-header-row">
-            <h4 class="side-title">Preview</h4>
-            <span v-if="selectedPlan" class="preview-day">{{ DAY_FULL[activeDay] }}</span>
+      <div class="planning-layout">
+        <div class="create-column">
+          <!-- NEW PLAN: pick how to start first, so the two forms never sit on top of each other -->
+          <div v-if="!selectedPlan" class="panel start-choice">
+            <h4 class="no-plan-title">New meal plan for {{ selectedPatientName }}</h4>
+            <div class="start-options" role="radiogroup" aria-label="How to start the plan">
+              <button type="button" role="radio" class="start-opt" :class="{ on: startWith === 'template' }" :aria-checked="startWith === 'template'" @click="startWith = 'template'">
+                <span class="start-ico"><Utensils :size="18" /></span>
+                <span class="start-name">Start from a diet template <span class="start-rec">Recommended</span></span>
+                <span class="start-desc">Pick the condition and calories. A full week is filled in for you to check and adjust.</span>
+              </button>
+              <button type="button" role="radio" class="start-opt" :class="{ on: startWith === 'blank' }" :aria-checked="startWith === 'blank'" @click="startWith = 'blank'">
+                <span class="start-ico"><Plus :size="18" /></span>
+                <span class="start-name">Start blank</span>
+                <span class="start-desc">Name the plan and set the calories, then add every meal yourself.</span>
+              </button>
+            </div>
           </div>
 
-          <p v-if="!planMeta.name && !planMeta.kcalPerDay" class="macro-note">
-            Fill in the plan details to see a live preview here.
-          </p>
+          <!-- disease-specific diet template (diabetes, hypertension, renal, weight management) -->
+          <MealPlanTemplatePicker v-if="!selectedPlan && startWith === 'template'" :relationship-id="selectedRelId" @created="onTemplateCreated" />
 
-          <template v-else>
-            <div class="preview-summary">
-              <p class="preview-summary-name">{{ planMeta.name || 'Untitled Plan' }}</p>
-              <div class="plan-badges">
-                <span v-if="planMeta.condition" class="badge badge-gold">{{ conditionLabel(planMeta.condition) }}</span>
-                <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
+          <!-- STEP 1: PLAN DETAILS (a new blank plan, or the plan being edited) -->
+          <div v-if="selectedPlan || startWith === 'blank'" class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-green"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg></span>
+              <div class="side-head-txt">
+                <h4 class="side-title">Plan details</h4>
+                <span class="side-subtitle">Name, condition and the daily calorie target</span>
+              </div>
+            </div>
+            <p v-if="!selectedPlan && ncpTargets" class="prefill-note">Targets are filled in from this client's NCP Intervention. Adjust them if needed.</p>
+
+            <div class="form-row-6">
+              <div class="field">
+                <label>Plan name</label>
+                <input v-model="planMeta.name" type="text" placeholder="e.g., Diabetic-Friendly Plan" :class="{ invalid: nameMissing && !planMeta.name.trim() }" :aria-invalid="(nameMissing && !planMeta.name.trim()) || undefined" />
+              </div>
+              <div class="field">
+                <label>Condition</label>
+                <select class="nm-select" v-model="planMeta.condition">
+                  <option v-for="c in CONDITIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>TER (Total Energy Requirement)</label>
+                <div class="unit-in">
+                  <input v-model.number="planMeta.kcalPerDay" type="number" min="0" placeholder="e.g., 1800" aria-label="TER (Total Energy Requirement), kcal/day" />
+                  <span>kcal/day</span>
+                </div>
               </div>
             </div>
 
-            <div v-if="planMeta.kcalPerDay || filledRows(macroRows).length" class="target-list">
-              <!-- TER first, then the macros it's split into (user's call, 2026-11-01) -->
-              <div v-if="planMeta.kcalPerDay" class="target-row target-ter">
-                <span>TER (Total Energy Requirement)</span><span>{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
+            <!-- Targets beyond calories, as Measured Variable / Value / Unit rows
+                 (same pattern as the NCP form's "+ Add Field"), in two groups:
+                 the macronutrients (the only ones that give calories; in grams
+                 they drive the Macro Tracker) and other targets (sodium, fiber…),
+                 which are not part of the calorie target. -->
+            <div class="targets-section">
+              <div class="targets-header">
+                <span class="targets-title">Macronutrient targets <span class="optional">optional</span></span>
               </div>
-              <div v-for="row in filledRows(macroRows)" :key="row.label" class="target-row">
-                <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
+              <p class="targets-hint">Protein, carbohydrate and fat are the only nutrients that give calories (4 / 4 / 9 kcal per gram), so they make up the calorie target.</p>
+              <!-- Fixed rows: only the value is edited (the Macro Tracker reads them by name, in grams). -->
+              <div class="mp-macros">
+                <div v-for="row in macroRows" :key="row.label" class="mp-macro" :style="{ '--c': MACRO_COLORS[row.label] || '#004D3A' }">
+                  <span class="mp-macro-l"><i></i>{{ row.label }}</span>
+                  <div class="unit-in">
+                    <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" :aria-label="`${row.label} value`" />
+                    <span>{{ row.unit }}</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div v-if="filledRows(otherRows).length" class="target-list">
-              <p class="target-list-title">Other targets <span>(not in the TER)</span></p>
-              <div v-for="row in filledRows(otherRows)" :key="row.label" class="target-row">
-                <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
+            <div class="targets-section">
+              <div class="targets-header">
+                <span class="targets-title">Other targets <span class="optional">optional</span></span>
+                <button type="button" class="targets-add-btn" @click="addTargetRow"><Plus :size="14" /> Add target</button>
               </div>
+              <p class="targets-hint">Not counted in the calorie target, e.g. sodium, fiber, potassium, vitamins. Pick from the list or type your own.</p>
+              <div v-for="(row, idx) in otherRows" :key="idx" class="targets-row">
+                <MeasureNameCombo :row="row" :templates="MEASURE_TEMPLATES.intervention" :aria-label="`Target ${idx + 1} name`" />
+                <input v-model="row.value" type="text" inputmode="decimal" placeholder="Value" maxlength="100" :aria-label="`Target ${idx + 1} value`" />
+                <input v-model="row.unit" type="text" placeholder="Unit" maxlength="30" :aria-label="`Target ${idx + 1} unit`" />
+                <button type="button" class="targets-remove-btn" title="Remove" aria-label="Remove target" @click="otherRows.splice(idx, 1)"><Trash2 :size="15" /></button>
+              </div>
+            </div>
+
+            <button v-if="!selectedPlan" class="btn-primary create-btn" :disabled="!planMeta.name || !planMeta.kcalPerDay || isSaving" @click="createPlan">
+              {{ isSaving ? 'Creating…' : 'Create meal plan' }}
+            </button>
+            <p v-if="!selectedPlan && createBlocker" class="create-hint">{{ createBlocker }} Then you can add the meals day by day.</p>
+          </div>
+
+          <!-- STEP 2: DAILY MEALS — only once the plan exists -->
+          <template v-if="selectedPlan">
+            <div class="day-row">
+              <div class="day-tabs" role="tablist">
+                <button
+                  v-for="day in days"
+                  :key="day"
+                  class="day-tab"
+                  :class="{ active: activeDay === day }"
+                  @click="activeDay = day"
+                >
+                  {{ day }}<span v-if="warningDays.has(day)" class="day-warn-dot" title="A food on this day may not suit the patient's condition" />
+                </button>
+              </div>
+
+              <div class="copy-day">
+                <label for="copy-to">Copy {{ DAY_FULL[activeDay] }}'s meals to</label>
+                <select id="copy-to" v-model="copyTarget" class="nm-select">
+                  <option value="">Pick days</option>
+                  <option value="all">Every other day</option>
+                  <option value="weekdays">Monday to Friday</option>
+                  <option value="weekend">Saturday and Sunday</option>
+                  <option v-for="d in days.filter(x => x !== activeDay)" :key="d" :value="d">{{ DAY_FULL[d] }}</option>
+                </select>
+                <button type="button" class="btn-secondary" :disabled="!copyTarget || !dayHasFood(activeDay)" @click="copyDay">
+                  <svg class="ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                  Copy
+                </button>
+              </div>
+            </div>
+            <p v-if="!dayHasFood(activeDay)" class="copy-hint">Add food to {{ DAY_FULL[activeDay] }} first to copy it to other days.</p>
+
+            <div class="panel meals-panel">
+              <div class="mp-dayhead">
+                <h3>{{ DAY_FULL[activeDay] }}</h3>
+                <span>{{ mealCount(activeDay) }} meals · {{ dayTotal('kcal').toLocaleString('en-PH') }} kcal</span>
+              </div>
+
+              <section class="meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type" :style="toneStyle(meal.type)">
+                <div class="meal-edit-header">
+                  <span class="meal-ico"><component :is="meal.icon" :size="18" /></span>
+                  <span class="meal-edit-label">{{ sentence(meal.type) }}</span>
+                  <label class="meal-time-pill">
+                    <svg class="ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input v-model="weeklyPlan[activeDay][meal.type].time" type="time" class="meal-time-input" title="Meal time" />
+                  </label>
+                </div>
+
+                <div class="food-table">
+                  <div v-if="meal.items.length" class="food-table-head">
+                    <span>Food</span>
+                    <span>Portion</span>
+                    <span class="n">kcal</span>
+                    <span class="n c">Carbs (g)</span>
+                    <span class="n p">Protein (g)</span>
+                    <span class="n f">Fat (g)</span>
+                    <span></span>
+                  </div>
+                  <p v-else class="meal-empty">No foods yet. Add one below.</p>
+                  <div class="food-table-row" v-for="(item, idx) in meal.items" :key="idx" :class="{ usda: item.source === 'usda' }">
+                    <template v-if="item.source === 'usda'">
+                      <div class="usda-name" :title="`USDA FoodData Central #${item.fdcId}`"><span class="usda-tag">USDA</span>{{ item.name }}</div>
+                      <div class="grams-input">
+                        <input :value="item.grams" type="number" min="1" max="2000" step="1" aria-label="Grams" @input="setGrams(item, $event.target.value)" />
+                        <span>g</span>
+                      </div>
+                      <label class="mp-num k" data-l="kcal"><input :value="item.kcal ?? ''" type="number" disabled placeholder="—" title="From USDA, per the grams" /></label>
+                      <label class="mp-num" data-l="Carbs"><input :value="item.carb ?? ''" type="number" disabled placeholder="—" /></label>
+                      <label class="mp-num" data-l="Protein"><input :value="item.prot ?? ''" type="number" disabled placeholder="—" /></label>
+                      <label class="mp-num" data-l="Fat"><input :value="item.fat ?? ''" type="number" disabled placeholder="—" /></label>
+                    </template>
+                    <template v-else>
+                      <div class="combo" @keydown.down.prevent="moveFood(1)" @keydown.up.prevent="moveFood(-1)" @keydown.enter="pickActiveFood(item, $event)" @keydown.esc="foodPick.key = null">
+                        <input
+                          v-model="item.name"
+                          type="text"
+                          placeholder="Search FNRI or type a food"
+                          role="combobox" autocomplete="off" aria-label="Food item"
+                          :aria-expanded="foodPick.key === `${activeDay}-${meal.type}-${idx}`"
+                          @focus="openFoodPick(`${activeDay}-${meal.type}-${idx}`, item.name)"
+                          @input="onFoodNameInput(item, $event.target.value, `${activeDay}-${meal.type}-${idx}`)"
+                          @change="applyFnriMatch(item, $event.target.value)"
+                          @blur="closeFoodPickSoon"
+                        />
+                        <div v-if="foodPick.key === `${activeDay}-${meal.type}-${idx}` && flatFoodMatches.length" class="combo-list" role="listbox">
+                          <template v-for="g in foodMatches" :key="g.group">
+                            <p class="combo-group">{{ g.group }}</p>
+                            <button v-for="f in g.foods" :key="f.id" type="button" role="option" class="combo-opt"
+                                    :class="{ on: flatFoodMatches[foodPick.active]?.id === f.id }" :aria-selected="flatFoodMatches[foodPick.active]?.id === f.id"
+                                    @mousedown.prevent="pickFood(item, f)">
+                              <span class="combo-name">{{ f.name }}<span v-if="allergyWarnings(f.name, patientAllergies).length" class="combo-allergy">Allergy</span></span>
+                              <span class="combo-meta">{{ f.household_measure || '1 exchange' }}</span>
+                            </button>
+                          </template>
+                        </div>
+                      </div>
+                      <!-- An FNRI food is measured in exchanges: its numbers follow the
+                           count (like grams for USDA). A typed food keeps free numbers. -->
+                      <template v-if="item.foodItemId && fnriById[item.foodItemId]">
+                        <div class="grams-input exch-input" :title="`1 exchange = ${fnriById[item.foodItemId].household_measure || 'one FNRI exchange'}`">
+                          <input :value="item.exchanges" type="number" min="0.5" max="20" step="0.5" aria-label="Exchanges" @input="setExchanges(item, $event.target.value)" />
+                          <span>{{ item.portion || 'exch.' }}</span>
+                        </div>
+                        <label class="mp-num k" data-l="kcal"><input :value="item.kcal ?? ''" type="number" disabled placeholder="—" title="From the FNRI exchange list, per the number of exchanges" /></label>
+                        <label class="mp-num" data-l="Carbs"><input :value="item.carb ?? ''" type="number" disabled placeholder="—" /></label>
+                        <label class="mp-num" data-l="Protein"><input :value="item.prot ?? ''" type="number" disabled placeholder="—" /></label>
+                        <label class="mp-num" data-l="Fat"><input :value="item.fat ?? ''" type="number" disabled placeholder="—" /></label>
+                      </template>
+                      <template v-else>
+                        <input v-model="item.portion" type="text" class="portion-in" placeholder="e.g., ½ cup" aria-label="Portion" />
+                        <label class="mp-num k" data-l="kcal"><input v-model.number="item.kcal" type="number" min="0" placeholder="0" /></label>
+                        <label class="mp-num" data-l="Carbs"><input v-model.number="item.carb" type="number" min="0" placeholder="0" /></label>
+                        <label class="mp-num" data-l="Protein"><input v-model.number="item.prot" type="number" min="0" placeholder="0" /></label>
+                        <label class="mp-num" data-l="Fat"><input v-model.number="item.fat" type="number" min="0" placeholder="0" /></label>
+                      </template>
+                    </template>
+                    <button class="remove-btn" type="button" title="Remove" aria-label="Remove food" @click="removeItem(meal, idx)"><Trash2 :size="15" /></button>
+                    <p v-if="needsNumbers(item)" class="food-hint">Enter its calories and macros, or pick a food from the FNRI list so they fill in.</p>
+                    <p v-if="itemWarnings(item).length" class="food-warn" :class="{ allergy: itemAllergyWarnings(item).length }" role="note">
+                      <AlertTriangle :size="13" /> {{ itemWarnings(item).join(', ') }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="meal-foot" :class="{ empty: !meal.items.length }">
+                  <div class="add-food-row">
+                    <button class="btn-add-food" type="button" @click="addItem(meal)"><Plus :size="14" /> Add food</button>
+                    <button class="btn-add-food usda-btn" type="button" @click="usdaMeal = meal"><Search :size="14" /> Add from USDA</button>
+                  </div>
+                  <template v-if="meal.items.length">
+                    <span class="mf-n k" data-l="kcal">{{ mealTotal(meal, 'kcal') }}</span>
+                    <span class="mf-n" data-l="Carbs">{{ mealTotal(meal, 'carb') }} g</span>
+                    <span class="mf-n" data-l="Protein">{{ mealTotal(meal, 'prot') }} g</span>
+                    <span class="mf-n" data-l="Fat">{{ mealTotal(meal, 'fat') }} g</span>
+                    <span class="mf-gap" aria-hidden="true"></span>
+                  </template>
+                </div>
+              </section>
+            </div>
+
+            <UsdaFoodPicker v-if="usdaMeal" :meal-label="`${activeDay}, ${usdaMeal.type}`" :allergies="patientAllergies" :patient-name="patientFirstName" @close="usdaMeal = null" @pick="addUsdaFood" />
+
+            <!-- phones: the save buttons stay in reach above the bottom tabs -->
+            <div class="mp-mbar no-print">
+              <button class="btn-secondary" type="button" :disabled="!canUndo" title="Undo your last change (Ctrl+Z)" aria-label="Undo" @click="undo"><Undo2 :size="16" /></button>
+              <button class="btn-secondary" type="button" :disabled="isSaving" @click="savePlan()">{{ isSaving ? 'Saving…' : selectedPlan.status === 'draft' ? 'Save draft' : 'Save changes' }}</button>
+              <button class="btn-primary" type="button" :disabled="isSaving || isSending" @click="requestSend(saveAndSend)"><Send :size="15" /> Save &amp; send</button>
             </div>
           </template>
+        </div>
 
-          <div v-if="selectedPlan && currentDayMeals.some(m => m.items.some(i => i.name))" class="preview-list">
-            <div class="preview-item" v-for="meal in currentDayMeals.filter(m => m.items.some(i => i.name))" :key="meal.type" :class="'preview-' + meal.accent">
-              <div class="preview-label"><component :is="meal.icon" :size="13" /> {{ sentence(meal.type) }}</div>
-              <div class="preview-food">{{ firstFoodSummary(meal) }}</div>
-              <div class="preview-kcal">{{ mealTotal(meal, 'kcal') }} kcal</div>
+        <!-- RIGHT SIDEBAR (CREATE MODE) -->
+        <div class="side-column">
+          <div v-if="selectedPlan" class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-blue"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M21 20H3" /></svg></span>
+              <div class="side-head-txt">
+                <h4 class="side-title">Day totals</h4>
+                <span class="side-subtitle">{{ DAY_FULL[activeDay] }}, against the targets</span>
+              </div>
+            </div>
+            <div class="mp-ring-row">
+              <div class="mp-ring" :style="{ '--p': macroPct('kcal') }">
+                <span><strong>{{ dayTotal('kcal').toLocaleString('en-PH') }}</strong><small>of {{ planMeta.kcalPerDay ? Number(planMeta.kcalPerDay).toLocaleString('en-PH') : '—' }} kcal</small></span>
+              </div>
+              <div v-if="dayNote" class="mp-ring-note">
+                <span class="mp-ok" :class="{ off: !dayNote.ok }">{{ dayNote.label }}</span>
+                <p>{{ dayNote.text }}</p>
+              </div>
+            </div>
+            <div class="nutrient-row">
+              <div class="nutrient-top"><span><i class="dot" style="background: #C49102"></i>Carbs</span><span><strong>{{ dayTotal('carb') }} g</strong> / {{ targets.carb ?? '—' }} g</span></div>
+              <div class="nutrient-bar"><div class="nutrient-fill fill-gold" :style="{ width: macroPct('carb') + '%' }"></div></div>
+            </div>
+            <div class="nutrient-row">
+              <div class="nutrient-top"><span><i class="dot" style="background: #1F9D55"></i>Protein</span><span><strong>{{ dayTotal('prot') }} g</strong> / {{ targets.protein ?? '—' }} g</span></div>
+              <div class="nutrient-bar"><div class="nutrient-fill fill-green" :style="{ width: macroPct('prot') + '%' }"></div></div>
+            </div>
+            <div class="nutrient-row">
+              <div class="nutrient-top"><span><i class="dot" style="background: #3B5BA5"></i>Fat</span><span><strong>{{ dayTotal('fat') }} g</strong> / {{ targets.fat ?? '—' }} g</span></div>
+              <div class="nutrient-bar"><div class="nutrient-fill fill-blue" :style="{ width: macroPct('fat') + '%' }"></div></div>
+            </div>
+            <p class="exchange-note">Based on foods entered for the selected day</p>
+          </div>
+
+          <div class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-green"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg></span>
+              <div class="side-head-txt">
+                <h4 class="side-title">Preview</h4>
+                <span class="side-subtitle">What the patient sees</span>
+              </div>
+              <span v-if="selectedPlan" class="preview-day">{{ DAY_FULL[activeDay] }}</span>
+            </div>
+
+            <p v-if="!planMeta.name && !planMeta.kcalPerDay" class="macro-note">
+              Fill in the plan details to see a live preview here.
+            </p>
+
+            <template v-else>
+              <div class="preview-summary">
+                <p class="preview-summary-name">{{ planMeta.name || 'Untitled Plan' }}</p>
+                <div class="plan-badges">
+                  <span v-if="planMeta.condition" class="badge badge-gold">{{ conditionLabel(planMeta.condition) }}</span>
+                  <span v-if="planMeta.kcalPerDay" class="badge badge-blue">{{ planMeta.kcalPerDay }} kcal/day</span>
+                </div>
+              </div>
+
+              <div v-if="planMeta.kcalPerDay || filledRows(macroRows).length" class="target-list">
+                <!-- TER first, then the macros it's split into (user's call, 2026-11-01) -->
+                <div v-if="planMeta.kcalPerDay" class="target-row target-ter">
+                  <span>TER (Total Energy Requirement)</span><span>{{ Number(planMeta.kcalPerDay).toLocaleString('en-PH') }} kcal/day</span>
+                </div>
+                <div v-for="row in filledRows(macroRows)" :key="row.label" class="target-row">
+                  <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
+                </div>
+              </div>
+              <div v-if="filledRows(otherRows).length" class="target-list">
+                <p class="target-list-title">Other targets <span>(not in the TER)</span></p>
+                <div v-for="row in filledRows(otherRows)" :key="row.label" class="target-row">
+                  <span>{{ row.label }}</span><span>{{ row.value }}{{ row.unit ? ` ${row.unit}` : '' }}</span>
+                </div>
+              </div>
+            </template>
+
+            <div v-if="selectedPlan && currentDayMeals.some(m => m.items.some(i => i.name))" class="preview-list">
+              <div class="preview-item" v-for="meal in currentDayMeals.filter(m => m.items.some(i => i.name))" :key="meal.type" :style="toneStyle(meal.type)">
+                <span class="preview-ico"><component :is="meal.icon" :size="15" /></span>
+                <div class="preview-body">
+                  <div class="preview-label">{{ sentence(meal.type) }}</div>
+                  <div class="preview-food">{{ firstFoodSummary(meal) }}</div>
+                </div>
+                <div class="preview-kcal">{{ mealTotal(meal, 'kcal') }} kcal</div>
+              </div>
+            </div>
+            <p v-else-if="selectedPlan" class="macro-note">No meals added yet. Add food items per day to see the nutrition breakdown.</p>
+          </div>
+
+          <div v-if="selectedPlan" class="panel">
+            <div class="side-head">
+              <span class="side-ico ico-gold"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg></span>
+              <div class="side-head-txt"><h4 class="side-title">Instructions for the patient</h4></div>
+            </div>
+            <div class="field">
+              <label>Allergies and restrictions</label>
+              <textarea v-model="instructions.allergies" rows="3" class="instr-box" placeholder="e.g., No shellfish, low potassium"></textarea>
+            </div>
+            <div class="field">
+              <label>Notes for the patient</label>
+              <textarea v-model="instructions.notes" data-allow-emoji rows="6" class="instr-box" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
             </div>
           </div>
-          <p v-else-if="selectedPlan" class="macro-note">No meals added yet. Add food items per day to see the nutrition breakdown.</p>
         </div>
-
-        <div v-if="selectedPlan" class="panel">
-          <h4 class="side-title">Instructions for the patient</h4>
-          <div class="field">
-            <label>Allergies and restrictions</label>
-            <textarea v-model="instructions.allergies" rows="4" class="instr-box" placeholder="e.g., No shellfish, low potassium"></textarea>
-          </div>
-          <div class="field">
-            <label>Notes for the patient</label>
-            <textarea v-model="instructions.notes" data-allow-emoji rows="6" class="instr-box" placeholder="e.g., Please eat meals at regular times. Avoid skipping meals."></textarea>
-          </div>
-        </div>
-        <div v-if="selectedPlan" class="panel">
-          <h4 class="side-title">Day totals</h4>
-          <div class="macro-row"><span>Calories</span><span class="macro-value">{{ dayTotal('kcal') }} kcal</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-dark" :style="{ width: macroPct('kcal') + '%' }"></div></div>
-
-          <div class="macro-row"><span>Carbs (g)</span><span class="macro-value">{{ dayTotal('carb') }}g</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-gold" :style="{ width: macroPct('carb') + '%' }"></div></div>
-
-          <div class="macro-row"><span>Protein (g)</span><span class="macro-value">{{ dayTotal('prot') }}g</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-green" :style="{ width: macroPct('prot') + '%' }"></div></div>
-
-          <div class="macro-row"><span>Fat (g)</span><span class="macro-value">{{ dayTotal('fat') }}g</span></div>
-          <div class="macro-bar"><div class="macro-fill fill-dark2" :style="{ width: macroPct('fat') + '%' }"></div></div>
-
-          <p class="macro-note">Based on foods entered for the selected day</p>
-        </div>
-
       </div>
     </div>
     <div v-if="confirmDelete" class="nm-modal-overlay no-print" @click.self="confirmDelete = false">
@@ -528,7 +674,6 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import {
   Eye, Plus, ChevronLeft, Printer, Pencil, Send, X,
@@ -1404,368 +1549,554 @@ function formatTime(t) {
   const [h, m] = t.split(':').map(Number)
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
 }
+
+/* ---------- UI only ---------- */
+const plateImg = '/landing/login-plate.webp'
+const initials = computed(() => (selectedPatientName.value || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase())
+// a colour per meal slot: icon box, left border and the header wash
+const MEAL_TONES = {
+  Breakfast: { c: '#9A7300', bg: '#FBF3D2' },
+  'Morning Snack': { c: '#8A4B2A', bg: '#F8ECE4' },
+  Lunch: { c: '#004D3A', bg: '#E3EFE7' },
+  'Afternoon Snack': { c: '#B4384A', bg: '#FDEDEF' },
+  Dinner: { c: '#3B5BA5', bg: '#EEF1FA' },
+  'Bedtime Snack': { c: '#5B4A9A', bg: '#F1EEF8' },
+}
+const toneStyle = type => ({ '--mc': MEAL_TONES[type]?.c || '#004D3A', '--mb': MEAL_TONES[type]?.bg || '#E3EFE7' })
+const MACRO_COLORS = { Protein: '#1F9D55', Carbohydrate: '#C49102', Fat: '#3B5BA5' }
+const fmtNum = v => (v == null || v === '' ? '—' : Number(v).toLocaleString('en-PH'))
+function dayKcal(day) {
+  return round(mealsForDay(day).reduce((sum, m) => sum + m.kcal, 0))
+}
+function mealCount(day) {
+  return mealsForDay(day).filter(m => m.foods.length).length
+}
+// the note beside the calorie ring (within 5% of the TER counts as on target)
+const dayNote = computed(() => {
+  const value = Number(nutrition.value.calories.value) || 0
+  const target = Number(nutrition.value.calories.target) || 0
+  if (!target) return null
+  if (!value) return { ok: false, label: 'No foods yet', text: `Add foods to ${DAY_FULL[activeDay.value]} to see how it adds up.` }
+  const gap = round(value - target)
+  const ok = Math.abs(gap) <= target * 0.05
+  const text = gap === 0 ? 'Right on the daily calories.' : `${Math.abs(gap).toLocaleString('en-PH')} kcal ${gap < 0 ? 'under' : 'over'} the target.`
+  return { ok, label: ok ? 'On target' : gap < 0 ? 'Under target' : 'Over target', text }
+})
+// the patient's figures as one dotted line in the edit header
+const bodyParts = computed(() => {
+  const b = patientBody.value
+  if (!b) return []
+  return [
+    b.age != null && `${b.age} yrs`,
+    b.sex,
+    b.height && `${Number(b.height)} cm`,
+    b.weight != null && `${Number(b.weight)} kg`,
+    b.bmi && `BMI ${b.bmi.toFixed(1)}${b.bmiClass ? `, ${b.bmiClass}` : ''}`,
+    b.ter && `NCP TER ${Math.round(b.ter).toLocaleString('en-PH')} kcal${b.terNote && b.terNote !== 'NCP' ? ` (${b.terNote.replace(/^NCP, /, '')})` : ''}`,
+  ].filter(Boolean)
+})
 </script>
-
 <style scoped>
-.top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-.back-link { display: inline-flex; align-items: center; gap: 4px; border: none; background: #e3efe7; border-radius: 8px; min-height: 32px; padding: 0 12px; margin: 0 0 12px; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #0a4a37; cursor: pointer; }
-.back-link:hover { background: #d3e7da; }
-.back-link:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
+.meal-planning-page {
+  --sh: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 24px 48px -18px rgba(0, 77, 58, 0.22);
+  color: #22362c;
+}
+.ic { flex-shrink: 0; }
+button { font-family: inherit; }
+.back-link:focus-visible, .mode-btn:focus-visible, .mp-btn:focus-visible, .day-tab:focus-visible, .btn-primary:focus-visible, .btn-secondary:focus-visible,
+.btn-danger:focus-visible, .mp-ghost:focus-visible, .btn-add-food:focus-visible, .remove-btn:focus-visible, .saved-plan-card:focus-visible, .start-opt:focus-visible,
+.targets-add-btn:focus-visible, .targets-remove-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
 
-.mode-toggle { display: flex; gap: 10px; }
+/* ---------- TOP CONTROLS ---------- */
+.mp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px 0 12px; border: 1px solid #e4ebe6; border-radius: 999px;
+  background: #fff; font-size: 13.5px; font-weight: 700; color: #004d3a; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.back-link:hover { background: #f1f6f2; }
+.mode-toggle { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #fff; border: 1px solid #e4ebe6; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
 .mode-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2;
-  border: none; background: #e3efe7; color: #0a4a37;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 18px; border: none; border-radius: 999px;
+  background: transparent; font-size: 13.5px; font-weight: 700; color: #4a5a52; cursor: pointer; white-space: nowrap;
 }
-.mode-btn:hover:not(:disabled):not(.active) { background: #d3e7da; }
-.mode-btn.active { background: #0a4a37; color: #fff; }
+.mode-btn:hover:not(:disabled):not(.active) { background: #f1f6f2; color: #004d3a; }
+.mode-btn.active { background: #004d3a; color: #fff; box-shadow: 0 8px 16px -10px rgba(0, 77, 58, 0.9); }
+.mode-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-
-.planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
-
-.panel { background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #eceeec; margin-bottom: 20px; }
-/* Patient strip: one divided row of figures */
-.body-strip { padding: 0; overflow: hidden; }
-.body-figs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; }
-.body-figs > div { padding: 12px 16px; border-left: 1px solid #d9e3dc; min-width: 0; }
-.body-figs > div:first-child { border-left: 0; }
-.body-figs dt { font-size: 0.78rem; color: #5b6b62; margin-bottom: 2px; }
-.body-figs dd { margin: 0; font-weight: 700; color: #1a3a1a; font-size: 1rem; }
-.body-figs dd small { display: block; font-weight: 500; font-size: 0.75rem; color: #5b6b62; }
-.body-source { margin: 0; padding: 8px 16px; border-top: 1px solid #d9e3dc; font-size: 0.78rem; color: #5b6b62; }
-@media (max-width: 640px) {
-  .body-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .body-figs > div:nth-child(4) { border-left: 0; }
-  .body-figs > div:nth-child(n + 4) { border-top: 1px solid #d9e3dc; }
+/* ---------- LOADING / EMPTY ---------- */
+.mp-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px 20px; font-size: 14px; font-weight: 600; color: #6b7d73; }
+.mp-spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid #e3efe7; border-top-color: #004d3a; animation: mp-spin 0.8s linear infinite; }
+@keyframes mp-spin { to { transform: rotate(360deg); } }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 20px; text-align: center;
+  background: #fff; border: 1.5px dashed #cfddd4; border-radius: 22px;
 }
-/* the light card shadow, on every panel here and in the parts this page shows
+.empty-ico { width: 56px; height: 56px; border-radius: 18px; background: #e3efe7; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
+.empty-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #0e3a2c; margin: 0; }
+.empty-text { margin: 0; max-width: 420px; font-size: 13.5px; line-height: 1.55; color: #6b7d73; }
+.form-error { background: #fef3f2; border: 1px solid #f6cfcb; color: #912018; border-radius: 14px; padding: 12px 16px; font-size: 13.5px; font-weight: 600; margin: 0 0 16px; }
+
+/* ---------- HERO ---------- */
+.mp-wrap { display: flex; flex-direction: column; gap: 18px; }
+.mp-hero {
+  position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap;
+  padding: 26px 30px; border-radius: 24px; color: #fff;
+  background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 50%, #004635 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 24px 50px -18px rgba(0, 77, 58, 0.55);
+}
+.mp-hero-plate { position: absolute; right: -70px; top: 50%; width: 360px; height: 360px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); opacity: 0.85; pointer-events: none; }
+.mp-hero-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 48%, rgba(0, 77, 58, 0.8) 72%, rgba(0, 77, 58, 0.3) 100%); }
+.mp-hero-who { position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1 1 360px; }
+.mp-av {
+  flex-shrink: 0; width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
+}
+.mp-hero-txt { min-width: 0; }
+.mp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #efbf04; }
+.mp-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
+.mp-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.15; color: #fff; overflow-wrap: anywhere; }
+.mp-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 0; font-size: 14px; color: rgba(255, 255, 255, 0.86); }
+.mp-sub i { width: 4px; height: 4px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); }
+.mp-src { margin: 6px 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.mp-status { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: #efbf04; }
+.mp-status b { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14); }
+.mp-status.st-active { color: #6ee7a8; }
+.mp-status.st-archived { color: rgba(255, 255, 255, 0.7); }
+.mp-targets { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, auto); gap: 8px; }
+.mp-t {
+  display: flex; flex-direction: column; min-width: 86px; padding: 10px 14px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); backdrop-filter: blur(6px);
+}
+.mp-t small { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; color: rgba(255, 255, 255, 0.75); }
+.mp-t small i { width: 7px; height: 7px; border-radius: 2px; }
+.mp-t strong { font-family: 'Playfair Display', serif; font-size: 24px; line-height: 1.2; color: #fff; }
+.mp-t em { font-style: normal; font-size: 11.5px; color: rgba(255, 255, 255, 0.65); white-space: nowrap; }
+.mp-t.big { min-width: 120px; background: #fff; border-color: #fff; }
+.mp-t.big small, .mp-t.big em { color: #6b7d73; }
+.mp-t.big strong { color: #004d3a; }
+.mp-hero-acts { position: relative; z-index: 1; flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+.mp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 12px;
+  border: 1px solid transparent; font-size: 13.5px; font-weight: 800; white-space: nowrap; cursor: pointer; transition: transform 0.15s, background 0.15s;
+}
+.mp-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.mp-btn.glass { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.22); color: #fff; }
+.mp-btn.glass:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); }
+.mp-btn.gold { background: #efbf04; color: #004d3a; box-shadow: 0 10px 22px -12px rgba(239, 191, 4, 0.9); }
+.mp-btn.gold:hover:not(:disabled) { background: #f5cb1c; }
+.mp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- LAYOUT / PANELS ---------- */
+.planning-layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.mp-main, .create-column, .side-column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.panel { background: #fff; border-radius: 22px; padding: 22px; border: none; }
+/* the client dashboard shadow, on every panel here and in the parts this page shows
    (patient list, template picker) */
-.meal-planning-page :deep(.panel), .meal-planning-page :deep(.nm-panel) { box-shadow: 0 0 1px rgba(0, 77, 58, 0.06), 0 0 14px rgba(0, 77, 58, 0.09); }
+.meal-planning-page :deep(.panel), .meal-planning-page :deep(.nm-panel) { box-shadow: var(--sh); }
 
-/* VIEW MODE */
-.plan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.plan-header h3 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #1a3a1a; margin: 0; }
-.plan-badges { display: flex; gap: 8px; }
-.badge { font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
-.badge-blue { background: #e3edfc; color: #3b6fd6; }
-.badge-gold { background: #fdf1d6; color: #b8860b; }
+.side-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.side-head-txt { flex: 1; min-width: 0; }
+.side-ico { flex-shrink: 0; width: 42px; height: 42px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; }
+.ico-green { background: #e3efe7; color: #004d3a; }
+.ico-blue { background: #eef1fa; color: #3b5ba5; }
+.ico-gold { background: #fbf3d2; color: #9a7300; }
+.side-title { margin: 0; font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #0e3a2c; }
+.side-subtitle { display: block; margin-top: 2px; font-size: 12.5px; color: #6b7d73; }
 
-.day-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+/* ---------- DAY TABS ---------- */
+.day-tabs {
+  display: flex; gap: 4px; padding: 5px; width: max-content; max-width: 100%; box-sizing: border-box; overflow-x: auto; scrollbar-width: none;
+  border-radius: 999px; background: #fff; border: 1px solid #e4ebe6; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.day-tabs::-webkit-scrollbar { display: none; }
 .day-tab {
-  border: 1px solid #e0e5e0; background: #fff; color: #4a5a4a;
-  padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  position: relative; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; height: 38px; min-width: 54px; padding: 0 14px;
+  border: none; border-radius: 999px; background: transparent; font-size: 13.5px; font-weight: 700; color: #4a5a52; cursor: pointer;
 }
-.day-tab.active { background: #163a1c; color: #fff; border-color: #163a1c; }
+.day-tab:hover:not(.active) { background: #f1f6f2; color: #004d3a; }
+.day-tab.active { background: #004d3a; color: #fff; box-shadow: 0 8px 16px -10px rgba(0, 77, 58, 0.9); }
+.day-warn-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e0a100; margin-left: 6px; }
 
-.meal-list { display: flex; flex-direction: column; }
-.meal-block { padding: 16px 0; border-bottom: 1px solid #f0f2f0; }
-.meal-block:first-child { padding-top: 4px; }
-.meal-block:last-child { border-bottom: none; }
-.meal-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
-.meal-name { font-size: 0.95rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.meal-time { font-size: 0.82rem; color: #7a8a7a; font-variant-numeric: tabular-nums; }
-.meal-kcal { margin-left: auto; font-size: 0.88rem; font-weight: 700; color: #1a3a1a; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.meal-foods { width: 100%; border-collapse: collapse; font-size: 0.84rem; table-layout: fixed; }
+/* ---------- VIEW: DAY + MEALS ---------- */
+.mp-dayhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #eef2ef; }
+.mp-dayhead h3 { margin: 0; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: #0e3a2c; }
+.mp-dayhead span { padding: 5px 12px; border-radius: 999px; background: #e3efe7; font-size: 12.5px; font-weight: 800; color: #004d3a; white-space: nowrap; }
+.meal-list { display: flex; flex-direction: column; gap: 14px; }
+.meal-block { border: 1px solid #eef2ef; border-radius: 18px; overflow: hidden; background: #fff; }
+.meal-head, .meal-edit-header {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-left: 4px solid var(--mc);
+  background: linear-gradient(90deg, var(--mb), rgba(255, 255, 255, 0) 85%);
+}
+.meal-ico { flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; background: #fff; color: var(--mc); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06); }
+.meal-name, .meal-edit-label { margin: 0; font-size: 16px; font-weight: 800; color: #0e3a2c; }
+.meal-time { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: #fff; border: 1px solid #e4ebe6; font-size: 12.5px; font-weight: 700; color: #4a5a52; font-variant-numeric: tabular-nums; }
+.meal-tw { overflow-x: auto; }
+.meal-foods { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
 /* same column widths in every meal, so the numbers line up down the day */
-.meal-foods th:nth-child(1) { width: 36%; }
+.meal-foods th:nth-child(1) { width: 34%; }
 .meal-foods th:nth-child(2) { width: 24%; }
-.meal-foods th { text-align: left; font-size: 0.74rem; font-weight: 500; color: #8a9a8a; padding: 0 8px 4px 0; }
-.meal-foods td { padding: 6px 8px 6px 0; border-top: 1px solid #f4f6f4; vertical-align: top; color: #3a4a3a; }
-.meal-foods .food { color: #1a3a1a; font-weight: 500; }
-.meal-foods .portion { color: #6a7a6a; }
+.meal-foods th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; background: #f7faf8; border-bottom: 1px solid #eef2ef; white-space: nowrap; }
+.meal-foods th.c, .food-table-head .c { color: #9a7300; }
+.meal-foods th.p, .food-table-head .p { color: #1f7a4d; }
+.meal-foods th.f, .food-table-head .f { color: #3b5ba5; }
+.meal-foods td { padding: 11px 16px; border-bottom: 1px solid #f3f6f4; color: #22362c; vertical-align: top; }
+.meal-foods tbody tr:nth-child(even) td { background: #fbfcfb; }
+.meal-foods tbody tr:hover td { background: #f3f8f5; }
+.meal-foods .food { font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
+.meal-foods .portion { font-size: 13px; color: #6b7d73; }
 .meal-foods .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.meal-foods th.n { padding-right: 8px; }
-.meal-empty { font-size: 0.84rem; color: #9aaa9a; margin: 0; }
-@media (max-width: 640px) {
-  /* phones: food and portion on one line, numbers on the next */
-  .meal-foods thead { display: none; }
-  .meal-foods tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #f4f6f4; padding: 6px 0; }
-  .meal-foods td { border: none; padding: 0; }
-  .meal-foods .food { grid-column: 1 / -1; }
-  .meal-foods .portion { grid-column: 1 / -1; margin-bottom: 4px; }
-  .meal-foods .n { width: auto; text-align: left; font-size: 0.78rem; color: #5a6a5a; }
-  .meal-foods .n:nth-child(3)::after { content: ' kcal'; }
-  .meal-foods .n:nth-child(4)::before { content: 'Carbs '; }
-  .meal-foods .n:nth-child(5)::before { content: 'Protein '; }
-  .meal-foods .n:nth-child(6)::before { content: 'Fat '; }
-  .meal-foods tr { grid-template-columns: 0.8fr 1fr 1.1fr 0.8fr; }
-}
+.meal-foods .k { font-weight: 800; color: #0e3a2c; }
+.meal-foods tfoot td { padding: 10px 16px; border-bottom: none; background: #f7faf8; font-size: 13px; font-weight: 800; color: #1f5c45; }
+.meal-empty { margin: 0; padding: 14px 18px; font-size: 13.5px; color: #8a9a91; }
+.plan-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid #eef2ef; }
+.plan-foot p { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; color: #6b7d73; }
 
-.plan-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f0f2f0; }
-.btn-secondary {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2;
-  border: none; background: #e3efe7; color: #0a4a37;
+/* ---------- BUTTONS ---------- */
+.btn-primary, .btn-secondary, .btn-danger {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 0 16px; border-radius: 12px;
+  font-size: 13.5px; font-weight: 800; line-height: 1.2; cursor: pointer; white-space: nowrap; border: 1px solid transparent;
 }
-.btn-secondary:hover:not(:disabled) { background: #d3e7da; }
-.btn-primary {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2;
-  background: #0a4a37; color: #fff; border: none;
-}
+.btn-primary { background: #004d3a; color: #fff; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
 .btn-primary:hover:not(:disabled) { background: #00382a; }
-.btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-danger:focus-visible, .mode-btn:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-danger {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; line-height: 1.2; margin-right: auto;
-  border: none; background: #c0392b; color: #fff;
-}
-.btn-danger:hover:not(:disabled) { background: #a93226; }
-.btn-danger.solid { margin-right: 0; }
-.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
-.sent-lock { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; font-size: 0.78rem; color: #6a7a6a; }
+.btn-secondary { background: #f1f6f2; border-color: #dce8e0; color: #004d3a; }
+.btn-secondary:hover:not(:disabled) { background: #e3efe7; }
+.btn-danger { background: #fef3f2; border-color: #f6cfcb; color: #b42318; }
+.btn-danger:hover:not(:disabled) { background: #fde4e1; }
+.btn-danger.solid { background: #c0392b; border-color: #c0392b; color: #fff; }
+.btn-danger.solid:hover:not(:disabled) { background: #a93226; }
+.btn-primary:disabled, .btn-secondary:disabled, .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
-/* SIDE COLUMN (shared) */
-.side-title { font-size: 0.92rem; font-weight: 700; color: #1a3a1a; margin: 0 0 6px; }
-.side-subtitle { font-size: 0.75rem; color: #9aaa9a; }
-.side-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-
+/* ---------- SIDE: TOTALS ---------- */
+.mp-ring-row { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 18px; background: #f7faf8; }
+.mp-ring { flex-shrink: 0; width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#004d3a calc(var(--p, 0) * 1%), #e3ebe6 0); }
+.mp-ring > span { width: 88px; height: 88px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.mp-ring strong { font-family: 'Playfair Display', serif; font-size: 19px; line-height: 1.1; color: #0e3a2c; }
+.mp-ring small { margin-top: 2px; font-size: 10.5px; color: #6b7d73; }
+.mp-ring-note { min-width: 0; }
+.mp-ring-note p { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: #6b7d73; }
+.mp-ok { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: #e3f4ea; color: #1f7a4d; font-size: 12px; font-weight: 800; }
+.mp-ok.off { background: #fff4d6; color: #8a6500; }
 .nutrient-row { margin-top: 16px; }
-.nutrient-top { display: flex; justify-content: space-between; font-size: 0.78rem; color: #4a5a4a; margin-bottom: 6px; }
-.nutrient-bar { height: 6px; background: #eceeec; border-radius: 3px; overflow: hidden; }
-.nutrient-fill { height: 100%; border-radius: 3px; }
-.fill-green { background: #2e9e52; }
-.fill-gold { background: #D4A017; }
-.fill-dark { background: #163a1c; }
-.fill-dark2 { background: #3a4a3a; }
+.nutrient-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; font-size: 13px; color: #6b7d73; }
+.nutrient-top > span:first-child { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: #22362c; }
+.nutrient-top strong { color: #0e3a2c; }
+.dot { width: 9px; height: 9px; border-radius: 3px; }
+.nutrient-bar { height: 8px; border-radius: 999px; background: #eef2ef; overflow: hidden; }
+.nutrient-fill { height: 100%; border-radius: 999px; transition: width 0.3s; }
+.fill-green { background: #1f9d55; }
+.fill-gold { background: #c49102; }
+.fill-blue { background: #3b5ba5; }
+.exchange-note, .macro-note { margin: 14px 0 0; font-size: 12px; color: #8a9a91; }
 
+/* ---------- SIDE: INSTRUCTIONS / PLANS ---------- */
+.instr-allergy { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: #fef3f2; border: 1px solid #f6cfcb; font-size: 13px; font-weight: 700; line-height: 1.45; color: #912018; }
+.instr-allergy svg { flex-shrink: 0; margin-top: 1px; color: #c0392b; }
+.instr-read { margin: 0; }
+.instr-read dt { margin: 0 0 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.instr-read dd { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: #f7faf8; font-size: 13.5px; line-height: 1.55; color: #22362c; white-space: pre-line; overflow-wrap: anywhere; }
+.instr-read dd:last-child { margin-bottom: 0; }
+.instr-read dd.empty { color: #8a9a91; font-style: italic; }
 .saved-plan-card {
-  display: flex; justify-content: space-between; align-items: center;
-  background: #eef5ee; border-radius: 10px; padding: 14px; margin-top: 6px;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 12px 14px;
+  border-radius: 14px; background: #f7faf8; border: 1.5px solid transparent; text-align: left; cursor: pointer; transition: border-color 0.15s, background 0.15s;
 }
-.saved-plan-name { font-size: 0.85rem; font-weight: 700; color: #1a3a1a; }
-.saved-plan-meta { font-size: 0.72rem; color: #7a8a7a; margin-top: 2px; }
-.active-pill { background: #e6efe0; color: #2e6b3a; font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: 10px; }
+.saved-plan-card:hover { border-color: #cfddd4; background: #fff; }
+.saved-plan-card.selected { border-color: #004d3a; background: #fff; box-shadow: 0 8px 18px -12px rgba(0, 77, 58, 0.5); }
+.saved-plan-name { font-size: 13.5px; font-weight: 800; color: #0e3a2c; }
+.saved-plan-meta { margin-top: 2px; font-size: 12px; color: #6b7d73; }
+.active-pill { flex-shrink: 0; padding: 4px 10px; border-radius: 999px; background: #e3f4ea; color: #1f7a4d; font-size: 11.5px; font-weight: 800; }
+.active-pill.pill-draft { background: #fff4d6; color: #8a6500; }
+.active-pill.pill-archived { background: #eef2ef; color: #6b7d73; }
 
-.exchange-note { font-size: 0.72rem; color: #9aaa9a; margin-top: 12px; }
+/* ---------- EDIT: NOTICE ---------- */
+.mp-note { display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 12px; border-radius: 16px; background: #fffbea; border: 1px solid #f3e2a0; }
+.mp-note.sent { background: #f1f6f2; border-color: #d6e5db; }
+.mp-note-ico { flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px; background: #fbf1c7; color: #9a7300; display: inline-flex; align-items: center; justify-content: center; }
+.mp-note.sent .mp-note-ico { background: #e3efe7; color: #004d3a; }
+.sent-lock { flex: 1; margin: 0; font-size: 13.5px; line-height: 1.5; color: #5e4b0c; }
+.mp-note.sent .sent-lock { color: #2c4a3c; }
+.sent-lock strong { color: #3d3005; }
+.mp-note-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.mp-ghost { min-height: 40px; padding: 0 14px; border: none; border-radius: 12px; background: transparent; font-size: 13.5px; font-weight: 700; color: #6b5a1e; cursor: pointer; }
+.mp-ghost:hover { background: rgba(0, 0, 0, 0.05); }
 
-/* CREATE MODE — STEP 1 (simplified plan details form) */
-.no-plan-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0 0 16px; }
-.start-choice { margin-bottom: 16px; }
-.start-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.start-opt { display: flex; flex-direction: column; gap: 4px; text-align: left; background: #fff; border: 1.5px solid #d9e3dc; border-radius: 12px; padding: 12px 14px; font-family: inherit; cursor: pointer; }
+/* ---------- EDIT: NEW PLAN CHOICE ---------- */
+.no-plan-title { margin: 0 0 16px; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #0e3a2c; }
+.start-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.start-opt {
+  display: flex; flex-direction: column; gap: 6px; padding: 16px; text-align: left; cursor: pointer;
+  background: #fff; border: 1.5px solid #e4ebe6; border-radius: 16px; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
 .start-opt:hover { border-color: #9ec4ad; }
-.start-opt:focus-visible { outline: 2px solid #1f8f5c; outline-offset: 2px; }
-.start-opt.on { border-color: #0a4a37; background: #e3efe7; }
-.start-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 700; font-size: 0.9rem; color: #1a3a1a; }
-.start-rec { font-size: 0.7rem; font-weight: 700; color: #1a3a1a; background: #D4A017; border-radius: 999px; padding: 1px 8px; }
-.start-desc { font-size: 0.8rem; color: #4a5a4a; line-height: 1.45; }
-.create-hint { font-size: 0.8rem; color: #4a5a4a; margin: 8px 0 0; }
-.copy-day { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: -12px 0 16px; font-size: 0.82rem; color: #1a3a1a; }
-.copy-day label { font-weight: 600; }
-.copy-hint { font-size: 0.78rem; color: #6a7a6a; }
-.food-hint { grid-column: 2 / -1; margin: -4px 0 0; font-size: 0.76rem; color: #4a5a4a; background: #f2f6f3; border: 1px dashed #9ec4ad; border-radius: 6px; padding: 6px 9px; line-height: 1.4; }
-@media (max-width: 640px) {
-  .start-options { grid-template-columns: 1fr; }
-  .copy-day .nm-select { flex: 1; min-width: 0; }
-}
-.form-row-6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 24px; margin-bottom: 14px; }
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.field label { font-size: 0.8rem; font-weight: 600; color: #3a4a3a; }
-.optional { font-weight: 400; text-transform: none; color: #9aaa9a; }
-.field input, .field textarea {
-  border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a;
-}
-.field textarea { resize: vertical; }
-.field input.invalid { border-color: #e2a39b; background: #fff8f7; }
+.start-opt.on { border-color: #004d3a; background: #f4f9f6; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.08); }
+.start-ico { width: 38px; height: 38px; margin-bottom: 4px; border-radius: 12px; background: #e3efe7; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
+.start-opt.on .start-ico { background: #004d3a; color: #fff; }
+.start-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14.5px; font-weight: 800; color: #0e3a2c; }
+.start-rec { padding: 2px 9px; border-radius: 999px; background: #efbf04; font-size: 11px; font-weight: 800; color: #004d3a; }
+.start-desc { font-size: 13px; line-height: 1.5; color: #4a5a52; }
 
-/* NUTRIENT TARGET ROWS (Measured Variable / Value / Unit) */
-.targets-section { border-top: 1px dashed #e0e5e0; padding-top: 14px; margin-bottom: 14px; }
-.targets-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.targets-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; }
-.targets-add-btn {
-  display: inline-flex; align-items: center; gap: 4px; border: none; color: #0a4a37; font-family: inherit;
-  background: #e3efe7; border-radius: 8px; min-height: 32px; padding: 0 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+/* ---------- EDIT: PLAN DETAILS ---------- */
+.prefill-note { margin: -4px 0 16px; padding: 10px 12px; border-radius: 12px; background: #f1f6f2; font-size: 12.5px; color: #2c4a3c; }
+.form-row-6 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.field + .field { margin-top: 14px; }
+.form-row-6 .field + .field { margin-top: 0; }
+.field label { font-size: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.field input, .field textarea, .field .nm-select {
+  width: 100%; min-height: 46px; padding: 0 14px; box-sizing: border-box; border: 1.5px solid #e4ebe6; border-radius: 12px;
+  background-color: #fbfcfb; font-family: inherit; font-size: 14px; font-weight: 600; color: #14261e; transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
 }
-.targets-add-btn:hover { background: #d3e7da; }
-.targets-hint { font-size: 0.75rem; color: #8a9a8a; margin: -4px 0 10px; line-height: 1.45; }
+.field textarea { padding: 12px 14px; line-height: 1.55; font-weight: 500; resize: vertical; }
+.field input:hover, .field textarea:hover, .field .nm-select:hover { border-color: #cfddd4; }
+.field input:focus, .field textarea:focus, .field .nm-select:focus { outline: none; background-color: #fff; border-color: #004d3a; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.field input.invalid { border-color: #e2a39b; background-color: #fff8f7; }
+.unit-in { display: flex; align-items: center; height: 46px; border: 1.5px solid #e4ebe6; border-radius: 12px; background: #fbfcfb; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; }
+.unit-in:focus-within { border-color: #004d3a; background: #fff; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.field .unit-in input, .unit-in input { flex: 1; min-width: 0; height: 100%; min-height: 0; padding: 0 14px; border: none; border-radius: 0; background: transparent; box-shadow: none; outline: none; font-family: inherit; font-size: 15px; font-weight: 800; color: #0e3a2c; }
+.unit-in span { flex-shrink: 0; padding: 0 14px; font-size: 12.5px; font-weight: 700; color: #8a9a91; }
+.targets-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid #eef2ef; }
+.targets-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.targets-title { font-size: 15px; font-weight: 800; color: #0e3a2c; }
+.optional { margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #f3f6f4; font-size: 11px; font-weight: 700; color: #6b7d73; }
+.targets-hint { margin: 4px 0 12px; max-width: 640px; font-size: 12.5px; line-height: 1.5; color: #6b7d73; }
+.targets-add-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border: 1px solid #dce8e0; border-radius: 999px; background: #f1f6f2; font-size: 12.5px; font-weight: 800; color: #004d3a; cursor: pointer; }
+.targets-add-btn:hover { background: #e3efe7; }
+.mp-macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.mp-macro { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid #eef2ef; border-top: 3px solid var(--c); }
+.mp-macro-l { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: #22362c; }
+.mp-macro-l i { width: 9px; height: 9px; border-radius: 3px; background: var(--c); }
 .targets-row { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr auto; gap: 10px; align-items: center; margin-bottom: 8px; }
-.targets-row.locked input[readonly] { background: #f6f8f6; color: #4a5a4a; cursor: default; }
-.targets-remove-btn.spacer { visibility: hidden; }
-.targets-row input, .targets-row :deep(.combo input) {
-  border: 1px solid #dde3dd; border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit; color: #1a3a1a; width: 100%;
+.targets-row > input, .targets-row :deep(.combo input) {
+  width: 100%; min-height: 44px; padding: 0 12px; box-sizing: border-box; border: 1.5px solid #e4ebe6; border-radius: 12px;
+  background: #fbfcfb; font-family: inherit; font-size: 14px; color: #14261e;
 }
-.targets-remove-btn {
-  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
-  border: none; border-radius: 8px; background: #c0392b; color: #fff; cursor: pointer;
-}
-.targets-remove-btn:hover { background: #a93226; }
+.targets-row > input:focus, .targets-row :deep(.combo input:focus) { outline: none; background: #fff; border-color: #004d3a; box-shadow: 0 0 0 4px rgba(0, 77, 58, 0.1); }
+.targets-remove-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; border-radius: 12px; background: #fef3f2; color: #b42318; cursor: pointer; }
+.targets-remove-btn:hover { background: #fde4e1; }
+.create-btn { margin-top: 18px; }
+.create-hint { margin: 8px 0 0; font-size: 12.5px; color: #6b7d73; }
 
-/* LIVE PREVIEW (create mode) */
-.preview-summary { margin-bottom: 12px; }
-.preview-summary-name { font-size: 0.9rem; font-weight: 700; color: #1a3a1a; margin: 0 0 8px; }
-.target-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f0; display: flex; flex-direction: column; gap: 6px; }
-.target-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #4a5a4a; }
-.target-ter { font-weight: 700; color: #1a3a1a; gap: 12px; }
-.target-ter span:last-child { white-space: nowrap; }
-.target-list-title { font-size: 0.86rem; font-weight: 700; color: #1a3a1a; margin: 0; }
-.target-list-title span { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9aaa9a; }
+/* ---------- EDIT: DAY ROW / COPY ---------- */
+.day-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.copy-day { display: flex; align-items: center; gap: 8px; padding: 5px 5px 5px 14px; border-radius: 999px; background: #fff; border: 1px solid #e4ebe6; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.copy-day label { font-size: 13px; font-weight: 700; color: #4a5a52; white-space: nowrap; }
+.copy-day .nm-select { min-height: 36px; height: 36px; width: 170px; border-radius: 999px; font-size: 13px; }
+.copy-day .btn-secondary { min-height: 36px; border-radius: 999px; }
+.copy-hint { margin: -8px 0 0; font-size: 12.5px; color: #6b7d73; text-align: right; }
 
-.meal-edit-panel { padding: 0; margin-bottom: 18px; } /* no overflow:hidden — the food picker list must show past the card */
-.meal-edit-header {
-  display: flex; justify-content: space-between; align-items: center;
-  background: #eef5ee; padding: 16px 24px; border-radius: 12px 12px 0 0;
+/* ---------- EDIT: MEALS ---------- */
+.meals-panel { padding: 22px; }
+.meal-edit-panel { border: 1px solid #eef2ef; border-radius: 18px; background: #fff; } /* no overflow:hidden — the food picker list must show past the card */
+.meal-edit-panel + .meal-edit-panel { margin-top: 14px; }
+.meal-edit-header { border-radius: 17px 17px 0 0; }
+.meal-time-pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 10px; border-radius: 999px; background: #fff; border: 1px solid #e4ebe6; color: #4a5a52; }
+.meal-time-input { border: none; outline: none; background: transparent; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #22362c; }
+.food-table { --cols: minmax(0, 2.2fr) minmax(0, 1.5fr) repeat(4, minmax(0, 0.7fr)) 34px; }
+.food-table-head, .food-table-row, .meal-foot { display: grid; grid-template-columns: var(--cols); gap: 8px; align-items: center; padding: 0 14px; }
+.food-table-head { padding-top: 10px; padding-bottom: 10px; background: #f7faf8; border-bottom: 1px solid #eef2ef; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; white-space: nowrap; }
+.food-table-head > span:first-child, .food-table-head > span:nth-child(2) { padding-left: 12px; }
+.food-table-head .n { text-align: right; padding-right: 12px; }
+.food-table-row { position: relative; padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #f3f6f4; transition: background 0.15s; }
+.food-table-row:hover { background: #fafcfb; }
+.food-table-row input {
+  width: 100%; height: 38px; padding: 0 10px; box-sizing: border-box; border: 1.5px solid transparent; border-radius: 10px;
+  background: transparent; font-family: inherit; font-size: 14px; color: #22362c; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.meal-edit-label { display: flex; align-items: center; gap: 6px; font-size: 0.92rem; font-weight: 700; color: #1a3a1a; }
-.meal-edit-time { font-size: 0.75rem; color: #7a8a7a; }
-
-.food-table { padding: 20px 24px 4px; }
-.food-table-head, .food-table-row {
-  display: grid; grid-template-columns: 24px 2fr 1fr 0.8fr 0.9fr 0.9fr 0.8fr; gap: 12px; align-items: center;
-}
-.food-table-head { font-size: 0.74rem; font-weight: 500; color: #8a9a8a; padding-bottom: 8px; }
-.food-table-head span:first-child { visibility: hidden; }
-.food-table-row { margin-bottom: 12px; }
+.food-table-row input:not(:disabled) { cursor: text; }
+.food-table-row:hover input:not(:disabled) { background: #fff; border-color: #e4ebe6; }
+.food-table-row input:focus { outline: none; background: #fff !important; border-color: #004d3a !important; box-shadow: 0 0 0 3px rgba(0, 77, 58, 0.1); }
 .combo { position: relative; min-width: 0; }
-.combo-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: max(100%, 320px); max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #d5dad5; border-radius: 10px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12); padding: 6px; }
-.combo-group { font-size: 0.74rem; font-weight: 600; color: #6a7a6a; margin: 6px 8px 2px; }
-.combo-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-family: inherit; font-size: 0.84rem; color: #1a3a1a; cursor: pointer; }
-.combo-opt:hover, .combo-opt.on { background: #eef3ec; }
-.combo-meta { font-size: 0.72rem; color: #8a9a8a; white-space: nowrap; }
-.combo-allergy { margin-left: 6px; font-size: 0.62rem; font-weight: 700; color: #b3261e; background: #fdecea; border: 1px solid #f2b8b5; border-radius: 5px; padding: 0 5px; vertical-align: 1px; }
-.food-warn { grid-column: 2 / -1; display: flex; align-items: flex-start; gap: 6px; margin: -4px 0 0; font-size: 0.74rem; font-weight: 600; color: #9a5b00; background: #fff6e5; border: 1px solid #f3dcae; border-radius: 6px; padding: 6px 9px; line-height: 1.4; }
+.combo input { font-weight: 700; color: #0e3a2c; }
+.portion-in, .mp-num input:not(:disabled) { background: #f7faf8 !important; border-color: #e4ebe6 !important; }
+.mp-num { display: block; min-width: 0; }
+.mp-num input { text-align: right; font-variant-numeric: tabular-nums; }
+.mp-num input:disabled { opacity: 1; color: #22362c; -webkit-text-fill-color: #22362c; cursor: default; }
+.mp-num.k input { font-weight: 800; color: #0e3a2c; -webkit-text-fill-color: #0e3a2c; }
+.grams-input { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.grams-input input { flex-shrink: 0; width: 62px; text-align: center; font-weight: 800; background: #f1f6f2 !important; border-color: #e1eae4 !important; }
+.grams-input span { min-width: 0; font-size: 12.5px; line-height: 1.3; color: #6b7d73; overflow-wrap: anywhere; }
+.usda-name { min-width: 0; padding: 0 10px; font-size: 14px; font-weight: 700; line-height: 1.35; color: #0e3a2c; overflow-wrap: anywhere; }
+.usda-tag { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 6px; background: #eef1fa; font-size: 10.5px; font-weight: 800; color: #3b5ba5; vertical-align: 1px; }
+.remove-btn { width: 32px; height: 32px; border: none; border-radius: 10px; background: transparent; color: #a8b5ae; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.remove-btn:hover { background: #fef3f2; color: #b42318; }
+.food-hint { grid-column: 1 / -1; margin: 2px 0 4px; padding: 8px 12px; border-radius: 10px; background: #f2f6f3; border: 1px dashed #9ec4ad; font-size: 12.5px; line-height: 1.4; color: #2c4a3c; }
+.food-warn { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 6px; margin: 2px 0 4px; padding: 8px 12px; border-radius: 10px; background: #fff6e5; border: 1px solid #f3dcae; font-size: 12.5px; font-weight: 700; line-height: 1.4; color: #9a5b00; }
 .food-warn svg { flex-shrink: 0; margin-top: 1px; }
 .food-warn.allergy { color: #b3261e; background: #fdecea; border-color: #f2b8b5; }
-.day-warn-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e0a100; margin-left: 6px; vertical-align: 2px; }
-.send-check { max-width: 540px; }
-.send-consequence { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 10px 12px; background: #f3f6f3; border-radius: 8px; font-size: 0.82rem; color: #3a4a3a; line-height: 1.5; }
-.send-consequence svg { flex-shrink: 0; margin-top: 2px; }
-.send-section { display: flex; align-items: center; gap: 6px; margin: 12px 0 8px; font-size: 0.8rem; font-weight: 700; color: #7a5a1a; }
-.send-section.allergy { color: #b3261e; }
-.send-check-list.allergy li { background: #fdecea; border-color: #f2b8b5; color: #8c1d18; }
-.allergy-ack { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 0.8rem; font-weight: 600; color: #8c1d18; cursor: pointer; }
-.allergy-ack input { margin-top: 2px; accent-color: #b3261e; }
-.send-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; }
-.send-check-list li { background: #fff6e5; border: 1px solid #f3dcae; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; color: #5a4a2a; display: flex; flex-direction: column; gap: 2px; }
-.send-check-list strong { color: #1a3a1a; font-weight: 700; }
-.send-check-meal { text-transform: capitalize; }
-.food-table-row input {
-  border: 1px solid #e0e5e0; border-radius: 6px; padding: 9px 10px; font-size: 0.82rem; font-family: inherit; width: 100%;
-}
-.food-table-row input:disabled { background: #f6f8f6; color: #4a5a4a; }
-.usda-name { font-size: 0.82rem; color: #1a3a1a; line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
-.usda-tag { display: inline-block; font-size: 0.6rem; font-weight: 700; background: #eef1f8; color: #34508a; border-radius: 5px; padding: 1px 5px; margin-right: 6px; vertical-align: 1px; }
-.grams-input { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.grams-input span { font-size: 0.78rem; color: #6a7a6a; }
-/* FNRI: the exchange count, with the portion it makes on a small line under it */
-.exch-input { flex-direction: column; align-items: stretch; gap: 3px; }
-.exch-input input { width: 100%; }
-.exch-input span { font-size: 0.72rem; line-height: 1.25; overflow-wrap: anywhere; }
-.add-food-row { display: flex; gap: 10px; margin: 6px 24px 22px; }
-.add-food-row .btn-add-food { flex: 1; width: auto; margin: 0; }
-.usda-btn { color: #34508a; border-color: #cfd8ea; }
-.usda-btn:hover { background: #f4f6fb; }
-.remove-btn {
-  width: 20px; height: 20px; border-radius: 5px; border: none;
-  background: #fbe1de; color: #c0483a; display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-
+.meal-foot { padding-top: 10px; padding-bottom: 12px; background: #f7faf8; border-radius: 0 0 17px 17px; }
+.meal-foot .add-food-row { grid-column: span 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.meal-foot.empty .add-food-row { grid-column: 1 / -1; }
+.mf-n { padding-right: 12px; text-align: right; font-size: 13px; font-weight: 800; color: #1f5c45; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mf-n.k { color: #0e3a2c; }
 .btn-add-food {
-  display: flex; align-items: center; gap: 6px; justify-content: center;
-  width: calc(100% - 48px); margin: 6px 24px 22px;
-  border: 1px dashed #cdd8cd; background: none; color: #1a6a2a;
-  padding: 11px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 1px dashed #bfd3c6; border-radius: 999px;
+  background: #fff; font-size: 12.5px; font-weight: 800; color: #004d3a; cursor: pointer;
 }
-.btn-add-food:hover { background: #f4f8f4; }
+.btn-add-food:hover { border-style: solid; border-color: #004d3a; }
+.usda-btn { color: #3b5ba5; border-color: #cfd8ea; }
+.usda-btn:hover { border-color: #3b5ba5; }
+.combo-list { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: max(100%, 340px); max-height: 280px; overflow-y: auto; padding: 6px; background: #fff; border: 1px solid #e4ebe6; border-radius: 14px; box-shadow: 0 18px 36px -12px rgba(16, 35, 27, 0.3); }
+.combo-group { margin: 8px 8px 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.combo-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; padding: 8px 10px; border: none; border-radius: 10px; background: none; text-align: left; font-size: 13.5px; color: #0e3a2c; cursor: pointer; }
+.combo-opt:hover, .combo-opt.on { background: #f1f6f2; }
+.combo-meta { font-size: 12px; color: #8a9a91; white-space: nowrap; }
+.combo-allergy { margin-left: 6px; padding: 0 6px; border-radius: 6px; background: #fdecea; border: 1px solid #f2b8b5; font-size: 10.5px; font-weight: 800; color: #b3261e; vertical-align: 1px; }
+.mp-mbar { display: none; }
 
-.preview-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-.preview-item { background: #fafbfa; border: 1px solid #eef1ee; border-radius: 8px; padding: 10px 12px; }
-.preview-label { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; color: #4a5a4a; margin-bottom: 3px; }
-.preview-food { font-size: 0.8rem; color: #1a3a1a; margin-bottom: 3px; }
-.preview-kcal { font-size: 0.72rem; color: #9aaa9a; }
-.preview-day { font-size: 0.72rem; color: #9aaa9a; }
+/* ---------- EDIT: PREVIEW ---------- */
+.preview-day { padding: 4px 10px; border-radius: 999px; background: #f1f6f2; font-size: 12px; font-weight: 800; color: #004d3a; }
+.preview-summary-name { margin: 0 0 8px; font-size: 14.5px; font-weight: 800; color: #0e3a2c; }
+.plan-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge { padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; }
+.badge-blue { background: #eef1fa; color: #3b5ba5; }
+.badge-gold { background: #fbf3d2; color: #9a7300; }
+.target-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eef2ef; }
+.target-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: #4a5a52; }
+.target-row span:last-child { font-weight: 700; color: #22362c; white-space: nowrap; }
+.target-ter { font-weight: 800; color: #0e3a2c; }
+.target-list-title { margin: 0; font-size: 13.5px; font-weight: 800; color: #0e3a2c; }
+.target-list-title span { font-weight: 500; color: #8a9a91; }
+.preview-list { display: flex; flex-direction: column; margin-top: 14px; }
+.preview-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f3f1; }
+.preview-ico { flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px; background: var(--mb); color: var(--mc); display: inline-flex; align-items: center; justify-content: center; }
+.preview-body { flex: 1; min-width: 0; }
+.preview-label { font-size: 13px; font-weight: 800; color: #0e3a2c; }
+.preview-food { font-size: 12px; color: #6b7d73; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-kcal { flex-shrink: 0; font-size: 12px; font-weight: 800; color: var(--mc); }
 
-.macro-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: #3a4a3a; margin-top: 18px; margin-bottom: 8px; }
-.macro-value { font-weight: 600; }
-.macro-bar { height: 6px; background: #eceeec; border-radius: 3px; overflow: hidden; }
-.macro-fill { height: 100%; border-radius: 3px; }
-.macro-note { font-size: 0.72rem; color: #9aaa9a; margin-top: 16px; }
+/* ---------- MODALS (send check) ---------- */
+.send-check { max-width: 540px; }
+.send-consequence { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 12px 14px; background: #f1f6f2; border-radius: 12px; font-size: 13px; color: #2c4a3c; line-height: 1.5; }
+.send-consequence svg { flex-shrink: 0; margin-top: 2px; }
+.send-section { display: flex; align-items: center; gap: 6px; margin: 12px 0 8px; font-size: 13px; font-weight: 800; color: #7a5a1a; }
+.send-section.allergy { color: #b3261e; }
+.send-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; }
+.send-check-list li { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #fff6e5; border: 1px solid #f3dcae; font-size: 12.5px; color: #5a4a2a; }
+.send-check-list strong { color: #0e3a2c; font-weight: 800; }
+.send-check-list.allergy li { background: #fdecea; border-color: #f2b8b5; color: #8c1d18; }
+.send-check-meal { text-transform: capitalize; }
+.allergy-ack { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 13px; font-weight: 700; color: #8c1d18; cursor: pointer; }
+.allergy-ack input { margin-top: 2px; accent-color: #b3261e; }
 
-.empty-state {
-  background: #fff; border-radius: 12px; border: 1px solid #eceeec;
-  padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;
-}
-.empty-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: #1a3a1a; margin: 0; }
-
-.mode-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.form-error {
-  background: #fdecec; border: 1px solid #f3b8b8; color: #a12525;
-  border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin: 0 0 16px;
-}
-.plan-subtitle { font-size: 0.8rem; color: #7a8a7a; margin: 4px 0 0; }
-.status-text { font-weight: 600; }
-.prefill-note { margin: -8px 0 14px; }
-
-button.saved-plan-card { width: 100%; border: 1.5px solid transparent; cursor: pointer; text-align: left; font-family: inherit; }
-button.saved-plan-card:hover { border-color: #cfe0cf; }
-button.saved-plan-card.selected { border-color: #163a1c; }
-.active-pill.pill-draft { background: #fdf1d6; color: #b8860b; }
-.active-pill.pill-archived { background: #eceeec; color: #7a8a7a; }
-
+/* ---------- PRINT ---------- */
+.print-only { display: none; }
+.screen-hidden { display: none; }
 .instructions-view { margin-top: 16px; padding: 14px 16px; background: #fafbfa; border-radius: 8px; }
 .instructions-view p { font-size: 0.8rem; color: #4a5a4a; margin: 0 0 6px; line-height: 1.5; }
 .instructions-view p:last-child { margin: 0; }
-.instr-read { margin: 10px 0 0; }
-.instr-allergy { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; font-size: 0.8rem; font-weight: 600; line-height: 1.4; color: #8a1f14; background: #fdf1ef; border: 1.5px solid #c0392b; border-radius: 8px; padding: 7px 10px; }
-.instr-allergy svg { flex-shrink: 0; margin-top: 1px; color: #c0392b; }
-.instr-read dt { font-size: 0.78rem; font-weight: 600; color: #4a5a4a; margin: 0 0 3px; }
-.instr-read dd { font-size: 0.84rem; color: #1a3a1a; line-height: 1.5; margin: 0 0 12px; white-space: pre-line; overflow-wrap: anywhere; }
-.instr-read dd:last-child { margin-bottom: 0; }
-.instr-read dd.empty { color: #8a9a8a; }
-
-.meal-time-input { border: 1px solid #d5dfd5; border-radius: 6px; padding: 5px 8px; font-size: 0.78rem; font-family: inherit; color: #1a3a1a; background: #fff; }
-.create-actions { margin: 0 0 20px; padding: 0; border-top: none; }
-
-.print-only { display: none; }
-.screen-hidden { display: none; }
+.print-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1a3a1a; }
+.print-head p { margin: 0 0 10px; font-size: 0.85rem; color: #4a5a4a; }
 
 @media print {
   :global(body *) { visibility: hidden; }
   .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none !important; padding: 0; }
   .no-print { display: none !important; }
   .print-only { display: block; }
   .screen-hidden { display: block; }
   .print-day { break-inside: avoid; margin-bottom: 14px; }
   .print-day-title { font-size: 0.95rem; color: #1a3a1a; margin: 12px 0 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .meal-list { gap: 8px; }
+  .meal-block { border-color: #ddd; border-radius: 6px; }
+  .meal-head { background: none; padding: 6px 10px; }
+  .meal-foods th, .meal-foods td, .meal-foods tfoot td { padding: 4px 8px; font-size: 0.78rem; background: none !important; }
 }
 
+/* ---------- TABLET ---------- */
+@media (max-width: 1200px) {
+  .mp-targets { grid-template-columns: repeat(4, minmax(0, 1fr)); flex-basis: 100%; }
+}
 @media (max-width: 1150px) {
   .planning-layout { grid-template-columns: minmax(0, 1fr); }
   .form-row-6 { grid-template-columns: 1fr 1fr; }
-  .food-table-head, .food-table-row { grid-template-columns: 20px 2fr 1fr 1fr 1fr; }
-  .food-table-head span:nth-child(6), .food-table-row input:nth-child(6),
-  .food-table-head span:nth-child(7), .food-table-row input:nth-child(7) { display: none; }
+  .form-row-6 .field:first-child { grid-column: 1 / -1; }
 }
 
-/* PHONE */
-@media (max-width: 640px) {
-  .top-controls { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
-  .mode-toggle { flex-wrap: wrap; }
-  .panel { padding: 16px; }
-  .plan-header { flex-wrap: wrap; gap: 10px; }
-  .plan-badges { flex-wrap: wrap; }
-  /* seven day tabs: swipe sideways instead of overflowing */
-  .day-tabs { overflow-x: auto; scrollbar-width: none; margin-left: -16px; margin-right: -16px; padding: 0 16px 2px; }
-  .day-tabs::-webkit-scrollbar { display: none; }
-  .day-tab { flex-shrink: 0; }
-  .meal-kcal { margin-left: 10px; }
-  .plan-actions { flex-wrap: wrap; }
-  .plan-actions > * { flex: 1 1 auto; justify-content: center; }
-  .form-row-6 { grid-template-columns: minmax(0, 1fr); gap: 0; }
+/* ---------- PHONE ---------- */
+@media (max-width: 760px) {
+  .meal-planning-page { padding-bottom: 110px; }
+  .mp-top { margin-bottom: 14px; }
+  .mode-toggle { flex: 1; }
+  .mode-btn { flex: 1; padding: 0 12px; }
+  .panel, .meals-panel { padding: 16px; border-radius: 20px; }
+  .mp-hero { padding: 20px 18px; border-radius: 22px; gap: 16px; }
+  .mp-hero-plate { width: 220px; height: 220px; right: -80px; top: 60px; transform: none; opacity: 0.5; }
+  .mp-hero-who { flex-basis: 100%; gap: 12px; }
+  .mp-av { width: 48px; height: 48px; font-size: 18px; }
+  .mp-title { font-size: 24px; }
+  .mp-sub { font-size: 13px; }
+  .mp-targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mp-t strong { font-size: 21px; }
+  .mp-hero-acts { display: grid; grid-template-columns: 1fr 1fr; }
+  .mp-hero-acts .gold { grid-column: 1 / -1; order: -1; }
+  .mp-hero-acts.edit { display: none; }
+  .day-tabs { width: 100%; }
+  .day-tab { min-width: 0; flex: 1 0 auto; padding: 0 12px; }
+  .mp-dayhead h3 { font-size: 21px; }
+  .meal-head, .meal-edit-header { flex-wrap: wrap; gap: 8px 10px; padding: 10px 12px; }
+  .meal-ico { width: 34px; height: 34px; }
+
+  /* view: food and portion on top, numbers in four labelled cells */
+  .meal-foods thead { display: none; }
+  .meal-foods, .meal-foods tbody, .meal-foods tfoot, .meal-foods tr, .meal-foods td { display: block; }
+  .meal-foods tbody tr, .meal-foods tfoot tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; padding: 12px; border-bottom: 1px solid #f3f6f4; }
+  .meal-foods td, .meal-foods tfoot td { padding: 0; border: none; background: none !important; }
+  .meal-foods .food, .meal-foods .portion, .meal-foods tfoot td:first-child { grid-column: 1 / -1; }
+  .meal-foods .portion { margin-bottom: 6px; }
+  .meal-foods .n { text-align: left; font-size: 13px; }
+  .meal-foods tfoot tr { background: #f7faf8; border-bottom: none; }
+  .meal-foods td.n::before { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8a9a91; }
+  .meal-foods td.n:nth-child(3)::before { content: 'kcal'; }
+  .meal-foods td.n:nth-child(4)::before { content: 'Carbs'; }
+  .meal-foods td.n:nth-child(5)::before { content: 'Protein'; }
+  .meal-foods td.n:nth-child(6)::before { content: 'Fat'; }
+  .meal-foods tfoot td.n:nth-child(2)::before { content: 'kcal'; }
+  .meal-foods tfoot td.n:nth-child(3)::before { content: 'Carbs'; }
+  .meal-foods tfoot td.n:nth-child(4)::before { content: 'Protein'; }
+  .meal-foods tfoot td.n:nth-child(5)::before { content: 'Fat'; }
+
+  /* edit: notice, form, day row */
+  .mp-note { flex-wrap: wrap; }
+  .sent-lock { flex-basis: calc(100% - 48px); font-size: 12.5px; }
+  .mp-note-acts { width: 100%; }
+  .mp-note-acts > * { flex: 1; }
+  .start-options { grid-template-columns: 1fr; }
+  .form-row-6, .mp-macros { grid-template-columns: minmax(0, 1fr); }
   .targets-header { flex-wrap: wrap; }
   .targets-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
   .targets-row > :first-child { grid-column: 1 / -1; }
-  .meal-edit-header { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
-  /* the food editor keeps its columns and scrolls sideways inside the card */
-  .food-table { overflow-x: auto; padding: 16px 16px 4px; }
-  .combo-list { position: static; width: 100%; margin-top: 4px; box-shadow: none; }
-  .combo-list { overflow-x: hidden; }
+  .copy-day { width: 100%; box-sizing: border-box; flex-wrap: wrap; padding: 12px; border-radius: 16px; }
+  .copy-day label { width: 100%; }
+  .copy-day .nm-select { flex: 1; width: auto; min-width: 0; }
+  .copy-hint { text-align: left; }
+
+  /* edit: each food is a small card */
+  .food-table-head { display: none; }
+  .food-table-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px; }
+  .food-table-row > .combo, .food-table-row > .usda-name { grid-column: 1 / -1; padding-right: 40px; }
+  .food-table-row > .usda-name { padding-left: 0; }
+  .food-table-row > .grams-input, .food-table-row > .portion-in { grid-column: 1 / -1; }
+  .food-table-row input:not(:disabled) { background: #fbfcfb; border-color: #e4ebe6; }
+  .remove-btn { position: absolute; top: 15px; right: 10px; }
+  .mp-num::before, .mf-n::before { content: attr(data-l); display: block; margin-bottom: 3px; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8a9a91; }
+  .mp-num input { height: 36px; text-align: left; }
+  .mp-num input:disabled { padding-left: 0; }
+  .meal-foot { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; padding: 12px; }
+  .meal-foot .add-food-row { grid-column: 1 / -1; }
+  .btn-add-food { flex: 1; justify-content: center; height: 40px; white-space: nowrap; }
+  .mf-n { padding: 0; text-align: left; }
+  .mf-gap { display: none; }
+  .combo-list { position: static; width: 100%; margin-top: 6px; box-shadow: none; overflow-x: hidden; }
   .combo-opt { flex-direction: column; align-items: flex-start; gap: 2px; }
   .combo-meta { white-space: normal; }
-  .food-table-head, .food-table-row { min-width: 480px; }
-  .btn-add-food { width: calc(100% - 32px); margin: 6px 16px 18px; }
-  .add-food-row { margin: 6px 16px 18px; flex-direction: column; }
-  .add-food-row .btn-add-food { width: 100%; margin: 0; }
+  .mp-mbar {
+    position: sticky; bottom: 84px; z-index: 5; display: grid; grid-template-columns: auto 1fr 1.3fr; gap: 8px; padding: 10px;
+    border-radius: 18px; background: rgba(255, 255, 255, 0.97); border: 1px solid #e4ebe6; box-shadow: 0 18px 36px -18px rgba(16, 35, 27, 0.45);
+  }
+  .mp-mbar .btn-secondary:first-child { width: 44px; padding: 0; }
+  .mp-ring { width: 100px; height: 100px; }
+  .mp-ring > span { width: 78px; height: 78px; }
   .saved-plan-card { gap: 10px; }
 }
 </style>
