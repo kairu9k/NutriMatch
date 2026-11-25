@@ -73,6 +73,7 @@ def build_board(rnd, now=None):
             "join_closes_at": end + timedelta(minutes=JOIN_LATE_MINUTES),
             "clinic_address": clinic if a.type == Appointment.Type.IN_PERSON else None,
             "confirm_by": deadlines(a)["confirm_by"],
+            "pay_by": deadlines(a)["pay_by"],
             "attendance": attendance_payload(a, now),
             "dispute": dispute_payload(a, now),
             "cancelled_by": a.cancelled_by, "cancel_category": a.cancel_category,

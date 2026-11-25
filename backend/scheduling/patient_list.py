@@ -99,6 +99,7 @@ def build_patient_rows(rnd, now=None, rel_id=None, care=None):
                 "sex": profile.sex if profile else None,
             },
             "condition": conditions[0] if conditions else None,
+            "conditions": conditions,  # all of them, none primary (2026-11-23)
             "other_conditions": max(len(conditions) - 1, 0),
             "allergies": (health.allergies if health else None) or [],
             "stage": care.stage(rel),

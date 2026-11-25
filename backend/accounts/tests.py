@@ -63,6 +63,32 @@ class RegisterViewTests(TestCase):
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertIsNone(User.objects.get(email="other@t.ph").health_profile.medical_conditions)
 
+    def _register(self, email, **extra):
+        return self.client_api.post("/api/auth/register/client/", {
+            "first_name": "Ana", "last_name": "Reyes", "email": email, "password": "StrongPass123!",
+            "accept_terms": True, "data_privacy_consent": True, "date_of_birth": "1995-05-01", **extra,
+        }, format="json")
+
+    def test_register_client_saves_several_conditions(self):
+        # adviser, 2026-11-23: a client can have more than one condition
+        resp = self._register("multi@t.ph", health_concerns=["Hypertension", "Type 2 Diabetes", " High cholesterol ", "hypertension"])
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(User.objects.get(email="multi@t.ph").health_profile.medical_conditions,
+                         ["Hypertension", "Type 2 Diabetes", "High cholesterol"])
+
+    def test_register_client_no_condition_saves_none(self):
+        resp = self._register("none@t.ph", health_concerns=[])
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIsNone(User.objects.get(email="none@t.ph").health_profile.medical_conditions)
+
+    def test_register_client_condition_must_be_words(self):
+        resp = self._register("bad@t.ph", health_concerns=["<script>"])
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("health_concerns", resp.data)
+
     def test_register_client_duplicate_email_rejected(self):
         User.objects.create_user(email="dupe@t.ph", password="x", role="client", first_name="A", last_name="B")
         resp = self.client_api.post("/api/auth/register/client/", {

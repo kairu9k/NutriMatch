@@ -221,7 +221,7 @@ class AdminClientListSerializer(serializers.ModelSerializer):
     def get_condition(self, obj):
         health_profile = getattr(obj, "health_profile", None)
         conditions = getattr(health_profile, "medical_conditions", None)
-        return conditions[0] if conditions else None
+        return ", ".join(conditions) if conditions else None
 
     def get_consultations(self, obj):
         return sum(len(getattr(rel, "_prefetched_appointments", [])) for rel in obj._prefetched_relationships)
@@ -321,11 +321,20 @@ class RegisterClientSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccoun
     password = serializers.CharField(write_only=True, validators=[validate_password])
     date_of_birth = serializers.DateField(validators=[validate_client_birth_date])
     sex = serializers.ChoiceField(choices=ClientProfile.Sex.choices, required=False, allow_null=True)
+    # older sign-up pages sent one condition; now a list (profiles/conditions.py)
     primary_health_concern = serializers.CharField(required=False, allow_blank=True)
+    health_concerns = serializers.ListField(child=serializers.CharField(max_length=200, allow_blank=True),
+                                            required=False, allow_empty=True, max_length=20)
+
+    def validate_health_concerns(self, value):
+        from profiles.conditions import clean_conditions
+
+        return clean_conditions(value)
 
     @transaction.atomic
     def create(self, validated_data):
         health_concern = validated_data.pop("primary_health_concern", "")
+        concerns = validated_data.pop("health_concerns", None)
         date_of_birth = validated_data.pop("date_of_birth", None)
         sex = validated_data.pop("sex", None)
 
@@ -339,14 +348,17 @@ class RegisterClientSerializer(RegistrationConsentMixin, ReplaceUnverifiedAccoun
         )
         self.record_consent(user)
         ClientProfile.objects.create(user=user, date_of_birth=date_of_birth, sex=sex)
-        # The sign-up "primary health concern" is the client's condition —
-        # it's what the RND's patient list and client chart show. "Other"
-        # carries no clinical meaning, so it's left for the client to specify
-        # later in Profile Settings.
-        has_condition = health_concern and health_concern.strip().lower() != "other"
+        # The client's conditions (several since 2026-11-23); an older page's
+        # single "primary health concern" still works. "Other" or "None"
+        # carry no clinical meaning and aren't saved.
+        if concerns is None:
+            from profiles.conditions import NOT_A_CONDITION
+
+            one = (health_concern or "").strip()
+            concerns = [one] if one and one.lower() not in NOT_A_CONDITION else []
         ClientHealthProfile.objects.create(
             user=user,
-            medical_conditions=[health_concern.strip()] if has_condition else None,
+            medical_conditions=concerns or None,
             # Goals are the client's own picks in onboarding — the condition
             # isn't a goal (copying it here showed "Goals: Type 2 Diabetes").
         )

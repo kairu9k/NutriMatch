@@ -147,7 +147,7 @@ const shown = computed(() => {
   const q = search.value.trim().toLowerCase()
   return patients.value
     .filter(RULES[filter.value])
-    .filter(p => !q || p.client.name.toLowerCase().includes(q) || (p.condition || '').toLowerCase().includes(q))
+    .filter(p => !q || p.client.name.toLowerCase().includes(q) || (p.conditions || [p.condition]).join(' ').toLowerCase().includes(q))
     .sort(SORTS[sort.value])
 })
 const { page, pages, paged: pagedShown } = usePager(shown, { resetOn: () => [filter.value, search.value, sort.value] })
@@ -170,7 +170,7 @@ const PatientIdentity = defineComponent({
     return () => {
       const p = props.p
       const c = p.client
-      const meta = [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], p.condition ? p.condition + (p.other_conditions ? ` +${p.other_conditions}` : '') : null]
+      const meta = [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], (p.conditions?.length ? p.conditions.join(', ') : p.condition) || null]
         .filter(Boolean).join(', ')
       const alert = p.alerts[0]
       const AlertIcon = alert ? { critical: OctagonAlert, warning: AlertTriangle, info: Info }[alert.level] : null

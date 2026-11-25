@@ -49,7 +49,7 @@
             <div class="info-item"><dt>Date of birth</dt><dd :class="{ muted: !form.dateOfBirth }">{{ dobLabel || 'Not provided' }}</dd></div>
             <div class="info-item"><dt>Sex</dt><dd :class="{ muted: !form.sex }">{{ sexLabel || 'Not provided' }}</dd></div>
             <div class="info-item"><dt>Preferred language</dt><dd :class="{ muted: !form.languageCode }">{{ languageLabel || 'Not provided' }}</dd></div>
-            <div class="info-item"><dt>Primary health condition</dt><dd :class="{ muted: !conditionLabel }">{{ conditionLabel || 'None / not sure' }}</dd></div>
+            <div class="info-item"><dt>Health conditions</dt><dd :class="{ muted: !conditionLabel }">{{ conditionLabel || 'None / not sure' }}</dd></div>
             <div class="info-item"><dt>Food allergies</dt><dd :class="{ muted: !background.allergiesList.length }">{{ background.allergiesAnswered ? (background.allergiesList.join(', ') || 'None') : 'Not answered yet' }}</dd></div>
             <div class="info-item"><dt>Dietary restrictions</dt><dd :class="{ muted: !background.dietList.length }">{{ background.dietList.join(', ') || 'None' }}</dd></div>
             <div class="info-item"><dt>Religion</dt><dd :class="{ muted: !background.religion }">{{ background.religion || 'Not provided' }}</dd></div>
@@ -98,18 +98,10 @@
                 </select>
               </div>
               <div class="field">
-                <label class="field-label" for="pi-condition">Primary health condition</label>
-                <select id="pi-condition" v-model="conditionChoice" class="nm-select block">
-                  <option value="">None / not sure</option>
-                  <option v-for="c in CONDITION_OPTIONS" :key="c" :value="c">{{ c }}</option>
-                  <option value="__other">Other</option>
-                </select>
-                <p class="field-hint">Your RND sees this on your patient record.</p>
-              </div>
-              <div v-if="conditionChoice === '__other'" class="field">
-                <label class="field-label" for="pi-condition-other">Please specify</label>
-                <input id="pi-condition-other" v-model="conditionOther" type="text" maxlength="100" class="field-input" :class="{ invalid: fieldErrors.condition }" placeholder="e.g. High cholesterol" />
+                <span class="field-label">Health conditions</span>
+                <ConditionPicker :key="conditionKey" v-model="conditions" v-model:none="noCondition" v-model:error="conditionError" />
                 <p v-if="fieldErrors.condition" class="field-error">{{ fieldErrors.condition }}</p>
+                <p v-else class="field-hint">Tick every one that applies. Your RND sees these on your patient record.</p>
               </div>
               <div class="field">
                 <label class="field-label" for="pi-allergies">Food allergies</label>
@@ -166,7 +158,7 @@
           <p v-else class="empty-note">No screening on file yet.</p>
 
           <p class="field-hint health-note">
-            Your primary health condition is under
+            Your health conditions are under
             <button class="nm-btn-soft nm-btn-sm" type="button" @click="activeTab = 'personal'">Personal info</button>.
           </p>
         </template>
@@ -482,9 +474,7 @@ const dobLabel = computed(() => {
   if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) age--
   return `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (${age} years old)`
 })
-const conditionLabel = computed(() =>
-  conditionChoice.value === '__other' ? conditionOther.value.trim() : conditionChoice.value
-)
+const conditionLabel = computed(() => (noCondition.value ? '' : conditions.value.join(', ')))
 
 function clearFieldErrors() {
   Object.keys(fieldErrors).forEach(k => { fieldErrors[k] = '' })
@@ -523,18 +513,17 @@ function validatePersonal() {
   if (!form.dateOfBirth) fieldErrors.dateOfBirth = 'Enter your date of birth.'
   else if (form.dateOfBirth > latestBirthDate.value) fieldErrors.dateOfBirth = `You must be at least ${MIN_CLIENT_AGE} years old.`
   else if (form.dateOfBirth < '1900-01-01') fieldErrors.dateOfBirth = 'Enter a valid date of birth.'
-  if (conditionChoice.value === '__other' && !conditionOther.value.trim()) fieldErrors.condition = 'Please type your condition, or pick one from the list.'
+  if (conditionError.value) fieldErrors.condition = conditionError.value
   return !Object.values(fieldErrors).some(Boolean)
 }
 
-// One Save for everything on the tab, including the primary condition.
+// One Save for everything on the tab, including the health conditions.
 async function saveProfile() {
   if (!validatePersonal()) {
     toast.problem(fieldsProblemText(await focusFirstError()), { id: 'profile' })
     return
   }
   isSaving.value = true
-  const primary = conditionChoice.value === '__other' ? conditionOther.value.trim() : conditionChoice.value
   try {
     const [, profile] = await Promise.all([
       patch('/auth/me/', { first_name: form.firstName, last_name: form.lastName, phone: form.phone || null }),
@@ -542,7 +531,7 @@ async function saveProfile() {
         date_of_birth: form.dateOfBirth || null,
         sex: form.sex || null,
         language_code: form.languageCode || null,
-        medical_conditions: primary ? [primary, ...otherConditions.value] : otherConditions.value,
+        medical_conditions: noCondition.value ? [] : conditions.value,
         // Health background (also asked during onboarding). An empty allergy
         // list means "no food allergies".
         allergies: splitList(background.allergiesText),
@@ -583,15 +572,12 @@ function fireToast(message = 'Profile updated.') {
 /* ---------- Health profile ---------- */
 const screening = ref(null)
 
-// Same choices as the sign-up form's "Primary Health Concern".
-// same spelling as sign-up (RegisterFlow.vue); matched ignoring case so older
-// "Renal Nutrition"-style values still land on their option
-const CONDITION_OPTIONS = ['Hypertension', 'Type 2 Diabetes', 'Obesity management', 'Renal nutrition']
-const conditionOption = v => CONDITION_OPTIONS.find(c => c.toLowerCase() === String(v || '').trim().toLowerCase())
-const conditionChoice = ref('')
-const conditionOther = ref('')
-// medical_conditions[0] is the primary condition; anything after it is kept.
-const otherConditions = ref([])
+// Health conditions, several allowed (2026-11-23): ConditionPicker.vue, the same chips as
+// sign-up and onboarding. conditionKey resets the picker when the saved list is reloaded.
+const conditions = ref([])
+const noCondition = ref(false)
+const conditionError = ref('')
+const conditionKey = ref(0)
 
 /* ---------- Health background (allergies / diet / religion) ---------- */
 const RELIGION_OPTIONS = ['Roman Catholic', 'Christian', 'Islam', 'Iglesia ni Cristo', 'Seventh-day Adventist', 'Other']
@@ -612,18 +598,9 @@ function fillBackground(profile) {
 
 function fillCondition(profile) {
   fillBackground(profile)
-  const conditions = profile.health_profile?.medical_conditions || []
-  const primary = conditions[0] || ''
-  otherConditions.value = conditions.slice(1)
-  conditionOther.value = ''
-  if (!primary) {
-    conditionChoice.value = ''
-  } else if (conditionOption(primary)) {
-    conditionChoice.value = conditionOption(primary)
-  } else {
-    conditionChoice.value = '__other'
-    conditionOther.value = primary
-  }
+  conditions.value = [...(profile.health_profile?.medical_conditions || [])]
+  noCondition.value = false
+  conditionKey.value++
 }
 
 function nrsLabel(risk) {

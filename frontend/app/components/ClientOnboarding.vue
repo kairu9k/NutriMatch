@@ -90,13 +90,9 @@
         <p class="lead">Your RND reads this before your consultation and plans your meals around it.</p>
 
         <div class="field">
-          <label for="ob-condition">Primary health condition</label>
-          <select class="nm-select block" id="ob-condition" v-model="health.condition">
-            <option value="">None / not sure</option>
-            <option v-for="c in CONDITION_OPTIONS" :key="c" :value="c">{{ c }}</option>
-            <option value="__other">Other</option>
-          </select>
-          <input v-if="health.condition === '__other'" v-model="health.conditionOther" type="text" maxlength="100" placeholder="Please specify, e.g. High cholesterol" class="mt-8" />
+          <label>Health conditions</label>
+          <p class="hint">Tick every one that applies.</p>
+          <ConditionPicker v-model="health.conditions" v-model:none="health.noCondition" v-model:error="conditionError" />
         </div>
 
         <fieldset class="field">
@@ -226,11 +222,7 @@ function go(key) {
   window.scrollTo({ top: 0 })
 }
 
-// Same lists as sign-up / Profile Settings.
-// same spelling as sign-up (RegisterFlow.vue); matched ignoring case so older
-// "Renal Nutrition"-style values still land on their option
-const CONDITION_OPTIONS = ['Hypertension', 'Type 2 Diabetes', 'Obesity management', 'Renal nutrition']
-const conditionOption = v => CONDITION_OPTIONS.find(c => c.toLowerCase() === String(v || '').trim().toLowerCase())
+// Same lists as sign-up / Profile Settings. Conditions: ConditionPicker.vue (several allowed).
 const LANGUAGE_OPTIONS = [
   { code: 'tl', label: 'Filipino (Tagalog)' },
   { code: 'ceb', label: 'Bisaya (Cebuano)' },
@@ -249,7 +241,7 @@ const saveError = ref('')
 
 const about = reactive({ dob: '', sex: '', language: '', phone: '' })
 const aboutErrors = reactive({ dob: '', sex: '', phone: '' })
-const health = reactive({ condition: '', conditionOther: '', hasAllergies: null, allergies: [], diet: [], religion: '', goals: [] })
+const health = reactive({ conditions: [], noCondition: false, hasAllergies: null, allergies: [], diet: [], religion: '', goals: [] })
 const healthErrors = reactive({ allergies: '' })
 // clear the allergy error as soon as it's answered (it used to stay until Continue)
 watch(() => [health.hasAllergies, health.allergies.length], ([has, n]) => {
@@ -258,7 +250,7 @@ watch(() => [health.hasAllergies, health.allergies.length], ([has, n]) => {
 const newAllergy = ref('')
 const newDiet = ref('')
 const newGoal = ref('')
-const otherConditions = ref([])
+const conditionError = ref('')
 const customAllergies = computed(() => health.allergies.filter(a => !ALLERGY_OPTIONS.includes(a)))
 const customDiet = computed(() => health.diet.filter(d => !DIET_OPTIONS.includes(d)))
 const customGoals = computed(() => health.goals.filter(g => !GOAL_OPTIONS.includes(g)))
@@ -334,15 +326,14 @@ async function saveHealth() {
     healthErrors.allergies = 'Choose or add at least one allergy, or pick "I have no food allergies".'
     return
   }
-  const primary = health.condition === '__other' ? health.conditionOther.trim() : health.condition
-  if (health.condition === '__other' && !primary) {
-    saveError.value = 'Please type your condition, or pick one from the list.'
+  if (conditionError.value) {
+    saveError.value = conditionError.value
     return
   }
   isSaving.value = true
   try {
     await patch('/client/profile/', {
-      medical_conditions: primary ? [primary, ...otherConditions.value] : otherConditions.value,
+      medical_conditions: health.noCondition ? [] : health.conditions,
       allergies: health.hasAllergies ? health.allergies : [],
       dietary_restrictions: health.diet,
       religion: health.religion,
@@ -407,12 +398,7 @@ onMounted(async () => {
     about.language = profile.language_code || ''
     about.phone = profile.user?.phone || ''
     const hp = profile.health_profile || {}
-    const conditions = hp.medical_conditions || []
-    otherConditions.value = conditions.slice(1)
-    if (conditions[0]) {
-      if (conditionOption(conditions[0])) health.condition = conditionOption(conditions[0])
-      else { health.condition = '__other'; health.conditionOther = conditions[0] }
-    }
+    health.conditions = [...(hp.medical_conditions || [])]
     if (Array.isArray(hp.allergies)) {
       health.hasAllergies = hp.allergies.length > 0
       health.allergies = [...hp.allergies]

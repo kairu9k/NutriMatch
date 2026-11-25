@@ -34,8 +34,13 @@ export const SUPPORT_FAQ = {
       a: 'From My Appointments you can withdraw a booking request until your RND confirms it, cancel an unpaid consultation at no cost, and cancel a paid one up to 30 minutes before the start for the full amount back within 5–7 business days. After that it can’t be cancelled. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
     },
     {
+      q: 'Can I move my consultation to another time?',
+      a: 'Yes, to a later time, until 2 hours before it, whether you have paid or not. In My Appointments press Ask for a new time and pick from your RND’s open hours (at most 14 days after the time you first booked). Your RND accepts it, suggests another time, or declines. If they decline or don’t answer, your consultation stays at its original time. A booking your RND hasn’t confirmed yet has Change time instead.',
+      link: { label: 'My Appointments', to: '/appointments' },
+    },
+    {
       q: 'My RND offered a new time. What do I do?',
-      a: 'If your RND can’t make a paid consultation, they can offer a later time instead of cancelling, and you don’t pay again. A new time is always after the original one, never earlier. In My Appointments you can accept it, propose another later time from their open hours, or get a full refund. Answer within 48 hours (or by an hour before the offered time): if nobody answers, it’s cancelled and you get the full amount back. At most three times are proposed in all.',
+      a: 'If your RND can’t make a paid consultation, they can offer a later time instead of cancelling, and you don’t pay again. A new time is always after the original one, never earlier. In My Appointments you can accept it, propose another later time from their open hours, or get a full refund. Answer within 48 hours (or by an hour before the offered time): if nobody answers, it’s cancelled and you get the full amount back. At most three times are proposed each time, and never more than 14 days after the time first booked.',
       link: { label: 'My Appointments', to: '/appointments' },
     },
     {

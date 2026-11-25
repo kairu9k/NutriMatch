@@ -223,10 +223,12 @@ class Review(models.Model):
 
 
 class RescheduleProposal(models.Model):
-    """A new time offered for a paid consultation the RND can't make (added
-    after the proposal, 2026-11-16). The RND makes the first one; the client
-    can accept, propose another time or take a refund, and so on, at most
-    MAX_PROPOSALS in all. A waiting proposal holds its slot."""
+    """A new time proposed for a consultation (added after the proposal,
+    2026-11-16). The RND offers one for a paid consultation they can't make,
+    or (2026-11-23) the client asks for one, paid or not; the other side
+    accepts, proposes another time, or ends it (a refund for the RND's
+    reschedule, the original time kept for the client's), at most
+    MAX_PROPOSALS per round. A waiting proposal holds its slot."""
 
     class By(models.TextChoices):
         RND = "rnd", "The RND"
@@ -238,6 +240,8 @@ class RescheduleProposal(models.Model):
         COUNTERED = "countered", "Another time proposed"
         REFUNDED = "refunded", "Cancelled with a full refund"
         EXPIRED = "expired", "Not answered in time"
+        DECLINED = "declined", "Declined, the original time kept"
+        WITHDRAWN = "withdrawn", "Withdrawn, the original time kept"
 
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name="reschedule_proposals")
     proposed_by = models.CharField(max_length=10, choices=By.choices)

@@ -4,48 +4,61 @@
   <div v-if="r?.waiting" class="rs-box" :class="{ todo: myTurn }">
     <template v-if="mode === 'view'">
       <p class="rs-line">
-        <template v-if="myTurn">
+        <template v-if="myTurn && clientsRequest && firstOffer">
+          {{ otherName }} asked to move the consultation on {{ when(appointment.scheduled_at) }} to <strong>{{ when(r.waiting.scheduled_at) }}</strong>.
+        </template>
+        <template v-else-if="myTurn">
           {{ r.waiting.proposed_by === 'rnd' ? `RND ${otherName}` : otherName }}
           {{ firstOffer ? `can't make ${when(r.original_at)} and offered` : 'proposed' }}
           <strong>{{ when(r.waiting.scheduled_at) }}</strong>{{ firstOffer ? ' instead' : '' }}.
         </template>
+        <template v-else-if="clientsRequest && firstOffer">You asked to move it to <strong>{{ when(r.waiting.scheduled_at) }}</strong>. Waiting for RND {{ otherName }} to answer.</template>
         <template v-else>You proposed <strong>{{ when(r.waiting.scheduled_at) }}</strong>. Waiting for {{ role === 'client' ? `RND ${otherName}` : otherName }} to answer.</template>
       </p>
       <p v-if="r.waiting.note" class="rs-note">{{ myTurn ? 'Note' : 'Your note' }}: {{ r.waiting.note }}</p>
       <p class="rs-sub">
-        {{ myTurn ? 'Answer' : 'They answer' }} by {{ when(r.waiting.expires_at) }}, or it's cancelled with a full refund.
-        <template v-if="role === 'client'">You don't pay again for a new time.</template>
+        <template v-if="clientsRequest">
+          {{ myTurn ? 'Answer' : 'They answer' }} by {{ when(r.waiting.expires_at) }}. Otherwise it stays on {{ when(appointment.scheduled_at) }}.
+        </template>
+        <template v-else>
+          {{ myTurn ? 'Answer' : 'They answer' }} by {{ when(r.waiting.expires_at) }}, or it's cancelled{{ paid ? ' with a full refund' : '' }}.
+          <template v-if="role === 'client' && paid">You don't pay again for a new time.</template>
+        </template>
       </p>
-      <p v-if="myTurn && !r.proposals_left" class="rs-sub">Three times have been proposed, so this is the last one: accept it or {{ role === 'client' ? 'get a full refund' : 'cancel with a full refund' }}.</p>
+      <p v-if="myTurn && !r.proposals_left" class="rs-sub">Three times have been proposed, so this is the last one: accept it or {{ clientsRequest ? (role === 'client' ? 'keep your current time' : 'decline it') : (role === 'client' ? (paid ? 'get a full refund' : 'cancel it') : (paid ? 'cancel with a full refund' : 'cancel it')) }}.</p>
       <div class="rs-actions">
         <button v-if="myTurn" type="button" class="nm-btn-dark nm-btn-sm" :disabled="!!busy" @click="send('accept')">{{ busy === 'accept' ? 'Accepting…' : 'Accept new time' }}</button>
-        <button v-if="myTurn && r.proposals_left" type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="mode = 'propose'">Propose another time</button>
-        <button v-if="role === 'client'" type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="mode = 'refund'">Get a full refund</button>
-        <button v-else type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="emit('cancel')">Cancel with full refund</button>
-      </div>
-    </template>
-
-    <template v-else-if="mode === 'propose'">
-      <p class="rs-line">Pick another time from {{ role === 'client' ? `RND ${otherName}'s` : 'your' }} open hours.</p>
-      <RescheduleSlotPicker v-model="pick" :appointment-id="appointment.id"
-                            :empty-hint="role === 'client' ? 'You can accept the offered time or get a full refund.' : 'Add hours in Availability, or cancel with a full refund.'" />
-      <label class="nm-label rs-gap" :for="`rs-note-${appointment.id}`">Note <span class="rs-opt">(optional)</span></label>
-      <textarea :id="`rs-note-${appointment.id}`" v-model="note" class="nm-input" rows="2" maxlength="500" data-allow-emoji></textarea>
-      <div class="rs-actions">
-        <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="mode = 'view'">Back</button>
-        <button type="button" class="nm-btn-dark nm-btn-sm" :disabled="!pick || !!busy" @click="send('propose')">{{ busy === 'propose' ? 'Sending…' : 'Send this time' }}</button>
+        <button v-if="myTurn && r.proposals_left" type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="picking = true">Reschedule</button>
+        <!-- the client's own request: nothing is refunded, the booking just stays (2026-11-23) -->
+        <template v-if="clientsRequest">
+          <button v-if="role === 'client'" type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="send('keep')">{{ busy === 'keep' ? 'Keeping…' : 'Keep my current time' }}</button>
+          <button v-else-if="myTurn" type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="send('decline')">{{ busy === 'decline' ? 'Declining…' : 'Decline' }}</button>
+        </template>
+        <template v-else>
+          <button v-if="role === 'client'" type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="mode = 'refund'">{{ paid ? 'Get a full refund' : 'Cancel consultation' }}</button>
+          <button v-else type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="emit('cancel')">{{ paid ? 'Cancel with full refund' : 'Cancel consultation' }}</button>
+        </template>
       </div>
     </template>
 
     <template v-else>
-      <p class="rs-line">Cancel this consultation and get your full {{ amount ? `₱${amount}` : 'payment' }} back?</p>
-      <p class="rs-sub">The refund reaches you within 5–7 business days. You can book again any time.</p>
+      <p class="rs-line">{{ paid ? `Cancel this consultation and get your full ${amount ? `₱${amount}` : 'payment'} back?` : 'Cancel this consultation? You haven\'t paid, so nothing is charged.' }}</p>
+      <p class="rs-sub">{{ paid ? 'The refund reaches you within 5–7 business days. You can book again any time.' : 'You can book again any time.' }}</p>
       <div class="rs-actions">
         <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="mode = 'view'">Back</button>
-        <button type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="send('refund')">{{ busy === 'refund' ? 'Cancelling…' : 'Yes, refund me' }}</button>
+        <button type="button" class="nm-btn-danger solid nm-btn-sm" :disabled="!!busy" @click="send('refund')">{{ busy === 'refund' ? 'Cancelling…' : paid ? 'Yes, refund me' : 'Yes, cancel it' }}</button>
       </div>
     </template>
     <p v-if="error" class="nm-field-error">{{ error }}</p>
+
+    <!-- Reschedule: answer this time with another one, in the same pop-up as everywhere else -->
+    <Teleport to="body">
+      <RescheduleModal
+        v-if="picking" counter :role="role" :appointment-id="appointment.id" :other-first-name="otherName.split(' ')[0]"
+        :paid="paid" :type-label="appointment.typeLabel || appointment.type_label || 'Video call'"
+        :booked-label="when(appointment.scheduled_at)" @close="picking = false" @done="onCounter"
+      />
+    </Teleport>
   </div>
 </template>
 
@@ -63,29 +76,45 @@ const { post } = useApi()
 
 const r = computed(() => props.appointment.reschedule)
 const myTurn = computed(() => r.value?.turn === props.role)
-const firstOffer = computed(() => r.value?.history?.length === 1)
+// the first proposal of this round (an earlier, finished reschedule may be in the history too)
+const firstOffer = computed(() => r.value?.waiting && r.value.history?.filter(p => p.created_at >= roundStart.value).length === 1)
+const roundStart = computed(() => {
+  const h = r.value?.history || []
+  let start = h.length ? h[0].created_at : ''
+  h.forEach((p, i) => { if (['accepted', 'refunded', 'expired', 'declined', 'withdrawn'].includes(p.status) && h[i + 1]) start = h[i + 1].created_at })
+  return start
+})
+// the client asked for this new time (2026-11-23): the RND declines rather than refunds,
+// and if it ends without a move the booking simply stays
+const clientsRequest = computed(() => r.value?.started_by === 'client')
 const amount = computed(() => props.appointment.payment?.amount ? Number(props.appointment.payment.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '')
+const paid = computed(() => props.appointment.payment?.status === 'paid')
 const mode = ref('view')
-const pick = ref('')
-const note = ref('')
+const picking = ref(false)
 const busy = ref('')
 const error = ref('')
 
 const PH = { timeZone: 'Asia/Manila' }
 const when = v => new Date(v).toLocaleString('en-PH', { ...PH, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
-const DONE = { accept: 'New time accepted. The consultation is confirmed.', propose: 'Time sent. You\'ll be told when they answer.', refund: 'Consultation cancelled. Your full refund is on its way.' }
+function onCounter() {
+  picking.value = false
+  emit('changed')
+}
+
+const DONE = {
+  accept: 'New time accepted. The consultation is confirmed.',
+  refund: props.appointment.payment?.status === 'paid' ? 'Consultation cancelled. Your full refund is on its way.' : 'Consultation cancelled.',
+  keep: 'Your current time is kept.',
+  decline: 'Request declined. The consultation stays at its current time.',
+}
 async function send(action) {
   busy.value = action
   error.value = ''
   try {
-    const body = { action }
-    if (action === 'propose') Object.assign(body, { scheduled_at: pick.value, note: note.value.trim() || undefined })
-    await post(`/${props.role === 'client' ? 'client' : 'rnd'}/appointments/${props.appointment.id}/reschedule/`, body)
+    await post(`/${props.role === 'client' ? 'client' : 'rnd'}/appointments/${props.appointment.id}/reschedule/`, { action })
     toast.success(DONE[action], { id: `reschedule-${props.appointment.id}` })
     mode.value = 'view'
-    pick.value = ''
-    note.value = ''
     emit('changed')
   } catch (e) {
     error.value = apiError(e, 'Could not send this. Please try again.')
@@ -102,7 +131,4 @@ async function send(action) {
 .rs-note { margin: 4px 0; font-size: 0.82rem; color: #4a5a4a; overflow-wrap: anywhere; }
 .rs-sub { margin: 4px 0 0; font-size: 0.78rem; color: #6a7a6a; line-height: 1.45; }
 .rs-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.rs-gap { margin-top: 12px; }
-.rs-opt { font-weight: 400; color: #8a9a8a; }
-.rs-box :deep(.rs-picker) { margin-top: 8px; }
 </style>

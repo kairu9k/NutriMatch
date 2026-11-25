@@ -99,7 +99,7 @@
 
       <label class="symptoms-label">Current symptoms{{ onFile ? '' : ' (tick all that apply)' }}</label>
       <p v-if="conditionNames.length" class="condition-line">
-        Based on your condition: <strong>{{ conditionNames.join(', ') }}</strong>
+        Based on your condition{{ conditionNames.length > 1 ? 's' : '' }}: <strong>{{ conditionNames.join(', ') }}</strong>
         <template v-if="!onFile && !embedded">. <NuxtLink to="/profile-settings">Change it in Profile Settings</NuxtLink></template>
       </p>
       <div v-for="g in groups" :key="g.key" class="symptom-group">

@@ -227,11 +227,11 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
 class ClientProfileUpdateSerializer(serializers.ModelSerializer):
     """For the client editing their own profile — excludes the linked user.
-    medical_conditions lives on ClientHealthProfile; the first entry is the
-    primary condition shown on the RND's patient list and client chart."""
+    medical_conditions lives on ClientHealthProfile: a list, none of them
+    primary (profiles/conditions.py)."""
 
     medical_conditions = serializers.ListField(
-        child=serializers.CharField(max_length=100, allow_blank=True), required=False, allow_empty=True, max_length=10,
+        child=serializers.CharField(max_length=200, allow_blank=True), required=False, allow_empty=True, max_length=20,
         write_only=True,
     )
 
@@ -268,12 +268,9 @@ class ClientProfileUpdateSerializer(serializers.ModelSerializer):
         return self._clean_list(value)
 
     def validate_medical_conditions(self, value):
-        cleaned = []
-        for item in value:
-            item = item.strip()
-            if item and item.lower() not in {c.lower() for c in cleaned}:
-                cleaned.append(item)
-        return cleaned
+        from .conditions import clean_conditions
+
+        return clean_conditions(value)
 
     def update(self, instance, validated_data):
         conditions = validated_data.pop("medical_conditions", None)

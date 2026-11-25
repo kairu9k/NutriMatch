@@ -66,9 +66,9 @@
   <div class="meta">
     NutriMatch: Web-Based Clinical Nutrition Consultation Management System<br>
     Capstone project, STI College Davao, BSIT<br>
-    Updated edition. Reflects the live system as of November 18, 2026 (branch main)
+    Updated edition. Reflects the system as of November 23, 2026
   </div>
-  <div class="what"><b>What changed since the November 2 edition:</b> consultations now close themselves from the video call's attendance record (no overtime), the RND can offer a new time instead of a refund, disputes go through Help &amp; Support, and RND sign-up is a short application with a selfie and up to 3 specializations, followed by an onboarding after approval. Chapters marked <span class="new">Updated</span> changed the most.</div>
+  <div class="what"><b>What changed since the November 18 edition:</b> a client can tick several health conditions; either side can reschedule a confirmed consultation, paid or not (a client's request needs the RND's yes, and the booking stays if they say no); every reschedule uses the same pop-up as booking; and a consultation can move at most 14 days past the time it was first booked. Chapters marked <span class="new">Updated</span> changed the most.</div>
 </section>
 
 <section class="chapter">
@@ -78,18 +78,18 @@
     <li>Roles and their journeys <span class="new">Updated</span></li>
     <li>Accounts, sign-up and consent <span class="new">Updated</span></li>
     <li>Finding an RND and booking</li>
-    <li>Time rules for consultations <span class="new">Updated</span></li>
+    <li>Time rules for consultations</li>
     <li>Payments, refunds and payouts</li>
-    <li>The consultation room and video calls <span class="new">Updated</span></li>
-    <li>How a consultation ends <span class="new">New</span></li>
-    <li>Screening and the calculations</li>
+    <li>The consultation room and video calls</li>
+    <li>How a consultation ends <span class="new">Updated</span></li>
+    <li>Screening and the calculations <span class="new">Updated</span></li>
     <li>The Nutrition Care Process (NCP) record</li>
     <li>Lab results</li>
     <li>Meal planning and meal logs</li>
     <li>Progress, adherence and care stages</li>
     <li>Messages, notifications, email and SMS</li>
     <li>Discharge and ending care</li>
-    <li>The admin side <span class="new">Updated</span></li>
+    <li>The admin side</li>
     <li>Privacy and security (RA 10173)</li>
     <li>Architecture and deployment</li>
     <li>Changes from the proposal <span class="new">Updated</span></li>
@@ -122,13 +122,13 @@
   <h2>2. Roles and their journeys</h2>
   <h3>Client</h3>
   <ol class="steps">
-    <li>Signs up, confirms the 6-digit email code, ticks the Terms and the separate health-data consent.</li>
+    <li>Signs up and ticks every health condition that applies, confirms the 6-digit email code, ticks the Terms and the separate health-data consent.</li>
     <li>Onboarding: language and mobile, health background (allergies are required), then the pre-consultation screening. Nothing is saved until Finish setup.</li>
     <li>Finds an RND (filters by specialty, language and format) and books a time.</li>
     <li>Pays after the RND confirms, at least 15 minutes before the start.</li>
     <li>Joins the video call (or meets at the clinic for in-person).</li>
     <li>Receives a consultation summary, a meal plan and lab requests; logs meals with a photo or note.</li>
-    <li>Follows progress, books follow-ups, answers a new time if the RND offers one, disputes through Help &amp; Support if needed, and can request a discharge.</li>
+    <li>Follows progress, books follow-ups, reschedules to a later time (paid or not; the RND confirms) or answers a new time the RND offers, disputes through Help &amp; Support if needed, and can request a discharge.</li>
   </ol>
   <h3>RND</h3>
   <ol class="steps">
@@ -137,7 +137,7 @@
     <li>Confirms or declines booking requests (with the client's screening summary).</li>
     <li>Runs the consultation: video, patient panel, NCP form, lab requests. A video consultation closes by itself at the end.</li>
     <li>Finalizes the NCP record, builds and sends the weekly meal plan, rates meal logs.</li>
-    <li>If a paid consultation can't happen, offers a new time instead of refunding. Sees earnings, gets paid monthly, discharges the patient when care is done.</li>
+    <li>Reschedules a consultation they can't make (paid or not) instead of cancelling, and accepts, moves or declines a client's reschedule request. Sees earnings, gets paid monthly, discharges the patient when care is done.</li>
   </ol>
   <h3>Admin</h3>
   <ol class="steps">
@@ -161,6 +161,7 @@
     <li><b>RND onboarding after approval:</b> profile (optional photo and bio, languages), fee of at least ₱100 and formats (video, in person, with a clinic address), weekly hours, payout details (optional). Finish setup saves it all at once.</li>
     <li><b>An RND is visible to clients</b> only when approved, onboarding finished, a fee set and at least one block of weekly hours. The bio is optional (a written bio needs 50 characters).</li>
     <li><b>Mobile numbers:</b> optional for clients (any country), required and Philippine-only for RNDs.</li>
+    <li><b>Health conditions:</b> at sign-up the client ticks every one that applies: Hypertension, Type 2 Diabetes, Obesity management, Renal nutrition, Other (typed in their own words), or None / not sure, which stands alone. The same chips are in onboarding and Profile Settings, none of them counts as the "main" one, and the RND sees them all.</li>
   </ul>
   <div class="qa"><div class="q">Why are there two consent boxes instead of one?</div><p>The Data Privacy Act treats health data as sensitive personal information. Consent to process it must be specific, so it is kept separate from accepting the Terms, and nothing ticks either box automatically.</p></div>
   <div class="qa"><div class="q">How do you know the RND is really the license holder?</div><p>Besides the license photo and number, the RND uploads a selfie holding the license. The admin must tick that the face matches the license photo, that the name matches, that the number is valid on the PRC website and that the license isn't expired before Approve unlocks. Until approved, the RND cannot use any RND feature.</p></div>
@@ -244,7 +245,7 @@
 </section>
 
 <section>
-  <h2>8. How a consultation ends <span class="new">New</span></h2>
+  <h2>8. How a consultation ends <span class="new">Updated</span></h2>
   <p>Nobody presses "Mark complete" for a video consultation. When the room closes at the scheduled end, the system reads the call's attendance record and closes the consultation, so money never waits on a button the record already answers. The same check also runs whenever someone opens the app and when the reminder job runs.</p>
   <h3>Video consultations</h3>
   <table>
@@ -267,13 +268,21 @@
     <li>The RND's payout is held. The admin sees the attendance record on the Support page and approves (full refund) or rejects (the RND keeps it) with a note. Both are told.</li>
     <li>A plain "Payment or refund" request about a disputable consultation shows "Switch to a dispute", because a plain request wouldn't hold the payout.</li>
   </ul>
-  <h3>When the RND can't make a paid consultation: rescheduling</h3>
+  <h3>Rescheduling</h3>
+  <p>Either side can move a confirmed consultation, paid or not, with the <b>Reschedule</b> button. Everyone uses the same pop-up as booking: a month calendar with the open days, then the times.</p>
+  <table>
+    <tr><th style="width:120px"></th><th>The RND reschedules</th><th>The client asks</th></tr>
+    <tr><td>Until</td><td>The start (in its last 30 minutes it still counts as a late cancel)</td><td>2 hours before the start</td></tr>
+    <tr><td>Needs</td><td>A reason, 10 characters or more</td><td>An optional note</td></tr>
+    <tr><td>Who answers</td><td>The client: accept, pick another time, or cancel (a full refund if paid)</td><td>Only the RND: accept, pick another time, or decline</td></tr>
+    <tr><td>Answer by</td><td>48 hours, or an hour before the new time</td><td>48 hours, or an hour before the booked time</td></tr>
+    <tr><td>Not answered</td><td>Cancelled: a full refund if paid, the unpaid invoice voided</td><td>The original time stays; nothing is cancelled or refunded</td></tr>
+  </table>
   <ul>
-    <li>Cancel asks the RND to <b>Offer a new time</b> or <b>Cancel with full refund</b>. The client never pays again for a new time.</li>
-    <li>The new time must be <b>later</b> than the booked time (never earlier, so it can't cut into the client's plans), at least 2 hours ahead, within 14 days and inside the RND's weekly hours.</li>
-    <li>The client accepts, proposes another time, or takes a full refund. The RND answers a client's proposal the same way. At most 3 proposals.</li>
-    <li>Each proposal waits 48 hours, or until an hour before its time. Unanswered, the consultation is cancelled with a full refund. A waiting proposal holds its time slot.</li>
-    <li>Accepting moves the same appointment with the same paid invoice, resets attendance and re-arms the reminders.</li>
+    <li><b>Later times only</b>, at least 2 hours ahead, inside the RND's weekly hours, and at most <b>14 days after the time first booked</b>, so a consultation can't keep drifting later however often it moves.</li>
+    <li>At most 3 times are proposed per reschedule, and a time waiting for an answer holds its slot.</li>
+    <li>Accepting moves the same appointment with the same invoice (a paid one stays paid; an unpaid one is now due 15 minutes before the new start), resets attendance and re-arms the reminders.</li>
+    <li>A booking the RND hasn't confirmed yet simply changes its requested time in the same pop-up; the RND confirms it as usual.</li>
   </ul>
   <h3>Other cancellations</h3>
   <ul>
@@ -284,6 +293,8 @@
   <div class="qa"><div class="q">Can an RND fake a no-show?</div><p>Not for video: the server refuses it unless the RND was in the call 5 minutes and the client never joined, and only from 15 minutes after the start. For in-person there is no call record, so the client's dispute and the admin's judgement are the check.</p></div>
   <div class="qa"><div class="q">Why disputes through Help &amp; Support instead of a button?</div><p>The team's decision: one place for talking to NutriMatch. Choosing "Dispute a consultation" still does everything the button did: it holds the payout, attaches the attendance record, enforces the 3-day deadline and gives the admin Approve and Reject.</p></div>
   <div class="qa"><div class="q">Why offer a new time instead of only refunding?</div><p>The adviser's idea: the client shouldn't have to book and pay again because the RND couldn't make it. The client still chooses; a refund is always one of the answers.</p></div>
+  <div class="qa"><div class="q">Can a client reschedule, even before paying?</div><p>Yes, the adviser asked for it. Until 2 hours before, paid or not, the client picks a later time and only the RND confirms it. If the RND declines or doesn't answer, the consultation stays at its original time, so the client's request can never cancel anything.</p></div>
+  <div class="qa"><div class="q">Why only later times, and why 14 days?</div><p>An earlier time could cut into plans made around the original booking, so a move is never earlier; anyone who needs a sooner slot can cancel and book it. The 14 days count from the time first booked, so repeated moves can't push care weeks away.</p></div>
   <div class="qa"><div class="q">What if nobody ever opens the app after a consultation?</div><p>The call itself closes it when the room closes, and the same check runs when anyone loads their appointments, billing or the admin pages, so it closes the next time the system is used.</p></div>
 </section>
 
@@ -305,6 +316,7 @@
   <div class="qa"><div class="q">Why WHO Asia-Pacific BMI cut-offs?</div><p>Health risks for Asian adults start at lower BMI values, so the Asia-Pacific ranges are lower than the global ones (for example, overweight starts at 23, not 25).</p></div>
   <div class="qa"><div class="q">What about very short clients?</div><p>Below 150 cm the BMR and BMI carry a note that the estimate may be less accurate and the RND reviews it. Heights from 100 cm are allowed. The RND always sets the final target.</p></div>
   <div class="qa"><div class="q">Why is the screening locked?</div><p>It is the baseline. If a client could edit it, weight change and BMI change could not be measured honestly. New measurements come from the RND's NCP record, and the client's screening page shows those newer numbers too.</p></div>
+  <div class="qa"><div class="q">What do the symptom checkboxes do?</div><p>Only the four "General" ones (unintended weight loss, poor appetite, elevated blood glucose, recent hospitalization) count toward the NRS-2002 risk score. The lists under each condition aren't scored: they're saved for the RND to read before the consultation. A client with several conditions sees a list for each one that has its own.</p></div>
 </section>
 
 <section>
@@ -446,7 +458,7 @@
   <ul>
     <li><b>Deployment:</b> pushing to the main branch deploys automatically: Render (backend, migrations run on start) and Vercel (frontend). Free tiers; Render sleeps after 15 minutes idle (about a minute to wake).</li>
     <li><b>Time:</b> all "today" decisions use Philippine time on the server's clock, so changing a phone's date changes nothing.</li>
-    <li><b>Testing:</b> 642 automated backend tests and a production build run before every push. Before the November 18 release the whole journey (sign-up to payout) was walked through in the browser, on desktop and at phone width; findings are in <code>vault/test-findings-2026-11-18.md</code>.</li>
+    <li><b>Testing:</b> 660 automated backend tests and a production build run before every push. Before the November 18 release the whole journey (sign-up to payout) was walked through in the browser, on desktop and at phone width; findings are in <code>vault/test-findings-2026-11-18.md</code>.</li>
   </ul>
 </section>
 
@@ -461,7 +473,8 @@
     <tr><td>Third-party video (Jitsi)</td><td>Own WebRTC call</td><td>No login, no time limit, private.</td></tr>
     <tr><td>Payment after the consultation</td><td>Pay before the consultation</td><td>Protects the RND's time; clear refund rules.</td></tr>
     <tr><td>RND marks the consultation complete</td><td>Closed from the call's attendance record</td><td>Money follows what actually happened; no consultation left open, no complete without the client.</td></tr>
-    <tr><td>Cancel means refund</td><td>The RND can offer a new time</td><td>Adviser's idea: the client shouldn't pay again because the RND couldn't make it.</td></tr>
+    <tr><td>Cancel means refund</td><td>Either side can reschedule, paid or not; the RND confirms a client's request</td><td>Adviser's idea: nobody pays twice, and the RND keeps control of their hours.</td></tr>
+    <tr><td>One health condition at sign-up</td><td>Every condition that applies</td><td>Adviser: many clients have more than one, for example diabetes and hypertension.</td></tr>
     <tr><td>Long RND registration</td><td>Short application, onboarding after approval</td><td>Mock defense panel: ask only what approval needs.</td></tr>
     <tr><td>One specialization, license photo</td><td>Up to 3 specializations, plus a selfie holding the license</td><td>Mock defense panel: RNDs cover several areas, and someone could use another RND's credentials.</td></tr>
     <tr><td>bcrypt</td><td>PBKDF2</td><td>Django's standard password hashing.</td></tr>
@@ -477,7 +490,7 @@
   <div class="qa"><div class="q">What if the client doesn't show up?</div><p>The RND waits in the call. From 15 minutes after the start, once they have been in it 5 minutes, they can mark a no-show; the RND is paid. The client can dispute it for 3 days through Help &amp; Support, and an admin decides with the attendance record.</p></div>
   <div class="qa"><div class="q">And if the RND doesn't show up?</div><p>The client, in the call, can report it from 15 minutes after the start if the RND was in it under 5 minutes. The consultation is cancelled, the client is refunded in full, and it counts as a late cancel against the RND.</p></div>
   <div class="qa"><div class="q">What if the RND's internet fails during the call?</div><p>The call reconnects by itself and both can rejoin until the scheduled end. If they never get 5 minutes together, the consultation closes as a full refund when the room closes; it can't be completed by phone, because the system can't see that.</p></div>
-  <div class="qa"><div class="q">What if the RND can't make a consultation the client already paid for?</div><p>The RND offers a later time instead of cancelling. The client accepts, suggests another time, or takes a full refund, and never pays twice.</p></div>
+  <div class="qa"><div class="q">What if the RND or the client can't make the booked time?</div><p>Either one presses Reschedule and picks a later time, paid or not. A client's request waits for the RND, and if the RND says no the original time stays. The RND's new time waits for the client, who can accept, pick another time or cancel with a full refund if they paid. Nobody pays twice.</p></div>
   <div class="qa"><div class="q">How is data privacy handled?</div><p>Explicit separate consent, role-based access, HTTPS, hashed passwords, private files with expiring links, no call recordings, no health details in SMS, and an immutable audit log, including every admin view of a client record.</p></div>
   <div class="qa"><div class="q">Why should a client trust an RND on NutriMatch?</div><p>Every RND's PRC license and a selfie holding it are checked by an admin before they can practise on the platform, the PRC number is shown on their profile, and clients leave ratings and reviews.</p></div>
   <div class="qa"><div class="q">How does NutriMatch earn?</div><p>A platform commission (default 10%) on each paid consultation, frozen on the invoice. RNDs receive the rest monthly. Refunded payments earn no commission.</p></div>
@@ -520,7 +533,7 @@
     <tr><td>Attendance record</td><td>When each person joined and left the video call and the minutes they were in it together; only times, nothing from the call.</td></tr>
     <tr><td>No-show</td><td>The client never joined a consultation the RND attended; not refunded, the RND is paid.</td></tr>
     <tr><td>Dispute</td><td>A client's request, through Help &amp; Support, to review a no-show or a completed in-person visit within 3 days; the payout waits for the admin's decision.</td></tr>
-    <tr><td>Reschedule</td><td>Moving a paid consultation to a later time instead of refunding it, agreed by both sides.</td></tr>
+    <tr><td>Reschedule</td><td>Moving a confirmed consultation to a later time, paid or not, started by either side and agreed by the other (a client's request needs the RND's yes).</td></tr>
     <tr><td>Late cancel</td><td>An RND cancelling in the last 30 minutes (or not attending); 3 in 30 days flags the RND.</td></tr>
     <tr><td>WebRTC</td><td>Browser technology for direct, encrypted audio and video.</td></tr>
     <tr><td>TURN</td><td>A relay server that helps calls connect through strict networks.</td></tr>

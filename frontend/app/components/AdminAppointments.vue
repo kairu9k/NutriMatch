@@ -19,7 +19,7 @@
       <button type="button" class="fig" @click="jump('upcoming', 'unpaid')">
         <strong :class="{ warn: summary.unpaid_soon }">{{ summary.unpaid_soon ?? '—' }}</strong>
         <span class="fig-label">Unpaid, starting within 24 hours</span>
-        <span class="fig-note">Cancelled on its own if still unpaid at the start</span>
+        <span class="fig-note">Cancelled on its own if still unpaid 15 minutes before the start</span>
       </button>
       <button type="button" class="fig" @click="jump('past')">
         <strong>{{ summary.completed_7_days ?? '—' }}</strong>

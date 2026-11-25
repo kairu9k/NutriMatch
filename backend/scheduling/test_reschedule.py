@@ -19,7 +19,7 @@ def _hour(hours_from_now):
     return (timezone.now() + timedelta(hours=hours_from_now)).replace(minute=0, second=0, microsecond=0)
 
 
-class RescheduleTests(_ConsultationSetup, TestCase):
+class _Helpers(_ConsultationSetup):
     def setUp(self):
         super().setUp()
         # no weekly hours = any time fits, so the tests don't depend on the clock
@@ -45,6 +45,8 @@ class RescheduleTests(_ConsultationSetup, TestCase):
     def invoice(self, appt):
         return Invoice.objects.get(appointment=appt)
 
+
+class RescheduleTests(_Helpers, TestCase):
     def test_offer_then_accept_moves_the_same_paid_consultation(self):
         a = self.appt(24 * 60)
         Reminder.objects.create(client=self.client_user, source_key=f"appt:{a.id}:24h", title="t", message="m",
@@ -65,16 +67,34 @@ class RescheduleTests(_ConsultationSetup, TestCase):
         self.assertEqual(Invoice.objects.filter(appointment=a).count(), 1)
         self.assertFalse(Reminder.objects.filter(source_key__startswith=f"appt:{a.id}:").exists())
 
-    def test_only_paid_confirmed_can_be_offered(self):
-        unpaid = self.appt(24 * 60, paid=False)
-        self.assertEqual(self.offer(unpaid, _hour(72)).status_code, 400)
+    def test_only_confirmed_can_be_offered(self):
         pending = self.appt(26 * 60, status="pending")
-        self.assertEqual(self.offer(pending, _hour(73)).status_code, 400)
+        self.assertEqual(self.offer(pending, _hour(73)).status_code, 400)  # decline it instead
+
+    def test_unpaid_confirmed_can_be_offered_too(self):
+        # 2026-11-23 (adviser): paid or not, the RND can move a consultation as well
+        a = self.appt(24 * 60, paid=False)
+        new = _hour(72)
+        resp = self.offer(a, new)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(self.client_answer(a, "accept").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.scheduled_at), ("confirmed", new))
+        self.assertEqual(self.invoice(a).status, "unpaid")  # still to pay, before the new time
+
+    def test_unpaid_offer_unanswered_cancels_and_voids_the_invoice(self):
+        a = self.appt(24 * 60, paid=False)
+        self.offer(a, _hour(72))
+        RescheduleProposal.objects.filter(appointment=a).update(expires_at=timezone.now() - timedelta(minutes=1))
+        expire_unpaid_appointments(relationship=self.rel)
+        a.refresh_from_db()
+        self.assertEqual(a.status, "cancelled")
+        self.assertEqual(self.invoice(a).status, "cancelled")  # nothing was paid, so nothing to refund
 
     def test_new_time_rules(self):
         a = self.appt(24 * 60)
         self.assertEqual(self.offer(a, timezone.now() + timedelta(minutes=60)).status_code, 400)  # too soon
-        self.assertEqual(self.offer(a, _hour(24 * 15)).status_code, 400)  # beyond 14 days
+        self.assertEqual(self.offer(a, _hour(24 * 16)).status_code, 400)  # beyond 14 days after the booked time
         earlier = self.offer(a, _hour(5))
         self.assertEqual(earlier.status_code, 400)  # before the current time
         self.assertIn("after the consultation's current time", str(earlier.data))
@@ -179,6 +199,130 @@ class RescheduleTests(_ConsultationSetup, TestCase):
         starts = [datetime.fromisoformat(x) for x in resp.data["slots"]]
         self.assertTrue(starts)
         now = timezone.now()
-        self.assertTrue(all(now + timedelta(hours=2) <= x <= now + timedelta(days=14) for x in starts))
+        self.assertTrue(all(now + timedelta(hours=2) <= x <= a.scheduled_at + timedelta(days=14) for x in starts))  # 14 days from the booked time
         self.assertTrue(all(x > a.scheduled_at for x in starts))  # later times only
         self.assertEqual(self.admin_api.get(f"/api/appointments/{a.id}/reschedule/slots/").status_code, 403)
+
+
+class WindowTests(_Helpers, TestCase):
+    """2026-11-23 (user's calls): the 14 days count from the booked time, and a
+    consultation can't drift more than 14 days past the time first booked."""
+
+    def test_booking_more_than_14_days_away_can_still_move(self):
+        a = self.appt(20 * 24 * 60)
+        self.assertEqual(self.offer(a, _hour(21 * 24)).status_code, 200)
+
+    def test_new_time_at_most_14_days_after_the_booked_time(self):
+        a = self.appt(20 * 24 * 60)
+        self.assertEqual(self.offer(a, _hour(35 * 24)).status_code, 400)
+
+    def test_drift_capped_14_days_past_the_first_booked_time(self):
+        a = self.appt(24 * 60)
+        self.offer(a, _hour(10 * 24))
+        self.client_answer(a, "accept")
+        a.refresh_from_db()
+        self.assertEqual(self.offer(a, _hour(17 * 24)).status_code, 400)  # 16 days past the first booking
+        self.assertEqual(self.offer(a, _hour(14 * 24)).status_code, 200)
+
+
+class ClientRequestTests(_Helpers, TestCase):
+    """2026-11-23 (adviser): the client can ask for a new time, paid or not;
+    only the RND confirms it. Forward only, until 2 hours before; declined or
+    unanswered keeps the original booking."""
+
+    def ask(self, appt, at, note="Work came up that day."):
+        return self.client_api.post(f"/api/client/appointments/{appt.id}/reschedule/",
+                                    {"action": "request", "scheduled_at": at.isoformat(), "note": note}, format="json")
+
+    def test_unpaid_request_accepted_by_the_rnd(self):
+        a = self.appt(24 * 60, paid=False)
+        new = _hour(72)
+        resp = self.ask(a, new)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["status"], "rescheduling")
+        self.assertEqual((resp.data["reschedule"]["turn"], resp.data["reschedule"]["started_by"]), ("rnd", "client"))
+        self.assertEqual(self.rnd_answer(a, "accept").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.scheduled_at), ("confirmed", new))
+        self.assertEqual(self.invoice(a).status, "unpaid")  # still the same invoice to pay
+
+    def test_paid_request_accepted_keeps_the_payment(self):
+        a = self.appt(24 * 60)
+        self.assertEqual(self.ask(a, _hour(72)).status_code, 200)
+        self.assertEqual(self.rnd_answer(a, "accept").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual(a.scheduled_at, _hour(72))
+        self.assertEqual(self.invoice(a).status, "paid")
+        self.assertEqual(Invoice.objects.filter(appointment=a).count(), 1)
+
+    def test_rnd_declines_and_the_original_stays(self):
+        a = self.appt(24 * 60)
+        original = a.scheduled_at
+        self.ask(a, _hour(72))
+        resp = self.rnd_answer(a, "decline")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.scheduled_at), ("confirmed", original))
+        self.assertEqual(self.invoice(a).status, "paid")
+        self.assertEqual(a.reschedule_proposals.get().status, "declined")
+
+    def test_unanswered_request_keeps_the_original(self):
+        a = self.appt(24 * 60)
+        original = a.scheduled_at
+        self.ask(a, _hour(72))
+        RescheduleProposal.objects.filter(appointment=a).update(expires_at=timezone.now() - timedelta(minutes=1))
+        expire_unpaid_appointments(relationship=self.rel)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.scheduled_at), ("confirmed", original))
+        self.assertEqual(self.invoice(a).status, "paid")  # never a refund for the client's own request
+        self.assertEqual(a.reschedule_proposals.get().status, "expired")
+
+    def test_request_waits_until_an_hour_before_the_booked_time(self):
+        a = self.appt(5 * 60)
+        self.ask(a, _hour(72))
+        self.assertEqual(a.reschedule_proposals.get().expires_at, a.scheduled_at - timedelta(minutes=60))
+
+    def test_client_withdraws_and_the_original_stays(self):
+        a = self.appt(24 * 60)
+        self.ask(a, _hour(72))
+        self.assertEqual(self.client_answer(a, "keep").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual(a.status, "confirmed")
+        self.assertEqual(a.reschedule_proposals.get().status, "withdrawn")
+
+    def test_rnd_counter_then_client_keeps_original(self):
+        a = self.appt(24 * 60)
+        original = a.scheduled_at
+        self.ask(a, _hour(72))
+        self.assertEqual(self.rnd_answer(a, "propose", _hour(80)).status_code, 200)
+        self.assertEqual(self.client_answer(a, "refund").status_code, 400)  # their own request: no refund route
+        self.assertEqual(self.client_answer(a, "keep").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.scheduled_at), ("confirmed", original))
+
+    def test_request_rules(self):
+        a = self.appt(24 * 60)
+        self.assertEqual(self.ask(a, _hour(5)).status_code, 400)  # earlier than the booking
+        soon = self.appt(90, paid=True)
+        resp = self.ask(soon, _hour(72))
+        self.assertEqual(resp.status_code, 400)  # less than 2 hours before
+        self.assertIn("2 hours", str(resp.data))
+        self.assertEqual(self.rnd_answer(a, "decline").status_code, 400)  # nothing to decline
+
+    def test_rnd_cannot_decline_its_own_reschedule(self):
+        a = self.appt(24 * 60)
+        self.assertEqual(self.offer(a, _hour(72)).status_code, 200)
+        self.assertEqual(self.rnd_answer(a, "decline").status_code, 400)
+        self.assertEqual(self.client_answer(a, "keep").status_code, 400)  # the RND can't make the original
+
+    def test_pending_request_changes_time_directly(self):
+        a = self.appt(24 * 60, status="pending")
+        new = _hour(72)
+        resp = self.client_api.post(f"/api/client/appointments/{a.id}/reschedule/",
+                                    {"action": "change", "scheduled_at": new.isoformat()}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        a.refresh_from_db()
+        self.assertEqual((a.status, a.scheduled_at), ("pending", new))
+        earlier = self.client_api.post(f"/api/client/appointments/{a.id}/reschedule/",
+                                       {"action": "change", "scheduled_at": _hour(30).isoformat()}, format="json")
+        self.assertEqual(earlier.status_code, 400)

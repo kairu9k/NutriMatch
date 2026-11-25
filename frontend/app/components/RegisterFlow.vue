@@ -161,15 +161,9 @@
               </div>
 
               <div class="field">
-                <label>Main health concern</label>
-                <select class="nm-select block" v-model="form.healthConcern" required>
-                  <option disabled value="">Select</option>
-                  <option>Hypertension</option>
-                  <option>Type 2 Diabetes</option>
-                  <option>Obesity management</option>
-                  <option>Renal nutrition</option>
-                  <option>Other</option>
-                </select>
+                <label>Health conditions</label>
+                <span class="license-hint">Tick every one that applies.</span>
+                <ConditionPicker v-model="form.healthConcerns" v-model:none="form.noCondition" v-model:error="conditionError" />
               </div>
             </template>
 
@@ -276,7 +270,7 @@
             <template v-if="selectedRole === 'patient'">
               <div class="confirm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
               <div class="confirm-row"><span>Gender</span><strong>{{ form.gender }}</strong></div>
-              <div class="confirm-row"><span>Main health concern</span><strong>{{ form.healthConcern }}</strong></div>
+              <div class="confirm-row"><span>Health conditions</span><strong>{{ form.healthConcerns.length ? form.healthConcerns.join(', ') : 'None / not sure' }}</strong></div>
             </template>
             <template v-else-if="selectedRole === 'rnd'">
               <div class="confirm-row"><span>Date of birth</span><strong>{{ form.dob }}</strong></div>
@@ -426,7 +420,8 @@ const form = reactive({
   confirmPassword: '',
   dob: '',
   gender: '',
-  healthConcern: '',
+  healthConcerns: [],
+  noCondition: false,
   prcLicenseImage: null,
   prcNumber: '',
   phone: '',
@@ -533,6 +528,10 @@ function removeLicense() {
 // Up to 3 specializations, one may be typed: SpecializationPicker.vue holds the
 // rules (same as profiles/specializations.py). specError is why they aren't valid yet.
 const specError = ref('')
+// Client conditions (several allowed, 2026-11-23): ConditionPicker.vue. Answered = at
+// least one picked, or None / not sure ticked, and any typed one is valid.
+const conditionError = ref('')
+const conditionsAnswered = computed(() => (form.healthConcerns.length > 0 || form.noCondition) && !conditionError.value)
 const pickedSpecs = computed(() => form.specializations)
 
 // Digits only, max 7 — applied after v-model stores the keystroke (an
@@ -626,7 +625,7 @@ const detailsValid = computed(() => {
   const common = form.firstName.trim() && form.lastName.trim() && !firstNameError.value && !lastNameError.value
     && form.email && !emailError.value && passwordRules.value.every(r => r.ok) && form.confirmPassword && passwordsMatch.value
   if (!common) return false
-  if (selectedRole.value === 'patient') return !!(form.dob && !dobError.value && form.gender && form.healthConcern)
+  if (selectedRole.value === 'patient') return !!(form.dob && !dobError.value && form.gender && conditionsAnswered.value)
   if (selectedRole.value === 'rnd') {
     return !!(form.prcLicenseImage && form.dob && !dobError.value
       && /^\d{7}$/.test(form.prcNumber) && !prcNumberError.value && form.prcSelfieImage
@@ -658,7 +657,7 @@ const detailsProblem = computed(() => {
   if (!passwordRules.value.every(r => r.ok)) return 'your password'
   if (!form.confirmPassword || !passwordsMatch.value) return 'the password typed again'
   if (!form.dob || dobError.value) return 'your date of birth'
-  if (selectedRole.value === 'patient') return !form.gender ? 'your gender' : !form.healthConcern ? 'your main health concern' : ''
+  if (selectedRole.value === 'patient') return !form.gender ? 'your gender' : !conditionsAnswered.value ? 'your health conditions' : ''
   if (rndPhoneError(form.phone)) return 'your mobile number'
   if (!/^\d{7}$/.test(form.prcNumber)) return 'your PRC license number'
   if (!form.prcLicenseImage) return 'your PRC license photo'
@@ -777,7 +776,7 @@ async function submitRegistration() {
         password: form.password,
         date_of_birth: form.dob,
         sex: genderToSex[form.gender],
-        primary_health_concern: form.healthConcern,
+        health_concerns: form.noCondition ? [] : form.healthConcerns,
         accept_terms: consent.terms,
         data_privacy_consent: consent.data,
       })
