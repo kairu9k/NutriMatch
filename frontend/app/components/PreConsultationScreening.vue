@@ -673,7 +673,7 @@ const sxTakenDate = computed(() => {
 }
 
 /* ===== On file (read-only summary): round icons, symptom chips, notes without boxes ===== */
-.sx-sec { margin: 18px 0 10px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: #6B7D73; }
+.sx-sec { margin: 18px 0 10px; font-size: 11.5px; font-weight: 800; color: #6B7D73; }
 .sx-sec.first { margin-top: 4px; }
 .sx-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 12px; margin: 0; }
 .sx-f { display: flex; align-items: center; gap: 10px; min-width: 0; }

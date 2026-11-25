@@ -10,7 +10,7 @@
       <div class="rnd-text">
         <span class="rnd-eyebrow">
           <span class="rnd-eyebrow-line" aria-hidden="true"></span>
-          FOR DIETITIANS
+          For dietitians
         </span>
         <h2 class="rnd-title">Less paperwork.<br /><em>More care.</em></h2>
         <p class="rnd-lead">
@@ -149,7 +149,6 @@ const privacy = [
   gap: 12px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #EFBF04;
 }
 .rnd-eyebrow-line {
@@ -217,7 +216,6 @@ const privacy = [
 .rnd-card-label {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #EFBF04;
 }
 .rnd-card p {
@@ -275,7 +273,6 @@ const privacy = [
   gap: 12px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #063C2A;
 }
 .nm-meal-line {

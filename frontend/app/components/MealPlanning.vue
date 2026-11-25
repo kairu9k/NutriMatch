@@ -51,7 +51,7 @@
           </div>
         </div>
         <div class="mp-targets">
-          <div class="mp-t big"><small>Daily target</small><strong>{{ fmtNum(planMeta.kcalPerDay) }}</strong><em>kcal · {{ conditionLabel(planMeta.condition) }}</em></div>
+          <div class="mp-t big"><small>Daily target</small><strong>{{ fmtNum(planMeta.kcalPerDay) }}</strong><em>kcal, {{ conditionLabel(planMeta.condition) }}</em></div>
           <div class="mp-t"><small><i style="background: #EFBF04"></i>Carbs</small><strong>{{ targets.carb ?? '—' }}</strong><em>g</em></div>
           <div class="mp-t"><small><i style="background: #6EE7A8"></i>Protein</small><strong>{{ targets.protein ?? '—' }}</strong><em>g</em></div>
           <div class="mp-t"><small><i style="background: #9DB4F0"></i>Fat</small><strong>{{ targets.fat ?? '—' }}</strong><em>g</em></div>
@@ -90,7 +90,7 @@
               <h4 class="print-only print-day-title">{{ DAY_FULL[day] }}</h4>
               <div class="mp-dayhead no-print">
                 <h3>{{ DAY_FULL[day] }}</h3>
-                <span>{{ mealCount(day) }} meals · {{ dayKcal(day).toLocaleString('en-PH') }} kcal</span>
+                <span>{{ mealCount(day) }} meals, {{ dayKcal(day).toLocaleString('en-PH') }} kcal</span>
               </div>
               <div class="meal-list">
                 <!-- one small table per meal: food, portion, kcal and macros in lined-up columns -->
@@ -394,7 +394,7 @@
             <div class="panel meals-panel">
               <div class="mp-dayhead">
                 <h3>{{ DAY_FULL[activeDay] }}</h3>
-                <span>{{ mealCount(activeDay) }} meals · {{ dayTotal('kcal').toLocaleString('en-PH') }} kcal</span>
+                <span>{{ mealCount(activeDay) }} meals, {{ dayTotal('kcal').toLocaleString('en-PH') }} kcal</span>
               </div>
 
               <section class="meal-edit-panel" v-for="meal in currentDayMeals" :key="meal.type" :style="toneStyle(meal.type)">
@@ -1653,7 +1653,7 @@ button { font-family: inherit; }
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
 }
 .mp-hero-txt { min-width: 0; }
-.mp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #efbf04; }
+.mp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .mp-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .mp-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.15; color: #fff; overflow-wrap: anywhere; }
 .mp-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 0; font-size: 14px; color: rgba(255, 255, 255, 0.86); }
@@ -1736,7 +1736,7 @@ button { font-family: inherit; }
 /* same column widths in every meal, so the numbers line up down the day */
 .meal-foods th:nth-child(1) { width: 34%; }
 .meal-foods th:nth-child(2) { width: 24%; }
-.meal-foods th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; background: #f7faf8; border-bottom: 1px solid #eef2ef; white-space: nowrap; }
+.meal-foods th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 800; color: #6b7d73; background: #f7faf8; border-bottom: 1px solid #eef2ef; white-space: nowrap; }
 .meal-foods th.c, .food-table-head .c { color: #9a7300; }
 .meal-foods th.p, .food-table-head .p { color: #1f7a4d; }
 .meal-foods th.f, .food-table-head .f { color: #3b5ba5; }
@@ -1793,7 +1793,7 @@ button { font-family: inherit; }
 .instr-allergy { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: #fef3f2; border: 1px solid #f6cfcb; font-size: 13px; font-weight: 700; line-height: 1.45; color: #912018; }
 .instr-allergy svg { flex-shrink: 0; margin-top: 1px; color: #c0392b; }
 .instr-read { margin: 0; }
-.instr-read dt { margin: 0 0 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.instr-read dt { margin: 0 0 6px; font-size: 11.5px; font-weight: 800; color: #6b7d73; }
 .instr-read dd { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: #f7faf8; font-size: 13.5px; line-height: 1.55; color: #22362c; white-space: pre-line; overflow-wrap: anywhere; }
 .instr-read dd:last-child { margin-bottom: 0; }
 .instr-read dd.empty { color: #8a9a91; font-style: italic; }
@@ -1842,7 +1842,7 @@ button { font-family: inherit; }
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .field + .field { margin-top: 14px; }
 .form-row-6 .field + .field { margin-top: 0; }
-.field label { font-size: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.field label { font-size: 12px; font-weight: 800; color: #6b7d73; }
 .field input, .field textarea, .field .nm-select {
   width: 100%; min-height: 46px; padding: 0 14px; box-sizing: border-box; border: 1.5px solid #e4ebe6; border-radius: 12px;
   background-color: #fbfcfb; font-family: inherit; font-size: 14px; font-weight: 600; color: #14261e; transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
@@ -1894,7 +1894,7 @@ button { font-family: inherit; }
 .meal-time-input { border: none; outline: none; background: transparent; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #22362c; }
 .food-table { --cols: minmax(0, 2.2fr) minmax(0, 1.5fr) repeat(4, minmax(0, 0.7fr)) 34px; }
 .food-table-head, .food-table-row, .meal-foot { display: grid; grid-template-columns: var(--cols); gap: 8px; align-items: center; padding: 0 14px; }
-.food-table-head { padding-top: 10px; padding-bottom: 10px; background: #f7faf8; border-bottom: 1px solid #eef2ef; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; white-space: nowrap; }
+.food-table-head { padding-top: 10px; padding-bottom: 10px; background: #f7faf8; border-bottom: 1px solid #eef2ef; font-size: 11px; font-weight: 800; color: #6b7d73; white-space: nowrap; }
 .food-table-head > span:first-child, .food-table-head > span:nth-child(2) { padding-left: 12px; }
 .food-table-head .n { text-align: right; padding-right: 12px; }
 .food-table-row { position: relative; padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid #f3f6f4; transition: background 0.15s; }
@@ -1937,7 +1937,7 @@ button { font-family: inherit; }
 .usda-btn { color: #3b5ba5; border-color: #cfd8ea; }
 .usda-btn:hover { border-color: #3b5ba5; }
 .combo-list { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: max(100%, 340px); max-height: 280px; overflow-y: auto; padding: 6px; background: #fff; border: 1px solid #e4ebe6; border-radius: 14px; box-shadow: 0 18px 36px -12px rgba(16, 35, 27, 0.3); }
-.combo-group { margin: 8px 8px 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.combo-group { margin: 8px 8px 4px; font-size: 11px; font-weight: 800; color: #6b7d73; }
 .combo-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; padding: 8px 10px; border: none; border-radius: 10px; background: none; text-align: left; font-size: 13.5px; color: #0e3a2c; cursor: pointer; }
 .combo-opt:hover, .combo-opt.on { background: #f1f6f2; }
 .combo-meta { font-size: 12px; color: #8a9a91; white-space: nowrap; }
@@ -2046,7 +2046,7 @@ button { font-family: inherit; }
   .meal-foods .portion { margin-bottom: 6px; }
   .meal-foods .n { text-align: left; font-size: 13px; }
   .meal-foods tfoot tr { background: #f7faf8; border-bottom: none; }
-  .meal-foods td.n::before { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8a9a91; }
+  .meal-foods td.n::before { display: block; font-size: 10px; font-weight: 800; color: #8a9a91; }
   .meal-foods td.n:nth-child(3)::before { content: 'kcal'; }
   .meal-foods td.n:nth-child(4)::before { content: 'Carbs'; }
   .meal-foods td.n:nth-child(5)::before { content: 'Protein'; }
@@ -2079,7 +2079,7 @@ button { font-family: inherit; }
   .food-table-row > .grams-input, .food-table-row > .portion-in { grid-column: 1 / -1; }
   .food-table-row input:not(:disabled) { background: #fbfcfb; border-color: #e4ebe6; }
   .remove-btn { position: absolute; top: 15px; right: 10px; }
-  .mp-num::before, .mf-n::before { content: attr(data-l); display: block; margin-bottom: 3px; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8a9a91; }
+  .mp-num::before, .mf-n::before { content: attr(data-l); display: block; margin-bottom: 3px; font-size: 10px; font-weight: 800; color: #8a9a91; }
   .mp-num input { height: 36px; text-align: left; }
   .mp-num input:disabled { padding-left: 0; }
   .meal-foot { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; padding: 12px; }

@@ -7,7 +7,7 @@
       <img class="lb-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
       <span class="lb-hero-fade" aria-hidden="true"></span>
       <div class="lb-hero-text">
-        <p class="lb-eyebrow"><span aria-hidden="true"></span>LAB RESULTS</p>
+        <p class="lb-eyebrow"><span aria-hidden="true"></span>Lab results</p>
         <h2 class="lb-heading">Your lab tests, <em>safe and shared.</em></h2>
         <p class="nm-page-sub"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>Lab tests your RND asks for, and the results you've uploaded. Only you and your RND can open them.</p>
       </div>
@@ -235,7 +235,7 @@ const plateImg = '/landing/login-plate.webp'
 .lb-hero-plate { position: absolute; right: -70px; top: 50%; width: 400px; height: 400px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .lb-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.75) 62%, rgba(0, 70, 52, 0.15) 100%); pointer-events: none; }
 .lb-hero-text { position: relative; z-index: 1; max-width: 620px; }
-.lb-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.lb-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .lb-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .lb-heading { margin: 10px 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1.12; color: #FFFFFF; }
 .lb-heading em { font-style: italic; color: #EFBF04; }
@@ -349,7 +349,7 @@ const plateImg = '/landing/login-plate.webp'
 .lb-head.lx-bh { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
 .lx-bh .lb-title { margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 22px; color: #0E3A2C; }
 .lx-bh .lb-sub { margin: 3px 0 0; font-size: 13.5px; color: #4A5A52; }
-.lx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #1F7A4D; }
+.lx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #1F7A4D; }
 .lx-k.gold { color: #9A7300; }
 .lx-cnt { flex-shrink: 0; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: #E3EFE7; color: #004D3A; font-size: 12.5px; font-weight: 800; }
 .lx-cnt.gold { background: #FBF3D2; color: #8A6400; }

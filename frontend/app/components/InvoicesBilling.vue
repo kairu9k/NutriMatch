@@ -5,7 +5,7 @@
       <img class="bl-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
       <span class="bl-hero-fade" aria-hidden="true"></span>
       <div class="bl-hero-text">
-        <p class="bl-eyebrow"><span aria-hidden="true"></span>BILLING &amp; INVOICE</p>
+        <p class="bl-eyebrow"><span aria-hidden="true"></span>Billing and invoices</p>
         <h2 class="bl-title">Your bills, <em>all in one place.</em></h2>
         <p class="nm-page-sub intro"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>Pay for your consultations and keep your receipts. Each invoice appears when your RND confirms a booking.</p>
       </div>
@@ -138,7 +138,7 @@
             <svg v-if="current.receipt" class="ic" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             <svg v-else class="ic" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z" /><path d="M9 8h6M9 12h6M9 16h3" /></svg>
           </span>
-          <p class="rm-k">{{ current.receipt ? 'Receipt' : 'Invoice' }} · {{ invNo(current) }}</p>
+          <p class="rm-k">{{ current.receipt ? 'Receipt' : 'Invoice' }}, {{ invNo(current) }}</p>
           <p class="rm-amount">{{ peso(current.amount) }}</p>
           <p class="rm-amount-label">{{ current.receipt ? 'Total paid' : 'Amount' }}</p>
           <span class="nm-pill bl-pill" :class="STATUS[current.status]?.pill"><i aria-hidden="true"></i>{{ STATUS[current.status]?.label }}</span>
@@ -396,7 +396,7 @@ const plateImg = '/landing/login-plate.webp'
 .bl-hero-plate { position: absolute; right: -70px; top: 50%; width: 400px; height: 400px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .bl-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.75) 62%, rgba(0, 70, 52, 0.15) 100%); pointer-events: none; }
 .bl-hero-text { position: relative; z-index: 1; max-width: 620px; }
-.bl-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.bl-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .bl-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .bl-title { margin: 10px 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1.12; color: #FFFFFF; }
 .bl-title em { font-style: italic; color: #EFBF04; }
@@ -482,7 +482,7 @@ const plateImg = '/landing/login-plate.webp'
 .bl-row:not(.bl-row-head):hover { background: #F6FAF7; }
 .bl-row:not(.bl-row-head):focus-visible { outline: 2px solid #EFBF04; outline-offset: -2px; }
 .bl-row + .bl-row:not(:nth-child(2)) { border-top: 1px solid #F0F3F1; border-radius: 0; }
-.bl-row-head { height: 46px; padding: 0 18px; border-bottom: 1px solid #EEF2EF; border-radius: 0; font-size: 12px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: #4A5A52; }
+.bl-row-head { height: 46px; padding: 0 18px; border-bottom: 1px solid #EEF2EF; border-radius: 0; font-size: 12px; font-weight: 800; color: #4A5A52; }
 .bl-row-head .r,
 .bl-amt { text-align: right; }
 .bl-inv,
@@ -515,7 +515,7 @@ const plateImg = '/landing/login-plate.webp'
 .rm-top { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 30px 24px 22px; text-align: center; background: linear-gradient(180deg, #EAF4EE 0%, #F6FAF7 100%); }
 .rm-badge { width: 60px; height: 60px; margin-bottom: 14px; border-radius: 50%; background: #FFFFFF; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 6px rgba(0, 77, 58, 0.06), 0 12px 24px -14px rgba(0, 77, 58, 0.6); }
 .rm-badge.paid { background: #0B6B47; color: #FFFFFF; box-shadow: 0 0 0 6px rgba(31, 157, 85, 0.15), 0 12px 24px -12px rgba(0, 77, 58, 0.7); }
-.rm-k { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #4A5A52; }
+.rm-k { margin: 0; font-size: 12px; font-weight: 800; color: #4A5A52; }
 .rm-amount { margin: 8px 0 0; font-family: 'Playfair Display', Georgia, serif; font-size: 42px; font-weight: 700; line-height: 1; color: #0E3A2C; font-variant-numeric: lining-nums; }
 .rm-amount-label { margin: 6px 0 12px; font-size: 13px; color: #6B7D73; }
 
@@ -536,7 +536,7 @@ const plateImg = '/landing/login-plate.webp'
 .rm-dl .wide { flex-direction: column; align-items: stretch; gap: 6px; }
 .rm-dl .wide dd { text-align: left; }
 .mono { padding: 8px 12px; border-radius: 10px; background: #F6FAF7; font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 12.5px !important; font-weight: 600 !important; letter-spacing: .2px; color: #3E5046 !important; overflow-wrap: anywhere; }
-.rm-sec { margin: 0 0 10px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #3B5BA5; }
+.rm-sec { margin: 0 0 10px; font-size: 12px; font-weight: 800; color: #3B5BA5; }
 .refund { margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: #F7F9FD; border: 1px solid #DCE3F2; }
 .steps { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .steps li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #6B7D73; }

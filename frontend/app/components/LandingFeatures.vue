@@ -4,7 +4,7 @@
       <div class="features-header">
         <span class="eyebrow">
           <span class="eyebrow-line" aria-hidden="true"></span>
-          FEATURES
+          Features
           <span class="eyebrow-line" aria-hidden="true"></span>
         </span>
         <h2>Everything in <em>one place</em></h2>
@@ -113,7 +113,6 @@ const features = [
   gap: 12px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #063C2A;
 }
 .eyebrow-line {

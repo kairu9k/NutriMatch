@@ -57,7 +57,7 @@
         <div class="nm-box" :class="{ 'is-wide': step === 'health' || step === 'screening' }">
           <!-- steps: the first thing the client sees -->
           <nav class="ob-stepper" aria-label="Setup steps">
-            <p class="ob-stepper-top">STEP {{ stepIndex + 1 }} OF {{ STEPS.length }}</p>
+            <p class="ob-stepper-top">Step {{ stepIndex + 1 }} of {{ STEPS.length }}</p>
             <ol>
               <li v-for="(s, i) in STEPS" :key="s.key" :class="{ active: i === stepIndex, done: i < stepIndex, reached: i <= stepIndex }">
                 <span class="ob-sdot">{{ i < stepIndex ? '✓' : i + 1 }}</span>
@@ -111,7 +111,7 @@
               </div>
               <div class="ob-field">
                 <label for="ob-sex">Sex</label>
-                <select id="ob-sex" v-model="about.sex" class="ob-control" :disabled="knownSex" :class="{ invalid: aboutErrors.sex }">
+                <select id="ob-sex" v-model="about.sex" class="nm-select block ob-control" :disabled="knownSex" :class="{ invalid: aboutErrors.sex }">
                   <option value="" disabled>Select</option>
                   <option value="female">Female</option>
                   <option value="male">Male</option>
@@ -122,7 +122,7 @@
               </div>
               <div class="ob-field">
                 <label for="ob-lang">Preferred language</label>
-                <select id="ob-lang" v-model="about.language" class="ob-control">
+                <select id="ob-lang" v-model="about.language" class="nm-select block ob-control">
                   <option value="">Select</option>
                   <option v-for="l in LANGUAGE_OPTIONS" :key="l.code" :value="l.code">{{ l.label }}</option>
                 </select>
@@ -195,7 +195,7 @@
             <div class="ob-grid">
               <div class="ob-field">
                 <label for="ob-religion">Religion <span class="opt">Optional</span></label>
-                <select id="ob-religion" v-model="health.religion" class="ob-control">
+                <select id="ob-religion" v-model="health.religion" class="nm-select block ob-control">
                   <option value="">Prefer not to say</option>
                   <option v-for="r in RELIGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
                 </select>
@@ -806,7 +806,6 @@ watch(step, () => nextTick(() => {
 .nm-step-kick {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 2px;
   color: rgba(255, 255, 255, 0.6);
 }
 .nm-step-title {
@@ -897,7 +896,6 @@ watch(step, () => nextTick(() => {
 .nm-progress-text {
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 1.4px;
   color: #C49102;
 }
 .nm-progress-bars { display: flex; gap: 6px; }
@@ -938,7 +936,7 @@ watch(step, () => nextTick(() => {
 
 /* the steps, top of the form */
 .ob-stepper { margin: 0 0 34px; padding: 18px 20px 16px; border-radius: 18px; background: #F3F7F4; }
-.ob-stepper-top { margin: 0 0 14px; font-size: 12.5px; font-weight: 800; letter-spacing: 1.6px; color: #C49102; }
+.ob-stepper-top { margin: 0 0 14px; font-size: 12.5px; font-weight: 800; color: #C49102; }
 .ob-stepper ol { list-style: none; margin: 0; padding: 0; display: flex; }
 .ob-stepper li { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .ob-stepper li:not(:first-child)::before {

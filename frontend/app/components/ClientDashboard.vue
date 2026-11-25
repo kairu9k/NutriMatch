@@ -31,7 +31,7 @@
                 <span>{{ ['Today', 'Tomorrow'].includes(upNext.day) ? upNext.day : ubWeek(upNext.startsAt) }}</span>
               </div>
               <div class="ub-m">
-                <p class="ub-k">Up next · <b>{{ upNext.time }}</b></p>
+                <p class="ub-k">Up next, <b>{{ upNext.time }}</b></p>
                 <div class="ub-who">
                   <img v-if="upNext.photo" :src="upNext.photo" alt="" class="ub-av" />
                   <span v-else class="ub-av ub-ini">{{ upNext.initials }}</span>
@@ -154,7 +154,7 @@
           <div class="panel">
             <div class="panel-header-row">
               <div>
-                <p v-if="activePlan" class="mt-k">Today · {{ weekdayLabel }}</p>
+                <p v-if="activePlan" class="mt-k">Today, {{ weekdayLabel }}</p>
                 <h3 class="panel-title flush">Today's meal plan</h3>
                 <p v-if="activePlan" class="panel-sub">{{ activePlan.name || 'Your meal plan' }}. Snap a photo of each meal so your RND can rate it.</p>
               </div>
@@ -173,7 +173,7 @@
 
               <template v-if="todaysMeals.length">
                 <div class="mt-lh">
-                  <p><b>{{ mtShowAll ? 'All meals' : 'Up next' }}</b> · {{ mtShowAll ? `${todaysMeals.length} meals today` : `showing ${mtVisible.length} of ${todaysMeals.length} meals` }}</p>
+                  <p><b>{{ mtShowAll ? 'All meals' : 'Up next' }}</b>, {{ mtShowAll ? `${todaysMeals.length} meals today` : `showing ${mtVisible.length} of ${todaysMeals.length} meals` }}</p>
                   <button v-if="todaysMeals.length > MT_FIRST" type="button" class="mt-all" :aria-expanded="mtShowAll" @click="mtShowAll = !mtShowAll">{{ mtShowAll ? 'Show less' : `See all ${todaysMeals.length}` }}<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button>
                 </div>
                 <ul class="meal-list mt-tl">
@@ -309,7 +309,7 @@
                 <p class="yr-name">{{ careRnd.name }}, RND</p>
                 <p class="yr-s">
                   <span class="yr-spec">{{ careRnd.specialization || 'Registered Nutritionist-Dietitian' }}</span>
-                  <span v-if="careRnd.reviewCount" class="yr-rate"><svg width="14" height="14" viewBox="0 0 24 24" fill="#EFBF04" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg><b>{{ careRnd.rating }}</b> · {{ careRnd.reviewCount }} review{{ careRnd.reviewCount === 1 ? '' : 's' }}</span>
+                  <span v-if="careRnd.reviewCount" class="yr-rate"><svg width="14" height="14" viewBox="0 0 24 24" fill="#EFBF04" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></svg><b>{{ careRnd.rating }}</b>, {{ careRnd.reviewCount }} review{{ careRnd.reviewCount === 1 ? '' : 's' }}</span>
                 </p>
                 <p v-if="careRnd.pending" class="rnd-pending">Waiting to confirm your first booking</p>
               </div>
@@ -343,7 +343,7 @@
                   <div>
                     <p class="tk-k"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg>Today</p>
                     <h3 class="panel-title flush">My tasks</h3>
-                    <p v-if="taskCount" class="panel-sub">{{ doneCount }} of {{ taskCount }} done<template v-if="tkNext"> · next: {{ tkNext.title.toLowerCase() }}<template v-if="tkNext.at && tkNext.kind !== 'lab'"> at {{ phClock(tkNext.at) }}</template></template></p>
+                    <p v-if="taskCount" class="panel-sub">{{ doneCount }} of {{ taskCount }} done<template v-if="tkNext">, next: {{ tkNext.title.toLowerCase() }}<template v-if="tkNext.at && tkNext.kind !== 'lab'"> at {{ phClock(tkNext.at) }}</template></template></p>
                   </div>
                 </div>
               </div>
@@ -365,7 +365,7 @@
             </form>
 
             <div v-if="todayItems.length > TK_FIRST" class="tk-lh">
-              <p><b>{{ tkShowAll ? 'All tasks' : 'Up next' }}</b> · {{ tkShowAll ? `${todayItems.length} today` : `showing ${tkVisible.length} of ${todayItems.length}` }}</p>
+              <p><b>{{ tkShowAll ? 'All tasks' : 'Up next' }}</b>, {{ tkShowAll ? `${todayItems.length} today` : `showing ${tkVisible.length} of ${todayItems.length}` }}</p>
               <button type="button" class="tk-all" :aria-expanded="tkShowAll" @click="tkShowAll = !tkShowAll">{{ tkShowAll ? 'Show less' : `See all ${todayItems.length}` }}<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button>
             </div>
             <div class="tk-list">
@@ -1213,8 +1213,6 @@ const tkVisible = computed(() => {
   gap: 10px;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 2px;
-  text-transform: uppercase;
   color: #EFBF04;
 }
 .client-dashboard .nm-hero-date::before { content: ''; width: 24px; height: 2px; border-radius: 2px; background: #EFBF04; }
@@ -1243,7 +1241,7 @@ const tkVisible = computed(() => {
   color: #FFFFFF;
   box-shadow: none;
 }
-.client-dashboard .nm-upnext-label { font-size: 11.5px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #EFBF04; }
+.client-dashboard .nm-upnext-label { font-size: 11.5px; font-weight: 800; color: #EFBF04; }
 .up { gap: 0; }
 .up-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .up-status { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
@@ -1459,7 +1457,7 @@ const tkVisible = computed(() => {
 }
 .rnd-compact .rnd-text { flex: 1; min-width: 0; }
 .rnd-compact .rnd-name { overflow-wrap: anywhere; }
-.rnd-eyebrow { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #C49102; }
+.rnd-eyebrow { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; color: #C49102; }
 .rnd-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .icon-action { width: 40px; height: 40px; border-radius: 12px; background: #EEF4F0; display: flex; align-items: center; justify-content: center; color: #004D3A; text-decoration: none; transition: background-color .15s; }
 .icon-action:hover { background: #004D3A; color: #EFBF04; }
@@ -1580,7 +1578,7 @@ const tkVisible = computed(() => {
 .scr-head .stat-pill { gap: 5px; }
 .scr-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
 .scr-tiles div { padding: 12px 14px; border-radius: 14px; border: 1px solid #E8EDEA; background: #FBFCFB; }
-.scr-tiles small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: #6B7D73; }
+.scr-tiles small { display: block; font-size: 11px; font-weight: 800; color: #6B7D73; }
 .scr-tiles strong { display: block; margin-top: 4px; font-size: 20px; font-weight: 700; color: #10231B; }
 .scr-tiles strong span { font-size: 13px; font-weight: 600; color: #6B7D73; }
 .scr-card .block-wide { margin-top: auto; }
@@ -1684,11 +1682,11 @@ const tkVisible = computed(() => {
 .client-dashboard .nm-upnext.ub-card { padding: 16px !important; max-width: none !important; border: none !important; border-radius: 22px !important; background: #FFFFFF !important; color: #0E3A2C; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5) !important; }
 .ub { display: flex; gap: 16px; }
 .ub-db { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; flex-shrink: 0; border-radius: 16px; background: #004D3A; color: #FFFFFF; }
-.ub-db small { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #EFBF04; }
+.ub-db small { font-size: 11px; font-weight: 800; color: #EFBF04; }
 .ub-db b { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; line-height: 1; }
 .ub-db span { font-size: 11.5px; font-weight: 700; color: #CFE3D8; }
 .ub-m { flex: 1; min-width: 0; }
-.ub-k { margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #9A7300; }
+.ub-k { margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #9A7300; }
 .ub-k b { color: #0E3A2C; }
 .ub-who { display: flex; align-items: center; gap: 10px; }
 .ub-av { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
@@ -1727,7 +1725,7 @@ const tkVisible = computed(() => {
 }
 
 /* ===== Today's meal plan: photo log timeline ===== */
-.mt-k { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.mt-k { margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9A7300; }
 .mt-log { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; height: 42px; padding: 0 16px; border-radius: 12px; background: #004D3A; color: #FFFFFF; font-size: 13.5px; font-weight: 800; text-decoration: none; }
 .mt-log svg { color: #EFBF04; }
 .mt-log:hover { background: #00684E; }
@@ -1781,7 +1779,7 @@ const tkVisible = computed(() => {
 }
 
 /* ===== Recent activity: timeline, grouped by day ===== */
-.ra-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.ra-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9A7300; }
 .ra-all { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 10px; background: #E3EFE7; color: #004D3A; font-size: 13px; font-weight: 800; text-decoration: none; }
 .ra-all:hover { background: #D3E7DA; }
 .ra-day { display: flex; align-items: center; gap: 8px; margin: 16px 0 4px; font-size: 13px; font-weight: 800; color: #0E3A2C; }
@@ -1818,7 +1816,7 @@ const tkVisible = computed(() => {
 .yr-av span { background: #004D3A; color: #EFBF04; font-size: 18px; font-weight: 800; }
 .yr-av i { position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%; background: #1F7A4D; color: #FFFFFF; border: 2px solid #FFFFFF; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .yr-m { flex: 1; min-width: 0; }
-.yr-k { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: #9A7300; }
+.yr-k { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11.5px; font-weight: 800; color: #9A7300; }
 .yr-name { margin: 2px 0 6px; font-family: 'Playfair Display', Georgia, serif; font-size: 21px; font-weight: 700; color: #0E3A2C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yr-s { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; }
 .yr-spec { padding: 3px 10px; border-radius: 999px; background: #E3EFE7; color: #004D3A; font-size: 12.5px; font-weight: 700; }
@@ -1843,7 +1841,7 @@ const tkVisible = computed(() => {
 .tk-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: #FFFFFF; }
 .tk-ring b { position: relative; font-family: 'Playfair Display', Georgia, serif; font-size: 21px; color: #0E3A2C; }
 .tk-ring small { font-family: inherit; font-size: 12px; font-weight: 700; color: #6B7D73; }
-.tk-k { display: flex; align-items: center; gap: 7px; margin: 0 0 2px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.tk-k { display: flex; align-items: center; gap: 7px; margin: 0 0 2px; font-size: 12px; font-weight: 800; color: #9A7300; }
 .tk-add { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; height: 40px; padding: 0 14px; border: none; border-radius: 12px; background: #004D3A; color: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
 .tk-add svg { color: #EFBF04; }
 .tk-add:focus-visible, .tk-all:focus-visible { outline: 2px solid #1F8F5C; outline-offset: 2px; }
@@ -1889,7 +1887,7 @@ span.tk-cb.meal.on { border: none; background: #1F7A4D; color: #FFFFFF; }
 
 /* ===== Your screening: no tiles, round icons ===== */
 .sx-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.sx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.sx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9A7300; }
 .sx-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
 .sx-f { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .sx-i { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #E3EFE7; color: #004D3A; }

@@ -78,7 +78,7 @@
                 <span class="entry-title">{{ auditLabel(log.action) }}</span>
                 <span class="entry-meta">
                   <span class="entry-who" :class="log.user ? `r-${log.user.role}` : 'r-sys'">
-                    <template v-if="log.user"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><path d="M8 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /></svg></template><template v-else><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="8" width="14" height="11" rx="3" /><path d="M12 4v4M9 13h.01M15 13h.01" /></svg></template>{{ actorName(log) }}<template v-if="log.user"> · {{ ROLE_LABELS[log.user.role] || log.user.role }}</template>
+                    <template v-if="log.user"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><path d="M8 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /></svg></template><template v-else><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="8" width="14" height="11" rx="3" /><path d="M12 4v4M9 13h.01M15 13h.01" /></svg></template>{{ actorName(log) }}<template v-if="log.user">, {{ ROLE_LABELS[log.user.role] || log.user.role }}</template>
                   </span>
                   <template v-if="targetOf(log)"><span class="meta-sep" aria-hidden="true">on</span><span class="entry-tgt"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></svg>{{ targetOf(log) }}</span></template>
                 </span>
@@ -398,7 +398,7 @@ const plateImg = '/landing/login-plate.webp'
 .ah-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .ah-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .ah-txt { position: relative; z-index: 1; max-width: 700px; }
-.ah-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.ah-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .ah-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .ah-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; color: #fff; }
 .ah-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -427,7 +427,7 @@ const plateImg = '/landing/login-plate.webp'
 .quick-ranges .nm-tab.active { background: #004d3a; color: #fff; font-weight: 600; }
 .dates { display: flex; align-items: center; gap: 6px; }
 .date-field { display: inline-flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border: 1.5px solid #dce8e0; border-radius: 12px; background: #fff; }
-.date-field small { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a91; }
+.date-field small { font-size: 11px; font-weight: 800; color: #8a9a91; }
 .date-field :deep(.df-trigger) { border: none !important; box-shadow: none !important; background: transparent !important; }
 .dash { width: 10px; height: 2px; border-radius: 2px; background: #c9d8cf; }
 .admin-only { position: relative; display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-size: 13.5px; font-weight: 600; color: #22362c; cursor: pointer; }
@@ -528,7 +528,7 @@ const plateImg = '/landing/login-plate.webp'
 .nm-modal.au-ev .event-head .event-mark { flex-shrink: 0; width: 56px; height: 56px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4); }
 .nm-modal.au-ev .event-head .event-mark.tone-plain { background: #fff; color: #004d3a; }
 .nm-modal.au-ev .em-ht { flex: 1; min-width: 0; }
-.nm-modal.au-ev .em-kind { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: #efbf04; }
+.nm-modal.au-ev .em-kind { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .nm-modal.au-ev .em-ht .nm-modal-title { margin: 0 !important; padding: 0 !important; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1.25; color: #fff !important; }
 .nm-modal.au-ev .em-sub { display: flex; align-items: center; gap: 6px; margin: 4px 0 0 !important; font-size: 13px; color: rgba(255, 255, 255, 0.82) !important; }
 .nm-modal.au-ev .event-head .nm-modal-x { position: static !important; inset: auto !important; float: none !important; flex-shrink: 0; width: 38px !important; height: 38px !important; margin: 0 !important; padding: 0 !important; border: 1px solid rgba(255, 255, 255, 0.25) !important; border-radius: 12px !important; background: rgba(0, 0, 0, 0.22) !important; color: #fff !important; opacity: 1 !important; display: inline-flex !important; align-items: center; justify-content: center; cursor: pointer; }

@@ -5,7 +5,7 @@
       <img class="rs-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
       <span class="rs-hero-fade" aria-hidden="true"></span>
       <div class="rs-hero-text">
-        <p class="rs-eyebrow"><span aria-hidden="true"></span>RESOURCES</p>
+        <p class="rs-eyebrow"><span aria-hidden="true"></span>Resources</p>
         <h2 class="rs-heading">Learn more, <em>eat better.</em></h2>
         <p class="nm-page-sub intro"><BookOpen :size="17" aria-hidden="true" />Guides, videos and links your RND shared with you, to help you follow your plan.</p>
       </div>
@@ -225,7 +225,7 @@ const toneOf = type => TYPE_TONES[type] || TYPE_TONES.link
 .rs-hero-plate { position: absolute; right: -70px; top: 50%; width: 400px; height: 400px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .rs-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.75) 62%, rgba(0, 70, 52, 0.15) 100%); pointer-events: none; }
 .rs-hero-text { position: relative; z-index: 1; max-width: 620px; }
-.rs-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.rs-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .rs-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .rs-heading { margin: 10px 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1.12; color: #FFFFFF; }
 .rs-heading em { font-style: italic; color: #EFBF04; }

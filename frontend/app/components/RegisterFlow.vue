@@ -78,7 +78,7 @@
 
           <!-- progress (steps 1 to 3) -->
           <div v-if="currentStep <= 3" class="nm-progress">
-            <span class="nm-progress-text">STEP {{ currentStep }} OF {{ steps.length }}</span>
+            <span class="nm-progress-text">Step {{ currentStep }} of {{ steps.length }}</span>
             <span class="nm-progress-bars" aria-hidden="true">
               <span v-for="n in steps.length" :key="n" :class="{ on: n <= currentStep }"></span>
             </span>
@@ -131,7 +131,7 @@
             <form class="nm-form" novalidate @submit.prevent="goToConfirm">
               <!-- PERSONAL DETAILS -->
               <section class="nm-section">
-                <div class="nm-section-head"><span>PERSONAL DETAILS</span></div>
+                <div class="nm-section-head"><span>Personal details</span></div>
                 <div class="nm-grid">
                   <div class="nm-field">
                     <label for="reg-first">First name</label>
@@ -181,7 +181,7 @@
 
               <!-- ACCOUNT -->
               <section class="nm-section">
-                <div class="nm-section-head"><span>ACCOUNT</span></div>
+                <div class="nm-section-head"><span>Account</span></div>
                 <div class="nm-grid">
                   <div class="nm-field nm-span">
                     <label for="reg-email">Email address</label>
@@ -240,7 +240,7 @@
               <!-- RND: PRC LICENSE + PRACTICE -->
               <template v-if="selectedRole === 'rnd'">
                 <section class="nm-section">
-                  <div class="nm-section-head"><span>PRC LICENSE</span></div>
+                  <div class="nm-section-head"><span>PRC license</span></div>
                   <div class="nm-grid">
                     <div class="nm-field nm-span">
                       <label for="reg-prc">PRC license number <span class="nm-required">Required</span></label>
@@ -303,7 +303,7 @@
                 </section>
 
                 <section class="nm-section">
-                  <div class="nm-section-head"><span>PRACTICE</span></div>
+                  <div class="nm-section-head"><span>Practice</span></div>
                   <div class="nm-field">
                     <label>Specializations <span class="nm-required">Required</span></label>
                     <SpecializationPicker v-model="form.specializations" v-model:error="specError" />
@@ -1286,7 +1286,6 @@ watch(currentStep, () => nextTick(() => {
 .nm-step-kick {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 2px;
   color: rgba(255, 255, 255, 0.6);
 }
 .nm-step-title {
@@ -1387,7 +1386,6 @@ watch(currentStep, () => nextTick(() => {
 .nm-progress-text {
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 1.4px;
   color: #C49102;
 }
 .nm-progress-bars { display: flex; gap: 6px; }
@@ -1525,7 +1523,6 @@ watch(currentStep, () => nextTick(() => {
 .nm-section-head span {
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 1.6px;
   color: #C49102;
 }
 .nm-section-head::after {
@@ -2085,12 +2082,11 @@ select.nm-control { cursor: pointer; }
   font-family: inherit;
   font-size: 28px;
   font-weight: 700;
-  letter-spacing: 14px;
   text-align: center;
   color: #10231B;
   outline: none;
 }
-.nm-code::placeholder { color: #C3CEC8; letter-spacing: 14px; }
+.nm-code::placeholder { color: #C3CEC8; }
 .nm-code:focus {
   border-color: #063C2A;
   background: #FFFFFF;
@@ -2198,7 +2194,7 @@ select.nm-control { cursor: pointer; }
   .nm-grid { grid-template-columns: minmax(0, 1fr); }
   .nm-control,
   .nm-input input { font-size: 16px; } /* stops iPhone zoom on tap */
-  .nm-code { letter-spacing: 10px; font-size: 24px; }
+  .nm-code { font-size: 24px; }
   .nm-row { flex-wrap: wrap; }
   .nm-legal-overlay { padding: 0; }
   .nm-legal { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; }

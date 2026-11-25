@@ -315,7 +315,7 @@ const nxGroups = computed(() => {
 .nx-plate { position: absolute; right: -60px; top: 50%; width: 380px; height: 380px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .nx-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 50%, rgba(0, 77, 58, 0.4) 100%); pointer-events: none; }
 .nx-text, .nx-side { position: relative; z-index: 1; }
-.nx-eb { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 12.5px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #EFBF04; }
+.nx-eb { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .nx-eb span { width: 26px; height: 2px; background: #EFBF04; }
 .nx-title { margin: 0 0 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 34px; color: #FFFFFF; }
 .nx-title em { color: #EFBF04; }

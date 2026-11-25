@@ -10,7 +10,7 @@
         <div class="nm-cta-text">
           <span class="nm-cta-eyebrow">
             <span class="nm-cta-line" aria-hidden="true"></span>
-            GET STARTED
+            Get started
           </span>
           <h2>Start your <em>nutrition journey</em> today</h2>
           <p>
@@ -106,7 +106,6 @@ const checks = ['Free to sign up', 'PRC-verified RNDs', 'RA 10173 compliant']
   gap: 12px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #EFBF04;
 }
 .nm-cta-line {

@@ -9,7 +9,7 @@
         <img class="mp-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
         <span class="mp-hero-fade" aria-hidden="true"></span>
         <div class="mp-hero-text">
-          <p class="mp-eyebrow"><span aria-hidden="true"></span>MY MEAL PLAN</p>
+          <p class="mp-eyebrow"><span aria-hidden="true"></span>My meal plan</p>
           <h3 class="plan-name">{{ planName }}</h3>
           <p class="plan-sub"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 4 13c0-6 7-9 16-9 0 9-3 16-9 16z" /><path d="M4 20c4-4 7-6 11-8" /></svg>{{ conditionLabel }}, from your RND</p>
           <div class="mp-hero-actions">
@@ -23,14 +23,14 @@
       <!-- TARGETS: calories, the three macros, the RND's notes -->
       <section class="mp-targets" :class="{ 'no-notes': !(plan.notes || plan.allergies_restrictions) }">
         <div class="mp-card mp-cal">
-          <p class="mp-k">CALORIES A DAY</p>
+          <p class="mp-k">Calories a day</p>
           <div class="mp-ring" :style="{ '--p': `${ringPct}%` }" aria-hidden="true">
             <span><strong>{{ plan.target_kcal ? Math.round(plan.target_kcal).toLocaleString() : '—' }}</strong><small>kcal</small></span>
           </div>
           <p class="mp-cal-note">Your daily target, set by your RND.<template v-if="todaysMeals.length"> The ring fills as you log today's meals.</template></p>
         </div>
         <div class="mp-card mp-macros">
-          <p class="mp-k dark">DAILY TARGETS</p>
+          <p class="mp-k dark">Daily targets</p>
           <div v-for="m in macroRows" :key="m.key" class="mp-macro" :class="m.key">
             <div class="mp-macro-top"><span>{{ m.label }}</span><strong>{{ m.grams ? Math.round(m.grams) : '—' }}<small v-if="m.grams"> g</small></strong></div>
             <div class="mp-bar"><span :style="{ width: `${m.pct}%` }"></span></div>
@@ -52,7 +52,7 @@
       <template v-if="todaysMeals.length">
         <div class="mp-day-head">
           <div>
-            <p class="mp-k dark">TODAY</p>
+            <p class="mp-k dark">Today</p>
             <p class="today-label">{{ todayLabel }}</p>
           </div>
           <span class="mp-legend"><i class="ok"></i>Logged <i></i>Not yet</span>
@@ -90,7 +90,7 @@
 
           <div class="meal-body">
             <div class="meal-col">
-              <div class="col-head"><span class="col-eyebrow">Planned meal</span><span class="mp-k">FNRI EXCHANGES</span></div>
+              <div class="col-head"><span class="col-eyebrow">Planned meal</span><span class="mp-k">FNRI exchanges</span></div>
               <div class="exchange-summary">
                 <span v-for="part in exchangeSummary(activeMeal).split(', ')" :key="part" class="ex-chip">{{ part }}</span>
               </div>
@@ -110,7 +110,7 @@
             </div>
 
             <div class="meal-col log-col">
-              <div class="col-head"><span class="col-eyebrow">What you ate</span><span class="mp-k">YOUR LOG</span></div>
+              <div class="col-head"><span class="col-eyebrow">What you ate</span><span class="mp-k">Your log</span></div>
 
               <!-- rated by the RND: final, shown read-only -->
               <template v-if="isRated">
@@ -186,7 +186,7 @@
     <div v-else class="empty-state">
       <span class="empty-glow" aria-hidden="true"></span>
       <div class="empty-icon" aria-hidden="true"><span><svg class="ic" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 0-4 2-4 6s2 5 4 5" /></svg></span></div>
-      <p class="mp-k dark center">MY MEAL PLAN</p>
+      <p class="mp-k dark center">My meal plan</p>
       <p class="empty-title">No meal plan <em>yet.</em></p>
       <p class="empty-desc">Your RND makes your meal plan after your consultation. It shows here, meal by meal.</p>
       <div class="empty-chips"><span class="c-veg">½ Vegetables</span><span class="c-grain">¼ Whole grains</span><span class="c-prot">¼ Protein</span></div>
@@ -514,7 +514,7 @@ const macroRows = computed(() => {
 .placeholder-text { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #6B7D73; }
 .mp-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid #DCE5DF; border-top-color: #004D3A; animation: mp-spin .8s linear infinite; }
 @keyframes mp-spin { to { transform: rotate(360deg); } }
-.mp-k { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.4px; color: #7A8F84; }
+.mp-k { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; color: #7A8F84; }
 .mp-k.dark { color: #C49102; }
 .mp-k.gold { color: #9A7300; }
 .mp-k.center { justify-content: center; }
@@ -544,7 +544,7 @@ const macroRows = computed(() => {
 .mp-hero-plate { position: absolute; right: -80px; top: 50%; width: 440px; height: 440px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.6; pointer-events: none; }
 .mp-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0, 70, 52, 0) 48%, rgba(0, 68, 51, 0.8) 66%, rgba(0, 64, 47, 0.2) 100%); pointer-events: none; }
 .mp-hero-text { position: relative; z-index: 1; max-width: 620px; }
-.mp-eyebrow { margin: 0; display: flex; align-items: center; gap: 12px; font-size: 12.5px; font-weight: 800; letter-spacing: 2px; color: #EFBF04; }
+.mp-eyebrow { margin: 0; display: flex; align-items: center; gap: 12px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .mp-eyebrow span { width: 28px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .plan-name { margin: 10px 0 10px; font-family: 'Playfair Display', Georgia, serif; font-size: 32px; line-height: 1.15; font-weight: 700; color: #FFFFFF; }
 .plan-sub { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: rgba(255, 255, 255, 0.85); }
@@ -600,7 +600,7 @@ const macroRows = computed(() => {
 .mp-allergy .ic { margin-top: 2px; }
 .notes-text { margin: 12px 0 0; font-size: 14px; line-height: 1.65; color: #3E3410; overflow-wrap: anywhere; white-space: pre-line; }
 .other-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -6px; }
-.other-targets-label { font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #7A8F84; }
+.other-targets-label { font-size: 11.5px; font-weight: 800; color: #7A8F84; }
 .other-target-chip { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E1E7E3; font-size: 13px; color: #3E5046; }
 .other-target-chip strong { color: #004D3A; }
 

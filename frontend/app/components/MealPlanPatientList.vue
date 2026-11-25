@@ -160,7 +160,7 @@ const plateImg = '/landing/login-plate.webp'
 .mpl-plate { position: absolute; right: -60px; top: 50%; width: 320px; height: 320px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .mpl-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.82) 70%, rgba(0, 77, 58, 0.55) 100%); }
 .mpl-head-txt { flex: 1 1 360px; min-width: 0; max-width: 600px; }
-.mpl-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.mpl-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .mpl-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .mpl-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .mpl-intro { margin: 0; max-width: 62ch; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }

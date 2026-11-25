@@ -682,7 +682,7 @@ const upCards = computed(() => [
 .ph-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .ph-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .ph-txt { flex: 1; min-width: 0; max-width: 660px; }
-.ph-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.ph-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .ph-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .run-day-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; color: #fff; }
 .run-day-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -850,7 +850,7 @@ const upCards = computed(() => [
 .pm-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.88) 75%, rgba(0, 77, 58, 0.7) 100%); }
 .pm-doc { flex-shrink: 0; width: 54px; height: 58px; border-radius: 14px; background: #fff; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4); }
 .pm-ht { flex: 1; min-width: 0; }
-.pm-kind { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: #efbf04; }
+.pm-kind { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .nm-modal.pm .pm-ht .nm-modal-title { margin: 0 !important; padding: 0 !important; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; line-height: 1.2; color: #fff !important; }
 .pm-sub { margin: 4px 0 0 !important; font-size: 13px; color: rgba(255, 255, 255, 0.82) !important; }
 .pm-sub b { color: #efbf04; }

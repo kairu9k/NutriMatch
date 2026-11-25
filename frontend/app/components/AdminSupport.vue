@@ -360,7 +360,7 @@ const plateImg = '/landing/login-plate.webp'
 .sp-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .sp-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .sp-hero-txt { position: relative; z-index: 1; max-width: 620px; }
-.sp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.sp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .sp-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .sp-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .sp-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -412,7 +412,7 @@ const plateImg = '/landing/login-plate.webp'
 .q-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
 .q-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .q-tags i { padding: 2px 8px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px #dce8e0; font-style: normal; font-size: 11px; font-weight: 700; color: #4a5a52; }
-.role { padding: 2px 8px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; background: #fff4d6 !important; box-shadow: none !important; color: #8a6500 !important; }
+.role { padding: 2px 8px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 800; background: #fff4d6 !important; box-shadow: none !important; color: #8a6500 !important; }
 .role.rnd { background: #e3f4ea !important; color: #1f7a4d !important; }
 .q-meta .nm-pill, .t-actions .nm-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; }
 .q-meta .nm-pill::before, .t-actions .nm-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }

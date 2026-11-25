@@ -7,7 +7,7 @@
       <div class="ps-cover">
         <img class="ps-cover-plate" :src="plateImg" alt="" aria-hidden="true" />
         <span class="ps-cover-fade" aria-hidden="true"></span>
-        <p class="ps-cover-k"><span aria-hidden="true"></span>MY PROFILE</p>
+        <p class="ps-cover-k"><span aria-hidden="true"></span>My profile</p>
       </div>
       <div class="page-header ps-id">
         <div class="ps-id-row">
@@ -1054,7 +1054,7 @@ const REMINDER_ICONS = {
 }
 .ps-cover-plate { position: absolute; right: -60px; top: 50%; width: 380px; height: 380px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .ps-cover-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.7) 65%, rgba(0, 70, 52, 0.1) 100%); pointer-events: none; }
-.ps-cover-k { position: relative; z-index: 1; margin: 0; padding: 22px 30px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.ps-cover-k { position: relative; z-index: 1; margin: 0; padding: 22px 30px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .ps-cover-k span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .ps-id { padding: 0 30px 18px; }
 .ps-id-row { display: flex; align-items: flex-end; gap: 24px; }
@@ -1142,7 +1142,7 @@ const REMINDER_ICONS = {
 .t-green .ps-h-k .ic { color: #1F7A4D; }
 .t-red .ps-h-k .ic { color: #B42318; }
 .t-gold .ps-h-k .ic { color: #9A7300; }
-.ps-h-k em { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #B42318; color: #FFFFFF; font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+.ps-h-k em { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #B42318; color: #FFFFFF; font-style: normal; font-size: 10.5px; font-weight: 800; }
 .ps-tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .ps-tag { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 14px; border-radius: 999px; background: #FFFFFF; font-size: 13.5px; font-weight: 700; box-shadow: 0 2px 6px -3px rgba(16, 35, 27, 0.25); overflow-wrap: anywhere; }
 .ps-tag.green { color: #004D3A; }
@@ -1388,7 +1388,7 @@ const REMINDER_ICONS = {
 
 /* notifications */
 .nt-sound { margin-bottom: 18px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(120deg, #F0F7F2 0%, #FFFFFF 70%); border: 1px solid #DCEBE1; }
-.nt-group { margin: 6px 0 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.nt-group { margin: 6px 0 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: #9A7300; }
 .nt-list { margin-bottom: 14px; }
 .nt-list .setting-row { margin-bottom: 8px; }
 

@@ -295,7 +295,7 @@ const plateImg = '/landing/login-plate.webp'
 .fh-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .fh-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .fh-txt { position: relative; z-index: 1; max-width: 660px; }
-.fh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.fh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .fh-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .fh-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; line-height: 1.2; color: #fff; }
 .page-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -323,7 +323,7 @@ const plateImg = '/landing/login-plate.webp'
 .category-select-wrap:focus-within { border-color: #004d3a; box-shadow: 0 0 0 3px rgba(0, 77, 58, 0.1); }
 .category-select { flex: 1; width: auto; min-width: 0 !important; height: 100%; padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; outline: none; appearance: none; -webkit-appearance: none; font-family: inherit; font-size: 14px; font-weight: 600; color: #14261e; cursor: pointer; }
 .filter-row { display: flex; align-items: center; gap: 10px; margin: 0; flex-wrap: wrap; }
-.flt-k { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9a91; }
+.flt-k { font-size: 12px; font-weight: 800; color: #8a9a91; }
 .safety-group { display: flex; gap: 8px; flex-wrap: wrap; }
 .safety-toggle { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 1px solid #d9e0dc; border-radius: 999px; background: #fff; font-size: 13px; font-weight: 600; color: #4a5a52; cursor: pointer; user-select: none; transition: background 0.15s, border-color 0.15s; }
 .safety-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -359,7 +359,7 @@ const plateImg = '/landing/login-plate.webp'
 .macro-row .c::after { background: #1f9d55; }
 .macro-row .p::after { background: #3b5ba5; }
 .macro-row .f::after { background: #c0392b; }
-.macro-row span { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8a9a91; }
+.macro-row span { display: block; font-size: 11px; font-weight: 700; color: #8a9a91; }
 .macro-row strong { font-size: 16px; color: #0e3a2c; font-variant-numeric: tabular-nums; }
 .flag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px; padding-top: 12px; border-top: 1px dashed #e3ebe6; }
 .flag-row:empty { display: none; }
@@ -403,7 +403,7 @@ const plateImg = '/landing/login-plate.webp'
 
 /* color key for the macro tiles */
 .mkey { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px #eef2ef; }
-.mkey-k { font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9a91; }
+.mkey-k { font-size: 11.5px; font-weight: 800; color: #8a9a91; }
 .mk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #22362c; }
 .mk i { width: 16px; height: 4px; border-radius: 2px; }
 .mk.k i { background: #efbf04; }

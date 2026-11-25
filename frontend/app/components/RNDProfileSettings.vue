@@ -5,7 +5,7 @@
       <div class="ps-cover">
         <img class="ps-cover-plate" :src="plateImg" alt="" aria-hidden="true" />
         <span class="ps-cover-fade" aria-hidden="true"></span>
-        <p class="ps-cover-k"><span aria-hidden="true"></span>MY PROFILE</p>
+        <p class="ps-cover-k"><span aria-hidden="true"></span>My profile</p>
       </div>
       <div class="page-header ps-id">
         <div class="ps-id-row">
@@ -1029,7 +1029,7 @@ const historyGroups = computed(() => {
 .ps-cover { position: relative; overflow: hidden; height: 170px; border-radius: 24px 24px 0 0; background: radial-gradient(120% 140% at 12% -20%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 45%), linear-gradient(115deg, #035a45 0%, #004d3a 50%, #004635 100%); }
 .ps-cover-plate { position: absolute; right: -60px; top: 50%; width: 380px; height: 380px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .ps-cover-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004d3a 0%, #004d3a 45%, rgba(0, 77, 58, 0.7) 65%, rgba(0, 70, 52, 0.1) 100%); pointer-events: none; }
-.ps-cover-k { position: relative; z-index: 1; margin: 0; padding: 28px 34px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #efbf04; }
+.ps-cover-k { position: relative; z-index: 1; margin: 0; padding: 28px 34px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #efbf04; }
 .ps-cover-k span { width: 26px; height: 2px; border-radius: 2px; background: #efbf04; }
 .page-header.ps-id { display: block; margin: 0; padding: 0 34px 22px; }
 .ps-id-row { display: flex; align-items: flex-end; gap: 24px; }

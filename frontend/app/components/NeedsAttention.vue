@@ -111,7 +111,7 @@ function splitTitle(title) {
 .na-bell { flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px; background: #efbf04; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -12px rgba(239, 191, 4, 0.9); }
 .na-bell.risk { background: #c0392b; color: #fff; box-shadow: 0 10px 20px -12px rgba(192, 57, 43, 0.9); }
 .na-text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.na-tag { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+.na-tag { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .na-tag.todo { background: #fff; color: #8a6500; box-shadow: 0 0 0 1px #f3e2a0; }
 .na-tag.risk { background: #fde4e1; color: #b42318; }
 .na-text strong { font-size: 15.5px; font-weight: 800; color: #3d3005; }

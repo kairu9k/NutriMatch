@@ -10,7 +10,7 @@
       <!-- hero: green banner with the plate, who they are + fee, then the four figures -->
       <section class="hero">
         <div class="hero-banner">
-          <span class="hero-kicker">NUTRITIONIST PROFILE</span>
+          <span class="hero-kicker">Nutritionist profile</span>
           <img :src="plateImg" class="hero-plate" alt="" />
         </div>
 
@@ -295,7 +295,7 @@
                 @click="bookingType = f.key"
               ><component :is="f.icon" :size="15" aria-hidden="true" /> {{ f.label }}</button>
             </div>
-            <p class="bk-fee"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg><strong>₱{{ formatFee(rnd.consultation_fee) }}</strong> · {{ SESSION_MINUTES }} minutes</p>
+            <p class="bk-fee"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg><strong>₱{{ formatFee(rnd.consultation_fee) }}</strong>, {{ SESSION_MINUTES }} minutes</p>
           </div>
           <p v-if="bookingType === 'in_person'" class="address booking-address"><MapPin :size="13" aria-hidden="true" /> {{ rnd.clinic_address }}</p>
 
@@ -839,7 +839,7 @@ const STEP_ICONS = [
   box-shadow: 0 1px 2px rgba(16, 35, 27, 0.06), 0 6px 14px -4px rgba(16, 35, 27, 0.1), 0 22px 40px -18px rgba(16, 35, 27, 0.28);
 }
 .hero-banner { position: relative; height: 140px; background: #00503E; overflow: hidden; }
-.hero-kicker { position: absolute; left: 36px; top: 28px; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: .18em; color: #F2C230; }
+.hero-kicker { position: absolute; left: 36px; top: 28px; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; color: #F2C230; }
 .hero-kicker::before { content: ''; width: 26px; height: 2px; background: #F2C230; }
 .hero-plate { position: absolute; right: 0; top: 0; width: 340px; height: 100%; object-fit: cover; object-position: right center; opacity: .6; }
 .hero-banner::after { content: ''; position: absolute; right: 0; top: 0; width: 340px; height: 100%; background: linear-gradient(90deg, #00503E 0%, rgba(0, 80, 62, .55) 45%, rgba(0, 80, 62, 0) 100%); }
@@ -986,7 +986,7 @@ const STEP_ICONS = [
 .book-fee { margin: 0; padding-bottom: 16px; border-bottom: 1px solid #EEF2EF; display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0E3A2C; }
 .book-fee .ic { color: #1F5C45; margin-right: 4px; }
 .book-fee span { font-family: 'DM Sans', Arial, sans-serif; font-size: 13.5px; font-weight: 500; color: #4A5A52; }
-.profile-page .nm-section-title { margin: 16px 0 12px !important; font-size: 13.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #1F7A4D; }
+.profile-page .nm-section-title { margin: 16px 0 12px !important; font-size: 13.5px; font-weight: 700; color: #1F7A4D; }
 .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .slot-grid .slot { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 14px; border: 1px solid #DDEAE1; border-radius: 12px; background: #F3F8F5; font-family: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s, color .15s; }
 .slot-grid .slot:hover { border-color: #0E4D38; background: #0E4D38; }
@@ -1159,7 +1159,7 @@ const STEP_ICONS = [
 .strip-nav button:disabled { opacity: .35; cursor: default; }
 .strip-nav button:focus-visible { outline: 2px solid #EFBF04; outline-offset: 2px; }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px 8px; }
-.cal-wd { padding: 6px 0 6px; text-align: center; font-size: 13px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: #1F7A4D; }
+.cal-wd { padding: 6px 0 6px; text-align: center; font-size: 13px; font-weight: 700; color: #1F7A4D; }
 .cal-cell { min-height: 56px; padding: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: none; border-radius: 14px; background: transparent; color: #3E5046; font-family: inherit; transition: background-color .15s, transform .15s, box-shadow .15s; }
 .cal-cell.out { border: none; }
 .cal-num { font-size: 16px; font-weight: 500; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }

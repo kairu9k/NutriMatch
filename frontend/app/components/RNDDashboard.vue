@@ -19,7 +19,7 @@
             <span>{{ ['Today', 'Tomorrow'].includes(dayWord(d.next_up.scheduled_at)) ? dayWord(d.next_up.scheduled_at) : sdWeek(d.next_up.scheduled_at) }}</span>
           </div>
           <div class="un-m">
-            <p class="un-k">Up next · <span class="un-day">{{ dayWord(d.next_up.scheduled_at).split(',')[0] }}, </span><b>{{ clock(d.next_up.scheduled_at) }}</b></p>
+            <p class="un-k">Up next, <span class="un-day">{{ dayWord(d.next_up.scheduled_at).split(',')[0] }}, </span><b>{{ clock(d.next_up.scheduled_at) }}</b></p>
             <div class="un-who">
               <img v-if="d.next_up.client.profile_photo" :src="d.next_up.client.profile_photo" alt="" class="un-av" />
               <span v-else class="un-av un-ini">{{ nameInitials(d.next_up.client.name) }}</span>
@@ -562,7 +562,7 @@ function sdSoonText(v) {
 .rd-hero-plate { position: absolute; right: -40px; top: 50%; width: 460px; height: 460px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.6; pointer-events: none; }
 .rd-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.35) 100%); pointer-events: none; }
 .rd-hero-text { position: relative; z-index: 1; max-width: 520px; }
-.rd-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #EFBF04; }
+.rd-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .rd-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .rd-title { margin: 10px 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1.1; color: #FFFFFF; }
 .rd-title em { font-style: italic; color: #EFBF04; }
@@ -571,7 +571,7 @@ function sdSoonText(v) {
 
 .rd-next { position: relative; z-index: 1; width: 440px; max-width: 100%; padding: 18px; border-radius: 20px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .rd-next-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.rd-next-k { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #EFBF04; }
+.rd-next-k { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; color: #EFBF04; }
 .rd-next-k i { width: 8px; height: 8px; border-radius: 50%; background: #EFBF04; box-shadow: 0 0 0 4px rgba(239, 191, 4, 0.25); }
 .rd-paid { flex-shrink: 0; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: #FFFFFF; color: #1F7A4C; font-size: 11.5px; font-weight: 800; }
 .rd-paid.unpaid { background: rgba(239, 191, 4, 0.2); color: #EFBF04; }
@@ -771,7 +771,7 @@ function sdSoonText(v) {
 .sd-dg { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 18px; padding: 14px 0; border-top: 1px solid #EEF2EF; }
 .rd-head + .sd-dg, .rd-empty + .sd-dg { border-top: none; padding-top: 4px; }
 .sd-db { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 72px; border-radius: 16px; background: #F1F5F2; color: #0E3A2C; }
-.sd-db small { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #6B7D73; }
+.sd-db small { font-size: 11px; font-weight: 800; color: #6B7D73; }
 .sd-db b { font-family: 'Playfair Display', Georgia, serif; font-size: 26px; line-height: 1; }
 .sd-db span { font-size: 11.5px; font-weight: 700; color: #4A5A52; }
 .sd-dg.is-today .sd-db { background: #004D3A; color: #FFFFFF; }
@@ -816,12 +816,12 @@ function sdSoonText(v) {
 /* ===== Up next card: white card + date block (option B) ===== */
 .rd-next.un-b { display: flex; gap: 16px; width: 460px; max-width: 100%; padding: 16px; border: none; border-radius: 22px; background: #FFFFFF; color: #0E3A2C; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5); }
 .un-db { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; flex-shrink: 0; border-radius: 16px; background: #004D3A; color: #FFFFFF; }
-.un-db small { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #EFBF04; }
+.un-db small { font-size: 11px; font-weight: 800; color: #EFBF04; }
 .un-db b { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; line-height: 1; }
 .un-db span { font-size: 11.5px; font-weight: 700; color: #CFE3D8; }
 .un-empty-db { color: #EFBF04; }
 .un-m { flex: 1; min-width: 0; }
-.un-k { margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #9A7300; }
+.un-k { margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #9A7300; }
 .un-k b { color: #0E3A2C; }
 .un-who { display: flex; align-items: center; gap: 10px; }
 .un-av { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }

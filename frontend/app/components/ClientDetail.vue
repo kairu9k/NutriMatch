@@ -412,7 +412,7 @@
               <button v-if="l.photo_url" type="button" class="lg-pic" :aria-label="`Open photo of ${l.meal} on ${shortDate(l.date)}`" @click="photoLog = l"><img :src="l.photo_url" :alt="`${l.meal} photo`" loading="lazy" /><span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><circle cx="12" cy="13" r="3.5" /></svg>Tap to enlarge</span></button>
               <span v-else class="lg-pic lg-nopic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><circle cx="12" cy="13" r="3.5" /></svg>No photo</span>
               <div class="lg-main">
-                <p class="lg-meal"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 0-3 2-3 5s1 4 3 4v9" /></svg>{{ l.meal }}<span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg><em class="lg-day">{{ shortDate(l.date) }} · </em>{{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</span></p>
+                <p class="lg-meal"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 0-3 2-3 5s1 4 3 4v9" /></svg>{{ l.meal }}<span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg><em class="lg-day">{{ shortDate(l.date) }}, </em>{{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</span></p>
                 <p class="lg-note" :class="{ empty: !l.note }">{{ l.note || 'No note' }}</p>
               </div>
               
@@ -436,7 +436,7 @@
               <div class="mlx-t">
                 <p class="mlx-k"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><circle cx="12" cy="13" r="3.5" /></svg>Meal logs</p>
                 <h2 id="mlx-title">What {{ p.client.first_name }} ate</h2>
-                <p>{{ s.recent_logs.length }} meal log{{ s.recent_logs.length === 1 ? '' : 's' }}<template v-if="toReview && p.status === 'active'"> · <b>{{ toReview }} to review</b></template></p>
+                <p>{{ s.recent_logs.length }} meal log{{ s.recent_logs.length === 1 ? '' : 's' }}<template v-if="toReview && p.status === 'active'">, <b>{{ toReview }} to review</b></template></p>
               </div>
               <div class="mlx-filter" role="tablist" aria-label="Show">
                 <button v-for="f in LOG_FILTERS" :key="f.key" type="button" role="tab" :aria-selected="logFilter === f.key" :class="{ on: logFilter === f.key }" @click="logFilter = f.key">{{ f.label }}</button>
@@ -450,7 +450,7 @@
                   <div v-else class="mlx-pic none"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><circle cx="12" cy="13" r="3.5" /></svg>No photo</div>
                   <div class="mlx-info">
                     <p class="lg-meal"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 0-3 2-3 5s1 4 3 4v9" /></svg>{{ l.meal }}</p>
-                    <p class="mlx-when"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>{{ shortDate(l.date) }} · {{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</p>
+                    <p class="mlx-when"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>{{ shortDate(l.date) }}, {{ l.time_logged ? clockOf(l.time_logged) : 'Not recorded' }}</p>
                     <p class="lg-note" :class="{ empty: !l.note }">{{ l.note || 'No note' }}</p>
                   </div>
                   <div class="lg-rate">
@@ -552,7 +552,7 @@
                 <span class="csx-i" :class="gi === 0 && ai === 0 ? 'gold' : 'blue'"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M22 8l-6 4 6 4z" /></svg></span>
                 <div class="csx-t">
                   <b>{{ a.type_label }} consultation</b>
-                  <small>{{ timeOf(a.scheduled_at) }} · {{ a.duration_minutes }} min<template v-if="a.amount"> · {{ peso(a.amount) }}</template></small>
+                  <small>{{ timeOf(a.scheduled_at) }}, {{ a.duration_minutes }} min<template v-if="a.amount">, {{ peso(a.amount) }}</template></small>
                 </div>
                 <div class="csx-s">
                   <span class="csx-pl" :class="a.status === 'pending' ? 'gold' : 'blue'"><template v-if="a.status !== 'pending'"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></template>{{ a.status === 'pending' ? 'Needs your confirmation' : 'Confirmed' }}</span>
@@ -585,11 +585,11 @@
                 </span>
                 <div class="csx-t">
                   <b>{{ a.type_label }} consultation {{ a.status === 'confirmed' ? 'not marked complete' : (APPT_LABEL[a.status] || a.status).toLowerCase() }}</b>
-                  <small>{{ timeOf(a.scheduled_at) }}<template v-if="a.status === 'cancelled' && a.cancellation_reason"> · {{ a.cancellation_reason }}</template></small>
+                  <small>{{ timeOf(a.scheduled_at) }}<template v-if="a.status === 'cancelled' && a.cancellation_reason">, {{ a.cancellation_reason }}</template></small>
                 </div>
                 <div class="csx-s col">
                   <div class="csx-row">
-                    <span class="csx-pl" :class="a.payment === 'paid' ? 'green' : a.payment ? 'gold' : 'muted'">{{ a.payment ? (PAY_LABEL[a.payment] || a.payment) : 'No payment' }}<template v-if="a.amount && a.payment === 'paid'"> · {{ peso(a.amount) }}</template></span>
+                    <span class="csx-pl" :class="a.payment === 'paid' ? 'green' : a.payment ? 'gold' : 'muted'">{{ a.payment ? (PAY_LABEL[a.payment] || a.payment) : 'No payment' }}<template v-if="a.amount && a.payment === 'paid'">, {{ peso(a.amount) }}</template></span>
                     <button v-if="a.status === 'completed'" type="button" class="nm-btn-outline nm-btn-sm csx-sum" @click="summaryId = a.id"><FileText :size="13" /> Summary</button>
                   </div>
                   <span v-if="a.ncp_status === 'completed'" class="csx-ncp ok"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>NCP finalized</span>
@@ -1386,7 +1386,7 @@ function byDay(list) {
 /* ---------- PLAN / TARGETS ---------- */
 .pes { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: #F7FAF8; }
 .pes p { font-size: 14px; color: #22362C; }
-.k { font-size: 12px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #9A7300; }
+.k { font-size: 12px; font-weight: 800; color: #9A7300; }
 .targets { gap: 8px; border: none; background: none; }
 .targets div { border: 1px solid #EDF2EE !important; border-radius: 14px; background: #F7FAF8; padding: 12px 14px; }
 .targets strong { font-family: 'Playfair Display', Georgia, serif; font-size: 20px; color: #0E3A2C; }
@@ -1409,7 +1409,7 @@ function byDay(list) {
 /* next consultation */
 .next-body { display: flex; align-items: flex-start; gap: 16px; }
 .next-date { flex-shrink: 0; width: 70px; padding: 8px 0 10px; border-radius: 16px; background: #004D3A; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; box-shadow: 0 12px 22px -14px rgba(0, 77, 58, 0.9); }
-.next-date small { font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #EFBF04; }
+.next-date small { font-size: 11px; font-weight: 800; color: #EFBF04; }
 .next-date strong { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; line-height: 1.1; }
 .next-main { flex: 1; min-width: 0; }
 .big-when { margin: 0 0 2px; font-size: 16px; font-weight: 800; color: #0E3A2C; }
@@ -1425,7 +1425,7 @@ function byDay(list) {
 
 /* other tabs: softer tables + timeline */
 .nm-page :deep(.nm-table-wrap) { border: 1px solid #E7EDE9; border-radius: 16px; overflow: auto; }
-.nm-page :deep(.nm-table th) { background: #F3F8F5; font-size: 12px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #4A5A52; }
+.nm-page :deep(.nm-table th) { background: #F3F8F5; font-size: 12px; font-weight: 800; color: #4A5A52; }
 .tl-dot { width: 16px; height: 16px; background: #1F9D55; }
 .tl-item:not(:last-child)::after { left: 7px; }
 .tl-body { padding: 14px 16px; border-radius: 16px; background: #F7FAF8; border: 1px solid #EDF2EE; }
@@ -1515,7 +1515,7 @@ function byDay(list) {
 .sc-tiles dd small { margin-left: 2px; font-size: 12px; font-weight: 700; color: #1F7A4C; }
 .sc-tiles dd small.short-note { display: block; margin: 3px 0 0; font-weight: 500; color: #8A5A10; }
 .sc-sym { margin-top: 16px; }
-.sc-sym-k { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #4A5A52; }
+.sc-sym-k { margin: 0 0 8px; font-size: 12px; font-weight: 800; color: #4A5A52; }
 .sc-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .sc-tag { display: inline-flex; align-items: center; min-height: 30px; padding: 4px 12px; border-radius: 999px; background: #FDECEC; color: #B42318; font-size: 13px; font-weight: 700; }
 
@@ -1558,7 +1558,7 @@ function byDay(list) {
 .nr.draft { background: #FFFDF6; border: 1.5px dashed #E7C65A; box-shadow: none; }
 .nr.draft::before { background: #EFBF04; }
 .nr-date { flex-shrink: 0; width: 66px; height: 72px; margin-left: 6px; border-radius: 16px; background: linear-gradient(160deg, #035A45, #004D3A); color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: 3px solid #EFBF04; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.85); }
-.nr-date small { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; color: rgba(255, 255, 255, 0.75); }
+.nr-date small { font-size: 10.5px; font-weight: 800; color: rgba(255, 255, 255, 0.75); }
 .nr-date small:first-child { color: #EFBF04; }
 .nr-date strong { font-family: 'Playfair Display', serif; font-size: 25px; line-height: 1.1; font-variant-numeric: lining-nums tabular-nums; }
 .nr.draft .nr-date { background: #FFF4D6; color: #8A6500; border-bottom-color: #E7C65A; box-shadow: none; }
@@ -1615,7 +1615,7 @@ function byDay(list) {
 /* =========================================================
    Meal plan tab
    ========================================================= */
-.mpx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9a7300; }
+.mpx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9a7300; }
 .mpx-head { align-items: center; gap: 16px; }
 .mpx-head > div { flex: 1 1 240px; min-width: 0; }
 .mpx-ico { flex-shrink: 0; width: 52px; height: 52px; border-radius: 16px; background: #004d3a; color: #efbf04; display: inline-flex; align-items: center; justify-content: center; }
@@ -1693,7 +1693,7 @@ function byDay(list) {
 .mpx-log.row-flash { background: #e3efe7; }
 .lg-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 16px; background: #004d3a; color: #fff; }
 .lg-date b { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; line-height: 1; }
-.lg-date small { font-size: 12px; font-weight: 700; color: #efbf04; text-transform: uppercase; }
+.lg-date small { font-size: 12px; font-weight: 700; color: #efbf04; }
 .lg-main { min-width: 0; }
 .lg-meal { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; font-size: 16px; font-weight: 800; color: #0e3a2c; }
 .lg-meal > .ic { color: #9a7300; }
@@ -1702,7 +1702,7 @@ function byDay(list) {
 .lg-note.empty { font-style: italic; color: #6b7d73; }
 .lg-photo { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1.5px solid #c9d8cf; border-radius: 12px; background: #fff; color: #004d3a; font-family: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .lg-photo:hover { border-color: #004d3a; background: #f1f8f4; }
-.lg-rate small { display: block; margin-bottom: 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8a6400; }
+.lg-rate small { display: block; margin-bottom: 6px; font-size: 11.5px; font-weight: 800; color: #8a6400; }
 .mpx-none { margin: 0; padding: 30px; border: 1.5px dashed #c6d9cd; border-radius: 16px; text-align: center; }
 
 @media (max-width: 1100px) {
@@ -1776,7 +1776,7 @@ function byDay(list) {
 .mpx-macros .mt-f { border-bottom-color: #c0483a !important; } .mpx-macros .mt-f .mx-ico { color: #c0483a; }
 .mpx-macros p > span, .mpx-macros strong em, .mpx-macros small { text-transform: none; letter-spacing: 0; }
 .mpx-macros p > span { color: #4a5a52; font-size: 13px; font-weight: 700; }
-.mpx-log.todo .lg-rate small::after { content: ' · needs your rating'; text-transform: none; letter-spacing: 0; font-weight: 700; color: #9a7300; }
+.mpx-log.todo .lg-rate small::after { content: ', needs your rating'; text-transform: none; letter-spacing: 0; font-weight: 700; color: #9a7300; }
 
 /* macro targets: no boxes (the card around them stays); colour on the icon */
 .targets.mpx-macros { gap: 0; }
@@ -1839,7 +1839,7 @@ function byDay(list) {
 .mlx-back:hover { background: rgba(255, 255, 255, 0.2); }
 .mlx-back .ic { color: #efbf04; }
 .mlx-t { flex: 1; min-width: 200px; }
-.mlx-k { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #efbf04; }
+.mlx-k { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; font-weight: 800; color: #efbf04; }
 .mlx-t h2 { margin: 2px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #fff; }
 .mlx-t > p:last-child { margin: 0; font-size: 13.5px; color: rgba(255, 255, 255, 0.8); }
 .mlx-t b { color: #efbf04; }
@@ -1859,7 +1859,7 @@ function byDay(list) {
 .mlx-card .lg-meal { font-size: 16px; }
 .mlx-when { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 13px; font-weight: 600; color: #4a5a52; }
 .mlx-card .lg-rate { padding: 0 4px 4px; }
-.mlx-card.todo .lg-rate small::after { content: ' · needs your rating'; text-transform: none; letter-spacing: 0; font-weight: 700; color: #9a7300; }
+.mlx-card.todo .lg-rate small::after { content: ', needs your rating'; text-transform: none; letter-spacing: 0; font-weight: 700; color: #9a7300; }
 .mlx-empty { margin: 40px auto; max-width: 420px; padding: 30px; border: 1.5px dashed #c6d9cd; border-radius: 16px; text-align: center; color: #4a5a52; }
 @media (max-width: 760px) {
   .mlx-bar { padding: 14px 16px; }
@@ -1889,7 +1889,7 @@ function byDay(list) {
 .pgx-chg.ok { background: #e3f4ea; color: #1f7a4d; }
 .pgx-chg.muted { padding: 0; background: none; color: #8a9a91; font-weight: 600; }
 .pgx-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.pgx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9a7300; }
+.pgx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9a7300; }
 .pgx .nm-panel-title { font-size: 22px; }
 .pgx-count { flex-shrink: 0; display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; background: #e3efe7; color: #004d3a; font-size: 13px; font-weight: 800; }
 .trend-grid.pgx-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 0; }
@@ -1915,7 +1915,7 @@ function byDay(list) {
 .pgx-rec:first-child { border-top: 1.5px solid #eef2ef; }
 .pgx-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 68px; border-radius: 16px; background: #004d3a; color: #fff; }
 .pgx-date b { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; line-height: 1; }
-.pgx-date small { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #efbf04; }
+.pgx-date small { font-size: 11px; font-weight: 800; color: #efbf04; }
 .pgx-date em { font-style: normal; font-size: 10.5px; color: rgba(255, 255, 255, 0.75); }
 .pgx-vals { display: flex; flex-wrap: wrap; align-items: center; row-gap: 10px; margin: 0; padding: 0; list-style: none; }
 .pgx-vals li { display: flex; flex-direction: column; padding: 0 22px; border-left: 1.5px solid #eef2ef; }
@@ -1953,7 +1953,7 @@ function byDay(list) {
 .csx { display: flex; flex-direction: column; gap: 18px; }
 .nm-page .csx > .nm-panel { margin: 0; }
 .csx-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.csx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9a7300; }
+.csx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9a7300; }
 .csx .nm-panel-title { font-size: 22px; }
 .csx-open { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 12px; background: #004d3a; color: #fff; font-size: 14px; font-weight: 800; text-decoration: none; }
 .csx-open .ic { color: #efbf04; }

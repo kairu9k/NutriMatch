@@ -277,7 +277,7 @@ const SUM_NOTE = { drafts: 'Continue them in the chart', no_record: 'First recor
 .nr-hero-plate { position: absolute; right: -70px; top: 50%; width: 340px; height: 340px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); opacity: 0.85; pointer-events: none; }
 .nr-hero-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 48%, rgba(0, 77, 58, 0.8) 72%, rgba(0, 77, 58, 0.3) 100%); }
 .nr-hero-txt { position: relative; z-index: 1; flex: 1 1 360px; min-width: 0; max-width: 620px; }
-.nr-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.nr-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .nr-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .nr-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .nr-hero .nm-page-sub { margin: 0; font-size: 14px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }

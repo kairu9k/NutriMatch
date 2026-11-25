@@ -200,10 +200,8 @@ onBeforeUnmount(() => {
   padding: 8px 0;
   color: #1F2D27;
   text-decoration: none;
-  text-transform: uppercase;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1.2px;
   transition: color 0.2s, box-shadow 0.2s;
 }
 .nav-links a:hover {
@@ -250,10 +248,8 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #EEF2EF;
   color: #063C2A;
   text-decoration: none;
-  text-transform: uppercase;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: 1px;
 }
 .nav-mobile > a.active { background: #FFF6D1; font-weight: 700; }
 .nav-mobile-account { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px; }

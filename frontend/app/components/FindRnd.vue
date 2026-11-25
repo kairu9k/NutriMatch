@@ -3,7 +3,7 @@
     <!-- HERO: salad photo on the right, green fade from the left -->
     <section class="fr-hero">
       <div class="fr-hero-text">
-        <p class="fr-eyebrow"><span aria-hidden="true"></span>CARE TEAM</p>
+        <p class="fr-eyebrow"><span aria-hidden="true"></span>Care team</p>
         <h2 class="fr-title">Find an RND who <em>fits you.</em></h2>
         <p class="fr-hero-sub"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>Every RND here is PRC-licensed and verified by the NutriMatch team.</p>
       </div>
@@ -295,7 +295,7 @@ function sameDaySlots(slots) {
   box-shadow: 0 10px 30px -18px rgba(0, 77, 58, 0.5);
 }
 .fr-hero-text { position: relative; z-index: 1; max-width: 560px; }
-.fr-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.fr-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .fr-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .fr-title { margin: 10px 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 46px; font-weight: 700; line-height: 1.1; letter-spacing: -0.3px; color: #FFFFFF; }
 .fr-title em { font-style: italic; color: #EFBF04; }

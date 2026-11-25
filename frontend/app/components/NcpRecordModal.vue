@@ -9,7 +9,7 @@
           <span v-if="!inline" class="ncp-av" aria-hidden="true">{{ initials }}</span>
           <div id="ncp-title" class="ncp-title-wrap">
             <p class="ncp-eyebrow"><span aria-hidden="true"></span>Nutrition Care Process</p>
-            <h2 class="ncp-title"><span class="ncp-kind" :class="{ follow: isFollowUp }">{{ isFollowUp ? 'Follow-up record' : 'Initial record' }}</span><em v-if="patientName"> · {{ patientName }}</em></h2>
+            <h2 class="ncp-title"><span class="ncp-kind" :class="{ follow: isFollowUp }">{{ isFollowUp ? 'Follow-up record' : 'Initial record' }}</span><em v-if="patientName">, {{ patientName }}</em></h2>
             <p class="ncp-sub">
               <span>{{ subtitleText }}</span>
               <template v-if="isFinalized"><i aria-hidden="true"></i><span class="ncp-final"><Lock :size="12" /> Finalized {{ dateTime(record.updated_at) }}</span></template>
@@ -1160,11 +1160,11 @@ const symptomTags = computed(() => String(ctx.value.screening?.symptoms || '').s
 .ncp-head-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 18px; padding: 4px 0 2px; }
 .ncp-av {
   flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; letter-spacing: 0.06em;
+  background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700;
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
 }
 .ncp-title-wrap { flex: 1; min-width: 0; }
-.ncp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; line-height: 1.3; text-transform: uppercase; color: #efbf04; }
+.ncp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; line-height: 1.3; color: #efbf04; }
 .ncp-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .ncp-title { margin: 0 0 8px; font-family: 'Playfair Display', serif; font-size: 27px; font-weight: 700; line-height: 1.3; letter-spacing: 0.015em; word-spacing: 0.06em; font-stretch: normal; color: #fff; overflow-wrap: anywhere; }
 .ncp-title em { margin-left: 4px; font-style: normal; font-weight: 600; color: rgba(255, 255, 255, 0.72); }
@@ -1259,11 +1259,11 @@ const symptomTags = computed(() => String(ctx.value.screening?.symptoms || '').s
 :deep(.field) { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; min-width: 0; }
 /* Fields side by side share label / input / hint rows, so the inputs line up
    even when one label wraps to two lines ("Blood pressure (mmHg)"). */
-.grid > :deep(*) { grid-row: span 4; } /* label · control · category · hint */
+.grid > :deep(*) { grid-row: span 4; } /* label, control, category, hint */
 .grid > :deep(.field) { display: grid; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
 .grid > :deep(.field > * + *) { margin-top: 6px; } /* spacing only where there's content, so empty rows add nothing */
 .grid > :deep(.field > .field-label) { align-self: end; }
-:deep(.field-label) { position: relative; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #6b7d73; }
+:deep(.field-label) { position: relative; font-size: 12px; font-weight: 800; color: #6b7d73; }
 :deep(.req) { color: #c0392b; }
 :deep(.field-hint) { font-size: 12px; line-height: 1.45; color: #8a9a91; }
 :deep(.field-error) { font-size: 12px; font-weight: 700; color: #c0392b; }
@@ -1304,7 +1304,7 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .lab-link { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; background: #f7faf8; font-size: 12.5px; color: #4a5a52; }
 .lab-link a { color: #a37a0b; font-weight: 700; text-decoration: none; }
 .lab-link a:hover { text-decoration: underline; }
-.k { font-size: 11.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.k { font-size: 11.5px; font-weight: 800; color: #6b7d73; }
 .c-sub { margin: 0; font-size: 12.5px; color: #8a9a91; }
 
 /* BMI */
@@ -1334,7 +1334,7 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .pes-b :deep(.field) { margin-bottom: 0; }
 .combo { position: relative; }
 .combo-list { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 280px; overflow-y: auto; padding: 6px; background: #fff; border: 1px solid #e4ebe6; border-radius: 14px; box-shadow: 0 18px 36px -12px rgba(16, 35, 27, 0.3); }
-.combo-group { margin: 8px 8px 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.combo-group { margin: 8px 8px 4px; font-size: 11px; font-weight: 800; color: #6b7d73; }
 .combo-group.linked { color: #1f7a4d; }
 .combo-opt { display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 10px; background: none; text-align: left; font-family: inherit; font-size: 13.5px; color: #0e3a2c; cursor: pointer; }
 .combo-opt:hover, .combo-opt.on { background: #f1f6f2; }
@@ -1350,12 +1350,12 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .ter-box .card-head { margin-bottom: 14px; }
 .ter-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
 .ter-big { display: flex; flex-direction: column; justify-content: center; min-width: 170px; padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, #004d3a, #035a45); color: #fff; box-shadow: 0 14px 28px -18px rgba(0, 77, 58, 0.9); }
-.ter-big small { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #efbf04; }
+.ter-big small { font-size: 11px; font-weight: 800; color: #efbf04; }
 .ter-big strong { font-family: 'Playfair Display', serif; font-size: 36px; line-height: 1.1; }
 .ter-big em { font-style: normal; font-size: 12.5px; color: rgba(255, 255, 255, 0.7); }
 .ter-side { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
 .ter-act { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.ter-act > span { font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #6b7d73; }
+.ter-act > span { font-size: 12px; font-weight: 800; color: #6b7d73; }
 .ter-act .nm-select { width: 100%; }
 .ter-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid #dce8e0; border-radius: 999px; background: #f1f6f2; font-family: inherit; font-size: 12.5px; font-weight: 800; color: #004d3a; cursor: pointer; }
 .ter-toggle:hover { background: #e3efe7; }
@@ -1388,7 +1388,7 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .macro-table { margin: 2px 0 8px; border: 1px solid #eef2ef; border-radius: 14px; overflow: hidden; }
 .mt-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid #f3f6f4; font-size: 14px; color: #22362c; }
 .mt-row:first-child { border-top: none; }
-.mt-head { background: #f7faf8; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; }
+.mt-head { background: #f7faf8; font-size: 11px; font-weight: 800; color: #6b7d73; }
 .mt-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
 .mt-name small { font-weight: 500; color: #8a9a91; }
 .mt-dot { width: 9px; height: 9px; border-radius: 3px; }
@@ -1446,7 +1446,7 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .strip-facts { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 14px; border-radius: 18px; background: #fff; border: 1px solid #eef2ef; }
 .strip-facts div { position: relative; min-height: 32px; padding-left: 44px; }
 .fact-ico { position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 10px; }
-.strip-facts dt { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #8a9a91; }
+.strip-facts dt { margin: 0; font-size: 11px; font-weight: 800; color: #8a9a91; }
 .strip-facts dd { margin: 2px 0 0; font-size: 13.5px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
 .strip-facts dd small { font-weight: 500; color: #6b7d73; }
 .strip-facts dd.risk { color: #a12525; }
@@ -1458,19 +1458,19 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .bl-sub { margin: 1px 0 0; font-size: 11.5px; line-height: 1.4; color: #6b7d73; }
 .bl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
 .bl-grid div { display: flex; flex-direction: column; min-width: 0; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid #e6f0ea; }
-.bl-grid dt { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.bl-grid dt { margin: 0; font-size: 11px; font-weight: 800; color: #6b7d73; }
 .bl-grid dd { margin: 0; font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; line-height: 1.2; color: #004d3a; font-variant-numeric: tabular-nums lining-nums; }
 .bl-grid small { font-size: 11.5px; color: #6b7d73; }
 .bl-grid .risk dd { color: #b23b2e; }
 .bl-sym { margin: 10px 0 0; font-size: 12.5px; color: #3e5046; overflow-wrap: anywhere; }
-.bl-sym strong { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.bl-sym strong { font-size: 11px; font-weight: 800; color: #6b7d73; }
 .bl-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .bl-tags em { padding: 3px 9px; border-radius: 999px; background: #fff; border: 1px solid #e6f0ea; font-style: normal; font-size: 12px; font-weight: 700; color: #22362c; }
 .strip-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; background: #f1f6f2; }
 .strip-card.gold { background: #fbf3d2; }
 .strip-card-ico { flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px; background: #fff; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; }
 .strip-card.gold .strip-card-ico { color: #9a7300; }
-.strip-k { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #6b7d73; }
+.strip-k { margin: 0; font-size: 11px; font-weight: 800; color: #6b7d73; }
 .strip-card.gold .strip-k { color: #8a6500; }
 .strip-card .c-sub { font-size: 13.5px; font-weight: 700; color: #0e3a2c; }
 

@@ -5,7 +5,7 @@
       <img class="pt-hero-plate" :src="plateImg" alt="" aria-hidden="true" />
       <span class="pt-hero-fade" aria-hidden="true"></span>
       <div class="pt-hero-text">
-        <p class="pt-eyebrow"><span aria-hidden="true"></span>PROGRESS TRACKER</p>
+        <p class="pt-eyebrow"><span aria-hidden="true"></span>Progress tracker</p>
         <h2 class="pt-title">Your progress, <em>step by step.</em></h2>
         <p class="page-sub">The readings your RND records at each consultation, and how closely you followed your meal plan.</p>
       </div>
@@ -405,7 +405,7 @@ const lastOn = computed(() => (latest.value.record_date ? `Latest ${formatShortD
 .pt-hero-plate { position: absolute; right: -70px; top: 50%; width: 400px; height: 400px; transform: translateY(-50%); object-fit: cover; border-radius: 50%; opacity: 0.55; pointer-events: none; }
 .pt-hero-fade { position: absolute; inset: 0; background: linear-gradient(90deg, #004D3A 0%, #004D3A 45%, rgba(0, 77, 58, 0.75) 62%, rgba(0, 70, 52, 0.15) 100%); pointer-events: none; }
 .pt-hero-text { position: relative; z-index: 1; max-width: 560px; }
-.pt-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; letter-spacing: 2.4px; color: #EFBF04; }
+.pt-eyebrow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .pt-eyebrow span { width: 26px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .pt-title { margin: 10px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 40px; font-weight: 700; line-height: 1.12; color: #FFFFFF; }
 .pt-title em { font-style: italic; color: #EFBF04; }
@@ -449,7 +449,7 @@ const lastOn = computed(() => (latest.value.record_date ? `Latest ${formatShortD
 .stat-delta.muted { background: #F3F6F4; color: #4A5A52; font-weight: 600; }
 
 /* ---------- ADHERENCE ---------- */
-.pt-k { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; color: #C49102; }
+.pt-k { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: #C49102; }
 .adh-card {
   display: grid;
   grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr);
@@ -503,7 +503,7 @@ const lastOn = computed(() => (latest.value.record_date ? `Latest ${formatShortD
 .pt-count { padding: 6px 12px; border-radius: 999px; background: #EAF4EE; color: #004D3A; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .table-wrap { overflow-x: auto; border: 1px solid #E7EDE9; border-radius: 16px; }
 .record-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.record-table th { padding: 13px 18px; text-align: left; font-size: 12px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: #4A5A52; background: #F3F8F5; white-space: nowrap; }
+.record-table th { padding: 13px 18px; text-align: left; font-size: 12px; font-weight: 800; color: #4A5A52; background: #F3F8F5; white-space: nowrap; }
 .record-table td { padding: 16px 18px; border-top: 1px solid #EEF2EF; color: #0E3A2C; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .record-table td.dash { color: #B5C2BA; font-weight: 500; }
 .record-table tbody tr:hover td { background: #FAFCFA; }

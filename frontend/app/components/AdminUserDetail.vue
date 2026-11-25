@@ -638,7 +638,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .ud-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.9) 74%, rgba(0, 77, 58, 0.72) 100%); }
 .identity-main { display: flex; align-items: center; gap: 20px; min-width: 0; }
 .identity-main .nm-avatar.lg { flex-shrink: 0; width: 84px; height: 84px; border-radius: 50%; object-fit: cover; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.14); }
-.ud-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: #efbf04; }
+.ud-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11px; font-weight: 800; color: #efbf04; }
 .ud-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .fh-top .nm-page-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; line-height: 1.15; letter-spacing: 0.01em; color: #fff; }
 .fh-top .nm-page-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 6px 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.85); }
@@ -719,7 +719,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .history-wrap { position: relative; }
 .tl-day { margin: 0 0 10px; padding-left: 50px; }
 .tl-day:not(:first-child) { margin-top: 16px; }
-.tl-day span { display: inline-flex; padding: 3px 10px; border-radius: 999px; background: #f1f6f2; font-size: 11.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #4a5a52; }
+.tl-day span { display: inline-flex; padding: 3px 10px; border-radius: 999px; background: #f1f6f2; font-size: 11.5px; font-weight: 800; color: #4a5a52; }
 .history { position: relative; list-style: none; margin: 0; padding: 0; }
 .history::before { content: ''; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 2px; border-radius: 2px; background: #dce8e0; }
 .history li { position: relative; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }

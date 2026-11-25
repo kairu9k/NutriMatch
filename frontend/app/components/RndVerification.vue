@@ -543,7 +543,7 @@ const checkedCount = computed(() => CHECKS.filter(c => checks[c.key] && (c.key !
 .ra-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .ra-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .ra-hero-txt { position: relative; z-index: 1; max-width: 620px; }
-.ra-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.ra-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .ra-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .ra-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .ra-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -660,7 +660,7 @@ const checkedCount = computed(() => CHECKS.filter(c => checks[c.key] && (c.key !
 .check-text small { font-size: 12.5px; font-weight: 400; color: #6b7d73; }
 .prc-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; padding: 6px 12px; border-radius: 10px; background: #004d3a; color: #fff !important; font-size: 12.5px; font-weight: 800; text-decoration: none; }
 .prc-link:hover { background: #00382a; }
-.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.mono { font-variant-numeric: tabular-nums; }
 .desk-note { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0 0; padding: 12px 14px; border: 1px solid #f3e2a0; border-radius: 14px; background: #fffbea; font-size: 13px; line-height: 1.55; color: #6b5a1e; }
 .desk-note .ic { margin-top: 1px; color: #c49102; }
 

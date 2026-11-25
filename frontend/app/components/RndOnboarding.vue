@@ -55,7 +55,7 @@
       <div class="nm-box-wrap">
         <div class="nm-box" :class="{ 'is-wide': step === 'hours' || step === 'payout' }">
           <nav class="ob-stepper" aria-label="Setup steps">
-            <p class="ob-stepper-top">STEP {{ stepIndex + 1 }} OF {{ STEPS.length }}</p>
+            <p class="ob-stepper-top">Step {{ stepIndex + 1 }} of {{ STEPS.length }}</p>
             <ol>
               <li v-for="(s, i) in STEPS" :key="s.key" :class="{ active: i === stepIndex, done: i < stepIndex, reached: i <= stepIndex }">
                 <span class="ob-sdot">{{ i < stepIndex ? '✓' : i + 1 }}</span>
@@ -725,7 +725,6 @@ watch(step, () => nextTick(() => {
 .nm-step-kick {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 2px;
   color: rgba(255, 255, 255, 0.6);
 }
 .nm-step-title {
@@ -816,7 +815,6 @@ watch(step, () => nextTick(() => {
 .nm-progress-text {
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 1.4px;
   color: #C49102;
 }
 .nm-progress-bars { display: flex; gap: 6px; }
@@ -857,7 +855,7 @@ watch(step, () => nextTick(() => {
 
 /* the steps, top of the form */
 .ob-stepper { margin: 0 0 34px; padding: 18px 20px 16px; border-radius: 18px; background: #F3F7F4; }
-.ob-stepper-top { margin: 0 0 14px; font-size: 12.5px; font-weight: 800; letter-spacing: 1.6px; color: #C49102; }
+.ob-stepper-top { margin: 0 0 14px; font-size: 12.5px; font-weight: 800; color: #C49102; }
 .ob-stepper ol { list-style: none; margin: 0; padding: 0; display: flex; }
 .ob-stepper li { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .ob-stepper li:not(:first-child)::before {

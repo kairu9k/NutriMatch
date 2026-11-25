@@ -7,7 +7,7 @@
     <section class="ap-banner">
       <img class="ap-banner-plate" src="/landing/login-plate.webp" alt="" aria-hidden="true" />
       <div class="ap-banner-text">
-        <p class="ap-eyebrow"><span aria-hidden="true"></span>YOUR CONSULTATIONS</p>
+        <p class="ap-eyebrow"><span aria-hidden="true"></span>Your consultations</p>
         <h2 class="ap-title">Every visit, <em>in one place.</em></h2>
         <p class="page-sub">Your upcoming consultations and past visits.</p>
         <NuxtLink :to="bookLink" class="ap-btn-gold"><CalendarPlus :size="17" aria-hidden="true" /> Book a consultation</NuxtLink>
@@ -609,7 +609,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .ap-banner-text,
 .ap-banner-stats { position: relative; z-index: 1; }
 .ap-banner-text { max-width: 460px; }
-.ap-eyebrow { margin: 0; display: flex; align-items: center; gap: 12px; font-size: 12.5px; font-weight: 800; letter-spacing: 2px; color: #EFBF04; }
+.ap-eyebrow { margin: 0; display: flex; align-items: center; gap: 12px; font-size: 12.5px; font-weight: 800; color: #EFBF04; }
 .ap-eyebrow span { width: 28px; height: 2px; border-radius: 2px; background: #EFBF04; }
 .ap-title { margin: 10px 0 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 30px; line-height: 1.15; font-weight: 700; color: #FFFFFF; }
 .ap-title em { font-style: italic; color: #EFBF04; background: none; padding: 0; }
@@ -757,9 +757,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   gap: 1px;
   box-shadow: 0 10px 18px -12px rgba(0, 77, 58, 0.8);
 }
-.ap-date span { font-size: 10.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #EFBF04; }
+.ap-date span { font-size: 10.5px; font-weight: 800; color: #EFBF04; }
 .ap-date strong { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; line-height: 1; }
-.up-day { margin: 0; font-size: 12.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #C49102; }
+.up-day { margin: 0; font-size: 12.5px; font-weight: 800; color: #C49102; }
 .up-time { margin: 2px 0 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: 700; line-height: 1.1; color: #10231B; font-variant-numeric: lining-nums; }
 .up-to { font-family: 'DM Sans', Arial, sans-serif; font-size: 14px; font-weight: 600; color: #6B7D73; }
 .up-with { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 10px 14px; border-radius: 12px; background: #F7FAF8; font-size: 14px; color: #22362C; }
@@ -793,7 +793,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .tab-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #EEF4F0; color: #004D3A; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 .filter-tab.active .tab-count { background: #EFBF04; color: #004D3A; }
 .history-panel { padding: 8px 22px 12px; }
-.month-head { margin: 0; padding: 14px 0 10px; border-bottom: 1px solid #EEF2EF; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #C49102; }
+.month-head { margin: 0; padding: 14px 0 10px; border-bottom: 1px solid #EEF2EF; font-size: 12px; font-weight: 800; color: #C49102; }
 .h-row {
   position: relative;
   display: grid;
@@ -826,7 +826,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .h-row.is-cancelled .h-date,
 .h-row.is-no_show .h-date,
 .h-row.is-expired .h-date { background: #F1F4F2; color: #3E5046; box-shadow: none; }
-.h-date span { font-size: 10.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #EFBF04; }
+.h-date span { font-size: 10.5px; font-weight: 800; color: #EFBF04; }
 .h-row.is-cancelled .h-date span,
 .h-row.is-no_show .h-date span,
 .h-row.is-expired .h-date span { color: #7A8F84; }

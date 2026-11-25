@@ -45,7 +45,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .scr-box .nm-modal-x { position: absolute !important; top: 18px !important; right: 18px !important; left: auto !important; margin: 0 !important; z-index: 2; width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: #F1F5F2; color: #22362C; }
 .scr-head { display: flex; align-items: center; gap: 14px; padding: 24px 64px 18px 26px; background: linear-gradient(180deg, #F1F7F3, #FFFFFF); }
 .scr-ico { width: 50px; height: 50px; flex-shrink: 0; border-radius: 50%; background: #004D3A; color: #EFBF04; display: inline-flex; align-items: center; justify-content: center; }
-.scr-k { margin: 0; font-size: 11.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.scr-k { margin: 0; font-size: 11.5px; font-weight: 800; color: #9A7300; }
 .scr-head .nm-modal-title { margin: 2px 0 0; font-family: 'Playfair Display', Georgia, serif; font-size: 24px; color: #0E3A2C; }
 .scr-body { padding: 4px 26px 22px; overflow: auto; }
 .scr-body :deep(.panel) { padding: 0; border: none; }

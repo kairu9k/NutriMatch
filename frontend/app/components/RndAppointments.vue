@@ -183,7 +183,7 @@
           <div class="bm-head-txt">
             <p class="bm-kind">{{ review.appt.returning ? 'Booking request, returning patient' : 'New booking request' }}</p>
             <h2 id="review-title" class="nm-modal-title">{{ review.appt.client.name }}</h2>
-            <p v-if="review.data" class="bm-sub">{{ review.data.client.age ?? '—' }} y/o · {{ SEX[review.data.client.sex] || '—' }}</p>
+            <p v-if="review.data" class="bm-sub">{{ review.data.client.age ?? '—' }} y/o, {{ SEX[review.data.client.sex] || '—' }}</p>
           </div>
           <button type="button" class="nm-modal-x bm-x" aria-label="Close" @click="review = null"><X :size="18" /></button>
         </header>
@@ -565,7 +565,7 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
 .ap-hero-plate { position: absolute; right: -70px; top: 50%; width: 340px; height: 340px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); opacity: 0.85; pointer-events: none; }
 .ap-hero-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 48%, rgba(0, 77, 58, 0.8) 72%, rgba(0, 77, 58, 0.3) 100%); }
 .ap-hero-txt { position: relative; z-index: 1; flex: 1 1 320px; min-width: 0; }
-.ap-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.ap-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .ap-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .ap-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .ap-hero .nm-page-sub { margin: 0 0 16px; font-size: 14.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.85); }
@@ -660,7 +660,7 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
   background: linear-gradient(160deg, #035a45, #004d3a); color: #fff; border-bottom: 3px solid #efbf04; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.85);
 }
 .time b { font-family: 'Playfair Display', serif; font-size: 21px; line-height: 1.1; font-variant-numeric: lining-nums; }
-.time i { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #efbf04; }
+.time i { font-style: normal; font-size: 10.5px; font-weight: 800; color: #efbf04; }
 .time small { margin-top: 2px; font-size: 10.5px; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
 .ap-av.photo { object-fit: cover; box-sizing: border-box; }
 .ap-av { flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 0 0 2.5px #1f9d55; }
@@ -671,7 +671,7 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
   background: linear-gradient(160deg, #035a45, #004d3a); border-bottom: 3px solid #efbf04; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.85);
 }
 :deep(.db-day) { order: 2; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1.1; color: #fff; font-variant-numeric: lining-nums; }
-:deep(.db-mon) { order: 1; font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #efbf04; }
+:deep(.db-mon) { order: 1; font-size: 10.5px; font-weight: 800; color: #efbf04; }
 :deep(.date-block.gold) { background: #fff4d6; border-bottom-color: #e7c65a; box-shadow: none; }
 :deep(.date-block.gold .db-day) { color: #8a6500; }
 :deep(.date-block.gold .db-mon) { color: #9a7300; }
@@ -708,7 +708,7 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
 .review-modal { position: relative; }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
 .facts div { padding: 10px 12px; border-radius: 12px; background: #f7faf8; }
-.facts dt { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #8a9a91; }
+.facts dt { margin: 0; font-size: 11px; font-weight: 800; color: #8a9a91; }
 .facts dd { margin: 2px 0 0; font-size: 13.5px; font-weight: 700; color: #0e3a2c; overflow-wrap: anywhere; }
 .facts dd.warn { color: #b42318; }
 .section-k { margin: 16px 0 8px; font-size: 14px; font-weight: 800; color: #0e3a2c; }
@@ -728,10 +728,10 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
 .bm-head > *:not(.bm-plate):not(.bm-fade) { position: relative; z-index: 1; }
 .bm-plate { position: absolute; right: -40px; top: 50%; width: 220px; height: 220px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .bm-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 50%, rgba(0, 77, 58, 0.85) 68%, rgba(0, 77, 58, 0.65) 100%); }
-.bm-av { flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; letter-spacing: 0.06em; border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14); }
+.bm-av { flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14); }
 .bm-av.photo { object-fit: cover; }
 .bm-head-txt { flex: 1; min-width: 0; }
-.bm-kind { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #efbf04; }
+.bm-kind { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .bm-kind::before { content: ''; flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: #efbf04; box-shadow: 0 0 0 4px rgba(239, 191, 4, 0.22); }
 .review-modal .bm-head .nm-modal-title { margin: 0; padding: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: 0.015em; color: #fff; overflow-wrap: anywhere; }
 .bm-sub { margin: 3px 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.85); }
@@ -769,7 +769,7 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
 .cn-k { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 12px; font-weight: 800; color: #8a6500; }
 .review-modal .results { gap: 10px; margin: 0 0 12px; }
 .review-modal .results div { align-items: flex-start; gap: 2px; padding: 14px; border-radius: 16px; border-color: #dcebe1; }
-.results small { font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6b7d73; }
+.results small { font-size: 12px; font-weight: 700; color: #6b7d73; }
 .review-modal .results strong { font-size: 26px; font-weight: 700; line-height: 1.15; }
 .review-modal .results span { font-size: 12.5px; }
 .rs-pill { padding: 2px 9px; border-radius: 999px; font-style: normal; font-size: 11.5px; font-weight: 800; }

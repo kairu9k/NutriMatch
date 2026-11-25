@@ -579,7 +579,7 @@ const rowTone = r => (!r.is_active ? 'muted' : r.shared_with?.length ? 'green' :
 .rs-plate { position: absolute; right: -70px; top: 50%; width: 340px; height: 340px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .rs-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 48%, rgba(0, 77, 58, 0.85) 70%, rgba(0, 77, 58, 0.6) 100%); }
 .rs-hero-txt { position: relative; z-index: 1; flex: 1 1 360px; min-width: 0; max-width: 620px; }
-.rs-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.rs-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .rs-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .rs-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .page-intro { margin: 0 0 16px; max-width: 62ch; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -635,7 +635,7 @@ const rowTone = r => (!r.is_active ? 'muted' : r.shared_with?.length ? 'green' :
 
 /* file tile: dark green with the type on a gold tag */
 .type-icon.file-tile { position: relative; width: 52px; height: 58px; padding-bottom: 10px; border-radius: 14px; background: linear-gradient(160deg, #035a45, #004d3a); color: #fff; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.85); }
-.file-tile b { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); max-width: 46px; padding: 1px 5px; border-radius: 5px; background: #efbf04; color: #004d3a; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-tile b { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); max-width: 46px; padding: 1px 5px; border-radius: 5px; background: #efbf04; color: #004d3a; font-size: 9px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lib-row.is-hidden .file-tile { background: #e3e9e5; color: #6b7d73; box-shadow: none; }
 .lib-row.is-hidden .file-tile b { background: #fff; color: #6b7d73; }
 .lib-row.is-hidden .lib-title { opacity: 0.65; }
@@ -749,7 +749,7 @@ const rowTone = r => (!r.is_active ? 'muted' : r.shared_with?.length ? 'green' :
 .um-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 50%, rgba(0, 77, 58, 0.85) 68%, rgba(0, 77, 58, 0.65) 100%); }
 .um-hico { flex-shrink: 0; width: 50px; height: 50px; border-radius: 15px; background: #efbf04; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 22px -12px rgba(239, 191, 4, 0.9); }
 .um-head-txt { flex: 1; min-width: 0; }
-.um-kind { margin: 0 0 3px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #efbf04; }
+.um-kind { margin: 0 0 3px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .upload-modal .um-head .nm-modal-title { margin: 0; padding: 0; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: 0.015em; color: #fff; }
 .um-sub { margin: 3px 0 0; font-size: 13.5px; color: rgba(255, 255, 255, 0.85); }
 .upload-modal .nm-modal-x.um-x { position: relative; inset: auto; flex-shrink: 0; width: 38px; height: 38px; margin: 0; border-radius: 11px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 56, 42, 0.55); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(6px); }

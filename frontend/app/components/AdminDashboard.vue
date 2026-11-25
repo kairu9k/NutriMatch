@@ -362,7 +362,7 @@ function barPct(m, side) {
 .admin-hero > *:not(.ah-plate):not(.ah-fade) { position: relative; z-index: 1; }
 .ah-plate { position: absolute; right: -90px; top: 50%; width: 340px; height: 340px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .ah-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.9) 75%, rgba(0, 77, 58, 0.72) 100%); }
-.admin-hero .nm-hero-date { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.admin-hero .nm-hero-date { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .ah-line { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .admin-hero .nm-hero-title { margin: 0 0 10px; font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .ah-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
@@ -406,7 +406,7 @@ function barPct(m, side) {
 
 /* ---------- at a glance: nine figures in three labelled rows ---------- */
 .today-panel { display: flex; flex-direction: column; gap: 14px; padding: 20px; overflow: visible; }
-.fig-k { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #8a9a91; }
+.fig-k { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; font-weight: 800; color: #8a9a91; }
 .fig-k.hot { color: #8a6500; }
 .fig-k.hot::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #efbf04; box-shadow: 0 0 0 3px #fff4d6; }
 .figs.nine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border: none; }

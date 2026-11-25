@@ -4,7 +4,7 @@
       <div class="hiw-header">
         <span class="eyebrow">
           <span class="eyebrow-line" aria-hidden="true"></span>
-          HOW IT WORKS
+          How it works
           <span class="eyebrow-line" aria-hidden="true"></span>
         </span>
         <h2>Four steps to <em>steady progress</em></h2>
@@ -97,7 +97,6 @@ const steps = {
   gap: 12px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #063C2A;
 }
 .eyebrow-line {

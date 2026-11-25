@@ -23,7 +23,7 @@
       <span class="lx-title">Upload a lab result</span>
       <span class="lx-or desk">Drag a file here, or</span>
       <span class="lab-drop-text lx-btn"><span class="desk">Browse files</span><span class="phone">Choose a file or take a photo</span></span>
-      <span class="lab-drop-hint">PDF, JPG or PNG · up to {{ LAB_MAX_MB }} MB</span>
+      <span class="lab-drop-hint">PDF, JPG or PNG, up to {{ LAB_MAX_MB }} MB</span>
     </label>
     <p v-if="pickError" class="nm-field-error" role="alert">{{ pickError }}</p>
     <p v-if="done" class="lab-done" role="status"><CheckCircle2 :size="14" /> Uploaded. Your RND can see it now.</p>
@@ -129,7 +129,7 @@ const lxKeys = computed(() => ['wait', 'ok', 'again'].filter(k => recent.value.s
 /* ===== Redesign: eyebrow, big centred upload, compact list with dots ===== */
 .panel.lab-card { padding: 24px 26px; border-radius: 22px; border: 1.5px solid #E1EAE4; box-shadow: none; font-family: 'DM Sans', sans-serif; }
 .lab-card .panel-header-row { margin-bottom: 16px; }
-.lx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9A7300; }
+.lx-k { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9A7300; }
 .lab-card .panel-title { font-size: 22px; color: #0E3A2C; }
 .lab-card .lab-intro { margin: 3px 0 0; font-size: 13.5px; color: #4A5A52; }
 .lx-all { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 10px; background: #E3EFE7; color: #004D3A; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; }

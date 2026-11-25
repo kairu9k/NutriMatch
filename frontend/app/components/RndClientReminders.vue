@@ -348,7 +348,7 @@ const RF_REPEAT = { once: 'Once', daily: 'Every day', weekdays: 'Weekdays', week
    UI refresh: timeline (icon + line), brand colours
    ========================================================= */
 .ic { flex-shrink: 0; display: inline-block; }
-.rx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9a7300; }
+.rx-k { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #9a7300; }
 .head .nm-panel-title { font-size: 22px; }
 .rx-add { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 12px; font-weight: 800; }
 .rx-add :deep(svg) { color: #efbf04; }
@@ -388,7 +388,7 @@ const RF_REPEAT = { once: 'Once', daily: 'Every day', weekdays: 'Weekdays', week
 .icon-del { width: 36px; height: 36px; border: 1.5px solid #ebc2be; border-radius: 10px; color: #b4384a; }
 .ag-row.off .ag-title { color: #6b7d73; }
 .paused { margin-top: 20px; padding-top: 16px; border-top: 1.5px solid #eef2ef; }
-.paused-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #4a5a52; }
+.paused-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: #4a5a52; }
 .paused-title .ic { color: #8a9a91; }
 .paused-sub { margin-top: 4px; font-size: 13px; color: #6b7d73; }
 .paused .ag-actions .nm-btn-sm { display: inline-flex; align-items: center; gap: 5px; height: 36px; border-radius: 10px; }
@@ -440,7 +440,7 @@ const RF_REPEAT = { once: 'Once', daily: 'Every day', weekdays: 'Weekdays', week
 .rf-hi.tone-blood, .tq.tone-blood { background: #fbe4e6; color: #b4384a; }
 .rf-hi.tone-meal, .tq.tone-meal { background: #fdebd9; color: #b8621b; }
 .rf-hi.tone-sleep, .tq.tone-sleep { background: #e8e6f8; color: #5a4fa8; }
-.rf-sec { display: flex; align-items: center; gap: 8px; margin: 22px 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; color: #9a7300; }
+.rf-sec { display: flex; align-items: center; gap: 8px; margin: 22px 0 2px; font-size: 11.5px; font-weight: 800; color: #9a7300; }
 .rf-sec::after { content: ''; flex: 1; height: 1px; background: #eef2ef; }
 .rf .nm-label { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 700; color: #22362c; }
 .rf .nm-input, .rf .nm-select { min-height: 46px; border: 1.5px solid #dce5df; border-radius: 12px; font-size: 15px; color: #0e3a2c; }

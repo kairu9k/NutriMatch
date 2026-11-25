@@ -166,14 +166,14 @@ const PR_TONES = ['green', 'blue', 'gold', 'plain']
 .sh-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .sh-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.88) 75%, rgba(0, 77, 58, 0.65) 100%); }
 .sh-txt { flex: 1; min-width: 0; }
-.sh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.sh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .sh-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .sh-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; line-height: 1.2; color: #fff; }
 .sh-sub { margin: 0; font-size: 14px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
 .me { display: flex; align-items: center; gap: 12px; margin-right: 150px; padding: 12px 16px; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 18px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px); }
 .me-av { flex-shrink: 0; width: 46px !important; height: 46px !important; border-radius: 50%; background: linear-gradient(135deg, #f5cb1f, #c49102) !important; color: #004d3a !important; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; border: 2px solid rgba(255, 255, 255, 0.8); }
 .me-t { min-width: 0; }
-.me-t small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #efbf04; }
+.me-t small { display: block; font-size: 11px; font-weight: 800; color: #efbf04; }
 .me-t .nm-row-title { margin: 0; font-size: 15px; font-weight: 800; color: #fff; }
 .me-t .nm-row-sub { margin: 0; font-size: 12.5px; color: rgba(255, 255, 255, 0.8); overflow-wrap: anywhere; }
 .me-role { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; padding: 4px 10px; border-radius: 999px; background: #efbf04; color: #004d3a; font-size: 12px; font-weight: 800; }

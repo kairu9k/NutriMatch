@@ -102,7 +102,7 @@
         <button v-for="a in d.items" :key="a.id" type="button" class="appt" :class="[{ attention: attentionOf(a) }, 'tone-' + rowTone(a)]" @click="selected = a">
           <span class="appt-time">
             <strong>{{ timeText(a.scheduled_at) }}</strong>
-            <small><component :is="a.type === 'in_person' ? MapPin : Video" :size="13" aria-hidden="true" /> {{ a.type === 'in_person' ? 'In person' : a.type === 'chat' ? 'Chat' : 'Video' }} · {{ a.duration_minutes || 60 }} min</small>
+            <small><component :is="a.type === 'in_person' ? MapPin : Video" :size="13" aria-hidden="true" /> {{ a.type === 'in_person' ? 'In person' : a.type === 'chat' ? 'Chat' : 'Video' }}, {{ a.duration_minutes || 60 }} min</small>
           </span>
           <span class="appt-people">
             <img v-if="a.client.profile_photo" :src="a.client.profile_photo" class="nm-avatar sm" alt="" />
@@ -563,7 +563,7 @@ function rowTone(a) {
 .ap-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .ap-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .ap-hero-txt { position: relative; z-index: 1; max-width: 620px; }
-.ap-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.ap-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .ap-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .ap-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .ap-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -624,7 +624,7 @@ function rowTone(a) {
 .day-title { display: flex; align-items: center; gap: 12px; margin: 0; padding: 12px 24px; background: #f7faf8; border-bottom: 1px solid #f0f3f1; font-family: inherit; font-size: 16px; font-weight: 800; color: #0e3a2c; }
 .day-date { flex-shrink: 0; width: 54px; height: 58px; border-radius: 14px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: linear-gradient(160deg, #035a45, #004d3a); color: #fff; border-bottom: 2px solid #efbf04; box-shadow: 0 8px 16px -10px rgba(0, 77, 58, 0.8); }
 .day-date b { font-family: 'Playfair Display', serif; font-size: 23px; line-height: 1; font-variant-numeric: lining-nums; }
-.day-date small { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #efbf04; }
+.day-date small { font-size: 10.5px; font-weight: 800; color: #efbf04; }
 .day-count { padding: 2px 9px; border-radius: 999px; background: #eef2ef; font-size: 11.5px; font-weight: 700; color: #6b7d73; }
 
 .appt { position: relative; width: 100%; margin: 0; padding: 18px 24px; background: #fff; border: 0; border-bottom: 1px solid #f0f3f1; font-family: inherit; color: #0e3a2c; text-align: left; cursor: pointer; transition: background 0.15s; }
@@ -673,9 +673,9 @@ function rowTone(a) {
 .am-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.88) 72%, rgba(0, 77, 58, 0.7) 100%); }
 .am-date { flex-shrink: 0; width: 66px; height: 72px; border-radius: 15px; background: #fff; color: #004d3a; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-bottom: 3px solid #efbf04; box-shadow: 0 10px 20px -12px rgba(0, 0, 0, 0.5); }
 .am-date b { font-family: 'Playfair Display', serif; font-size: 29px; line-height: 1; font-variant-numeric: lining-nums; }
-.am-date small { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #c49102; }
+.am-date small { font-size: 10.5px; font-weight: 800; color: #c49102; }
 .am-ht { flex: 1; min-width: 0; }
-.am-kind { margin: 0 0 3px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: #efbf04; }
+.am-kind { margin: 0 0 3px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .detail .am-head .nm-modal-title { margin: 0; padding: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; line-height: 1.2; color: #fff; }
 .am-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
 .am-meta span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 13px; font-weight: 700; color: #fff; }
@@ -691,7 +691,7 @@ function rowTone(a) {
 .person:hover { border-color: #9dc3ae; background: #fff; }
 .person .nm-avatar { flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%; object-fit: cover; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; background: #004d3a; color: #efbf04; font-size: 14px; font-weight: 800; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #c9d8cf; }
 .person-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.role { padding: 1px 8px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+.role { padding: 1px 8px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 800; }
 .role.client { background: #fff4d6; color: #8a6500; }
 .role.rnd { background: #e3f4ea; color: #1f7a4d; }
 .person .nm-row-title { max-width: 100%; font-size: 16px; font-weight: 700; color: #0e3a2c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

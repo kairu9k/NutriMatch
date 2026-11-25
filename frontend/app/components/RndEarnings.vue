@@ -495,7 +495,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .st-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 50%, rgba(0, 77, 58, 0.9) 72%, rgba(0, 77, 58, 0.72) 100%); }
 .st-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap; padding: 0; background: none; }
 .st-txt { flex: 1 1 380px; min-width: 0; }
-.st-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.st-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .st-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .st-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .st-sub { margin: 0; max-width: 62ch; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -726,7 +726,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .nm-modal-overlay .nm-modal.pd-modal { display: grid !important; grid-template-columns: 250px minmax(0, 1fr); width: min(760px, calc(100vw - 32px)) !important; max-width: none !important; max-height: calc(100vh - 48px) !important; padding: 0 !important; overflow: hidden !important; border-radius: 24px !important; }
 .pd-aside { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 30px 24px; background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 55%), linear-gradient(160deg, #035a45, #004d3a 60%, #00402f); color: #fff; }
 .pd-aside-ico { width: 52px; height: 52px; border-radius: 16px; background: #efbf04; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.5); }
-.pd-aside-k { margin: 4px 0 0; font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #efbf04; }
+.pd-aside-k { margin: 4px 0 0; font-size: 12px; font-weight: 800; color: #efbf04; }
 .pd-aside ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .pd-aside li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.45; color: rgba(255, 255, 255, 0.85); }
 .pd-aside li .ic { margin-top: 1px; color: #efbf04; }
@@ -807,7 +807,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .inv-col { min-width: 0; }
 .inv-col + .inv-col { padding-left: 28px; margin-left: 28px; border-left: 1.5px solid #eef2ef; }
 .inv-body .inv-col:first-child { padding-right: 0; }
-.inv-k { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #9a7300; }
+.inv-k { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 12px; font-weight: 800; color: #9a7300; }
 .inv .inv-money { margin: 0; padding: 6px 16px; border: 1.5px solid #e3ebe6; border-radius: 16px; background: #f7faf8; }
 .inv .inv-money p { padding: 10px 0; font-size: 14.5px; color: #3e5046; }
 .inv .inv-money p + p { border-top: 1px dashed #d3e0d8; }

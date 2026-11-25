@@ -92,7 +92,6 @@ const faqs = [
   gap: 12px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
   color: #063C2A;
 }
 .nm-faq-line {

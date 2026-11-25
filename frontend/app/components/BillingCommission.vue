@@ -262,7 +262,7 @@
                 <span class="rc-ok"><CheckCircle2 :size="22" aria-hidden="true" /></span>
                 <div>
                   <p class="receipt-amount">{{ peso(payment.receipt.amount || payment.amount) }}</p>
-                  <p class="nm-hint" style="margin: 0">Paid by {{ payment.receipt.payer_name || detail.client.name }} · {{ dateTime(payment.receipt.paid_at || detail.paid_at || payment.processed_at) }}</p>
+                  <p class="nm-hint" style="margin: 0">Paid by {{ payment.receipt.payer_name || detail.client.name }}, {{ dateTime(payment.receipt.paid_at || detail.paid_at || payment.processed_at) }}</p>
                 </div>
                 <span v-if="payment.receipt.livemode === false" class="nm-pill gold test-pill">Test mode</span>
               </div>
@@ -609,7 +609,7 @@ const apptTone = s => (s === 'cancelled' ? 'bad' : s === 'completed' ? 'good' : 
 .bh-plate { position: absolute; right: -70px; top: 50%; width: 300px; height: 300px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .bh-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 52%, rgba(0, 77, 58, 0.85) 72%, rgba(0, 77, 58, 0.6) 100%); }
 .bh-txt { position: relative; z-index: 1; max-width: 620px; }
-.bh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.bh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .bh-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .bh-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; color: #fff; }
 .bh-sub { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.85); }
@@ -770,7 +770,7 @@ button.fig:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -18px rg
 .im-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.88) 75%, rgba(0, 77, 58, 0.7) 100%); }
 .im-doc { flex-shrink: 0; width: 56px; height: 60px; border-radius: 14px; background: #fff; color: #004d3a; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4); }
 .im-ht { flex: 1; min-width: 0; }
-.im-kind { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.2px; text-transform: uppercase; color: #efbf04; }
+.im-kind { margin: 0 0 2px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .im-ht .nm-modal-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; color: #fff; }
 .im-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 4px 0 0; font-size: 13px; color: rgba(255, 255, 255, 0.82) !important; }
 .im-meta > span { display: inline-flex; align-items: center; gap: 6px; }
@@ -794,7 +794,7 @@ button.fig:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -18px rg
 .pc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .pc-t b { font-size: 15px; color: #0e3a2c; }
 .pc-t small { display: flex; align-items: center; gap: 5px; max-width: 100%; font-size: 12.5px; color: #6b7d73; overflow-wrap: anywhere; }
-.role { padding: 2px 8px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+.role { padding: 2px 8px; border-radius: 999px; font-style: normal; font-size: 10.5px; font-weight: 800; }
 .role.client { background: #fff4d6; color: #8a6500; }
 .role.rnd { background: #e3f4ea; color: #1f7a4d; }
 .im-tiles { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; margin-top: 12px; }

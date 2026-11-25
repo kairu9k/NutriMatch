@@ -367,7 +367,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .rh-plate { position: absolute; right: -50px; top: 50%; width: 220px; height: 220px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); pointer-events: none; }
 .rh-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 55%, rgba(0, 77, 58, 0.88) 75%, rgba(0, 77, 58, 0.65) 100%); }
 .rh-txt { flex: 1; min-width: 0; }
-.rh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.rh-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .rh-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .rh-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1.2; color: #fff; }
 .rh-period { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, 0.92); }
@@ -383,7 +383,7 @@ const initialsOf = name => { const w = String(name || '?').split(' ').filter(Boo
 .period { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .p-sel { display: flex; align-items: center; gap: 10px; min-width: 230px; height: 46px; padding: 0 16px; border-radius: 999px; background: #fff; color: #1f7a4d; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 4px 14px -6px rgba(0, 0, 0, 0.12); cursor: pointer; }
 .p-sel:focus-within { box-shadow: 0 0 0 2px #004d3a, 0 0 0 6px rgba(0, 77, 58, 0.1); }
-.p-sel small { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #8a9a91; }
+.p-sel small { font-size: 11px; font-weight: 800; color: #8a9a91; }
 .p-sel .nm-select { flex: 1; width: auto; min-width: 0; height: 100%; padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; outline: none; appearance: none; -webkit-appearance: none; font-family: inherit; font-size: 14px; font-weight: 700; color: #14261e; cursor: pointer; }
 .period :deep(.df-trigger) { min-height: 46px; border-radius: 12px; }
 .to { font-size: 13px; font-weight: 700; color: #6b7d73; }

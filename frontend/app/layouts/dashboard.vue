@@ -572,7 +572,7 @@ const pinned = ref(false)
 .sidebar.collapsed .nav-group + .nav-group::before {
   content: ''; display: block; height: 1px; margin: -10px 16px 10px 0; background: rgba(255, 255, 255, 0.1);
 }
-.nav-group-label { margin: 0 0 2px; padding: 0 12px; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); white-space: nowrap; }
+.nav-group-label { margin: 0 0 2px; padding: 0 12px; font-size: 11px; font-weight: 800; color: rgba(255, 255, 255, 0.45); white-space: nowrap; }
 
 .nav-item {
   display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px; margin-right: 16px; border-radius: 14px;

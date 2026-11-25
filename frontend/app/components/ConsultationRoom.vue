@@ -970,7 +970,7 @@ function onHangUp() {
 const ptSub = computed(() => {
   const c = p.value?.client
   if (!c) return ''
-  return [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], (s.value?.health?.conditions || [])[0]].filter(Boolean).join(' · ')
+  return [c.age != null ? `${c.age} y/o` : null, SEX[c.sex], ...(s.value?.health?.conditions || [])].filter(Boolean).join(', ')
 })
 </script>
 
@@ -1223,7 +1223,7 @@ const ptSub = computed(() => {
 .pt-id small { font-size: 0.8rem; color: #4A5A52; }
 .allergy { border-radius: 12px; padding: 10px 12px; font-size: 0.85rem; background: #FDECEC; color: #B4384A; }
 .note { border-radius: 12px; }
-.pt-sec, .block h3 { margin: 18px 0 10px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #6B7D73; }
+.pt-sec, .block h3 { margin: 18px 0 10px; font-size: 0.72rem; font-weight: 800; color: #6B7D73; }
 .block-head h3 { margin: 0; }
 
 /* figures: round icons, no boxes */

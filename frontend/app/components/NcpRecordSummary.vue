@@ -191,10 +191,10 @@ const initials = computed(() => {
 .sum-av {
   flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; box-sizing: border-box; object-fit: cover;
   display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #efbf04, #c49102); color: #004d3a;
-  font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; letter-spacing: 0.06em; border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
+  font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; border: 3px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
 }
 .sum-head-txt { flex: 1; min-width: 0; }
-.kind { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #efbf04; }
+.kind { margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #efbf04; }
 .sum-title { margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; line-height: 1.25; letter-spacing: 0.015em; color: #fff; overflow-wrap: anywhere; }
 .sub { margin: 4px 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.85); }
 .head-right { display: flex; align-items: center; gap: 10px; }
@@ -220,7 +220,7 @@ const initials = computed(() => {
 .draft-note svg { flex-shrink: 0; color: #9a7300; }
 section { padding: 20px 0; border-top: 1px solid #eef2ef; }
 section:first-of-type { border-top: none; }
-h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #0e3a2c; }
+h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 13px; font-weight: 800; color: #0e3a2c; }
 .h-num { width: 24px; height: 24px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: #004d3a; color: #efbf04; font-size: 12.5px; letter-spacing: 0; }
 .s-diag .h-num { background: #b4384a; color: #fff; }
 .s-int .h-num { background: #c49102; color: #fff; }

@@ -364,7 +364,7 @@ const rowTone = p => ({
 .mp-hero-plate { position: absolute; right: -70px; top: 50%; width: 340px; height: 340px; object-fit: cover; border-radius: 50%; transform: translateY(-50%); opacity: 0.85; pointer-events: none; }
 .mp-hero-fade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #004d3a 0%, #004d3a 48%, rgba(0, 77, 58, 0.8) 72%, rgba(0, 77, 58, 0.3) 100%); }
 .mp-hero-txt { position: relative; z-index: 1; flex: 1 1 320px; min-width: 0; }
-.mp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; color: #efbf04; }
+.mp-eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 11.5px; font-weight: 800; color: #efbf04; }
 .mp-eyebrow span { width: 22px; height: 2px; border-radius: 2px; background: #efbf04; }
 .mp-title { margin: 0 0 6px; font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; color: #fff; }
 .mp-hero .nm-page-sub { margin: 0; font-size: 14.5px; color: rgba(255, 255, 255, 0.85); }
@@ -434,7 +434,7 @@ const rowTone = p => ({
 :deep(.row-actions .icon-btn[title='New lab results']) { display: none; }
 .mp-table th {
   padding: 16px 22px; text-align: left; background: #f7faf8; border-bottom: 1px solid #eef2ef;
-  font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #6b7d73; white-space: nowrap;
+  font-size: 11px; font-weight: 800; color: #6b7d73; white-space: nowrap;
 }
 .mp-table th:first-child { padding-left: 30px; }
 .mp-table th.col-act { text-align: right; padding-right: 26px; }
@@ -567,7 +567,7 @@ const rowTone = p => ({
 .card.muted { opacity: 0.85; }
 .card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; margin: 14px 0; padding-top: 14px; border-top: 1px solid #f0f3f1; }
 .cg-wide { grid-column: 1 / -1; }
-.k { margin: 0 0 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8a9a91; }
+.k { margin: 0 0 6px; font-size: 10.5px; font-weight: 800; color: #8a9a91; }
 .card-actions :deep(.row-actions) { display: flex; justify-content: flex-start; flex-wrap: nowrap; }
 .card-actions :deep(.row-actions > a:first-child) { flex: 1; }
 

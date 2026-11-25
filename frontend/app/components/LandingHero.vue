@@ -10,9 +10,9 @@
       <div class="hero-inner">
         <div class="hero-content">
           <h1 class="hero-heading">
-            Nourish Your Body.<br />
-            Transform Your<br />
-            <em class="highlight">Life.<svg class="swoosh" viewBox="0 0 220 24" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16 C 50 6, 120 4, 216 10 C 150 12, 90 16, 40 20" fill="none" stroke="#EFBF04" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /></svg></em>
+            Nourish your body.<br />
+            Transform your<br />
+            <em class="highlight">life.<svg class="swoosh" viewBox="0 0 220 24" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16 C 50 6, 120 4, 216 10 C 150 12, 90 16, 40 20" fill="none" stroke="#EFBF04" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /></svg></em>
           </h1>
 
          
@@ -21,8 +21,14 @@
             <button class="btn-secondary" @click="navigateTo('/register?role=rnd')">I'm an RND</button>
           </div>
 
+          <!-- real totals from /api/public/stats/ (2026-11-09, user's call): shown once they load -->
+          <p v-if="stats" class="hero-stats">
+            <span><strong>{{ stats.rnds }}</strong> {{ stats.rndLabel }}</span>
+            <span><strong>{{ stats.clients }}</strong> {{ stats.clientLabel }}</span>
+          </p>
+
           <div class="plate-guide">
-            <span class="plate-guide-title">A BALANCED PLATE</span>
+            <span class="plate-guide-title">A balanced plate</span>
             <div class="plate-guide-items">
               <div v-for="p in plateParts" :key="p.label" class="plate-part">
                 <img :src="p.img" :alt="p.label" class="plate-part-img" />
@@ -69,7 +75,7 @@
               </span>
               <span class="badge-text">
                 <strong>Balanced plate</strong>
-                <span>½ veg · ¼ grains · ¼ protein</span>
+                <span>½ veg, ¼ grains, ¼ protein</span>
               </span>
             </div>
           </div>
@@ -87,12 +93,28 @@
 <script setup>
 import { Check } from 'lucide-vue-next'
 
+// Verified RNDs and clients served: real totals (core/public_stats.py), hidden until loaded
+const { get } = useApi()
+const totals = ref(null)
+const count = n => Number(n || 0).toLocaleString('en-US')
+const stats = computed(() => (totals.value
+  ? {
+      rnds: count(totals.value.verified_rnds),
+      rndLabel: totals.value.verified_rnds === 1 ? 'verified RND' : 'verified RNDs',
+      clients: count(totals.value.clients_served),
+      clientLabel: totals.value.clients_served === 1 ? 'client served' : 'clients served',
+    }
+  : null))
+onMounted(() => {
+  get('/public/stats/').then((data) => { totals.value = data }).catch(() => {})
+})
+
 // Gold strip under the hero
 const standards = [
   'FNRI Food Exchange Lists',
   'USDA FoodData Central',
   'Nutrition Care Process',
-  'RA 10173 · RA 10862',
+  'RA 10173 and RA 10862',
 ]
 
 // Images live in frontend/public/landing/ (bound with :src so a missing file
@@ -207,8 +229,9 @@ const decor = [
 .hero-content {
   position: relative;
   z-index: 2;
-  /* nudged a little to the left on wide screens (mirrors the plate on the right) */
-  margin-left: clamp(-150px, -9vw, 0px);
+  /* nudged a little to the left on wide screens (mirrors the plate on the right), but only into
+     the empty space beside the 1360px row, so the heading never leaves the screen on a laptop */
+  margin-left: max(-150px, min(0px, calc((1360px - 100vw) / 2)));
   flex: 0 1 640px;
   min-width: 0;
   display: flex;
@@ -223,7 +246,6 @@ const decor = [
   font-size: clamp(46px, 6vw, 82px);
   line-height: 1.08;
   font-weight: 700;
-  letter-spacing: 1.2px;
   color: #10231B;
 }
 .highlight { position: relative; display: inline-block; font-style: italic; color: #063C2A; }
@@ -255,7 +277,9 @@ const decor = [
 
 /* Buttons + balanced plate move down together; the heading stays put.
    (position/top shifts them without changing the layout around them) */
-.hero-cta, .plate-guide { position: relative; top: 64px; }
+.hero-cta, .hero-stats, .plate-guide { position: relative; top: 64px; }
+.hero-stats { display: flex; flex-wrap: wrap; gap: 6px 26px; margin: 22px 0 0; font-size: 15px; color: #4E5F57; }
+.hero-stats strong { margin-right: 4px; font-family: 'Playfair Display', Georgia, serif; font-size: 24px; font-weight: 700; color: #063C2A; font-variant-numeric: lining-nums; }
 
 .btn-primary, .btn-secondary {
   display: inline-flex;
@@ -303,7 +327,7 @@ const decor = [
   flex-direction: column;
   gap: 10px;
 }
-.plate-guide-title { font-size: 12px; font-weight: 600; letter-spacing: 2px; color: #6E877B; }
+.plate-guide-title { font-size: 14px; font-weight: 600; color: #6E877B; }
 .plate-guide-items { display: flex; flex-wrap: wrap; gap: 14px 26px; }
 .plate-part { display: flex; align-items: center; gap: 12px; }
 .plate-part-img {
@@ -326,7 +350,8 @@ const decor = [
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-right: clamp(-130px, -8vw, 0px);
+  /* pushed toward the edge only into the empty space beside the 1360px row (the FNRI badge stayed on screen) */
+  margin-right: max(-130px, min(0px, calc((1360px - 100vw) / 2)));
 }
 .plate-box { position: relative; width: 100%; max-width: 740px; aspect-ratio: 1 / 1; }
 /* Soft circle + dotted ring behind the plate */
@@ -453,7 +478,7 @@ const decor = [
 @media (max-width: 600px) {
   .hero-inner { padding: calc(64px + 28px) 20px 64px; gap: 44px; }
   .hero-heading { font-size: 44px; line-height: 1.08; letter-spacing: 0.6px; }
-  .hero-cta, .plate-guide { top: 24px; }
+  .hero-cta, .hero-stats, .plate-guide { top: 24px; }
   .hero-heading { top: 0; }
   .hero-cta .btn-primary, .hero-cta .btn-secondary { flex: 1 1 100%; }
   .hero-art { padding: 0 9%; }
