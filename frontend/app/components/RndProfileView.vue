@@ -674,6 +674,9 @@ const bookingSummary = computed(() => {
 const SESSION_MINUTES = 60
 const SLOT_STEP_MINUTES = 60
 const MIN_LEAD_MINUTES = 45 // MIN_BOOKING_LEAD_MINUTES: 30 for the RND to confirm + 15 for you to pay
+// Demo mode (scheduling/demo.py): any time that hasn't started (1 minute margin for the request)
+const demoMode = useDemoMode()
+const leadMinutes = computed(() => (demoMode.value ? 1 : MIN_LEAD_MINUTES))
 const timeSlots = computed(() => (selectedDateISO.value ? slotsForDate(selectedDateISO.value) : []))
 
 function slotsForDate(iso) {
@@ -687,7 +690,7 @@ function slotsForDate(iso) {
   for (const s of scheduleForDate(date)) {
     const end = s.end_time.slice(0, 5) === '00:00' ? 24 * 60 : toMinutes(s.end_time) // 12:00 AM = end of the day
     for (let start = toMinutes(s.start_time); start + SESSION_MINUTES <= end; start += SLOT_STEP_MINUTES) {
-      if (isToday && start < nowMinutes + MIN_LEAD_MINUTES) continue
+      if (isToday && start < nowMinutes + leadMinutes.value) continue
       const h = Math.floor(start / 60)
       const m = start % 60
       const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`

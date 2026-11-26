@@ -264,11 +264,13 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
         appointment = get_object_or_404(
             Appointment.objects.filter(relationship__rnd=request.user), pk=pk
         )
-        from .serializers import CONFIRM_BY_MINUTES, deadlines
+        from .demo import confirm_by_minutes
+        from .serializers import deadlines
 
         if appointment.status == Appointment.Status.PENDING and deadlines(appointment)["confirm_by"] <= timezone.now():
-            raise PermissionDenied(f"Requests must be confirmed at least {CONFIRM_BY_MINUTES} minutes before the start, "
-                                   "so this one can't be confirmed now.")
+            raise PermissionDenied(f"Requests must be confirmed at least {confirm_by_minutes()} minutes before the start, "
+                                   "so this one can't be confirmed now." if confirm_by_minutes()
+                                   else "This request's time has started, so it can't be confirmed now.")
         has_screening = PreConsultationScreening.objects.filter(
             client_id=appointment.relationship.client_id
         ).exists()

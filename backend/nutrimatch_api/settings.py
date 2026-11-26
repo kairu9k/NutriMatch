@@ -318,6 +318,10 @@ MAILERS = {'default': _MAILER}
 # Video consultations are NutriMatch's own WebRTC call (scheduling/video_call.py);
 # the Cloudflare TURN relay keys are CLOUDFLARE_TURN_KEY_ID / _API_TOKEN.
 
+# Demo mode for the defense (scheduling/demo.py): instant Pay, no booking lead, room opens early.
+# Off unless DEMO_MODE=true is set on the server.
+DEMO_MODE = config('DEMO_MODE', default=False, cast=bool)
+
 PAYMONGO = {
     'SECRET_KEY': config('PAYMONGO_SECRET_KEY', default=''),
     'WEBHOOK_SECRET': config('PAYMONGO_WEBHOOK_SECRET', default=''),

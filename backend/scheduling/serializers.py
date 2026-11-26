@@ -80,7 +80,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # closes at the scheduled end (JOIN_LATE_MINUTES = 0, no overtime).
         start = instance.scheduled_at
         end = start + timedelta(minutes=instance.duration_minutes or DEFAULT_SESSION_MINUTES)
-        opens_at = start - timedelta(minutes=JOIN_EARLY_MINUTES)
+        from .demo import join_early_minutes
+
+        opens_at = start - timedelta(minutes=join_early_minutes())
         closes_at = end + timedelta(minutes=JOIN_LATE_MINUTES)
         data["join_opens_at"] = opens_at.isoformat()
         data["join_closes_at"] = closes_at.isoformat()
@@ -142,11 +144,13 @@ RND_MIN_PRESENT_MINUTES = 5  # ...if the RND was in the call less than this in t
 
 def deadlines(appointment):
     """When each rule closes for this consultation."""
+    from .demo import confirm_by_minutes, pay_by_minutes
+
     start = appointment.scheduled_at
     return {
-        "confirm_by": start - timedelta(minutes=CONFIRM_BY_MINUTES),
+        "confirm_by": start - timedelta(minutes=confirm_by_minutes()),
         "cancel_by": start - timedelta(minutes=CLIENT_CANCEL_CUTOFF_MINUTES),
-        "pay_by": start - timedelta(minutes=PAY_BY_MINUTES),
+        "pay_by": start - timedelta(minutes=pay_by_minutes()),
     }
 # Start times are offered every hour from the start of the RND's hours
 # (2026-10-14, user's call; mirrored in RndProfileView.vue and profiles/public.py).
@@ -250,8 +254,11 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_scheduled_at(self, value):
-        if value < timezone.now() + timedelta(minutes=MIN_BOOKING_LEAD_MINUTES):
-            raise serializers.ValidationError(f"Pick a time at least {MIN_BOOKING_LEAD_MINUTES} minutes from now.")
+        from .demo import booking_lead_minutes
+
+        lead = booking_lead_minutes()
+        if value < timezone.now() + timedelta(minutes=lead):
+            raise serializers.ValidationError(f"Pick a time at least {lead} minutes from now." if lead else "Pick a time that hasn't started yet.")
         return value
 
     def validate(self, attrs):

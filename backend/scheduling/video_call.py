@@ -44,11 +44,12 @@ def end_of(appointment):
 
 
 def join_window(appointment):
-    from .serializers import DEFAULT_SESSION_MINUTES, JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES
+    from .demo import join_early_minutes
+    from .serializers import DEFAULT_SESSION_MINUTES, JOIN_LATE_MINUTES
 
     start = appointment.scheduled_at
     end = start + timedelta(minutes=appointment.duration_minutes or DEFAULT_SESSION_MINUTES)
-    return start - timedelta(minutes=JOIN_EARLY_MINUTES), end + timedelta(minutes=JOIN_LATE_MINUTES)
+    return start - timedelta(minutes=join_early_minutes()), end + timedelta(minutes=JOIN_LATE_MINUTES)
 
 
 def call_access(user, appointment_id, now=None):

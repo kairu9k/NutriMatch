@@ -45,6 +45,7 @@ def build_dashboard(rnd, now=None):
     from nutrition.models import MealPlan
 
     from .models import Appointment, Review, RndClientRelationship
+    from .demo import join_early_minutes
     from .serializers import JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES
 
     now = now or timezone.now()
@@ -68,7 +69,7 @@ def build_dashboard(rnd, now=None):
             "type": a.type, "type_label": a.get_type_display(), "status": a.status,
             "client": _person(a.relationship.client), "relationship_id": a.relationship_id,
             "payment": inv.status if inv else None,
-            "join_opens_at": a.scheduled_at - timedelta(minutes=JOIN_EARLY_MINUTES),
+            "join_opens_at": a.scheduled_at - timedelta(minutes=join_early_minutes()),
             "join_closes_at": end + timedelta(minutes=JOIN_LATE_MINUTES),
             "video_session_url": a.video_session_url if a.type == "video" else None,
         }

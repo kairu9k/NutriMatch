@@ -48,8 +48,8 @@
                 <span class="nm-pill" :class="a.returning ? 'green' : 'muted'">{{ a.returning ? 'Returning patient' : 'New patient' }}</span>
               </p>
               <p class="nm-row-sub">{{ timeRange(a) }}, {{ a.type_label.toLowerCase() }}, {{ a.duration_minutes }} min</p>
-              <p v-if="confirmClosed(a)" class="flag critical"><OctagonAlert :size="13" /> Too late to confirm: requests must be confirmed 30 minutes before the start. Decline it so they can book again.</p>
-              <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Confirm by {{ clock(a.confirm_by) }}{{ sameDay(a) ? '' : `, ${longDay(a.confirm_by)}` }}, 30 minutes before the start.</p>
+              <p v-if="confirmClosed(a)" class="flag critical"><OctagonAlert :size="13" /> Too late to confirm: {{ demoMode ? 'the requested time has started' : 'requests must be confirmed 30 minutes before the start' }}. Decline it so they can book again.</p>
+              <p v-else-if="a.starts_in_hours < 24" class="flag warning"><AlertTriangle :size="13" /> Confirm by {{ clock(a.confirm_by) }}{{ sameDay(a) ? '' : `, ${longDay(a.confirm_by)}` }}{{ demoMode ? '' : ', 30 minutes before the start' }}.</p>
               <div class="chips">
                 <template v-if="a.screening.submitted">
                   <span v-if="a.screening.nrs_score != null" class="chip" :class="{ risk: a.screening.nrs_score >= 3 }">NRS-2002 {{ a.screening.nrs_score }}{{ a.screening.nrs_risk ? `, ${a.screening.nrs_risk.toLowerCase()}` : '' }}</span>
@@ -313,6 +313,7 @@
 </template>
 
 <script setup>
+const demoMode = useDemoMode() // scheduling/demo.py: demo times
 import { useToast } from '~/composables/useToast'
 const toast = useToast() // the app's toast (2026-11-03)
 import {

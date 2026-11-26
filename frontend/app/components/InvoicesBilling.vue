@@ -12,6 +12,7 @@
     </section>
 
     <p v-if="error" class="nm-error">{{ error }}</p>
+    <p v-if="demoMode" class="nm-note plain-note demo-note">Demo mode: payments are not real. Pay marks the invoice paid without PayMongo.</p>
     <p v-if="paidNotice" class="nm-success"><CheckCircle2 :size="15" /> {{ paidNotice }}</p>
 
     <!-- figures -->
@@ -191,6 +192,7 @@
 </template>
 
 <script setup>
+const demoMode = useDemoMode() // scheduling/demo.py: instant Pay without PayMongo
 import { useToast } from '~/composables/useToast'
 import {
   AlarmClock, CheckCircle2, CreditCard, FileText, Mail, Printer, Receipt, Search, X,
@@ -606,4 +608,5 @@ const plateImg = '/landing/login-plate.webp'
   .rm-dl dd { font-size: 13.5px; }
   .rm-actions { padding: 14px 18px calc(16px + env(safe-area-inset-bottom)); }
 }
+.demo-note { margin: 0 0 12px; }
 </style>

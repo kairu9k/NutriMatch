@@ -14,6 +14,7 @@ const MAX_WATCH_MS = 30 * 60 * 1000
 
 export function usePayInvoice() {
   const { get, post } = useApi()
+  const demoMode = useDemoMode()
   const payingId = ref(null)
   const payError = ref('')
   let watcher = null
@@ -56,6 +57,23 @@ export function usePayInvoice() {
   async function pay(invoiceId, { onPaid, onClosed } = {}) {
     payingId.value = invoiceId
     payError.value = ''
+    // Demo mode (backend scheduling/demo.py): the server marks it paid at once, no PayMongo
+    // window. Known before the click (useDemoMode), so no empty popup flashes open.
+    if (demoMode.value) {
+      try {
+        const result = await post(`/client/invoices/${invoiceId}/pay/`)
+        if (result.status === 'paid') {
+          onPaid?.(await get('/client/invoices/'))
+        } else if (result.payment_url) {
+          window.location.href = result.payment_url // the server turned demo mode off meanwhile
+        }
+      } catch (error) {
+        payError.value = error?.data?.detail || 'Could not start payment. Please try again.'
+      } finally {
+        payingId.value = null
+      }
+      return
+    }
     const width = 480
     const height = 720
     const left = window.screenX + (window.outerWidth - width) / 2

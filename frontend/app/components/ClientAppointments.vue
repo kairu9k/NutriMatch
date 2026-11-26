@@ -26,6 +26,7 @@
       <!-- ============ UPCOMING ============ -->
       <section class="section">
         <div class="section-head"><h2 class="section-title">Upcoming <span class="count">{{ upcoming.length }}</span></h2></div>
+        <p v-if="demoMode" class="nm-note plain-note demo-note">Demo mode: payments are not real. Pay marks the invoice paid without PayMongo.</p>
 
         <div v-if="!upcoming.length" class="panel up-empty">
           <span class="up-empty-glow" aria-hidden="true"></span>
@@ -219,6 +220,7 @@
 </template>
 
 <script setup>
+const demoMode = useDemoMode() // scheduling/demo.py: instant Pay without PayMongo
 import { useSupportPanel } from '~/composables/useSupportPanel'
 import { useToast } from '~/composables/useToast'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -317,8 +319,8 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
 
   let hint = ''
   if (phase === 'pending') hint = `Waiting for RND ${rndUser.first_name} to confirm (by ${clock(confirmBy)}). You'll be asked to pay once they do.`
-  else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} by ${payBy.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(payBy)}, 15 minutes before the start. If it isn't paid by then, the booking is cancelled and the slot is released.`
-  else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)}, 15 minutes before the start.`
+  else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} by ${payBy.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(payBy)}${demoMode.value ? '' : ', 15 minutes before the start'}. If it isn't paid by then, the booking is cancelled and the slot is released.`
+  else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)}${demoMode.value ? '' : ', 15 minutes before the start'}.`
   else if (phase === 'confirmed' && a.type === 'video') hint = 'Your video room is open. You can join now.'
   else if (phase === 'confirmed' && a.type === 'in_person') hint = 'Message your RND if you need the clinic address or directions.'
   else if (phase === 'expired') hint = 'Your RND didn\'t confirm this request in time.'
@@ -931,4 +933,5 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 @media (prefers-reduced-motion: reduce) {
   .ap-spin { animation: none; }
 }
+.demo-note { margin: 0 0 12px; }
 </style>

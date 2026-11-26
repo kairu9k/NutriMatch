@@ -468,11 +468,11 @@ def expire_unanswered_requests(**scope):
 
     from datetime import timedelta
 
-    from scheduling.serializers import CONFIRM_BY_MINUTES
+    from scheduling.demo import confirm_by_minutes
 
     now = timezone.now()
     due = (Appointment.objects.filter(status=Appointment.Status.PENDING,
-                                      scheduled_at__lte=now + timedelta(minutes=CONFIRM_BY_MINUTES), **scope)
+                                      scheduled_at__lte=now + timedelta(minutes=confirm_by_minutes()), **scope)
            .select_related("relationship__client", "relationship__rnd"))
     count = 0
     for appt in due:
@@ -514,14 +514,14 @@ def expire_unpaid_appointments(**scope):
 
     from datetime import timedelta
 
-    from scheduling.serializers import PAY_BY_MINUTES
+    from scheduling.demo import pay_by_minutes
 
     from .models import Invoice
 
     now = timezone.now()
     due = Appointment.objects.filter(
         status=Appointment.Status.CONFIRMED,
-        scheduled_at__lte=now + timedelta(minutes=PAY_BY_MINUTES),
+        scheduled_at__lte=now + timedelta(minutes=pay_by_minutes()),
         invoices__status=Invoice.Status.UNPAID,
         **scope,
     ).exclude(invoices__status=Invoice.Status.PAID).select_related("relationship__client", "relationship__rnd").distinct()

@@ -31,6 +31,7 @@ def build_patient_summary(rnd, rel_id, now=None):
     from nutrition.models import MealLog, MealPlan
 
     from .models import Appointment
+    from .demo import join_early_minutes
     from .serializers import JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES
 
     now = now or timezone.now()
@@ -117,7 +118,7 @@ def build_patient_summary(rnd, rel_id, now=None):
             "type": a.type, "type_label": a.get_type_display(), "status": a.status,
             "payment": inv.status if inv else None, "amount": _num(inv.amount) if inv else None,
             "notes": a.notes, "cancellation_reason": a.cancellation_reason,
-            "join_opens_at": a.scheduled_at - timedelta(minutes=JOIN_EARLY_MINUTES),
+            "join_opens_at": a.scheduled_at - timedelta(minutes=join_early_minutes()),
             "join_closes_at": end + timedelta(minutes=JOIN_LATE_MINUTES),
             "upcoming": a.status in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED) and end > now,
             "has_ncp": a.id in written,

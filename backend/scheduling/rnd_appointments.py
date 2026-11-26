@@ -22,6 +22,7 @@ def build_board(rnd, now=None):
     from .attendance import attendance_payload, dispute_payload
     from .closing import close_options, no_show_opens_at
     from .reschedule import payload as reschedule_payload
+    from .demo import join_early_minutes
     from .serializers import JOIN_EARLY_MINUTES, JOIN_LATE_MINUTES, deadlines
 
     now = now or timezone.now()
@@ -69,7 +70,7 @@ def build_board(rnd, now=None):
             "returning": rel.id in completed_before and completed_before[rel.id] < a.scheduled_at,
             "payment": {"status": inv.status, "amount": inv.amount} if inv else None,
             "notes": a.notes, "cancellation_reason": a.cancellation_reason, "completed_at": a.completed_at,
-            "join_opens_at": a.scheduled_at - timedelta(minutes=JOIN_EARLY_MINUTES),
+            "join_opens_at": a.scheduled_at - timedelta(minutes=join_early_minutes()),
             "join_closes_at": end + timedelta(minutes=JOIN_LATE_MINUTES),
             "clinic_address": clinic if a.type == Appointment.Type.IN_PERSON else None,
             "confirm_by": deadlines(a)["confirm_by"],

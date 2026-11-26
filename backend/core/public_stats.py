@@ -31,3 +31,17 @@ class PublicLandingStatsView(APIView):
 
     def get(self, request):
         return Response(cache.get_or_set(CACHE_KEY, landing_stats, CACHE_SECONDS))
+
+
+class PublicConfigView(APIView):
+    """What the browser needs to know about how the server is set up: only whether demo mode
+    is on (scheduling/demo.py), so Pay skips the PayMongo window and the booking calendar
+    offers times starting soon."""
+
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from scheduling.demo import demo_mode
+
+        return Response({"demo_mode": demo_mode()})

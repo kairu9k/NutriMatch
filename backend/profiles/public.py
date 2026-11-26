@@ -47,7 +47,9 @@ def next_open_slots(rnd_id, count=3, now=None, lead_minutes=None, days=SLOT_LOOK
         return []
     from scheduling.reschedule import held_intervals
 
-    lead = MIN_BOOKING_LEAD_MINUTES if lead_minutes is None else lead_minutes
+    from scheduling.demo import booking_lead_minutes
+
+    lead = booking_lead_minutes() if lead_minutes is None else lead_minutes
     horizon = now + timedelta(days=days)
     booked = [
         (a.scheduled_at, a.scheduled_at + timedelta(minutes=a.duration_minutes or SESSION_MINUTES))

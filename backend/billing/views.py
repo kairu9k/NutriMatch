@@ -104,6 +104,20 @@ class InitiatePaymentView(APIView):
             return Response({"detail": "Payment closed 15 minutes before the start, so this consultation can't be paid now."},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        from scheduling.demo import DEMO_PAYMENT_NOTE, demo_mode
+
+        if demo_mode():
+            # Demo mode (scheduling/demo.py): paid at once, through the same recorder the
+            # webhook uses (receipt email, the RND's "Consultation paid"), marked as a demo.
+            invoice.payment_gateway = Invoice.PaymentGateway.MANUAL
+            invoice.notes = (f"{invoice.notes}\n" if invoice.notes else "") + DEMO_PAYMENT_NOTE
+            invoice.save(update_fields=["payment_gateway", "notes"])
+            record_successful_payment(invoice, reference_id=f"DEMO-{invoice.id}", payload={"demo": True},
+                                      source="demo", payment_method=Invoice.PaymentMethod.OTHER)
+            invoice.refresh_from_db()
+            return Response({"id": invoice.id, "amount": invoice.amount, "status": invoice.status,
+                             "payment_url": None, "demo": True})
+
         try:
             result = PayMongoService().create_payment_link(invoice)
         except PaymentGatewayError as exc:

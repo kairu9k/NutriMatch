@@ -65,7 +65,7 @@
         <div v-else-if="windowState === 'early'" class="state-card">
           <Clock :size="28" />
           <p class="big">Opens in {{ untilOpen }}</p>
-          <p>The room opens {{ clock(appt.join_opens_at) }}, 15 minutes before the start. This page opens it automatically.</p>
+          <p>The room opens {{ clock(appt.join_opens_at) }}{{ demoMode ? '' : ', 15 minutes before the start' }}. This page opens it automatically.</p>
         </div>
         <div v-else-if="windowState === 'closed'" class="state-card">
           <VideoOff :size="28" /><p>The consultation time is over, so the room has closed.</p>
@@ -479,6 +479,7 @@
 </template>
 
 <script setup>
+const demoMode = useDemoMode() // scheduling/demo.py: demo times
 // The consultation room. RND: video + a work panel (Patient · NCP)
 // and "End & mark complete" with a wrap-up of what's left. Client: video +
 // their RND, the consultation time and their meal-plan targets — never NCP
