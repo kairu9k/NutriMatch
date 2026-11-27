@@ -110,7 +110,7 @@
                 <button type="button" class="nm-btn-soft" :disabled="busy || decisionNote.trim().length < 10" @click="decide('reject')">Reject dispute</button>
                 <button type="button" class="nm-btn-dark" :disabled="busy || decisionNote.trim().length < 10" @click="decide('refund')">Approve and refund</button>
               </div>
-              <p class="reply-hint">Approving sends it to Refunds in Billing and commission, where you refund it through PayMongo.</p>
+              <p class="reply-hint">Approving sends it to Refunds in Billing and commission, where you send the refund.</p>
             </template>
           </div>
 

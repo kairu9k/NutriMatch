@@ -318,9 +318,16 @@ MAILERS = {'default': _MAILER}
 # Video consultations are NutriMatch's own WebRTC call (scheduling/video_call.py);
 # the Cloudflare TURN relay keys are CLOUDFLARE_TURN_KEY_ID / _API_TOKEN.
 
-# Demo mode for the defense (scheduling/demo.py): instant Pay, no booking lead, room opens early.
+# Demo mode for the defense (scheduling/demo.py): no booking lead, room opens early. Payments
+# still go through the payment provider (the adviser doesn't allow skipping it).
 # Off unless DEMO_MODE=true is set on the server.
 DEMO_MODE = config('DEMO_MODE', default=False, cast=bool)
+
+# Who takes the clients' payments (2026-11-27): "xendit" (default, billing/xendit.py) or
+# "paymongo" (billing/services.py). Invoices already paid keep the provider they were paid with.
+PAYMENT_PROVIDER = config('PAYMENT_PROVIDER', default='xendit')
+XENDIT_SECRET_KEY = config('XENDIT_SECRET_KEY', default='')
+XENDIT_CALLBACK_TOKEN = config('XENDIT_CALLBACK_TOKEN', default='')
 
 PAYMONGO = {
     'SECRET_KEY': config('PAYMONGO_SECRET_KEY', default=''),

@@ -99,7 +99,7 @@ def send_payment_receipts(invoice_id):
         logger.exception("Could not email the receipt for invoice %s to the client", invoice_id)
 
     admin_rows = [{"label": "Client", "value": f"{client.full_name} ({client.email})"}] + rows
-    admin_note = "This appointment was already cancelled — refund it in PayMongo, then mark it refunded in Billing & Commission." if refund else ""
+    admin_note = "This appointment was already cancelled — refund it from Billing & Commission (Send refund)." if refund else ""
     try:
         send_branded_email(
             to=support_email(),

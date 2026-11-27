@@ -135,7 +135,7 @@
           <div class="refund-amount">
             <span class="ra-ico"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg></span>
             <strong class="mono">{{ peso(inv.amount) }}</strong>
-            <span>{{ inv.payment_method ? (METHOD_LABELS[inv.payment_method] || inv.payment_method) : 'Not through PayMongo' }}</span>
+            <span>{{ inv.payment_method ? (METHOD_LABELS[inv.payment_method] || inv.payment_method) : 'Not paid online' }}</span>
           </div>
           <div class="refund-main">
             <p class="nm-row-title">Back to {{ inv.client_name }}</p>
@@ -143,10 +143,10 @@
               <button type="button" class="nm-text-link mono" @click="openInvoice(inv)">{{ invNo(inv) }}</button>, consultation with RND {{ inv.rnd_name }}<template v-if="inv.paid_at">, paid {{ shortDate(inv.paid_at) }}</template>
             </p>
             <p v-if="refundNotes[inv.id]" class="refund-state" :class="refundNotes[inv.id].tone">{{ refundNotes[inv.id].text }}</p>
-            <p v-if="!inv.paymongo_payment_id" class="refund-state">Not paid through PayMongo. Return the money another way, then mark it refunded.</p>
+            <p v-if="!inv.gateway_payment_id" class="refund-state">Not paid through a payment provider. Return the money another way, then mark it refunded.</p>
           </div>
           <div class="refund-actions">
-            <button v-if="inv.paymongo_payment_id" type="button" class="nm-btn-dark" @click="askRefund(inv)"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>Refund through PayMongo</button>
+            <button v-if="inv.gateway_payment_id" type="button" class="nm-btn-dark" @click="askRefund(inv)"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>Refund through {{ providerOf(inv) }}</button>
             <template v-else>
               <input v-model="refundRefs[inv.id]" class="nm-input" maxlength="100" placeholder="Refund reference (optional)" aria-label="Refund reference" />
               <button type="button" class="nm-btn-dark" :disabled="refundBusy === inv.id" @click="markRefunded(inv)">
@@ -268,12 +268,12 @@
               </div>
               <dl class="receipt-rows">
                 <div><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>Payment method</dt><dd>{{ methodText }}</dd></div>
-                <div v-if="payment.receipt.payment_id"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>PayMongo payment ID</dt><dd class="mono code">{{ payment.receipt.payment_id }}</dd></div>
+                <div v-if="payment.receipt.payment_id"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>{{ providerOf(selected) }} payment ID</dt><dd class="mono code">{{ payment.receipt.payment_id }}</dd></div>
                 <div v-if="detail.gateway_reference_id"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>Reference no.</dt><dd class="mono code">{{ detail.gateway_reference_id }}</dd></div>
                 <div v-if="payment.receipt.payer_email"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 6l-10 7L2 6" /></svg>Payer email</dt><dd>{{ payment.receipt.payer_email }}</dd></div>
                 <div v-if="payment.receipt.payer_phone"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>Payer phone</dt><dd>{{ payment.receipt.payer_phone }}</dd></div>
                 <div v-if="payment.receipt.description"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg>Description</dt><dd>{{ payment.receipt.description }}</dd></div>
-                <div v-if="payment.receipt.fee"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5L5 19" /><path d="M4 6.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /><path d="M15 17.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /></svg>PayMongo fee</dt><dd>− {{ peso(payment.receipt.fee) }}</dd></div>
+                <div v-if="payment.receipt.fee"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5L5 19" /><path d="M4 6.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /><path d="M15 17.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /></svg>{{ providerOf(selected) }} fee</dt><dd>− {{ peso(payment.receipt.fee) }}</dd></div>
                 <div v-if="payment.receipt.net_amount"><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0" /></svg>Received by NutriMatch</dt><dd><strong>{{ peso(payment.receipt.net_amount) }}</strong></dd></div>
                 <div><dt><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></svg>Recorded via</dt><dd>{{ SOURCE_LABELS[payment.source] || payment.source || '—' }}</dd></div>
               </dl>
@@ -289,8 +289,8 @@
             <div v-if="payment?.receipt?.payment_id" class="pm-box">
               <div class="pm-head">
                 <span class="pm-ico" aria-hidden="true"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></svg></span>
-                <h4 class="nm-section-title" style="margin: 0">In PayMongo</h4>
-                <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="pmLoading" @click="checkPayMongo"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5M3 21v-5h5" /></svg>{{ pmLoading ? 'Checking…' : 'Check with PayMongo' }}</button>
+                <h4 class="nm-section-title" style="margin: 0">In {{ providerOf(selected) }}</h4>
+                <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="pmLoading" @click="checkGateway"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5M3 21v-5h5" /></svg>{{ pmLoading ? 'Checking…' : `Check with ${providerOf(selected)}` }}</button>
               </div>
               <p v-if="pmError" class="nm-error" style="margin: 8px 0 0">{{ pmError }}</p>
               <template v-else-if="pm">
@@ -299,7 +299,7 @@
                   <strong class="pm-state" :class="pm.refunded ? 'muted' : pm.in_progress ? 'gold' : 'green'">{{ pm.refunded ? 'Refunded' : pm.in_progress ? 'Refund in progress' : 'Paid' }}</strong>
                   <span v-if="pm.livemode === false" class="nm-pill gold" style="margin-left: 6px">Test mode</span>
                 </p>
-                <p v-if="!pm.refunds.length" class="nm-hint pm-none"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 11v5M12 8h.01" /></svg>No refund sent to PayMongo yet.</p>
+                <p v-if="!pm.refunds.length" class="nm-hint pm-none"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 11v5M12 8h.01" /></svg>No refund sent to {{ providerOf(selected) }} yet.</p>
                 <div v-for="r in pm.refunds" :key="r.id" class="line pm-refund">
                   <span><span class="mono">{{ r.id }}</span><span class="sub">{{ dateTime(unix(r.refunded_at || r.created_at)) }}</span></span>
                   <span>{{ peso(r.amount) }} <span class="nm-pill" :class="PM_REFUND_PILLS[r.status] || 'muted'">{{ PM_REFUND_LABELS[r.status] || r.status }}</span></span>
@@ -324,7 +324,7 @@
 
         <div class="nm-modal-actions im-foot">
           <button type="button" class="nm-btn-soft" @click="closeInvoice">Close</button>
-          <button v-if="selected.status === 'refund_pending' && selected.paymongo_payment_id" type="button" class="nm-btn-dark" @click="askRefund(selected)"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>Refund through PayMongo</button>
+          <button v-if="selected.status === 'refund_pending' && selected.gateway_payment_id" type="button" class="nm-btn-dark" @click="askRefund(selected)"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>Refund through {{ providerOf(selected) }}</button>
         </div>
       </div>
     </div>
@@ -336,14 +336,14 @@
         <span class="rcm-ico" aria-hidden="true"><svg class="ic" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg></span>
         <h3 id="refund-title" class="nm-modal-title">Send {{ peso(refundConfirm.amount) }} back to {{ refundConfirm.client_name }}?</h3>
         <p class="nm-modal-text">
-          PayMongo returns the full amount of {{ invNo(refundConfirm) }}<template v-if="refundConfirm.payment_method"> to the client's {{ METHOD_LABELS[refundConfirm.payment_method] || refundConfirm.payment_method }}</template>.
-          It can't be undone. The invoice turns Refunded once PayMongo confirms, and the client is notified.
+          {{ providerOf(refundConfirm) }} returns the full amount of {{ invNo(refundConfirm) }}<template v-if="refundConfirm.payment_method"> to the client's {{ METHOD_LABELS[refundConfirm.payment_method] || refundConfirm.payment_method }}</template>.
+          It can't be undone. The invoice turns Refunded once {{ providerOf(refundConfirm) }} confirms, and the client is notified.
         </p>
         <p v-if="refundConfirmError" class="nm-field-error">{{ refundConfirmError }}</p>
         <div class="nm-modal-actions">
           <button type="button" class="nm-btn-soft" :disabled="!!refundBusy" @click="closeRefund">Not now</button>
-          <button type="button" class="nm-btn-dark" :disabled="!!refundBusy || lockLeft > 0" @click="refundViaPayMongo(refundConfirm)">
-            {{ refundBusy ? 'Sending to PayMongo…' : lockLeft > 0 ? `Send refund (${lockLeft})` : 'Send refund' }}
+          <button type="button" class="nm-btn-dark" :disabled="!!refundBusy || lockLeft > 0" @click="refundViaGateway(refundConfirm)">
+            {{ refundBusy ? `Sending to ${providerOf(refundConfirm)}…` : lockLeft > 0 ? `Send refund (${lockLeft})` : 'Send refund' }}
           </button>
         </div>
       </div>
@@ -409,7 +409,9 @@ const { page, pages, paged: pagedInvoices } = usePager(filteredInvoices, { perPa
 
 /* invoice detail overlay: details + the client's payment receipt */
 const APPT_LABELS = { pending: 'Awaiting RND confirmation', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' }
-const SOURCE_LABELS = { webhook: 'PayMongo notification', status_check: 'PayMongo status check', seed_demo: 'Demo data', admin: 'Admin', paymongo: 'PayMongo' }
+const SOURCE_LABELS = { webhook: 'Payment notification', status_check: 'Status check', seed_demo: 'Demo data', admin: 'Admin', paymongo: 'PayMongo', xendit: 'Xendit' }
+// Who took the payment: Xendit since 2026-11-27, PayMongo before (billing/xendit.py).
+const providerOf = inv => (inv?.payment_gateway === 'xendit' ? 'Xendit' : 'PayMongo')
 const selected = ref(null)
 const detail = ref(null)
 const detailError = ref('')
@@ -423,7 +425,7 @@ async function openInvoice(inv) {
   try {
     const d = await get(`/admin/invoices/${inv.id}/`)
     if (selected.value?.id === inv.id) detail.value = d
-    if (inv.paymongo_payment_id) checkPayMongo()
+    if (inv.gateway_payment_id) checkGateway()
   } catch (e) {
     if (selected.value?.id === inv.id) detailError.value = apiError(e, 'Could not load this invoice. Try again.')
   }
@@ -445,9 +447,9 @@ const methodText = computed(() => {
   return m ? (METHOD_LABELS[m] || m) : (r.source_type || '—')
 })
 
-/* What PayMongo says about the payment and its refunds (2026-10-19): an
-   invoice paid through PayMongo is refunded through PayMongo and only turns
-   Refunded once PayMongo reports the refund succeeded. */
+/* What the provider (Xendit or PayMongo) says about the payment and its refunds
+   (2026-10-19): an invoice is refunded through the provider it was paid with and
+   only turns Refunded once that provider reports the refund succeeded. */
 const PM_REFUND_LABELS = { succeeded: 'Succeeded', failed: 'Failed', pending: 'Processing', processing: 'Processing', refunding: 'Waiting for the client to claim it' }
 const PM_REFUND_PILLS = { succeeded: 'green', failed: 'red', pending: 'gold', processing: 'gold', refunding: 'gold' }
 const pm = ref(null)
@@ -455,18 +457,18 @@ const pmError = ref('')
 const pmLoading = ref(false)
 const unix = t => (typeof t === 'number' ? new Date(t * 1000).toISOString() : t)
 
-async function checkPayMongo() {
+async function checkGateway() {
   const inv = selected.value
   if (!inv) return
   pmLoading.value = true
   pmError.value = ''
   try {
-    const res = await get(`/admin/invoices/${inv.id}/paymongo/`)
+    const res = await get(`/admin/invoices/${inv.id}/gateway/`)
     if (selected.value?.id !== inv.id) return
     pm.value = res
     if (res.invoice_status && res.invoice_status !== inv.status) await afterStatusChange(inv)
   } catch (e) {
-    if (selected.value?.id === inv.id) pmError.value = apiError(e, 'Could not reach PayMongo. Try again.')
+    if (selected.value?.id === inv.id) pmError.value = apiError(e, `Could not reach ${providerOf(inv)}. Try again.`)
   } finally {
     pmLoading.value = false
   }
@@ -507,7 +509,8 @@ function closeRefund() {
   refundConfirm.value = null
 }
 
-async function refundViaPayMongo(inv) {
+async function refundViaGateway(inv) {
+  const name = providerOf(inv)
   refundBusy.value = inv.id
   refundConfirmError.value = ''
   try {
@@ -515,16 +518,16 @@ async function refundViaPayMongo(inv) {
     closeRefund()
     const last = res.refunds?.[res.refunds.length - 1]
     if (res.invoice_status === 'refunded') {
-      flash(`${invNo(inv)} refunded through PayMongo${last ? ` (${last.id})` : ''}. ${inv.client_name} was notified.`)
+      flash(`${invNo(inv)} refunded through ${name}${last ? ` (${last.id})` : ''}. ${inv.client_name} was notified.`)
     } else if (last?.status === 'failed') {
-      refundNotes[inv.id] = { tone: 'bad', text: `PayMongo refused it: refund ${last.id} failed.${res.source_type === 'qrph' && res.livemode === false ? ' Test mode can\'t complete QR Ph refunds.' : ''}` }
+      refundNotes[inv.id] = { tone: 'bad', text: `${name} refused it: refund ${last.id} failed.${res.source_type === 'qrph' && res.livemode === false ? ' Test mode can\'t complete QR Ph refunds.' : ''}` }
     } else {
-      refundNotes[inv.id] = { tone: 'wait', text: `Sent to PayMongo (${last?.id || 'refund'}). It turns Refunded once PayMongo confirms.` }
+      refundNotes[inv.id] = { tone: 'wait', text: `Sent to ${name} (${last?.id || 'refund'}). It turns Refunded once ${name} confirms.` }
     }
     if (selected.value?.id === inv.id) pm.value = res
     await afterStatusChange(inv)
   } catch (e) {
-    refundConfirmError.value = apiError(e, 'Could not send the refund to PayMongo. Try again.')
+    refundConfirmError.value = apiError(e, `Could not send the refund to ${name}. Try again.`)
   } finally {
     refundBusy.value = null
   }

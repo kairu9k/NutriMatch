@@ -48,7 +48,7 @@ def _resp(data, error=False):
     return r
 
 
-@override_settings(PAYMONGO=TEST_PAYMONGO)
+@override_settings(PAYMONGO=TEST_PAYMONGO, PAYMENT_PROVIDER="paymongo")
 class CheckoutAndRefundTests(TestCase):
     def setUp(self):
         self.rnd = User.objects.create_user(email="r@ref.ph", password="x", role="rnd", first_name="R", last_name="D")
@@ -100,7 +100,7 @@ class CheckoutAndRefundTests(TestCase):
         self.api.force_authenticate(self.admin)
         detail = self.api.get(f"/api/admin/invoices/{self.invoice.id}/").data
         self.assertEqual(detail["transactions"][0]["receipt"]["payment_id"], "pay_1")
-        self.assertEqual(detail["paymongo_payment_id"], "pay_1")
+        self.assertEqual(detail["gateway_payment_id"], "pay_1")
 
     # --- refunding through PayMongo ---------------------------------------
     @patch("billing.refunds.PayMongoService")
@@ -159,7 +159,7 @@ class CheckoutAndRefundTests(TestCase):
         self.api.force_authenticate(self.admin)
         resp = self.api.post(f"/api/admin/invoices/{self.invoice.id}/refund/")
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("wasn't paid through PayMongo", resp.data["detail"])
+        self.assertIn("wasn't paid through a payment provider", resp.data["detail"])
 
     # --- "Mark as refunded" no longer trusts a click for PayMongo invoices --
     @patch("billing.refunds.PayMongoService")
@@ -183,7 +183,7 @@ class CheckoutAndRefundTests(TestCase):
         self._paid_refund_pending()
         svc_cls.return_value.get_payment.return_value = _payment([("ref_1", "pending")])
         self.api.force_authenticate(self.admin)
-        state = self.api.get(f"/api/admin/invoices/{self.invoice.id}/paymongo/").data
+        state = self.api.get(f"/api/admin/invoices/{self.invoice.id}/gateway/").data
         self.assertEqual((state["invoice_status"], state["in_progress"]), ("refund_pending", True))
 
         svc_cls.return_value.get_payment.return_value = _payment([("ref_1", "succeeded")])

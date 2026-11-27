@@ -29,7 +29,7 @@ def _mock_response(json_data, error=False):
     return resp
 
 
-@override_settings(PAYMONGO=TEST_PAYMONGO)
+@override_settings(PAYMONGO=TEST_PAYMONGO, PAYMENT_PROVIDER="paymongo")
 class PayMongoServiceTests(TestCase):
     def setUp(self):
         rnd = User.objects.create_user(email="rnd@t.ph", password="x", role="rnd", first_name="R", last_name="D")

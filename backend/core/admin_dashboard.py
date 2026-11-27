@@ -112,7 +112,7 @@ def _attention(now, summary):
         "Check each PRC license before approving.", "/rnd-verification")
     refunds = Invoice.objects.filter(status="refund_pending").count()
     add("warning", "refunds", refunds, f"{refunds} refund{'s' if refunds != 1 else ''} to send",
-        "Refund in PayMongo, then press Mark as refunded.", "/billing-commission?tab=refunds")
+        "Send the refund from Billing and commission.", "/billing-commission?tab=refunds")
 
     no_details, due = [], []
     for rnd in User.objects.filter(role=User.Role.RND, rnd_profile__is_verified=True, is_active=True):

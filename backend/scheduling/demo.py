@@ -1,9 +1,8 @@
-"""Demo mode for the defense (2026-11-27, user's call: PayMongo deactivated the account and the
-replacement needs KYC). Off unless the server has DEMO_MODE=true (Render env var).
+"""Demo mode for the defense (2026-11-27, user's call). Off unless the server has DEMO_MODE=true
+(Render env var). Payment is never skipped (the adviser's rule): Pay still goes through the
+payment provider (Xendit test mode, billing/xendit.py).
 
 While it is on:
-- Pay marks the invoice paid at once, without PayMongo (billing.views.InitiatePaymentView);
-  the invoice says DEMO_PAYMENT_NOTE so `manage.py clear_demo_payments` can void it afterwards.
 - A booking may start any time from now (no 45-minute lead), the RND may confirm and the client
   may pay up to the start (no 30 / 15 minute deadlines).
 - The room opens as soon as the consultation is confirmed and paid (up to a day before).
@@ -13,7 +12,6 @@ env var off restores every normal rule; nothing is stored about the mode itself.
 """
 from django.conf import settings
 
-DEMO_PAYMENT_NOTE = "Demo payment (not through PayMongo)."
 DEMO_JOIN_EARLY_MINUTES = 24 * 60
 
 

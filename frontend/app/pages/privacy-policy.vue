@@ -29,7 +29,7 @@
         <li>Lab result files you upload, meal plans, and your meal logs, including meal photos</li>
         <li>Messages with your RND and support requests you send to NutriMatch</li>
         <li>Video call attendance: who joined, when, and for how long. Video calls themselves are never recorded.</li>
-        <li>Payment information from PayMongo: payment method, the last 4 digits of a card, amounts, and references. We never receive or store full card numbers.</li>
+        <li>Payment information from Xendit (PayMongo for earlier payments): payment method, the last 4 digits of a card, amounts, and references. We never receive or store full card numbers.</li>
         <li>The date and time you accepted these terms and gave consent to process your health data</li>
       </ul>
       <p>RNDs additionally provide their PRC license number, a photo of their license and a selfie holding it for identity verification, and payout details (GCash or bank account) for payments. The license photo and the selfie are used only to verify identity, are stored privately and are visible only to NutriMatch administrators.</p>
@@ -49,7 +49,8 @@
       <p>Clinical data is only accessible to you and your RND within an active care relationship. Administrators can view client records for support and compliance, and each view is logged; they cannot open your lab result files or meal photos. We share limited data with these service providers, strictly to deliver platform functionality:</p>
       <ul>
         <li><strong>Video calls:</strong> run directly between your browser and your RND's. When a direct connection isn't possible, Cloudflare relays the encrypted call without storing it.</li>
-        <li><strong>PayMongo:</strong> payments and refunds.</li>
+        <li><strong>Xendit:</strong> payments and refunds.</li>
+        <li><strong>PayMongo:</strong> refunds of payments made through it before November 2026.</li>
         <li><strong>Semaphore:</strong> text messages, if you turn them on. It receives only your mobile number and the message, which never includes health details.</li>
         <li><strong>Brevo:</strong> sending email.</li>
         <li><strong>Cloudinary:</strong> file storage. PRC license photos, PRC selfies, lab result files, and meal photos are stored privately.</li>

@@ -1,12 +1,11 @@
-// Pay an invoice through PayMongo — shared by the Billing page and My
-// Appointments (pay before the consultation).
+// Pay an invoice through the payment provider (Xendit by default, PayMongo before
+// 2026-11-27): shared by the Billing page and My Appointments (pay before the consultation).
 //
-// Opens the checkout in a popup (opened synchronously in the click handler,
-// or browsers block it), then asks PayMongo via our sync endpoint every few
-// seconds whether the invoice is paid. Payment Links can't redirect after
-// paying, so once it's paid we close the popup ourselves — allowed because
-// this page opened it. Stops if the client closes the popup, or after 30
-// minutes (the QR code's lifetime).
+// Opens the provider's checkout in a popup (opened synchronously in the click handler,
+// or browsers block it), then asks the provider via our sync endpoint every few
+// seconds whether the invoice is paid. Once it's paid we close the popup ourselves,
+// allowed because this page opened it. Stops if the client closes the popup, or after
+// 30 minutes.
 import { onBeforeUnmount, ref } from 'vue'
 
 const CHECK_EVERY_MS = 4000
@@ -14,7 +13,6 @@ const MAX_WATCH_MS = 30 * 60 * 1000
 
 export function usePayInvoice() {
   const { get, post } = useApi()
-  const demoMode = useDemoMode()
   const payingId = ref(null)
   const payError = ref('')
   let watcher = null
@@ -57,30 +55,13 @@ export function usePayInvoice() {
   async function pay(invoiceId, { onPaid, onClosed } = {}) {
     payingId.value = invoiceId
     payError.value = ''
-    // Demo mode (backend scheduling/demo.py): the server marks it paid at once, no PayMongo
-    // window. Known before the click (useDemoMode), so no empty popup flashes open.
-    if (demoMode.value) {
-      try {
-        const result = await post(`/client/invoices/${invoiceId}/pay/`)
-        if (result.status === 'paid') {
-          onPaid?.(await get('/client/invoices/'))
-        } else if (result.payment_url) {
-          window.location.href = result.payment_url // the server turned demo mode off meanwhile
-        }
-      } catch (error) {
-        payError.value = error?.data?.detail || 'Could not start payment. Please try again.'
-      } finally {
-        payingId.value = null
-      }
-      return
-    }
     const width = 480
     const height = 720
     const left = window.screenX + (window.outerWidth - width) / 2
     const top = window.screenY + (window.outerHeight - height) / 2
     const popup = window.open(
       '',
-      'paymongo-checkout',
+      'nutrimatch-checkout',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     )
     try {

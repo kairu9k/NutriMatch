@@ -35,8 +35,8 @@ class PublicLandingStatsView(APIView):
 
 class PublicConfigView(APIView):
     """What the browser needs to know about how the server is set up: only whether demo mode
-    is on (scheduling/demo.py), so Pay skips the PayMongo window and the booking calendar
-    offers times starting soon."""
+    is on (scheduling/demo.py), so the booking calendar offers times starting soon and the
+    time hints leave out the usual deadlines."""
 
     authentication_classes = []
     permission_classes = [permissions.AllowAny]

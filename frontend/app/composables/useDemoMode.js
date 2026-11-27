@@ -1,5 +1,5 @@
 // Whether the server runs in demo mode (backend scheduling/demo.py, GET /api/public/config/):
-// Pay is instant without PayMongo, bookings can start soon, the room opens once paid.
+// bookings can start soon, the room opens once paid. Pay still goes through the provider.
 // Asked once per page load and shared; false until the answer arrives or if it fails.
 export function useDemoMode() {
   const demoMode = useState('demo-mode', () => false)

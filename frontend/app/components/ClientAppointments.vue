@@ -26,8 +26,7 @@
       <!-- ============ UPCOMING ============ -->
       <section class="section">
         <div class="section-head"><h2 class="section-title">Upcoming <span class="count">{{ upcoming.length }}</span></h2></div>
-        <p v-if="demoMode" class="nm-note plain-note demo-note">Demo mode: payments are not real. Pay marks the invoice paid without PayMongo.</p>
-
+        
         <div v-if="!upcoming.length" class="panel up-empty">
           <span class="up-empty-glow" aria-hidden="true"></span>
           <div class="up-empty-row">
@@ -220,7 +219,7 @@
 </template>
 
 <script setup>
-const demoMode = useDemoMode() // scheduling/demo.py: instant Pay without PayMongo
+const demoMode = useDemoMode() // scheduling/demo.py: demo times
 import { useSupportPanel } from '~/composables/useSupportPanel'
 import { useToast } from '~/composables/useToast'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -421,7 +420,7 @@ const historyGroups = computed(() => {
 async function load() {
   errorMessage.value = ''
   try {
-    // Ask PayMongo about unpaid invoices first, so a just-made payment shows.
+    // Ask the payment provider about unpaid invoices first, so a just-made payment shows.
     await post('/client/invoices/sync/').catch(() => null)
     const [appts, rels, revs] = await Promise.all([
       get('/client/appointments/'),
@@ -933,5 +932,4 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 @media (prefers-reduced-motion: reduce) {
   .ap-spin { animation: none; }
 }
-.demo-note { margin: 0 0 12px; }
 </style>

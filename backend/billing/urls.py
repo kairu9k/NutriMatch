@@ -3,7 +3,7 @@ from django.urls import path
 from .views import (
     AdminInvoiceDetailView,
     AdminInvoiceListView,
-    AdminInvoicePayMongoView,
+    AdminInvoiceGatewayView,
     AdminInvoiceRefundView,
     AdminMarkRefundedView,
     AdminPayoutListView,
@@ -20,6 +20,7 @@ from .views import (
     ClientInvoiceSyncView,
     InitiatePaymentView,
     PayMongoWebhookView,
+    XenditWebhookView,
     RndInvoiceListView,
 )
 
@@ -41,10 +42,11 @@ urlpatterns = [
     path("rnd/payout-account/", RndPayoutAccountView.as_view(), name="rnd_payout_account"),
     path("rnd/earnings/", RndEarningsView.as_view(), name="rnd_earnings"),
     path("admin/invoices/<int:invoice_id>/mark-refunded/", AdminMarkRefundedView.as_view(), name="admin_mark_refunded"),
-    path("admin/invoices/<int:invoice_id>/paymongo/", AdminInvoicePayMongoView.as_view(), name="admin_invoice_paymongo"),
+    path("admin/invoices/<int:invoice_id>/gateway/", AdminInvoiceGatewayView.as_view(), name="admin_invoice_gateway"),
     path("admin/invoices/<int:invoice_id>/refund/", AdminInvoiceRefundView.as_view(), name="admin_invoice_refund"),
 ]
 
 webhook_urlpatterns = [
     path("webhooks/paymongo/", PayMongoWebhookView.as_view(), name="paymongo_webhook"),
+    path("webhooks/xendit/", XenditWebhookView.as_view(), name="xendit_webhook"),
 ]

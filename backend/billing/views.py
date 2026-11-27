@@ -19,8 +19,13 @@ from .services import (
     InvalidWebhookSignatureError,
     PayMongoService,
     PaymentGatewayError,
+    payment_service,
     record_successful_payment,
 )
+
+
+# The providers whose checkout NutriMatch can ask about (billing/xendit.py, services.py).
+GATEWAYS = [Invoice.PaymentGateway.XENDIT, Invoice.PaymentGateway.PAYMONGO]
 
 
 class ClientInvoiceListView(generics.ListAPIView):
@@ -81,8 +86,8 @@ class AdminInvoiceDetailView(generics.RetrieveAPIView):
 
 
 class InitiatePaymentView(APIView):
-    """Client-initiated payment: creates a PayMongo payment link for an
-    unpaid invoice belonging to the caller."""
+    """Client-initiated payment: opens a checkout with the payment provider (Xendit by default,
+    settings.PAYMENT_PROVIDER) for an unpaid invoice belonging to the caller."""
 
     permission_classes = [IsClient]
 
@@ -100,30 +105,18 @@ class InitiatePaymentView(APIView):
         appt = invoice.appointment
         from scheduling.serializers import deadlines
 
-        if appt is not None and appt.status in ("confirmed", "pending") and deadlines(appt)["pay_by"] <= timezone.now():
-            return Response({"detail": "Payment closed 15 minutes before the start, so this consultation can't be paid now."},
+        pay_by = deadlines(appt)["pay_by"] if appt is not None and appt.status in ("confirmed", "pending") else None
+        if pay_by is not None and pay_by <= timezone.now():
+            return Response({"detail": "Payment has closed, so this consultation can't be paid now."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        from scheduling.demo import DEMO_PAYMENT_NOTE, demo_mode
-
-        if demo_mode():
-            # Demo mode (scheduling/demo.py): paid at once, through the same recorder the
-            # webhook uses (receipt email, the RND's "Consultation paid"), marked as a demo.
-            invoice.payment_gateway = Invoice.PaymentGateway.MANUAL
-            invoice.notes = (f"{invoice.notes}\n" if invoice.notes else "") + DEMO_PAYMENT_NOTE
-            invoice.save(update_fields=["payment_gateway", "notes"])
-            record_successful_payment(invoice, reference_id=f"DEMO-{invoice.id}", payload={"demo": True},
-                                      source="demo", payment_method=Invoice.PaymentMethod.OTHER)
-            invoice.refresh_from_db()
-            return Response({"id": invoice.id, "amount": invoice.amount, "status": invoice.status,
-                             "payment_url": None, "demo": True})
-
+        service = payment_service()
         try:
-            result = PayMongoService().create_payment_link(invoice)
+            result = service.create_payment_link(invoice, pay_by=pay_by)
         except PaymentGatewayError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        invoice.payment_gateway = Invoice.PaymentGateway.PAYMONGO
+        invoice.payment_gateway = service.provider
         invoice.payment_url = result["payment_url"]
         invoice.gateway_reference_id = result["gateway_reference_id"]
         invoice.save(update_fields=["payment_gateway", "payment_url", "gateway_reference_id"])
@@ -186,8 +179,47 @@ class PayMongoWebhookView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
+class XenditWebhookView(APIView):
+    """Xendit's invoice callback (Settings > Webhooks > Invoices paid). No JWT: Xendit calls it
+    unauthenticated; the x-callback-token header must match XENDIT_CALLBACK_TOKEN. The body is
+    only a hint: the invoice is read back from Xendit's API before anything is recorded."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request):
+        from .xendit import XenditService
+
+        service = XenditService()
+        try:
+            if not service.callback_token_ok(request.headers.get("x-callback-token", "")):
+                return Response({"detail": "Invalid callback token."}, status=status.HTTP_401_UNAUTHORIZED)
+        except PaymentGatewayError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        reference = str((request.data or {}).get("id") or "")
+        invoice = Invoice.objects.filter(payment_gateway=Invoice.PaymentGateway.XENDIT,
+                                         gateway_reference_id=reference).first() if reference else None
+        if invoice is None:
+            # 200 regardless: an unknown invoice isn't Xendit's to retry.
+            return Response(status=status.HTTP_200_OK)
+        try:
+            result = service.get_payment_status(reference)
+        except PaymentGatewayError:
+            # Xendit retries a failed callback; the Billing page's sync check covers it too.
+            return Response(status=status.HTTP_502_BAD_GATEWAY)
+        if result["status"] == "success":
+            record_successful_payment(invoice, reference, result["raw"], source="webhook",
+                                      payment_method=result.get("payment_method"))
+        return Response(status=status.HTTP_200_OK)
+
+
 class ClientInvoiceSyncView(APIView):
-    """Checks the caller's unpaid PayMongo invoices directly with PayMongo and
+    """Checks the caller's unpaid invoices directly with their provider (Xendit or PayMongo) and
     marks any that were paid — the fallback when the payment.paid webhook
     never arrived (webhook disabled, tunnel down). The Billing page calls this
     on load and when the client returns from the checkout tab."""
@@ -198,12 +230,13 @@ class ClientInvoiceSyncView(APIView):
         pending = Invoice.objects.filter(
             relationship__client=request.user,
             status=Invoice.Status.UNPAID,
-            payment_gateway=Invoice.PaymentGateway.PAYMONGO,
+            payment_gateway__in=GATEWAYS,
         ).exclude(gateway_reference_id__isnull=True).exclude(gateway_reference_id="")
 
-        service = PayMongoService()
+        services = {}
         updated = []
         for invoice in pending:
+            service = services.setdefault(invoice.payment_gateway, payment_service(invoice.payment_gateway))
             try:
                 result = service.get_payment_status(invoice.gateway_reference_id)
             except PaymentGatewayError:
@@ -214,19 +247,20 @@ class ClientInvoiceSyncView(APIView):
             ):
                 updated.append(invoice.id)
 
-        # A refund PayMongo has completed since → Refunded on the client's page.
+        # A refund the provider has completed since → Refunded on the client's page.
         from .refunds import sync_refunds_for
 
         refunded = sync_refunds_for(Invoice.objects.filter(
             relationship__client=request.user, status=Invoice.Status.REFUND_PENDING,
-            payment_gateway=Invoice.PaymentGateway.PAYMONGO,
+            payment_gateway__in=GATEWAYS,
         ))
         return Response({"updated": updated + refunded})
 
 
 
 class AdminMarkRefundedView(APIView):
-    """Admin confirms a refund-pending invoice was refunded in PayMongo."""
+    """Admin confirms a refund-pending invoice was refunded (checked with its provider when it
+    was paid through one, by hand otherwise)."""
 
     permission_classes = [IsAdmin]
 
@@ -242,22 +276,24 @@ class AdminMarkRefundedView(APIView):
         if invoice.status != Invoice.Status.REFUND_PENDING:
             return Response({"detail": "Only refund-pending invoices can be marked refunded."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Paid through PayMongo → only PayMongo can say it's refunded
+        # Paid through Xendit / PayMongo → only the provider can say it's refunded
         # (2026-10-19: a click alone used to mark it, money or not).
-        from .refunds import apply_confirmed_refund, invoice_payment_id, paymongo_status
+        from .refunds import apply_confirmed_refund, gateway_status, invoice_payment_id, provider_of
+        from .services import provider_label
 
         if invoice_payment_id(invoice):
             try:
-                state = paymongo_status(invoice)
+                state = gateway_status(invoice)
             except PaymentGatewayError as exc:
                 return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
             if not apply_confirmed_refund(invoice, state, request.user):
+                name = provider_label(provider_of(invoice))
                 tried = state["refunds"][-1] if state["refunds"] else None
-                why = (f"PayMongo shows the last refund attempt ({tried['id']}) as {tried['status']}"
-                       if tried else "PayMongo has no refund for this payment yet")
-                return Response({"detail": f"Not refunded yet — {why}. Use Refund through PayMongo, "
-                                           "or refund it in the PayMongo dashboard first.",
-                                 "paymongo": state}, status=status.HTTP_409_CONFLICT)
+                why = (f"{name} shows the last refund attempt ({tried['id']}) as {tried['status']}"
+                       if tried else f"{name} has no refund for this payment yet")
+                return Response({"detail": f"Not refunded yet: {why}. Use Send refund, "
+                                           f"or refund it in the {name} dashboard first.",
+                                 "gateway": state}, status=status.HTTP_409_CONFLICT)
             return Response({"id": invoice.id, "status": Invoice.Status.REFUNDED})
 
         reference = (request.data.get("reference") or "").strip()[:100]
@@ -285,19 +321,19 @@ class AdminMarkRefundedView(APIView):
 
 
 
-class AdminInvoicePayMongoView(APIView):
-    """GET → what PayMongo says about this invoice's payment and refunds
-    (the admin invoice pop-up's "Check with PayMongo"). A refund PayMongo has
-    completed turns a refund-pending invoice Refunded."""
+class AdminInvoiceGatewayView(APIView):
+    """GET → what the provider (Xendit or PayMongo) says about this invoice's payment and
+    refunds (the admin invoice pop-up's Check button). A refund the provider has completed
+    turns a refund-pending invoice Refunded."""
 
     permission_classes = [IsAdmin]
 
     def get(self, request, invoice_id):
-        from .refunds import apply_confirmed_refund, paymongo_status
+        from .refunds import apply_confirmed_refund, gateway_status
 
         invoice = get_object_or_404(Invoice, pk=invoice_id)
         try:
-            state = paymongo_status(invoice)
+            state = gateway_status(invoice)
         except PaymentGatewayError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
         if state["available"] and invoice.status == Invoice.Status.REFUND_PENDING:
@@ -307,18 +343,17 @@ class AdminInvoicePayMongoView(APIView):
 
 
 class AdminInvoiceRefundView(APIView):
-    """POST → refund a refund-pending invoice through PayMongo (in full,
-    once). It becomes Refunded only when PayMongo reports the refund
-    succeeded."""
+    """POST → refund a refund-pending invoice through the provider it was paid with (in full,
+    once). It becomes Refunded only when the provider reports the refund succeeded."""
 
     permission_classes = [IsAdmin]
 
     def post(self, request, invoice_id):
-        from .refunds import RefundError, refund_through_paymongo
+        from .refunds import RefundError, refund_through_gateway
 
         invoice = get_object_or_404(Invoice, pk=invoice_id)
         try:
-            state, refund = refund_through_paymongo(invoice, request.user)
+            state, refund = refund_through_gateway(invoice, request.user)
         except RefundError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         invoice.refresh_from_db(fields=["status"])

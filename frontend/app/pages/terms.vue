@@ -31,12 +31,12 @@
       </ul>
 
       <h2>5. Payments, Cancellations &amp; Refunds</h2>
-      <p>Consultation fees are set independently by each RND and displayed on their profile prior to booking. You pay after the RND confirms, through PayMongo, a third-party payment provider (GCash, Maya, cards, and QR Ph). NutriMatch retains a platform commission, fixed at the rate in effect when the invoice is issued.</p>
+      <p>Consultation fees are set independently by each RND and displayed on their profile prior to booking. You pay after the RND confirms, through Xendit, a third-party payment provider (GCash, Maya, and cards). NutriMatch retains a platform commission, fixed at the rate in effect when the invoice is issued.</p>
       <ul>
         <li>You can pay any time after the RND confirms. A consultation still unpaid 15 minutes before its start is cancelled automatically, and nothing is charged.</li>
         <li>You can cancel a paid consultation for a full refund up to 30 minutes before its start. After that it cannot be cancelled.</li>
         <li>If you do not attend a paid video consultation, and your RND waited in the call for at least 5 minutes, it may be marked as a no-show from 15 minutes after the start, and the payment is not refunded. You may dispute this within 3 days from Help &amp; Support (Dispute a consultation); NutriMatch reviews your reason together with the video call's attendance record and either refunds you or keeps the no-show.</li>
-        <li>Refunds are always the full amount, within 5 to 7 business days. Payments made by GCash, Maya, or card go back to the same account; for QR Ph payments, we send a PayMongo link to claim the refund to your bank or e-wallet.</li>
+        <li>Refunds are always the full amount, within 5 to 7 business days. Payments made by GCash, Maya, or card go back to the same account; for earlier QR Ph payments made through PayMongo, we send a PayMongo link to claim the refund to your bank or e-wallet.</li>
         <li>Receipts issued in NutriMatch are payment receipts. They are not official receipts registered with the Bureau of Internal Revenue.</li>
       </ul>
       <p>For RNDs, your share of each paid consultation is held for 3 days after it is completed (or marked as a no-show), then becomes payable. NutriMatch sends payouts by GCash or bank transfer once a month, on the 5th, for balances of at least ₱500; smaller balances carry over. A consultation under dispute is not paid out until NutriMatch decides.</p>

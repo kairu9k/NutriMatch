@@ -118,18 +118,18 @@ class AdminInvoiceListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
     rnd_name = serializers.SerializerMethodField()
     net = serializers.SerializerMethodField()
-    # The PayMongo payment id (pay_...) when it was paid through PayMongo —
-    # those are refunded through PayMongo, the rest (demo data) by hand.
-    paymongo_payment_id = serializers.SerializerMethodField()
+    # The provider payment id (PayMongo pay_..., Xendit invoice id) when it was paid through one —
+    # those are refunded through that provider, the rest (demo data) by hand.
+    gateway_payment_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
         fields = [
             "id", "client_name", "rnd_name", "amount", "commission_pct", "commission_amt",
-            "net", "status", "payment_method", "paid_at", "created_at", "paymongo_payment_id",
+            "net", "status", "payment_gateway", "payment_method", "paid_at", "created_at", "gateway_payment_id",
         ]
 
-    def get_paymongo_payment_id(self, obj):
+    def get_gateway_payment_id(self, obj):
         from .services import payment_receipt
 
         for t in sorted(obj.transactions.all(), key=lambda t: t.created_at, reverse=True):
@@ -154,7 +154,7 @@ class AdminInvoiceListSerializer(serializers.ModelSerializer):
 class AdminInvoiceDetailSerializer(AdminInvoiceListSerializer):
     """One invoice for the Billing & Commission detail overlay: the parties,
     the consultation it bills, and every transaction with its receipt
-    details (picked from the PayMongo payload, never the raw payload)."""
+    details (picked from the provider payload, never the raw payload)."""
 
     client = serializers.SerializerMethodField()
     rnd = serializers.SerializerMethodField()
@@ -163,7 +163,7 @@ class AdminInvoiceDetailSerializer(AdminInvoiceListSerializer):
 
     class Meta(AdminInvoiceListSerializer.Meta):
         fields = AdminInvoiceListSerializer.Meta.fields + [
-            "client", "rnd", "appointment", "payment_gateway", "gateway_reference_id",
+            "client", "rnd", "appointment", "gateway_reference_id",
             "notes", "payout", "transactions",
         ]
 
@@ -197,7 +197,7 @@ class AdminInvoiceDetailSerializer(AdminInvoiceListSerializer):
                 "id": t.id, "transaction_type": t.transaction_type, "amount": t.amount, "status": t.status,
                 "processed_at": t.processed_at, "created_at": t.created_at,
                 # Where it was recorded from: webhook / status check / admin.
-                "source": payload.get("source") or ("paymongo" if payload else None),
+                "source": payload.get("source") or (payload.get("provider") or "paymongo" if payload else None),
                 "reference": payload.get("reference"),
                 "receipt": payment_receipt(payload) if t.transaction_type == "payment" else {},
             })

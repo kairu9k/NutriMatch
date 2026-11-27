@@ -22,7 +22,7 @@ TEST_PAYMONGO = {
 }
 
 
-@override_settings(PAYMONGO=TEST_PAYMONGO)
+@override_settings(PAYMONGO=TEST_PAYMONGO, PAYMENT_PROVIDER="paymongo")
 class BillingAndVideoViewTests(TestCase):
     def setUp(self):
         self.client_api = APIClient()

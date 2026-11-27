@@ -21,7 +21,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'When and how do I pay?',
-      a: 'Pay any time after your RND confirms, at least 15 minutes before the start, on Billing & Invoice or from My Appointments. GCash, Maya, cards and QR Ph work through PayMongo. A consultation that is still unpaid 15 minutes before the start is cancelled automatically.',
+      a: 'Pay any time after your RND confirms, at least 15 minutes before the start, on Billing & Invoice or from My Appointments. GCash, Maya and cards work through Xendit. A consultation that is still unpaid 15 minutes before the start is cancelled automatically.',
       link: { label: 'Billing & Invoice', to: '/invoices-billing' },
     },
     {
@@ -31,7 +31,7 @@ export const SUPPORT_FAQ = {
     },
     {
       q: 'Can I cancel, and will I get a refund?',
-      a: 'From My Appointments you can withdraw a booking request until your RND confirms it, cancel an unpaid consultation at no cost, and cancel a paid one up to 30 minutes before the start for the full amount back within 5–7 business days. After that it can’t be cancelled. Paid with GCash, Maya or a card? It goes back to the same account. Paid with QR Ph? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
+      a: 'From My Appointments you can withdraw a booking request until your RND confirms it, cancel an unpaid consultation at no cost, and cancel a paid one up to 30 minutes before the start for the full amount back within 5–7 business days. After that it can’t be cancelled. Paid with GCash, Maya or a card? It goes back to the same account. Paid earlier with QR Ph through PayMongo? We send you a PayMongo link to claim it to your bank or e-wallet. The link works for 3 days.',
     },
     {
       q: 'Can I move my consultation to another time?',

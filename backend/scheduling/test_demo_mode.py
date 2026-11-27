@@ -1,20 +1,16 @@
-"""Demo mode for the defense (scheduling/demo.py, 2026-11-27): instant Pay, no booking lead,
-the room opens once confirmed and paid; off by default and every normal rule back when off."""
+"""Demo mode for the defense (scheduling/demo.py, 2026-11-27): no booking lead, the room opens once
+confirmed and paid, Pay still goes through the provider; off by default, every rule back when off."""
 
 from datetime import timedelta
-from io import StringIO
 from unittest.mock import patch
 
-from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from billing.models import Invoice
 from billing.services import create_appointment_invoice, expire_unpaid_appointments
-from core.models import AuditLog
 from profiles.models import RndAvailabilitySchedule
 
-from .demo import DEMO_PAYMENT_NOTE
 from rest_framework.exceptions import ValidationError
 
 from .models import Appointment
@@ -50,6 +46,7 @@ class DemoModeOffTests(_DemoSetup, TestCase):
         self.assertEqual(d["confirm_by"], a.scheduled_at - timedelta(minutes=30))
         self.assertEqual(d["pay_by"], a.scheduled_at - timedelta(minutes=15))
 
+    @override_settings(PAYMENT_PROVIDER="paymongo")
     def test_pay_still_goes_to_paymongo(self):
         a, inv = self.unpaid(120)
         with patch("billing.views.PayMongoService.create_payment_link",
@@ -87,19 +84,18 @@ class DemoModeOnTests(_DemoSetup, TestCase):
         self.assertEqual(d["pay_by"], a.scheduled_at)
         self.assertEqual(d["cancel_by"], a.scheduled_at - timedelta(minutes=30))  # unchanged
 
-    def test_pay_is_instant_and_marked_as_demo(self):
+    def test_pay_still_goes_through_the_provider(self):
         a, inv = self.unpaid(10)
-        with patch("billing.views.PayMongoService.create_payment_link") as link:
+        with patch("billing.xendit.XenditService.create_payment_link",
+                   return_value={"payment_url": "https://checkout.xendit.example/inv_1",
+                                 "gateway_reference_id": "inv_1"}) as link:
             resp = self.client_api.post(f"/api/client/invoices/{inv.id}/pay/")
         self.assertEqual(resp.status_code, 200, resp.data)
-        link.assert_not_called()
-        self.assertEqual(resp.data["status"], "paid")
-        self.assertIsNone(resp.data["payment_url"])
+        link.assert_called_once()
+        self.assertEqual(link.call_args.kwargs["pay_by"], a.scheduled_at)  # open until the start
         inv.refresh_from_db()
-        self.assertEqual(inv.status, Invoice.Status.PAID)
-        self.assertEqual(inv.payment_gateway, Invoice.PaymentGateway.MANUAL)
-        self.assertIn(DEMO_PAYMENT_NOTE, inv.notes)
-        self.assertTrue(AuditLog.objects.filter(action="invoice.paid", record_id=inv.id).exists())
+        self.assertEqual(inv.status, Invoice.Status.UNPAID)
+        self.assertEqual(inv.payment_gateway, Invoice.PaymentGateway.XENDIT)
 
     def test_unpaid_isnt_cancelled_before_the_start(self):
         a, _ = self.unpaid(10)
@@ -111,25 +107,3 @@ class DemoModeOnTests(_DemoSetup, TestCase):
         a, _ = self.unpaid(120)
         opens, _ = join_window(a)
         self.assertLessEqual(opens, timezone.now())
-
-
-class ClearDemoPaymentsTests(_DemoSetup, TestCase):
-    def test_voids_only_demo_payments(self):
-        with override_settings(DEMO_MODE=True):
-            a, demo_inv = self.unpaid(10)
-            self.client_api.post(f"/api/client/invoices/{demo_inv.id}/pay/")
-        b = self.appt(300)  # a normal paid one
-        normal = Invoice.objects.get(appointment=b)
-
-        out = StringIO()
-        call_command("clear_demo_payments", "--dry-run", stdout=out)
-        demo_inv.refresh_from_db()
-        self.assertEqual(demo_inv.status, Invoice.Status.PAID)
-        self.assertIn(f"INV-{demo_inv.id:04d}", out.getvalue())
-
-        call_command("clear_demo_payments", stdout=StringIO())
-        demo_inv.refresh_from_db()
-        normal.refresh_from_db()
-        self.assertEqual(demo_inv.status, Invoice.Status.CANCELLED)
-        self.assertEqual(normal.status, Invoice.Status.PAID)
-        self.assertTrue(AuditLog.objects.filter(action="invoice.demo_voided", record_id=demo_inv.id).exists())

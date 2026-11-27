@@ -1,4 +1,6 @@
-"""PayMongo payment gateway integration for the Philippine market.
+"""PayMongo payment gateway integration for the Philippine market (since 2026-11-27 the
+second provider: new payments go through Xendit by default, billing/xendit.py,
+settings.PAYMENT_PROVIDER; payment_service() picks one).
 
 Security notes:
  - Secret key is read from settings.PAYMONGO (sourced from .env) only —
@@ -41,6 +43,8 @@ def is_checkout_session(reference: str | None) -> bool:
 
 
 class PayMongoService:
+    provider = "paymongo"
+
     def __init__(self):
         cfg = settings.PAYMONGO
         self.secret_key = cfg["SECRET_KEY"]
@@ -53,7 +57,7 @@ class PayMongoService:
             raise PaymentGatewayError("PAYMONGO_SECRET_KEY is not configured.")
         return httpx.Client(auth=(self.secret_key, ""), timeout=self.timeout)
 
-    def create_payment_link(self, invoice) -> dict:
+    def create_payment_link(self, invoice, pay_by=None) -> dict:
         """Create a PayMongo Checkout Session for an invoice (QR Ph, GCash,
         Maya or card — CHECKOUT_PAYMENT_METHODS).
         Returns {'payment_url': ..., 'gateway_reference_id': <cs_... id>}.
@@ -242,6 +246,21 @@ class PayMongoService:
             "payment.refunded": "refunded",
         }.get(event_type, "pending")
 
+
+
+def payment_service(gateway: str | None = None):
+    """The provider for an invoice's gateway ("xendit" / "paymongo"), or for new payments
+    (settings.PAYMENT_PROVIDER, Xendit by default) when none is given."""
+    gateway = gateway or getattr(settings, "PAYMENT_PROVIDER", "xendit")
+    if gateway == "xendit":
+        from .xendit import XenditService
+
+        return XenditService()
+    return PayMongoService()
+
+
+def provider_label(gateway: str | None) -> str:
+    return {"xendit": "Xendit", "paymongo": "PayMongo"}.get(gateway or "", "the payment provider")
 
 
 # PayMongo payment source types → Invoice.PaymentMethod.
@@ -574,6 +593,10 @@ def payment_receipt(payload) -> dict:
     from datetime import datetime, timezone as dt_timezone
     from decimal import Decimal
 
+    if isinstance(payload, dict) and payload.get("provider") == "xendit":
+        from .xendit import receipt_of
+
+        return receipt_of(payload.get("invoice") or {})
     payment = _find_payment_resource(payload)
     if not payment:
         return {}

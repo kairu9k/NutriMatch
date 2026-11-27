@@ -11,8 +11,8 @@ class Invoice(models.Model):
         UNPAID = "unpaid", "Unpaid"
         PAID = "paid", "Paid"
         CANCELLED = "cancelled", "Cancelled"
-        # A paid appointment was cancelled; an admin refunds it in PayMongo
-        # and then marks it refunded (refunds aren't automated).
+        # A paid appointment was cancelled; an admin refunds it through its provider
+        # (Xendit or PayMongo); it turns Refunded once the provider confirms.
         REFUND_PENDING = "refund_pending", "Refund pending"
         REFUNDED = "refunded", "Refunded"
 

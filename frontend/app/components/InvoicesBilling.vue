@@ -12,8 +12,7 @@
     </section>
 
     <p v-if="error" class="nm-error">{{ error }}</p>
-    <p v-if="demoMode" class="nm-note plain-note demo-note">Demo mode: payments are not real. Pay marks the invoice paid without PayMongo.</p>
-    <p v-if="paidNotice" class="nm-success"><CheckCircle2 :size="15" /> {{ paidNotice }}</p>
+        <p v-if="paidNotice" class="nm-success"><CheckCircle2 :size="15" /> {{ paidNotice }}</p>
 
     <!-- figures -->
     <div class="figs">
@@ -73,7 +72,7 @@
           <button class="bl-btn-dark" :disabled="payingId === inv.id" @click="payInvoice(inv)">
             <CreditCard :size="16" /> {{ payingId === inv.id ? 'Opening…' : 'Pay now' }}
           </button>
-          <p class="methods">GCash, Maya, card or QR Ph</p>
+          <p class="methods">GCash, Maya or card</p>
         </div>
       </div>
     </div>
@@ -192,7 +191,6 @@
 </template>
 
 <script setup>
-const demoMode = useDemoMode() // scheduling/demo.py: instant Pay without PayMongo
 import { useToast } from '~/composables/useToast'
 import {
   AlarmClock, CheckCircle2, CreditCard, FileText, Mail, Printer, Receipt, Search, X,
@@ -235,7 +233,7 @@ async function load({ quiet = false } = {}) {
     error.value = ''
   }
   try {
-    // The list first: asking PayMongo takes several seconds, and until the
+    // The list first: asking the payment provider takes several seconds, and until the
     // list is in, the figures would read ₱0.00 and "Nothing to pay".
     invoices.value = await get('/client/invoices/')
   } catch {
@@ -353,7 +351,7 @@ function timeLeft(v) {
 function paidVia(inv) {
   const r = inv.receipt || {}
   if (r.card_last4) return `${(r.card_brand || 'Card').replace(/^./, c => c.toUpperCase())} •••• ${r.card_last4}`
-  return r.method || 'PayMongo'
+  return r.method || 'Online payment'
 }
 function statusDetail(inv) {
   if (inv.status === 'unpaid') return inv.pay_by ? `Pay by ${shortDate(inv.pay_by)}` : ''
@@ -608,5 +606,4 @@ const plateImg = '/landing/login-plate.webp'
   .rm-dl dd { font-size: 13.5px; }
   .rm-actions { padding: 14px 18px calc(16px + env(safe-area-inset-bottom)); }
 }
-.demo-note { margin: 0 0 12px; }
 </style>
