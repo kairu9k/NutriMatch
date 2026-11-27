@@ -58,6 +58,18 @@ def answer_before_minutes() -> int:
     return 15 if demo_mode() else ANSWER_BEFORE_MINUTES
 
 
+def call_counts_as_held(a, now=None) -> bool:
+    """A video consultation can be marked complete: both were in the call together for
+    MIN_TOGETHER_MINUTES (5); in demo mode as soon as both have joined (2026-11-28, the
+    adviser: a short demo call couldn't be finished)."""
+    from .attendance import together_minutes
+    from .serializers import MIN_TOGETHER_MINUTES
+
+    if demo_mode():
+        return a.rnd_joined_at is not None and a.client_joined_at is not None
+    return together_minutes(a, now) >= MIN_TOGETHER_MINUTES
+
+
 def join_early_minutes() -> int:
     from .serializers import JOIN_EARLY_MINUTES
 

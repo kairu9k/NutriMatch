@@ -39,6 +39,7 @@ class Resource(models.Model):
         PDF = "pdf", "PDF"
         VIDEO = "video", "Video"
         LINK = "link", "Link"
+        IMAGE = "image", "Image"  # 2026-11-28, the adviser: infographics, food photos
 
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploaded_resources"

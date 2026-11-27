@@ -97,7 +97,6 @@
               <span class="m-brand"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>{{ payoutVia(c.r.payout_account.method, c.r.payout_account.bank_name) }}</span>
               <div class="m-txt"><small>Account name</small><b>{{ c.r.payout_account.account_name }}</b></div>
               <div class="m-txt"><small>Number</small><b class="mono">{{ c.r.payout_account.account_number }}</b></div>
-              <button type="button" class="m-copy" :aria-label="`Copy ${c.r.payout_account.account_number}`" @click="copy(c.r.payout_account.account_number)"><Copy :size="15" aria-hidden="true" /></button>
             </div>
             <div class="nw-amt"><strong class="mono">{{ peso(c.amount) }}</strong><small>to send</small></div>
             <button type="button" class="nm-btn-dark rel" @click="openRelease(c.r)"><Send :size="15" aria-hidden="true" /> Release {{ peso(c.r.payable) }}</button>
@@ -529,8 +528,10 @@ function openPreview() {
     payout_account: { method: 'gcash', account_name: 'Sample RND', account_number: '09171234567', bank_name: null, recently_changed: false },
   })
 }
-function openRelease(r) {
-  releasing.value = r
+// Lists show the payout number masked (•••• 4567, billing.payouts.mask_account); the full
+// number is fetched only here, where the admin types it to send the money (audit-logged).
+async function openRelease(r) {
+  releasing.value = { ...r, payout_account: { ...r.payout_account } }
   reference.value = ''
   notes.value = ''
   releaseError.value = ''
@@ -543,6 +544,13 @@ function openRelease(r) {
     lockLeft.value -= 1
     if (lockLeft.value <= 0) clearInterval(lockTimer)
   }, 1000)
+  if (r.preview) return
+  try {
+    const full = await get(`/admin/payouts/account/${r.rnd_id}/`)
+    if (releasing.value?.rnd_id === r.rnd_id) releasing.value.payout_account.account_number = full.account_number
+  } catch (e) {
+    releaseError.value = apiError(e)
+  }
 }
 onBeforeUnmount(() => clearInterval(lockTimer))
 async function copy(text) {
@@ -773,8 +781,6 @@ const upCards = computed(() => [
 .m-txt { min-width: 0; }
 .m-txt small { display: block; font-size: 11px; font-weight: 700; color: #8a9a91; }
 .m-txt b { font-size: 13.5px; color: #0e3a2c; white-space: nowrap; }
-.m-copy { width: 36px; height: 36px; border: none; border-radius: 10px; background: #f1f6f2; color: #1f7a4d; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.m-copy:hover { background: #e3efe7; }
 .nw-amt { text-align: right; }
 .nw-amt strong { display: block; font-family: 'Playfair Display', serif; font-size: 26px; line-height: 1.1; color: #004d3a; }
 .nw-amt small { font-size: 12px; font-weight: 700; color: #8a9a91; }

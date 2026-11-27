@@ -81,6 +81,8 @@ onMounted(loadNotifications)
 const live = useLiveUpdates()
 live.onLive('notification', ({ notification }) => {
   if (!notifications.value.some(n => n.id === notification.id)) notifications.value = [notification, ...notifications.value]
+  // a new one can replace an older unread one on the server (a changed meal rating), so re-sync quietly
+  loadNotifications({ quiet: true })
 })
 live.onLive('reconnect', loadNotifications)
 let fallbackTimer = null

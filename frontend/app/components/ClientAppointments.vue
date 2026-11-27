@@ -57,6 +57,10 @@
             <component :is="appt.typeIcon" :size="15" aria-hidden="true" /> {{ appt.typeLabel }} with
             <NuxtLink :to="`/rnd-profile-view/${appt.rnd.id}`" class="up-rnd">RND {{ appt.rnd.name }}</NuxtLink>
           </p>
+          <p v-if="appt.clinic_address" class="up-where">
+            <span>{{ appt.clinic_address }}</span>
+            <a :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.clinic_address)}`" target="_blank" rel="noopener" class="nm-text-link">Open in Google Maps</a>
+          </p>
           <p v-if="appt.notes" class="appt-notes"><span>Your notes:</span> {{ appt.notes }}</p>
           <p v-if="appt.hint" class="appt-hint" :class="{ 'hint-due': appt.phase === 'payment_due' }">{{ appt.hint }}</p>
           <RescheduleAnswer v-if="appt.phase === 'rescheduling' || (appt.status === 'pending' && appt.reschedule?.waiting)" :appointment="appt" role="client" :other-name="appt.rnd.name" @changed="load" />
@@ -321,13 +325,16 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
   else if (phase === 'payment_due') hint = `Pay ₱${money(payment.amount)} by ${payBy.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}, ${clock(payBy)}${demoMode.value ? '' : ', 15 minutes before the start'}. If it isn't paid by then, the booking is cancelled and the slot is released.`
   else if (phase === 'confirmed' && a.type === 'video' && nowMs < opensAt) hint = `Your video room opens ${formatJoinTime(opensAt, nowMs)}${demoMode.value ? '' : ', 15 minutes before the start'}.`
   else if (phase === 'confirmed' && a.type === 'video') hint = 'Your video room is open. You can join now.'
-  else if (phase === 'confirmed' && a.type === 'in_person') hint = 'Message your RND if you need the clinic address or directions.'
+  else if (phase === 'confirmed' && a.type === 'in_person') hint = a.clinic_address
+    ? 'Arrive a few minutes early, and bring any lab results and a list of the medicines you take.'
+    : 'Message your RND if you need the clinic address or directions.'
   else if (phase === 'expired') hint = 'Your RND didn\'t confirm this request in time.'
   else if (phase === 'ended') hint = 'Your RND will mark this consultation complete.'
 
   return {
     id: a.id,
     status: a.status,
+    clinic_address: a.clinic_address,
     phase,
     relationshipId: a.relationship.id,
     start,
@@ -770,6 +777,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .up-rnd:hover { text-decoration: underline; text-underline-offset: 3px; }
 .appt-notes { margin: 12px 0 0; padding: 8px 12px; border-left: 3px solid #EFBF04; border-radius: 0 10px 10px 0; background: #FBF8EC; font-size: 13.5px; line-height: 1.5; color: #3E5046; overflow-wrap: anywhere; }
 .appt-notes span { font-weight: 700; color: #7A5A00; }
+.up-where { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 10px 0 0; font-size: 14px; color: #1a3a1a; font-weight: 600; }
+.up-where a { font-size: 13px; }
 .appt-hint { margin: 12px 0 0; font-size: 13.5px; line-height: 1.55; color: #4A5A52; }
 /* payment still to make */
 .appt-hint.hint-due { padding: 12px 14px; border-radius: 12px; background: #FBF6E4; border: 1.5px dashed #E2C35A; color: #4A3E10; font-weight: 600; }

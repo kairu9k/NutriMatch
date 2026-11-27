@@ -252,6 +252,12 @@ class PayoutSerializer(serializers.ModelSerializer):
     rnd_name = serializers.CharField(source="rnd.full_name", read_only=True)
     released_by_name = serializers.SerializerMethodField()
     invoice_count = serializers.SerializerMethodField()
+    account_number = serializers.SerializerMethodField()  # masked, billing.payouts.mask_account
+
+    def get_account_number(self, obj):
+        from .payouts import mask_account
+
+        return mask_account(obj.account_number)
 
     class Meta:
         model = Payout

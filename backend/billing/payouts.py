@@ -47,6 +47,14 @@ def next_payout_date(today=None):
     return date(year, month, PAYOUT_DAY)
 
 
+def mask_account(number):
+    """09171234567 -> "•••• 4567". Payout account numbers are shown masked everywhere
+    (2026-11-28, the adviser); only the admin's Release pop-up gets the full number
+    (AdminPayoutAccountView, audit-logged), because the admin types it to send the money."""
+    digits = (number or "").replace(" ", "")
+    return f"•••• {digits[-4:]}" if digits else ""
+
+
 def details_recently_changed(account, now=None):
     changed = getattr(account, "details_changed_at", None)
     return bool(changed and changed >= (now or timezone.now()) - timedelta(days=RECENT_CHANGE_DAYS))
@@ -232,7 +240,7 @@ def release_payout(rnd, *, reference, released_by, notes="", expected_amount=Non
     notify(
         recipient=rnd, notifiable_type="payout", notifiable_id=payout.id,
         subject="Payout sent",
-        content=f"Your ₱{amount:,.2f} payout was sent to your {method} account ({account.account_number}). Reference: {payout.reference}.",
+        content=f"Your ₱{amount:,.2f} payout was sent to your {method} account ({mask_account(account.account_number)}). Reference: {payout.reference}.",
     )
     try:
         send_payout_email(payout)
@@ -258,7 +266,7 @@ def send_payout_email(payout):
             f"We've sent your earnings for {count} consultation{'s' if count != 1 else ''} to your {method} account.",
             "Thank you for caring for your clients on NutriMatch!",
         ],
-        highlight=f"Amount: ₱{payout.amount:,.2f} · {method} {payout.account_number} · Reference: {payout.reference}",
+        highlight=f"Amount: ₱{payout.amount:,.2f} · {method} {mask_account(payout.account_number)} · Reference: {payout.reference}",
         button_label="View my earnings", button_url=f"{_frontend()}/earnings",
         preheader=f"₱{payout.amount:,.2f} sent to your {method} account.",
     )

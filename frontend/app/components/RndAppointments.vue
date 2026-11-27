@@ -113,7 +113,7 @@
               <div class="row-actions">
                 <template v-if="inWindow(a)">
                   <NuxtLink v-if="a.type === 'video'" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="14" /> Join</NuxtLink>
-                  <NuxtLink v-else :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Users :size="14" /> Open room</NuxtLink>
+                  <NuxtLink v-else :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Users :size="14" /> Start visit</NuxtLink>
                 </template>
                 <span v-else class="opens"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg> Opens {{ clock(a.join_opens_at) }}</span>
                 <button v-if="canMove(a)" type="button" class="nm-btn-soft nm-btn-sm" @click="rescheduling = a"><CalendarDays :size="14" /> Reschedule</button>
@@ -141,7 +141,7 @@
             <div class="row-actions">
               <button v-if="a.payment && a.payment.status !== 'paid'" type="button" class="nm-btn-outline nm-btn-sm" disabled title="Can't complete an unpaid consultation">Waiting for payment</button>
               <template v-else-if="a.type !== 'video'">
-                <NuxtLink :to="`/consultation-room/${a.id}`" class="nm-btn-soft nm-btn-sm">Open room</NuxtLink>
+                <NuxtLink :to="`/consultation-room/${a.id}`" class="nm-btn-soft nm-btn-sm">{{ a.type === 'in_person' ? 'Open visit' : 'Open room' }}</NuxtLink>
                 <button type="button" class="nm-btn-dark nm-btn-sm" @click="completeTarget = a">Mark complete</button>
               </template>
             </div>

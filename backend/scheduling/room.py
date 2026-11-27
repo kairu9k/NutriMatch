@@ -26,6 +26,8 @@ def build_client_room_info(appointment):
         "rnd": {
             "name": rnd.full_name, "first_name": rnd.first_name, "profile_photo": rnd.profile_photo,
             "specialization": getattr(profile, "specialization", None),
+            # where an in-person visit takes place (the client's visit card, 2026-11-28)
+            "clinic_address": getattr(profile, "clinic_address", None) if appointment.type == appointment.Type.IN_PERSON else None,
         },
         "meal_plan": {
             "name": plan.name, "sent_at": plan.sent_at, "target_kcal": _num(plan.target_kcal),

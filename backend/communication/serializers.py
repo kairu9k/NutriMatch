@@ -53,6 +53,7 @@ RESOURCE_FILE_RULES = {
     Resource.Type.PDF: ({".pdf"}, 10),
     Resource.Type.ARTICLE: ({".pdf", ".doc", ".docx"}, 10),
     Resource.Type.VIDEO: ({".mp4", ".webm", ".mov"}, 100),
+    Resource.Type.IMAGE: ({".jpg", ".jpeg", ".png", ".webp"}, 10),
 }
 
 
@@ -121,7 +122,7 @@ class ResourceSerializer(serializers.ModelSerializer):
             has_existing_file = self.instance and self.instance.file_path
             if not file and not has_existing_file:
                 raise serializers.ValidationError(
-                    {"file": "A file is required for PDF/video/article resources."}
+                    {"file": "Choose a file to upload."}
                 )
             if file and resource_type in RESOURCE_FILE_RULES:
                 extensions, max_mb = RESOURCE_FILE_RULES[resource_type]
@@ -129,7 +130,7 @@ class ResourceSerializer(serializers.ModelSerializer):
                 if ext not in extensions:
                     allowed = ", ".join(sorted(extensions))
                     raise serializers.ValidationError(
-                        {"file": f"This file type isn't allowed for a {Resource.Type(resource_type).label} resource. Use {allowed}."}
+                        {"file": f"This file type isn't allowed here. {Resource.Type(resource_type).label} resources take {allowed}."}
                     )
                 if file.size > max_mb * 1024 * 1024:
                     raise serializers.ValidationError({"file": f"The file is too large. The limit is {max_mb} MB."})

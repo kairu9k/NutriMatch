@@ -100,6 +100,7 @@
         <div class="preview">
           <iframe v-if="previewKind === 'pdf'" :src="previewR.file_path" :title="previewR.title" class="preview-frame" />
           <video v-else-if="previewKind === 'video'" :src="previewR.file_path" controls preload="metadata" class="preview-video" />
+          <img v-else-if="previewKind === 'image'" :src="previewR.file_path" :alt="previewR.title" class="preview-image">
           <a v-else-if="previewKind === 'link'" :href="previewR.url" target="_blank" rel="noopener" class="preview-link">
             <LinkIcon :size="18" aria-hidden="true" />
             <span><strong>Open link</strong><span class="preview-url">{{ previewR.url }}</span></span>
@@ -242,7 +243,7 @@
 import { useToast } from '~/composables/useToast'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
-  CheckCircle2, Download, ExternalLink, Eye, EyeOff, FileEdit, FileText,
+  CheckCircle2, Download, ExternalLink, Eye, EyeOff, FileEdit, FileText, Image as ImageIcon,
   Link as LinkIcon, MoreHorizontal, PlayCircle, Search, Send, Upload, X,
 } from 'lucide-vue-next'
 
@@ -256,7 +257,7 @@ const errorMessage = ref('')
 const resources = ref([])
 const busyId = ref(null)
 
-const TYPE_LABELS = { article: 'Article', pdf: 'PDF', video: 'Video', link: 'Link' }
+const TYPE_LABELS = { article: 'Article', pdf: 'PDF', video: 'Video', link: 'Link', image: 'Image' }
 function toDisplayType(type) { return TYPE_LABELS[type] || type }
 function toApiType(label) { return label.toLowerCase() }
 
@@ -302,6 +303,7 @@ function iconFor(type) {
   if (type === 'Video') return PlayCircle
   if (type === 'Article') return FileEdit
   if (type === 'Link') return LinkIcon
+  if (type === 'Image') return ImageIcon
   return FileText
 }
 // "Mia Santos", or "5 patients"
@@ -340,6 +342,7 @@ const previewKind = computed(() => {
   if (r.type === 'Link') return r.url ? 'link' : null
   const path = (r.file_path || '').toLowerCase().split('?')[0]
   if (r.type === 'Video' || /\.(mp4|webm|mov)$/.test(path)) return 'video'
+  if (r.type === 'Image' || /\.(jpe?g|png|webp)$/.test(path)) return 'image'
   if (path.endsWith('.pdf') || r.type === 'PDF') return 'pdf'
   return null
 })
@@ -468,6 +471,7 @@ const resourceTypeOptions = [
   { value: 'PDF', label: 'PDF', icon: FileText },
   { value: 'Video', label: 'Video', icon: PlayCircle },
   { value: 'Article', label: 'Article', icon: FileEdit },
+  { value: 'Image', label: 'Image', icon: ImageIcon },
   { value: 'Link', label: 'Link', icon: LinkIcon }
 ]
 
@@ -484,6 +488,7 @@ const FILE_RULES = {
   PDF: { exts: ['.pdf'], maxMb: 10 },
   Article: { exts: ['.pdf', '.doc', '.docx'], maxMb: 10 },
   Video: { exts: ['.mp4', '.webm', '.mov'], maxMb: 100 },
+  Image: { exts: ['.jpg', '.jpeg', '.png', '.webp'], maxMb: 10 },
 }
 const fileRule = computed(() => {
   const rule = FILE_RULES[newUpload.value.type] || FILE_RULES.PDF
@@ -506,7 +511,7 @@ function onFileSelected(e) {
   const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
   const rule = fileRule.value
   if (!rule.exts.includes(ext)) {
-    uploadError.value = `This file type isn't allowed for a ${newUpload.value.type} resource. Use ${rule.exts.join(', ')}.`
+    uploadError.value = `This file type isn't allowed here. ${newUpload.value.type} resources take ${rule.exts.join(', ')}.`
   } else if (file.size > rule.maxMb * 1024 * 1024) {
     uploadError.value = `The file is too large. The limit is ${rule.maxMb} MB.`
   }
@@ -688,6 +693,7 @@ const rowTone = r => (!r.is_active ? 'muted' : r.shared_with?.length ? 'green' :
 .preview { border: 1px solid #d9e3dc; border-radius: 12px; overflow: hidden; background: #f7f9f7; }
 .preview-frame { display: block; width: 100%; height: 60vh; border: 0; background: #fff; }
 .preview-video { display: block; width: 100%; max-height: 60vh; background: #000; }
+.preview-image { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto; object-fit: contain; }
 .preview-link { display: flex; align-items: center; gap: 12px; padding: 18px; text-decoration: none; color: #1a3a1a; }
 .preview-link > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 0.88rem; }
 .preview-url { font-size: 0.78rem; color: #1f6f46; overflow-wrap: anywhere; }

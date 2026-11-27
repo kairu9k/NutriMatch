@@ -132,8 +132,8 @@ function timeAgo(iso) {
   return 'just now'
 }
 
-async function loadNotifications() {
-  isLoading.value = true
+async function loadNotifications({ quiet = false } = {}) {
+  if (!quiet) isLoading.value = true
   errorMessage.value = ''
   try {
     const res = await get(`/notifications/?page=${page.value}`)
@@ -143,7 +143,7 @@ async function loadNotifications() {
     unreadTotal.value = res.unread
     page.value = res.page
   } catch {
-    errorMessage.value = 'Could not load your notifications. Please try again later.'
+    if (!quiet) errorMessage.value = 'Could not load your notifications. Please try again later.'
   } finally {
     isLoading.value = false
   }
@@ -197,8 +197,10 @@ live.onLive('notification', ({ notification }) => {
   if (!notification.is_read) unreadTotal.value += 1
   // only the first page shows the newest ones
   if (page.value === 1) notifications.value = [notification, ...notifications.value].slice(0, pageSize.value)
+  // a new one can replace an older unread one on the server (a changed meal rating), so re-sync quietly
+  loadNotifications({ quiet: true })
 })
-live.onLive('reconnect', loadNotifications)
+live.onLive('reconnect', () => loadNotifications())
 
 // ---- UI helpers only: banner, filter pills, coloured kinds, day cards ----
 const NX_PLATE = '/landing/login-plate.webp'

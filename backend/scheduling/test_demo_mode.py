@@ -181,3 +181,28 @@ class DemoRescheduleLimitsTests(_DemoSetup, TestCase):
                                     {"action": "change", "scheduled_at": self._later(90).isoformat()}, format="json")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("30 minutes", str(resp.data))
+
+
+class DemoCompleteAfterBothJoinTests(_DemoSetup, TestCase):
+    """Demo mode: a video consultation can be marked complete once both joined,
+    even before its start (2026-11-28); off, the 5 minutes together still apply."""
+
+    def _joined(self, a):
+        from .attendance import record_presence
+
+        record_presence(a.id, "rnd", True, ["rnd"])
+        record_presence(a.id, "client", True, ["rnd", "client"])
+
+    @override_settings(DEMO_MODE=True)
+    def test_demo_completes_once_both_joined_before_the_start(self):
+        a = self.appt(600)
+        self.assertEqual(self.rnd_api.patch(f"/api/rnd/appointments/{a.id}/complete/").status_code, 403)
+        self._joined(a)
+        self.assertEqual(self.rnd_api.patch(f"/api/rnd/appointments/{a.id}/complete/").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual(a.status, "completed")
+
+    def test_off_still_needs_five_minutes_together(self):
+        a = self.appt(-10)
+        self._joined(a)
+        self.assertEqual(self.rnd_api.patch(f"/api/rnd/appointments/{a.id}/complete/").status_code, 403)

@@ -122,7 +122,13 @@ class PayoutTests(TestCase):
         run = self.admin_api.get("/api/admin/payouts/run/").data
         row = next(r for r in run["rows"] if r["rnd_id"] == self.rnd.id)
         self.assertTrue(row["eligible"])
-        self.assertEqual(row["payout_account"]["account_number"], "09171234567")
+        # masked in the list; the full number only for the Release pop-up, audit-logged
+        self.assertEqual(row["payout_account"]["account_number"], "•••• 4567")
+        self.assertNotIn("09171234567", str(run))
+        full = self.admin_api.get(f"/api/admin/payouts/account/{self.rnd.id}/")
+        self.assertEqual(full.data["account_number"], "09171234567")
+        self.assertTrue(AuditLog.objects.filter(action="payout_account.viewed", user=self.admin).exists())
+        self.assertEqual(self.rnd_api.get(f"/api/admin/payouts/account/{self.rnd.id}/").status_code, 403)
 
         resp = self._release("1440.00")
         self.assertEqual(resp.status_code, 201, resp.data)
@@ -133,6 +139,8 @@ class PayoutTests(TestCase):
         self.assertEqual(PaymentTransaction.objects.filter(transaction_type="payout").count(), 2)
         self.assertTrue(AuditLog.objects.filter(action="payout.released", user=self.admin).exists())
         self.assertIn("₱1,440.00", mail.outbox[-1].subject)
+        self.assertEqual(resp.data["account_number"], "•••• 4567")
+        self.assertNotIn("09171234567", mail.outbox[-1].body)
         # nothing left to pay — the same invoices are never paid twice
         again = self._release("1440.00", reference="9988 776 655443")
         self.assertEqual(again.status_code, 400)

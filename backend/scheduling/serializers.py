@@ -86,6 +86,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         closes_at = end + timedelta(minutes=JOIN_LATE_MINUTES)
         data["join_opens_at"] = opens_at.isoformat()
         data["join_closes_at"] = closes_at.isoformat()
+        # where an in-person visit takes place (public on the RND's profile too; client's card, 2026-11-28)
+        data["clinic_address"] = (getattr(getattr(instance.relationship.rnd, "rnd_profile", None), "clinic_address", None)
+                                  if instance.type == Appointment.Type.IN_PERSON else None)
         for key, when in deadlines(instance).items():
             data[key] = when.isoformat()
         from .attendance import attendance_payload, dispute_payload

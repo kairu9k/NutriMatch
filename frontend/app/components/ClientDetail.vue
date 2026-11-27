@@ -202,6 +202,7 @@
                   <span v-else class="nm-pill muted">Not paid yet</span>
                 </p>
                 <NuxtLink v-if="canJoin(nextAppt)" :to="`/consultation-room/${nextAppt.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="14" /> Join</NuxtLink>
+                <NuxtLink v-else-if="canVisit(nextAppt)" :to="`/consultation-room/${nextAppt.id}`" class="nm-btn-dark nm-btn-sm">Start visit</NuxtLink>
                 <NuxtLink v-else-if="nextAppt.status === 'pending'" to="/appointments" class="nm-btn-dark nm-btn-sm">Review booking</NuxtLink>
                 </div>
                 </div>
@@ -558,6 +559,7 @@
                   <span class="csx-pl" :class="a.status === 'pending' ? 'gold' : 'blue'"><template v-if="a.status !== 'pending'"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></template>{{ a.status === 'pending' ? 'Needs your confirmation' : 'Confirmed' }}</span>
                   <span v-if="a.payment" class="csx-pl" :class="a.payment === 'paid' ? 'green' : 'muted'">{{ PAY_LABEL[a.payment] || a.payment }}</span>
                   <NuxtLink v-if="canJoin(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm"><Video :size="13" /> Join</NuxtLink>
+                  <NuxtLink v-else-if="canVisit(a)" :to="`/consultation-room/${a.id}`" class="nm-btn-dark nm-btn-sm">Start visit</NuxtLink>
                   <NuxtLink v-else-if="a.status === 'pending'" to="/appointments?tab=requests" class="nm-btn-dark nm-btn-sm">Review booking</NuxtLink>
                 </div>
               </article>
@@ -790,6 +792,10 @@ const pastConsults = computed(() => consults.value.past)
 const { page: pastPage, pages: pastPages, paged: pagedPast } = usePager(pastConsults, { perPage: 10 })
 // appointment start time, Philippine time, e.g. 10:00 AM
 const timeOf = v => new Date(v).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
+// an in-person visit opens from the start of its day and stays open until the RND finishes it
+function canVisit(a) {
+  return a.status === 'confirmed' && a.type === 'in_person' && now.value >= new Date(a.join_opens_at)
+}
 function canJoin(a) {
   return a.status === 'confirmed' && a.type === 'video' && now.value >= new Date(a.join_opens_at) && now.value <= new Date(a.join_closes_at)
 }

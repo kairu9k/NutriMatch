@@ -49,7 +49,8 @@ export function notificationLink(n, related, role, route) {
     case 'appointment': return '/appointments'
     case 'invoice': return '/invoices-billing'
     case 'message': return messages
-    case 'meal_plan': return '/meal-plan-view'
+    case 'meal_plan':
+    case 'meal_log': return '/meal-plan-view'
     case 'resource': return '/resource-library'
     case 'lab_request':
     case 'lab_result': return '/lab-results'

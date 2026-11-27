@@ -509,7 +509,9 @@ class AdminPayoutRunView(APIView):
     def get(self, request):
         from accounts.models import User
 
-        from .payouts import HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, details_recently_changed, last_payout_day, next_payout_date, rnd_earnings
+        from .payouts import (
+            HOLD_DAYS, MIN_PAYOUT, PAYOUT_DAY, details_recently_changed, last_payout_day, mask_account, next_payout_date, rnd_earnings,
+        )
 
         rows = []
         for rnd in User.objects.filter(role="rnd").order_by("first_name"):
@@ -545,7 +547,7 @@ class AdminPayoutRunView(APIView):
                 "reason": reason,
                 "payout_account": {
                     "method": account.method, "method_label": account.get_method_display(),
-                    "account_name": account.account_name, "account_number": account.account_number,
+                    "account_name": account.account_name, "account_number": mask_account(account.account_number),
                     "bank_name": account.bank_name,
                     "details_changed_at": account.details_changed_at,
                     "recently_changed": details_recently_changed(account),
@@ -582,6 +584,25 @@ class AdminRndBalanceView(APIView):
         data["items"] = [i for i in data["items"] if i["state"] in ("pending", "posted")]
         data["rnd"] = {"id": rnd.id, "name": rnd.full_name, "email": rnd.email, "profile_photo": rnd.profile_photo}
         return Response(data)
+
+
+class AdminPayoutAccountView(APIView):
+    """The RND's full payout account number, only for the Release pop-up: the admin sends
+    the money by hand and has to type it. Every look is audit-logged (RA 10173)."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, rnd_id):
+        from accounts.models import User
+        from core.models import AuditLog
+
+        rnd = get_object_or_404(User, pk=rnd_id, role="rnd")
+        account = getattr(rnd, "payout_account", None)
+        if account is None:
+            return Response({"detail": "This RND has no payout details yet."}, status=status.HTTP_404_NOT_FOUND)
+        AuditLog.objects.create(user=request.user, action="payout_account.viewed", table_name="rnd_payout_accounts",
+                                record_id=account.id, new_values={"rnd_id": rnd.id, "reason": "release payout"})
+        return Response({"account_number": account.account_number})
 
 
 class AdminReleasePayoutView(APIView):

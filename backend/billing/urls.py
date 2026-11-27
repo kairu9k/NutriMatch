@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AdminPayoutAccountView,
     AdminInvoiceDetailView,
     AdminInvoiceListView,
     AdminInvoiceGatewayView,
@@ -38,6 +39,7 @@ urlpatterns = [
     path("admin/payouts/run/", AdminPayoutRunView.as_view(), name="admin_payout_run"),
     path("admin/payouts/<int:payout_id>/", AdminPayoutDetailView.as_view(), name="admin_payout_detail"),
     path("admin/payouts/release/<int:rnd_id>/", AdminReleasePayoutView.as_view(), name="admin_release_payout"),
+    path("admin/payouts/account/<int:rnd_id>/", AdminPayoutAccountView.as_view(), name="admin_payout_account"),
     path("admin/payouts/rnd/<int:rnd_id>/", AdminRndBalanceView.as_view(), name="admin_rnd_balance"),
     path("rnd/payout-account/", RndPayoutAccountView.as_view(), name="rnd_payout_account"),
     path("rnd/earnings/", RndEarningsView.as_view(), name="rnd_earnings"),

@@ -85,7 +85,7 @@ def user_overview(user, *, viewer, request=None):
 
     elif user.role == User.Role.RND:
         from billing.models import Payout
-        from billing.payouts import rnd_earnings
+        from billing.payouts import mask_account, rnd_earnings
         from profiles.services import prc_license_image_url, rnd_missing_setup
         from scheduling.models import RndClientRelationship
 
@@ -117,7 +117,7 @@ def user_overview(user, *, viewer, request=None):
             "missing_setup": rnd_missing_setup(profile) if profile else [],
             "payout_account": {
                 "method": account.method, "method_label": account.get_method_display(), "account_name": account.account_name,
-                "account_number": account.account_number, "bank_name": account.bank_name, "updated_at": account.updated_at,
+                "account_number": mask_account(account.account_number), "bank_name": account.bank_name, "updated_at": account.updated_at,
             } if account else None,
             "earnings": {k: earnings[k] for k in ("pending", "posted", "paid_out", "next_payout_date", "eligible")},
             "payouts": Payout.objects.filter(rnd=user).count(),

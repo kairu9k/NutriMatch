@@ -526,6 +526,21 @@ class ResourceSharingTests(TestCase):
             self.assertEqual(resp.data["file_path"], self.FILE_URL)
             self.assertIn("fl_attachment:guide/", resp.data["download_url"])
 
+    def test_image_resources_take_jpg_png_webp_only(self):
+        from unittest.mock import patch
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.api.force_authenticate(self.rnd)
+        with patch("communication.views.CloudinaryResourceUploadService.upload", return_value=self.FILE_URL):
+            pdf = SimpleUploadedFile("plate.pdf", b"%PDF-1.4", content_type="application/pdf")
+            resp = self.api.post("/api/rnd/resources/", {"title": "T", "type": "image", "file": pdf}, format="multipart")
+            self.assertEqual(resp.status_code, 400)
+            img = SimpleUploadedFile("Healthy-Plate.PNG", b"\x89PNG", content_type="image/png")
+            resp = self.api.post("/api/rnd/resources/", {"title": "Healthy plate", "type": "image", "file": img}, format="multipart")
+            self.assertEqual(resp.status_code, 201, resp.data)
+            self.assertEqual(resp.data["type"], "image")
+
     def test_new_upload_is_active_and_visible_once_shared(self):
         """The upload form sends no is_active; that must not hide the file."""
         from unittest.mock import patch

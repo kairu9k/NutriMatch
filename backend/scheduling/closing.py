@@ -30,9 +30,10 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .attendance import minutes_in_call, together_minutes
+from .attendance import minutes_in_call
+from .demo import call_counts_as_held
 from .models import Appointment
-from .serializers import AUTO_CLOSE_DAYS, MIN_TOGETHER_MINUTES, NO_SHOW_AFTER_MINUTES, RND_MIN_PRESENT_MINUTES
+from .serializers import AUTO_CLOSE_DAYS, NO_SHOW_AFTER_MINUTES, RND_MIN_PRESENT_MINUTES
 from .video_call import end_of
 
 
@@ -50,7 +51,7 @@ def close_options(a, now=None):
     if a.type != Appointment.Type.VIDEO:
         return {"complete": True, "no_show": waited_long_enough, "refund": True}
     return {
-        "complete": together_minutes(a, now) >= MIN_TOGETHER_MINUTES,
+        "complete": call_counts_as_held(a, now),
         "no_show": waited_long_enough and minutes_in_call(a, "rnd", now) >= RND_MIN_PRESENT_MINUTES and a.client_joined_at is None,
         "refund": True,
     }

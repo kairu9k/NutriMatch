@@ -227,8 +227,8 @@ class RescheduleProposal(models.Model):
     2026-11-16). The RND offers one for a paid consultation they can't make,
     or (2026-11-23) the client asks for one, paid or not; the other side
     accepts, proposes another time, or ends it (a refund for the RND's
-    reschedule, the original time kept for the client's), at most
-    MAX_PROPOSALS per round. A waiting proposal holds its slot."""
+    reschedule, the original time kept for the client's), as many times
+    as they need (2026-11-28). A waiting proposal holds its slot."""
 
     class By(models.TextChoices):
         RND = "rnd", "The RND"

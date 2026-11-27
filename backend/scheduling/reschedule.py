@@ -11,8 +11,8 @@ client can:
   proposes another, or cancels with a full refund;
 - **get a refund** — any time while it's waiting.
 
-At most MAX_PROPOSALS proposals in all (after the third the client can only
-accept or take the refund). Each waits ANSWER_HOURS, or until
+There is no limit on how many times are proposed (2026-11-28, the adviser; it was 3
+per round). Each waits ANSWER_HOURS, or until
 ANSWER_BEFORE_MINUTES before the offered time, whichever is first; an
 unanswered one ends with a full refund. A waiting proposal holds its slot
 (``held_intervals``). Moving a consultation in its last 30 minutes still
@@ -37,7 +37,7 @@ exists while its booking is pending or rescheduling (``close_stale_proposals``).
 Every new time is later than the current one (never earlier), at least
 MIN_LEAD_MINUTES ahead, and at most OFFER_WITHIN_DAYS after the time first
 booked, so a consultation can't keep drifting later (user's calls,
-2026-11-23). MAX_PROPOSALS counts per round (one reschedule, start to end)."""
+2026-11-23)."""
 
 from datetime import timedelta
 
@@ -52,7 +52,6 @@ from accounts.permissions import IsClient, IsRnd
 
 from .models import Appointment, RescheduleProposal
 
-MAX_PROPOSALS = 3
 ANSWER_HOURS = 48
 ANSWER_BEFORE_MINUTES = 60
 OFFER_WITHIN_DAYS = 14
@@ -194,7 +193,6 @@ def payload(appointment, now=None):
         "waiting": row(waiting) if waiting else None,
         # whose answer it waits for
         "turn": (By.CLIENT if waiting.proposed_by == By.RND else By.RND) if waiting else None,
-        "proposals_left": max(0, MAX_PROPOSALS - len(this_round)),
         # who started this reschedule: the RND's ends in a refund, the client's keeps the original
         "started_by": this_round[0].proposed_by if this_round else None,
         "original_at": proposals[0].from_at,
@@ -439,9 +437,6 @@ def respond(appointment, user, by, action, start=None, note="", now=None):
             return _accept(appt, proposal, user, by, now)
         if action != "propose":
             raise ValidationError({"action": "Choose accept, propose, decline or keep."})
-        if len(this_round) >= MAX_PROPOSALS:
-            raise ValidationError({"detail": f"Three times have been proposed already. Accept this one"
-                                             f"{' or get a full refund' if by == By.CLIENT else ' or cancel with a full refund'}."})
         if start is None:
             raise ValidationError({"scheduled_at": ["Pick a time."]})
         proposal.status, proposal.answered_at = P.COUNTERED, now

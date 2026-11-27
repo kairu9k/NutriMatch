@@ -41,10 +41,9 @@
           <template v-if="role === 'client' && paid">You don't pay again for a new time.</template>
         </template>
       </p>
-      <p v-if="myTurn && !r.proposals_left" class="rs-sub">Three times have been proposed, so this is the last one: accept it or {{ clientsRequest ? (role === 'client' ? 'keep your current time' : 'decline it') : (role === 'client' ? (paid ? 'get a full refund' : 'cancel it') : (paid ? 'cancel with a full refund' : 'cancel it')) }}.</p>
       <div class="rs-actions">
         <button v-if="myTurn" type="button" class="nm-btn-dark nm-btn-sm" :disabled="!!busy" @click="send('accept')">{{ busy === 'accept' ? 'Accepting…' : 'Accept new time' }}</button>
-        <button v-if="myTurn && r.proposals_left" type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="picking = true">Reschedule</button>
+        <button v-if="myTurn" type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="picking = true">Reschedule</button>
         <!-- the client's own request: nothing is refunded, the booking just stays (2026-11-23) -->
         <template v-if="clientsRequest">
           <button v-if="role === 'client'" type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="send('keep')">{{ busy === 'keep' ? 'Keeping…' : 'Keep my current time' }}</button>

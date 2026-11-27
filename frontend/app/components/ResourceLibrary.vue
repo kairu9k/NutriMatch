@@ -89,6 +89,7 @@
           <div class="preview">
             <iframe v-if="previewKind === 'pdf'" :src="current.file_path" :title="current.title" class="preview-frame" />
             <video v-else-if="previewKind === 'video'" :src="current.file_path" controls preload="metadata" class="preview-video" />
+            <img v-else-if="previewKind === 'image'" :src="current.file_path" :alt="current.title" class="preview-image">
             <div v-else-if="previewKind === 'link'" class="preview-none">
               <span class="preview-ico"><Link2 :size="24" aria-hidden="true" /></span>
               <p>This resource is a link to another website.</p>
@@ -115,7 +116,7 @@
 </template>
 
 <script setup>
-import { BookOpen, Download, ExternalLink, FileText, FileType, Link2, PlayCircle, Search, SearchX, X } from 'lucide-vue-next'
+import { BookOpen, Download, ExternalLink, FileText, FileType, Image as ImageIcon, Link2, PlayCircle, Search, SearchX, X } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'dashboard', title: 'Resources' })
 
@@ -126,10 +127,11 @@ const FILTERS = [
   { value: 'pdf', label: 'PDF' },
   { value: 'video', label: 'Video' },
   { value: 'article', label: 'Article' },
+  { value: 'image', label: 'Image' },
   { value: 'link', label: 'Link' },
 ]
-const TYPE_ICONS = { pdf: FileText, video: PlayCircle, article: FileType, link: Link2 }
-const TYPE_LABELS = { pdf: 'PDF', video: 'Video', article: 'Article', link: 'Link' }
+const TYPE_ICONS = { pdf: FileText, video: PlayCircle, article: FileType, link: Link2, image: ImageIcon }
+const TYPE_LABELS = { pdf: 'PDF', video: 'Video', article: 'Article', link: 'Link', image: 'Image' }
 const NEW_DAYS = 7
 
 const loading = ref(true)
@@ -179,6 +181,7 @@ const previewKind = computed(() => {
   if (r.type === 'link') return 'link'
   const path = (r.file_path || '').toLowerCase().split('?')[0]
   if (r.type === 'video' || /\.(mp4|webm|mov)$/.test(path)) return 'video'
+  if (r.type === 'image' || /\.(jpe?g|png|webp)$/.test(path)) return 'image'
   if (path.endsWith('.pdf') || r.type === 'pdf') return 'pdf'
   return null
 })
@@ -343,6 +346,7 @@ const toneOf = type => TYPE_TONES[type] || TYPE_TONES.link
 .preview { overflow: hidden; border-radius: 16px; border: 1px solid #E4EBE6; background: #F6FAF7; }
 .preview-frame { display: block; width: 100%; height: 60vh; border: 0; background: #FFFFFF; }
 .preview-video { display: block; width: 100%; max-height: 60vh; background: #000; }
+.preview-image { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto; object-fit: contain; }
 .preview-none { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 36px 16px; text-align: center; font-size: 14px; color: #3E5046; }
 .preview-none p { margin: 0; }
 .preview-ico { width: 56px; height: 56px; margin-bottom: 4px; border-radius: 50%; background: #FFFFFF; color: #004D3A; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -14px rgba(0, 77, 58, 0.6); }

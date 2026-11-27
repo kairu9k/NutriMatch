@@ -338,7 +338,25 @@ class RndMealLogReviewView(APIView):
                     user=request.user, action="meal_log.rating_changed", table_name="meal_logs", record_id=log.id,
                     old_values={"rating": label.get(previous, previous)}, new_values={"rating": label[value]},
                 )
+            if previous != value:
+                transaction.on_commit(lambda: _tell_client_rated(log))
         return Response(RndMealLogSerializer(log).data)
+
+
+def _tell_client_rated(log):
+    """The client is told when their RND rates a meal log (2026-11-28, the adviser).
+    A changed rating replaces the earlier unread notification for the same log, so they don't pile up."""
+    from communication.models import NotificationLog
+    from communication.services import notify
+
+    NotificationLog.objects.filter(recipient=log.client, notifiable_type="meal_log", notifiable_id=log.id, is_read=False).delete()
+    meal = log.meal_plan_meal.get_meal_time_display().lower()
+    rating = log.get_status_display()
+    notify(
+        recipient=log.client, notifiable_type="meal_log", notifiable_id=log.id,
+        subject="Your RND rated your meal",
+        content=f"Your {meal} on {log.log_date:%b} {log.log_date.day} was rated: {rating}.",
+    )
 
 
 class ClientMealLogListView(generics.ListAPIView):

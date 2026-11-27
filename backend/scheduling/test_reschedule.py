@@ -56,7 +56,6 @@ class RescheduleTests(_Helpers, TestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         self.assertEqual(resp.data["status"], "rescheduling")
         self.assertEqual(resp.data["reschedule"]["turn"], "client")
-        self.assertEqual(resp.data["reschedule"]["proposals_left"], 2)
         self.assertEqual(self.invoice(a).status, "paid")
 
         resp = self.client_answer(a, "accept")
@@ -113,18 +112,19 @@ class RescheduleTests(_Helpers, TestCase):
         slots = self.client_api.get(f"/api/client/rnds/{self.rnd.id}/booked-slots/").data
         self.assertTrue(any(s["start"] == held for s in slots))
 
-    def test_counter_proposals_limited_to_three(self):
+    def test_counter_proposals_are_not_limited(self):
         a = self.appt(24 * 60)
         self.offer(a, _hour(50))
         self.assertEqual(self.client_answer(a, "propose", _hour(60)).status_code, 200)
         self.assertEqual(self.client_answer(a, "accept").status_code, 400)  # not their turn
         self.assertEqual(self.rnd_answer(a, "propose", _hour(70)).status_code, 200)
-        resp = self.client_answer(a, "propose", _hour(80))
-        self.assertEqual(resp.status_code, 400)  # third proposal was the last
+        self.assertEqual(self.client_answer(a, "propose", _hour(80)).status_code, 200)  # a 4th is fine (2026-11-28)
+        self.assertEqual(self.rnd_answer(a, "propose", _hour(90)).status_code, 200)
         self.assertEqual(self.client_answer(a, "accept").status_code, 200)
         a.refresh_from_db()
-        self.assertEqual((a.status, a.scheduled_at), ("confirmed", _hour(70)))
-        self.assertEqual(list(a.reschedule_proposals.values_list("status", flat=True)), ["countered", "countered", "accepted"])
+        self.assertEqual((a.status, a.scheduled_at), ("confirmed", _hour(90)))
+        self.assertEqual(list(a.reschedule_proposals.values_list("status", flat=True)),
+                         ["countered", "countered", "countered", "countered", "accepted"])
 
     def test_client_refund_any_time(self):
         a = self.appt(24 * 60)

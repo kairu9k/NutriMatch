@@ -403,6 +403,26 @@ class RndMealLogNotificationTests(TestCase):
         self.assertEqual(row.old_values, {"rating": "Followed"})
         self.assertEqual(row.new_values, {"rating": "Partly followed"})
 
+    def test_client_is_told_when_rated_and_a_change_replaces_the_unread_note(self):
+        from communication.models import NotificationLog
+
+        url = f"/api/rnd/meal-logs/{self.log_id}/review/"
+        notes = NotificationLog.objects.filter(recipient=self.client_user, notifiable_type="meal_log", notifiable_id=self.log_id)
+        self.client_api.force_authenticate(self.rnd)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client_api.patch(url, {"status": "followed"}, format="json")
+        self.assertEqual(notes.count(), 1)
+        self.assertIn("breakfast", notes.get().content)
+        self.assertIn("Followed", notes.get().content)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client_api.patch(url, {"status": "followed"}, format="json")  # nothing changed
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client_api.patch(url, {"status": "not_followed"}, format="json")
+        self.assertEqual(notes.count(), 1)
+        self.assertIn("Not followed", notes.get().content)
+
     def test_only_the_rnd_rates_and_a_rated_log_is_final(self):
         from .models import MealLog
 

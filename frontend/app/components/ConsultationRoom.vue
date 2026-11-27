@@ -21,16 +21,16 @@
         <!-- RND: once the consultation can start, the only way out is Finish
              (mark complete / leave for now / no-show) — no plain Exit. -->
         <button v-if="mustFinish && !callShowsEnd && windowState !== 'closed'" type="button" class="end-btn" @click="openEnd">
-          <CheckCircle2 :size="15" /> Finish consultation
+          <CheckCircle2 :size="15" /> {{ isVisit ? 'Finish visit' : 'Finish consultation' }}
         </button>
         <button v-else-if="!mustFinish" type="button" class="exit-btn" @click="inLiveCall ? (callLeaveAsk = true) : exitRoom()">
-          <template v-if="!isRnd && appt?.status === 'confirmed' && windowState === 'open'"><PhoneOff :size="15" /> Leave call</template>
+          <template v-if="!isRnd && !isVisit && appt?.status === 'confirmed' && windowState === 'open'"><PhoneOff :size="15" /> Leave call</template>
           <template v-else><ArrowLeft :size="15" /> Leave</template>
         </button>
       </div>
     </header>
 
-    <div class="body" :class="{ rnd: isRnd }">
+    <div class="body" :class="{ rnd: isRnd, visit: visitLayout }">
       <!-- VIDEO -->
       <main class="stage">
         <p v-if="error" class="state-card err">{{ error }}</p>
@@ -46,6 +46,17 @@
             <button type="button" class="link quiet" @click="exitRoom">Back to My Appointments</button>
           </div>
         </div>
+        <!-- a finished in-person visit stays on the light visit page, not the dark video room -->
+        <section v-else-if="appt.status === 'completed' && isVisit" class="visit-work visit-done" aria-label="Visit complete">
+          <span class="visit-ic" aria-hidden="true"><CheckCircle2 :size="20" /></span>
+          <h1>Visit complete</h1>
+          <p>Your in-person visit with {{ other.name }} on {{ longWhen(appt.scheduled_at) }} is finished. The summary and care plan are in the patient's chart.</p>
+          <div class="visit-done-actions">
+            <button type="button" class="nm-btn-soft" @click="summaryOpen = true">View summary</button>
+            <NuxtLink :to="`/client-detail/${appt.relationship.id}`" class="nm-btn-soft">Open patient chart</NuxtLink>
+            <button type="button" class="nm-btn-dark" @click="exitRoom">Back to Appointments</button>
+          </div>
+        </section>
         <div v-else-if="appt.status === 'completed'" class="state-card">
           <CheckCircle2 :size="28" /><p>This consultation is complete.</p>
           <button type="button" class="link" @click="summaryOpen = true">View the summary</button>
@@ -67,11 +78,53 @@
           <p class="big">Opens in {{ untilOpen }}</p>
           <p>The room opens {{ clock(appt.join_opens_at) }}{{ demoMode ? '' : ', 15 minutes before the start' }}. This page opens it automatically.</p>
         </div>
+        <!-- In-person visit (2026-11-28, the adviser): no video and no side panel. A patient strip across the
+             top, the NCP form full width under it. Stays open after the visit's time until it's finished. -->
+        <section v-else-if="visitWorking" class="visit-work" aria-label="In-person visit">
+          <div class="visit-head">
+            <span class="visit-ic" aria-hidden="true"><MapPin :size="18" /></span>
+            <div class="visit-txt">
+              <h1>In-person visit with {{ other.name }}</h1>
+              <p>{{ longWhen(appt.scheduled_at) }} to {{ clock(endsAt) }}<template v-if="auth.rndProfile?.clinic_address">, at {{ auth.rndProfile.clinic_address }}</template></p>
+            </div>
+            <div class="visit-actions">
+              <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="labsLoading" @click="openLabRequest"><FlaskConical :size="14" aria-hidden="true" /> Request lab tests</button>
+              <NuxtLink :to="`/client-detail/${appt.relationship.id}`" target="_blank" class="nm-btn-soft nm-btn-sm"><ExternalLink :size="14" aria-hidden="true" /> Full chart</NuxtLink>
+            </div>
+          </div>
+          <p v-if="windowState === 'closed'" class="nm-note plain-note visit-over">The visit's time has passed. Finish the NCP record if you need to, then press Finish visit.</p>
+          <p v-if="labsSent" class="nm-note plain-note visit-over">Lab request sent. {{ other.firstName }} can upload the results from the Lab results page.</p>
+          <p v-if="labsError" class="nm-field-error visit-over">{{ labsError }}</p>
+          <template v-if="s">
+            <p v-if="s.health.allergies.length" class="visit-allergy"><AlertTriangle :size="16" aria-hidden="true" /> Allergy: {{ s.health.allergies.join(', ') }}</p>
+            <dl class="visit-strip">
+              <div><dt>Patient</dt><dd>{{ ptSub || '—' }}</dd></div>
+              <div><dt>Weight</dt><dd>{{ p.progress.latest_weight_kg != null ? `${fmt1(p.progress.latest_weight_kg)} kg` : '—' }}<small v-if="p.progress.weight_change_kg != null">{{ signed(p.progress.weight_change_kg) }} kg since screening</small></dd></div>
+              <div><dt>BMI</dt><dd>{{ p.progress.bmi != null ? fmt1(p.progress.bmi) : '—' }}<small v-if="p.progress.bmi_class">{{ p.progress.bmi_class }}</small></dd></div>
+              <div :class="{ risk: (s.screening?.nrs_score ?? 0) >= 3 }"><dt>NRS-2002</dt><dd>{{ s.screening?.nrs_score ?? '—' }}<small v-if="s.screening?.nrs_risk">{{ s.screening.nrs_risk }}</small></dd></div>
+              <div><dt>BMR and TER</dt><dd>{{ s.screening ? `${whole(s.screening.bmr_kcal)} and ${whole(s.screening.tdee_kcal)} kcal` : '—' }}</dd></div>
+              <div><dt>Diet and goals</dt><dd>{{ [list(s.health.dietary_restrictions), list(s.health.health_goals)].filter(x => x !== '—').join(', ') || '—' }}</dd></div>
+              <div class="wide"><dt>Current care plan</dt><dd>{{ s.care_plan?.pes_problem || 'No finalized NCP record yet' }}<small v-if="s.care_plan?.target_kcal">TER {{ whole(s.care_plan.target_kcal) }} kcal a day</small></dd></div>
+            </dl>
+            <p v-if="appt.notes" class="visit-booknote">Their note when booking: “{{ appt.notes }}”</p>
+          </template>
+          <div class="visit-ncp">
+            <NcpRecordModal ref="ncpForm" inline :relationship-id="appt.relationship.id" :patient-name="other.name"
+                            :appointment-id="appt.id" @changed="refreshSummary" />
+          </div>
+        </section>
         <div v-else-if="windowState === 'closed'" class="state-card">
           <VideoOff :size="28" /><p>The consultation time is over, so the room has closed.</p>
           <button v-if="isRnd" type="button" class="link" @click="openEnd">Finish this consultation</button>
         </div>
-        <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation. Meet {{ isRnd ? 'your patient' : 'your RND' }} at the clinic{{ isRnd ? ' and use the panel for your notes' : '' }}.</p></div>
+        <div v-else-if="appt.type === 'in_person' && !isRnd" class="state-card">
+          <MapPin :size="28" />
+          <p class="big">See you at the clinic</p>
+          <p>{{ longWhen(appt.scheduled_at) }} to {{ clock(endsAt) }}.</p>
+          <p v-if="info?.rnd.clinic_address">{{ info.rnd.clinic_address }}</p>
+          <a v-if="info?.rnd.clinic_address" :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(info.rnd.clinic_address)}`" target="_blank" rel="noopener" class="link">Open in Google Maps</a>
+        </div>
+        <div v-else-if="appt.type === 'in_person'" class="state-card"><Clock :size="28" /><p>This is an in-person consultation.</p></div>
         <!-- NutriMatch's own video call (WebRTC, 2026-10-26): browser to browser,
              encrypted, not recorded. The RND's End opens Finish consultation. -->
         <VideoCall v-else :appointment-id="appt.id" :other-name="other.name" :other-photo="other.photo" :is-rnd="isRnd" class="video" @hangup="onHangUp" @peer-joined="onPeerJoined" @peer-left="recheckAppointment" @time-up="onTimeUp" />
@@ -115,7 +168,7 @@
       </main>
 
       <!-- RND WORK PANEL -->
-      <aside v-if="isRnd && appt" class="panel" :class="{ wide: tab === 'ncp' }">
+      <aside v-if="isRnd && appt && !visitLayout" class="panel" :class="{ wide: tab === 'ncp' }">
         <nav class="tabs" role="tablist" aria-label="Consultation tools">
           <button v-for="t in RND_TABS" :key="t.key" type="button" role="tab" class="tab" :class="{ on: tab === t.key }" :aria-selected="tab === t.key"
                   :disabled="callEnded && t.key === 'ncp'" @click="tab = t.key">
@@ -269,7 +322,7 @@
       </aside>
 
       <!-- CLIENT PANEL -->
-      <aside v-else-if="appt" class="panel client">
+      <aside v-else-if="appt && !isRnd" class="panel client">
         <div class="panel-body">
           <div class="rnd-card">
             <img v-if="info?.rnd.profile_photo" :src="info.rnd.profile_photo" class="rnd-photo" alt="" />
@@ -295,7 +348,7 @@
             <p v-for="r in openLabRequests" :key="r.id" class="lab-ask">
               <FlaskConical :size="13" aria-hidden="true" /> {{ info?.rnd.first_name || 'Your RND' }} asked for: {{ r.test_names.join(', ') }}
             </p>
-            <p v-if="!openLabRequests.length" class="muted">Have lab results with you? Upload them so {{ info?.rnd.first_name || 'your RND' }} can see them during the call.</p>
+            <p v-if="!openLabRequests.length" class="muted">Have lab results with you? Upload them so {{ info?.rnd.first_name || 'your RND' }} can see them during the {{ isVisit ? 'visit' : 'call' }}.</p>
             <label class="link small upload">
               <Upload :size="13" aria-hidden="true" /> Upload lab results
               <input ref="labInput" type="file" :accept="LAB_ACCEPT" multiple class="sr-only" @change="onPickLabs" />
@@ -304,7 +357,16 @@
             <p v-if="labsUploaded" class="ok"><CheckCircle2 :size="14" aria-hidden="true" /> Uploaded. {{ info?.rnd.first_name || 'Your RND' }} can open it now.</p>
           </section>
 
-          <section v-if="appt.status === 'confirmed'" class="block">
+          <section v-if="appt.status === 'confirmed' && isVisit" class="block">
+            <h3>Before your visit</h3>
+            <ul class="check">
+              <li>Arrive a few minutes early. The clinic can see you from the start of the day.</li>
+              <li>Bring any lab results and a list of the medicines you take.</li>
+              <li>Keep your meal logs up to date so your RND can review them.</li>
+              <li>Write down questions you want to ask.</li>
+            </ul>
+          </section>
+          <section v-else-if="appt.status === 'confirmed'" class="block">
             <h3>Before your call</h3>
             <ul class="check">
               <li>Allow your camera and microphone when the browser asks.</li>
@@ -313,7 +375,7 @@
               <li>Write down questions you want to ask.</li>
             </ul>
           </section>
-          <p v-if="appt.status === 'confirmed'" class="muted small">Having trouble joining? Message {{ info?.rnd.first_name || 'your RND' }} from Messages.</p>
+          <p v-if="appt.status === 'confirmed' && !isVisit" class="muted small">Having trouble joining? Message {{ info?.rnd.first_name || 'your RND' }} from Messages.</p>
         </div>
       </aside>
     </div>
@@ -373,7 +435,7 @@
           </div>
         </template>
         <template v-else-if="!wrap">
-          <h2 id="end-title" class="nm-modal-title">Finish this consultation?</h2>
+          <h2 id="end-title" class="nm-modal-title">{{ isVisit ? 'Finish this visit?' : 'Finish this consultation?' }}</h2>
           <p class="nm-modal-text">{{ other.name }}, {{ clock(appt.scheduled_at) }}–{{ clock(endsAt) }}</p>
           <p v-if="appt.payment && appt.payment.status !== 'paid'" class="nm-field-error">It hasn't been paid, so it can't be completed.</p>
           <p v-if="ncpDirty" class="unsaved"><PenLine :size="14" aria-hidden="true" /> Your NCP form has unsaved changes. They'll be saved as a draft first.</p>
@@ -402,11 +464,11 @@
             </button>
           </div>
           <div class="nm-modal-actions">
-            <button type="button" class="nm-btn-outline" :disabled="ending" @click="closeEnd">Stay in the room</button>
+            <button type="button" class="nm-btn-outline" :disabled="ending" @click="closeEnd">{{ isVisit ? 'Keep working' : 'Stay in the room' }}</button>
           </div>
         </template>
         <template v-else>
-          <h2 id="end-title" class="nm-modal-title"><CheckCircle2 :size="18" class="ok-icon" /> Consultation complete</h2>
+          <h2 id="end-title" class="nm-modal-title"><CheckCircle2 :size="18" class="ok-icon" /> {{ isVisit ? 'Visit complete' : 'Consultation complete' }}</h2>
           <p class="nm-modal-text">{{ wrap.todo.length ? 'Before you move on:' : 'Everything for this visit is done.' }}</p>
           <ul v-if="wrap.todo.length" class="todo">
             <li v-for="t in wrap.todo" :key="t.text"><NuxtLink :to="t.link" class="nm-panel-link">{{ t.text }}</NuxtLink></li>
@@ -485,7 +547,7 @@ const demoMode = useDemoMode() // scheduling/demo.py: demo times
 // their RND, the consultation time and their meal-plan targets — never NCP
 // drafts or the RND's notes. Pay-first and the join window are enforced by the
 // API (the client gets the room link only when it's paid and inside the window).
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, PenLine, PhoneOff, Upload, User, UserX, VideoOff, X } from 'lucide-vue-next'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Clock, ExternalLink, FlaskConical, LogOut, MapPin, PenLine, PhoneOff, Upload, User, UserX, VideoOff, X } from 'lucide-vue-next'
 import { figureSource, screeningSource } from '~/utils/figureSource'
 import { LAB_ACCEPT, labDate, splitLabFiles } from '~/utils/labs'
 // UI only: icons for the redesigned patient panel
@@ -691,6 +753,11 @@ const mustFinish = computed(() => isRnd.value && appt.value?.status === 'confirm
 // so nothing gets added to a consultation after the call (2026-11-16). Reading the patient's info still works.
 const callEnded = computed(() => isRnd.value && appt.value?.type === 'video' && windowState.value === 'closed')
 watch(callEnded, (ended) => { if (ended && tab.value === 'ncp') tab.value = 'patient' })
+// An in-person visit the RND is working on: the NCP form fills the main area (2026-11-28)
+const isVisit = computed(() => appt.value?.type === 'in_person')
+const visitWorking = computed(() => isRnd.value && isVisit.value && appt.value?.status === 'confirmed' && windowState.value !== 'early')
+// the light, panel-less visit page: while working on it and once it's finished
+const visitLayout = computed(() => visitWorking.value || (isRnd.value && isVisit.value && appt.value?.status === 'completed'))
 const callShowsEnd = computed(() => isRnd.value && appt.value?.type === 'video' && appt.value?.status === 'confirmed' && windowState.value === 'open')
 // The client gets the room link only inside the window — fetch it when it opens.
 let refetched = false
@@ -785,6 +852,8 @@ const closeHint = computed(() => {
   if (closeOpts.value.complete) return ''
   if (closeOpts.value.no_show) return `${name} never joined, so it can’t be marked complete. You can mark a no-show or end it with a refund.`
   if (!a.attendance?.client_joined_at && early) return `${name} hasn’t joined yet. You can mark a no-show from ${clock(noShowFrom.value)}, 15 minutes after the start.`
+  // demo mode: complete as soon as both have joined (scheduling/demo.py call_counts_as_held)
+  if (demoMode.value) return `Both of you need to join the video call before it can be marked complete.`
   if ((a.attendance?.rnd_minutes ?? 0) < 5) return 'You weren’t in the video call for 5 minutes, so it can only be refunded.'
   return `You and ${name} weren’t in the call together for 5 minutes, so it can only be refunded.`
 })
@@ -1263,9 +1332,51 @@ const ptSub = computed(() => {
 .rnd-photo { box-shadow: 0 0 0 2px #EFBF04; }
 .rnd-name { font-size: 1.1rem; color: #0E3A2C; }
 
-@media (max-width: 1100px) { .body.rnd .panel.wide { width: min(640px, 60vw); } }
+/* in-person visit: a patient strip across the top, the NCP form full width under it */
+.body.visit .stage { display: block; overflow-y: auto; background: #F7FAF8; padding: 20px 28px 32px; }
+.visit-done { max-width: 560px; margin: 64px auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.visit-done h1 { margin: 4px 0 0; font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #0E3A2C; }
+.visit-done p { margin: 0; font-size: 0.92rem; line-height: 1.55; color: #4A5A52; }
+.visit-done-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
+.visit-work { max-width: 1280px; margin: 0 auto; }
+.visit-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.visit-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.visit-actions .nm-btn-sm { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.visit-allergy { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 10px 14px; border-radius: 12px; background: #FDECEC; color: #B4384A; font-weight: 700; font-size: 0.9rem; }
+.visit-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 1.6fr); margin: 0 0 12px; background: #fff; border: 1px solid #d9e3dc; border-radius: 14px;
+  box-shadow: 0 0 1px rgba(0,77,58,.06), 0 0 14px rgba(0,77,58,.09); overflow: hidden; }
+.visit-strip > div { padding: 10px 14px; border-left: 1px solid #d9e3dc; min-width: 0; }
+.visit-strip > div:first-child { border-left: none; }
+.visit-strip > div.risk { background: #FDF3F2; }
+.visit-strip dt { font-size: 0.74rem; color: #6B7D73; margin-bottom: 2px; }
+.visit-strip dd { margin: 0; font-size: 0.92rem; font-weight: 700; color: #0E3A2C; line-height: 1.3; }
+.visit-strip dd small { display: block; font-size: 0.74rem; font-weight: 500; color: #6B7D73; }
+.visit-booknote { margin: 0 0 12px; font-size: 0.86rem; color: #4A5A52; }
+.visit-ic { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #DDEFE4; color: #1F7A4D; }
+.visit-txt { min-width: 0; }
+.visit-txt h1 { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #0E3A2C; line-height: 1.25; }
+.visit-txt p { margin: 2px 0 0; font-size: 0.86rem; color: #4A5A52; }
+.visit-over { margin: 0 0 14px; }
+.visit-ncp { background: #fff; border: 1px solid #d9e3dc; border-radius: 16px; box-shadow: 0 0 1px rgba(0,77,58,.06), 0 0 14px rgba(0,77,58,.09); overflow: hidden; }
+
+@media (max-width: 1100px) {
+  .body.rnd .panel.wide { width: min(640px, 60vw); }
+  .visit-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .visit-strip > div { border-top: 1px solid #d9e3dc; }
+  .visit-strip > div:nth-child(3n+1) { border-left: none; }
+  .visit-strip > div:nth-child(-n+3) { border-top: none; }
+  .visit-strip > div.wide { grid-column: 1 / -1; border-left: none; }
+}
 @media (max-width: 860px) {
   .bar { padding: 10px 14px; }
   .panel, .body.rnd .panel, .body.rnd .panel.wide { width: 100%; border-radius: 22px 22px 0 0; }
+  .body.visit .stage { height: auto; padding: 14px; }
+  .visit-actions { margin-left: 0; width: 100%; }
+  .visit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .visit-strip > div, .visit-strip > div:nth-child(3n+1) { border-left: 1px solid #d9e3dc; border-top: 1px solid #d9e3dc; }
+  .visit-strip > div:nth-child(odd) { border-left: none; }
+  .visit-strip > div:nth-child(3) { border-top: 1px solid #d9e3dc; }
+  .visit-strip > div:nth-child(-n+2) { border-top: none; }
+  .visit-strip > div.wide { border-left: none; }
 }
 </style>
