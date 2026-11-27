@@ -233,6 +233,7 @@
         </div>
         <div v-if="review.data && !review.loading && !review.error" class="nm-modal-actions bm-foot">
           <button type="button" class="nm-btn-danger solid bm-decline" @click="openReason(review.appt, 'decline')"><X :size="15" /> Decline</button>
+          <button v-if="canSuggest(review.appt)" type="button" class="nm-btn-soft bm-move" @click="rescheduling = review.appt; review = null"><CalendarDays :size="15" /> Reschedule</button>
           <button type="button" class="nm-btn-dark bm-confirm" :disabled="busy || !review.data.screening" @click="confirmBooking"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> {{ busy ? 'Confirming…' : 'Confirm booking' }}</button>
         </div>
       </div>
@@ -789,9 +790,11 @@ const symptomList = s => String(s || '').split(',').map(x => x.trim()).filter(Bo
 .review-modal .bm-todo svg { flex-shrink: 0; margin-top: 2px; }
 .review-modal .nm-field-error { margin: 12px 0 0; }
 .review-modal .bm-foot { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; margin: 0; padding: 14px 26px; border-top: 1px solid #eef2ef; background: #f7faf8; }
-.bm-foot .bm-decline, .bm-foot .bm-confirm { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.bm-foot .bm-decline, .bm-foot .bm-move, .bm-foot .bm-confirm { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
 .bm-foot .bm-decline { background: #fff; border: 1px solid #f2c4be; color: #b42318; box-shadow: none; }
 .bm-foot .bm-decline:hover { background: #fdecea; }
+.bm-foot .bm-move { background: #e3efe7; border: 1px solid #e3efe7; color: #0a4a37; box-shadow: none; }
+.bm-foot .bm-move:hover { background: #d4e8db; }
 .bm-foot .bm-confirm { background: #004d3a; border: 1px solid #004d3a; color: #fff; box-shadow: 0 10px 20px -12px rgba(0, 77, 58, 0.8); }
 .bm-foot .bm-confirm:hover:not(:disabled) { background: #00382a; }
 .bm-foot .bm-confirm:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
