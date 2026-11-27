@@ -333,8 +333,9 @@ const appointments = computed(() => rawAppointments.value.map((a) => {
     start,
     scheduled_at: a.scheduled_at,
     // ask for a later time: a request still waiting for the RND, or a confirmed booking
-    // (paid or not), until 2 hours before it (REQUEST_CUTOFF_MINUTES in scheduling/reschedule.py)
-    canMove: ['pending', 'payment_due', 'confirmed'].includes(phase) && start.getTime() - nowMs > 2 * 3600 * 1000,
+    // (paid or not), until 2 hours before it (REQUEST_CUTOFF_MINUTES in scheduling/reschedule.py;
+    // 30 minutes in demo mode, scheduling/demo.py reschedule_cutoff_minutes)
+    canMove: ['pending', 'payment_due', 'confirmed'].includes(phase) && start.getTime() - nowMs > (demoMode.value ? 30 : 120) * 60000,
     rnd: {
       id: rndUser.id,
       name: `${rndUser.first_name} ${rndUser.last_name}`,

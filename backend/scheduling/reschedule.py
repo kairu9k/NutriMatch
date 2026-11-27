@@ -69,6 +69,16 @@ P = RescheduleProposal.Status
 OPEN_FOR_PROPOSALS = (Appointment.Status.PENDING, Appointment.Status.RESCHEDULING)
 
 
+from .demo import answer_before_minutes, reschedule_cutoff_minutes, reschedule_lead_minutes  # noqa: E402
+
+
+def _span(minutes):
+    """120 -> "2 hours", 60 -> "1 hour", 30 -> "30 minutes"."""
+    if minutes % 60:
+        return f"{minutes} minutes"
+    return "1 hour" if minutes == 60 else f"{minutes // 60} hours"
+
+
 # --------------------------------------------------------------- read helpers
 ENDED = (P.ACCEPTED, P.REFUNDED, P.EXPIRED, P.DECLINED, P.WITHDRAWN)
 
@@ -134,7 +144,7 @@ def open_slots(appointment, now=None):
     now = now or timezone.now()
     limit = latest_allowed(appointment)
     days = max(1, (limit - now).days + 2)  # the lookahead counts from today
-    slots = next_open_slots(appointment.relationship.rnd_id, count=1000, now=now, lead_minutes=MIN_LEAD_MINUTES,
+    slots = next_open_slots(appointment.relationship.rnd_id, count=1000, now=now, lead_minutes=reschedule_lead_minutes(),
                             days=days, minutes=appointment.duration_minutes or 60)
     return [s for s in slots if appointment.scheduled_at < datetime.fromisoformat(s) <= limit]
 
@@ -150,8 +160,8 @@ def check_new_time(appointment, start, now=None):
     now = now or timezone.now()
     end = _end(appointment, start)
     rel = appointment.relationship
-    if start < now + timedelta(minutes=MIN_LEAD_MINUTES):
-        raise ValidationError({"scheduled_at": [f"Pick a time at least {MIN_LEAD_MINUTES // 60} hours from now, so there's time to answer."]})
+    if start < now + timedelta(minutes=reschedule_lead_minutes()):
+        raise ValidationError({"scheduled_at": [f"Pick a time at least {_span(reschedule_lead_minutes())} from now, so there's time to answer."]})
     if start > latest_allowed(appointment):
         raise ValidationError({"scheduled_at": [f"Pick a time by {_when(latest_allowed(appointment))}, "
                                                 f"{OFFER_WITHIN_DAYS} days after it was first booked."]})
@@ -211,9 +221,9 @@ def _lock(appointment):
 
 
 def _create(appointment, by, start, note, now, keeps_original=False):
-    expires = min(now + timedelta(hours=ANSWER_HOURS), start - timedelta(minutes=ANSWER_BEFORE_MINUTES))
+    expires = min(now + timedelta(hours=ANSWER_HOURS), start - timedelta(minutes=answer_before_minutes()))
     if keeps_original:  # the client's request: settled an hour before the booked time, so that can still happen
-        expires = min(expires, appointment.scheduled_at - timedelta(minutes=ANSWER_BEFORE_MINUTES))
+        expires = min(expires, appointment.scheduled_at - timedelta(minutes=answer_before_minutes()))
     return RescheduleProposal.objects.create(appointment=appointment, proposed_by=by, from_at=appointment.scheduled_at,
                                              scheduled_at=start, note=note, expires_at=expires)
 
@@ -280,8 +290,8 @@ def request_new_time(appointment, user, start, note="", now=None):
             raise ValidationError({"detail": "A new time is already waiting for an answer on this consultation."})
         if appt.status != Appointment.Status.CONFIRMED:
             raise ValidationError({"detail": "Only a confirmed consultation can be moved."})
-        if appt.scheduled_at - timedelta(minutes=REQUEST_CUTOFF_MINUTES) <= now:
-            raise ValidationError({"detail": f"You can ask for a new time until {REQUEST_CUTOFF_MINUTES // 60} hours before the consultation."})
+        if appt.scheduled_at - timedelta(minutes=reschedule_cutoff_minutes()) <= now:
+            raise ValidationError({"detail": f"You can ask for a new time until {_span(reschedule_cutoff_minutes())} before the consultation."})
         check_new_time(appt, start, now)
         proposal = _create(appt, By.CLIENT, start, note, now, keeps_original=True)
         appt.status = Appointment.Status.RESCHEDULING
@@ -307,8 +317,8 @@ def change_pending(appointment, user, start, now=None):
         appt = _lock(appointment)
         if appt.status != Appointment.Status.PENDING:
             raise ValidationError({"detail": "Only a booking still waiting for the RND can change its time this way."})
-        if appt.scheduled_at - timedelta(minutes=REQUEST_CUTOFF_MINUTES) <= now:
-            raise ValidationError({"detail": f"You can change the time until {REQUEST_CUTOFF_MINUTES // 60} hours before it."})
+        if appt.scheduled_at - timedelta(minutes=reschedule_cutoff_minutes()) <= now:
+            raise ValidationError({"detail": f"You can change the time until {_span(reschedule_cutoff_minutes())} before it."})
         check_new_time(appt, start, now)
         # the client picked a time of their own instead of the RND's suggestion
         appt.reschedule_proposals.filter(status=P.WAITING).update(status=P.DECLINED, answered_at=now)
@@ -342,8 +352,8 @@ def suggest_for_request(appointment, user, start, note="", now=None):
         if waiting_proposal(appt) is not None:
             raise ValidationError({"detail": "A suggested time is already waiting for the client's answer."})
         # the client needs time to answer before the request itself expires
-        if appt.scheduled_at - timedelta(minutes=REQUEST_CUTOFF_MINUTES) <= now or deadlines(appt)["confirm_by"] <= now:
-            raise ValidationError({"detail": f"You can suggest another time until {REQUEST_CUTOFF_MINUTES // 60} hours "
+        if appt.scheduled_at - timedelta(minutes=reschedule_cutoff_minutes()) <= now or deadlines(appt)["confirm_by"] <= now:
+            raise ValidationError({"detail": f"You can suggest another time until {_span(reschedule_cutoff_minutes())} "
                                              "before the requested time. Confirm or decline it instead."})
         if not PreConsultationScreening.objects.filter(client_id=appt.relationship.client_id).exists():
             raise ValidationError({"detail": "This client hasn't submitted a pre-consultation screening yet."})

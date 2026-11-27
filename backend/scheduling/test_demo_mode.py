@@ -140,3 +140,44 @@ class InPersonRoomOpensOnTheDayTests(_DemoSetup, TestCase):
         rows = data["results"] if isinstance(data, dict) else data
         row = next(r for r in rows if r["id"] == a.id)
         self.assertEqual(row["join_opens_at"][:19], "2026-12-03T00:00:00", row["join_opens_at"])  # midnight PH
+
+
+@override_settings(DEMO_MODE=True)
+class DemoRescheduleLimitsTests(_DemoSetup, TestCase):
+    """Demo mode: rescheduling until 30 minutes before, to a time at least 1 hour ahead."""
+
+    def setUp(self):
+        from clinical.models import PreConsultationScreening
+
+        super().setUp()
+        PreConsultationScreening.objects.create(client=self.client_user, height_cm=160, weight_kg=60, activity_level="sedentary")
+
+    def _pending(self, minutes):
+        return Appointment.objects.create(relationship=self.rel, type="video", status="pending", duration_minutes=60,
+                                          scheduled_at=timezone.now() + timedelta(minutes=minutes))
+
+    def _later(self, minutes):
+        return (timezone.now() + timedelta(minutes=minutes)).replace(second=0, microsecond=0)
+
+    def test_client_changes_a_request_45_minutes_before(self):
+        a = self._pending(45)
+        resp = self.client_api.post(f"/api/client/appointments/{a.id}/reschedule/",
+                                    {"action": "change", "scheduled_at": self._later(90).isoformat()}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+
+    def test_rnd_suggests_45_minutes_before_and_client_accepts(self):
+        a = self._pending(45)
+        resp = self.rnd_api.post(f"/api/rnd/appointments/{a.id}/reschedule/",
+                                 {"action": "offer", "scheduled_at": self._later(90).isoformat()}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(self.client_api.post(f"/api/client/appointments/{a.id}/reschedule/", {"action": "accept"},
+                                              format="json").status_code, 200)
+        a.refresh_from_db()
+        self.assertEqual(a.status, "confirmed")
+
+    def test_still_closed_in_the_last_30_minutes(self):
+        a = self._pending(20)
+        resp = self.client_api.post(f"/api/client/appointments/{a.id}/reschedule/",
+                                    {"action": "change", "scheduled_at": self._later(90).isoformat()}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("30 minutes", str(resp.data))

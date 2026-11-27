@@ -6,6 +6,9 @@ While it is on:
 - A booking may start any time from now (no 45-minute lead), the RND may confirm and the client
   may pay up to the start (no 30 / 15 minute deadlines).
 - The room opens as soon as the consultation is confirmed and paid (up to a day before).
+- Rescheduling works closer to the time: either side can move a consultation or a request until
+  30 minutes before it (not 2 hours), to a time at least 1 hour ahead, and a waiting answer runs
+  until 15 minutes before.
 
 Everything else (the call, closing rules, NCP, summaries, refunds) is unchanged. Turning the
 env var off restores every normal rule; nothing is stored about the mode itself.
@@ -35,6 +38,24 @@ def pay_by_minutes() -> int:
     from .serializers import PAY_BY_MINUTES
 
     return 0 if demo_mode() else PAY_BY_MINUTES
+
+
+def reschedule_cutoff_minutes() -> int:
+    from .reschedule import REQUEST_CUTOFF_MINUTES
+
+    return 30 if demo_mode() else REQUEST_CUTOFF_MINUTES
+
+
+def reschedule_lead_minutes() -> int:
+    from .reschedule import MIN_LEAD_MINUTES
+
+    return 60 if demo_mode() else MIN_LEAD_MINUTES
+
+
+def answer_before_minutes() -> int:
+    from .reschedule import ANSWER_BEFORE_MINUTES
+
+    return 15 if demo_mode() else ANSWER_BEFORE_MINUTES
 
 
 def join_early_minutes() -> int:

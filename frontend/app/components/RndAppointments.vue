@@ -479,9 +479,9 @@ const rescheduling = ref(null)
 // a confirmed consultation that hasn't started, paid or not
 const canMove = a => a.status === 'confirmed' && now.value < new Date(a.scheduled_at).getTime()
 // in its last 30 minutes a move still counts as a last-minute cancel, so the pop-up asks why
-// a booking request the RND hasn't confirmed: suggest another time (2026-11-27), until 2 hours before
+// a booking request the RND hasn't confirmed: suggest another time (2026-11-27), until 2 hours before (30 min in demo mode)
 // it and while no suggestion is waiting; the client accepts it (confirmed) or keeps theirs
-const canSuggest = a => !a.reschedule?.waiting && a.screening?.submitted && new Date(a.scheduled_at).getTime() - now.value > 2 * 3600000
+const canSuggest = a => !a.reschedule?.waiting && a.screening?.submitted && new Date(a.scheduled_at).getTime() - now.value > (demoMode.value ? 30 : 120) * 60000
 const movingLate = computed(() => !!rescheduling.value && rescheduling.value.status !== 'pending' && now.value >= new Date(rescheduling.value.scheduled_at).getTime() - 30 * 60000)
 async function onOffered() {
   rescheduling.value = null
