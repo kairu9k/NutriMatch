@@ -80,9 +80,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # closes at the scheduled end (JOIN_LATE_MINUTES = 0, no overtime).
         start = instance.scheduled_at
         end = start + timedelta(minutes=instance.duration_minutes or DEFAULT_SESSION_MINUTES)
-        from .demo import join_early_minutes
+        from .video_call import room_opens_at
 
-        opens_at = start - timedelta(minutes=join_early_minutes())
+        opens_at = room_opens_at(instance)
         closes_at = end + timedelta(minutes=JOIN_LATE_MINUTES)
         data["join_opens_at"] = opens_at.isoformat()
         data["join_closes_at"] = closes_at.isoformat()

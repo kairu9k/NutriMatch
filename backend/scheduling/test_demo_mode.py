@@ -107,3 +107,36 @@ class DemoModeOnTests(_DemoSetup, TestCase):
         a, _ = self.unpaid(120)
         opens, _ = join_window(a)
         self.assertLessEqual(opens, timezone.now())
+
+
+class InPersonRoomOpensOnTheDayTests(_DemoSetup, TestCase):
+    """2026-11-27 (user's call): an in-person visit's room opens from the start of its day (PH time),
+    so a client who arrives early can be seen; video keeps the 15-minute rule."""
+
+    def _at(self, type_, hour):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        when = datetime(2026, 12, 3, hour, 0, tzinfo=ZoneInfo("Asia/Manila"))
+        return Appointment.objects.create(relationship=self.rel, type=type_, status="confirmed", duration_minutes=60,
+                                          scheduled_at=when)
+
+    def test_in_person_opens_at_midnight_ph(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        opens, _ = join_window(self._at("in_person", 15))
+        self.assertEqual(opens, datetime(2026, 12, 3, 0, 0, tzinfo=ZoneInfo("Asia/Manila")))
+
+    def test_video_still_opens_fifteen_minutes_before(self):
+        a = self._at("video", 15)
+        opens, _ = join_window(a)
+        self.assertEqual(opens, a.scheduled_at - timedelta(minutes=15))
+
+    def test_payload_shows_the_same_time(self):
+        a = self._at("in_person", 15)
+        Appointment.objects.filter(pk=a.pk).update(status="pending")
+        data = self.client_api.get("/api/client/appointments/").json()
+        rows = data["results"] if isinstance(data, dict) else data
+        row = next(r for r in rows if r["id"] == a.id)
+        self.assertEqual(row["join_opens_at"][:19], "2026-12-03T00:00:00", row["join_opens_at"])  # midnight PH

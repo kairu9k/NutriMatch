@@ -66,9 +66,9 @@
   <div class="meta">
     NutriMatch: Web-Based Clinical Nutrition Consultation Management System<br>
     Capstone project, STI College Davao, BSIT<br>
-    Updated edition. Reflects the system as of November 23, 2026
+    Updated edition. Reflects the system as of November 27, 2026
   </div>
-  <div class="what"><b>What changed since the November 18 edition:</b> a client can tick several health conditions; either side can reschedule a confirmed consultation, paid or not (a client's request needs the RND's yes, and the booking stays if they say no); every reschedule uses the same pop-up as booking; and a consultation can move at most 14 days past the time it was first booked. Chapters marked <span class="new">Updated</span> changed the most.</div>
+  <div class="what"><b>What changed since the November 23 edition:</b> payments now go through <b>Xendit</b> (test mode) instead of PayMongo, which deactivated our account; refunds go back through the provider the client paid with. The RND can also reschedule a booking request before confirming it (the client accepts and it is confirmed, or keeps their time). The room for an in-person visit opens from the start of its day, so a client who arrives early can be seen. Chapters marked <span class="new">Updated</span> changed the most.</div>
 </section>
 
 <section class="chapter">
@@ -79,7 +79,7 @@
     <li>Accounts, sign-up and consent <span class="new">Updated</span></li>
     <li>Finding an RND and booking</li>
     <li>Time rules for consultations</li>
-    <li>Payments, refunds and payouts</li>
+    <li>Payments, refunds and payouts <span class="new">Updated</span></li>
     <li>The consultation room and video calls</li>
     <li>How a consultation ends <span class="new">Updated</span></li>
     <li>Screening and the calculations <span class="new">Updated</span></li>
@@ -107,7 +107,7 @@
     <tr><td>Backend</td><td>Django 6 with Django REST Framework, SimpleJWT sign-in, Django Channels for live features. Hosted on Render.</td></tr>
     <tr><td>Database</td><td>PostgreSQL on Neon (SQLite during development). About 40 tables.</td></tr>
     <tr><td>Files</td><td>Cloudinary. PRC licenses, the license selfie, lab results and meal photos are private.</td></tr>
-    <tr><td>Payments</td><td>PayMongo Checkout (GCash, Maya, cards, QR Ph), test mode.</td></tr>
+    <tr><td>Payments</td><td>Xendit checkout (GCash, Maya, cards), test mode. PayMongo stays for payments made through it before November 27.</td></tr>
     <tr><td>Video</td><td>Our own browser-to-browser WebRTC call, with a Cloudflare relay (TURN).</td></tr>
     <tr><td>Email and SMS</td><td>Brevo (email in production), Semaphore (SMS).</td></tr>
     <tr><td>Food data</td><td>FNRI Food Exchange Lists (main), USDA FoodData Central (second source).</td></tr>
@@ -144,7 +144,7 @@
     <li>Reviews RND applications: license photo, selfie, PRC number; approve or reject with a reason.</li>
     <li>Watches the dashboard's Needs attention list.</li>
     <li>Answers support requests and decides disputes (refund or keep).</li>
-    <li>Sends refunds through PayMongo and releases monthly RND payouts.</li>
+    <li>Sends refunds through the payment provider (Xendit) and releases monthly RND payouts.</li>
     <li>Reads reports and the audit log; manages users and admins.</li>
   </ol>
 </section>
@@ -192,7 +192,7 @@
     <tr><td>RND confirms by 2:30 PM</td><td>Otherwise the request expires and the client is told.</td></tr>
     <tr><td>Paid client can cancel until 2:30 PM</td><td>Full refund. After that, no cancelling.</td></tr>
     <tr><td>Client pays by 2:45 PM</td><td>Any time after confirming. Still unpaid at 2:45 the booking is cancelled automatically and the invoice voided.</td></tr>
-    <tr><td>Room opens 2:45 PM</td><td>15 minutes before the start.</td></tr>
+    <tr><td>Room opens 2:45 PM</td><td>15 minutes before the start (an in-person visit's room opens from midnight that day).</td></tr>
     <tr><td>No-show or "RND didn't come" from 3:15 PM</td><td>15 minutes after the start, so the other person has time to arrive (chapter 8).</td></tr>
     <tr><td>3:45 and 3:55 PM</td><td>A "15 minutes left" and a "5 minutes left" note over the call; the timer turns gold.</td></tr>
     <tr><td>Room closes 4:00 PM</td><td><b>No overtime.</b> The call ends at the scheduled end and the consultation is closed from the attendance record.</td></tr>
@@ -204,19 +204,19 @@
 </section>
 
 <section>
-  <h2>6. Payments, refunds and payouts</h2>
+  <h2>6. Payments, refunds and payouts <span class="new">Updated</span></h2>
   <h3>Paying</h3>
   <ul>
     <li>The invoice is created when the RND confirms. The platform commission (default 10%) is <b>frozen</b> on the invoice at that moment.</li>
-    <li>The client pays through a PayMongo Checkout page: GCash, Maya, card or QR Ph. PayMongo tells the server through a signed webhook; the Billing page also checks PayMongo directly in case a webhook is missed.</li>
+    <li>The client pays on Xendit's checkout page: GCash, Maya or card. Xendit tells the server through a webhook with a secret token, and the server reads the invoice back from Xendit before marking it paid; the Billing page also checks Xendit directly in case a webhook is missed.</li>
     <li>Every payment sends a branded email receipt. Receipts are payment receipts, not BIR official receipts. The client never sees the commission split.</li>
     <li>The client only gets into the video call once paid.</li>
   </ul>
   <h3>Refunds</h3>
   <ul>
     <li>Always the full amount, within 5 to 7 business days. A refund is owed when a paid consultation is cancelled, the RND didn't come, the call never happened, or an admin approves a dispute. It then waits on the admin's Refunds list.</li>
-    <li>The admin sends it through PayMongo. GCash, Maya and card payments go back to the same account. QR Ph payments get a PayMongo claim link.</li>
-    <li>An invoice only turns "Refunded" when PayMongo reports the refund succeeded.</li>
+    <li>The admin sends it through the provider the client paid with (Xendit now, PayMongo for older payments). It goes back to the same GCash, Maya or card.</li>
+    <li>An invoice only turns "Refunded" when the provider reports the refund succeeded.</li>
   </ul>
   <h3>RND payouts</h3>
   <ul>
@@ -226,7 +226,8 @@
     <li>Money is sent outside the app (GCash or bank); the admin records the receipt reference. Safeguards: the amount must match, the reference must be real, and changed payout details within 7 days need extra confirmation.</li>
   </ul>
   <div class="qa"><div class="q">Why is the commission frozen?</div><p>So changing the commission rate later never changes what was already agreed on past invoices.</p></div>
-  <div class="qa"><div class="q">Is real money involved?</div><p>No. PayMongo runs in test mode. Going live needs PayMongo business verification. The PayMongo sandbox cannot complete QR Ph refunds; GCash, Maya and card refunds work in test mode.</p></div>
+  <div class="qa"><div class="q">Is real money involved?</div><p>No. Xendit runs in test mode: the checkout page says so, and GCash and Maya payments are confirmed on Xendit's test page. Payments and refunds still really go through Xendit's system. Going live needs Xendit's business verification.</p></div>
+  <div class="qa"><div class="q">Why Xendit and not PayMongo?</div><p>PayMongo deactivated our account in November and a new one needed identity verification first. The adviser does not allow skipping payment, so the system switched to Xendit, which works in test mode straight away. PayMongo's code stays: one setting switches back, and payments made through PayMongo are still refunded there. QR Ph is not offered on Xendit because Xendit can't refund it automatically.</p></div>
 </section>
 
 <section>
@@ -258,6 +259,7 @@
   <h3>In-person consultations</h3>
   <ul>
     <li>Nothing records an in-person visit, so the RND closes it: Mark complete (from Appointments, To complete, or Open room), or a no-show from 15 minutes after the start.</li>
+    <li>The room opens from midnight on the day of the visit, so a client who arrives early can be seen and the RND can start the NCP right away. Video calls still open 15 minutes before.</li>
     <li>The client can dispute a completed in-person visit for 3 days ("Didn't take place?").</li>
     <li>It never closes by itself. The RND is reminded the next day, and after 3 days it shows on the admin's Needs attention.</li>
   </ul>
@@ -282,7 +284,7 @@
     <li><b>Later times only</b>, at least 2 hours ahead, inside the RND's weekly hours, and at most <b>14 days after the time first booked</b>, so a consultation can't keep drifting later however often it moves.</li>
     <li>At most 3 times are proposed per reschedule, and a time waiting for an answer holds its slot.</li>
     <li>Accepting moves the same appointment with the same invoice (a paid one stays paid; an unpaid one is now due 15 minutes before the new start), resets attendance and re-arms the reminders.</li>
-    <li>A booking the RND hasn't confirmed yet simply changes its requested time in the same pop-up; the RND confirms it as usual.</li>
+    <li><b>A booking the RND hasn't confirmed yet:</b> the client simply changes its requested time and the RND confirms it as usual. The RND can suggest another time instead (Reschedule on the request, until 2 hours before); if the client accepts, the booking moves and is confirmed at once, and if they keep their time or don't answer, the request stays and the RND can still confirm or decline it.</li>
   </ul>
   <h3>Other cancellations</h3>
   <ul>
@@ -294,6 +296,7 @@
   <div class="qa"><div class="q">Why disputes through Help &amp; Support instead of a button?</div><p>The team's decision: one place for talking to NutriMatch. Choosing "Dispute a consultation" still does everything the button did: it holds the payout, attaches the attendance record, enforces the 3-day deadline and gives the admin Approve and Reject.</p></div>
   <div class="qa"><div class="q">Why offer a new time instead of only refunding?</div><p>The adviser's idea: the client shouldn't have to book and pay again because the RND couldn't make it. The client still chooses; a refund is always one of the answers.</p></div>
   <div class="qa"><div class="q">Can a client reschedule, even before paying?</div><p>Yes, the adviser asked for it. Until 2 hours before, paid or not, the client picks a later time and only the RND confirms it. If the RND declines or doesn't answer, the consultation stays at its original time, so the client's request can never cancel anything.</p></div>
+  <div class="qa"><div class="q">Can the RND move a request before confirming it?</div><p>Yes, the adviser asked for this too. The RND presses Reschedule on the request and suggests a later time. The client accepts it, which confirms the booking at that time and issues the invoice, or keeps their own time. Nothing is confirmed without the client agreeing to the time.</p></div>
   <div class="qa"><div class="q">Why only later times, and why 14 days?</div><p>An earlier time could cut into plans made around the original booking, so a move is never earlier; anyone who needs a sooner slot can cancel and book it. The 14 days count from the time first booked, so repeated moves can't push care weeks away.</p></div>
   <div class="qa"><div class="q">What if nobody ever opens the app after a consultation?</div><p>The call itself closes it when the room closes, and the same check runs when anyone loads their appointments, billing or the admin pages, so it closes the next time the system is used.</p></div>
 </section>
@@ -406,7 +409,7 @@
     <tr><td>Users</td><td>Every account; deactivate or reactivate with a reason; send a password reset; edit details with a reason; add admins.</td></tr>
     <tr><td>Appointments</td><td>Every consultation with its payment, attendance label, dispute status and reschedule history; cancel with a reason.</td></tr>
     <tr><td>Support</td><td>Requests from clients and RNDs; reply, close; decide disputes (approve and refund, or reject) with a note.</td></tr>
-    <tr><td>Billing and commission</td><td>Invoices, receipts, the Refunds list, refunds through PayMongo.</td></tr>
+    <tr><td>Billing and commission</td><td>Invoices, receipts, the Refunds list, refunds through Xendit (or PayMongo for older payments).</td></tr>
     <tr><td>Payouts</td><td>Monthly payout runs with safeguards.</td></tr>
     <tr><td>Reports</td><td>Consultations, payments, commission (only on payments kept, never on refunds), new clients, per RND; print or CSV.</td></tr>
     <tr><td>Audit log</td><td>Who did what and when (immutable).</td></tr>
@@ -441,7 +444,7 @@
         <li><b>clinical:</b> screening, NCP, progress, labs, calculations</li>
         <li><b>nutrition:</b> FNRI foods, meal plans, templates, meal logs, USDA</li>
         <li><b>communication:</b> messages, notifications, reminders, SMS, support and disputes</li>
-        <li><b>billing:</b> invoices, PayMongo, refunds, payouts</li>
+        <li><b>billing:</b> invoices, Xendit and PayMongo, refunds, payouts</li>
         <li><b>core:</b> settings, audit log, reports, admin dashboard</li>
       </ul>
     </div>
@@ -451,7 +454,7 @@
         <li>The Nuxt page calls the REST API with a JWT.</li>
         <li>Django checks the role and ownership, applies the rules, saves to PostgreSQL.</li>
         <li>Side effects run after the save: notifications (pushed live over WebSockets), emails, SMS, audit rows.</li>
-        <li>External services: PayMongo, Cloudinary, Brevo, Semaphore, Cloudflare TURN, USDA.</li>
+        <li>External services: Xendit (PayMongo for older payments), Cloudinary, Brevo, Semaphore, Cloudflare TURN, USDA.</li>
       </ol>
     </div>
   </div>
@@ -471,6 +474,7 @@
     <tr><td>Mifflin-St Jeor BMR, TDEE</td><td>BMI-method DBW, Tannhauser TER</td><td>RND resource person's method; the BMI method handles short stature.</td></tr>
     <tr><td>Chat consultations</td><td>Video or in person only</td><td>Adviser's call; chat stays as messaging.</td></tr>
     <tr><td>Third-party video (Jitsi)</td><td>Own WebRTC call</td><td>No login, no time limit, private.</td></tr>
+    <tr><td>PayMongo</td><td>Xendit (test mode)</td><td>PayMongo deactivated the account and the adviser doesn't allow skipping payment; PayMongo's code stays for older payments.</td></tr>
     <tr><td>Payment after the consultation</td><td>Pay before the consultation</td><td>Protects the RND's time; clear refund rules.</td></tr>
     <tr><td>RND marks the consultation complete</td><td>Closed from the call's attendance record</td><td>Money follows what actually happened; no consultation left open, no complete without the client.</td></tr>
     <tr><td>Cancel means refund</td><td>Either side can reschedule, paid or not; the RND confirms a client's request</td><td>Adviser's idea: nobody pays twice, and the RND keeps control of their hours.</td></tr>
@@ -495,13 +499,13 @@
   <div class="qa"><div class="q">Why should a client trust an RND on NutriMatch?</div><p>Every RND's PRC license and a selfie holding it are checked by an admin before they can practise on the platform, the PRC number is shown on their profile, and clients leave ratings and reviews.</p></div>
   <div class="qa"><div class="q">How does NutriMatch earn?</div><p>A platform commission (default 10%) on each paid consultation, frozen on the invoice. RNDs receive the rest monthly. Refunded payments earn no commission.</p></div>
   <div class="qa"><div class="q">Can it scale?</div><p>The backend is stateless apart from live features; with more traffic, Render can run more instances with Redis for live updates (supported by the code via REDIS_URL), and Neon PostgreSQL scales separately.</p></div>
-  <div class="qa"><div class="q">What would you add next?</div><p>Live PayMongo after business verification, SMS once the sender name is approved, automatic payouts, a scheduler so consultations close even when nobody uses the app, a per-client no-show count for admins, a client data download, and validated energy equations for special populations.</p></div>
+  <div class="qa"><div class="q">What would you add next?</div><p>Live payments after Xendit's business verification, SMS once the sender name is approved, automatic payouts, a scheduler so consultations close even when nobody uses the app, a per-client no-show count for admins, a client data download, and validated energy equations for special populations.</p></div>
 </section>
 
 <section>
   <h2>21. Known limitations and open items</h2>
   <ul>
-    <li>PayMongo is in test mode; QR Ph refunds can't complete in the sandbox.</li>
+    <li>Payments run in Xendit's test mode; QR Ph is not offered because Xendit can't refund it automatically.</li>
     <li>SMS waits for Semaphore to approve the "NutriMatch" sender name.</li>
     <li>The free Render plan has no background scheduler: a consultation closes when the call ends or the next time someone uses the app, not exactly on the minute if the room was never opened.</li>
     <li>The video call has been tested between browsers on the same network; wider testing on phones and mobile data is still worth doing.</li>

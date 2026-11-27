@@ -2,7 +2,23 @@
   <!-- A consultation being rescheduled (scheduling/reschedule.py): the new
        time waiting for an answer, and what this person can do about it. -->
   <div v-if="r?.waiting" class="rs-box" :class="{ todo: myTurn }">
-    <template v-if="mode === 'view'">
+    <!-- a booking request the RND hasn't confirmed: the RND suggested another time (2026-11-27) -->
+    <template v-if="onRequest">
+      <p class="rs-line">
+        <template v-if="role === 'client'">RND {{ otherName }} can't do {{ when(appointment.scheduled_at) }} and suggested <strong>{{ when(r.waiting.scheduled_at) }}</strong> instead.</template>
+        <template v-else>You suggested <strong>{{ when(r.waiting.scheduled_at) }}</strong>. Waiting for {{ otherName }} to answer.</template>
+      </p>
+      <p v-if="r.waiting.note" class="rs-note">{{ role === 'client' ? 'Note' : 'Your note' }}: {{ r.waiting.note }}</p>
+      <p class="rs-sub">
+        <template v-if="role === 'client'">Accept it and your consultation is confirmed. Answer by {{ when(r.waiting.expires_at) }}; otherwise your request stays on {{ when(appointment.scheduled_at) }}.</template>
+        <template v-else>If they accept, it's confirmed at that time. If they keep theirs or don't answer by {{ when(r.waiting.expires_at) }}, the request stays on {{ when(appointment.scheduled_at) }} and you can still confirm or decline it.</template>
+      </p>
+      <div v-if="role === 'client'" class="rs-actions">
+        <button type="button" class="nm-btn-dark nm-btn-sm" :disabled="!!busy" @click="send('accept')">{{ busy === 'accept' ? 'Accepting…' : 'Accept new time' }}</button>
+        <button type="button" class="nm-btn-soft nm-btn-sm" :disabled="!!busy" @click="send('keep')">{{ busy === 'keep' ? 'Keeping…' : 'Keep my requested time' }}</button>
+      </div>
+    </template>
+    <template v-else-if="mode === 'view'">
       <p class="rs-line">
         <template v-if="myTurn && clientsRequest && firstOffer">
           {{ otherName }} asked to move the consultation on {{ when(appointment.scheduled_at) }} to <strong>{{ when(r.waiting.scheduled_at) }}</strong>.
@@ -87,6 +103,8 @@ const roundStart = computed(() => {
 // the client asked for this new time (2026-11-23): the RND declines rather than refunds,
 // and if it ends without a move the booking simply stays
 const clientsRequest = computed(() => r.value?.started_by === 'client')
+// the RND's suggested time on a request they haven't confirmed yet
+const onRequest = computed(() => props.appointment.status === 'pending')
 const amount = computed(() => props.appointment.payment?.amount ? Number(props.appointment.payment.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '')
 const paid = computed(() => props.appointment.payment?.status === 'paid')
 const mode = ref('view')
@@ -105,7 +123,7 @@ function onCounter() {
 const DONE = {
   accept: 'New time accepted. The consultation is confirmed.',
   refund: props.appointment.payment?.status === 'paid' ? 'Consultation cancelled. Your full refund is on its way.' : 'Consultation cancelled.',
-  keep: 'Your current time is kept.',
+  keep: props.appointment.status === 'pending' ? 'Your requested time is kept.' : 'Your current time is kept.',
   decline: 'Request declined. The consultation stays at its current time.',
 }
 async function send(action) {

@@ -26,6 +26,14 @@ cancelled, and the request expires an hour before the booked time so the
 original consultation can still happen. A booking still waiting for the RND
 just changes its requested time (``change_pending``).
 
+The RND can move a request too, before confirming it (2026-11-27, the adviser):
+``suggest_for_request`` offers another time while the booking stays pending.
+The client accepts it (the booking moves and is confirmed at once, the RND
+having chosen that time: ``views.confirm_booking``) or keeps the requested
+time; unanswered, it expires an hour before the requested time and the RND
+can still confirm or decline the request as usual. A waiting proposal only
+exists while its booking is pending or rescheduling (``close_stale_proposals``).
+
 Every new time is later than the current one (never earlier), at least
 MIN_LEAD_MINUTES ahead, and at most OFFER_WITHIN_DAYS after the time first
 booked, so a consultation can't keep drifting later (user's calls,
@@ -57,6 +65,8 @@ REQUEST_CUTOFF_MINUTES = 120
 
 By = RescheduleProposal.By
 P = RescheduleProposal.Status
+# a proposal can only wait on a booking request (the RND's suggestion) or one being rescheduled
+OPEN_FOR_PROPOSALS = (Appointment.Status.PENDING, Appointment.Status.RESCHEDULING)
 
 
 # --------------------------------------------------------------- read helpers
@@ -100,7 +110,7 @@ def held_intervals(rnd_id=None, client_id=None):
     """Times held by waiting proposals: [(start, end)]."""
     from .serializers import DEFAULT_SESSION_MINUTES
 
-    qs = RescheduleProposal.objects.filter(status=P.WAITING, appointment__status=Appointment.Status.RESCHEDULING)
+    qs = RescheduleProposal.objects.filter(status=P.WAITING, appointment__status__in=OPEN_FOR_PROPOSALS)
     if rnd_id is not None:
         qs = qs.filter(appointment__relationship__rnd_id=rnd_id)
     if client_id is not None:
@@ -300,6 +310,8 @@ def change_pending(appointment, user, start, now=None):
         if appt.scheduled_at - timedelta(minutes=REQUEST_CUTOFF_MINUTES) <= now:
             raise ValidationError({"detail": f"You can change the time until {REQUEST_CUTOFF_MINUTES // 60} hours before it."})
         check_new_time(appt, start, now)
+        # the client picked a time of their own instead of the RND's suggestion
+        appt.reschedule_proposals.filter(status=P.WAITING).update(status=P.DECLINED, answered_at=now)
         old = appt.scheduled_at
         appt.scheduled_at = start
         appt.save(update_fields=["scheduled_at", "updated_at"])
@@ -313,6 +325,73 @@ def change_pending(appointment, user, start, now=None):
     return appt
 
 
+def suggest_for_request(appointment, user, start, note="", now=None):
+    """The RND suggests another time for a booking request they haven't confirmed (2026-11-27,
+    the adviser). The request stays pending; the client accepts (confirmed at the new time) or
+    keeps theirs."""
+    from clinical.models import PreConsultationScreening
+
+    from .serializers import deadlines
+
+    now = now or timezone.now()
+    note = (note or "").strip()[:500]
+    with transaction.atomic():
+        appt = _lock(appointment)
+        if appt.status != Appointment.Status.PENDING:
+            raise ValidationError({"detail": "Only a booking request you haven't confirmed yet can get a suggested time."})
+        if waiting_proposal(appt) is not None:
+            raise ValidationError({"detail": "A suggested time is already waiting for the client's answer."})
+        # the client needs time to answer before the request itself expires
+        if appt.scheduled_at - timedelta(minutes=REQUEST_CUTOFF_MINUTES) <= now or deadlines(appt)["confirm_by"] <= now:
+            raise ValidationError({"detail": f"You can suggest another time until {REQUEST_CUTOFF_MINUTES // 60} hours "
+                                             "before the requested time. Confirm or decline it instead."})
+        if not PreConsultationScreening.objects.filter(client_id=appt.relationship.client_id).exists():
+            raise ValidationError({"detail": "This client hasn't submitted a pre-consultation screening yet."})
+        check_new_time(appt, start, now)
+        proposal = _create(appt, By.RND, start, note, now, keeps_original=True)
+        _audit(user, "appointment.request_time_suggested", appt, scheduled_at=start, from_at=proposal.from_at)
+
+    from communication.services import notify
+
+    rel = appt.relationship
+    notify(recipient=rel.client, notifiable_type="appointment", notifiable_id=appt.id, subject="Another time suggested",
+           content=f"RND {rel.rnd.full_name} can't do {_when(proposal.from_at)} and suggested {_when(start)} for your booking."
+                   + (f" Note: {note}" if note else "")
+                   + f" Accept it in My Appointments by {_when(proposal.expires_at)} and it's confirmed."
+                   f" Otherwise your request stays on {_when(proposal.from_at)}.")
+    return appt
+
+
+def _answer_request_suggestion(appt, proposal, user, action, now):
+    """The client answers the RND's suggested time on a pending request: accept (moves and
+    confirms the booking) or keep (the request stays as it was)."""
+    from communication.services import notify
+
+    from .views import confirm_booking
+
+    rel = appt.relationship
+    if action == "accept":
+        old = appt.scheduled_at
+        # no re-check: the suggested slot was held while it waited, and it expires an hour before
+        proposal.status, proposal.answered_at = P.ACCEPTED, now
+        proposal.save(update_fields=["status", "answered_at"])
+        appt.scheduled_at = proposal.scheduled_at
+        appt.save(update_fields=["scheduled_at", "updated_at"])
+        _audit(user, "appointment.rescheduled", appt, scheduled_at=appt.scheduled_at, from_at=old, accepted_by=By.CLIENT)
+        confirm_booking(appt)  # the client gets "confirmed, payment due"
+        notify(recipient=rel.rnd, notifiable_type="appointment", notifiable_id=appt.id, subject="Suggested time accepted",
+               content=f"{rel.client.full_name} accepted {_when(appt.scheduled_at)}. The consultation is confirmed.")
+        return appt
+    if action == "keep":
+        proposal.status, proposal.answered_at = P.DECLINED, now
+        proposal.save(update_fields=["status", "answered_at"])
+        _audit(user, "appointment.reschedule_kept", appt, outcome=P.DECLINED, by=By.CLIENT)
+        notify(recipient=rel.rnd, notifiable_type="appointment", notifiable_id=appt.id, subject="Requested time kept",
+               content=f"{rel.client.full_name} kept their requested time, {_when(appt.scheduled_at)}. Confirm or decline it in Appointments.")
+        return appt
+    raise ValidationError({"action": "Accept the suggested time or keep yours."})
+
+
 def respond(appointment, user, by, action, start=None, note="", now=None):
     """accept | propose (another time) | refund (the RND's reschedule) |
     decline (RND) / keep (client): the client's request. `by` is who answers."""
@@ -322,6 +401,10 @@ def respond(appointment, user, by, action, start=None, note="", now=None):
     with transaction.atomic():
         appt = _lock(appointment)
         proposal = waiting_proposal(appt)
+        if appt.status == Appointment.Status.PENDING and proposal is not None:
+            if by != By.CLIENT:
+                raise ValidationError({"detail": "This time is waiting for the client's answer."})
+            return _answer_request_suggestion(appt, proposal, user, action, now)
         if appt.status != Appointment.Status.RESCHEDULING or proposal is None:
             raise ValidationError({"detail": "There's no new time waiting for an answer on this consultation."})
         this_round = current_round(appt)
@@ -489,6 +572,33 @@ def end_for_admin(appointment):
     appointment.reschedule_proposals.filter(status=P.WAITING).update(status=P.REFUNDED, answered_at=timezone.now())
 
 
+def _expire_request_suggestions(now, scope):
+    """Suggested times on pending requests nobody answered: the request stays as it was."""
+    from communication.services import notify
+
+    due = (RescheduleProposal.objects.filter(status=P.WAITING, expires_at__lte=now,
+                                             appointment__status=Appointment.Status.PENDING,
+                                             **{f"appointment__{k}": v for k, v in scope.items()})
+           .select_related("appointment__relationship__client", "appointment__relationship__rnd"))
+    count = 0
+    for proposal in list(due):
+        if RescheduleProposal.objects.filter(pk=proposal.pk, status=P.WAITING).update(status=P.EXPIRED, answered_at=now):
+            appt, count = proposal.appointment, count + 1
+            for who in (appt.relationship.client, appt.relationship.rnd):
+                notify(recipient=who, notifiable_type="appointment", notifiable_id=appt.id, subject="Suggested time expired",
+                       content=f"The suggested time {_when(proposal.scheduled_at)} wasn't answered in time, "
+                               f"so the booking request stays on {_when(appt.scheduled_at)}.")
+    return count
+
+
+def close_stale_proposals(sender, instance, **kwargs):
+    """post_save on Appointment: a booking that is no longer pending or being rescheduled
+    (confirmed, declined, cancelled, expired) can't have a time waiting for an answer."""
+    if instance.status not in OPEN_FOR_PROPOSALS:
+        RescheduleProposal.objects.filter(appointment_id=instance.pk, status=P.WAITING).update(
+            status=P.WITHDRAWN, answered_at=timezone.now())
+
+
 def expire_due(now=None, **scope):
     """Waiting proposals past their answer time: the RND's reschedule ends
     with a full refund, the client's request keeps the original time. Runs
@@ -499,7 +609,7 @@ def expire_due(now=None, **scope):
                                              appointment__status=Appointment.Status.RESCHEDULING,
                                              **{f"appointment__{k}": v for k, v in scope.items()})
            .values_list("appointment_id", flat=True))
-    count = 0
+    count = _expire_request_suggestions(now, scope)
     for appt_id in list(due):
         with transaction.atomic():
             appt = Appointment.objects.select_for_update().select_related("relationship__client", "relationship__rnd").get(pk=appt_id)
@@ -535,7 +645,8 @@ def _response(request, appt):
 
 
 class RndRescheduleView(APIView):
-    """POST {action: offer | accept | propose | decline (the client's request), scheduled_at, reason, category}.
+    """POST {action: offer (on a pending request: suggest another time) | accept | propose | decline (the client's
+    request), scheduled_at, reason, category}.
     Cancel with full refund while rescheduling is the normal cancel endpoint."""
 
     permission_classes = [IsRnd]
@@ -547,7 +658,10 @@ class RndRescheduleView(APIView):
             start = _start(request)
             if start is None:
                 raise ValidationError({"scheduled_at": ["Pick a new time."]})
-            offer(appt, request.user, start, request.data.get("reason"), request.data.get("category"))
+            if appt.status == Appointment.Status.PENDING:
+                suggest_for_request(appt, request.user, start, request.data.get("reason") or request.data.get("note"))
+            else:
+                offer(appt, request.user, start, request.data.get("reason"), request.data.get("category"))
         else:
             respond(appt, request.user, By.RND, action, _start(request), request.data.get("reason") or request.data.get("note"))
         return _response(request, appt)

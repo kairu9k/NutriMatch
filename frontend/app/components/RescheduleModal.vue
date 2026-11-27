@@ -12,6 +12,10 @@
           <h2 id="move-title" class="mv-title">Reschedule with {{ otherFirstName }}</h2>
           <p class="mv-sub">
             <template v-if="counter">Pick a different time. {{ otherFirstName }} accepts it or answers with another.</template>
+            <template v-else-if="role === 'rnd' && status === 'pending'">
+              Suggest another time for {{ otherFirstName }}'s request. If they accept it, the consultation is confirmed at that time.
+              If they keep theirs or don't answer, the request stays and you can still confirm or decline it.
+            </template>
             <template v-else-if="role === 'rnd'">
               {{ otherFirstName }} accepts the new time, picks another, or {{ paid ? 'takes a full refund' : 'cancels' }}.
               <template v-if="paid">They don't pay again.</template>
@@ -28,7 +32,7 @@
         <RescheduleSlotPicker v-model="pick" :appointment-id="appointmentId"
                               :empty-hint="role === 'rnd' ? 'No later times are open. Add hours in Availability, or cancel the consultation.' : 'No later times are open. You can keep this time, or cancel it.'">
           <template #left-top>
-            <p class="mv-now"><CalendarDays :size="18" aria-hidden="true" /><span>Now booked</span> {{ typeLabel }}, {{ bookedLabel }}</p>
+            <p class="mv-now"><CalendarDays :size="18" aria-hidden="true" /><span>{{ status === 'pending' ? 'Requested' : 'Now booked' }}</span> {{ typeLabel }}, {{ bookedLabel }}</p>
           </template>
 
           <section v-if="role === 'rnd' && late && !counter" class="mv-section">
@@ -103,7 +107,8 @@ const pickLabel = computed(() => (pick.value
   : ''))
 // the RND gives a reason when they start the move (a category is enough in a last-minute one);
 // the client's note, and any note on a counter-proposal, is optional
-const noteRequired = computed(() => props.role === 'rnd' && !props.counter)
+// (a time suggested on a request the RND hasn't confirmed only needs an optional note)
+const noteRequired = computed(() => props.role === 'rnd' && !props.counter && props.status !== 'pending')
 const ready = computed(() => {
   if (!pick.value) return false
   if (!noteRequired.value) return true
@@ -128,7 +133,9 @@ async function send() {
       await post(`/rnd/appointments/${props.appointmentId}/reschedule/`, {
         action: 'offer', scheduled_at: pick.value, reason: note.value.trim(), category: props.late ? category.value : undefined,
       })
-      toast.success(`New time sent. ${name} was told and can answer in My Appointments.`, { id: `move-${props.appointmentId}` })
+      toast.success(props.status === 'pending'
+        ? `Time suggested. ${name} was told; if they accept, it's confirmed.`
+        : `New time sent. ${name} was told and can answer in My Appointments.`, { id: `move-${props.appointmentId}` })
     } else {
       const pending = props.status === 'pending'
       await post(`/client/appointments/${props.appointmentId}/reschedule/`, {

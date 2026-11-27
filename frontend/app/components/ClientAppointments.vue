@@ -59,7 +59,7 @@
           </p>
           <p v-if="appt.notes" class="appt-notes"><span>Your notes:</span> {{ appt.notes }}</p>
           <p v-if="appt.hint" class="appt-hint" :class="{ 'hint-due': appt.phase === 'payment_due' }">{{ appt.hint }}</p>
-          <RescheduleAnswer v-if="appt.phase === 'rescheduling'" :appointment="appt" role="client" :other-name="appt.rnd.name" @changed="load" />
+          <RescheduleAnswer v-if="appt.phase === 'rescheduling' || (appt.status === 'pending' && appt.reschedule?.waiting)" :appointment="appt" role="client" :other-name="appt.rnd.name" @changed="load" />
 
           <div class="appt-actions">
             <button

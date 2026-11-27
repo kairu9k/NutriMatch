@@ -60,9 +60,11 @@
                 <span v-else class="chip risk">No screening yet, so it can't be confirmed</span>
               </div>
               <p v-if="a.notes" class="client-note">{{ a.notes }}</p>
+              <RescheduleAnswer v-if="a.reschedule?.waiting" :appointment="a" role="rnd" :other-name="a.client.name" @changed="load" />
             </div>
             <div class="row-actions">
               <button v-if="!confirmClosed(a)" type="button" class="nm-btn-dark nm-btn-sm" @click="openReview(a)">Review &amp; confirm</button>
+              <button v-if="canSuggest(a)" type="button" class="nm-btn-soft nm-btn-sm" @click="rescheduling = a"><CalendarDays :size="14" /> Reschedule</button>
               <button type="button" class="nm-btn-danger solid nm-btn-sm row-cancel" @click="openReason(a, 'decline')"><X :size="14" /> Decline</button>
             </div>
           </article>
@@ -239,6 +241,7 @@
     <!-- RESCHEDULE: offer a later time (2026-11-23: paid or not), the same pop-up as the client's -->
     <RescheduleModal
       v-if="rescheduling" role="rnd" :appointment-id="rescheduling.id" :other-first-name="rescheduling.client.first_name"
+      :status="rescheduling.status === 'pending' ? 'pending' : 'confirmed'"
       :paid="rescheduling.payment?.status === 'paid'" :late="movingLate" :type-label="rescheduling.type_label"
       :booked-label="longWhen(rescheduling.scheduled_at)"
       @close="rescheduling = null" @done="onOffered"
@@ -475,7 +478,10 @@ const rescheduling = ref(null)
 // a confirmed consultation that hasn't started, paid or not
 const canMove = a => a.status === 'confirmed' && now.value < new Date(a.scheduled_at).getTime()
 // in its last 30 minutes a move still counts as a last-minute cancel, so the pop-up asks why
-const movingLate = computed(() => !!rescheduling.value && now.value >= new Date(rescheduling.value.scheduled_at).getTime() - 30 * 60000)
+// a booking request the RND hasn't confirmed: suggest another time (2026-11-27), until 2 hours before
+// it and while no suggestion is waiting; the client accepts it (confirmed) or keeps theirs
+const canSuggest = a => !a.reschedule?.waiting && a.screening?.submitted && new Date(a.scheduled_at).getTime() - now.value > 2 * 3600000
+const movingLate = computed(() => !!rescheduling.value && rescheduling.value.status !== 'pending' && now.value >= new Date(rescheduling.value.scheduled_at).getTime() - 30 * 60000)
 async function onOffered() {
   rescheduling.value = null
   await load()

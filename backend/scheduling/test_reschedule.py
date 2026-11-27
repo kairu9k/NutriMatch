@@ -67,9 +67,9 @@ class RescheduleTests(_Helpers, TestCase):
         self.assertEqual(Invoice.objects.filter(appointment=a).count(), 1)
         self.assertFalse(Reminder.objects.filter(source_key__startswith=f"appt:{a.id}:").exists())
 
-    def test_only_confirmed_can_be_offered(self):
+    def test_a_pending_request_needs_a_screening_to_get_a_suggested_time(self):
         pending = self.appt(26 * 60, status="pending")
-        self.assertEqual(self.offer(pending, _hour(73)).status_code, 400)  # decline it instead
+        self.assertEqual(self.offer(pending, _hour(73)).status_code, 400)
 
     def test_unpaid_confirmed_can_be_offered_too(self):
         # 2026-11-23 (adviser): paid or not, the RND can move a consultation as well
@@ -326,3 +326,74 @@ class ClientRequestTests(_Helpers, TestCase):
         earlier = self.client_api.post(f"/api/client/appointments/{a.id}/reschedule/",
                                        {"action": "change", "scheduled_at": _hour(30).isoformat()}, format="json")
         self.assertEqual(earlier.status_code, 400)
+
+
+class RndSuggestsForRequestTests(_Helpers, TestCase):
+    """2026-11-27 (adviser): the RND can move a request before confirming it too."""
+
+    def setUp(self):
+        from clinical.models import PreConsultationScreening
+
+        super().setUp()
+        PreConsultationScreening.objects.create(client=self.client_user, height_cm=160, weight_kg=60, activity_level="sedentary")
+        self.req = self.appt(26 * 60, status="pending")
+        self.original = self.req.scheduled_at
+        self.new = _hour(73)
+
+    def test_suggest_keeps_it_pending_and_waits_for_the_client(self):
+        resp = self.offer(self.req, self.new)
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["status"], "pending")
+        self.assertEqual(resp.data["reschedule"]["turn"], "client")
+        self.assertFalse(Invoice.objects.filter(appointment=self.req).exists())
+        self.assertEqual(self.rnd_answer(self.req, "accept").status_code, 400)  # it's the client's answer
+        self.assertEqual(self.offer(self.req, _hour(74)).status_code, 400)  # one at a time
+
+    def test_client_accepting_moves_and_confirms_it(self):
+        self.offer(self.req, self.new)
+        resp = self.client_answer(self.req, "accept")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.req.refresh_from_db()
+        self.assertEqual((self.req.status, self.req.scheduled_at), ("confirmed", self.new))
+        self.assertEqual(self.invoice(self.req).status, "unpaid")  # payment due now
+        self.rel.refresh_from_db()
+        self.assertEqual(self.rel.status, "active")
+
+    def test_client_keeping_their_time_leaves_the_request(self):
+        self.offer(self.req, self.new)
+        self.assertEqual(self.client_answer(self.req, "keep").status_code, 200)
+        self.req.refresh_from_db()
+        self.assertEqual((self.req.status, self.req.scheduled_at), ("pending", self.original))
+        self.assertEqual(self.req.reschedule_proposals.get().status, RescheduleProposal.Status.DECLINED)
+        # the RND can still confirm it as usual
+        self.assertEqual(self.rnd_api.patch(f"/api/rnd/appointments/{self.req.id}/confirm/").status_code, 200)
+
+    def test_rnd_confirming_the_original_closes_the_suggestion(self):
+        self.offer(self.req, self.new)
+        self.assertEqual(self.rnd_api.patch(f"/api/rnd/appointments/{self.req.id}/confirm/").status_code, 200)
+        self.assertEqual(self.req.reschedule_proposals.get().status, RescheduleProposal.Status.WITHDRAWN)
+        self.assertEqual(self.client_answer(self.req, "accept").status_code, 400)
+
+    def test_client_changing_time_replaces_the_suggestion(self):
+        self.offer(self.req, self.new)
+        mine = _hour(50)
+        resp = self.client_api.post(f"/api/client/appointments/{self.req.id}/reschedule/",
+                                    {"action": "change", "scheduled_at": mine.isoformat()}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.req.refresh_from_db()
+        self.assertEqual((self.req.status, self.req.scheduled_at), ("pending", mine))
+        self.assertEqual(self.req.reschedule_proposals.get().status, RescheduleProposal.Status.DECLINED)
+
+    def test_unanswered_suggestion_expires_and_the_request_stays(self):
+        self.offer(self.req, self.new)
+        RescheduleProposal.objects.update(expires_at=timezone.now() - timedelta(minutes=1))
+        expire_unpaid_appointments()
+        self.req.refresh_from_db()
+        self.assertEqual((self.req.status, self.req.scheduled_at), ("pending", self.original))
+        self.assertEqual(self.req.reschedule_proposals.get().status, RescheduleProposal.Status.EXPIRED)
+
+    def test_the_suggested_slot_is_held(self):
+        from .reschedule import held_intervals
+
+        self.offer(self.req, self.new)
+        self.assertEqual([s for s, _ in held_intervals(rnd_id=self.rnd.id)], [self.new])

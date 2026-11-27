@@ -43,13 +43,30 @@ def end_of(appointment):
     return appointment.scheduled_at + timedelta(minutes=appointment.duration_minutes or DEFAULT_SESSION_MINUTES)
 
 
-def join_window(appointment):
+def room_opens_at(appointment):
+    """When the consultation room opens: 15 minutes before the start (a day before in demo mode).
+    An in-person visit's room opens from the start of its day in Philippine time (2026-11-27, user's
+    call: a client who arrives early can be seen, and the RND can start the NCP, right away)."""
+    from datetime import datetime, time
+
+    from core.ph_time import PH_TZ
+
     from .demo import join_early_minutes
+
+    start = appointment.scheduled_at
+    opens = start - timedelta(minutes=join_early_minutes())
+    if appointment.type == Appointment.Type.IN_PERSON:
+        day_start = datetime.combine(start.astimezone(PH_TZ).date(), time.min, tzinfo=PH_TZ)
+        opens = min(opens, day_start)
+    return opens
+
+
+def join_window(appointment):
     from .serializers import DEFAULT_SESSION_MINUTES, JOIN_LATE_MINUTES
 
     start = appointment.scheduled_at
     end = start + timedelta(minutes=appointment.duration_minutes or DEFAULT_SESSION_MINUTES)
-    return start - timedelta(minutes=join_early_minutes()), end + timedelta(minutes=JOIN_LATE_MINUTES)
+    return room_opens_at(appointment), end + timedelta(minutes=JOIN_LATE_MINUTES)
 
 
 def call_access(user, appointment_id, now=None):

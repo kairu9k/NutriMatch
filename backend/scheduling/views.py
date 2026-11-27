@@ -244,6 +244,58 @@ class _RndAppointmentTransitionView(APIView):
         return request.data.get("reason", "")
 
 
+def confirm_booking(appointment):
+    """Confirm a pending booking: the RND confirmed it, or the client accepted the time the RND
+    suggested (scheduling/reschedule.py). Starts the care, issues the invoice (pay before the
+    consultation) and tells the client by notification, email and text."""
+    from billing.services import create_appointment_invoice
+    from communication.services import notify
+
+    from .serializers import deadlines
+
+    appointment.status = Appointment.Status.CONFIRMED
+    appointment.save()
+
+    # Clients book directly (no request/accept step), so confirming their
+    # appointment is what starts the care relationship.
+    relationship = appointment.relationship
+    if relationship.status != RndClientRelationship.Status.ACTIVE:
+        relationship.status = RndClientRelationship.Status.ACTIVE
+        relationship.started_at = timezone.now()
+        relationship.ended_at = None
+        relationship.discharge_reason = None
+        relationship.save(update_fields=["status", "started_at", "ended_at", "discharge_reason", "updated_at"])
+
+    # Video consultations need no room link: the call happens on the room
+    # page itself (scheduling/video_call.py), which checks who may join.
+
+    # Pay before the consultation: the invoice is issued on confirmation.
+    invoice, _ = create_appointment_invoice(appointment)
+    scheduled_str = format_ph_datetime(appointment.scheduled_at)
+    notify(
+        recipient=appointment.relationship.client,
+        notifiable_type="invoice",
+        notifiable_id=invoice.id,
+        subject="Appointment confirmed, payment due",
+        content=(
+            f"RND {appointment.relationship.rnd.full_name} confirmed your "
+            f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
+            f"Pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) any time before {format_ph_short(deadlines(appointment)['pay_by'])} "
+            "(15 minutes before the start), or it is cancelled automatically. Once paid, you can cancel up to 30 minutes before the start. "
+            "If you don't attend, there's no refund."
+        ),
+    )
+    from .emails import email_confirmed
+
+    email_confirmed(appointment, invoice)
+    from communication.sms import text_client
+
+    text_client(appointment.relationship.client,
+                f"RND {appointment.relationship.rnd.full_name} confirmed your consultation on {format_ph_short(appointment.scheduled_at).replace(', ', ' at ', 1)}. "
+                f"Pay P{invoice.amount:,.2f} in the app anytime before {format_ph_short(deadlines(appointment)['pay_by'])}.")
+    return appointment
+
+
 class RndAppointmentConfirmView(_RndAppointmentTransitionView):
     """Confirming a video appointment also provisions the Daily.co room.
     Confirmation still succeeds even if room creation fails — the RND can
@@ -267,7 +319,9 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
         from .demo import confirm_by_minutes
         from .serializers import deadlines
 
-        if appointment.status == Appointment.Status.PENDING and deadlines(appointment)["confirm_by"] <= timezone.now():
+        if appointment.status not in self.from_statuses:
+            raise PermissionDenied(f"Cannot transition appointment from '{appointment.status}' to '{self.to_status}'.")
+        if deadlines(appointment)["confirm_by"] <= timezone.now():
             raise PermissionDenied(f"Requests must be confirmed at least {confirm_by_minutes()} minutes before the start, "
                                    "so this one can't be confirmed now." if confirm_by_minutes()
                                    else "This request's time has started, so it can't be confirmed now.")
@@ -278,51 +332,7 @@ class RndAppointmentConfirmView(_RndAppointmentTransitionView):
             raise PermissionDenied(
                 "Cannot confirm — this client hasn't submitted a pre-consultation screening yet."
             )
-        response = super().patch(request, pk)
-        appointment = get_object_or_404(Appointment, pk=response.data["id"])
-
-        # Clients book directly (no request/accept step), so confirming their
-        # appointment is what starts the care relationship.
-        relationship = appointment.relationship
-        if relationship.status != RndClientRelationship.Status.ACTIVE:
-            relationship.status = RndClientRelationship.Status.ACTIVE
-            relationship.started_at = timezone.now()
-            relationship.ended_at = None
-            relationship.discharge_reason = None
-            relationship.save(update_fields=["status", "started_at", "ended_at", "discharge_reason", "updated_at"])
-
-        # Video consultations need no room link: the call happens on the room
-        # page itself (scheduling/video_call.py), which checks who may join.
-
-        from billing.services import create_appointment_invoice
-        from communication.services import notify
-
-        # Pay before the consultation: the invoice is issued on confirmation.
-        invoice, _ = create_appointment_invoice(appointment)
-        scheduled_str = format_ph_datetime(appointment.scheduled_at)
-        notify(
-            recipient=appointment.relationship.client,
-            notifiable_type="invoice",
-            notifiable_id=invoice.id,
-            subject="Appointment confirmed, payment due",
-            content=(
-                f"RND {appointment.relationship.rnd.full_name} confirmed your "
-                f"{appointment.get_type_display().lower()} consultation for {scheduled_str}. "
-                f"Pay ₱{invoice.amount:,.2f} (INV-{invoice.id:04d}) any time before {format_ph_short(deadlines(appointment)['pay_by'])} "
-                "(15 minutes before the start), or it is cancelled automatically. Once paid, you can cancel up to 30 minutes before the start. "
-                "If you don't attend, there's no refund."
-            ),
-        )
-        from .emails import email_confirmed
-
-        email_confirmed(appointment, invoice)
-        from communication.reminders import _when
-        from communication.sms import text_client
-
-        text_client(appointment.relationship.client,
-                    f"RND {appointment.relationship.rnd.full_name} confirmed your consultation on {format_ph_short(appointment.scheduled_at).replace(', ', ' at ', 1)}. "
-                    f"Pay P{invoice.amount:,.2f} in the app anytime before {format_ph_short(deadlines(appointment)['pay_by'])}.")
-
+        confirm_booking(appointment)
         return Response(AppointmentSerializer(appointment, context={"request": request}).data)
 
 
